@@ -41,7 +41,6 @@ vvc@hhi.fraunhofer.de
 ------------------------------------------------------------------------------------------- */
 
 #include <string>
-#include <thread>
 
 #ifdef _WIN32
     #include <intrin.h>
@@ -79,13 +78,8 @@ int VVDecImpl::init( const VVDecParameter& rcVVDecParameter )
 
   initROM();
 
-  int iLogicalCpuCount = std::thread::hardware_concurrency();
-
-  int iNumThreads = (rcVVDecParameter.m_iThreads <= 0 )           ? iLogicalCpuCount : rcVVDecParameter.m_iThreads;
-  int iNumThreadsParse = (rcVVDecParameter.m_iParseThreads <= 0 ) ? iLogicalCpuCount : rcVVDecParameter.m_iParseThreads;
-
   // create decoder class
-  m_cDecLib.create( iNumThreads, iNumThreadsParse );
+  m_cDecLib.create( rcVVDecParameter.m_iThreads, rcVVDecParameter.m_iParseThreads );
 
   g_verbosity = MsgLevel( rcVVDecParameter.m_eLogLevel );
 
