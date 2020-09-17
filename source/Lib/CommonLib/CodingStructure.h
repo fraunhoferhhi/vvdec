@@ -208,11 +208,5 @@ public:
   const CPelUnitBuf   getPredBuf(const CodingUnit &cu) const;
 };
 
-#if JVET_Q0438_MONOCHROME_BUGFIXES
-static inline uint32_t getNumberValidTBlocks( const PreCalcValues& pcv )
-{
-  return ( pcv.chrFormat == CHROMA_400 ) ? 1 : MAX_NUM_COMPONENT;
-}
-#endif
 #endif
 

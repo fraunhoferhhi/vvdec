@@ -95,7 +95,6 @@ class ReferencePictureList
 private:
   int   m_numberOfShorttermPictures = 0;
   int   m_numberOfLongtermPictures  = 0;
-  int   m_numberOfActivePictures    = MAX_INT;
   int   m_isLongtermRefPic      [MAX_NUM_REF_PICS];
   int   m_refPicIdentifier      [MAX_NUM_REF_PICS];   // This can be delta POC for STRP or POC LSB for LTRP
   int   m_POC                   [MAX_NUM_REF_PICS];
@@ -128,9 +127,6 @@ public:
 
   void    setPOC(int idx, int POC);
   int     getPOC(int idx) const;
-
-  void    setNumberOfActivePictures(int numberOfLtrp);
-  int     getNumberOfActivePictures() const;
 
   int     getDeltaPocMSBCycleLT(int i) const       { return m_deltaPOCMSBCycleLT[i]; }
   void    setDeltaPocMSBCycleLT(int i, int x)      { m_deltaPOCMSBCycleLT[i] = x; }
@@ -3307,21 +3303,11 @@ public:
     , minCUHeight         ( 1 << MIN_CU_LOG2 )
     , minCUWidthLog2      ( getLog2( minCUWidth  ) )
     , minCUHeightLog2     ( getLog2( minCUHeight ) )
-    , partsInCtuWidth     ( maxCUWidth >> MIN_CU_LOG2)
-    , partsInCtuHeight    ( maxCUHeight >> MIN_CU_LOG2)
-    , partsInCtu          ( partsInCtuWidth * partsInCtuHeight )
     , widthInCtus         ( (pps.getPicWidthInLumaSamples () + sps.getMaxCUWidth () - 1) / sps.getMaxCUWidth () )
     , heightInCtus        ( (pps.getPicHeightInLumaSamples() + sps.getMaxCUHeight() - 1) / sps.getMaxCUHeight() )
     , sizeInCtus          ( widthInCtus * heightInCtus )
     , lumaWidth           ( pps.getPicWidthInLumaSamples() )
     , lumaHeight          ( pps.getPicHeightInLumaSamples() )
-    , ISingleTree         ( !sps.getUseDualITree() )
-    , maxBtDepth          { sps.getMaxBTDepthI(), sps.getMaxBTDepth(), sps.getMaxBTDepthIChroma() }
-    , minBtSize           { 1u << sps.getLog2MinCodingBlockSize(), 1u << sps.getLog2MinCodingBlockSize(), 1u << sps.getLog2MinCodingBlockSize() }
-    , maxBtSize           { sps.getMaxBTSizeI(), sps.getMaxBTSize(), sps.getMaxBTSizeIChroma() }
-    , minTtSize           { 1u << sps.getLog2MinCodingBlockSize(), 1u << sps.getLog2MinCodingBlockSize(), 1u << sps.getLog2MinCodingBlockSize() }
-    , maxTtSize           { sps.getMaxTTSizeI(), sps.getMaxTTSize(), sps.getMaxTTSizeIChroma() }
-    , minQtSize           { sps.getMinQTSize(I_SLICE, CHANNEL_TYPE_LUMA), sps.getMinQTSize(B_SLICE, CHANNEL_TYPE_LUMA), sps.getMinQTSize(I_SLICE, CHANNEL_TYPE_CHROMA) }
   {}
 
   const ChromaFormat chrFormat;
@@ -3336,33 +3322,11 @@ public:
   const unsigned     minCUHeight;
   const unsigned     minCUWidthLog2;
   const unsigned     minCUHeightLog2;
-  const unsigned     partsInCtuWidth;
-  const unsigned     partsInCtuHeight;
-  const unsigned     partsInCtu;
   const unsigned     widthInCtus;
   const unsigned     heightInCtus;
   const unsigned     sizeInCtus;
   const unsigned     lumaWidth;
   const unsigned     lumaHeight;
-  const bool         ISingleTree;
-
-private:
-  const unsigned     maxBtDepth[3];
-  const unsigned     minBtSize [3];
-  const unsigned     maxBtSize [3];
-  const unsigned     minTtSize [3];
-  const unsigned     maxTtSize [3];
-  const unsigned     minQtSize [3];
-
-  unsigned getValIdx    ( const Slice &slice, const ChannelType chType ) const;
-
-public:
-  unsigned getMaxBtDepth( const Slice &slice, const ChannelType chType ) const;
-  unsigned getMinBtSize ( const Slice &slice, const ChannelType chType ) const;
-  unsigned getMaxBtSize ( const Slice &slice, const ChannelType chType ) const;
-  unsigned getMinTtSize ( const Slice &slice, const ChannelType chType ) const;
-  unsigned getMaxTtSize ( const Slice &slice, const ChannelType chType ) const;
-  unsigned getMinQtSize ( const Slice &slice, const ChannelType chType ) const;
 };
 
 struct LevelTierFeatures

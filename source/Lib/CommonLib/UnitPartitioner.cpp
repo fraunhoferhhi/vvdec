@@ -179,16 +179,42 @@ void Partitioner::initCtu( const UnitArea& ctuArea, const ChannelType _chType, c
   modeType = MODE_TYPE_ALL;
 
   setNeighborCu( m_partStack.back(), *this, cs );
-  maxBTD    = cs.pcv->getMaxBtDepth( *cs.slice, chType );
-  maxBtSize = cs.pcv->getMaxBtSize ( *cs.slice, chType );
-  minBtSize = cs.pcv->getMinBtSize ( *cs.slice, chType );
-  maxTtSize = cs.pcv->getMaxTtSize ( *cs.slice, chType );
-  minTtSize = cs.pcv->getMinTtSize ( *cs.slice, chType );
-  minQtSize = cs.pcv->getMinQtSize ( *cs.slice, chType );
-  maxTrSize = cs.sps->getMaxTbSize();
 
-  //return cs.slice->isIRAP() && !cs.pcv->ISingleTree;
-  isDualITree = cs.slice->isIRAP() && !cs.slice->getPPS()->pcv->ISingleTree;
+  const SPS& sps = *cs.sps;
+
+  isDualITree = cs.slice->isIRAP() && cs.slice->getSPS()->getUseDualITree();
+
+  const int valIdx = cs.slice->isIRAP() ? ( _chType << 1 ) : 1;
+
+  const unsigned minBtSizeArr[] = { 1u << sps.getLog2MinCodingBlockSize(), 1u << sps.getLog2MinCodingBlockSize(), 1u << sps.getLog2MinCodingBlockSize() };
+  const unsigned minTtSizeArr[] = { 1u << sps.getLog2MinCodingBlockSize(), 1u << sps.getLog2MinCodingBlockSize(), 1u << sps.getLog2MinCodingBlockSize() };
+
+  minBtSize = minBtSizeArr[valIdx];
+  minTtSize = minTtSizeArr[valIdx];
+
+  if( cs.picHeader->getSplitConsOverrideFlag() )
+  {
+    const Slice& slice = *cs.slice;
+
+    maxBTD    = slice.getPicHeader()->getMaxMTTHierarchyDepth( slice.getSliceType(), _chType );
+    maxBtSize = slice.getPicHeader()->getMaxBTSize( slice.getSliceType(), _chType );
+    maxTtSize = slice.getPicHeader()->getMaxTTSize( slice.getSliceType(), _chType );
+    minQtSize = slice.getPicHeader()->getMinQTSize( slice.getSliceType(), _chType );
+  }
+  else
+  {
+    const unsigned maxBtDepthArr[] = { sps.getMaxBTDepthI(), sps.getMaxBTDepth(), sps.getMaxBTDepthIChroma() };
+    const unsigned maxBtSizeArr[]  = { sps.getMaxBTSizeI(), sps.getMaxBTSize(), sps.getMaxBTSizeIChroma() };
+    const unsigned maxTtSizeArr[]  = { sps.getMaxTTSizeI(), sps.getMaxTTSize(), sps.getMaxTTSizeIChroma() };
+    const unsigned minQtSizeArr[]  = { sps.getMinQTSize( I_SLICE, CHANNEL_TYPE_LUMA ), sps.getMinQTSize( B_SLICE, CHANNEL_TYPE_LUMA ), sps.getMinQTSize( I_SLICE, CHANNEL_TYPE_CHROMA ) };
+
+    maxBTD    = maxBtDepthArr[valIdx];
+    maxBtSize = maxBtSizeArr [valIdx];
+    maxTtSize = maxTtSizeArr [valIdx];
+    minQtSize = minQtSizeArr [valIdx];
+  }
+
+  maxTrSize = cs.sps->getMaxTbSize();
 }
 
 void Partitioner::splitCurrArea( const PartSplit split, const CodingStructure& cs )

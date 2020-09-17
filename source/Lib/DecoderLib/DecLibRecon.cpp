@@ -441,7 +441,10 @@ void DecLibRecon::decompressPicture( Picture* pcPic )
     {
       ITT_TASKSTART( itt_domain_dec, itt_handle_dmvr );
       auto& cs = *param->common.cs;
-      param->common.decLib.m_cCuDecoder[tid].TaskDeriveDMVRMotionInfo( cs, getLineArea( cs, param->line, true ) );
+      for( int col = 0; col < cs.pcv->widthInCtus; col++ )
+      {
+        param->common.decLib.m_cCuDecoder[tid].TaskDeriveDMVRMotionInfo( cs, getCtuArea( cs, col, param->line, true ) );
+      }
       ITT_TASKEND( itt_domain_dec, itt_handle_dmvr );
       return true;
     };
