@@ -57,7 +57,7 @@ vvc@hhi.fraunhofer.de
 
 bool CS::isDualITree( const CodingStructure &cs )
 {
-  return cs.slice->isIRAP() && !cs.pcv->ISingleTree;
+  return cs.slice->isIRAP() && cs.sps->getUseDualITree();
 }
 
 

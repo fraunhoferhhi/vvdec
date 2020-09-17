@@ -170,7 +170,7 @@ void offsetBlock_SIMD( const int            channelBitDepth,
       {
         for (x=0; x< width; x+=16)
         {
-          vsrc = _mm256_load_si256((__m256i*)&srcLine[x]);
+          vsrc = _mm256_loadu_si256((__m256i*)&srcLine[x]);
           __m256i bands = _mm256_srai_epi16(vsrc, shiftBits);
           bands = _mm256_sub_epi16(bands, vbaseoffset);
           __m256i mask1 = _mm256_cmpgt_epi16(bands,vminus);
@@ -207,7 +207,7 @@ void offsetBlock_SIMD( const int            channelBitDepth,
       {
         for (x=0; x< width; x+=8)
         {
-          vsrc = _mm_load_si128((__m128i*)&srcLine[x]);
+          vsrc = _mm_loadu_si128((__m128i*)&srcLine[x]);
           __m128i bands = _mm_srai_epi16(vsrc, shiftBits);
           bands = _mm_sub_epi16(bands, vbaseoffset);
           __m128i mask1 = _mm_cmpgt_epi16(bands,vminus);
@@ -280,7 +280,7 @@ void offsetBlock_SIMD( const int            channelBitDepth,
         {
               for (x=0; x< width; x+=16)
               {
-                vsrca = _mm256_load_si256((__m256i*)&srcLine[x]);
+                vsrca = _mm256_loadu_si256((__m256i*)&srcLine[x]);
                 vsrcal = _mm256_loadu_si256((__m256i*)&srcLine[x-1]);
                 vsrcar = _mm256_loadu_si256((__m256i*)&srcLine[x+1]);
                 virBmask = _mm256_loadu_si256((__m256i*)&bndmask[x]);
@@ -311,7 +311,7 @@ void offsetBlock_SIMD( const int            channelBitDepth,
             {
           for (x=0; x< width; x+=16)
           {
-            vsrca = _mm256_load_si256((__m256i*)&srcLine[x]);
+            vsrca = _mm256_loadu_si256((__m256i*)&srcLine[x]);
             vsrcal = _mm256_loadu_si256((__m256i*)&srcLine[x-1]);
             vsrcar = _mm256_loadu_si256((__m256i*)&srcLine[x+1]);
             vsrcal = _mm256_sub_epi16(vsrca, vsrcal);
@@ -348,7 +348,7 @@ void offsetBlock_SIMD( const int            channelBitDepth,
             {
               for (x=0; x< width; x+=8)
               {
-                vsrca = _mm_load_si128((__m128i*)&srcLine[x]);
+                vsrca = _mm_loadu_si128((__m128i*)&srcLine[x]);
                 vsrcal = _mm_loadu_si128((__m128i*)&srcLine[x-1]);
                 vsrcar = _mm_loadu_si128((__m128i*)&srcLine[x+1]);
                 virBmask = _mm_loadu_si128((__m128i*)&bndmask[x]);
@@ -378,7 +378,7 @@ void offsetBlock_SIMD( const int            channelBitDepth,
         {
           for (x=0; x< width; x+=8)
           {
-            vsrca = _mm_load_si128((__m128i*)&srcLine[x]);
+            vsrca = _mm_loadu_si128((__m128i*)&srcLine[x]);
             vsrcal = _mm_loadu_si128((__m128i*)&srcLine[x-1]);
             vsrcar = _mm_loadu_si128((__m128i*)&srcLine[x+1]);
             vsrcal = _mm_sub_epi16(vsrca, vsrcal);
@@ -473,7 +473,7 @@ void offsetBlock_SIMD( const int            channelBitDepth,
             {
         for (x=0; x< width; x+=16)
         {
-          vsrca = _mm256_load_si256((__m256i*)&srcLine[x]);
+          vsrca = _mm256_loadu_si256((__m256i*)&srcLine[x]);
           vsrcat = _mm256_loadu_si256((__m256i*)&srcLineAbove[x]);
           vsrcab = _mm256_loadu_si256((__m256i*)&srcLineBelow[x]);
           vsrcat = _mm256_sub_epi16(vsrca, vsrcat);
@@ -503,7 +503,7 @@ void offsetBlock_SIMD( const int            channelBitDepth,
       {
         for (x=0; x< width; x+=16)
         {
-          vsrca = _mm256_load_si256((__m256i*)&srcLine[x]);
+          vsrca = _mm256_loadu_si256((__m256i*)&srcLine[x]);
           vsrcat = _mm256_loadu_si256((__m256i*)&srcLineAbove[x]);
           vsrcab = _mm256_loadu_si256((__m256i*)&srcLineBelow[x]);
           vsrcat = _mm256_sub_epi16(vsrca, vsrcat);
@@ -545,7 +545,7 @@ void offsetBlock_SIMD( const int            channelBitDepth,
             {
               for (x=0; x< width; x+=8)
               {
-                vsrca = _mm_load_si128((__m128i*)&srcLine[x]);
+                vsrca = _mm_loadu_si128((__m128i*)&srcLine[x]);
                 vsrcat = _mm_loadu_si128((__m128i*)&srcLineAbove[x]);
                 vsrcab = _mm_loadu_si128((__m128i*)&srcLineBelow[x]);
                 vsrcat = _mm_sub_epi16(vsrca, vsrcat);
@@ -575,7 +575,7 @@ void offsetBlock_SIMD( const int            channelBitDepth,
       {
         for (x=0; x< width; x+=8)
         {
-          vsrca = _mm_load_si128((__m128i*)&srcLine[x]);
+          vsrca = _mm_loadu_si128((__m128i*)&srcLine[x]);
           vsrcat = _mm_loadu_si128((__m128i*)&srcLineAbove[x]);
           vsrcab = _mm_loadu_si128((__m128i*)&srcLineBelow[x]);
           vsrcat = _mm_sub_epi16(vsrca, vsrcat);
@@ -644,7 +644,7 @@ void offsetBlock_SIMD( const int            channelBitDepth,
             {
           for (x=0; x< width; x+=16)
           {
-            vsrca = _mm256_load_si256((__m256i*)&srcLine[x]);
+            vsrca = _mm256_loadu_si256((__m256i*)&srcLine[x]);
             vsrcat = _mm256_loadu_si256((__m256i*)&srcLineAbove[x-1]);
             vsrcab = _mm256_loadu_si256((__m256i*)&srcLineBelow[x+1]);
                 virBmask = _mm256_loadu_si256((__m256i*)&bndmask[x]);
@@ -688,7 +688,7 @@ void offsetBlock_SIMD( const int            channelBitDepth,
             {
           for (x=0; x< width; x+=8)
           {
-            vsrca = _mm_load_si128((__m128i*)&srcLine[x]);
+            vsrca = _mm_loadu_si128((__m128i*)&srcLine[x]);
             vsrcat = _mm_loadu_si128((__m128i*)&srcLineAbove[x-1]);
             vsrcab = _mm_loadu_si128((__m128i*)&srcLineBelow[x+1]);
                 virBmask = _mm_loadu_si128((__m128i*)&bndmask[x]);
@@ -903,7 +903,7 @@ void offsetBlock_SIMD( const int            channelBitDepth,
           for (x=0; x< width; x+=16)
           {
                 virBmask = _mm256_loadu_si256((__m256i*)&bndmask[x]);
-            vsrca = _mm256_load_si256((__m256i*)&srcLine[x]);
+            vsrca = _mm256_loadu_si256((__m256i*)&srcLine[x]);
             vsrcat = _mm256_loadu_si256((__m256i*)&srcLineAbove[x+1]);
             vsrcab = _mm256_loadu_si256((__m256i*)&srcLineBelow[x-1]);
 
@@ -946,7 +946,7 @@ void offsetBlock_SIMD( const int            channelBitDepth,
             {
           for (x=0; x< width; x+=8)
           {
-            vsrca = _mm_load_si128((__m128i*)&srcLine[x]);
+            vsrca = _mm_loadu_si128((__m128i*)&srcLine[x]);
             vsrcat = _mm_loadu_si128((__m128i*)&srcLineAbove[x+1]);
                 virBmask = _mm_loadu_si128((__m128i*)&bndmask[x]);
 

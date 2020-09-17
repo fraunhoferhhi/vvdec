@@ -476,7 +476,9 @@ void HLSyntaxReader::parsePPS( PPS* pcPPS, ParameterSetManager *parameterSetMana
       int32_t tileIdx = 0;
 
       READ_UVLC( uiCode, "num_slices_in_pic_minus1" );                pcPPS->setNumSlicesInPic( uiCode + 1 );
+#if !DISABLE_FEATURE_CHECKS
       CHECK(pcPPS->getNumSlicesInPic() > 1,                           "more than one slice in picture not supported yet");
+#endif
       CHECK(pcPPS->getNumSlicesInPic() > MAX_SLICES,                  "Number of slices in picture exceeds valid range");
 
       if( (pcPPS->getNumSlicesInPic() - 1) > 0 )

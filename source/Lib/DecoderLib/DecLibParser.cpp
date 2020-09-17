@@ -439,7 +439,9 @@ DecLibParser::SliceHeadResult DecLibParser::xDecodeSliceHead( InputNALUnit& nalu
     uiIndependentSliceIdx = m_pcParsePic->slices[m_uiSliceSegmentIdx-1]->getIndependentSliceIdx();
     uiIndependentSliceIdx++;
     
-    CHECK( true, "more than one slice in picture not supported yet");
+#if !DISABLE_FEATURE_CHECKS
+    THROW( "more than one slice in picture not supported yet");
+#endif
   }
   m_apcSlicePilot->setIndependentSliceIdx(uiIndependentSliceIdx);
 
@@ -573,7 +575,7 @@ DecLibParser::SliceHeadResult DecLibParser::xDecodeSliceHead( InputNALUnit& nalu
     msg( WARNING, "Warning, the first slice of a picture might have been lost!\n");
   }
   m_prevLayerID = nalu.m_nuhLayerId;
-  
+
   //detect lost reference picture and insert copy of earlier frame.
   {
     int lostPoc = MAX_INT;
@@ -592,15 +594,15 @@ DecLibParser::SliceHeadResult DecLibParser::xDecodeSliceHead( InputNALUnit& nalu
           if (m_apcSlicePilot->getRPL0()->isInterLayerRefPic(refPicIndex) == 0)
           {
 #if JVET_S0124_UNAVAILABLE_REFERENCE
-            m_parseFrameList.push_back( prepareUnavailablePicture( pps, lostPoc - 1, m_apcSlicePilot->getNalUnitLayerId(), m_apcSlicePilot->getRPL0()->isRefPicLongterm(refPicIndex), m_apcSlicePilot->getTLayer() ) );   // -1 because checkThatAllRefPicsAreAvailable() returns iPocLost+1
+            m_parseFrameList.push_back( prepareUnavailablePicture( pps, lostPoc - 1, m_apcSlicePilot->getPic()->layerId, m_apcSlicePilot->getRPL0()->isRefPicLongterm(refPicIndex), m_apcSlicePilot->getPic()->layer ) );   // -1 because checkThatAllRefPicsAreAvailable() returns iPocLost+1
 #else
-            m_parseFrameList.push_back( prepareUnavailablePicture( lostPoc - 1, m_apcSlicePilot->getNalUnitLayerId(), m_apcSlicePilot->getRPL0()->isRefPicLongterm(refPicIndex) ) );   // -1 because checkThatAllRefPicsAreAvailable() returns iPocLost+1
+            m_parseFrameList.push_back( prepareUnavailablePicture( lostPoc - 1, m_apcSlicePilot->getPic()->layerId, m_apcSlicePilot->getRPL0()->isRefPicLongterm(refPicIndex) ) );   // -1 because checkThatAllRefPicsAreAvailable() returns iPocLost+1
 #endif
           }
         }
         else
         {
-          m_parseFrameList.push_back( prepareLostPicture( lostPoc - 1, m_apcSlicePilot->getNalUnitLayerId() ) );   // -1 because checkThatAllRefPicsAreAvailable() returns iPocLost+1
+          m_parseFrameList.push_back( prepareLostPicture( lostPoc - 1, m_apcSlicePilot->getPic()->layerId ) );   // -1 because checkThatAllRefPicsAreAvailable() returns iPocLost+1
         }
       }
     }
@@ -619,15 +621,15 @@ DecLibParser::SliceHeadResult DecLibParser::xDecodeSliceHead( InputNALUnit& nalu
           if (m_apcSlicePilot->getRPL1()->isInterLayerRefPic(refPicIndex) == 0)
           {
 #if JVET_S0124_UNAVAILABLE_REFERENCE
-            m_parseFrameList.push_back( prepareUnavailablePicture( pps, lostPoc - 1, m_apcSlicePilot->getNalUnitLayerId(), m_apcSlicePilot->getRPL1()->isRefPicLongterm(refPicIndex), m_apcSlicePilot->getTLayer() ) );   // -1 because checkThatAllRefPicsAreAvailable() returns iPocLost+1
+            m_parseFrameList.push_back( prepareUnavailablePicture( pps, lostPoc - 1, m_apcSlicePilot->getPic()->layerId, m_apcSlicePilot->getRPL1()->isRefPicLongterm(refPicIndex), m_apcSlicePilot->getPic()->layer ) );   // -1 because checkThatAllRefPicsAreAvailable() returns iPocLost+1
 #else
-            m_parseFrameList.push_back( prepareUnavailablePicture( lostPoc - 1, m_apcSlicePilot->getNalUnitLayerId(), m_apcSlicePilot->getRPL1()->isRefPicLongterm(refPicIndex) ) );   // -1 because checkThatAllRefPicsAreAvailable() returns iPocLost+1
+            m_parseFrameList.push_back( prepareUnavailablePicture( lostPoc - 1, m_apcSlicePilot->getPic()->layerId, m_apcSlicePilot->getRPL1()->isRefPicLongterm(refPicIndex) ) );   // -1 because checkThatAllRefPicsAreAvailable() returns iPocLost+1
 #endif
           }
         }
         else
         {
-          m_parseFrameList.push_back( prepareLostPicture( lostPoc - 1, m_apcSlicePilot->getNalUnitLayerId() ) );   // -1 because checkThatAllRefPicsAreAvailable() returns iPocLost+1
+          m_parseFrameList.push_back( prepareLostPicture( lostPoc - 1, m_apcSlicePilot->getPic()->layerId ) );   // -1 because checkThatAllRefPicsAreAvailable() returns iPocLost+1
         }
       }
     }
@@ -1010,7 +1012,14 @@ Slice*  DecLibParser::xDecodeSliceMain( InputNALUnit &nalu )
 
   if( m_threadPool && m_threadPool->numThreads() > 1 )
   {
-    m_threadPool->addBarrierTask<Slice>( parseTask, pcSlice, nullptr, &pcSlice->parseDone );
+    if( m_uiSliceSegmentIdx > 0 )
+    {
+      m_threadPool->addBarrierTask<Slice>( parseTask, pcSlice, nullptr, &pcSlice->parseDone, CBarrierVec{ &pcSlice->getPic()->slices[m_uiSliceSegmentIdx - 1]->parseDone } );
+    }
+    else
+    {
+      m_threadPool->addBarrierTask<Slice>( parseTask, pcSlice, nullptr, &pcSlice->parseDone );
+    }
   }
   else  // run on main thread (still go through std::async to create the future)
   {
