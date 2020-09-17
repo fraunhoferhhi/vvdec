@@ -75,6 +75,11 @@ endif()
 
 add_library( ${LIB_NAME} ${SRC_FILES} ${INC_FILES} ${NATVIS_FILES} )
 
+# add lib prefix for windows static libs
+if( MSVC AND NOT BUILD_SHARED_LIBS )
+  set_target_properties( ${LIB_NAME} PROPERTIES PREFIX "lib" )
+endif()
+
 target_compile_definitions( ${LIB_NAME} PRIVATE ${LIB_NAME_UC}_SOURCE )
 target_compile_definitions( ${LIB_NAME} PUBLIC $<$<AND:$<PLATFORM_ID:Windows>,$<STREQUAL:$<TARGET_PROPERTY:${LIB_NAME},TYPE>,SHARED_LIBRARY>>:${LIB_NAME_UC}_DYN_LINK> )
 
