@@ -77,28 +77,11 @@ void DecSlice::parseSlice( Slice* slice, InputBitstream* bitstream, int threadId
 
   // setup coding structure
   CodingStructure& cs = *pic->cs;
-  
-  //// CHECK NO-OP: We can probably remove the setting of parameter sets in cs
-  //CHECK( cs.sps.get()     != sps,                                 "REALLY NEEDED?" );
-  //CHECK( cs.pps.get()     != slice->getPPS(),                     "REALLY NEEDED?" );
-  //CHECK( cs.lmcsAps.get() != slice->getPicHeader()->getLmcsAPS(), "REALLY NEEDED?" );
-  //
-  //cs.slice            = slice;
-  //cs.sps              = sps ? sps->getSharedPtr() : nullptr;
-  //cs.pps              = slice->getPPS()? slice->getPPS()->getSharedPtr(): nullptr;
-  //APS** sliceAlfAPSs = slice->getAlfAPSs();
-  //
-  //for( int i = 0; i < ALF_CTB_MAX_NUM_APS; ++i )
-  //{
-  //  cs.alfApss[i] = sliceAlfAPSs[i] ? sliceAlfAPSs[i]->getSharedPtr() : nullptr;
-  //}
-  //
-  //cs.lmcsAps          = slice->getPicHeader()->getLmcsAPS() ? slice->getPicHeader()->getLmcsAPS()->getSharedPtr() : nullptr;
-  //cs.pcv              = slice->getPPS()->pcv;
+  cs.slice            = slice;
   cs.chromaQpAdj      = 0;
 
-  const int       startCtuTsAddr          = slice->getFirstCtuRsAddrInSlice();
-  const unsigned  widthInCtus             = cs.pcv->widthInCtus;
+  const int       startCtuTsAddr              = slice->getFirstCtuRsAddrInSlice();
+  const unsigned  widthInCtus                 = cs.pcv->widthInCtus;
   const bool      wavefrontsEnabled           = cs.sps->getEntropyCodingSyncEnabledFlag();
 #if JVET_R0165_OPTIONAL_ENTRY_POINT
   const bool      entryPointPresent           = cs.sps->getEntryPointsPresentFlag();
@@ -108,13 +91,13 @@ void DecSlice::parseSlice( Slice* slice, InputBitstream* bitstream, int threadId
 
   if( startCtuTsAddr == 0 )
   {
-    cs.picture->resizeSAO(cs.pcv->sizeInCtus, 0);
+    cs.picture->resizeSAO               ( cs.pcv->sizeInCtus, 0 );
 
     cs.picture->resizeccAlfFilterControl( cs.pcv->sizeInCtus );
   
-    cs.picture->resizeAlfCtuEnableFlag( cs.pcv->sizeInCtus );
-    cs.picture->resizeAlfCtbFilterIndex( cs.pcv->sizeInCtus );
-    cs.picture->resizeAlfCtuAlternative( cs.pcv->sizeInCtus );
+    cs.picture->resizeAlfCtuEnableFlag  ( cs.pcv->sizeInCtus );
+    cs.picture->resizeAlfCtbFilterIndex ( cs.pcv->sizeInCtus );
+    cs.picture->resizeAlfCtuAlternative ( cs.pcv->sizeInCtus );
   }
 
   CABACDecoder cabacDecoder;
@@ -129,7 +112,8 @@ void DecSlice::parseSlice( Slice* slice, InputBitstream* bitstream, int threadId
   }
 
   // Quantization parameter
-    pic->m_prevQP[0] = pic->m_prevQP[1] = slice->getSliceQp();
+  pic->m_prevQP[0] = pic->m_prevQP[1] = slice->getSliceQp();
+
   CHECK( pic->m_prevQP[0] == std::numeric_limits<int>::max(), "Invalid previous QP" );
 
   DTRACE( g_trace_ctx, D_HEADER, "=========== POC: %d ===========\n", slice->getPOC() );
@@ -138,8 +122,8 @@ void DecSlice::parseSlice( Slice* slice, InputBitstream* bitstream, int threadId
   for( unsigned ctuIdx = 0; ctuIdx < slice->getNumCtuInSlice(); ctuIdx++ )
   {
     const unsigned  ctuRsAddr       = slice->getCtuAddrInSlice(ctuIdx);
-    const unsigned  ctuXPosInCtus         = ctuRsAddr % widthInCtus;
-    const unsigned  ctuYPosInCtus         = ctuRsAddr / widthInCtus;
+    const unsigned  ctuXPosInCtus   = ctuRsAddr % widthInCtus;
+    const unsigned  ctuYPosInCtus   = ctuRsAddr / widthInCtus;
     const unsigned  tileColIdx      = slice->getPPS()->ctuToTileCol( ctuXPosInCtus );
     const unsigned  tileRowIdx      = slice->getPPS()->ctuToTileRow( ctuYPosInCtus );
     const unsigned  tileXPosInCtus  = slice->getPPS()->getTileColumnBd( tileColIdx );
@@ -147,7 +131,7 @@ void DecSlice::parseSlice( Slice* slice, InputBitstream* bitstream, int threadId
     const unsigned  tileColWidth    = slice->getPPS()->getTileColumnWidth( tileColIdx );
     const unsigned  tileRowHeight   = slice->getPPS()->getTileRowHeight( tileRowIdx );
     const unsigned  tileIdx         = slice->getPPS()->getTileIdx( ctuXPosInCtus, ctuYPosInCtus);
-    const unsigned  maxCUSize             = sps->getMaxCUWidth();
+    const unsigned  maxCUSize       = sps->getMaxCUWidth();
     Position pos( ctuXPosInCtus*maxCUSize, ctuYPosInCtus*maxCUSize) ;
     UnitArea ctuArea(cs.area.chromaFormat, Area( pos.x, pos.y, maxCUSize, maxCUSize ) );
 #if JVET_O1143_MV_ACROSS_SUBPIC_BOUNDARY
@@ -159,7 +143,7 @@ void DecSlice::parseSlice( Slice* slice, InputBitstream* bitstream, int threadId
       int subPicY      = (int)curSubPic.getSubPicTop();
       int subPicWidth  = (int)curSubPic.getSubPicWidthInLumaSample();
       int subPicHeight = (int)curSubPic.getSubPicHeightInLumaSample();
-      for (int rlist = REF_PIC_LIST_0; rlist < NUM_REF_PIC_LIST_01; rlist++) 
+      for( int rlist = REF_PIC_LIST_0; rlist < NUM_REF_PIC_LIST_01; rlist++ )
       {
         int n = slice->getNumRefIdx((RefPicList)rlist);
         for (int idx = 0; idx < n; idx++) 
@@ -175,9 +159,9 @@ void DecSlice::parseSlice( Slice* slice, InputBitstream* bitstream, int threadId
           if (!refPic->getSubPicSaved()) 
 #endif
           {
-            refPic->saveSubPicBorder(refPic->getPOC(), subPicX, subPicY, subPicWidth, subPicHeight);
-            refPic->extendSubPicBorder(refPic->getPOC(), subPicX, subPicY, subPicWidth, subPicHeight);
-            refPic->setSubPicSaved(true);
+            refPic->saveSubPicBorder  ( refPic->getPOC(), subPicX, subPicY, subPicWidth, subPicHeight );
+            refPic->extendSubPicBorder( refPic->getPOC(), subPicX, subPicY, subPicWidth, subPicHeight );
+            refPic->setSubPicSaved    ( true) ;
           }
         }
       }
@@ -212,9 +196,10 @@ void DecSlice::parseSlice( Slice* slice, InputBitstream* bitstream, int threadId
     }
 
     bool updateBcwCodingOrder = cs.slice->getSliceType() == B_SLICE && ctuIdx == 0;
-    if(updateBcwCodingOrder)
+
+    if( updateBcwCodingOrder )
     {
-      resetBcwCodingOrder(true, cs);
+      resetBcwCodingOrder( true, cs );
     }
 
     cabacReader.coding_tree_unit( cs, ctuArea, pic->m_prevQP, ctuRsAddr );
