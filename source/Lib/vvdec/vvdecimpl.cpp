@@ -56,7 +56,7 @@ vvc@hhi.fraunhofer.de
 #include "DecoderLib/NALread.h"
 
 namespace vvdec {
-	
+  
 
 std::string VVDecImpl::m_cTmpErrorString;
 std::string VVDecImpl::m_cNalType;
@@ -584,7 +584,7 @@ const char* VVDecImpl::getVersionNumber()
 
 const char* VVDecImpl::getDecoderInfo()
 {
-    m_sDecoderInfo  = "Open VVC Decoder ";
+    m_sDecoderInfo  = "Fraunhofer Versatile Video Decoder ";
 //     m_sDecoderInfo += "/";
     m_sDecoderInfo += " version ";
     m_sDecoderInfo += getVersionNumber();

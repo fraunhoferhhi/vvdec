@@ -77,23 +77,24 @@ void DecSlice::parseSlice( Slice* slice, InputBitstream* bitstream, int threadId
 
   // setup coding structure
   CodingStructure& cs = *pic->cs;
-
-  // CHECK NO-OP: We can probably remove the setting of parameter sets in cs
-  CHECK( cs.sps.get()     != sps,                 "REALLY NEEDED?" )
-  CHECK( cs.pps.get()     != slice->getPPS(),     "REALLY NEEDED?" )
-  CHECK( cs.lmcsAps.get() != slice->getPicHeader()->getLmcsAPS(), "REALLY NEEDED?" )
-  cs.slice            = slice;
-  cs.sps              = sps ? sps->getSharedPtr() : nullptr;
-  cs.pps              = slice->getPPS()? slice->getPPS()->getSharedPtr(): nullptr;
-  APS** sliceAlfAPSs = slice->getAlfAPSs();
-
-  for( int i = 0; i < ALF_CTB_MAX_NUM_APS; ++i )
-  {
-    cs.alfApss[i] = sliceAlfAPSs[i] ? sliceAlfAPSs[i]->getSharedPtr() : nullptr;
-  }
-
-  cs.lmcsAps          = slice->getPicHeader()->getLmcsAPS() ? slice->getPicHeader()->getLmcsAPS()->getSharedPtr() : nullptr;
-  cs.pcv              = slice->getPPS()->pcv;
+  
+  //// CHECK NO-OP: We can probably remove the setting of parameter sets in cs
+  //CHECK( cs.sps.get()     != sps,                                 "REALLY NEEDED?" );
+  //CHECK( cs.pps.get()     != slice->getPPS(),                     "REALLY NEEDED?" );
+  //CHECK( cs.lmcsAps.get() != slice->getPicHeader()->getLmcsAPS(), "REALLY NEEDED?" );
+  //
+  //cs.slice            = slice;
+  //cs.sps              = sps ? sps->getSharedPtr() : nullptr;
+  //cs.pps              = slice->getPPS()? slice->getPPS()->getSharedPtr(): nullptr;
+  //APS** sliceAlfAPSs = slice->getAlfAPSs();
+  //
+  //for( int i = 0; i < ALF_CTB_MAX_NUM_APS; ++i )
+  //{
+  //  cs.alfApss[i] = sliceAlfAPSs[i] ? sliceAlfAPSs[i]->getSharedPtr() : nullptr;
+  //}
+  //
+  //cs.lmcsAps          = slice->getPicHeader()->getLmcsAPS() ? slice->getPicHeader()->getLmcsAPS()->getSharedPtr() : nullptr;
+  //cs.pcv              = slice->getPPS()->pcv;
   cs.chromaQpAdj      = 0;
 
   const int       startCtuTsAddr          = slice->getFirstCtuRsAddrInSlice();

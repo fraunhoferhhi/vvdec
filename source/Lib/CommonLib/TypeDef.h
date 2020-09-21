@@ -71,14 +71,12 @@ vvc@hhi.fraunhofer.de
 #define JVET_O1170_CHECK_BV_AT_DECODER                    0 // For decoder to check if a BV is valid or not
 
 #define DISABLE_CONFROMANCE_CHECK                         1
-#define DISABLE_CHECK_NO_OUTPUT_PRIOR_PICS_FLAG           1
-#define DISABLE_FEATURE_CHECKS                            1
+#define DISABLE_CHECK_NO_OUTPUT_PRIOR_PICS_FLAG           0
+#define DISABLE_FEATURE_CHECKS                            0
 
 #define TBD                                               1
 #define TBT                                               1
 #define TBC                                               0
-
-#define DISABLE_CHECK_NO_OUTPUT_PRIOR_PICS_FLAG           1
 
 #define JVET_O1143_SUBPIC_BOUNDARY                        TBT //to be tested // treat subpicture boundary as picture boundary
 #if JVET_O1143_SUBPIC_BOUNDARY
