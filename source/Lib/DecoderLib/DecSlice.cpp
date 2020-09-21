@@ -265,6 +265,8 @@ void DecSlice::parseSlice( Slice* slice, InputBitstream* bitstream, int threadId
 
     pic->ctuParsedBarrier[ctuRsAddr].unlock();
 #endif
+
+    if( ctuRsAddr + 1 == pic->cs->pcv->sizeInCtus ) pic->parseDone.unlock();
   }
 }
 

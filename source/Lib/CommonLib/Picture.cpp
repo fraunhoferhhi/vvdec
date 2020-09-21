@@ -205,6 +205,7 @@ void Picture::finalInit( const SPS *sps, const PPS *pps, PicHeader* picHeader, A
   }
 
 #endif
+  parseDone   . lock();
   cs->picture = this;
   cs->slice   = nullptr;  // the slices for this picture have not been set at this point. update cs->slice after swapSliceObject()
   cs->pps     = pps ? pps->getSharedPtr() : nullptr;

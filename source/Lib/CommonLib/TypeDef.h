@@ -72,7 +72,7 @@ vvc@hhi.fraunhofer.de
 
 #define DISABLE_CONFROMANCE_CHECK                         1
 #define DISABLE_CHECK_NO_OUTPUT_PRIOR_PICS_FLAG           0
-#define DISABLE_FEATURE_CHECKS                            0
+#define DISABLE_FEATURE_CHECKS                            1
 
 #define TBD                                               1
 #define TBT                                               1
