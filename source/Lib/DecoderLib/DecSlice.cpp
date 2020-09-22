@@ -202,6 +202,8 @@ void DecSlice::parseSlice( Slice* slice, InputBitstream* bitstream, int threadId
       resetBcwCodingOrder( true, cs );
     }
 
+    //memset( cs.getCtuData( ctuRsAddr ).cuPtr, 0, sizeof( CtuData::cuPtr ) );
+
     cabacReader.coding_tree_unit( cs, ctuArea, pic->m_prevQP, ctuRsAddr );
 
     if( ctuXPosInCtus == tileXPosInCtus && wavefrontsEnabled )

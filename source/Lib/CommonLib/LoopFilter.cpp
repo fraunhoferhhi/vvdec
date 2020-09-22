@@ -433,7 +433,7 @@ void LoopFilter::loopFilterPicLine( CodingStructure &cs, const ChannelType chTyp
 
   if( edgeDir == NUM_EDGE_DIR || edgeDir == EDGE_VER )
   {
-    xDeblockArea<EDGE_VER>( cs, ctuArea, chType );
+    xDeblockCtuArea<EDGE_VER>( cs, ctuArea, chType );
   }
 
   prevCtuArea = ctuArea;
@@ -444,11 +444,11 @@ void LoopFilter::loopFilterPicLine( CodingStructure &cs, const ChannelType chTyp
 
     if( edgeDir == NUM_EDGE_DIR || edgeDir == EDGE_VER )
     {
-      xDeblockArea<EDGE_VER>( cs, ctuArea, chType );
+      xDeblockCtuArea<EDGE_VER>( cs, ctuArea, chType );
     }
     if( edgeDir == NUM_EDGE_DIR || edgeDir == EDGE_HOR )
     {
-      xDeblockArea<EDGE_HOR>( cs, prevCtuArea, chType );
+      xDeblockCtuArea<EDGE_HOR>( cs, prevCtuArea, chType );
     }
 
     prevCtuArea = ctuArea;
@@ -456,7 +456,7 @@ void LoopFilter::loopFilterPicLine( CodingStructure &cs, const ChannelType chTyp
 
   if( edgeDir == NUM_EDGE_DIR || edgeDir == EDGE_HOR )
   {
-    xDeblockArea<EDGE_HOR>( cs, prevCtuArea, chType );
+    xDeblockCtuArea<EDGE_HOR>( cs, prevCtuArea, chType );
   }
 
 #if ENABLE_TRACING
@@ -498,11 +498,11 @@ void LoopFilter::loopFilterCTU( CodingStructure &cs, const ChannelType chType, c
 
   if( edgeDir == NUM_EDGE_DIR || edgeDir == EDGE_VER )
   {
-    xDeblockArea<EDGE_VER>( cs, ctuArea, chType );
+    xDeblockCtuArea<EDGE_VER>( cs, ctuArea, chType );
   }
   if( edgeDir == NUM_EDGE_DIR || edgeDir == EDGE_HOR )
   {
-    xDeblockArea<EDGE_HOR>( cs, ctuArea, chType );
+    xDeblockCtuArea<EDGE_HOR>( cs, ctuArea, chType );
   }
 
 #if ENABLE_TRACING
@@ -525,7 +525,7 @@ void LoopFilter::loopFilterCTU( CodingStructure &cs, const ChannelType chType, c
  \param edgeDir          the direction of the edge in block boundary (horizontal/vertical), which is added newly
 */
 template<DeblockEdgeDir edgeDir>
-void LoopFilter::xDeblockArea( CodingStructure& cs, const UnitArea& area, const ChannelType chType ) const
+void LoopFilter::xDeblockCtuArea( CodingStructure& cs, const UnitArea& area, const ChannelType chType ) const
 {
   if( cs.slice->getDeblockingFilterDisable() )
   {
@@ -546,10 +546,8 @@ void LoopFilter::xDeblockArea( CodingStructure& cs, const UnitArea& area, const 
   const int csx = getChannelTypeScaleX( CH_C, pcv.chrFormat );
   const int csy = getChannelTypeScaleY( CH_C, pcv.chrFormat );
 
-  const UnitScale         scale = cs.getScaling( UnitScale::LF_PARAM_MAP, CH_L );
-  LoopFilterParam const* lfpPtr = cs.getLFPMapPtr( edgeDir );
+  LoopFilterParam const* lfpPtr = cs.getLFPMapPtr( edgeDir, cs.ctuRsAddr( area.Y().pos(), CH_L ) );
   ptrdiff_t lfpStride           = cs.getLFPMapStride();
-  OFFSET( lfpPtr, lfpStride, scale.scaleHor( area.lumaPos().x ), scale.scaleVer( area.lumaPos().y ) );
 
   const Position lumaPos = area.lumaPos();
   const Position chrmPos = area.chromaPos();
@@ -624,6 +622,7 @@ void LoopFilter::calcFilterStrengths( const CodingUnit& cu )
   const Area& areaPu            = area;
   LFCUParam stLFCUParam         { xGetLoopfilterParam( cu ) };
   const UnitScale scaling       = cu.cs->getScaling( UnitScale::LF_PARAM_MAP, cu.chType());
+  CtuData& ctuData              = *cu.ctuData;
   // for SUBPU ATMVP and Affine, more PU deblocking needs to be found, for ISP the chroma block will be deferred to the last luma block,
   // so the processing order is different. For all other cases the boundary strenght can be directly obtained in the TU loop.
   const bool refineBs     = ( currPU.mergeFlag() && currPU.mergeType() == MRG_TYPE_SUBPU_ATMVP ) || currPU.affineFlag() || cu.ispMode();
@@ -631,12 +630,18 @@ void LoopFilter::calcFilterStrengths( const CodingUnit& cu )
   const int maskBlkX = ~( ( 1 << scaling.posx ) - 1 );
   const int maskBlkY = ~( ( 1 << scaling.posy ) - 1 );
 
+  const bool pqCuSameCtuHor = ( area.y & ( pcv.maxCUHeightMask >> getChannelTypeScaleY( cu.chType(), pcv.chrFormat ) ) ) > 0;
+  const bool pqCuSameCtuVer = ( area.x & ( pcv.maxCUWidthMask  >> getChannelTypeScaleX( cu.chType(), pcv.chrFormat ) ) ) > 0;
+
   for( auto currTU = &cu.firstTU; currTU; currTU = currTU->next )
   {
     const Area& areaTu = currTU->blocks[currTU->chType];
 
     verEdgeFilter = ( areaTu.x & maskBlkX ) == area.x ? stLFCUParam.leftEdge : true;
     horEdgeFilter = ( areaTu.y & maskBlkY ) == area.y ? stLFCUParam.topEdge  : true;
+
+    const bool pqSameCtuHor = ( areaTu.y & maskBlkY ) == area.y ? pqCuSameCtuHor : true;
+    const bool pqSameCtuVer = ( areaTu.x & maskBlkX ) == area.x ? pqCuSameCtuVer : true;
 
     if( isCuCrossedByVirtualBoundaries )
     {
@@ -646,8 +651,8 @@ void LoopFilter::calcFilterStrengths( const CodingUnit& cu )
                               verEdgeFilter,  horEdgeFilter );
     }
 
-    xSetMaxFilterLengthPQFromTransformSizes<EDGE_VER>( cu, *currTU, verEdgeFilter, !refineBs );
-    xSetMaxFilterLengthPQFromTransformSizes<EDGE_HOR>( cu, *currTU, horEdgeFilter, !refineBs );
+    xSetMaxFilterLengthPQFromTransformSizes<EDGE_VER>( cu, *currTU, verEdgeFilter, !refineBs, ctuData, pqSameCtuVer );
+    xSetMaxFilterLengthPQFromTransformSizes<EDGE_HOR>( cu, *currTU, horEdgeFilter, !refineBs, ctuData, pqSameCtuHor );
   }
 
   if( !refineBs ) return;
@@ -668,10 +673,10 @@ void LoopFilter::calcFilterStrengths( const CodingUnit& cu )
                                 verEdgeFilter, horEdgeFilter );
       }
 
-      xSetEdgeFilterInsidePu<EDGE_VER>( cu, mvBlockV, verEdgeFilter );
+      xSetEdgeFilterInsidePu<EDGE_VER>( cu, mvBlockV, verEdgeFilter, ctuData );
     }
 
-    xSetMaxFilterLengthPQForCodingSubBlocks<EDGE_VER>( cu );
+    xSetMaxFilterLengthPQForCodingSubBlocks<EDGE_VER>( cu, ctuData );
 
     for( int off = subBlockSize; off < areaPu.height; off += subBlockSize )
     {
@@ -685,23 +690,23 @@ void LoopFilter::calcFilterStrengths( const CodingUnit& cu )
                                 verEdgeFilter, horEdgeFilter );
       }
 
-      xSetEdgeFilterInsidePu<EDGE_HOR>( cu, mvBlockH, horEdgeFilter );
+      xSetEdgeFilterInsidePu<EDGE_HOR>( cu, mvBlockH, horEdgeFilter, ctuData );
     }
 
-    xSetMaxFilterLengthPQForCodingSubBlocks<EDGE_HOR>( cu );
+    xSetMaxFilterLengthPQForCodingSubBlocks<EDGE_HOR>( cu, ctuData );
   }
 
   const unsigned uiPelsInPartX = pcv.minCUWidth >> channelScaleX;
   const unsigned uiPelsInPartY = pcv.minCUHeight >> channelScaleY;
-  const Position        lfpPos = scaling.scale( area.pos() );
+  const ptrdiff_t       lfpPos = cu.cs->inCtuPos( area.pos(), cu.chType() );
 
   const CodingUnit* cuP        = cu.left;
   const ChannelType chType     = cu.chType();
 
   {
-    LoopFilterParam* lfpPtrV   = cu.cs->getLFPMapPtr( EDGE_VER );
+    LoopFilterParam* lfpPtrV   = cu.cs->getLFPMapPtr( EDGE_VER, cu.cs->ctuRsAddr( area.pos(), cu.chType() ) );
     ptrdiff_t        lfpStride = cu.cs->getLFPMapStride();
-    OFFSET( lfpPtrV, lfpStride, lfpPos.x, lfpPos.y );
+                     lfpPtrV  += lfpPos;
 
     for( int y = 0; y < area.height; y += uiPelsInPartY )
     {
@@ -711,7 +716,7 @@ void LoopFilter::calcFilterStrengths( const CodingUnit& cu )
 
       for( int x = 0; x < area.width; x += uiPelsInPartX )
       {
-        if( lineLfpPtrV->filterEdge( cu.chType() ) ) xGetBoundaryStrengthSingle<EDGE_VER>( *lineLfpPtrV, cu, Position{ area.x + x, area.y + y }, x ? cu : *cuP );
+        if( lineLfpPtrV->filterEdge( cu.chType() ) ) xGetBoundaryStrengthSingle<EDGE_VER>( *lineLfpPtrV, cu, Position{ area.x + x, area.y + y }, x ? cu : *cuP, ctuData, x ? true : pqCuSameCtuVer );
 
         lineLfpPtrV->bs &= ~BsSet( 3, MAX_NUM_COMPONENT );
 
@@ -725,9 +730,9 @@ void LoopFilter::calcFilterStrengths( const CodingUnit& cu )
   cuP = cu.above;
 
   {
-    LoopFilterParam* lfpPtrH = cu.cs->getLFPMapPtr( EDGE_HOR );
+    LoopFilterParam* lfpPtrH   = cu.cs->getLFPMapPtr( EDGE_HOR, cu.cs->ctuRsAddr( area.pos(), cu.chType() ) );
     ptrdiff_t        lfpStride = cu.cs->getLFPMapStride();
-    OFFSET( lfpPtrH, lfpStride, lfpPos.x, lfpPos.y );
+                     lfpPtrH  += lfpPos;
 
     for( int y = 0; y < area.height; y += uiPelsInPartY )
     {
@@ -737,7 +742,7 @@ void LoopFilter::calcFilterStrengths( const CodingUnit& cu )
       {
         cuP = ( y || ( cuP && cuP->blocks[chType].x + cuP->blocks[chType].width > area.x + x ) ) ? cuP : cu.cs->getCU( Position{ area.x + x, area.y - 1 }, chType );
 
-        if( lineLfpPtrH->filterEdge( cu.chType() ) ) xGetBoundaryStrengthSingle<EDGE_HOR>( *lineLfpPtrH, cu, Position{ area.x + x, area.y + y }, y ? cu : *cuP );
+        if( lineLfpPtrH->filterEdge( cu.chType() ) ) xGetBoundaryStrengthSingle<EDGE_HOR>( *lineLfpPtrH, cu, Position{ area.x + x, area.y + y }, y ? cu : *cuP, ctuData, y ? true : pqCuSameCtuHor );
 
         lineLfpPtrH->bs &= ~BsSet( 3, MAX_NUM_COMPONENT );
 
@@ -814,7 +819,7 @@ template<> inline SizeType parlSize<EDGE_VER>( const Size& size ) { return size.
 template<> inline SizeType perpSize<EDGE_VER>( const Size& size ) { return size.width; }
 
 template<DeblockEdgeDir edgeDir>
-void LoopFilter::xSetMaxFilterLengthPQForCodingSubBlocks( const CodingUnit& cu )
+void LoopFilter::xSetMaxFilterLengthPQForCodingSubBlocks( const CodingUnit& cu, CtuData& ctuData )
 {
   static constexpr
         int subBlockSize = 8;
@@ -823,12 +828,9 @@ void LoopFilter::xSetMaxFilterLengthPQForCodingSubBlocks( const CodingUnit& cu )
   const int xInc         = edgeDir ? minCUWidth   : subBlockSize;
   const int yInc         = edgeDir ? subBlockSize : minCUHeight;
   
-  const UnitScale  scaling   = cu.cs->getScaling( UnitScale::LF_PARAM_MAP, CHANNEL_TYPE_LUMA );
-  const Position   lfpPos    = scaling.scale( cu.lumaPos() );
-  LoopFilterParam* lfpPtrL   = cu.cs->getLFPMapPtr( edgeDir );
+  LoopFilterParam* lfpPtrL   = ctuData.lfParam[edgeDir] + cu.cs->inCtuPos( cu.lumaPos(), CH_L );
   ptrdiff_t        lfpStride = cu.cs->getLFPMapStride();
-
-  OFFSET( lfpPtrL, lfpStride, lfpPos.x, lfpPos.y );
+  const UnitScale  scaling   = cu.cs->getScaling( UnitScale::LF_PARAM_MAP, CHANNEL_TYPE_LUMA );
 
   for( int y = 0; y < cu.Y().height; y += yInc )
   {
@@ -890,7 +892,7 @@ static inline TransformUnit const* getTU( const CodingUnit& cu, const Position& 
 }
 
 template<DeblockEdgeDir edgeDir>
-void LoopFilter::xSetMaxFilterLengthPQFromTransformSizes( const CodingUnit& cu, const TransformUnit& currTU, const bool bValue, bool deriveBdStrngt )
+void LoopFilter::xSetMaxFilterLengthPQFromTransformSizes( const CodingUnit& cu, const TransformUnit& currTU, const bool bValue, bool deriveBdStrngt, CtuData& ctuData, bool pqSameCtu )
 {
   const PreCalcValues &pcv = *cu.cs->pcv;
 
@@ -926,10 +928,8 @@ void LoopFilter::xSetMaxFilterLengthPQFromTransformSizes( const CodingUnit& cu, 
     const bool        vld = isLuma( ch ) ? currTU.Y().valid() : currTU.Cb().valid();
     if( vld && perpPos<edgeDir>( currTU.blocks[ch] ) != 0 )
     {
-      LoopFilterParam* lfpPtr    = cu.cs->getLFPMapPtr( edgeDir );
-      const UnitScale scaling    = cu.cs->getScaling( UnitScale::LF_PARAM_MAP, ch );
+      LoopFilterParam* lfpPtr    = ctuData.lfParam[edgeDir] + cu.cs->inCtuPos( currTU.blocks[ct], ch );
       ptrdiff_t lfpStride        = cu.cs->getLFPMapStride();
-      OFFSET( lfpPtr, lfpStride, scaling.scaleHor( currTU.blocks[ch].x ), scaling.scaleVer( currTU.blocks[ch].y ) );
 
       const int         inc      = edgeDir ? pcv.minCUWidth  >> getChannelTypeScaleX( ch, cu.chromaFormat )
                                            : pcv.minCUHeight >> getChannelTypeScaleY( ch, cu.chromaFormat );
@@ -1006,7 +1006,7 @@ void LoopFilter::xSetMaxFilterLengthPQFromTransformSizes( const CodingUnit& cu, 
 
         if( ct == end && deriveBdStrngt )
         {
-          if( lfp.filterEdge( cu.chType() ) ) xGetBoundaryStrengthSingle<edgeDir>( lfp, cu, Position( ( area.x + edgeDir * d ) << csx, ( area.y + ( 1 - edgeDir ) * d ) << csy ), *cuPfstCh );
+          if( lfp.filterEdge( cu.chType() ) ) xGetBoundaryStrengthSingle<edgeDir>( lfp, cu, Position( ( area.x + edgeDir * d ) << csx, ( area.y + ( 1 - edgeDir ) * d ) << csy ), *cuPfstCh, ctuData, pqSameCtu );
           lfp.bs &= ~BsSet( 3, MAX_NUM_COMPONENT );
         }
 
@@ -1017,19 +1017,16 @@ void LoopFilter::xSetMaxFilterLengthPQFromTransformSizes( const CodingUnit& cu, 
 }
 
 template<DeblockEdgeDir edgeDir>
-void LoopFilter::xSetEdgeFilterInsidePu( const CodingUnit &cu, const Area &area, const bool bValue )
+void LoopFilter::xSetEdgeFilterInsidePu( const CodingUnit &cu, const Area &area, const bool bValue, CtuData& ctuData )
 {
   const PreCalcValues &  pcv       = *cu.cs->pcv;
-  const Position         lfpPos    =  cu.cs->getScaling( UnitScale::LF_PARAM_MAP, cu.chType() ).scale( area.pos() );
-  LoopFilterParam*       lfpPtr    =  cu.cs->getLFPMapPtr( edgeDir );
+  LoopFilterParam*       lfpPtr    =  ctuData.lfParam[edgeDir] + cu.cs->inCtuPos( area.pos(), cu.chType() );
   ptrdiff_t              lfpStride =  cu.cs->getLFPMapStride();
-
-  OFFSET( lfpPtr, lfpStride, lfpPos.x, lfpPos.y );
 
   const int inc = edgeDir ? pcv.minCUWidth  >> getChannelTypeScaleX( cu.chType(), cu.chromaFormat )
                           : pcv.minCUHeight >> getChannelTypeScaleY( cu.chType(), cu.chromaFormat );
 
-  for( int d = 0; d < parlSize<edgeDir>( area); d += inc )
+  for( int d = 0; d < parlSize<edgeDir>( area ); d += inc )
   {
     lfpPtr->setFilterEdge( cu.chType(), bValue );
 
@@ -1076,7 +1073,7 @@ LFCUParam LoopFilter::xGetLoopfilterParam( const CodingUnit& cu ) const
 }
 
 template<DeblockEdgeDir edgeDir>
-void LoopFilter::xGetBoundaryStrengthSingle( LoopFilterParam& lfp, const CodingUnit& cuQ, const Position &localPos, const CodingUnit& cuP ) const
+void LoopFilter::xGetBoundaryStrengthSingle( LoopFilterParam& lfp, const CodingUnit& cuQ, const Position &localPos, const CodingUnit& cuP, CtuData& ctuData, bool pqSameCtu ) const
 {
   const Slice      &sliceQ = *cuQ.slice;
   const ChannelType chType = cuQ.chType();
@@ -1207,15 +1204,13 @@ void LoopFilter::xGetBoundaryStrengthSingle( LoopFilterParam& lfp, const CodingU
     return;
   }
 
+  const ptrdiff_t pqDiff    = edgeDir ? int( cuQ.cs->getLFPMapStride() ) : 1;
+  const ptrdiff_t inCtuPosQ = cuQ.cs->inCtuPos( posQ, chType );
+
   // and now the pred
-  MotionInfo const*     miMap    = cuQ.cs->getMiMapPtr();
-  ptrdiff_t             miStride = cuQ.cs->getMiMapStride();
-  const UnitScale       scaleMi  = cuQ.cs->getScaling( UnitScale::MI_MAP );
-  OFFSET( miMap, miStride, scaleMi.scaleHor( posQ.x ), scaleMi.scaleVer( posQ.y ) );
-  const MotionInfo&     miQ      = *miMap;
-  OFFSET( miMap, miStride, edgeDir == EDGE_VER ? -1 : 0, edgeDir == EDGE_HOR ? -1 : 0 );
-  const MotionInfo&     miP      = *miMap;
-  const Slice&          sliceP   = *cuP.slice;
+  const MotionInfo&     miQ    = ctuData.motion[inCtuPosQ];
+  const MotionInfo&     miP    = !pqSameCtu ? cuP.getMotionInfo( posP ) : ctuData.motion[inCtuPosQ - pqDiff];
+  const Slice&          sliceP = *cuP.slice;
 
   static constexpr int nThreshold = ( 1 << MV_FRACTIONAL_BITS_INTERNAL ) >> 1;
 

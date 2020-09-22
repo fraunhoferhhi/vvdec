@@ -151,12 +151,12 @@ void DecCu::TaskCriticalIntraKernel( CodingStructure &cs, const UnitArea &ctuAre
 void DecCu::TaskDeriveDMVRMotionInfo( CodingStructure& cs, const UnitArea& ctuArea )
 {
   PROFILER_SCOPE_AND_STAGE_EXT( 1, g_timeProfiler, P_CONTROL_PARSE_DERIVE_LL, cs, CH_L );
-  MotionBuf   mb     = cs.getMotionBuf();
+  MotionBuf   mb     = cs.getMotionBuf( ctuArea.Y() );
   MotionInfo* orgPtr = mb.buf;
 
   for( CodingUnit &cu : cs.traverseCUs( ctuArea ) )
   {
-    CHECK( !ctuArea.blocks[cu.chType()].contains( cu.blocks[cu.chType()] ), "Should never happen!" );
+    CHECKD( !ctuArea.blocks[cu.chType()].contains( cu.blocks[cu.chType()] ), "Should never happen!" );
 
     PredictionUnit &pu = cu;
     
@@ -187,8 +187,7 @@ void DecCu::TaskDeriveDMVRMotionInfo( CodingStructure& cs, const UnitArea& ctuAr
 
             for( ; x2 < x + dx; x2 += scale )
             {
-              const Position mbPos = g_miScaling.scale( Position{ x2, y2 } );
-              mb.buf = orgPtr + rsAddr( mbPos, mb.stride );
+              mb.buf = orgPtr + cs.inCtuPos( Position{ x2, y2 }, CH_L );
 
               MotionInfo& mi = *mb.buf;
 
@@ -339,6 +338,7 @@ void DecCu::predAndReco( CodingUnit& cu, bool doCiipIntra )
 
         const Slice &slice      = *cu.slice;
         const bool   doChrScale = isChroma( compID )
+                                  && slice.getLmcsEnabledFlag()
                                   && slice.getPicHeader()->getLmcsEnabledFlag()
                                   && slice.getPicHeader()->getLmcsChromaResidualScaleFlag()
                                   && ( slice.isIntra() || ( !slice.isIntra() && m_pcReshape->getCTUFlag() ) )
@@ -469,7 +469,7 @@ void DecCu::finishLMCSAndReco( CodingUnit &cu )
   CodingStructure &cs = *cu.cs;
 
   const uint32_t uiNumVaildComp = getNumberValidComponents( cu.chromaFormat );
-  const bool     doCS           = cs.picHeader->getLmcsEnabledFlag() && cs.picHeader->getLmcsChromaResidualScaleFlag();
+  const bool     doCS           = cs.picHeader->getLmcsEnabledFlag() && cs.picHeader->getLmcsChromaResidualScaleFlag() && cu.slice->getLmcsEnabledFlag();
   const PelUnitBuf predUnitBuf  = cs.getPredBuf( cu );
 
 #if !JVET_S0234_ACT_CRS_FIX
@@ -608,6 +608,7 @@ void DecCu::xIntraRecACT( CodingUnit &cu )
       PelBuf piReco = cs.getRecoBuf( area );
 
       const bool   doChrScale = isChroma( compID )
+                                && slice.getLmcsEnabledFlag()
                                 && slice.getPicHeader()->getLmcsEnabledFlag()
                                 && slice.getPicHeader()->getLmcsChromaResidualScaleFlag()
                                 && ( slice.isIntra() || ( !slice.isIntra() && m_pcReshape->getCTUFlag() ) )

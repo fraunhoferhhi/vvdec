@@ -195,7 +195,7 @@ void Picture::finalInit( const SPS *sps, const PPS *pps, PicHeader* picHeader, A
   if( !cs )
   {
     cs = new CodingStructure( g_globalUnitCache.getCuCache(), g_globalUnitCache.getTuCache() );
-    cs->create( chromaFormatIDC, Area( 0, 0, iWidth, iHeight ), true );
+    cs->create( chromaFormatIDC, Area( 0, 0, iWidth, iHeight ) );
   }
 
 #if RECO_WHILE_PARSE

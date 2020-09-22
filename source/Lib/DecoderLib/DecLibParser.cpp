@@ -81,6 +81,7 @@ void DecLibParser::create( NoMallocThreadPool* tp, int parserFrameDelay, int num
 {
   m_threadPool        = tp;
   m_parseFrameDelay   = parserFrameDelay;
+  m_numDecThreads     = numDecThreads;
   m_maxPicReconSkip   = numReconInst - 1;
 
   m_apcSlicePilot     = new Slice;
@@ -125,7 +126,10 @@ void DecLibParser::recreateLostPicture( Picture* pcPic )
          ( referencedBy != m_parseFrameList.end() ) ? ( *referencedBy )->poc : -1 );
 
     pcPic->getRecoBuf().copyFrom( closestPic->getRecoBuf() );
-    pcPic->cs->getMotionBuf().copyFrom( closestPic->cs->getMotionBuf() );
+    for( int i = 0; i < pcPic->cs->m_ctuData.size(); i++ )
+    {
+      memcpy( pcPic->cs->m_ctuData[i].motion, closestPic->cs->m_ctuData[i].motion, sizeof( CtuData::motion ) );
+    }
 
     pcPic->slices[0]->copySliceInfo( closestPic->slices[0] );
     pcPic->slices[0]->setPOC( pcPic->poc );
@@ -147,12 +151,12 @@ Picture* DecLibParser::parse( InputNALUnit& nalu, int* pSkipFrame )
     return nullptr;
   }
 
-  switch (nalu.m_nalUnitType)
+  switch( nalu.m_nalUnitType )
   {
   case NAL_UNIT_VPS:
     xDecodeVPS( nalu );
 #if JVET_P0288_PIC_OUTPUT
-//    m_vps->m_iTargetLayer = iTargetOlsIdx;
+    //    m_vps->m_iTargetLayer = iTargetOlsIdx;
 #endif
     return nullptr;
   case NAL_UNIT_DCI:
@@ -165,7 +169,7 @@ Picture* DecLibParser::parse( InputNALUnit& nalu, int* pSkipFrame )
   case NAL_UNIT_PPS:
     xDecodePPS( nalu );
     return nullptr;
-      
+
   case NAL_UNIT_PH:
     xDecodePicHeader( nalu );
     return nullptr;
@@ -177,8 +181,8 @@ Picture* DecLibParser::parse( InputNALUnit& nalu, int* pSkipFrame )
 
   case NAL_UNIT_PREFIX_SEI:
     // Buffer up prefix SEI messages until SPS of associated VCL is known.
-    m_prefixSEINALUs.push_back(new InputNALUnit(nalu));
-    m_pictureSeiNalus.push_back(new InputNALUnit(nalu));
+    m_prefixSEINALUs.push_back( new InputNALUnit( nalu ) );
+    m_pictureSeiNalus.push_back( new InputNALUnit( nalu ) );
     return nullptr;
 
   case NAL_UNIT_SUFFIX_SEI:
@@ -196,7 +200,7 @@ Picture* DecLibParser::parse( InputNALUnit& nalu, int* pSkipFrame )
     }
     else
     {
-      msg( NOTICE, "Note: received suffix SEI but no picture currently active.\n");
+      msg( NOTICE, "Note: received suffix SEI but no picture currently active.\n" );
     }
     return nullptr;
 
@@ -207,13 +211,17 @@ Picture* DecLibParser::parse( InputNALUnit& nalu, int* pSkipFrame )
   case NAL_UNIT_CODED_SLICE_CRA:
   case NAL_UNIT_CODED_SLICE_RADL:
   case NAL_UNIT_CODED_SLICE_RASL:
-    if( xDecodeSliceHead( nalu, pSkipFrame ) == NewPicture && m_parseFrameList.size() > m_parseFrameDelay )
+  {
+    const auto ret = xDecodeSliceHead( nalu, pSkipFrame );
+
+    if( ret == NewPicture && m_parseFrameList.size() > m_parseFrameDelay )
     {
       Picture* pic = getNextDecodablePicture();
       return pic;
     }
-    return nullptr;
 
+    return nullptr;
+  }
   case NAL_UNIT_EOS:
     m_associatedIRAPType    = NAL_UNIT_INVALID;
     m_pocCRA                = 0;
@@ -279,7 +287,7 @@ Picture* DecLibParser::getNextDecodablePicture()
     if( pic->skippedDecCount >= m_maxPicReconSkip )
       break;
 
-    if( pic->slices[0]->parseDone.isBlocked() )
+    if( pic->parseDone.isBlocked() )
       continue;
 
     bool allRefPicsDone = true;
@@ -1037,6 +1045,10 @@ Slice*  DecLibParser::xDecodeSliceMain( InputNALUnit &nalu )
   {
     parseTask( 0, pcSlice );
     pcSlice->parseDone.unlock();
+    if( m_pcParsePic->slices.size() != 1 && !m_pcParsePic->parseDone.isBlocked() && m_numDecThreads == 0 )
+    {
+      while( !m_threadPool->processTasksOnMainThread() );
+    }
   }
 
   m_uiSliceSegmentIdx++;

@@ -66,21 +66,21 @@ class LoopFilter
 private:
   /// CU-level deblocking function
   template<DeblockEdgeDir edgeDir>
-  void xDeblockArea               ( CodingStructure& cs, const UnitArea& area, const ChannelType chType ) const;
+  void xDeblockCtuArea            ( CodingStructure& cs, const UnitArea& area, const ChannelType chType ) const;
 
   // set / get functions
   LFCUParam xGetLoopfilterParam   ( const CodingUnit& cu ) const;
 
   // filtering functions
   template<DeblockEdgeDir edgeDir>
-  void xGetBoundaryStrengthSingle ( LoopFilterParam& lfp, const CodingUnit& cu, const Position &localPos, const CodingUnit &cuP ) const;
+  void xGetBoundaryStrengthSingle ( LoopFilterParam& lfp, const CodingUnit& cu, const Position &localPos, const CodingUnit &cuP, CtuData& ctuData, bool pqSameCtu ) const;
   template<DeblockEdgeDir edgeDir>
-  void xSetEdgeFilterInsidePu     ( const CodingUnit &cu, const Area &area, const bool bValue );
+  void xSetEdgeFilterInsidePu     ( const CodingUnit &cu, const Area &area, const bool bValue, CtuData& ctuData );
 
   template<DeblockEdgeDir edgeDir>
-  void xSetMaxFilterLengthPQFromTransformSizes( const CodingUnit& cu, const TransformUnit& currTU, const bool bValue, bool deriveBdStrngt );
+  void xSetMaxFilterLengthPQFromTransformSizes( const CodingUnit& cu, const TransformUnit& currTU, const bool bValue, bool deriveBdStrngt, CtuData& ctuData, bool pqSameCtu );
   template<DeblockEdgeDir edgeDir>
-  void xSetMaxFilterLengthPQForCodingSubBlocks( const CodingUnit& cu );
+  void xSetMaxFilterLengthPQForCodingSubBlocks( const CodingUnit& cu, CtuData& ctuData );
 
   template<DeblockEdgeDir edgeDir>
   void xEdgeFilterLuma            ( CodingStructure& cs, const Position& pos, const LoopFilterParam& lfp ) const;
