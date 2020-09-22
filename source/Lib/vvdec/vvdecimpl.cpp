@@ -56,7 +56,7 @@ vvc@hhi.fraunhofer.de
 #include "DecoderLib/NALread.h"
 
 namespace vvdec {
-	
+  
 
 std::string VVDecImpl::m_cTmpErrorString;
 std::string VVDecImpl::m_cNalType;
@@ -584,7 +584,7 @@ const char* VVDecImpl::getVersionNumber()
 
 const char* VVDecImpl::getDecoderInfo()
 {
-    m_sDecoderInfo  = "Open VVC Decoder ";
+    m_sDecoderInfo  = "Fraunhofer Versatile Video Decoder ";
 //     m_sDecoderInfo += "/";
     m_sDecoderInfo += " version ";
     m_sDecoderInfo += getVersionNumber();
@@ -625,7 +625,7 @@ NalType VVDecImpl::getNalUnitType ( AccessUnit& rcAccessUnit )
 
   if( found )
   {
-    iOffset=4;
+    iOffset=5;
   }
   else
   {
@@ -646,19 +646,15 @@ NalType VVDecImpl::getNalUnitType ( AccessUnit& rcAccessUnit )
 
     if( found )
     {
-      iOffset=3;
+      iOffset=4;
     }
   }
 
   if( found )
   {
     unsigned char uc = pcBuf[iOffset];
-
-    int zeroTidRequiredFlag = (uc>>7) & 0x1;
-    //uc >>= 1;
-    uint32_t nalUnitTypeLsb = uc & 0xf;
-    int type = (zeroTidRequiredFlag << 4) + nalUnitTypeLsb ;
-    eNalType = (NalType)type;
+    int nalUnitType   = ((uc >> 3) & 0x1F ); 
+    eNalType = (NalType)nalUnitType;
   }
 
   return eNalType;

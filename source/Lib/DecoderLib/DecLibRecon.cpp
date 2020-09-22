@@ -385,7 +385,7 @@ void DecLibRecon::decompressPicture( Picture* pcPic )
         }
         else
         {
-          ctuBarriesrs.push_back( &cs.slice->parseDone );
+          ctuBarriesrs.push_back( &cs.picture->parseDone );
         }
 #endif
         CtuTaskParam* param = &tasksCtu[line * numTasksPerLine + col];

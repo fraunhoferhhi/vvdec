@@ -403,3 +403,55 @@ static inline std::string getTimePointAsString( )
 
   return time_str;
 }
+
+
+static inline std::string getNalUnitTypeAsString( vvdec::NalType eNalType )
+{
+  std::string cNalType = "VVC_NAL_UNIT_UNIT_INVALID";
+
+  switch ( eNalType )
+  {
+  case vvdec::VVC_NAL_UNIT_CODED_SLICE_TRAIL:           cNalType = "VVC_NAL_UNIT_CODED_SLICE_TRAIL"; break; // 0
+  case vvdec::VVC_NAL_UNIT_CODED_SLICE_STSA:            cNalType = "VVC_NAL_UNIT_CODED_SLICE_STSA"; break; // 1
+  case vvdec::VVC_NAL_UNIT_CODED_SLICE_RADL:            cNalType = "VVC_NAL_UNIT_CODED_SLICE_RADL"; break; // 2
+  case vvdec::VVC_NAL_UNIT_CODED_SLICE_RASL:            cNalType = "VVC_NAL_UNIT_CODED_SLICE_RASL"; break; // 3
+
+  case vvdec::VVC_NAL_UNIT_RESERVED_VCL_4:              cNalType = "VVC_NAL_UNIT_RESERVED_VCL_4"; break; // 4
+  case vvdec::VVC_NAL_UNIT_RESERVED_VCL_5:              cNalType = "VVC_NAL_UNIT_RESERVED_VCL_5"; break; // 5
+  case vvdec::VVC_NAL_UNIT_RESERVED_VCL_6:              cNalType = "VVC_NAL_UNIT_RESERVED_VCL_6"; break; // 6
+
+  case vvdec::VVC_NAL_UNIT_CODED_SLICE_IDR_W_RADL:      cNalType = "VVC_NAL_UNIT_CODED_SLICE_IDR_W_RADL"; break; // 7
+  case vvdec::VVC_NAL_UNIT_CODED_SLICE_IDR_N_LP:        cNalType = "VVC_NAL_UNIT_CODED_SLICE_IDR_N_LP"; break; // 8
+  case vvdec::VVC_NAL_UNIT_CODED_SLICE_CRA:             cNalType = "VVC_NAL_UNIT_CODED_SLICE_CRA"; break; // 9
+  case vvdec::VVC_NAL_UNIT_CODED_SLICE_GDR:             cNalType = "VVC_NAL_UNIT_CODED_SLICE_GDR"; break; // 10
+
+  case vvdec::VVC_NAL_UNIT_RESERVED_IRAP_VCL_11:        cNalType = "VVC_NAL_UNIT_RESERVED_IRAP_VCL_11"; break; // 11
+  case vvdec::VVC_NAL_UNIT_RESERVED_IRAP_VCL_12:        cNalType = "VVC_NAL_UNIT_RESERVED_IRAP_VCL_12"; break; // 12
+
+  case vvdec::VVC_NAL_UNIT_DCI:                         cNalType = "VVC_NAL_UNIT_DCI"; break; // 13
+  case vvdec::VVC_NAL_UNIT_VPS:                         cNalType = "VVC_NAL_UNIT_VPS"; break; // 14
+  case vvdec::VVC_NAL_UNIT_SPS:                         cNalType = "VVC_NAL_UNIT_SPS"; break; // 15
+  case vvdec::VVC_NAL_UNIT_PPS:                         cNalType = "VVC_NAL_UNIT_PPS"; break; // 16
+  case vvdec::VVC_NAL_UNIT_PREFIX_APS:                  cNalType = "VVC_NAL_UNIT_PREFIX_APS"; break; // 17
+  case vvdec::VVC_NAL_UNIT_SUFFIX_APS:                  cNalType = "VVC_NAL_UNIT_SUFFIX_APS"; break; // 18
+  case vvdec::VVC_NAL_UNIT_PH:                          cNalType = "VVC_NAL_UNIT_PH"; break; // 19
+  case vvdec::VVC_NAL_UNIT_ACCESS_UNIT_DELIMITER:       cNalType = "VVC_NAL_UNIT_ACCESS_UNIT_DELIMITER"; break; // 20
+  case vvdec::VVC_NAL_UNIT_EOS:                         cNalType = "VVC_NAL_UNIT_EOS"; break; // 21
+  case vvdec::VVC_NAL_UNIT_EOB:                         cNalType = "VVC_NAL_UNIT_EOB"; break; // 22
+  case vvdec::VVC_NAL_UNIT_PREFIX_SEI:                  cNalType = "VVC_NAL_UNIT_PREFIX_SEI"; break; // 23
+  case vvdec::VVC_NAL_UNIT_SUFFIX_SEI:                  cNalType = "VVC_NAL_UNIT_SUFFIX_SEI"; break; // 24
+  case vvdec::VVC_NAL_UNIT_FD:                          cNalType = "VVC_NAL_UNIT_FD"; break; // 25
+
+  case vvdec::VVC_NAL_UNIT_RESERVED_NVCL_26:            cNalType = "VVC_NAL_UNIT_RESERVED_NVCL_26"; break; // 26
+  case vvdec::VVC_NAL_UNIT_RESERVED_NVCL_27:            cNalType = "VVC_NAL_UNIT_RESERVED_NVCL_27"; break; // 27
+
+  case vvdec::VVC_NAL_UNIT_UNSPECIFIED_28:              cNalType = "VVC_NAL_UNIT_UNSPECIFIED_28"; break; // 28
+  case vvdec::VVC_NAL_UNIT_UNSPECIFIED_29:              cNalType = "VVC_NAL_UNIT_UNSPECIFIED_29"; break; // 29
+  case vvdec::VVC_NAL_UNIT_UNSPECIFIED_30:              cNalType = "VVC_NAL_UNIT_UNSPECIFIED_30"; break; // 30
+  case vvdec::VVC_NAL_UNIT_UNSPECIFIED_31:              cNalType = "VVC_NAL_UNIT_UNSPECIFIED_31"; break; // 31
+  case vvdec::VVC_NAL_UNIT_INVALID:
+  default:                                              cNalType = "VVC_NAL_UNIT_INVALID"; break;
+  }
+
+  return cNalType;
+}

@@ -184,9 +184,9 @@ void Picture::finalInit( const SPS *sps, const PPS *pps, PicHeader* picHeader, A
   {
     delete sei;
   }
+
   SEIs.clear();
   clearSliceBuffer();
-
 
   const ChromaFormat chromaFormatIDC = sps->getChromaFormatIdc();
   const int          iWidth          = pps->getPicWidthInLumaSamples();
@@ -196,7 +196,6 @@ void Picture::finalInit( const SPS *sps, const PPS *pps, PicHeader* picHeader, A
   {
     cs = new CodingStructure( g_globalUnitCache.getCuCache(), g_globalUnitCache.getTuCache() );
     cs->create( chromaFormatIDC, Area( 0, 0, iWidth, iHeight ), true );
-//    cs->sps = sps ? sps->getSharedPtr() : nullptr;
   }
 
 #if RECO_WHILE_PARSE
@@ -206,17 +205,18 @@ void Picture::finalInit( const SPS *sps, const PPS *pps, PicHeader* picHeader, A
   }
 
 #endif
+  parseDone   . lock();
   cs->picture = this;
   cs->slice   = nullptr;  // the slices for this picture have not been set at this point. update cs->slice after swapSliceObject()
   cs->pps     = pps ? pps->getSharedPtr() : nullptr;
   cs->sps     = sps ? sps->getSharedPtr() : nullptr;
 
-  picHeader->setSPSId( sps->getSPSId() );
-  picHeader->setPPSId( pps->getPPSId() );
-  picHeader->setLmcsAPS( lmcsAps );
+  picHeader->setSPSId         ( sps->getSPSId() );
+  picHeader->setPPSId         ( pps->getPPSId() );
+  picHeader->setLmcsAPS       ( lmcsAps );
   picHeader->setScalingListAPS( scalingListAps );
 
-  for( int i=0; i<ALF_CTB_MAX_NUM_APS; ++i )
+  for( int i = 0; i < ALF_CTB_MAX_NUM_APS; ++i )
   {
     cs->alfApss[i] = alfApss[i] ? alfApss[i]->getSharedPtr() : nullptr;
   }
@@ -229,20 +229,20 @@ void Picture::finalInit( const SPS *sps, const PPS *pps, PicHeader* picHeader, A
 
   cs->rebindPicBufs();
 
-  if (m_spliceIdx == NULL)
+  if( m_spliceIdx == NULL )
   {
-    m_ctuNums = cs->pcv->sizeInCtus;
+    m_ctuNums   = cs->pcv->sizeInCtus;
     m_spliceIdx = new int[m_ctuNums];
-    memset(m_spliceIdx, 0, m_ctuNums * sizeof(int));
+    memset( m_spliceIdx, 0, m_ctuNums * sizeof( int ) );
   }
 
-  paddPicBorderBot = paddPicBorderBotCore;
-  paddPicBorderTop = paddPicBorderTopCore;
+  paddPicBorderBot       = paddPicBorderBotCore;
+  paddPicBorderTop       = paddPicBorderTopCore;
   paddPicBorderLeftRight = paddPicBorderLeftRightCore;
-#if ENABLE_SIMD_OPT_PICTURE
-    initPictureX86();
-#endif
 
+#if ENABLE_SIMD_OPT_PICTURE
+  initPictureX86();
+#endif
 }
 
 void Picture::allocateNewSlice()
@@ -265,20 +265,20 @@ void Picture::allocateNewSlice()
   }
 }
 
-Slice *Picture::swapSliceObject(Slice * s, uint32_t i)
+Slice *Picture::swapSliceObject( Slice* s, uint32_t i )
 {
   s->setSPS( cs->sps.get() );
   s->setPPS( cs->pps.get() );
   s->setVPS( cs->vps.get() );
   s->setAlfAPSs( cs->alfApss );
 
-
   Slice * pTmp = slices[i];
   slices[i] = s;
-  pTmp->setSPS(0);
-  pTmp->setPPS(0);
-  pTmp->setVPS(0);
+  pTmp->setSPS( nullptr );
+  pTmp->setPPS( nullptr );
+  pTmp->setVPS( nullptr );
   memset( pTmp->getAlfAPSs(), 0, sizeof( pTmp->getAlfAPSs()[0] ) * ALF_CTB_MAX_NUM_APS );
+
   return pTmp;
 }
 
@@ -292,10 +292,11 @@ PicHeader *Picture::swapPicHead( PicHeader *ph )
 
 void Picture::clearSliceBuffer()
 {
-  for (uint32_t i = 0; i < uint32_t(slices.size()); i++)
+  for( size_t i = 0; i < slices.size(); i++ )
   {
     delete slices[i];
   }
+
   slices.clear();
 }
 

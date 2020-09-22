@@ -211,6 +211,7 @@ public:
 #if ALLOW_MIDER_LF_DURING_PICEXT
   CBarrierVec     refPicExtDepBarriers;
 #endif
+  Barrier         parseDone;
 
   CodingStructure*   cs    = nullptr;
   std::vector<Slice*> slices;
