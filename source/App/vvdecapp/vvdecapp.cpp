@@ -201,7 +201,7 @@ int main( int argc, char* argv[] )
     bool bTunedIn = false;
     unsigned int uiNoFrameAfterTuneInCount = 0;
     vvdec::NalType eNalTypeSlice = vvdec::VVC_NAL_UNIT_INVALID;
-    bool bSeveralSlices = false;
+    bool bMultipleSlices = false;
 
     int iRead = 0;
     do
@@ -218,14 +218,14 @@ int main( int argc, char* argv[] )
 
         if( eNalType == vvdec::VVC_NAL_UNIT_PH )
         {
-          // picture header indicates several slices
-          bSeveralSlices = true;
+          // picture header indicates multiple slices
+          bMultipleSlices = true;
         }
 
         bool bIsSlice  = vvdec::VVDec::isNalUnitSlice( eNalType );
         if( bIsSlice )
         {
-          if( bSeveralSlices )
+          if( bMultipleSlices )
           {
             if( eNalTypeSlice == vvdec::VVC_NAL_UNIT_INVALID )
             {
@@ -235,7 +235,7 @@ int main( int argc, char* argv[] )
             }
             else
             {
-              bIsSlice = false; // prevent cts/dts increase
+              bIsSlice = false; // prevent cts/dts increase if not first slice
             }
           }
           else
@@ -273,7 +273,7 @@ int main( int argc, char* argv[] )
         }
         else if( iRet == vvdec::VVDEC_TRY_AGAIN )
         {
-          if( !bSeveralSlices )
+          if( !bMultipleSlices )
           {
             if( cVVDecParameter.m_eLogLevel >= vvdec::LL_VERBOSE ) std::cout << "more data needed to tune in" << std::endl;
             if( bTunedIn )
