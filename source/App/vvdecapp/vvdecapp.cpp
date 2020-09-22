@@ -200,6 +200,8 @@ int main( int argc, char* argv[] )
 
     bool bTunedIn = false;
     unsigned int uiNoFrameAfterTuneInCount = 0;
+    vvdec::NalType eNalTypeSlice = vvdec::VVC_NAL_UNIT_INVALID;
+    bool bSeveralSlices = false;
 
     int iRead = 0;
     do
@@ -207,20 +209,57 @@ int main( int argc, char* argv[] )
       iRead = readBitstreamFromFile( &cInFile, &cAccessUnit, false );
       //if( iRead > 0 )
       {
-        // call decode
-
         vvdec::NalType eNalType = vvdec::VVDec::getNalUnitType( cAccessUnit );
-        bool bSlice  = vvdec::VVDec::isNalUnitSlice( eNalType );
-        if( bSlice ) iComprPics++;
+        if( cVVDecParameter.m_eLogLevel == vvdec::LL_DETAILS )
+        {
+          std::string cNal = getNalUnitTypeAsString( eNalType );
+          std::cout << "  read nal " <<  cNal << " size " << cAccessUnit.m_iUsedSize << std::endl;
+        }
+
+        if( eNalType == vvdec::VVC_NAL_UNIT_PH )
+        {
+          // picture header indicates several slices
+          bSeveralSlices = true;
+        }
+
+        bool bIsSlice  = vvdec::VVDec::isNalUnitSlice( eNalType );
+        if( bIsSlice )
+        {
+          if( bSeveralSlices )
+          {
+            if( eNalTypeSlice == vvdec::VVC_NAL_UNIT_INVALID )
+            {
+              // set current slice type and increment pic count
+              iComprPics++;
+              eNalTypeSlice = eNalType;
+            }
+            else
+            {
+              bIsSlice = false; // prevent cts/dts increase
+            }
+          }
+          else
+          {
+            iComprPics++;
+          }
+        }
+
+        if( eNalTypeSlice != vvdec::VVC_NAL_UNIT_INVALID &&
+            eNalType != eNalTypeSlice )
+        {
+          eNalTypeSlice = vvdec::VVC_NAL_UNIT_INVALID; // reset slice type
+        }
+
 
         if( iMaxFrames > 0 && iComprPics >= iMaxFrames )
         {
           iRead = -1;
         }
 
+        // call decode
         iRet = cVVDec.decode( cAccessUnit, &pcFrame );
 
-        if( bSlice )
+        if( bIsSlice )
         {
           cAccessUnit.m_uiCts++;
           cAccessUnit.m_uiDts++;
@@ -234,15 +273,17 @@ int main( int argc, char* argv[] )
         }
         else if( iRet == vvdec::VVDEC_TRY_AGAIN )
         {
-          if( cVVDecParameter.m_eLogLevel >= vvdec::LL_VERBOSE ) std::cout << "more data needed to tune in" << std::endl;
-          if( bTunedIn )
+          if( !bSeveralSlices )
           {
-            // after the first frame is returned, the decoder must always return a frame
-            vvdec::NalType eNalType = vvdec::VVDec::getNalUnitType( cAccessUnit );
-            if( !vvdec::VVDec::isNalUnitSideData( eNalType ) )
+            if( cVVDecParameter.m_eLogLevel >= vvdec::LL_VERBOSE ) std::cout << "more data needed to tune in" << std::endl;
+            if( bTunedIn )
             {
-              std::cout << "vvdecapp [error]: missing output picture!" << std::endl;
-              uiNoFrameAfterTuneInCount++;
+              // after the first frame is returned, the decoder must always return a frame
+              if( bIsSlice)
+              {
+                std::cout << "vvdecapp [error]: missing output picture!" << std::endl;
+                uiNoFrameAfterTuneInCount++;
+              }
             }
           }
         }
