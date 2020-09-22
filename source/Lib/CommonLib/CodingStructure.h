@@ -69,6 +69,17 @@ enum PictureType
 
 extern ThreadSafeCUCache g_globalUnitCache;
 
+#define NUM_PARTS_IN_CTU ( MAX_CU_SIZE * MAX_CU_SIZE ) >> ( MIN_CU_LOG2 << 1 )
+
+struct CtuData
+{
+  std::shared_ptr<APS> alfAps;
+
+  CodingUnit*     cuPtr  [MAX_NUM_CHANNEL_TYPE][NUM_PARTS_IN_CTU];
+  LoopFilterParam lfParam[NUM_EDGE_DIR]        [NUM_PARTS_IN_CTU];
+  MotionInfo      motion                       [NUM_PARTS_IN_CTU];
+};
+
 // ---------------------------------------------------------------------------
 // coding structure
 // ---------------------------------------------------------------------------
@@ -85,20 +96,21 @@ public:
   UnitScale        unitScale[MAX_NUM_COMPONENT];
   ChannelType      chType;
   int              chromaQpAdj;
-  Position         sharedBndPos;
-  Size             sharedBndSize;
-  bool             isLossless;
   std::shared_ptr<const VPS> vps;
   std::shared_ptr<const SPS> sps;
   std::shared_ptr<const PPS> pps;
-  PicHeader       *picHeader;
+  PicHeader                 *picHeader;
   std::shared_ptr<APS>       alfApss[ALF_CTB_MAX_NUM_APS];
   std::shared_ptr<APS>       lmcsAps;
   const PreCalcValues*       pcv;
 
-  CodingStructure(std::shared_ptr<CUCache>, std::shared_ptr<TUCache> );
-  void create( const UnitArea &_unit, const bool isTopLayer );
-  void create( const ChromaFormat &_chromaFormat, const Area& _area, const bool isTopLayer );
+  std::vector<CtuData>       m_ctuData;
+
+
+  CodingStructure(std::shared_ptr<CUCache>, std::shared_ptr<TUCache>);
+
+  void create(const UnitArea &_unit);
+  void create(const ChromaFormat &_chromaFormat, const Area& _area);
   void destroy();
 
   void rebindPicBufs();
@@ -107,11 +119,35 @@ public:
   // global accessors
   // ---------------------------------------------------------------------------
 
-  const CodingUnit*     getCU(Position pos, ChannelType _chType) const { return m_cuIdx[_chType][rsAddr( unitScale[_chType].scale( pos ), m_mapOrigSize[_chType].width )]; }
-        CodingUnit*     getCU(Position pos, ChannelType _chType)       { return m_cuIdx[_chType][rsAddr( unitScale[_chType].scale( pos ), m_mapOrigSize[_chType].width )]; }
+#if _DEBUG
+  const CodingUnit*     getCU(Position pos, ChannelType _chType) const
+  {
+    if( area.blocks[_chType].contains( pos ) )
+    {
+      ptrdiff_t rsAddr = ctuRsAddr( pos, _chType );
+      ptrdiff_t inCtu  = inCtuPos ( pos, _chType );
+      return getCtuData( rsAddr ).cuPtr[_chType][inCtu];
+    }
+    else return nullptr;
+  }
+
+  CodingUnit*     getCU(Position pos, ChannelType _chType)
+  {
+    if( area.blocks[_chType].contains( pos ) )
+    {
+      ptrdiff_t rsAddr = ctuRsAddr( pos, _chType );
+      ptrdiff_t inCtu  = inCtuPos ( pos, _chType );
+      return getCtuData( rsAddr ).cuPtr[_chType][inCtu];
+    }
+    else return nullptr;
+  }
+#else
+  const CodingUnit*     getCU(Position pos, ChannelType _chType) const { if( area.blocks[_chType].contains( pos ) ) return getCtuData( ctuRsAddr( pos, _chType ) ).cuPtr[_chType][inCtuPos( pos, _chType )]; else return nullptr; }
+        CodingUnit*     getCU(Position pos, ChannelType _chType)       { if( area.blocks[_chType].contains( pos ) ) return getCtuData( ctuRsAddr( pos, _chType ) ).cuPtr[_chType][inCtuPos( pos, _chType )]; else return nullptr; }
+#endif
 
   const CodingUnit*     getCURestricted(const Position &pos, const Position curPos, const unsigned curSliceIdx, const unsigned curTileIdx, const ChannelType _chType) const;
-  const CodingUnit*     getCURestricted(const Position &pos, const CodingUnit& curCu,                               const ChannelType _chType, const CodingUnit* guess = nullptr) const;
+  const CodingUnit*     getCURestricted(const Position &pos, const CodingUnit& curCu,                                                      const ChannelType _chType, const CodingUnit* guess = nullptr) const;
 
   CodingUnit&     addCU(const UnitArea &unit, const ChannelType _chType, const TreeType treeType, const ModeType modeType, const CodingUnit* cuLeft, const CodingUnit* cuAbove );
   TransformUnit&  addTU(const UnitArea &unit, const ChannelType _chType, CodingUnit &cu);
@@ -123,14 +159,9 @@ public:
   void initStructData();
 
 private:
-  void createInternals(const UnitArea& _unit, const bool isTopLayer);
+  void createInternals(const UnitArea& _unit);
 
 private:
-  Size            m_mapSize    [MAX_NUM_CHANNEL_TYPE];
-  Size            m_mapOrigSize[MAX_NUM_CHANNEL_TYPE];
-  Size            m_mapOrigSizeUnscaled[MAX_NUM_CHANNEL_TYPE];
-  CodingUnit    **m_cuIdxOrigin[MAX_NUM_CHANNEL_TYPE];
-  CodingUnit    **m_cuIdx      [MAX_NUM_CHANNEL_TYPE];
 
   Pel*            m_predBuf    [MAX_NUM_COMPONENT];
 
@@ -142,18 +173,30 @@ private:
   std::shared_ptr<CUCache> m_cuCache;
   std::shared_ptr<TUCache> m_tuCache;
 
-  std::vector<SAOBlkParam> m_sao;
-
   PelStorage m_reco;
   PelStorage m_rec_wrap;
   PelStorage m_pred;
 
   CodingUnit* m_lastCU = nullptr;
 
-  MotionInfo      *m_motionBuf;
-  LoopFilterParam *m_lfParam[NUM_EDGE_DIR];
+  size_t               m_widthInCtus;
+  PosType              m_ctuSizeMask[2];
+  PosType              m_ctuWidthLog2[2];
 
 public:
+
+  // in CTU coordinates
+  ptrdiff_t ctuRsAddr( int col, int line ) const { return col + ( line * m_widthInCtus ); }
+  // in sample coordinates
+  ptrdiff_t ctuRsAddr( Position pos, ChannelType chType ) const { Position posL = recalcPosition( area.chromaFormat, chType, CH_L, pos ); return ctuRsAddr( posL.x >> pcv->maxCUWidthLog2, posL.y >> pcv->maxCUHeightLog2 ); }
+  // 4x4 luma block position within the CTU
+  ptrdiff_t inCtuPos ( Position pos, ChannelType chType ) const { return ( unitScale[chType].scaleHor( pos.x ) & m_ctuSizeMask[chType] ) + ( ( unitScale[chType].scaleVer( pos.y ) & m_ctuSizeMask[chType] ) << m_ctuWidthLog2[chType] ); }
+
+        CtuData& getCtuData( int col, int line )       { return m_ctuData[ctuRsAddr( col, line )]; }
+  const CtuData& getCtuData( int col, int line ) const { return m_ctuData[ctuRsAddr( col, line )]; }
+
+        CtuData& getCtuData( int addr )       { return m_ctuData[addr]; }
+  const CtuData& getCtuData( int addr ) const { return m_ctuData[addr]; }
 
   int m_IBCBufferWidth;
   std::vector<PelStorage> m_virtualIBCbuf;
@@ -164,25 +207,16 @@ public:
 
   MotionBuf getMotionBuf( const     Area& _area );
   MotionBuf getMotionBuf( const UnitArea& _area ) { return getMotionBuf( _area.Y() ); }
-  MotionBuf getMotionBuf()                        { return getMotionBuf(  area.Y() ); }
 
   const CMotionBuf getMotionBuf( const     Area& _area ) const;
   const CMotionBuf getMotionBuf( const UnitArea& _area ) const { return getMotionBuf( _area.Y() ); }
-  const CMotionBuf getMotionBuf()                        const { return getMotionBuf(  area.Y() ); }
 
-        MotionInfo& getMotionInfo( const Position& pos );
-  const MotionInfo& getMotionInfo( const Position& pos ) const;
+        MotionInfo& getMotionInfo( const Position& pos )       { return getCtuData( ctuRsAddr( pos, CH_L ) ).motion[inCtuPos( pos, CH_L )]; }
+  const MotionInfo& getMotionInfo( const Position& pos ) const { return getCtuData( ctuRsAddr( pos, CH_L ) ).motion[inCtuPos( pos, CH_L )]; }
 
-  MotionInfo const* getMiMapPtr()    const { return m_motionBuf; }
-  MotionInfo      * getMiMapPtr()          { return m_motionBuf; }
-  ptrdiff_t         getMiMapStride() const { return ( ptrdiff_t ) g_miScaling.scaleHor( area.Y().width ); }
-
-         LFPBuf getLoopFilterParamBuf( const DeblockEdgeDir& edgeDir );
-  const CLFPBuf getLoopFilterParamBuf( const DeblockEdgeDir& edgeDir ) const;
-
-  LoopFilterParam const* getLFPMapPtr   ( const DeblockEdgeDir edgeDir ) const { return m_lfParam[edgeDir]; }
-  LoopFilterParam      * getLFPMapPtr   ( const DeblockEdgeDir edgeDir )       { return m_lfParam[edgeDir]; }
-  ptrdiff_t              getLFPMapStride() const { return ( ptrdiff_t ) m_mapSize[CH_L].width; }
+  LoopFilterParam const* getLFPMapPtr   ( const DeblockEdgeDir edgeDir, ptrdiff_t _ctuRsAddr ) const { return m_ctuData[_ctuRsAddr].lfParam[edgeDir]; }
+  LoopFilterParam      * getLFPMapPtr   ( const DeblockEdgeDir edgeDir, ptrdiff_t _ctuRsAddr )       { return m_ctuData[_ctuRsAddr].lfParam[edgeDir]; }
+  ptrdiff_t              getLFPMapStride() const { return ( ptrdiff_t( 1 ) << m_ctuWidthLog2[CH_L] ); }
 
   UnitScale getScaling( const UnitScale::ScaliningType type, const ChannelType chType = CH_L ) const
   {

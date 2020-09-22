@@ -134,6 +134,7 @@ private:
 
   PicHeader*                m_picHeader = nullptr;            // picture header
 
+  unsigned int              m_numDecThreads   = 0;
   unsigned int              m_parseFrameDelay = 0;
   std::deque<Picture*>      m_parseFrameList;
   int                       m_maxPicReconSkip = 1;
