@@ -625,7 +625,7 @@ NalType VVDecImpl::getNalUnitType ( AccessUnit& rcAccessUnit )
 
   if( found )
   {
-    iOffset=4;
+    iOffset=5;
   }
   else
   {
@@ -646,19 +646,15 @@ NalType VVDecImpl::getNalUnitType ( AccessUnit& rcAccessUnit )
 
     if( found )
     {
-      iOffset=3;
+      iOffset=4;
     }
   }
 
   if( found )
   {
     unsigned char uc = pcBuf[iOffset];
-
-    int zeroTidRequiredFlag = (uc>>7) & 0x1;
-    //uc >>= 1;
-    uint32_t nalUnitTypeLsb = uc & 0xf;
-    int type = (zeroTidRequiredFlag << 4) + nalUnitTypeLsb ;
-    eNalType = (NalType)type;
+    int nalUnitType   = ((uc >> 3) & 0x1F ); 
+    eNalType = (NalType)nalUnitType;
   }
 
   return eNalType;
