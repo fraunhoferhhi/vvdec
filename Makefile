@@ -35,8 +35,8 @@ ifneq ($(enable-bitstream-download),)
 CONFIG_OPTIONS += -DVVDEC_ENABLE_BITSTREAM_DOWNLOAD=ON
 endif
 
-ifneq ($(enable-app-shared-postfix),)
-CONFIG_OPTIONS += -DVVDEC_ENABLE_APP_SHARED_POSTFIX=ON
+ifneq ($(enable-build-type-postfix),)
+CONFIG_OPTIONS += -DVVDEC_ENABLE_BUILD_TYPE_POSTFIX=ON
 endif
 
 ifneq ($(install-prefix),)

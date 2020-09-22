@@ -18,8 +18,19 @@ set( VVDEC_ENABLE_BITSTREAM_DOWNLOAD OFF CACHE BOOL "Enable or disable bitstream
 # enable install target
 set( VVDEC_ENABLE_INSTALL ON CACHE BOOL "Enable or disable install target" )
 
-# enable postfix for shared apps
-set( VVDEC_ENABLE_APP_SHARED_POSTFIX OFF CACHE BOOL "Enable or disable postfix for shared apps" )
+# enable postfix
+set( VVDEC_ENABLE_BUILD_TYPE_POSTFIX OFF CACHE BOOL "Enable or disable build type postfix for apps and libs" )
+
+if( VVDEC_ENABLE_BUILD_TYPE_POSTFIX )
+  if( BUILD_SHARED_LIBS )
+    set( VVDEC_BUILD_TYPE_POSTFIX "-s" )
+  endif()
+  # set postfixes for libraries
+  set( CMAKE_RELEASE_POSTFIX        "${VVDEC_BUILD_TYPE_POSTFIX}"    CACHE STRING "Set release library postfix" )
+  set( CMAKE_DEBUG_POSTFIX          "-d${VVDEC_BUILD_TYPE_POSTFIX}"  CACHE STRING "Set debug library postfix" )
+  set( CMAKE_RELWITHDEBINFO_POSTFIX "-rd${VVDEC_BUILD_TYPE_POSTFIX}" CACHE STRING "Set relwithdebinfo library postfix" )
+  set( CMAKE_MINSIZEREL_POSTFIX     "-mr${VVDEC_BUILD_TYPE_POSTFIX}" CACHE STRING "Set minsizerel library postfix" )
+endif()
 
 # set VVDEC_OUTPUT_DIR_POSTFIX
 if( BUILD_SHARED_LIBS )
@@ -27,12 +38,6 @@ if( BUILD_SHARED_LIBS )
 else()
   set( VVDEC_OUTPUT_DIR_POSTFIX static )
 endif()
-
-# set postfixes for libraries
-set( CMAKE_RELEASE_POSTFIX        ""    CACHE STRING "Set release library postfix" )
-set( CMAKE_DEBUG_POSTFIX          "-d"  CACHE STRING "Set debug library postfix" )
-set( CMAKE_RELWITHDEBINFO_POSTFIX "-rd" CACHE STRING "Set relwithdebinfo library postfix" )
-set( CMAKE_MINSIZEREL_POSTFIX     "-mr" CACHE STRING "Set minsizerel library postfix" )
 
 # Using CMake's default library name convention which is the same for all configurations.
 set( CMAKE_ARCHIVE_OUTPUT_DIRECTORY_DEBUG          "${CMAKE_SOURCE_DIR}/lib/debug-${VVDEC_OUTPUT_DIR_POSTFIX}" )

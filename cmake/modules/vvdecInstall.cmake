@@ -1,8 +1,8 @@
 # vvdecInstall
 
-set( RUNTIME_DEST bin )
-set( LIBRARY_DEST lib )
-set( ARCHIVE_DEST lib )
+set( RUNTIME_DEST ${CMAKE_INSTALL_BINDIR} )
+set( LIBRARY_DEST ${CMAKE_INSTALL_LIBDIR} )
+set( ARCHIVE_DEST ${CMAKE_INSTALL_LIBDIR} )
 
 # install targets
 macro( install_targets config_ )
@@ -42,10 +42,10 @@ macro( install_exe_pdb exe_ )
 endmacro( install_exe_pdb )
 
 # set interface include directories
-target_include_directories( vvdec  SYSTEM INTERFACE $<INSTALL_INTERFACE:include> )
+target_include_directories( vvdec  SYSTEM INTERFACE $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}> )
 
 # install headers
-install( DIRECTORY include/vvdec  DESTINATION include )
+install( DIRECTORY include/vvdec  DESTINATION ${CMAKE_INSTALL_INCLUDEDIR} )
 
 # install targets
 install_targets( Release )
@@ -60,8 +60,8 @@ install_exe_pdb( vvdecapp )
 configure_file( cmake/install/vvdecConfigVersion.cmake.in ${CMAKE_CURRENT_BINARY_DIR}/vvdecConfigVersion.cmake @ONLY )
 
 # install cmake releated files
-install( FILES cmake/install/vvdecConfig.cmake                       DESTINATION lib/cmake/vvdec )
-install( FILES ${CMAKE_CURRENT_BINARY_DIR}/vvdecConfigVersion.cmake  DESTINATION lib/cmake/vvdec )
+install( FILES cmake/install/vvdecConfig.cmake                       DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/vvdec )
+install( FILES ${CMAKE_CURRENT_BINARY_DIR}/vvdecConfigVersion.cmake  DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/vvdec )
 
 # set config postfix
 if( BUILD_SHARED_LIBS )
@@ -71,6 +71,6 @@ else()
 endif()
 
 # create target cmake files
-install( EXPORT vvdecTargets-release        NAMESPACE vvdec:: FILE vvdecTargets-${CONFIG_POSTFIX}.cmake CONFIGURATIONS Release        DESTINATION lib/cmake/vvdec )
-install( EXPORT vvdecTargets-debug          NAMESPACE vvdec:: FILE vvdecTargets-${CONFIG_POSTFIX}.cmake CONFIGURATIONS Debug          DESTINATION lib/cmake/vvdec )
-install( EXPORT vvdecTargets-relwithdebinfo NAMESPACE vvdec:: FILE vvdecTargets-${CONFIG_POSTFIX}.cmake CONFIGURATIONS RelWithDebInfo DESTINATION lib/cmake/vvdec )
+install( EXPORT vvdecTargets-release        NAMESPACE vvdec:: FILE vvdecTargets-${CONFIG_POSTFIX}.cmake CONFIGURATIONS Release        DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/vvdec )
+install( EXPORT vvdecTargets-debug          NAMESPACE vvdec:: FILE vvdecTargets-${CONFIG_POSTFIX}.cmake CONFIGURATIONS Debug          DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/vvdec )
+install( EXPORT vvdecTargets-relwithdebinfo NAMESPACE vvdec:: FILE vvdecTargets-${CONFIG_POSTFIX}.cmake CONFIGURATIONS RelWithDebInfo DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/vvdec )
