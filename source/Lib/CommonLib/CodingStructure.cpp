@@ -263,8 +263,6 @@ void CodingStructure::createInternals( const UnitArea& _unit )
 
   picture = nullptr;
 
-  const unsigned numCh = ::getNumberValidChannels(area.chromaFormat);
-
   // for the worst case of all PUs being 8x8 and using DMVR
   unsigned _maxNumDmvrMvs = ( area.lwidth() >> 3 ) * ( area.lheight() >> 3 );
   m_dmvrMvCache.resize( _maxNumDmvrMvs );
