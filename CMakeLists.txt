@@ -228,18 +228,20 @@ if( VVDEC_ENABLE_BITSTREAM_DOWNLOAD )
     "ALF_A_KDDI_2.zip"
     "AMVR_A_HHI_3.zip" "AMVR_B_HHI_3.zip"
     "APSLMCS_A_Dolby_3.zip" "APSLMCS_B_Dolby_3.zip" "APSLMCS_C_Dolby_2.zip"
-    "APSMULT_A_Mediatek_3.zip" # "APSMULT_B_Mediatek_3.zip" # causes the tests to hang up
+    "APSMULT_A_Mediatek_3.zip" "APSMULT_B_Mediatek_3.zip"
     "AUD_A_Broadcom_3.zip"
     "BCW_A_Mediatek_3.zip"
     "BDOF_A_Mediatek_3.zip"
     "BDPCM_A_Orange_2.zip"
+    "BOUNDARY_A_Huawei_3.zip"
     "CCALF_A_SHARP_3.zip" "CCALF_B_SHARP_3.zip" "CCALF_C_SHARP_3.zip" "CCALF_D_SHARP_3.zip"
     "CCLM_A_KDDI_1.zip"
     "CIIP_A_Mediatek_3.zip"
     "CodingToolsSets_A_Tencent_2.zip" "CodingToolsSets_B_Tencent_2.zip" "CodingToolsSets_C_Tencent_2.zip" "CodingToolsSets_D_Tencent_2.zip" "CodingToolsSets_E_Tencent_1.zip"
     "CST_A_MediaTek_3.zip"
     "CTU_A_MediaTek_3.zip" "CTU_B_MediaTek_3.zip" "CTU_C_MediaTek_3.zip"
-    "DEBLOCKING_Ericsson_2.zip"
+    "DEBLOCKING_A_Sharp_3.zip" "DEBLOCKING_B_Sharp_2.zip"
+    "DEBLOCKING_Ericsson_2.zip" "DEBLOCKING_F_Ericsson_1.zip"
     "DMVR_A_KDDI_2.zip"
     "DPB_A_Sharplabs_2.zip" "DPB_B_Sharplabs_2.zip"
     "DQ_A_HHI_3.zip" "DQ_B_HHI_3.zip"
@@ -258,6 +260,7 @@ if( VVDEC_ENABLE_BITSTREAM_DOWNLOAD )
     "MERGE_A_Qualcomm_2.zip" "MERGE_B_Qualcomm_2.zip" "MERGE_C_Qualcomm_2.zip" "MERGE_D_Qualcomm_2.zip" "MERGE_E_Qualcomm_2.zip"
     "MERGE_F_Qualcomm_2.zip" "MERGE_G_Qualcomm_2.zip" "MERGE_H_Qualcomm_2.zip" "MERGE_I_Qualcomm_2.zip" "MERGE_J_Qualcomm_2.zip"
     "MIP_A_HHI_3.zip" "MIP_B_HHI_3.zip"
+    "MMVD_A_SAMSUNG_2.zip"
     "MVCOMP_A_Sharp_2.zip"
     "MPM_A_LGE_3.zip"
     "POUT_A_Sharplabs_2.zip"
@@ -265,8 +268,11 @@ if( VVDEC_ENABLE_BITSTREAM_DOWNLOAD )
     "PROF_A_Interdigital_3.zip" "PROF_B_Interdigital_3.zip"
     "PSEXT_A_Nokia_2.zip" "PSEXT_B_Nokia_2.zip"
     "QTBTT_A_MediaTek_3.zip"
-    "QUANT_A_Huawei_2.zip" "QUANT_B_Huawei_2.zip" "QUANT_C_Huawei_2.zip"
+    "QUANT_A_Huawei_2.zip" "QUANT_B_Huawei_2.zip" "QUANT_C_Huawei_2.zip" "QUANT_D_Huawei_2.zip"
+    "RPL_A_ERICSSON_2.zip"
     "RPR_A_Alibaba_3.zip" "RPR_B_Alibaba_3.zip" "RPR_C_Alibaba_3.zip"
+    "SAO_A_SAMSUNG_2.zip" "SAO_B_SAMSUNG_2.zip" "SAO_C_SAMSUNG_2.zip"
+    "SBT_A_HUAWEI_2.zip"
     "SbTMVP_A_Bytedance_3.zip" "SbTMVP_B_Bytedance_3.zip"
     "SDH_A_Dolby_2.zip"
     "SLICES_A_HUAWEI_2.zip"
@@ -300,6 +306,7 @@ file( GLOB_RECURSE BITSTREAMS LIST_DIRECTORIES false ${BITSTREAM_INSTALL_DIR_BAS
 foreach( BITSTREAM IN LISTS BITSTREAMS )
   string( REGEX REPLACE ".*/(.*)" "\\1" BITSTREAM_SHORT "${BITSTREAM}" )
   add_test( NAME Test_${BITSTREAM_SHORT} COMMAND vvdecapp -b ${BITSTREAM} -dph )
+  set_tests_properties( Test_${BITSTREAM_SHORT} PROPERTIES TIMEOUT 60 ) 
 endforeach()
 
 if( VVDEC_ENABLE_INSTALL )
