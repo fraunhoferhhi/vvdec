@@ -825,7 +825,7 @@ Slice*  DecLibParser::xDecodeSliceMain( InputNALUnit &nalu )
   }
 #endif
 
-  pcSlice->scaleRefPicList( m_pcParsePic->cs->picHeader, m_parameterSetManager.getAlfAPSs().data(), m_picHeader->getLmcsAPS(), m_picHeader->getScalingListAPS(), true );
+  pcSlice->scaleRefPicList( m_pcParsePic->cs->picHeader, m_parameterSetManager.getAlfAPSs().data(), m_picHeader->getLmcsAPS().get(), m_picHeader->getScalingListAPS().get(), true );
 
 #if !JVET_S0258_SUBPIC_CONSTRAINTS
 #if JVET_R0276_REORDERED_SUBPICS
@@ -1126,7 +1126,7 @@ Picture * DecLibParser::xActivateParameterSets( const int layerId )
 
   if( !m_bFirstSliceInPicture )
   {
-    APS*  lmcsAPS = pSlice->getPicHeader()->getLmcsAPS();
+    APS*  lmcsAPS = pSlice->getPicHeader()->getLmcsAPS().get();
 
     // check that the current active PPS has not changed...
     if( sps->getChangedFlag() )

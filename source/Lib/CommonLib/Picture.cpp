@@ -213,8 +213,8 @@ void Picture::finalInit( const SPS *sps, const PPS *pps, PicHeader* picHeader, A
 
   picHeader->setSPSId         ( sps->getSPSId() );
   picHeader->setPPSId         ( pps->getPPSId() );
-  picHeader->setLmcsAPS       ( lmcsAps );
-  picHeader->setScalingListAPS( scalingListAps );
+  picHeader->setLmcsAPS       ( lmcsAps        ? lmcsAps       ->getSharedPtr() : nullptr );
+  picHeader->setScalingListAPS( scalingListAps ? scalingListAps->getSharedPtr() : nullptr );
 
   for( int i = 0; i < ALF_CTB_MAX_NUM_APS; ++i )
   {
