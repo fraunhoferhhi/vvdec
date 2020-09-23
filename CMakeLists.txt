@@ -12,7 +12,7 @@ endif()
 # project name
 project( vvdec VERSION 0.1.0.0 )
 
-# enable or disable Boost
+# enable or disable bitstream download
 set( VVDEC_ENABLE_BITSTREAM_DOWNLOAD OFF CACHE BOOL "Enable or disable bitstream download" )
 
 # enable install target
@@ -20,6 +20,9 @@ set( VVDEC_ENABLE_INSTALL ON CACHE BOOL "Enable or disable install target" )
 
 # enable postfix
 set( VVDEC_ENABLE_BUILD_TYPE_POSTFIX OFF CACHE BOOL "Enable or disable build type postfix for apps and libs" )
+
+# enable local bitstream download
+set( VVDEC_ENABLE_LOCAL_BITSTREAM_DOWNLOAD OFF CACHE BOOL "Enable or disable local bitstream download" )
 
 if( VVDEC_ENABLE_BUILD_TYPE_POSTFIX )
   if( BUILD_SHARED_LIBS )
@@ -219,8 +222,13 @@ if( VVDEC_ENABLE_BITSTREAM_DOWNLOAD )
   # enable FetchContent
   include( FetchContent )
   
-  # get bitstreams
-  set( BITSTREAM_URL_BASE "https://www.itu.int/wftp3/av-arch/jvet-site/bitstream_exchange/VVC/under_test/VTM-10.0" )
+  if( VVDEC_ENABLE_LOCAL_BITSTREAM_DOWNLOAD )
+    # get bitstreams
+    set( BITSTREAM_URL_BASE "https://visvn.fe.hhi.de/download/VTM-10.0" )
+  else()
+    # get bitstreams
+    set( BITSTREAM_URL_BASE "https://www.itu.int/wftp3/av-arch/jvet-site/bitstream_exchange/VVC/under_test/VTM-10.0" )
+  endif()
   
   # create a list of all test bitstreams
   list( APPEND BITSTREAM_FILES
@@ -228,15 +236,15 @@ if( VVDEC_ENABLE_BITSTREAM_DOWNLOAD )
     "ALF_A_KDDI_2.zip"
     "AMVR_A_HHI_3.zip" "AMVR_B_HHI_3.zip"
     "APSLMCS_A_Dolby_3.zip" "APSLMCS_B_Dolby_3.zip" "APSLMCS_C_Dolby_2.zip"
-    "APSMULT_A_Mediatek_3.zip" "APSMULT_B_Mediatek_3.zip"
+    "APSMULT_A_MediaTek_3.zip" "APSMULT_B_MediaTek_3.zip"
     "AUD_A_Broadcom_3.zip"
-    "BCW_A_Mediatek_3.zip"
-    "BDOF_A_Mediatek_3.zip"
+    "BCW_A_MediaTek_3.zip"
+    "BDOF_A_MediaTek_3.zip"
     "BDPCM_A_Orange_2.zip"
     "BOUNDARY_A_Huawei_3.zip"
-    "CCALF_A_SHARP_3.zip" "CCALF_B_SHARP_3.zip" "CCALF_C_SHARP_3.zip" "CCALF_D_SHARP_3.zip"
+    "CCALF_A_Sharp_3.zip" "CCALF_B_Sharp_3.zip" "CCALF_C_Sharp_3.zip" "CCALF_D_Sharp_3.zip"
     "CCLM_A_KDDI_1.zip"
-    "CIIP_A_Mediatek_3.zip"
+    "CIIP_A_MediaTek_3.zip"
     "CodingToolsSets_A_Tencent_2.zip" "CodingToolsSets_B_Tencent_2.zip" "CodingToolsSets_C_Tencent_2.zip" "CodingToolsSets_D_Tencent_2.zip" "CodingToolsSets_E_Tencent_1.zip"
     "CST_A_MediaTek_3.zip"
     "CTU_A_MediaTek_3.zip" "CTU_B_MediaTek_3.zip" "CTU_C_MediaTek_3.zip"
@@ -289,12 +297,14 @@ if( VVDEC_ENABLE_BITSTREAM_DOWNLOAD )
   )
   
   # download and uncompress
+  set( COUNTER 1 )
   foreach( BITSTREAM_FILE IN LISTS BITSTREAM_FILES )
     string( REGEX REPLACE ".*/(.*)\\..*" "\\1" SUB_DIR "${BITSTREAM_URL_BASE}/${BITSTREAM_FILE}" )
     set( BITSTREAM_INSTALL_DIR "${BITSTREAM_INSTALL_DIR_BASE}/${SUB_DIR}" )
     if( NOT EXISTS "${BITSTREAM_INSTALL_DIR}" )
-      FetchContent_Populate( bs SOURCE_DIR ${BITSTREAM_INSTALL_DIR} URL "${BITSTREAM_URL_BASE}/${BITSTREAM_FILE}" )  
-    endif()  
+      FetchContent_Populate( ${COUNTER} SOURCE_DIR ${BITSTREAM_INSTALL_DIR} URL "${BITSTREAM_URL_BASE}/${BITSTREAM_FILE}" )  
+    endif()
+    math( EXPR COUNTER "${COUNTER}+1" )
   endforeach()
 endif()
 
@@ -305,8 +315,10 @@ enable_testing()
 file( GLOB_RECURSE BITSTREAMS LIST_DIRECTORIES false ${BITSTREAM_INSTALL_DIR_BASE}/*.bit )
 foreach( BITSTREAM IN LISTS BITSTREAMS )
   string( REGEX REPLACE ".*/(.*)" "\\1" BITSTREAM_SHORT "${BITSTREAM}" )
-  add_test( NAME Test_${BITSTREAM_SHORT} COMMAND vvdecapp -b ${BITSTREAM} -dph )
-  set_tests_properties( Test_${BITSTREAM_SHORT} PROPERTIES TIMEOUT 60 ) 
+  if( NOT BITSTREAM_SHORT MATCHES "^\\..+" )
+    add_test( NAME Test_${BITSTREAM_SHORT} COMMAND vvdecapp -b ${BITSTREAM} -dph )
+    set_tests_properties( Test_${BITSTREAM_SHORT} PROPERTIES TIMEOUT 60 )
+  endif() 
 endforeach()
 
 if( VVDEC_ENABLE_INSTALL )
