@@ -35,6 +35,10 @@ ifneq ($(enable-bitstream-download),)
 CONFIG_OPTIONS += -DVVDEC_ENABLE_BITSTREAM_DOWNLOAD=ON
 endif
 
+ifneq ($(enable-local-bitstream-download),)
+CONFIG_OPTIONS += -DVVDEC_ENABLE_LOCAL_BITSTREAM_DOWNLOAD=ON
+endif
+
 ifneq ($(enable-build-type-postfix),)
 CONFIG_OPTIONS += -DVVDEC_ENABLE_BUILD_TYPE_POSTFIX=ON
 endif
