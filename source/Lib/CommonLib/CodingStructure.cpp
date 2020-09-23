@@ -63,8 +63,6 @@ const UnitScale UnitScaleArray[NUM_CHROMA_FORMAT][MAX_NUM_COMPONENT] =
   { {2,2}, {2,2}, {2,2} }   // 4:4:4
 };
 
-static const int UNIT_PAD_SIZE = 128;
-
 // ---------------------------------------------------------------------------
 // coding structure method definitions
 // ---------------------------------------------------------------------------
