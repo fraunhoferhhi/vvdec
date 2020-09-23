@@ -527,7 +527,7 @@ void LoopFilter::loopFilterCTU( CodingStructure &cs, const ChannelType chType, c
 template<DeblockEdgeDir edgeDir>
 void LoopFilter::xDeblockCtuArea( CodingStructure& cs, const UnitArea& area, const ChannelType chType ) const
 {
-  if( cs.slice->getDeblockingFilterDisable() )
+  if( cs.getCtuData( cs.ctuRsAddr( area.lumaPos(), CH_L ) ).cuPtr[0][0]->slice->getDeblockingFilterDisable() )
   {
     return;
   }
