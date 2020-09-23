@@ -1695,7 +1695,7 @@ void CABACReader::prediction_unit( PredictionUnit& pu, MergeCtx& mrgCtx )
     pu.refIdx[REF_PIC_LIST_0] = MAX_NUM_REF;
     mvd_coding( pu.mv[REF_PIC_LIST_0][0] );
 
-    if( pu.slice->getPicHeader()->getMaxNumIBCMergeCand() == 1 )
+    if( pu.cs->sps->getMaxNumIBCMergeCand() == 1 )
     {
       pu.mvpIdx[REF_PIC_LIST_0] = 0;
     }
@@ -1984,7 +1984,7 @@ void CABACReader::merge_idx( PredictionUnit& pu )
 
     if( pu.predMode() == MODE_IBC )
     {
-      numCandminus1 = int( pu.cs->picHeader->getMaxNumIBCMergeCand() ) - 1;
+      numCandminus1 = int( pu.cs->sps->getMaxNumIBCMergeCand() ) - 1;
     }
 
     if( numCandminus1 > 0 )

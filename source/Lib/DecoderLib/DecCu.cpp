@@ -853,7 +853,7 @@ void DecCu::xDeriveCUMV( CodingUnit &cu, MotionHist& hist )
         AMVPInfo amvpInfo;
         PU::fillIBCMvpCand( pu, amvpInfo, hist );
         Mv mvd = pu.mv[REF_PIC_LIST_0][0];
-        mvd <<= 2;
+        mvd <<= 4;
         if( pu.slice->getPicHeader()->getMaxNumIBCMergeCand() == 1 )
         {
           CHECK( pu.mvpIdx[REF_PIC_LIST_0], "mvpIdx for IBC mode should be 0" );
