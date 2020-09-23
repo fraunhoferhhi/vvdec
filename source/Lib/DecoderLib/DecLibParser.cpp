@@ -1332,13 +1332,16 @@ Picture * DecLibParser::xActivateParameterSets( const int layerId )
   ProfileLevelTierFeatures ptlFeature;
   ptlFeature.extractPTLInformation(*sps);
 
-  CHECK( pps->getNumTileColumns() > ptlFeature.getLevelTierFeatures()->maxTileCols,
+  const LevelTierFeatures* ltFeature = ptlFeature.getLevelTierFeatures();
+  const ProfileFeatures*   pFeature  = ptlFeature.getProfileFeatures();
+
+  CHECK( ltFeature && pps->getNumTileColumns() > ltFeature->maxTileCols,
          "Num tile columns signaled in PPS exceed level limits" );
-  CHECK( pps->getNumTiles() > ptlFeature.getLevelTierFeatures()->maxTilesPerAu,
+  CHECK( ltFeature && pps->getNumTiles() > ltFeature->maxTilesPerAu,
          "Num tiles signaled in PPS exceed level limits" );
-  CHECK( sps->getBitDepth( CHANNEL_TYPE_LUMA ) > ptlFeature.getProfileFeatures()->maxBitDepth,
+  CHECK( pFeature && sps->getBitDepth( CHANNEL_TYPE_LUMA ) > pFeature->maxBitDepth,
          "Bit depth exceed profile limit" );
-  CHECK( sps->getChromaFormatIdc() > ptlFeature.getProfileFeatures()->maxChromaFormat,
+  CHECK( pFeature && sps->getChromaFormatIdc() > pFeature->maxChromaFormat,
          "Chroma format exceed profile limit" );
 
   return pcPic;
