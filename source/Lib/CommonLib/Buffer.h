@@ -381,7 +381,7 @@ void AreaBuf<T>::copyFrom( const AreaBuf<const T> &other ) const
   static_assert( std::is_trivially_copyable<T>::value, "Type T is not trivially_copyable" );
 #endif
 
-  CHECK( width  != other.width,  "Incompatible size" );
+  // CHECK( width  != other.width,  "Incompatible size" );
   CHECK( height != other.height, "Incompatible size" );
 
   if( buf == other.buf )
