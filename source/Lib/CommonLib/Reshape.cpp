@@ -198,9 +198,10 @@ void Reshape::rspCtu( CodingStructure &cs, int col, int ln, const int offset ) c
   {
     return;
   }
-
+ 
   const Slice* slice = cs.getCtuData( col, ln ).cuPtr[0][0]->slice;
   if( !slice->getLmcsEnabledFlag() )
+
   {
     return;
   }
