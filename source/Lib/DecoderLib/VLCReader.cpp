@@ -204,6 +204,7 @@ void AUDReader::parseAccessUnitDelimiter(InputBitstream* bs, uint32_t &picType)
 #if ENABLE_TRACING
   xTraceAccessUnitDelimiter();
 #endif
+
   uint32_t audIrapOrGdrAuFlag;
   READ_FLAG (audIrapOrGdrAuFlag, "aud_irap_or_gdr_au_flag"); //just a parsing fix, but not used TODO: check m_audIrapOrGdrAuFlag in VTM-10.0 reference software
   READ_CODE (3, picType, "pic_type");
@@ -839,53 +840,12 @@ void HLSyntaxReader::parsePPS( PPS* pcPPS, ParameterSetManager *parameterSetMana
   READ_FLAG( uiCode, "pps_extension_present_flag");
   if (uiCode)
   {
-#if ENABLE_TRACING
-    static const char *syntaxStrings[]={ "pps_range_extension_flag",
-      "pps_multilayer_extension_flag",
-      "pps_extension_6bits[0]",
-      "pps_extension_6bits[1]",
-      "pps_extension_6bits[2]",
-      "pps_extension_6bits[3]",
-      "pps_extension_6bits[4]",
-      "pps_extension_6bits[5]" };
-#endif
-
-    bool pps_extension_flags[NUM_PPS_EXTENSION_FLAGS];
-    for(int i=0; i<NUM_PPS_EXTENSION_FLAGS; i++)
+    while ( xMoreRbspData() )
     {
-      READ_FLAG( uiCode, syntaxStrings[i] );
-      pps_extension_flags[i] = uiCode!=0;
-    }
-
-    bool bSkipTrailingExtensionBits=false;
-    for(int i=0; i<NUM_PPS_EXTENSION_FLAGS; i++) // loop used so that the order is determined by the enum.
-    {
-      if (pps_extension_flags[i])
-      {
-        switch (PPSExtensionFlagIndex(i))
-        {
-        case PPS_EXT__REXT:
-        {
-          PPSRExt &ppsRangeExtension = pcPPS->getPpsRangeExtension();
-          CHECK(bSkipTrailingExtensionBits, "Invalid state");
-          READ_FLAG( uiCode, "cross_component_prediction_enabled_flag");
-          ppsRangeExtension.setCrossComponentPredictionEnabledFlag(uiCode != 0);
-        }
-        break;
-        default:
-          bSkipTrailingExtensionBits=true;
-          break;
-        }
-      }
-    }
-    if (bSkipTrailingExtensionBits)
-    {
-      while ( xMoreRbspData() )
-      {
-        READ_FLAG( uiCode, "pps_extension_data_flag");
-      }
+      READ_FLAG( uiCode, "pps_extension_data_flag");
     }
   }
+
   xReadRbspTrailingBits();
 
   const SPS* pcSPS = parameterSetManager->getSPS( pcPPS->getSPSId() );
