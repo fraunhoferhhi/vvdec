@@ -709,7 +709,7 @@ void Quant::init( Slice *slice )
 {
   if( slice->getExplicitScalingListUsed() )
   {
-    APS* scalingListAPS = slice->getPicHeader()->getScalingListAPS();
+    std::shared_ptr<APS> scalingListAPS = slice->getPicHeader()->getScalingListAPS();
     if( slice->getNalUnitLayerId() != scalingListAPS->getLayerId() )
     {
       CHECK( scalingListAPS->getLayerId() > slice->getNalUnitLayerId(), "Layer Id of APS cannot be greater than layer Id of VCL NAL unit the refer to it" );

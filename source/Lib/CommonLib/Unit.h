@@ -304,8 +304,9 @@ class  CodingStructure;
 struct CodingUnit : public UnitArea
 {
   TransformUnit     firstTU;
-  TransformUnit*    lastTU;
+  TransformUnit    *lastTU;
 
+  struct CtuData   *ctuData;
   CodingStructure  *cs;
   Slice            *slice;
         CodingUnit *next;

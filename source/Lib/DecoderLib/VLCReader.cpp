@@ -197,14 +197,15 @@ void VLCReader::xReadRbspTrailingBits()
   CHECK(cnt >= 8, "Read more than '8' trailing bits");
 }
 
-void AUDReader::parseAccessUnitDelimiter(InputBitstream* bs, uint32_t &audIrapOrGdrAuFlag, uint32_t &picType)
+void AUDReader::parseAccessUnitDelimiter(InputBitstream* bs, uint32_t &picType)
 {
   setBitstream(bs);
 
 #if ENABLE_TRACING
   xTraceAccessUnitDelimiter();
 #endif
-  READ_FLAG (audIrapOrGdrAuFlag, "aud_irap_or_gdr_au_flag");
+  uint32_t audIrapOrGdrAuFlag;
+  READ_FLAG (audIrapOrGdrAuFlag, "aud_irap_or_gdr_au_flag"); //just a parsing fix, but not used TODO: check m_audIrapOrGdrAuFlag in VTM-10.0 reference software
   READ_CODE (3, picType, "pic_type");
   xReadRbspTrailingBits();
 }

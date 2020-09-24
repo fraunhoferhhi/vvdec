@@ -2653,11 +2653,11 @@ private:
   int                         m_deblockingFilterCrTcOffsetDiv2                = 0;                         //!< tc offset for deblocking filter
   bool                        m_lmcsEnabledFlag                               = false;  //!< lmcs enabled flag
   int                         m_lmcsApsId                                     = -1;     //!< lmcs APS ID
-  APS*                        m_lmcsAps                                       = nullptr; //!< lmcs APS
+  std::shared_ptr<APS>        m_lmcsAps                                       = nullptr; //!< lmcs APS
   bool                        m_lmcsChromaResidualScaleFlag                   = false;  //!< lmcs chroma residual scale flag
   bool                        m_explicitScalingListEnabledFlag                = false;  //!< explicit quantization scaling list enabled
   int                         m_scalingListApsId                              = -1;     //!< quantization scaling list APS ID
-  APS*                        m_scalingListAps                                = nullptr; //!< quantization scaling list APS
+  std::shared_ptr<APS>        m_scalingListAps                                = nullptr; //!< quantization scaling list APS
   unsigned                    m_minQT[3]                                      = { 0, 0, 0 }; //!< minimum quad-tree size  0: I slice luma; 1: P/B slice; 2: I slice chroma
   unsigned                    m_maxMTTHierarchyDepth[3]                       = { 0, 0, 0 }; //!< maximum MTT depth
   unsigned                    m_maxBTSize[3]                                  = { 0, 0, 0 }; //!< maximum BT size
@@ -2795,15 +2795,15 @@ public:
   void                        setLmcsEnabledFlag(bool b)                                { m_lmcsEnabledFlag = b;                                                                       }
   bool                        getLmcsEnabledFlag()                                      { return m_lmcsEnabledFlag;                                                                    }
   const bool                  getLmcsEnabledFlag() const                                { return m_lmcsEnabledFlag;                                                                    }
-  void                        setLmcsAPS(APS* aps)                                      { m_lmcsAps = aps; m_lmcsApsId = (aps) ? aps->getAPSId() : -1;                                 }
-  APS*                        getLmcsAPS() const                                        { return m_lmcsAps;                                                                            }
+  void                        setLmcsAPS(std::shared_ptr<APS> aps)                      { m_lmcsAps = aps; m_lmcsApsId = (aps) ? aps->getAPSId() : -1;                                 }
+  std::shared_ptr<APS>        getLmcsAPS() const                                        { return m_lmcsAps;                                                                            }
   void                        setLmcsAPSId(int id)                                      { m_lmcsApsId = id;                                                                            }
   int                         getLmcsAPSId() const                                      { return m_lmcsApsId;                                                                          }
   void                        setLmcsChromaResidualScaleFlag(bool b)                    { m_lmcsChromaResidualScaleFlag = b;                                                           }
   bool                        getLmcsChromaResidualScaleFlag()                          { return m_lmcsChromaResidualScaleFlag;                                                        }
   const bool                  getLmcsChromaResidualScaleFlag() const                    { return m_lmcsChromaResidualScaleFlag;                                                        }
-  void                        setScalingListAPS( APS* aps )                             { m_scalingListAps = aps; m_scalingListApsId = ( aps ) ? aps->getAPSId() : -1;                 }
-  APS*                        getScalingListAPS() const                                 { return m_scalingListAps;                                                                     }
+  void                        setScalingListAPS(std::shared_ptr<APS> aps)               { m_scalingListAps = aps; m_scalingListApsId = ( aps ) ? aps->getAPSId() : -1;                 }
+  std::shared_ptr<APS>        getScalingListAPS() const                                 { return m_scalingListAps;                                                                     }
   void                        setScalingListAPSId( int id )                             { m_scalingListApsId = id;                                                                     }
   int                         getScalingListAPSId() const                               { return m_scalingListApsId;                                                                   }
   void                        setExplicitScalingListEnabledFlag( bool b )               { m_explicitScalingListEnabledFlag = b;                                                        }

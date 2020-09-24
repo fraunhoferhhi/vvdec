@@ -1033,9 +1033,9 @@ void InterPrediction::xPredAffineBlk( const ComponentID&    compID,
   PelBuf &dstBuf = dstPic.bufs[compID];
 
 #if !CALC_AFFINE_MV_ON_THE_FLY
-  const MotionInfo* curMi   = pu.cs->getMiMapPtr();
-  const ptrdiff_t miStride  = pu.cs->getMiMapStride();
-  OFFSET( curMi, miStride, g_miScaling.scaleHor( pu.lx() ), g_miScaling.scaleVer( pu.ly() ) );
+  const CMotionBuf mb       = pu.getMotionBuf();
+  const MotionInfo* curMi   = mb.buf;
+  const ptrdiff_t miStride  = mb.stride;
 #endif
   Mv* chromaMvFld = m_storedMv;
 

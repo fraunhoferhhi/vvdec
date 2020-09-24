@@ -348,7 +348,7 @@ void DecLibRecon::decompressPicture( Picture* pcPic )
   picBarriers.push_back( &cs.slice->parseDone );
 
 #endif
-  const TaskType ctuStartState = ( cs.slice->getSliceType() == I_SLICE && !cs.sps->getIBCFlag() ) ? LF_INIT : MIDER;
+  const TaskType ctuStartState = MIDER;
   const bool     doALF         = cs.sps->getUseALF() && !AdaptiveLoopFilter::getAlfSkipSlice( cs );
 
   commonTaskParam.reset( cs, ctuStartState, numTasksPerLine, doALF );
@@ -421,7 +421,7 @@ void DecLibRecon::decompressPicture( Picture* pcPic )
 
       picture->reconstructed = true;
       picture->inProgress    = false;
-      picture->neededForOutput = (picture->slices[0]->getPicHeader()->getPicOutputFlag() ? true : false);
+      picture->neededForOutput = picture->slices[0]->getPicHeader()->getPicOutputFlag();
 #ifdef TRACE_ENABLE_ITT
       // mark end of frame
       __itt_frame_end_v3( picture->m_itt_decLibInst, nullptr );
@@ -463,8 +463,6 @@ void DecLibRecon::decompressPicture( Picture* pcPic )
 
   if( m_decodeThreadPool->numThreads() == 0 )
   {
-    bool allDone = m_decodeThreadPool->processTasksOnMainThread();
-    CHECK( !allDone, "some tasks can not be finished due to locked barriers." );
   }
   else
   {
@@ -525,8 +523,14 @@ bool DecLibRecon::ctuTask( int tid, CtuTaskParam* param )
 
     for( int ctu = ctuStart; ctu < ctuEnd; ctu++ )
     {
-      const UnitArea ctuArea = getCtuArea( cs, ctu, line, true );
-      decLib.m_cCuDecoder[tid].TaskDeriveCtuMotionInfo( cs, ctuArea, param->common.perLineMiHist[line] );
+      CtuData& ctuData = cs.getCtuData( ctu, line );
+      memset( ctuData.motion, 0, sizeof( CtuData::motion ) );
+
+      if( !ctuData.cuPtr[0][0]->slice->isIntra() || cs.sps->getIBCFlag() )
+      {
+        const UnitArea ctuArea = getCtuArea( cs, ctu, line, true );
+        decLib.m_cCuDecoder[tid].TaskDeriveCtuMotionInfo( cs, ctuArea, param->common.perLineMiHist[line] );
+      }
     }
     thisCtuState = ( TaskType )( MIDER + 1 );
 
@@ -542,6 +546,9 @@ bool DecLibRecon::ctuTask( int tid, CtuTaskParam* param )
 
     for( int ctu = ctuStart; ctu < ctuEnd; ctu++ )
     {
+      CtuData& ctuData = cs.getCtuData( ctu, line );
+      memset( ctuData.lfParam, 0, sizeof( CtuData::lfParam ) );
+
       const UnitArea  ctuArea  = getCtuArea( cs, ctu, line, true );
       decLib.m_cLoopFilter.calcFilterStrengthsCTU( cs, ctuArea );
     }

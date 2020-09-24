@@ -144,8 +144,8 @@ bool CABACReader::coding_tree_unit( CodingStructure& cs, const UnitArea& area, i
     int                 ry = ctuRsAddr / frame_width_in_ctus;
     int                 rx = ctuRsAddr - ry * frame_width_in_ctus;
     const Position      pos( rx * cs.pcv->maxCUWidth, ry * cs.pcv->maxCUHeight );
-    bool                leftAvail = cs.getCURestricted( pos.offset( -(int)pcv.maxCUWidth, 0 ), pos, partitioner.currSliceIdx, partitioner.currTileIdx, CH_L ) ? true : false;
-    bool                aboveAvail = cs.getCURestricted( pos.offset( 0, -(int)pcv.maxCUHeight ), pos, partitioner.currSliceIdx, partitioner.currTileIdx, CH_L ) ? true : false;
+    bool                leftAvail  = cs.getCURestricted( pos.offset( -1, 0 ), pos, partitioner.currSliceIdx, partitioner.currTileIdx, CH_L ) ? true : false;
+    bool                aboveAvail = cs.getCURestricted( pos.offset( 0, -1 ), pos, partitioner.currSliceIdx, partitioner.currTileIdx, CH_L ) ? true : false;
 
     int leftCTUAddr = leftAvail ? ctuRsAddr - 1 : -1;
     int aboveCTUAddr = aboveAvail ? ctuRsAddr - frame_width_in_ctus : -1;
@@ -1695,7 +1695,7 @@ void CABACReader::prediction_unit( PredictionUnit& pu, MergeCtx& mrgCtx )
     pu.refIdx[REF_PIC_LIST_0] = MAX_NUM_REF;
     mvd_coding( pu.mv[REF_PIC_LIST_0][0] );
 
-    if( pu.slice->getPicHeader()->getMaxNumIBCMergeCand() == 1 )
+    if( pu.cs->sps->getMaxNumIBCMergeCand() == 1 )
     {
       pu.mvpIdx[REF_PIC_LIST_0] = 0;
     }
@@ -1984,7 +1984,7 @@ void CABACReader::merge_idx( PredictionUnit& pu )
 
     if( pu.predMode() == MODE_IBC )
     {
-      numCandminus1 = int( pu.cs->picHeader->getMaxNumIBCMergeCand() ) - 1;
+      numCandminus1 = int( pu.cs->sps->getMaxNumIBCMergeCand() ) - 1;
     }
 
     if( numCandminus1 > 0 )

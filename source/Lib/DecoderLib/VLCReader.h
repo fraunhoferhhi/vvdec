@@ -120,7 +120,7 @@ class AUDReader: public VLCReader
 public:
   AUDReader() {};
   virtual ~AUDReader() {};
-  void parseAccessUnitDelimiter(InputBitstream* bs, uint32_t &audIrapOrGdrAuFlag, uint32_t &picType);
+  void parseAccessUnitDelimiter(InputBitstream* bs, uint32_t &picType);
 };
 
 

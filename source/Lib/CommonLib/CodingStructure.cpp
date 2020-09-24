@@ -63,8 +63,6 @@ const UnitScale UnitScaleArray[NUM_CHROMA_FORMAT][MAX_NUM_COMPONENT] =
   { {2,2}, {2,2}, {2,2} }   // 4:4:4
 };
 
-static const int UNIT_PAD_SIZE = 128;
-
 // ---------------------------------------------------------------------------
 // coding structure method definitions
 // ---------------------------------------------------------------------------
@@ -74,20 +72,8 @@ CodingStructure::CodingStructure(std::shared_ptr<CUCache> cuCache, std::shared_p
   , picture   ( nullptr )
   , m_cuCache ( cuCache )
   , m_tuCache ( tuCache )
- , m_IBCBufferWidth( 0 )
+  , m_IBCBufferWidth( 0 )
 {
-  for( uint32_t i = 0; i < MAX_NUM_CHANNEL_TYPE; i++ )
-  {
-    m_cuIdxOrigin[ i ] = nullptr;
-    m_cuIdx      [ i ] = nullptr;
-  }
-
-  for( int j = 0; j < NUM_EDGE_DIR; j++ )
-  {
-    m_lfParam[ j ] = nullptr;
-  }
-
-  m_motionBuf     = nullptr;
   m_dmvrMvCacheOffset = 0;
 }
 
@@ -98,22 +84,6 @@ void CodingStructure::destroy()
   m_reco.destroy();
   m_rec_wrap.destroy();
   m_pred.destroy();
-
-  for( uint32_t i = 0; i < MAX_NUM_CHANNEL_TYPE; i++ )
-  {
-    xFree( m_cuIdxOrigin[ i ] );
-    m_cuIdxOrigin[ i ] = nullptr;
-    m_cuIdx      [ i ] = nullptr;
-  }
-
-  for( int j = 0; j < NUM_EDGE_DIR; j++ )
-  {
-    xFree( m_lfParam[j] );
-    m_lfParam[j] = nullptr;
-  }
-
-  xFree( m_motionBuf );
-  m_motionBuf = nullptr;
 
   m_dmvrMvCache.clear();
 
@@ -148,6 +118,9 @@ CodingUnit& CodingStructure::addCU( const UnitArea &unit, const ChannelType chTy
 
   uint32_t numCh = ::getNumberValidChannels( area.chromaFormat );
 
+  CtuData& ctuData = getCtuData( ctuRsAddr( unit.blocks[chType].pos(), chType ) );
+  cu->ctuData = &ctuData;
+
   for( uint32_t i = 0; i < numCh; i++ )
   {
     if( !cu->blocks[i].valid() )
@@ -170,11 +143,11 @@ CodingUnit& CodingStructure::addCU( const UnitArea &unit, const ChannelType chTy
       m_predBuf  [0] += cuArea;
     }
 
-    const ptrdiff_t  stride = m_mapOrigSize[i].width;
+    const ptrdiff_t  stride = ptrdiff_t( 1 ) << m_ctuWidthLog2[i];
     const Area      &_blk   = cu-> blocks[i];
     const UnitScale  scale  = unitScale[i];
 
-    g_pelBufOP.fillN_CU( m_cuIdx[i] + stride * scale.scaleVer( _blk.y ) + scale.scaleHor( _blk.x ), stride, scale.scaleHor( _blk.width ), scale.scaleVer( _blk.height ), cu );
+    g_pelBufOP.fillN_CU( ctuData.cuPtr[i] + inCtuPos( _blk, ChannelType( i ) ), stride, scale.scaleHor( _blk.width ), scale.scaleVer( _blk.height ), cu );
 
     if( i == chType )
     {
@@ -270,56 +243,23 @@ cCUTraverser CodingStructure::traverseCUs( const UnitArea& unit ) const
 
 // coding utilities
 
-void CodingStructure::create(const ChromaFormat &_chromaFormat, const Area& _area, const bool isTopLayer)
+void CodingStructure::create(const ChromaFormat &_chromaFormat, const Area& _area)
 {
-  createInternals( UnitArea( _chromaFormat, _area ), isTopLayer );
+  createInternals( UnitArea( _chromaFormat, _area ) );
 }
 
-void CodingStructure::create(const UnitArea& _unit, const bool isTopLayer)
+void CodingStructure::create(const UnitArea& _unit)
 {
-  createInternals( _unit, isTopLayer );
+  createInternals( _unit );
 }
 
-void CodingStructure::createInternals( const UnitArea& _unit, const bool isTopLayer )
+void CodingStructure::createInternals( const UnitArea& _unit )
 {
   area = _unit;
 
   memcpy( unitScale, UnitScaleArray[area.chromaFormat], sizeof( unitScale ) );
 
   picture = nullptr;
-
-  const unsigned numCh = ::getNumberValidChannels(area.chromaFormat);
-
-  for( unsigned i = 0; i < numCh; i++ )
-  {
-    Size allocArea = area.blocks[i].size();
-    m_mapSize[i]   = unitScale[i].scale( allocArea );
-
-    const int pad_size = isTopLayer ? UNIT_PAD_SIZE : 0;
-
-    allocArea.width  += 2 * pad_size;
-    allocArea.height += 2 * pad_size;
-
-    unsigned _area = unitScale[i].scale( allocArea ).area();
-
-    m_cuIdx[i] = _area > 0 ? ( CodingUnit**    ) xMalloc( CodingUnit*   , _area ) : nullptr;
-
-    m_cuIdxOrigin[i] = m_cuIdx[i];
-    m_mapOrigSize[i] = unitScale[i].scale( allocArea );
-    m_mapOrigSizeUnscaled[i] = allocArea;
-
-    m_cuIdx[i] = m_cuIdxOrigin[i] + rsAddr( unitScale[i].scale( Position{ pad_size, pad_size } ), m_mapOrigSize[i].width );
-
-    AreaBuf<CodingUnit*>( m_cuIdxOrigin[i], m_mapOrigSize[i].width, m_mapOrigSize[i] ).memset( 0 );
-  }
-
-  for( unsigned j = 0; j < NUM_EDGE_DIR; j++ )
-  {
-    m_lfParam[j] = m_mapSize[CH_L].area() > 0 ? ( LoopFilterParam* ) xMalloc( LoopFilterParam, m_mapSize[CH_L].area() ) : nullptr;
-  }
-
-  unsigned _lumaAreaScaled = g_miScaling.scale( area.lumaSize() ).area();
-  m_motionBuf = ( MotionInfo* ) xMalloc( MotionInfo, _lumaAreaScaled );
 
   // for the worst case of all PUs being 8x8 and using DMVR
   unsigned _maxNumDmvrMvs = ( area.lwidth() >> 3 ) * ( area.lheight() >> 3 );
@@ -345,32 +285,20 @@ void CodingStructure::initStructData()
   m_cuCache->defragment();
   m_tuCache->defragment();
 
-  int numCh = ::getNumberValidChannels( area.chromaFormat );
+  m_widthInCtus = pcv->widthInCtus;
 
-  for( int i = 0; i < numCh; i++ )
+  m_ctuSizeMask[0] = pcv->maxCUWidthMask >> unitScale[CH_L].posx;
+  m_ctuSizeMask[1] = pcv->maxCUWidthMask >> ( getChannelTypeScaleX( CH_C, area.chromaFormat ) + unitScale[CH_C].posx );
+
+  m_ctuWidthLog2[0] = pcv->maxCUWidthLog2 - unitScale[CH_L].posx;
+  m_ctuWidthLog2[1] = m_ctuWidthLog2[0]; // same for luma and chroma, because of the 2x2 blocks
+
+  m_ctuData.resize( pcv->sizeInCtus );
+
+  for( auto &ctuData : m_ctuData )
   {
-    AreaBuf<CodingUnit*>( m_cuIdx[i], m_mapOrigSize[i].width, m_mapSize[i] ).memset( 0 );
+    memset( ctuData.cuPtr, 0, sizeof( ctuData.cuPtr ) );
   }
-
-  MotionBuf   mb    = getMotionBuf();
-  MotionInfo* miPtr = mb.buf;
-
-  CHECKD( AMVP_DECIMATION_FACTOR != 2, "AMVP decimation factor does not match!" );
-
-  for( int y = 0; y < mb.height; y += 2 )
-  {
-    MotionInfo* miLinePtr = miPtr;
-
-    for( int x = 0; x < mb.width; x += 2, miLinePtr += 2 )
-    {
-      miLinePtr->isInter = false;
-    }
-
-    OFFSETY( miPtr, mb.stride, 2 );
-  }
-
-  memset( m_lfParam[EDGE_HOR], 0, m_mapSize[CH_L].area() * sizeof( LoopFilterParam ) );
-  memset( m_lfParam[EDGE_VER], 0, m_mapSize[CH_L].area() * sizeof( LoopFilterParam ) );
 
   m_dmvrMvCacheOffset = 0;
 
@@ -381,60 +309,22 @@ void CodingStructure::initStructData()
 
 MotionBuf CodingStructure::getMotionBuf( const Area& _area )
 {
-  const CompArea& _luma = area.Y();
+  CtuData&        ctuData = getCtuData( ctuRsAddr( _area.pos(), CH_L ) );
 
-  CHECKD( !_luma.contains( _area ), "Trying to access motion information outside of this coding structure" );
+  const ptrdiff_t  stride = ptrdiff_t( 1 ) << m_ctuWidthLog2[CH_L];
+  const UnitScale  scale  = g_miScaling;
 
-  const Area miArea   = g_miScaling.scale( _area );
-  const int  stride   = g_miScaling.scaleHor( _luma.width );
-
-  return MotionBuf( m_motionBuf + rsAddr( miArea.pos(), stride ), stride, miArea.size() );
+  return MotionBuf( ctuData.motion + inCtuPos( _area, CH_L ), stride, scale.scaleHor( _area.width ), scale.scaleVer( _area.height ) );
 }
 
 const CMotionBuf CodingStructure::getMotionBuf( const Area& _area ) const
 {
-  const CompArea& _luma = area.Y();
+  const CtuData& ctuData  = getCtuData( ctuRsAddr( _area.pos(), CH_L ) );
 
-  CHECKD( !_luma.contains( _area ), "Trying to access motion information outside of this coding structure" );
+  const ptrdiff_t  stride = ptrdiff_t( 1 ) << m_ctuWidthLog2[CH_L];
+  const UnitScale  scale  = g_miScaling;
 
-  const Area miArea   = g_miScaling.scale( _area );
-  const int  stride   = g_miScaling.scaleHor( _luma.width );
-
-  return MotionBuf( m_motionBuf + rsAddr( miArea.pos(), stride ), stride, miArea.size() );
-}
-
-MotionInfo& CodingStructure::getMotionInfo( const Position& pos )
-{
-  CHECKD( !area.Y().contains( pos ), "Trying to access motion information outside of this coding structure" );
-
-  //return getMotionBuf().at( g_miScaling.scale( pos - area.lumaPos() ) );
-  // bypass the motion buf calling and get the value directly
-  const unsigned stride = g_miScaling.scaleHor(area.lumaSize().width);
-  const Position miPos  = g_miScaling.scale(pos);
-
-  return *( m_motionBuf + miPos.y * stride + miPos.x );
-}
-
-const MotionInfo& CodingStructure::getMotionInfo( const Position& pos ) const
-{
-  CHECKD( !area.Y().contains( pos ), "Trying to access motion information outside of this coding structure" );
-
-  //return getMotionBuf().at( g_miScaling.scale( pos - area.lumaPos() ) );
-  // bypass the motion buf calling and get the value directly
-  const unsigned stride = g_miScaling.scaleHor(area.lumaSize().width);
-  const Position miPos  = g_miScaling.scale(pos);
-
-  return *( m_motionBuf + miPos.y * stride + miPos.x );
-}
-
-LFPBuf CodingStructure::getLoopFilterParamBuf(const DeblockEdgeDir& edgeDir)
-{
-  return LFPBuf( m_lfParam[edgeDir], m_mapSize[CH_L] );
-}
-
-const CLFPBuf CodingStructure::getLoopFilterParamBuf(const DeblockEdgeDir& edgeDir ) const
-{
-  return CLFPBuf( m_lfParam[edgeDir], m_mapSize[CH_L] );
+  return CMotionBuf( ctuData.motion + inCtuPos( _area, CH_L ), stride, scale.scaleHor( _area.width ), scale.scaleVer( _area.height ) );
 }
 
 PelUnitBuf CodingStructure::getPredBuf(const CodingUnit &unit)          
@@ -509,12 +399,25 @@ const CodingUnit* CodingStructure::getCURestricted( const Position &pos, const C
 
   const int yshift     = pcv->maxCUWidthLog2 - getChannelTypeScaleY( _chType, curCu.chromaFormat );
   const int ydiff      = ( pos.y >> yshift ) - ( curCu.blocks[_chType].y >> yshift ); // ( a <= b ) ==> a - b <= 0
-  const CodingUnit* cu = ydiff <= 0 ? getCU( pos, _chType ) : nullptr;
   const int xshift     = pcv->maxCUWidthLog2 - getChannelTypeScaleX( _chType, curCu.chromaFormat );
   const int xdiff      = ( pos.x >> xshift ) - ( curCu.blocks[_chType].x >> xshift );
   const bool sameCTU   = !ydiff && !xdiff;
 
-  if( cu && cu->idx <= curCu.idx && ( sameCTU || ( cu->slice->getIndependentSliceIdx() == curCu.slice->getIndependentSliceIdx() && cu->tileIdx == curCu.tileIdx ) ) )
+  const CodingUnit* cu = nullptr;
+
+  if( sameCTU )
+  {
+    cu = curCu.ctuData->cuPtr[_chType][inCtuPos( pos, _chType )];
+  }
+  else
+  {
+    cu = ydiff <= 0 ? getCU( pos, _chType ) : nullptr;
+  }
+
+  if( !cu || cu->idx > curCu.idx ) return nullptr;
+  else if( sameCTU ) return cu;
+
+  if( cu->slice->getIndependentSliceIdx() == curCu.slice->getIndependentSliceIdx() && cu->tileIdx == curCu.tileIdx )
   {
     if( xdiff > 0 && sps->getEntropyCodingSyncEnabledFlag() )
     {
