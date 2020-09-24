@@ -291,7 +291,7 @@ if( VVDEC_ENABLE_BITSTREAM_DOWNLOAD )
     "TILE_A_Nokia_2.zip" "TILE_B_Nokia_2.zip" "TILE_C_Nokia_2.zip" "TILE_D_Nokia_2.zip" "TILE_E_Nokia_2.zip" "TILE_F_Nokia_2.zip"
     "TREE_A_HHI_3.zip" "TREE_B_HHI_3.zip" "TREE_C_HHI_3.zip"
     "VUI_A_Dolby_2.zip"
-    "WP_A_InterDigital_3.zip" "WP_A_InterDigital_3.zip"
+    "WP_A_InterDigital_3.zip" "WP_B_InterDigital_3.zip"
     "WPP_A_Sharp_3.zip" "WPP_B_Sharp_2.zip"
     "WRAP_A_InterDigital_4.zip" "WRAP_B_InterDigital_4.zip" "WRAP_C_InterDigital_4.zip" "WRAP_D_InterDigital_4.zip"
   )
