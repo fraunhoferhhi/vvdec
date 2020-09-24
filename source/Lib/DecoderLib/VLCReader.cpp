@@ -845,7 +845,7 @@ void HLSyntaxReader::parsePPS( PPS* pcPPS, ParameterSetManager *parameterSetMana
       READ_FLAG( uiCode, "pps_extension_data_flag");
     }
   }
-  
+
   xReadRbspTrailingBits();
 
   const SPS* pcSPS = parameterSetManager->getSPS( pcPPS->getSPSId() );
