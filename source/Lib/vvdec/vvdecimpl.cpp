@@ -264,11 +264,15 @@ int VVDecImpl::decode( AccessUnit& rcAccessUnit, Frame** ppcFrame )
             nalUnit.push_back( rcAccessUnit.m_pucBuffer[pos]);
             uiNaluBytes++;
           }
+
+          InputBitstream& rBitstream = nalu.getBitstream();
           // perform anti-emulation prevention
-          if( 0 != xConvertPayloadToRBSP(nalUnit, (nalUnit[0] & 64) == 0) )
+          if( 0 != xConvertPayloadToRBSP(nalUnit, &rBitstream, (nalUnit[0] & 64) == 0) )
           {
             return VVDEC_ERR_UNSPECIFIED;
           }
+
+          rBitstream.resetToStart();
 
           if( 0 != xReadNalUnitHeader(nalu) )
           {
@@ -1087,13 +1091,13 @@ int VVDecImpl::xRetrieveNalStartCode( unsigned char *pB, int iZerosInStartcode )
 }
 
 
-int VVDecImpl::xConvertPayloadToRBSP( std::vector<uint8_t>& nalUnitBuf,bool isVclNalUnit)
+int VVDecImpl::xConvertPayloadToRBSP( std::vector<uint8_t>& nalUnitBuf, InputBitstream *bitstream, bool isVclNalUnit)
 {
   uint32_t zeroCount = 0;
   std::vector<uint8_t>::iterator it_read, it_write;
 
   uint32_t pos = 0;
-  //bitstream->clearEmulationPreventionByteLocation();
+  bitstream->clearEmulationPreventionByteLocation();
   for (it_read = it_write = nalUnitBuf.begin(); it_read != nalUnitBuf.end(); it_read++, it_write++, pos++)
   {
     if(zeroCount >= 2 && *it_read < 0x03 )
@@ -1103,7 +1107,7 @@ int VVDecImpl::xConvertPayloadToRBSP( std::vector<uint8_t>& nalUnitBuf,bool isVc
     }
     if (zeroCount == 2 && *it_read == 0x03)
     {
-      //bitstream->pushEmulationPreventionByteLocation( pos );
+      bitstream->pushEmulationPreventionByteLocation( pos );
       pos++;
       it_read++;
       zeroCount = 0;

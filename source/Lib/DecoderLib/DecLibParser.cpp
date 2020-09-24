@@ -230,7 +230,8 @@ Picture* DecLibParser::parse( InputNALUnit& nalu, int* pSkipFrame )
     {
       AUDReader audReader;
       uint32_t  picType;
-      audReader.parseAccessUnitDelimiter( &( nalu.getBitstream() ), picType );
+      uint32_t audIrapOrGdrAuFlag;
+      audReader.parseAccessUnitDelimiter( &( nalu.getBitstream() ), audIrapOrGdrAuFlag, picType );
       msg( NOTICE, "Note: found NAL_UNIT_ACCESS_UNIT_DELIMITER\n");
       return nullptr;
     }
