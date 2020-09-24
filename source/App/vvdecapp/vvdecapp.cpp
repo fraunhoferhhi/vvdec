@@ -289,7 +289,16 @@ int main( int argc, char* argv[] )
         }
         else if( iRet != vvdec::VVDEC_OK )
         {
-          std::cout << "vvdecapp [error]: decoding failed: " << cVVDec.getErrorMsg( iRet ) << std::endl;
+          std::string cAdditionalErr = cVVDec.getLastAdditionalError();
+          if( !cAdditionalErr.empty() )
+          {
+            std::cout << "vvdecapp [error]: decoding failed: " << cVVDec.getErrorMsg( iRet )
+                      << " detail: " << cVVDec.getLastAdditionalError() << std::endl;
+          }
+          else
+          {
+            std::cout << "vvdecapp [error]: decoding failed: " << cVVDec.getErrorMsg( iRet ) << std::endl;
+          }
           return iRet;
         }
 
