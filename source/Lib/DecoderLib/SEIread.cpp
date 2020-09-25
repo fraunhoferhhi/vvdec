@@ -771,8 +771,8 @@ void SEIReader::xParseSEIBufferingPeriod(SEIBufferingPeriod& sei, uint32_t paylo
   }
 #if !JVET_S0181_PROPOSAL2_BUFFERING_PERIOD_CLEANUP
   sei_read_code( pDecodedMessageOutputStream, 3, code, "bp_max_sub_layers_minus1" );     sei.m_bpMaxSubLayers = code + 1;
-  sei_read_uvlc( pDecodedMessageOutputStream, code, "bp_cpb_cnt_minus1" ); sei.m_bpCpbCnt = code + 1;
 #endif
+  sei_read_uvlc( pDecodedMessageOutputStream, code, "bp_cpb_cnt_minus1" ); sei.m_bpCpbCnt = code + 1;
 #if JVET_S0181_PROPOSAL1
   if (sei.m_bpMaxSubLayers - 1 > 0)
   {

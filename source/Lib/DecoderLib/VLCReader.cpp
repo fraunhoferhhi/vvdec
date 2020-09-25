@@ -1172,21 +1172,24 @@ void HLSyntaxReader::parseGeneralHrdParameters(GeneralHrdParams *hrd)
   READ_CODE(32, symbol, "time_scale");                       hrd->setTimeScale(symbol);
   READ_FLAG(symbol, "general_nal_hrd_parameters_present_flag");           hrd->setGeneralNalHrdParametersPresentFlag(symbol == 1 ? true : false);
   READ_FLAG(symbol, "general_vcl_hrd_parameters_present_flag");           hrd->setGeneralVclHrdParametersPresentFlag(symbol == 1 ? true : false);
-  CHECK((hrd->getGeneralNalHrdParametersPresentFlag() == 0) && (hrd->getGeneralVclHrdParametersPresentFlag() == 0), "general_nal_hrd_params_present_flag and general_vcl_hrd_params_present_flag in each general_hrd_parameters( ) syntax structure shall not be both equal to 0.");
-  READ_FLAG(symbol, "general_same_pic_timing_in_all_ols_flag");           hrd->setGeneralSamePicTimingInAllOlsFlag(symbol == 1 ? true : false);
-  READ_FLAG(symbol, "general_decoding_unit_hrd_params_present_flag");     hrd->setGeneralDecodingUnitHrdParamsPresentFlag(symbol == 1 ? true : false);
-  if (hrd->getGeneralDecodingUnitHrdParamsPresentFlag())
+  //CHECK((hrd->getGeneralNalHrdParametersPresentFlag() == 0) && (hrd->getGeneralVclHrdParametersPresentFlag() == 0), "general_nal_hrd_params_present_flag and general_vcl_hrd_params_present_flag in each general_hrd_parameters( ) syntax structure shall not be both equal to 0.");
+  if( hrd->getGeneralNalHrdParametersPresentFlag() || hrd->getGeneralVclHrdParametersPresentFlag() )
   {
-    READ_CODE(8, symbol, "tick_divisor_minus2");                        hrd->setTickDivisorMinus2(symbol);
+	READ_FLAG( symbol, "general_same_pic_timing_in_all_ols_flag" );           hrd->setGeneralSamePicTimingInAllOlsFlag( symbol == 1 ? true : false );
+	READ_FLAG( symbol, "general_decoding_unit_hrd_params_present_flag" );     hrd->setGeneralDecodingUnitHrdParamsPresentFlag( symbol == 1 ? true : false );
+	if( hrd->getGeneralDecodingUnitHrdParamsPresentFlag() )
+	{
+		READ_CODE( 8, symbol, "tick_divisor_minus2" );                        hrd->setTickDivisorMinus2( symbol );
+	}
+	READ_CODE( 4, symbol, "bit_rate_scale" );                       hrd->setBitRateScale( symbol );
+	READ_CODE( 4, symbol, "cpb_size_scale" );                       hrd->setCpbSizeScale( symbol );
+	if( hrd->getGeneralDecodingUnitHrdParamsPresentFlag() )
+	{
+		READ_CODE( 4, symbol, "cpb_size_du_scale" );                  hrd->setCpbSizeDuScale( symbol );
+	}
+	READ_UVLC( symbol, "hrd_cpb_cnt_minus1" );                      hrd->setHrdCpbCntMinus1( symbol );
+	CHECK( symbol > 31, "The value of hrd_cpb_cnt_minus1 shall be in the range of 0 to 31, inclusive" );
   }
-  READ_CODE(4, symbol, "bit_rate_scale");                       hrd->setBitRateScale(symbol);
-  READ_CODE(4, symbol, "cpb_size_scale");                       hrd->setCpbSizeScale(symbol);
-  if (hrd->getGeneralDecodingUnitHrdParamsPresentFlag())
-  {
-    READ_CODE(4, symbol, "cpb_size_du_scale");                  hrd->setCpbSizeDuScale(symbol);
-  }
-  READ_UVLC(symbol, "hrd_cpb_cnt_minus1");                      hrd->setHrdCpbCntMinus1(symbol);
-  CHECK(symbol > 31,"The value of hrd_cpb_cnt_minus1 shall be in the range of 0 to 31, inclusive");
 }
 void HLSyntaxReader::parseOlsHrdParameters(GeneralHrdParams * generalHrd, OlsHrdParams *olsHrd, uint32_t firstSubLayer, uint32_t maxNumSubLayersMinus1)
 {
