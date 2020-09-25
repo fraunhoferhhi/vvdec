@@ -10,7 +10,7 @@ if( NOT CMAKE_VERSION VERSION_LESS 3.12.0 )
 endif()
 
 # project name
-project( vvdec VERSION 0.1.1.0 )
+project( vvdec VERSION 0.1.1.1 )
 
 # enable or disable bitstream download
 set( VVDEC_ENABLE_BITSTREAM_DOWNLOAD OFF CACHE BOOL "Enable or disable bitstream download" )

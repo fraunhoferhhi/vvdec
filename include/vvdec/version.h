@@ -42,11 +42,11 @@ vvc@hhi.fraunhofer.de
 
 #if !defined( VVDEC_VERSION )
 
-#define VVDEC_VERSION "0.1.1.0"
+#define VVDEC_VERSION "0.1.1.1"
 
 #ifdef _WIN32
-#define VVDEC_VS_VERSION      0,1,1,0
-#define VVDEC_VS_VERSION_STR "0.1.1.0"
+#define VVDEC_VS_VERSION      0,1,1,1
+#define VVDEC_VS_VERSION_STR "0.1.1.1"
 #endif
 
 #endif
