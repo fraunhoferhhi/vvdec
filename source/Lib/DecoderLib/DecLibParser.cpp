@@ -379,7 +379,7 @@ DecLibParser::SliceHeadResult DecLibParser::xDecodeSliceHead( InputNALUnit& nalu
     return SkipPicture;
   }
 
-  m_bFirstSliceInPicture = ( m_apcSlicePilot->getPOC() != m_prevPOC );
+  m_bFirstSliceInPicture = m_apcSlicePilot->getCtuAddrInSlice( 0 ) == 0;
 
   if( m_bFirstSliceInPicture )
   {
