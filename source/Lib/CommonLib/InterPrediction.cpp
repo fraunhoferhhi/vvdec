@@ -2175,12 +2175,12 @@ void InterPrediction::xPredInterBlkRPR( const std::pair<int, int>& scalingRatio,
   int height = dstHeight;
   CPelBuf refBuf;
   const Pel* refPtr;
-  ptrdiff_t refStride;
+  ptrdiff_t  refStride;
 
   int row, col;
 
-  int refPicWidth = refPic->cs->pps->getPicWidthInLumaSamples();
-  int refPicHeight = refPic->cs->pps->getPicHeightInLumaSamples();
+  int refPicWidth = refPic->lwidth();
+  int refPicHeight = refPic->lheight();
 
   int xFilter = filterIndex;
   int yFilter = filterIndex;
@@ -2290,6 +2290,8 @@ void InterPrediction::xPredInterBlkRPR( const std::pair<int, int>& scalingRatio,
   int tmpStride = width;
   int xInt = 0, yInt = 0;
 
+  refBuf = refPic->getRecoBuf( compID, wrapRef );
+
   for( col = 0; col < width; col++ )
   {
     int posX = (int32_t)x0Int + col * stepX;
@@ -2299,8 +2301,8 @@ void InterPrediction::xPredInterBlkRPR( const std::pair<int, int>& scalingRatio,
 
     CHECK( xInt0 > xInt, "Wrong horizontal starting point" );
 
-    refPtr    = refPic->getRecoBuf( compID, wrapRef ).bufAt( xInt, yInt0 );
-    refStride = refPic->getRecoBuf( compID, wrapRef ).stride;
+    refPtr    = refBuf.bufAt( xInt, yInt0 );
+    refStride = refBuf.stride;
 
     m_if.filterHor( compID, GET_OFFSETY( refPtr, refStride, -( ( vFilterSize >> 1 ) - 1 ) ), refStride, GET_OFFSETX( buffer, tmpStride, col ), tmpStride, 1, refHeight + vFilterSize - 1 + extSize, xFrac, false, chFmt, clpRng, xFilter, false, useAltHpelIf && scalingRatio.first == 1 << SCALE_RATIO_BITS );
   }
@@ -2314,7 +2316,7 @@ void InterPrediction::xPredInterBlkRPR( const std::pair<int, int>& scalingRatio,
 
     CHECK( yInt0 > yInt, "Wrong vertical starting point" );
 
-    m_if.filterVer( compID, GET_OFFSETY( buffer, tmpStride, ( yInt - yInt0 ) + ( ( vFilterSize >> 1 ) - 1 ) ), tmpStride, dst + row * dstStride, dstStride, width, 1, yFrac, false, rndRes, chFmt, clpRng, yFilter, false, useAltHpelIf && scalingRatio.first == 1 << SCALE_RATIO_BITS );
+    m_if.filterVer( compID, GET_OFFSETY( buffer, tmpStride, ( yInt - yInt0 ) + ( ( vFilterSize >> 1 ) - 1 ) ), tmpStride, dst + row * dstStride, dstStride, width, 1, yFrac, false, rndRes, chFmt, clpRng, yFilter, false, useAltHpelIf && scalingRatio.second == 1 << SCALE_RATIO_BITS );
   }
 }
 
