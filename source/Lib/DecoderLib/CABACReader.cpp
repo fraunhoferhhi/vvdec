@@ -2603,10 +2603,18 @@ void CABACReader::residual_coding( TransformUnit& tu, ComponentID compID, CUCtx&
     }
   }
 
-  maxX++;
-  maxY++;
-  maxX <<= cctx.log2CGWidth();
-  maxY <<= cctx.log2CGHeight();
+  if( cctx.bdpcm() )
+  {
+    maxX = cctx.width();
+    maxY = cctx.height();
+  }
+  else
+  {
+    maxX++;
+    maxY++;
+    maxX <<= cctx.log2CGWidth();
+    maxY <<= cctx.log2CGHeight();
+  }
 
   // if not TU split, otherwise already memset
   PelBuf pb = cu.cs->getRecoBuf( CompArea( compID, tu.blocks[compID].pos(), Size( maxX, maxY ) ) );
@@ -3051,8 +3059,16 @@ void CABACReader::residual_codingTS( TransformUnit& tu, ComponentID compID )
     residual_coding_subblockTS( cctx, coeff, tu.cu->cs->getRecoBuf( tu.block( compID ) ), maxX, maxY );
   }
 
-  tu.maxScanPosX[compID] = maxX;
-  tu.maxScanPosY[compID] = maxY;
+  if( cctx.bdpcm() )
+  {
+    tu.maxScanPosX[compID] = cctx.width();
+    tu.maxScanPosY[compID] = cctx.height();
+  }
+  else
+  {
+    tu.maxScanPosX[compID] = maxX;
+    tu.maxScanPosY[compID] = maxY;
+  }
 }
 
 void CABACReader::residual_coding_subblockTS( CoeffCodingContext& cctx, TCoeffSig* coeff, CoeffSigBuf dstcoeff, int& maxX, int& maxY )
