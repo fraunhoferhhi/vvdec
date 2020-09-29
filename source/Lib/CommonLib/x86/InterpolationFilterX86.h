@@ -87,6 +87,8 @@ static void fullPelCopySSE( const ClpRng& clpRng, const void*_src, ptrdiff_t src
   int offset   = IF_INTERNAL_OFFS;
   __m128i voffset  = _mm_set1_epi16( offset );
   __m128i voffset_headroom  = _mm_set1_epi16( headroom_offset );
+  __m128i vmin = _mm_set1_epi16( clpRng.min() );
+  __m128i vmax = _mm_set1_epi16( clpRng.max() );
 
   __m128i vsrc, vsum;
 
@@ -125,6 +127,11 @@ static void fullPelCopySSE( const ClpRng& clpRng, const void*_src, ptrdiff_t src
           vsum = vsrc;
         }
 
+        if( isLast )
+        {
+          vsum = _mm_max_epi16( _mm_min_epi16( vmax, vsum ), vmin );
+        }
+
         _mm_storeu_si128( ( __m128i * )&dst[col+i], vsum );
       }
     }
@@ -143,6 +150,8 @@ static void fullPelCopySSE_M4( const ClpRng& clpRng, const void*_src, ptrdiff_t 
   int offset   = IF_INTERNAL_OFFS;
   __m128i voffset  = _mm_set1_epi16( offset );
   __m128i voffset_headroom  = _mm_set1_epi16( headroom_offset );
+  __m128i vmin = _mm_set1_epi16( clpRng.min() );
+  __m128i vmax = _mm_set1_epi16( clpRng.max() );
 
   __m128i vsrc, vsum;
 
@@ -180,6 +189,11 @@ static void fullPelCopySSE_M4( const ClpRng& clpRng, const void*_src, ptrdiff_t 
         vsum = vsrc;
       }
 
+      if( isLast )
+      {
+        vsum = _mm_max_epi16( _mm_min_epi16( vmax, vsum ), vmin );
+      }
+
       _mm_storel_epi64( ( __m128i * )&dst[col], vsum );
     }
     src += srcStride;
@@ -199,6 +213,8 @@ static void fullPelCopyAVX2( const ClpRng& clpRng, const void*_src, ptrdiff_t sr
 
   __m256i vinternal_offset = _mm256_set1_epi16( internal_offset );
   __m256i vheadroom_offset = _mm256_set1_epi16( offset );
+  __m256i vmin = _mm256_set1_epi16( clpRng.min() );
+  __m256i vmax = _mm256_set1_epi16( clpRng.max() );
 
   __m256i vsrc, vsum;
 
@@ -236,6 +252,11 @@ static void fullPelCopyAVX2( const ClpRng& clpRng, const void*_src, ptrdiff_t sr
           vsrc = _mm256_add_epi16( vsrc, vheadroom_offset );
           vsrc = _mm256_srai_epi16( vsrc, headroom );
           vsum = vsrc;
+        }
+
+        if( isLast )
+        {
+          vsum = _mm256_max_epi16( _mm256_min_epi16( vmax, vsum ), vmin );
         }
 
         _mm256_storeu_si256( ( __m256i * )&dst[col+i], vsum );
