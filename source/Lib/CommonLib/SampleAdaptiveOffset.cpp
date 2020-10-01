@@ -551,9 +551,9 @@ int SampleAdaptiveOffset::getMergeList(CodingStructure& cs, int ctuRsAddr, SAOBl
 {
   const PreCalcValues& pcv = *cs.pcv;
 
-  int ctuX = ctuRsAddr % pcv.widthInCtus;
-  int ctuY = ctuRsAddr / pcv.widthInCtus;
-  const CodingUnit& cu = *cs.getCU(Position(ctuX*pcv.maxCUWidth, ctuY*pcv.maxCUHeight), CH_L);
+  const int ctuX       = ctuRsAddr % pcv.widthInCtus;
+  const int ctuY       = ctuRsAddr / pcv.widthInCtus;
+  const CodingUnit& cu = *cs.getCtuData( ctuRsAddr ).cuPtr[CH_L][0];
   int mergedCTUPos;
   int numValidMergeCandidates = 0;
 
@@ -568,7 +568,7 @@ int SampleAdaptiveOffset::getMergeList(CodingStructure& cs, int ctuRsAddr, SAOBl
         if(ctuY > 0)
         {
           mergedCTUPos = ctuRsAddr- pcv.widthInCtus;
-          if(cs.getCURestricted(Position(ctuX*pcv.maxCUWidth, (ctuY-1)*pcv.maxCUHeight), cu, CH_L ))
+          if(cu.above)
           {
             mergeCandidate = &(cs.m_ctuData[mergedCTUPos].saoParam);
           }
@@ -580,7 +580,7 @@ int SampleAdaptiveOffset::getMergeList(CodingStructure& cs, int ctuRsAddr, SAOBl
         if(ctuX > 0)
         {
           mergedCTUPos = ctuRsAddr- 1;
-          if(cs.getCURestricted(Position((ctuX-1)*pcv.maxCUWidth, ctuY*pcv.maxCUHeight), cu, CH_L ))
+          if(cu.left)
           {
             mergeCandidate = &(cs.m_ctuData[mergedCTUPos].saoParam);
           }
@@ -732,17 +732,22 @@ void SampleAdaptiveOffset::deriveLoopFilterBoundaryAvailibility( CodingStructure
                                                                  bool&            isBelowLeftAvail,
                                                                  bool&            isBelowRightAvail ) const
 {
-  const int width  = cs.pcv->maxCUWidth;
-  const int height = cs.pcv->maxCUHeight;
-  const CodingUnit* cuCurr = cs.getCU(pos, CH_L);
-  const CodingUnit* cuLeft = cs.getCU(pos.offset(-width, 0), CH_L);
-  const CodingUnit* cuRight = cs.getCU(pos.offset(width, 0), CH_L);
-  const CodingUnit* cuAbove = cs.getCU(pos.offset(0, -height), CH_L);
-  const CodingUnit* cuBelow = cs.getCU(pos.offset(0, height), CH_L);
-  const CodingUnit* cuAboveLeft = cs.getCU(pos.offset(-width, -height), CH_L);
-  const CodingUnit* cuAboveRight = cs.getCU(pos.offset(width, -height), CH_L);
-  const CodingUnit* cuBelowLeft = cs.getCU(pos.offset(-width, height), CH_L);
-  const CodingUnit* cuBelowRight = cs.getCU(pos.offset(width, height), CH_L);
+  const int ctusz  = cs.pcv->maxCUWidth;
+  const int ctuX   = pos.x / ctusz;
+  const int ctuY   = pos.y / ctusz;
+  const int width  = cs.pcv->widthInCtus;
+  const int height = cs.pcv->heightInCtus;
+
+  const CodingUnit* cuCurr        =                       cs.getCtuData( ctuX,     ctuY     ).cuPtr[0][0];
+  const CodingUnit* cuLeft        = ctuX     > 0        ? cs.getCtuData( ctuX - 1, ctuY     ).cuPtr[0][0] : nullptr;
+  const CodingUnit* cuRight       = ctuX + 1 < width    ? cs.getCtuData( ctuX + 1, ctuY     ).cuPtr[0][0] : nullptr;
+  const CodingUnit* cuAbove       = ctuY     > 0        ? cs.getCtuData( ctuX,     ctuY - 1 ).cuPtr[0][0] : nullptr;
+  const CodingUnit* cuBelow       = ctuY + 1 < height   ? cs.getCtuData( ctuX,     ctuY + 1 ).cuPtr[0][0] : nullptr;
+  const CodingUnit* cuAboveLeft   = cuLeft  && cuAbove  ? cs.getCtuData( ctuX - 1, ctuY - 1 ).cuPtr[0][0] : nullptr;
+  const CodingUnit* cuAboveRight  = cuRight && cuAbove  ? cs.getCtuData( ctuX + 1, ctuY - 1 ).cuPtr[0][0] : nullptr;
+  const CodingUnit* cuBelowLeft   = cuLeft  && cuBelow  ? cs.getCtuData( ctuX - 1, ctuY + 1 ).cuPtr[0][0] : nullptr;
+  const CodingUnit* cuBelowRight  = cuRight && cuBelow  ? cs.getCtuData( ctuX + 1, ctuY + 1 ).cuPtr[0][0] : nullptr;
+
 
   // check cross slice flags
   const bool isLoopFilterAcrossSlicePPS = cs.pps->getLoopFilterAcrossSlicesEnabledFlag();
