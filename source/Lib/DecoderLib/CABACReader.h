@@ -73,22 +73,23 @@ public:
   bool        terminating_bit           ();
   void        remaining_bytes           ( bool                          noTrailingBytesExpected );
 
-  // coding tree unit (clause 7.3.8.2)
-  bool        coding_tree_unit          ( CodingStructure&              cs,     const UnitArea& area,     int (&qps)[2],   unsigned  ctuRsAddr );
+  // coding tree unit (clause 7.3.11.2)
+  bool        coding_tree_unit          ( CodingStructure&              cs,     const UnitArea& area,             int (&qps)[2],   unsigned  ctuRsAddr );
+  bool        dt_implicit_qt_split      ( CodingStructure&              cs,     Partitioner& pL, CUCtx& cuCtxL, Partitioner& pC, CUCtx& cuCtxC );
 
-  // sao (clause 7.3.8.3)
+  // sao (clause 7.3.11.3)
   void        sao                       ( CodingStructure&              cs,     unsigned        ctuRsAddr );
 
   void        readAlfCtuFilterIndex     ( CodingStructure&              cs,     unsigned        ctuRsAddr );
 
   void        ccAlfFilterControlIdc     ( CodingStructure&              cs, const ComponentID compID, const int curIdx, uint8_t *filterControlIdc, Position lumaPos, int filterCount );
 
-  // coding (quad)tree (clause 7.3.8.4)
-  bool        coding_tree               ( CodingStructure&              cs,     Partitioner&    pm,       CUCtx& cuCtx, Partitioner* pPartitionerChroma = nullptr, CUCtx* pCuCtxChroma = nullptr);
+  // coding (quad)tree (clause 7.3.11.4)
+  bool        coding_tree               ( CodingStructure&              cs,     Partitioner&    pm,       CUCtx& cuCtx );
   PartSplit   split_cu_mode             ( CodingStructure&              cs,     Partitioner&    pm );
   ModeType    mode_constraint           ( CodingStructure&              cs,     Partitioner&    pm,       const PartSplit splitMode );
 
-  // coding unit (clause 7.3.8.5)
+  // coding unit (clause 7.3.11.5)
   bool        coding_unit               ( CodingUnit&                   cu,     Partitioner&    pm,       CUCtx& cuCtx );
   void        cu_skip_flag              ( CodingUnit&                   cu );
   void        pred_mode                 ( CodingUnit&                   cu );
@@ -96,49 +97,46 @@ public:
   void        cu_pred_data              ( CodingUnit&                   cu );
   void        cu_bcw_flag               ( CodingUnit&                   cu );
   void        extend_ref_line           ( CodingUnit&                   cu );
-  void        intra_luma_pred_modes     ( CodingUnit&                   cu );
-  void        intra_chroma_pred_modes   ( CodingUnit&                   cu );
+  void        intra_luma_pred_mode      ( CodingUnit&                   cu );
   bool        intra_chroma_lmc_mode     ( PredictionUnit&               pu );
   void        intra_chroma_pred_mode    ( PredictionUnit&               pu );
   void        cu_residual               ( CodingUnit&                   cu,     Partitioner&    pm,       CUCtx& cuCtx );
   void        rqt_root_cbf              ( CodingUnit&                   cu );
   void        adaptive_color_transform  ( CodingUnit&                   cu );
   void        sbt_mode                  ( CodingUnit&                   cu );
-  bool        end_of_ctu                ( CodingUnit&                   cu,     CUCtx&          cuCtx );
   void        mip_flag                  ( CodingUnit&                   cu );
-  void        mip_pred_modes            ( CodingUnit&                   cu );
   void        mip_pred_mode             ( PredictionUnit&               pu );
+  bool        end_of_ctu                ( CodingUnit&                   cu,     CUCtx&          cuCtx );
 
-  // prediction unit (clause 7.3.8.6)
-  void        prediction_unit           ( PredictionUnit&               pu,     MergeCtx&       mrgCtx );
-  void        merge_flag                ( PredictionUnit&               pu );
+  // prediction unit (clause 7.3.11.7)
+  void        prediction_unit           ( PredictionUnit&               pu );
+  void        general_merge_flag        ( PredictionUnit&               pu );
   void        merge_data                ( PredictionUnit&               pu );
   void        affine_flag               ( CodingUnit&                   cu );
   void        subblock_merge_flag       ( CodingUnit&                   cu );
   void        merge_idx                 ( PredictionUnit&               pu );
   void        mmvd_merge_idx            ( PredictionUnit&               pu );
-  void        imv_mode                  ( CodingUnit&                   cu,     MergeCtx&       mrgCtx );
-  void        affine_amvr_mode          ( CodingUnit&                   cu,     MergeCtx&       mrgCtx );
+  void        amvr_mode                 ( CodingUnit&                   cu );
+  void        affine_amvr_mode          ( CodingUnit&                   cu );
   void        inter_pred_idc            ( PredictionUnit&               pu );
   void        ref_idx                   ( PredictionUnit&               pu,     RefPicList      eRefList );
   void        mvp_flag                  ( PredictionUnit&               pu,     RefPicList      eRefList );
-  void        Ciip_flag                 ( PredictionUnit&               pu );
-  void        triangle_mode             ( CodingUnit&                   cu );
+  void        ciip_flag                 ( PredictionUnit&               pu );
   void        smvd_mode                 ( PredictionUnit&               pu );
 
+  // mvd coding (clause 7.3.11.8)
+  void        mvd_coding( Mv &rMvd );
 
-  // transform tree (clause 7.3.8.8)
+  // transform tree (clause 7.3.11.9)
   void        transform_tree            ( CodingStructure&              cs,     CodingUnit&     cu,       Partitioner&    pm,       CUCtx& cuCtx );
   bool        cbf_comp                  ( CodingUnit&                   cu,     const CompArea& area,     unsigned depth, const bool prevCbCbf = false, const bool useISP = false );
-  // mvd coding (clause 7.3.8.9)
-  void        mvd_coding                ( Mv &rMvd );
 
-  // transform unit (clause 7.3.8.10)
+  // transform unit (clause 7.3.11.10)
   void        transform_unit            ( TransformUnit&                tu,     CUCtx&          cuCtx,    Partitioner&    pm );
   void        cu_qp_delta               ( CodingUnit&                   cu,     int             predQP, int8_t& qp );
   void        cu_chroma_qp_offset       ( CodingUnit&                   cu );
 
-  // residual coding (clause 7.3.8.11)
+  // residual coding (clause 7.3.11.11)
   void        residual_coding           ( TransformUnit&                tu,     ComponentID     compID, CUCtx& cuCtx );
   void        ts_flag                   ( TransformUnit&                tu,     ComponentID     compID );
   void        mts_idx                   ( CodingUnit&                   cu,     CUCtx&          cuCtx  );

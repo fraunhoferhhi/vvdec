@@ -50,6 +50,7 @@ vvc@hhi.fraunhofer.de
 #include "CommonLib/UnitTools.h"
 #include "CommonLib/dtrace_next.h"
 #include "CommonLib/TimeProfiler.h"
+#include "CommonLib/AdaptiveLoopFilter.h"
 
 #include <vector>
 
@@ -91,15 +92,16 @@ void DecSlice::parseSlice( Slice* slice, InputBitstream* bitstream, int threadId
 
   if( startCtuTsAddr == 0 )
   {
-    cs.picture->resizeSAO               ( cs.pcv->sizeInCtus, 0 );
-
     cs.picture->resizeccAlfFilterControl( cs.pcv->sizeInCtus );
-  
     cs.picture->resizeAlfCtuEnableFlag  ( cs.pcv->sizeInCtus );
     cs.picture->resizeAlfCtbFilterIndex ( cs.pcv->sizeInCtus );
     cs.picture->resizeAlfCtuAlternative ( cs.pcv->sizeInCtus );
   }
 
+  AdaptiveLoopFilter::reconstructCoeffAPSs( *slice, slice->getTileGroupAlfEnabledFlag( COMPONENT_Y ),
+                                                    slice->getTileGroupAlfEnabledFlag( COMPONENT_Cb ) ||
+                                                    slice->getTileGroupAlfEnabledFlag( COMPONENT_Cr ) );
+                                              
   CABACDecoder cabacDecoder;
   CABACReader&  cabacReader  = *cabacDecoder.getCABACReader();
   cabacReader.initBitstream( ppcSubstreams[0].get() );

@@ -247,12 +247,6 @@ public:
 #endif
 
 public:
-  SAOBlkParam    *getSAO(int id = 0)                        { return &m_sao[id][0]; };
-  void            resizeSAO(unsigned numEntries, int dstid) { m_sao[dstid].resize(numEntries); }
-  void            copySAO(const Picture& src, int dstid)    { std::copy(src.m_sao[0].begin(), src.m_sao[0].end(), m_sao[dstid].begin()); }
-
-  std::vector<SAOBlkParam> m_sao[2];
-
   std::vector<uint8_t>  m_ccAlfFilterControl[2];
   uint8_t*              getccAlfFilterControl( int compIdx ) { return m_ccAlfFilterControl[compIdx].data(); }
   std::vector<uint8_t>* getccAlfFilterControl()              { return m_ccAlfFilterControl; }

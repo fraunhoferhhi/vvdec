@@ -339,9 +339,7 @@ void DecCu::predAndReco( CodingUnit& cu, bool doCiipIntra )
         const Slice &slice      = *cu.slice;
         const bool   doChrScale = isChroma( compID )
                                   && slice.getLmcsEnabledFlag()
-                                  && slice.getPicHeader()->getLmcsEnabledFlag()
                                   && slice.getPicHeader()->getLmcsChromaResidualScaleFlag()
-                                  && ( slice.isIntra() || ( !slice.isIntra() && m_pcReshape->getCTUFlag() ) )
                                   && tu.blocks[compID].area() > 4
                                   && ( TU::getCbf( tu, compID ) || tu.jointCbCr )
                                   ;
@@ -608,10 +606,8 @@ void DecCu::xIntraRecACT( CodingUnit &cu )
       PelBuf piReco = cs.getRecoBuf( area );
 
       const bool   doChrScale = isChroma( compID )
-                                && slice.getLmcsEnabledFlag()
-                                && slice.getPicHeader()->getLmcsEnabledFlag()
+                                && slice.getLmcsEnabledFlag() 
                                 && slice.getPicHeader()->getLmcsChromaResidualScaleFlag()
-                                && ( slice.isIntra() || ( !slice.isIntra() && m_pcReshape->getCTUFlag() ) )
                                 && tu.blocks[compID].area() > 4
                                 && ( TU::getCbf( tu, compID ) || tu.jointCbCr )
                                 ;

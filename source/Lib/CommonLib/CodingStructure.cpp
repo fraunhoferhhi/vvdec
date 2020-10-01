@@ -106,10 +106,13 @@ CodingUnit& CodingStructure::addCU( const UnitArea &unit, const ChannelType chTy
   cu->setChType  ( chType );
   cu->setTreeType( treeType );
   cu->setModeType( modeType );
-
+  
   CodingUnit *prevCU = m_lastCU;
 
-  if( prevCU )
+  const int currRsAddr = ctuRsAddr( unit.blocks[chType].pos(), chType );
+  const int prevRsAddr = prevCU ? ctuRsAddr( prevCU->blocks[prevCU->chType()].pos(), prevCU->chType() ) : -1;
+
+  if( prevCU && currRsAddr == prevRsAddr )
   {
     prevCU->next = cu;
   }
@@ -118,7 +121,7 @@ CodingUnit& CodingStructure::addCU( const UnitArea &unit, const ChannelType chTy
 
   uint32_t numCh = ::getNumberValidChannels( area.chromaFormat );
 
-  CtuData& ctuData = getCtuData( ctuRsAddr( unit.blocks[chType].pos(), chType ) );
+  CtuData& ctuData = getCtuData( currRsAddr );
   cu->ctuData = &ctuData;
 
   for( uint32_t i = 0; i < numCh; i++ )
@@ -225,6 +228,8 @@ CUTraverser CodingStructure::traverseCUs( const UnitArea& unit )
   CodingUnit* firstCU   = getCU( unit.lumaPos(), CH_L );
   CodingUnit* lastCU    = getCU( unit.block( getFirstComponentOfChannel( lastChan ) ).bottomRight(), lastChan );
 
+  CHECKD( !firstCU || !lastCU || ctuRsAddr( firstCU->lumaPos(), CH_L ) != ctuRsAddr( lastCU->blocks[lastChan].pos(), lastChan ), "First CU and/or Last CU non-existent not in the same CTU!" );
+
   if( lastCU ) lastCU = lastCU->next;
 
   return CUTraverser( firstCU, lastCU );
@@ -235,6 +240,8 @@ cCUTraverser CodingStructure::traverseCUs( const UnitArea& unit ) const
   ChannelType lastChan      = unit.chromaFormat != CHROMA_400 ? CH_C : CH_L;
   const CodingUnit* firstCU = getCU( unit.lumaPos(), CH_L );
   const CodingUnit* lastCU  = getCU( unit.block( getFirstComponentOfChannel( lastChan ) ).bottomRight(), lastChan );
+
+  CHECKD( !firstCU || !lastCU || ctuRsAddr( firstCU->lumaPos(), CH_L ) != ctuRsAddr( lastCU->blocks[lastChan].pos(), lastChan ), "First CU and/or Last CU non-existent not in the same CTU!" );
 
   if( lastCU ) lastCU = lastCU->next;
 

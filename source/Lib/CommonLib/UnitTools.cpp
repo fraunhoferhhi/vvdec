@@ -2218,7 +2218,7 @@ bool PU::isBipredRestriction( const PredictionUnit &pu )
 {
   const SizeType w = pu.lwidth(), h = pu.lheight();
   /* disable bi-prediction for 4x8/8x4 */
-  return ( w == 4 && h == 4 ) || ( w + h == 12 );
+  return ( w + h <= 12 );
 }
 
 void PU::getAffineControlPointCand( const PredictionUnit &pu, MotionInfo mi[4], bool isAvailable[4], int verIdx[4], int8_t bcwIdx, int modelIdx, int verNum, AffineMergeCtx& affMrgType )
@@ -3395,20 +3395,17 @@ bool CU::hasSubCUNonZeroMVd( const CodingUnit& cu )
 
   const PredictionUnit &pu = cu;
 
-  if( !pu.mergeFlag()& !cu.skip() && !cu.affineFlag() )
+  if( pu.interDir() != 2 /* PRED_L1 */ )
   {
-    if( pu.interDir() != 2 /* PRED_L1 */ )
+    bNonZeroMvd |= pu.mv[REF_PIC_LIST_0][0].getHor() != 0;
+    bNonZeroMvd |= pu.mv[REF_PIC_LIST_0][0].getVer() != 0;
+  }
+  if( pu.interDir() != 1 /* PRED_L0 */ )
+  {
+    if( !pu.cs->picHeader->getMvdL1ZeroFlag() || pu.interDir() != 3 /* PRED_BI */ )
     {
-      bNonZeroMvd |= pu.mv[REF_PIC_LIST_0][0].getHor() != 0;
-      bNonZeroMvd |= pu.mv[REF_PIC_LIST_0][0].getVer() != 0;
-    }
-    if( pu.interDir() != 1 /* PRED_L0 */ )
-    {
-      if( !pu.cs->picHeader->getMvdL1ZeroFlag() || pu.interDir() != 3 /* PRED_BI */ )
-      {
-        bNonZeroMvd |= pu.mv[REF_PIC_LIST_1][0].getHor() != 0;
-        bNonZeroMvd |= pu.mv[REF_PIC_LIST_1][0].getVer() != 0;
-      }
+      bNonZeroMvd |= pu.mv[REF_PIC_LIST_1][0].getHor() != 0;
+      bNonZeroMvd |= pu.mv[REF_PIC_LIST_1][0].getVer() != 0;
     }
   }
 
@@ -3418,11 +3415,6 @@ bool CU::hasSubCUNonZeroMVd( const CodingUnit& cu )
 bool CU::hasSubCUNonZeroAffineMVd( const CodingUnit& cu )
 {
   bool nonZeroAffineMvd = false;
-
-  if ( !cu.affineFlag() || cu.mergeFlag() || cu.mergeFlag() || cu.skip() )
-  {
-    return false;
-  }
 
   const PredictionUnit &pu = cu;
 
@@ -3565,41 +3557,29 @@ bool CU::checkCCLMAllowed( const CodingUnit& cu )
   {
     allowCCLM = true;
   }
-  else if( cu.slice->getSPS()->getCTUSize() <= 32 ) //dual tree, CTUsize < 64
+  else if( cu.cs->sps->getCTUSize() <= 32 ) //dual tree, CTUsize < 64
   {
     allowCCLM = true;
   }
   else //dual tree, CTU size 64 or 128
   {
-    int depthFor64x64Node = cu.slice->getSPS()->getCTUSize() == 128 ? 1 : 0;
+    const int       depthFor64x64Node = cu.cs->sps->getCTUSize() == 128 ? 1 : 0;
     const PartSplit cuSplitTypeDepth1 = CU::getSplitAtDepth( cu, depthFor64x64Node );
     const PartSplit cuSplitTypeDepth2 = CU::getSplitAtDepth( cu, depthFor64x64Node + 1 );
 
     //allow CCLM if 64x64 chroma tree node uses QT split or HBT+VBT split combination
-    if( cuSplitTypeDepth1 == CU_QUAD_SPLIT || (cuSplitTypeDepth1 == CU_HORZ_SPLIT && cuSplitTypeDepth2 == CU_VERT_SPLIT) )
+    if( cuSplitTypeDepth1 == CU_QUAD_SPLIT || ( cuSplitTypeDepth1 == CU_HORZ_SPLIT && cuSplitTypeDepth2 == CU_VERT_SPLIT ) )
     {
-      if( cu.chromaFormat == CHROMA_420 )
-      {
-        CHECK( !(cu.blocks[COMPONENT_Cb].width <= 16 && cu.blocks[COMPONENT_Cb].height <= 16), "chroma cu size shall be <= 16x16 for YUV420 format" );
-      }
       allowCCLM = true;
     }
     //allow CCLM if 64x64 chroma tree node uses NS (No Split) and becomes a chroma CU containing 32x32 chroma blocks
     else if( cuSplitTypeDepth1 == CU_DONT_SPLIT )
     {
-      if( cu.chromaFormat == CHROMA_420 )
-      {
-        CHECK( !(cu.blocks[COMPONENT_Cb].width == 32 && cu.blocks[COMPONENT_Cb].height == 32), "chroma cu size shall be 32x32 for YUV420 format" );
-      }
       allowCCLM = true;
     }
     //allow CCLM if 64x32 chroma tree node uses NS and becomes a chroma CU containing 32x16 chroma blocks
     else if( cuSplitTypeDepth1 == CU_HORZ_SPLIT && cuSplitTypeDepth2 == CU_DONT_SPLIT )
     {
-      if( cu.chromaFormat == CHROMA_420 )
-      {
-        CHECK( !(cu.blocks[COMPONENT_Cb].width == 32 && cu.blocks[COMPONENT_Cb].height == 16), "chroma cu size shall be 32x16 for YUV420 format" );
-      }
       allowCCLM = true;
     }
 
@@ -3608,18 +3588,13 @@ bool CU::checkCCLMAllowed( const CodingUnit& cu )
     {
       //disallow CCLM if luma 64x64 block uses BT or TT or NS with ISP
       const Position lumaRefPos( cu.chromaPos().x << getComponentScaleX( COMPONENT_Cb, cu.chromaFormat ), cu.chromaPos().y << getComponentScaleY( COMPONENT_Cb, cu.chromaFormat ) );
-      const CodingUnit* colLumaCu = cu.cs->picture->cs->getCU( lumaRefPos, CHANNEL_TYPE_LUMA );
+      const CodingUnit* colLumaCu = cu.cs->getCU( lumaRefPos, CHANNEL_TYPE_LUMA );
 
-      if( colLumaCu->lwidth() < 64 || colLumaCu->lheight() < 64 ) //further split at 64x64 luma node
+      if( colLumaCu->depth > depthFor64x64Node && colLumaCu->qtDepth == depthFor64x64Node ) //further split at 64x64 luma node
       {
-        const PartSplit cuSplitTypeDepth1Luma = CU::getSplitAtDepth( *colLumaCu, depthFor64x64Node );
-        CHECK( !(cuSplitTypeDepth1Luma >= CU_QUAD_SPLIT && cuSplitTypeDepth1Luma <= CU_TRIV_SPLIT), "split mode shall be BT, TT or QT" );
-        if( cuSplitTypeDepth1Luma != CU_QUAD_SPLIT )
-        {
-          allowCCLM = false;
-        }
+        allowCCLM = false;
       }
-      else if( colLumaCu->lwidth() == 64 && colLumaCu->lheight() == 64 && colLumaCu->ispMode() ) //not split at 64x64 luma node and use ISP mode
+      else if( colLumaCu->depth == depthFor64x64Node && colLumaCu->ispMode() ) //not split at 64x64 luma node and use ISP mode
       {
         allowCCLM = false;
       }
@@ -3637,12 +3612,7 @@ bool CU::isBcwIdxCoded( const CodingUnit &cu )
     return false;
   }
 
-  if( cu.predMode() == MODE_IBC )
-  {
-    return false;
-  }
-
-  if( cu.predMode() == MODE_INTRA || cu.slice->isInterP() )
+  if( cu.predMode() == MODE_IBC || cu.predMode() == MODE_INTRA || cu.slice->isInterP() || cu.interDir() != 3 )
   {
     return false;
   }
@@ -3652,28 +3622,20 @@ bool CU::isBcwIdxCoded( const CodingUnit &cu )
     return false;
   }
 
-  if( !cu.mergeFlag() )
+  WPScalingParam *wp0;
+  WPScalingParam *wp1;
+  int refIdx0 = cu.refIdx[REF_PIC_LIST_0];
+  int refIdx1 = cu.refIdx[REF_PIC_LIST_1];
+
+  cu.slice->getWpScaling(REF_PIC_LIST_0, refIdx0, wp0);
+  cu.slice->getWpScaling(REF_PIC_LIST_1, refIdx1, wp1);
+
+  if ((wp0[COMPONENT_Y].bPresentFlag || wp0[COMPONENT_Cb].bPresentFlag || wp0[COMPONENT_Cr].bPresentFlag
+    || wp1[COMPONENT_Y].bPresentFlag || wp1[COMPONENT_Cb].bPresentFlag || wp1[COMPONENT_Cr].bPresentFlag))
   {
-    if( cu.interDir() == 3 )
-    {
-      WPScalingParam *wp0;
-      WPScalingParam *wp1;
-      int refIdx0 = cu.refIdx[REF_PIC_LIST_0];
-      int refIdx1 = cu.refIdx[REF_PIC_LIST_1];
-
-      cu.slice->getWpScaling(REF_PIC_LIST_0, refIdx0, wp0);
-      cu.slice->getWpScaling(REF_PIC_LIST_1, refIdx1, wp1);
-
-      if ((wp0[COMPONENT_Y].bPresentFlag || wp0[COMPONENT_Cb].bPresentFlag || wp0[COMPONENT_Cr].bPresentFlag
-        || wp1[COMPONENT_Y].bPresentFlag || wp1[COMPONENT_Cb].bPresentFlag || wp1[COMPONENT_Cr].bPresentFlag))
-      {
-        return false;
-      }
-      return true;
-    }
+    return false;
   }
-
-  return false;
+  return true;
 }
 
 void CU::setBcwIdx( CodingUnit &cu, uint8_t uh )
@@ -3704,14 +3666,14 @@ void CU::setBcwIdx( CodingUnit &cu, uint8_t uh )
 
 bool CU::bdpcmAllowed( const CodingUnit& cu, const ComponentID compID )
 {
-  SizeType transformSkipMaxSize = 1 << cu.cs->sps->getLog2MaxTransformSkipBlockSize();
+  const SizeType transformSkipMaxSize = 1 << cu.cs->sps->getLog2MaxTransformSkipBlockSize();
+  const Size&    blkSize              = cu.blocks[compID].size();
 
-  bool bdpcmAllowed = cu.cs->sps->getBDPCMEnabledFlag();
-    bdpcmAllowed &= CU::isIntra( cu );
-  if( isLuma(compID) )
-    bdpcmAllowed &= ( cu.lwidth() <= transformSkipMaxSize && cu.lheight() <= transformSkipMaxSize );
-  else
-    bdpcmAllowed &= ( cu.chromaSize().width <= transformSkipMaxSize && cu.chromaSize().height <= transformSkipMaxSize ) && !cu.colorTransform();
+  bool bdpcmAllowed = cu.cs->sps->getBDPCMEnabledFlag() &&
+                    ( isLuma( compID ) || !cu.colorTransform() ) &&
+                      blkSize.width <= transformSkipMaxSize &&
+                      blkSize.height <= transformSkipMaxSize;
+
   return bdpcmAllowed;
 }
 
