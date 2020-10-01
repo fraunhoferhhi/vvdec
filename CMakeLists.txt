@@ -278,6 +278,7 @@ if( VVDEC_ENABLE_BITSTREAM_DOWNLOAD )
     "MPM_A_LGE_3.zip"
     "MTS_A_LGE_3.zip" "MTS_B_LGE_3.zip"
     "MTS_LFNST_A_LGE_3.zip" "MTS_LFNST_B_LGE_3.zip"
+    "PDPC_A_Qualcomm_3.zip" "PDPC_B_Qualcomm_3.zip" "PDPC_C_Qualcomm_2.zip" 
     "POUT_A_Sharplabs_2.zip"
     "PPS_A_Bytedance_1.zip" "PPS_B_Bytedance_1.zip" "PPS_C_Bytedance_1.zip"
     "PROF_A_Interdigital_3.zip" "PROF_B_Interdigital_3.zip"

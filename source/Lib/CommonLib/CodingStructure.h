@@ -74,6 +74,7 @@ extern ThreadSafeCUCache g_globalUnitCache;
 struct CtuData
 {
   std::shared_ptr<APS> alfAps;
+  SAOBlkParam          saoParam;
 
   CodingUnit*     cuPtr  [MAX_NUM_CHANNEL_TYPE][NUM_PARTS_IN_CTU];
   LoopFilterParam lfParam[NUM_EDGE_DIR]        [NUM_PARTS_IN_CTU];
@@ -94,7 +95,6 @@ public:
   Slice           *slice;
 
   UnitScale        unitScale[MAX_NUM_COMPONENT];
-  ChannelType      chType;
   int              chromaQpAdj;
   std::shared_ptr<const VPS> vps;
   std::shared_ptr<const SPS> sps;

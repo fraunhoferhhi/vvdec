@@ -349,7 +349,7 @@ void DecLibRecon::decompressPicture( Picture* pcPic )
 
 #endif
   const TaskType ctuStartState = MIDER;
-  const bool     doALF         = cs.sps->getUseALF() && !AdaptiveLoopFilter::getAlfSkipSlice( cs );
+  const bool     doALF         = cs.sps->getUseALF() && !AdaptiveLoopFilter::getAlfSkipPic( cs );
 
   commonTaskParam.reset( cs, ctuStartState, numTasksPerLine, doALF );
 
@@ -357,9 +357,6 @@ void DecLibRecon::decompressPicture( Picture* pcPic )
   tasksCtu  = std::vector<CtuTaskParam >( heightInCtus * numTasksPerLine, CtuTaskParam{ commonTaskParam, -1, -1, {} } );
 
   pcPic->done.lock();
-#if RECO_WHILE_PARSE
-  const bool singleSlice = cs.picture->slices.size() == 1;
-#endif
 
   for( int i = 0; i < numTasksPerLine + heightInCtus; ++i )
   {
@@ -371,21 +368,11 @@ void DecLibRecon::decompressPicture( Picture* pcPic )
         CBarrierVec ctuBarriesrs = picBarriers;
 
 #if RECO_WHILE_PARSE
-        if( singleSlice )
+        const int ctuStart = col * numColPerTask;
+        const int ctuEnd   = std::min( ctuStart + numColPerTask, widthInCtus );
+        for( int ctu = ctuStart; ctu < ctuEnd; ctu++ )
         {
-          const int ctuStart = col * numColPerTask;
-          const int ctuEnd   = std::min( ctuStart + numColPerTask, widthInCtus );
-          for( int ctu = ctuStart; ctu < ctuEnd; ctu++ )
-          {
-            ctuBarriesrs.push_back( &pcPic->ctuParsedBarrier[line * widthInCtus + ctu] );
-          }
-          // add the next parsed CTU to avoid the race condition on the ->next pointer of the CTU
-          if     ( ctuEnd < widthInCtus )    ctuBarriesrs.push_back( &pcPic->ctuParsedBarrier[line * widthInCtus + ctuEnd] );
-          else if( line < heightInCtus - 1 ) ctuBarriesrs.push_back( &pcPic->ctuParsedBarrier[( line + 1 ) * widthInCtus] );
-        }
-        else
-        {
-          ctuBarriesrs.push_back( &cs.picture->parseDone );
+          ctuBarriesrs.push_back( &pcPic->ctuParsedBarrier[line * widthInCtus + ctu] );
         }
 #endif
         CtuTaskParam* param = &tasksCtu[line * numTasksPerLine + col];
@@ -406,7 +393,7 @@ void DecLibRecon::decompressPicture( Picture* pcPic )
 
   if( commonTaskParam.doALF )
   {
-    AdaptiveLoopFilter::prepareSlice( cs );
+    AdaptiveLoopFilter::preparePic( cs );
     commonTaskParam.alfPrepared.unlock();
   }
 
@@ -414,7 +401,7 @@ void DecLibRecon::decompressPicture( Picture* pcPic )
     static auto doneTask = []( int, Picture* picture )
     {
       CodingStructure& cs = *picture->cs;
-      if( cs.sps->getUseALF() && !AdaptiveLoopFilter::getAlfSkipSlice( cs ) )
+      if( cs.sps->getUseALF() && !AdaptiveLoopFilter::getAlfSkipPic( cs ) )
       {
         AdaptiveLoopFilter::swapBufs( cs );
       }

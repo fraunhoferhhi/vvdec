@@ -404,8 +404,6 @@ void SampleAdaptiveOffset::SAOProcess( CodingStructure& cs )
 void SampleAdaptiveOffset::SAOPrepareCTULine( CodingStructure &cs, const UnitArea &lineArea )
 {
   PROFILER_SCOPE_AND_STAGE( 1, g_timeProfiler, P_SAO );
-  SAOBlkParam* saoBlkParams = cs.picture->getSAO();
-  CHECK( !saoBlkParams, "No parameters present" );
 
   const PreCalcValues& pcv = *cs.pcv;
   PelUnitBuf           rec = cs.getRecoBuf();
@@ -423,13 +421,13 @@ void SampleAdaptiveOffset::SAOPrepareCTULine( CodingStructure &cs, const UnitAre
     const int ctuRsAddr = getCtuAddr( Position( x, y ), *cs.pcv );
 
     SAOBlkParam* mergeList[NUM_SAO_MERGE_TYPES] = { nullptr, nullptr };
-    getMergeList( cs, ctuRsAddr, saoBlkParams, mergeList );
+    getMergeList( cs, ctuRsAddr, mergeList );
 
-    reconstructBlkSAOParam( saoBlkParams[ctuRsAddr], mergeList );
+    reconstructBlkSAOParam( cs.m_ctuData[ctuRsAddr].saoParam, mergeList );
 
     for( int i = 0; i < MAX_NUM_COMPONENT; i++ )
     {
-      if( saoBlkParams[ctuRsAddr][i].modeIdc != SAO_MODE_OFF )
+      if( cs.m_ctuData[ctuRsAddr].saoParam[i].modeIdc != SAO_MODE_OFF )
       {
         anySaoBlk = true;
       }
@@ -459,8 +457,6 @@ void SampleAdaptiveOffset::SAOPrepareCTULine( CodingStructure &cs, const UnitAre
 void SampleAdaptiveOffset::SAOProcessCTULine( CodingStructure &cs, const UnitArea &lineArea )
 {
   PROFILER_SCOPE_AND_STAGE( 1, g_timeProfiler, P_SAO );
-  SAOBlkParam* saoBlkParams = cs.picture->getSAO();
-  CHECK(!saoBlkParams, "No parameters present");
 
   const PreCalcValues& pcv = *cs.pcv;
   PelUnitBuf           rec = cs.getRecoBuf();
@@ -476,7 +472,7 @@ void SampleAdaptiveOffset::SAOProcessCTULine( CodingStructure &cs, const UnitAre
 
     for( int i = 0; i < MAX_NUM_COMPONENT; i++ )
     {
-      if( saoBlkParams[ctuRsAddr][i].modeIdc != SAO_MODE_OFF )
+      if( cs.m_ctuData[ctuRsAddr].saoParam[i].modeIdc != SAO_MODE_OFF )
       {
         anySaoBlk = true;
       }
@@ -496,15 +492,13 @@ void SampleAdaptiveOffset::SAOProcessCTULine( CodingStructure &cs, const UnitAre
 
     const int ctuRsAddr = getCtuAddr( ctuArea.lumaPos(), *cs.pcv );
 
-    offsetCTU( ctuArea, m_tempBuf, rec, saoBlkParams[ctuRsAddr], cs, signLineBuf1, signLineBuf2 );
+    offsetCTU( ctuArea, m_tempBuf, rec, cs.m_ctuData[ctuRsAddr].saoParam, cs, signLineBuf1, signLineBuf2 );
   }
 }
 
 void SampleAdaptiveOffset::SAOProcessCTU( CodingStructure &cs, const UnitArea &ctuArea )
 {
   PROFILER_SCOPE_AND_STAGE( 1, g_timeProfiler, P_SAO );
-  SAOBlkParam* saoBlkParams = cs.picture->getSAO();
-  CHECK( !saoBlkParams, "No parameters present" );
 
   PelUnitBuf           rec = cs.getRecoBuf();
 
@@ -514,7 +508,7 @@ void SampleAdaptiveOffset::SAOProcessCTU( CodingStructure &cs, const UnitArea &c
 
   for( int i = 0; i < MAX_NUM_COMPONENT; i++ )
   {
-    if( saoBlkParams[ctuRsAddr][i].modeIdc != SAO_MODE_OFF )
+    if( cs.m_ctuData[ctuRsAddr].saoParam[i].modeIdc != SAO_MODE_OFF )
     {
       anySaoBlk = true;
     }
@@ -525,7 +519,7 @@ void SampleAdaptiveOffset::SAOProcessCTU( CodingStructure &cs, const UnitArea &c
   std::vector<int8_t> signLineBuf1;
   std::vector<int8_t> signLineBuf2;
 
-  offsetCTU( ctuArea, m_tempBuf, rec, saoBlkParams[ctuRsAddr], cs, signLineBuf1, signLineBuf2 );
+  offsetCTU( ctuArea, m_tempBuf, rec, cs.m_ctuData[ctuRsAddr].saoParam, cs, signLineBuf1, signLineBuf2 );
 }
 
 void SampleAdaptiveOffset::invertQuantOffsets(ComponentID compIdx, int typeIdc, int typeAuxInfo, int* dstOffsets, int* srcOffsets) const
@@ -553,7 +547,7 @@ void SampleAdaptiveOffset::invertQuantOffsets(ComponentID compIdx, int typeIdc, 
 
 }
 
-int SampleAdaptiveOffset::getMergeList(CodingStructure& cs, int ctuRsAddr, SAOBlkParam* blkParams, SAOBlkParam* mergeList[NUM_SAO_MERGE_TYPES])
+int SampleAdaptiveOffset::getMergeList(CodingStructure& cs, int ctuRsAddr, SAOBlkParam* mergeList[NUM_SAO_MERGE_TYPES])
 {
   const PreCalcValues& pcv = *cs.pcv;
 
@@ -576,7 +570,7 @@ int SampleAdaptiveOffset::getMergeList(CodingStructure& cs, int ctuRsAddr, SAOBl
           mergedCTUPos = ctuRsAddr- pcv.widthInCtus;
           if(cs.getCURestricted(Position(ctuX*pcv.maxCUWidth, (ctuY-1)*pcv.maxCUHeight), cu, CH_L ))
           {
-            mergeCandidate = &(blkParams[mergedCTUPos]);
+            mergeCandidate = &(cs.m_ctuData[mergedCTUPos].saoParam);
           }
         }
       }
@@ -588,7 +582,7 @@ int SampleAdaptiveOffset::getMergeList(CodingStructure& cs, int ctuRsAddr, SAOBl
           mergedCTUPos = ctuRsAddr- 1;
           if(cs.getCURestricted(Position((ctuX-1)*pcv.maxCUWidth, ctuY*pcv.maxCUHeight), cu, CH_L ))
           {
-            mergeCandidate = &(blkParams[mergedCTUPos]);
+            mergeCandidate = &(cs.m_ctuData[mergedCTUPos].saoParam);
           }
         }
       }
