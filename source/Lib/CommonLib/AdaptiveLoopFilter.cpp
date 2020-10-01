@@ -706,7 +706,7 @@ void AdaptiveLoopFilter::filterCTU( APS** aps, const CPelUnitBuf & srcBuf, const
   }
 }
 
-void AdaptiveLoopFilter::reconstructCoeffAPSs( Slice& slice, bool luma, bool chroma )
+void AdaptiveLoopFilter::reconstructCoeffAPSs( Slice& slice )
 {
   // luma
   const SPS*  sps = slice.getSPS();

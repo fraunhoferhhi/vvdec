@@ -105,7 +105,7 @@ public:
          void processCTU    ( CodingStructure &cs, unsigned col, unsigned line, int tid = 0, const ChannelType chType = MAX_NUM_CHANNEL_TYPE );
   static void swapBufs      ( CodingStructure &cs );
   static bool getAlfSkipPic       ( const CodingStructure& cs );
-  static void reconstructCoeffAPSs( Slice& slice, bool luma, bool chroma );
+  static void reconstructCoeffAPSs( Slice& slice );
   static void reconstructCoeff    ( AlfSliceParam& alfSliceParam, ChannelType channel, const int inputBitDepth[MAX_NUM_CHANNEL_TYPE] );
 protected:
   static void getCompatibleBuffer( const CodingStructure & cs, const CPelUnitBuf & srcBuf, PelStorage & destBuf );

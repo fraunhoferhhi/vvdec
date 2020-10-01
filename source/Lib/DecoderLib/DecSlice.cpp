@@ -98,9 +98,7 @@ void DecSlice::parseSlice( Slice* slice, InputBitstream* bitstream, int threadId
     cs.picture->resizeAlfCtuAlternative ( cs.pcv->sizeInCtus );
   }
 
-  AdaptiveLoopFilter::reconstructCoeffAPSs( *slice, slice->getTileGroupAlfEnabledFlag( COMPONENT_Y ),
-                                                    slice->getTileGroupAlfEnabledFlag( COMPONENT_Cb ) ||
-                                                    slice->getTileGroupAlfEnabledFlag( COMPONENT_Cr ) );
+  AdaptiveLoopFilter::reconstructCoeffAPSs( *slice );
                                               
   CABACDecoder cabacDecoder;
   CABACReader&  cabacReader  = *cabacDecoder.getCABACReader();
