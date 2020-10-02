@@ -2797,15 +2797,56 @@ void PU::setAllAffineMv( PredictionUnit& pu, Mv affLT, Mv affRT, Mv affLB, RefPi
 
   width  >>= MIN_CU_LOG2;
   height >>= MIN_CU_LOG2;
+  
+#if ENABLE_SIMD_OPT && defined( TARGET_SIMD_X86 )
+  __m128i xvbase = _mm_setr_epi32( mvScaleHor, mvScaleVer, mvScaleHor, mvScaleVer );
+  __m128i xvdvxy = _mm_setr_epi32( deltaMvVerX, deltaMvVerY, deltaMvVerX, deltaMvVerY );
+  __m128i xhdhxy = _mm_setr_epi32( deltaMvHorX, deltaMvHorY, deltaMvHorX, deltaMvHorY );
 
+#endif
   for( int h = 0; h < height; h++ )
   {
-    for( int w = 0; w < width; w++ )
+#if ENABLE_SIMD_OPT && defined( TARGET_SIMD_X86 )
+    __m128i
+    xvoff = _mm_set1_epi32 ( halfBH + ( h << MIN_CU_LOG2 ) );
+    xvoff = _mm_mullo_epi32( xvoff, xvdvxy );
+    xvoff = _mm_add_epi32  ( xvoff, xvbase );
+#endif
+    if( subblkMVSpreadOverLimit )
     {
-      MotionInfo &mi = mb.at( w, h );
-
-      if( !subblkMVSpreadOverLimit )
+      for( int w = 0; w < width; w++ )
       {
+        MotionInfo &mi = mb.at( w, h );
+        
+        mi.mv[eRefList] = flbMv;
+      }
+    }
+    else
+    {
+#if ENABLE_SIMD_OPT && defined( TARGET_SIMD_X86 )
+      for( int w = 0; w < width; w += 2 )
+      {
+        MotionInfo *mi = &mb.at( w, h );
+        
+        __m128i
+        xhoff = _mm_set1_epi32 ( 2 + ( w << MIN_CU_LOG2 ) );
+        xhoff = _mm_add_epi32  ( xhoff, _mm_setr_epi32( 0, 0, 1 << MIN_CU_LOG2, 1 << MIN_CU_LOG2 ) );
+        xhoff = _mm_mullo_epi32( xhoff, xhdhxy );
+        xhoff = _mm_add_epi32  ( xhoff, xvoff );
+        __m128i
+        xmv   = _mm_add_epi32  ( xhoff, _mm_set1_epi32( 1 << ( shift - 1 ) ) );
+        xmv   = _mm_add_epi32  ( xmv, _mm_cmpgt_epi32( xhoff, _mm_set1_epi32( -1 ) ) );
+        xmv   = _mm_srai_epi32 ( xmv, shift );
+        xmv   = _mm_max_epi32  ( _mm_set1_epi32( -( 1 << 17 ) ), _mm_min_epi32( _mm_set1_epi32( ( 1 << 17 ) - 1 ), xmv ) );
+
+        _mm_storel_epi64( ( __m128i* ) &mi[0].mv[eRefList], xmv );
+        _mm_storel_epi64( ( __m128i* ) &mi[1].mv[eRefList], _mm_unpackhi_epi64( xmv, _mm_setzero_si128() ) );
+      }
+#else
+      for( int w = 0; w < width; w++ )
+      {
+        MotionInfo &mi = mb.at( w, h );
+
         int mvHor = mvScaleHor + deltaMvHorX * ( 2 + ( w << MIN_CU_LOG2 ) ) + deltaMvVerX * ( halfBH + ( h << MIN_CU_LOG2 ) );
         int mvVer = mvScaleVer + deltaMvHorY * ( 2 + ( w << MIN_CU_LOG2 ) ) + deltaMvVerY * ( halfBH + ( h << MIN_CU_LOG2 ) );
 
@@ -2816,10 +2857,7 @@ void PU::setAllAffineMv( PredictionUnit& pu, Mv affLT, Mv affRT, Mv affLB, RefPi
 
         mi.mv[eRefList] = rndMv;
       }
-      else
-      {
-        mi.mv[eRefList] = flbMv;
-      }
+#endif
     }
   }
 
