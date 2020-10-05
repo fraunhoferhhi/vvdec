@@ -45,7 +45,8 @@ endmacro( install_exe_pdb )
 target_include_directories( vvdec  SYSTEM INTERFACE $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}> )
 
 # install headers
-install( DIRECTORY include/vvdec  DESTINATION ${CMAKE_INSTALL_INCLUDEDIR} )
+install( FILES     ${CMAKE_BINARY_DIR}/vvdec/version.h  DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/vvdec )
+install( DIRECTORY include/vvdec                        DESTINATION ${CMAKE_INSTALL_INCLUDEDIR} )
 
 # install targets
 install_targets( Release )

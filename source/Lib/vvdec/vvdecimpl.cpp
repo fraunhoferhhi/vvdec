@@ -51,8 +51,8 @@ vvc@hhi.fraunhofer.de
 #endif
 
 #include "vvdecimpl.h"
-#include "../../../include/vvdec/vvdec.h"
-#include "../../../include/vvdec/version.h"
+#include "vvdec/vvdec.h"
+#include "vvdec/version.h"
 #include "DecoderLib/NALread.h"
 
 namespace vvdec {

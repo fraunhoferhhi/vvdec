@@ -12,6 +12,18 @@ endif()
 # project name
 project( vvdec VERSION 0.1.1.1 )
 
+if( NOT CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR )
+  # vvdec embedded by superproject, always include source/Lib/vvdec  as first component
+  list( PREPEND ${PROJECT_NAME}_ADD_SUBDIRECTORIES "source/Lib/vvdec" )
+  list( REMOVE_DUPLICATES ${PROJECT_NAME}_ADD_SUBDIRECTORIES )
+  message( STATUS "${CMAKE_CURRENT_SOURCE_DIR}: ${PROJECT_NAME} embedded, subdirectories to be added: ${${PROJECT_NAME}_ADD_SUBDIRECTORIES}" )
+  # add subdirectories the superproject asked for
+  foreach( subdir IN LISTS ${PROJECT_NAME}_ADD_SUBDIRECTORIES )
+    add_subdirectory( ${subdir} )
+  endforeach()
+  return()
+endif()
+
 # enable or disable bitstream download
 set( VVDEC_ENABLE_BITSTREAM_DOWNLOAD OFF CACHE BOOL "Enable or disable bitstream download" )
 

@@ -46,8 +46,8 @@ vvc@hhi.fraunhofer.de
 #include <string.h>
 #include <chrono>
 
-#include "../../../include/vvdec/vvdec.h"
-#include "../../../include/vvdec/version.h"
+#include "vvdec/vvdec.h"
+#include "vvdec/version.h"
 
 #include "CmdLineParser.h"
 
