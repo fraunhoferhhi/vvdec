@@ -67,7 +67,7 @@ vvc@hhi.fraunhofer.de
 #pragma warning( disable : 4996 )
 #endif // _MSC_VER > 1000
 #include "TypeDef.h"
-#include "version.h"
+#include "vvdec/version.h"
 
 #ifdef _MSC_VER
 #if _MSC_VER <= 1500
