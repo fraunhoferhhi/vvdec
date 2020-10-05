@@ -44,7 +44,7 @@ vvc@hhi.fraunhofer.de
 
 #include <string>
 
-#include "vvdecDecl.h"
+#include "vvdec/vvdecDecl.h"
 
 namespace vvdec {
 
