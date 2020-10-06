@@ -72,7 +72,6 @@ vvc@hhi.fraunhofer.de
 
 #define DISABLE_CONFROMANCE_CHECK                         1
 #define DISABLE_CHECK_NO_OUTPUT_PRIOR_PICS_FLAG           0
-#define DISABLE_FEATURE_CHECKS                            1
 
 #define TBD                                               1
 #define TBT                                               1
@@ -478,13 +477,6 @@ enum CoeffScanGroupType
   SCAN_UNGROUPED   = 0,
   SCAN_GROUPED_4x4 = 1,
   SCAN_NUMBER_OF_GROUP_TYPES = 2
-};
-
-enum ScalingListMode
-{
-  SCALING_LIST_OFF,
-  SCALING_LIST_DEFAULT,
-  SCALING_LIST_FILE_READ
 };
 
 enum ScalingListSize

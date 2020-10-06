@@ -448,10 +448,6 @@ DecLibParser::SliceHeadResult DecLibParser::xDecodeSliceHead( InputNALUnit& nalu
   {
     uiIndependentSliceIdx = m_pcParsePic->slices[m_uiSliceSegmentIdx - 1]->getIndependentSliceIdx();
     uiIndependentSliceIdx++;
-
-#if !DISABLE_FEATURE_CHECKS
-    THROW( "more than one slice in picture not supported yet" );
-#endif
   }
   m_apcSlicePilot->setIndependentSliceIdx( uiIndependentSliceIdx );
 
