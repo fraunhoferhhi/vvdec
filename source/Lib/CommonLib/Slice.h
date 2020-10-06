@@ -95,7 +95,6 @@ class ReferencePictureList
 private:
   int   m_numberOfShorttermPictures = 0;
   int   m_numberOfLongtermPictures  = 0;
-  int   m_numberOfActivePictures    = MAX_INT;
   int   m_isLongtermRefPic      [MAX_NUM_REF_PICS];
   int   m_refPicIdentifier      [MAX_NUM_REF_PICS];   // This can be delta POC for STRP or POC LSB for LTRP
   int   m_POC                   [MAX_NUM_REF_PICS];
@@ -128,9 +127,6 @@ public:
 
   void    setPOC(int idx, int POC);
   int     getPOC(int idx) const;
-
-  void    setNumberOfActivePictures(int numberOfLtrp);
-  int     getNumberOfActivePictures() const;
 
   int     getDeltaPocMSBCycleLT(int i) const       { return m_deltaPOCMSBCycleLT[i]; }
   void    setDeltaPocMSBCycleLT(int i, int x)      { m_deltaPOCMSBCycleLT[i] = x; }
@@ -193,21 +189,15 @@ private:
 class ConstraintInfo
 {
   bool         m_gciPresentFlag                               = false;
-#if JVET_Q0114_ASPECT5_GCI_FLAG
   bool         m_noRprConstraintFlag                          = false;
-#endif
   bool         m_noResChangeInClvsConstraintFlag              = false;
   bool         m_oneTilePerPicConstraintFlag                  = false;
   bool         m_picHeaderInSliceHeaderConstraintFlag         = false;
   bool         m_oneSlicePerPicConstraintFlag                 = false;
-#if JVET_S0113_S0195_GCI
   bool         m_noIdrRplConstraintFlag                       = false;
   bool         m_noRectSliceConstraintFlag                    = false;
   bool         m_oneSlicePerSubpicConstraintFlag              = false;
   bool         m_noSubpicInfoConstraintFlag                   = false;
-#else
-  bool         m_oneSubpicPerPicConstraintFlag                = false;
-#endif
 #if !JVET_S0138_GCI_PTL
   bool         m_frameOnlyConstraintFlag                      = false;
 #endif
@@ -218,39 +208,31 @@ class ConstraintInfo
   bool         m_lowerBitRateConstraintFlag                   = false;
 
 #if !JVET_S0138_GCI_PTL
-  bool              m_singleLayerConstraintFlag               = false;
+  bool         m_singleLayerConstraintFlag                    = false;
 #endif
-  bool              m_allLayersIndependentConstraintFlag      = false;
-  bool              m_noMrlConstraintFlag                     = false;
-  bool              m_noIspConstraintFlag                     = false;
-  bool              m_noMipConstraintFlag                     = false;
-  bool              m_noLfnstConstraintFlag                   = false;
-  bool              m_noMmvdConstraintFlag                    = false;
-  bool              m_noSmvdConstraintFlag                    = false;
-  bool              m_noProfConstraintFlag                    = false;
-  bool              m_noPaletteConstraintFlag                 = false;
-  bool              m_noActConstraintFlag                     = false;
-  bool              m_noLmcsConstraintFlag                    = false;
+  bool         m_allLayersIndependentConstraintFlag           = false;
+  bool         m_noMrlConstraintFlag                          = false;
+  bool         m_noIspConstraintFlag                          = false;
+  bool         m_noMipConstraintFlag                          = false;
+  bool         m_noLfnstConstraintFlag                        = false;
+  bool         m_noMmvdConstraintFlag                         = false;
+  bool         m_noSmvdConstraintFlag                         = false;
+  bool         m_noProfConstraintFlag                         = false;
+  bool         m_noPaletteConstraintFlag                      = false;
+  bool         m_noActConstraintFlag                          = false;
+  bool         m_noLmcsConstraintFlag                         = false;
 
-#if JVET_S0050_GCI
-  bool              m_noExplicitScaleListConstraintFlag       = false;
-  bool              m_noVirtualBoundaryConstraintFlag         = false;
-#endif
-#if JVET_S0058_GCI
-  bool              m_noMttConstraintFlag                     = false;
-#endif
-#if JVET_R0341_GCI
-  bool              m_noChromaQpOffsetConstraintFlag          = false;
-#endif
+  bool         m_noExplicitScaleListConstraintFlag            = false;
+  bool         m_noVirtualBoundaryConstraintFlag              = false;
+  bool         m_noMttConstraintFlag                          = false;
+  bool         m_noChromaQpOffsetConstraintFlag               = false;
   bool         m_noQtbttDualTreeIntraConstraintFlag           = false;
   int          m_maxLog2CtuSizeConstraintIdc                  = 8;
   bool         m_noPartitionConstraintsOverrideConstraintFlag = false;
   bool         m_noSaoConstraintFlag                          = false;
   bool         m_noAlfConstraintFlag                          = false;
   bool         m_noCCAlfConstraintFlag                        = false;
-#if JVET_S0058_GCI
   bool         m_noWeightedPredictionConstraintFlag           = false;
-#endif
   bool         m_noRefWraparoundConstraintFlag                = false;
   bool         m_noTemporalMvpConstraintFlag                  = false;
   bool         m_noSbtmvpConstraintFlag                       = false;
@@ -299,11 +281,8 @@ public:
   ChromaFormat  getMaxChromaFormatConstraintIdc() const { return m_maxChromaFormatConstraintIdc; }
   void          setMaxChromaFormatConstraintIdc(ChromaFormat fmt) { m_maxChromaFormatConstraintIdc = fmt; }
 
-
-#if JVET_Q0114_ASPECT5_GCI_FLAG
   bool          getNoRprConstraintFlag() const { return m_noRprConstraintFlag; }
   void          setNoRprConstraintFlag(bool b) { m_noRprConstraintFlag = b; }
-#endif
 
   bool          getNoResChangeInClvsConstraintFlag() const { return m_noResChangeInClvsConstraintFlag; }
   void          setNoResChangeInClvsConstraintFlag(bool b) { m_noResChangeInClvsConstraintFlag = b; }
@@ -316,7 +295,6 @@ public:
   bool          getOneSlicePerPicConstraintFlag() const { return m_oneSlicePerPicConstraintFlag; }
   void          setOneSlicePerPicConstraintFlag(bool b) { m_oneSlicePerPicConstraintFlag = b; }
 
-#if JVET_S0113_S0195_GCI
   bool          getNoIdrRplConstraintFlag() const          { return m_noIdrRplConstraintFlag; }
   void          setNoIdrRplConstraintFlag(bool b)          { m_noIdrRplConstraintFlag = b; }
 
@@ -328,10 +306,6 @@ public:
 
   bool          getNoSubpicInfoConstraintFlag() const      { return m_noSubpicInfoConstraintFlag; }
   void          setNoSubpicInfoConstraintFlag(bool b)      { m_noSubpicInfoConstraintFlag = b; }
-#else
-  bool          getOneSubpicPerPicConstraintFlag() const { return m_oneSubpicPerPicConstraintFlag; }
-  void          setOneSubpicPerPicConstraintFlag(bool b) { m_oneSubpicPerPicConstraintFlag = b; }
-#endif
 
   bool          getIntraOnlyConstraintFlag() const { return m_intraOnlyConstraintFlag; }
   void          setIntraOnlyConstraintFlag(bool b) { m_intraOnlyConstraintFlag = b; }
@@ -367,20 +341,14 @@ public:
   void          setNoActConstraintFlag(bool b) { m_noActConstraintFlag = b; }
   bool          getNoLmcsConstraintFlag() const { return m_noLmcsConstraintFlag; }
   void          setNoLmcsConstraintFlag(bool b) { m_noLmcsConstraintFlag = b; }
-#if JVET_S0050_GCI
   bool          getNoExplicitScaleListConstraintFlag() const { return m_noExplicitScaleListConstraintFlag; }
   void          setNoExplicitScaleListConstraintFlag(bool b) { m_noExplicitScaleListConstraintFlag = b; }
   bool          getNoVirtualBoundaryConstraintFlag() const { return m_noVirtualBoundaryConstraintFlag; }
   void          setNoVirtualBoundaryConstraintFlag(bool b) { m_noVirtualBoundaryConstraintFlag = b; }
-#endif
-#if JVET_S0058_GCI
   bool          getNoMttConstraintFlag() const { return m_noMttConstraintFlag; }
   void          setNoMttConstraintFlag(bool bVal) { m_noMttConstraintFlag = bVal; }
-#endif
-#if JVET_R0341_GCI
   bool          getNoChromaQpOffsetConstraintFlag() const { return m_noChromaQpOffsetConstraintFlag; }
   void          setNoChromaQpOffsetConstraintFlag(bool b) { m_noChromaQpOffsetConstraintFlag = b; }
-#endif
   bool          getNoQtbttDualTreeIntraConstraintFlag() const { return m_noQtbttDualTreeIntraConstraintFlag; }
   void          setNoQtbttDualTreeIntraConstraintFlag(bool bVal) { m_noQtbttDualTreeIntraConstraintFlag = bVal; }
   int           getMaxLog2CtuSizeConstraintIdc() const { return m_maxLog2CtuSizeConstraintIdc; }
@@ -395,10 +363,8 @@ public:
   void          setNoCCAlfConstraintFlag(bool val) { m_noCCAlfConstraintFlag = val; }
   bool          getNoJointCbCrConstraintFlag() const { return m_noJointCbCrConstraintFlag; }
   void          setNoJointCbCrConstraintFlag(bool bVal) { m_noJointCbCrConstraintFlag = bVal; }
-#if JVET_S0058_GCI
   bool          getNoWeightedPredictionConstraintFlag() const { return m_noWeightedPredictionConstraintFlag; }
   void          setNoWeightedPredictionConstraintFlag(bool bVal) { m_noWeightedPredictionConstraintFlag = bVal; }
-#endif
   bool          getNoRefWraparoundConstraintFlag() const { return m_noRefWraparoundConstraintFlag; }
   void          setNoRefWraparoundConstraintFlag(bool bVal) { m_noRefWraparoundConstraintFlag = bVal; }
   bool          getNoTemporalMvpConstraintFlag() const { return m_noTemporalMvpConstraintFlag; }
@@ -2237,11 +2203,7 @@ private:
 
 #if JVET_Q0764_WRAP_AROUND_WITH_RPR
   bool             m_useWrapAround                       = false;               //< reference wrap around enabled or not
-#if JVET_R0162_WRAPAROUND_OFFSET_SIGNALING
   unsigned         m_picWidthMinusWrapAroundOffset       = 0;          // <pic_width_in_minCbSizeY - wraparound_offset_in_minCbSizeY
-#else
-  unsigned         m_wrapAroundOffsetMinusCtbSize        = 0;        //< reference wrap around offset minus ( CtbSizeY / MinCbSizeY ) + 2 in units of MinCbSizeY luma samples
-#endif
   unsigned         m_wrapAroundOffset                    = 0;                    //< reference wrap around offset in luma samples
 #endif
 
@@ -2330,13 +2292,8 @@ public:
 #if JVET_Q0764_WRAP_AROUND_WITH_RPR
   void                   setUseWrapAround(bool b)                                         { m_useWrapAround = b;                          }
   bool                   getUseWrapAround() const                                         { return m_useWrapAround;                       }
-#if JVET_R0162_WRAPAROUND_OFFSET_SIGNALING
   void                   setPicWidthMinusWrapAroundOffset(unsigned offset)                { m_picWidthMinusWrapAroundOffset = offset;     }
   unsigned               getPicWidthMinusWrapAroundOffset() const                         { return m_picWidthMinusWrapAroundOffset;       }
-#else
-  void                   setWrapAroundOffsetMinusCtbSize(unsigned offset)                 { m_wrapAroundOffsetMinusCtbSize = offset;      }
-  unsigned               getWrapAroundOffsetMinusCtbSize() const                          { return m_wrapAroundOffsetMinusCtbSize;        }
-#endif
   void                   setWrapAroundOffset(unsigned offset)                             { m_wrapAroundOffset = offset;                  }
   unsigned               getWrapAroundOffset() const                                      { return m_wrapAroundOffset;                    }
 #endif
@@ -2657,11 +2614,11 @@ private:
   int                         m_deblockingFilterCrTcOffsetDiv2                = 0;                         //!< tc offset for deblocking filter
   bool                        m_lmcsEnabledFlag                               = false;  //!< lmcs enabled flag
   int                         m_lmcsApsId                                     = -1;     //!< lmcs APS ID
-  APS*                        m_lmcsAps                                       = nullptr; //!< lmcs APS
+  std::shared_ptr<APS>        m_lmcsAps                                       = nullptr; //!< lmcs APS
   bool                        m_lmcsChromaResidualScaleFlag                   = false;  //!< lmcs chroma residual scale flag
   bool                        m_explicitScalingListEnabledFlag                = false;  //!< explicit quantization scaling list enabled
   int                         m_scalingListApsId                              = -1;     //!< quantization scaling list APS ID
-  APS*                        m_scalingListAps                                = nullptr; //!< quantization scaling list APS
+  std::shared_ptr<APS>        m_scalingListAps                                = nullptr; //!< quantization scaling list APS
   unsigned                    m_minQT[3]                                      = { 0, 0, 0 }; //!< minimum quad-tree size  0: I slice luma; 1: P/B slice; 2: I slice chroma
   unsigned                    m_maxMTTHierarchyDepth[3]                       = { 0, 0, 0 }; //!< maximum MTT depth
   unsigned                    m_maxBTSize[3]                                  = { 0, 0, 0 }; //!< maximum BT size
@@ -2799,15 +2756,15 @@ public:
   void                        setLmcsEnabledFlag(bool b)                                { m_lmcsEnabledFlag = b;                                                                       }
   bool                        getLmcsEnabledFlag()                                      { return m_lmcsEnabledFlag;                                                                    }
   const bool                  getLmcsEnabledFlag() const                                { return m_lmcsEnabledFlag;                                                                    }
-  void                        setLmcsAPS(APS* aps)                                      { m_lmcsAps = aps; m_lmcsApsId = (aps) ? aps->getAPSId() : -1;                                 }
-  APS*                        getLmcsAPS() const                                        { return m_lmcsAps;                                                                            }
+  void                        setLmcsAPS(std::shared_ptr<APS> aps)                      { m_lmcsAps = aps; m_lmcsApsId = (aps) ? aps->getAPSId() : -1;                                 }
+  std::shared_ptr<APS>        getLmcsAPS() const                                        { return m_lmcsAps;                                                                            }
   void                        setLmcsAPSId(int id)                                      { m_lmcsApsId = id;                                                                            }
   int                         getLmcsAPSId() const                                      { return m_lmcsApsId;                                                                          }
   void                        setLmcsChromaResidualScaleFlag(bool b)                    { m_lmcsChromaResidualScaleFlag = b;                                                           }
   bool                        getLmcsChromaResidualScaleFlag()                          { return m_lmcsChromaResidualScaleFlag;                                                        }
   const bool                  getLmcsChromaResidualScaleFlag() const                    { return m_lmcsChromaResidualScaleFlag;                                                        }
-  void                        setScalingListAPS( APS* aps )                             { m_scalingListAps = aps; m_scalingListApsId = ( aps ) ? aps->getAPSId() : -1;                 }
-  APS*                        getScalingListAPS() const                                 { return m_scalingListAps;                                                                     }
+  void                        setScalingListAPS(std::shared_ptr<APS> aps)               { m_scalingListAps = aps; m_scalingListApsId = ( aps ) ? aps->getAPSId() : -1;                 }
+  std::shared_ptr<APS>        getScalingListAPS() const                                 { return m_scalingListAps;                                                                     }
   void                        setScalingListAPSId( int id )                             { m_scalingListApsId = id;                                                                     }
   int                         getScalingListAPSId() const                               { return m_scalingListApsId;                                                                   }
   void                        setExplicitScalingListEnabledFlag( bool b )               { m_explicitScalingListEnabledFlag = b;                                                        }
@@ -2970,10 +2927,6 @@ private:
 
   uint32_t                   m_sliceSubPicId                 = false;
   SliceType                  m_encCABACTableIdx              = I_SLICE;   // Used to transmit table selection across slices.
-
-  std::chrono::time_point<std::chrono::steady_clock>
-                             m_processingStartTime;
-  double                     m_dProcessingTime               = 0;
 
   int                        m_numCus                        = 0;
   int                        m_numIntraCus                   = 0;
@@ -3226,10 +3179,6 @@ public:
   const ClpRng&               clpRng( ComponentID id)                           const { return m_clpRngs; }
   ClpRngs&                    getClpRngs()                                            { return m_clpRngs; }
   unsigned                    getMinPictureDistance()                           const ;
-  void startProcessingTimer();
-  void stopProcessingTimer();
-  void resetProcessingTime()       { m_dProcessingTime = 0; }
-  double getProcessingTime() const { return m_dProcessingTime; }
 
   void                        resetTileGroupAlfEnabledFlag()                          { memset(m_tileGroupAlfEnabledFlag, 0, sizeof(m_tileGroupAlfEnabledFlag)); }
   bool                        getTileGroupAlfEnabledFlag(ComponentID compId)    const { return m_tileGroupAlfEnabledFlag[compId]; }
@@ -3307,21 +3256,11 @@ public:
     , minCUHeight         ( 1 << MIN_CU_LOG2 )
     , minCUWidthLog2      ( getLog2( minCUWidth  ) )
     , minCUHeightLog2     ( getLog2( minCUHeight ) )
-    , partsInCtuWidth     ( maxCUWidth >> MIN_CU_LOG2)
-    , partsInCtuHeight    ( maxCUHeight >> MIN_CU_LOG2)
-    , partsInCtu          ( partsInCtuWidth * partsInCtuHeight )
     , widthInCtus         ( (pps.getPicWidthInLumaSamples () + sps.getMaxCUWidth () - 1) / sps.getMaxCUWidth () )
     , heightInCtus        ( (pps.getPicHeightInLumaSamples() + sps.getMaxCUHeight() - 1) / sps.getMaxCUHeight() )
     , sizeInCtus          ( widthInCtus * heightInCtus )
     , lumaWidth           ( pps.getPicWidthInLumaSamples() )
     , lumaHeight          ( pps.getPicHeightInLumaSamples() )
-    , ISingleTree         ( !sps.getUseDualITree() )
-    , maxBtDepth          { sps.getMaxBTDepthI(), sps.getMaxBTDepth(), sps.getMaxBTDepthIChroma() }
-    , minBtSize           { 1u << sps.getLog2MinCodingBlockSize(), 1u << sps.getLog2MinCodingBlockSize(), 1u << sps.getLog2MinCodingBlockSize() }
-    , maxBtSize           { sps.getMaxBTSizeI(), sps.getMaxBTSize(), sps.getMaxBTSizeIChroma() }
-    , minTtSize           { 1u << sps.getLog2MinCodingBlockSize(), 1u << sps.getLog2MinCodingBlockSize(), 1u << sps.getLog2MinCodingBlockSize() }
-    , maxTtSize           { sps.getMaxTTSizeI(), sps.getMaxTTSize(), sps.getMaxTTSizeIChroma() }
-    , minQtSize           { sps.getMinQTSize(I_SLICE, CHANNEL_TYPE_LUMA), sps.getMinQTSize(B_SLICE, CHANNEL_TYPE_LUMA), sps.getMinQTSize(I_SLICE, CHANNEL_TYPE_CHROMA) }
   {}
 
   const ChromaFormat chrFormat;
@@ -3336,33 +3275,11 @@ public:
   const unsigned     minCUHeight;
   const unsigned     minCUWidthLog2;
   const unsigned     minCUHeightLog2;
-  const unsigned     partsInCtuWidth;
-  const unsigned     partsInCtuHeight;
-  const unsigned     partsInCtu;
   const unsigned     widthInCtus;
   const unsigned     heightInCtus;
   const unsigned     sizeInCtus;
   const unsigned     lumaWidth;
   const unsigned     lumaHeight;
-  const bool         ISingleTree;
-
-private:
-  const unsigned     maxBtDepth[3];
-  const unsigned     minBtSize [3];
-  const unsigned     maxBtSize [3];
-  const unsigned     minTtSize [3];
-  const unsigned     maxTtSize [3];
-  const unsigned     minQtSize [3];
-
-  unsigned getValIdx    ( const Slice &slice, const ChannelType chType ) const;
-
-public:
-  unsigned getMaxBtDepth( const Slice &slice, const ChannelType chType ) const;
-  unsigned getMinBtSize ( const Slice &slice, const ChannelType chType ) const;
-  unsigned getMaxBtSize ( const Slice &slice, const ChannelType chType ) const;
-  unsigned getMinTtSize ( const Slice &slice, const ChannelType chType ) const;
-  unsigned getMaxTtSize ( const Slice &slice, const ChannelType chType ) const;
-  unsigned getMinQtSize ( const Slice &slice, const ChannelType chType ) const;
 };
 
 struct LevelTierFeatures

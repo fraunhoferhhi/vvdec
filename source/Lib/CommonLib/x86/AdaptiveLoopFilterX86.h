@@ -1363,7 +1363,7 @@ void simdFilterBlkCcAlf( const PelBuf &dstBuf, const CPelUnitBuf &recSrc, const 
   static constexpr int clsSizeY  = 4;
   static constexpr int clsSizeX  = 4;
 
-  const SPS* sps        = cs.slice->getSPS();
+  const SPS* sps        = cs.sps.get();
   ChromaFormat nChromaFormat = sps->getChromaFormatIdc();
   const int startHeight = blkDst.y;
   const int endHeight   = blkDst.y + blkDst.height;
@@ -1537,7 +1537,7 @@ void simdFilterBlkCcAlf<AVX2>( const PelBuf &dstBuf, const CPelUnitBuf &recSrc, 
   static constexpr int clsSizeY = 4;
   static constexpr int clsSizeX = 4;
 
-  const SPS* sps = cs.slice->getSPS();
+  const SPS* sps = cs.sps.get();
   ChromaFormat nChromaFormat = sps->getChromaFormatIdc();
   const int startHeight = blkDst.y;
   const int endHeight = blkDst.y + blkDst.height;

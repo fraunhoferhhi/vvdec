@@ -75,9 +75,7 @@ public:
           "\t Decoder Options\n"
           "\n"
           "\t\t [--threads,-t  <int>       ] : number of threads (default: <= 0 auto detection )\n"
-          "\t\t [--parsethreads,-p  <int>  ] : number of parser threads (default: <= 0 auto detection )\n"
-
-          "\t\t [--parsethreads,-p  <int>  ] : number of parser threads (default: <= 0 auto detection )\n"
+          "\t\t [--parsedelay,-p  <int>    ] : maximal number of frames to read before decoding (default: <= 0 auto detection )\n"
           "\n"
           "\t\t [--SEIDecodedPictureHash,-dph ] : enable handling of decoded picture hash SEI messages"
           "\n"
@@ -109,7 +107,7 @@ public:
         if( iLogLevel > (int)vvdec::LogLevel::LL_DETAILS ) iLogLevel = (int)vvdec::LogLevel::LL_DETAILS ;
         rcParams.m_eLogLevel = (vvdec::LogLevel)iLogLevel;
 
-        if( rcParams.m_eLogLevel > vvdec::LL_WARNING )
+        if( rcParams.m_eLogLevel > vvdec::LL_VERBOSE )
         {
           std::string cll;
           switch (rcParams.m_eLogLevel)
@@ -145,7 +143,7 @@ public:
       if( (!strcmp( (const char*)argv[i_arg], "-b" )) || !strcmp( (const char*)argv[i_arg], "--bitstream" ) ) /* In: input-file */
       {
         i_arg++;
-        if( rcParams.m_eLogLevel > vvdec::LL_WARNING )
+        if( rcParams.m_eLogLevel > vvdec::LL_VERBOSE )
           fprintf( stdout, "[bitstream] input-file:    %s\n", argv[i_arg] );
         rcBitstreamFile = argv[i_arg++];
       }
@@ -154,7 +152,7 @@ public:
         i_arg++;
         if( i_arg < argc && strlen( argv[i_arg] ) > 0 )
         {
-          if( rcParams.m_eLogLevel > vvdec::LL_WARNING )
+          if( rcParams.m_eLogLevel > vvdec::LL_VERBOSE )
             fprintf( stdout, "[output] yuv-file:    %s\n", argv[i_arg] );
           rcOutputFile = argv[i_arg++];
         }
@@ -163,29 +161,29 @@ public:
       {
         i_arg++;
         riFrames = atoi( argv[i_arg++] );
-        if( rcParams.m_eLogLevel > vvdec::LL_WARNING )
+        if( rcParams.m_eLogLevel > vvdec::LL_VERBOSE )
           fprintf( stdout, "[frames] : %d\n", riFrames );
       }
       else if( (!strcmp( (const char*)argv[i_arg], "-t" )) || !strcmp( (const char*)argv[i_arg], "--threads" ) )
       {
         i_arg++;
         int iThreads = atoi( argv[i_arg++] );
-        if( rcParams.m_eLogLevel > vvdec::LL_WARNING )
+        if( rcParams.m_eLogLevel > vvdec::LL_VERBOSE )
           fprintf( stdout, "[threads] : %d\n", iThreads );
         rcParams.m_iThreads = iThreads;
       }
-      else if( (!strcmp( (const char*)argv[i_arg], "-p" )) || !strcmp( (const char*)argv[i_arg], "--parsethreads" ) )
+      else if( (!strcmp( (const char*)argv[i_arg], "-p" )) || !strcmp( (const char*)argv[i_arg], "--parsedelay" ) )
       {
         i_arg++;
         int iThreads = atoi( argv[i_arg++] );
-        if( rcParams.m_eLogLevel > vvdec::LL_WARNING )
-          fprintf( stdout, "[parsethreads] : %d\n", iThreads );
+        if( rcParams.m_eLogLevel > vvdec::LL_VERBOSE )
+          fprintf( stdout, "[parsedelay] : %d\n", iThreads );
         rcParams.m_iParseThreads = iThreads;
       }
       else if( (!strcmp( (const char*)argv[i_arg], "-dph" )) || !strcmp( (const char*)argv[i_arg], "--SEIDecodedPictureHash" ) )
       {
         i_arg++;
-        if( rcParams.m_eLogLevel > vvdec::LL_WARNING )
+        if( rcParams.m_eLogLevel > vvdec::LL_VERBOSE )
           fprintf( stdout, "[SEIDecodedPictureHash] : true\n" );
         rcParams.m_bDecodedPictureHashSEIEnabled = true;
       }
@@ -193,7 +191,7 @@ public:
       {
         i_arg++;
         riLoops = atoi( argv[i_arg++] );
-        if( rcParams.m_eLogLevel > vvdec::LL_WARNING )
+        if( rcParams.m_eLogLevel > vvdec::LL_VERBOSE )
           fprintf( stdout, "[loops] : %d\n", riLoops );
       }
       else if( (!strcmp( (const char*)argv[i_arg], "-v" )) || !strcmp( (const char*)argv[i_arg], "--verbosity" ) )

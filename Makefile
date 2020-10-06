@@ -35,9 +35,21 @@ ifneq ($(enable-bitstream-download),)
 CONFIG_OPTIONS += -DVVDEC_ENABLE_BITSTREAM_DOWNLOAD=ON
 endif
 
+ifneq ($(enable-local-bitstream-download),)
+CONFIG_OPTIONS += -DVVDEC_ENABLE_LOCAL_BITSTREAM_DOWNLOAD=ON
+endif
+
+ifneq ($(enable-build-type-postfix),)
+CONFIG_OPTIONS += -DVVDEC_ENABLE_BUILD_TYPE_POSTFIX=ON
+endif
+
+ifneq ($(install-prefix),)
+CONFIG_OPTIONS += -DCMAKE_INSTALL_PREFIX=$(install-prefix)
+endif
+
 ifeq ($(j),)
 # Query cmake for the number of cores
-NUM_JOBS := $(shell cmake -P cmake/modules/VVDecNumCores.cmake)
+NUM_JOBS := $(shell cmake -P cmake/modules/vvdecNumCores.cmake)
 NUM_JOBS := $(lastword $(NUM_JOBS))
 else
 NUM_JOBS := $(j)
@@ -199,13 +211,16 @@ configure: configure-static configure-shared
 
 install-static: $(foreach t,$(DEFAULT_BUILD_TARGETS_STATIC),install-$(t))
 install-shared: $(foreach t,$(DEFAULT_BUILD_TARGETS_SHARED),install-$(t))
-install: install-static install-shared
+install-all: install-static install-shared
+
+# default distribution target
+install: install-release-shared
 
 clean:
-	$(RM) -rf build
+	$(RM) -rf build bin lib
 
 realclean: clean
-	$(RM) -rf install Testing
+	$(RM) -rf install
 
 distclean: realclean
 	$(RM) -rf ext

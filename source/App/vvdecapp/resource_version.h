@@ -44,7 +44,7 @@ vvc@hhi.fraunhofer.de
 #define resource_version_h
 
 // pick up top level version information.
-#include "../../../include/vvdec/version.h"
+#include "vvdec/version.h"
 
 #define VS_FILE_VERSION     VVDEC_VS_VERSION
 #define VS_FILE_VERSION_STR VVDEC_VS_VERSION_STR

@@ -248,22 +248,22 @@ void DecLibRecon::decompressPicture( Picture* pcPic )
 #endif
 
   // Initialise the various objects for the new set of settings
-  const SPS * sps = cs.slice->getSPS();
-  const PPS * pps = cs.slice->getPPS();
+  const SPS * sps = cs.sps.get();
+  const PPS * pps = cs.pps.get();
 
   for( int i = 0; i < m_numDecThreads; i++ )
   {
     if( sps->getUseReshaper() )
     {
       m_cReshaper[i].createDec( sps->getBitDepth( CHANNEL_TYPE_LUMA ) );
-      m_cReshaper[i].initSlice( cs.slice );
+      m_cReshaper[i].initSlice( pcPic->slices[0] );
     }
 
     m_cIntraPred[i].init( sps->getChromaFormatIdc(), sps->getBitDepth( CHANNEL_TYPE_LUMA ) );
     m_cInterPred[i].init( &m_cRdCost, sps->getChromaFormatIdc(), sps->getMaxCUHeight() );
 
     // Recursive structure
-    m_cTrQuant[i]  .init( cs.slice );
+    m_cTrQuant[i]  .init( pcPic->slices[0] );
     m_cCuDecoder[i].init( &m_cIntraPred[i], &m_cInterPred[i], &m_cReshaper[i], &m_cTrQuant[i] );
   }
 
@@ -292,7 +292,7 @@ void DecLibRecon::decompressPicture( Picture* pcPic )
   {
     cs.initVIbcBuf( heightInCtus, sps->getChromaFormatIdc(), sps->getMaxCUHeight() );
   }
-  cs.slice->startProcessingTimer();
+  pcPic->startProcessingTimer();
 
   if( m_decodeThreadPool->numThreads() > 0 )
   {
@@ -308,9 +308,9 @@ void DecLibRecon::decompressPicture( Picture* pcPic )
 
   for( int iDir = REF_PIC_LIST_0; iDir < NUM_REF_PIC_LIST_01; ++iDir )
   {
-    for( int iRefIdx = 0; iRefIdx < cs.slice->getNumRefIdx( (RefPicList)iDir ); iRefIdx++ )
+    for( int iRefIdx = 0; iRefIdx < pcPic->slices[0]->getNumRefIdx( (RefPicList)iDir ); iRefIdx++ )
     {
-      Picture* pic = const_cast<Picture*>( cs.slice->getRefPic( (RefPicList)iDir, iRefIdx ) );
+      Picture* pic = const_cast<Picture*>( pcPic->slices[0]->getRefPic( (RefPicList)iDir, iRefIdx ) );
 
       if( !pic->isBorderExtended )
       {
@@ -338,7 +338,9 @@ void DecLibRecon::decompressPicture( Picture* pcPic )
     m_decodeThreadPool->processTasksOnMainThread();
   }
 
-  const int numColPerTask   = std::max( std::min( widthInCtus, ( widthInCtus / std::max( m_numDecThreads * ( cs.slice->isIntra() ? 2 : 1 ), 1 ) ) + ( cs.slice->isIntra() ? 0 : 1 ) ), 1 );
+  const bool isIntra = pcPic->slices[0]->isIntra();
+
+  const int numColPerTask   = std::max( std::min( widthInCtus, ( widthInCtus / std::max( m_numDecThreads * (isIntra ? 2 : 1 ), 1 ) ) + (isIntra ? 0 : 1 ) ), 1 );
   const int numTasksPerLine = widthInCtus / numColPerTask + !!( widthInCtus % numColPerTask );
 
 #if ALLOW_MIDER_LF_DURING_PICEXT
@@ -348,18 +350,14 @@ void DecLibRecon::decompressPicture( Picture* pcPic )
   picBarriers.push_back( &cs.slice->parseDone );
 
 #endif
-  const TaskType ctuStartState = ( cs.slice->getSliceType() == I_SLICE && !cs.sps->getIBCFlag() ) ? LF_INIT : MIDER;
-  const bool     doALF         = cs.sps->getUseALF() && !AdaptiveLoopFilter::getAlfSkipSlice( cs );
-
+  const TaskType ctuStartState = MIDER;
+  const bool     doALF         = cs.sps->getUseALF() && !AdaptiveLoopFilter::getAlfSkipPic( cs );
   commonTaskParam.reset( cs, ctuStartState, numTasksPerLine, doALF );
 
   tasksDMVR = std::vector<LineTaskParam>( heightInCtus, LineTaskParam{ commonTaskParam, -1 } );
   tasksCtu  = std::vector<CtuTaskParam >( heightInCtus * numTasksPerLine, CtuTaskParam{ commonTaskParam, -1, -1, {} } );
 
   pcPic->done.lock();
-#if RECO_WHILE_PARSE
-  const bool singleSlice = cs.picture->slices.size() == 1;
-#endif
 
   for( int i = 0; i < numTasksPerLine + heightInCtus; ++i )
   {
@@ -371,21 +369,11 @@ void DecLibRecon::decompressPicture( Picture* pcPic )
         CBarrierVec ctuBarriesrs = picBarriers;
 
 #if RECO_WHILE_PARSE
-        if( singleSlice )
+        const int ctuStart = col * numColPerTask;
+        const int ctuEnd   = std::min( ctuStart + numColPerTask, widthInCtus );
+        for( int ctu = ctuStart; ctu < ctuEnd; ctu++ )
         {
-          const int ctuStart = col * numColPerTask;
-          const int ctuEnd   = std::min( ctuStart + numColPerTask, widthInCtus );
-          for( int ctu = ctuStart; ctu < ctuEnd; ctu++ )
-          {
-            ctuBarriesrs.push_back( &pcPic->ctuParsedBarrier[line * widthInCtus + ctu] );
-          }
-          // add the next parsed CTU to avoid the race condition on the ->next pointer of the CTU
-          if     ( ctuEnd < widthInCtus )    ctuBarriesrs.push_back( &pcPic->ctuParsedBarrier[line * widthInCtus + ctuEnd] );
-          else if( line < heightInCtus - 1 ) ctuBarriesrs.push_back( &pcPic->ctuParsedBarrier[( line + 1 ) * widthInCtus] );
-        }
-        else
-        {
-          ctuBarriesrs.push_back( &cs.slice->parseDone );
+          ctuBarriesrs.push_back( &pcPic->ctuParsedBarrier[line * widthInCtus + ctu] );
         }
 #endif
         CtuTaskParam* param = &tasksCtu[line * numTasksPerLine + col];
@@ -406,7 +394,7 @@ void DecLibRecon::decompressPicture( Picture* pcPic )
 
   if( commonTaskParam.doALF )
   {
-    AdaptiveLoopFilter::prepareSlice( cs );
+    AdaptiveLoopFilter::preparePic( cs );
     commonTaskParam.alfPrepared.unlock();
   }
 
@@ -414,21 +402,21 @@ void DecLibRecon::decompressPicture( Picture* pcPic )
     static auto doneTask = []( int, Picture* picture )
     {
       CodingStructure& cs = *picture->cs;
-      if( cs.sps->getUseALF() && !AdaptiveLoopFilter::getAlfSkipSlice( cs ) )
+      if( cs.sps->getUseALF() && !AdaptiveLoopFilter::getAlfSkipPic( cs ) )
       {
         AdaptiveLoopFilter::swapBufs( cs );
       }
 
       picture->reconstructed = true;
       picture->inProgress    = false;
-      picture->neededForOutput = (picture->slices[0]->getPicHeader()->getPicOutputFlag() ? true : false);
+      picture->neededForOutput = picture->slices[0]->getPicHeader()->getPicOutputFlag();
 #ifdef TRACE_ENABLE_ITT
       // mark end of frame
       __itt_frame_end_v3( picture->m_itt_decLibInst, nullptr );
 #endif
       picture->done.unlock();
 
-      cs.slice->stopProcessingTimer();
+      picture->stopProcessingTimer();
 
       return true;
     };
@@ -441,7 +429,10 @@ void DecLibRecon::decompressPicture( Picture* pcPic )
     {
       ITT_TASKSTART( itt_domain_dec, itt_handle_dmvr );
       auto& cs = *param->common.cs;
-      param->common.decLib.m_cCuDecoder[tid].TaskDeriveDMVRMotionInfo( cs, getLineArea( cs, param->line, true ) );
+      for( int col = 0; col < cs.pcv->widthInCtus; col++ )
+      {
+        param->common.decLib.m_cCuDecoder[tid].TaskDeriveDMVRMotionInfo( cs, getCtuArea( cs, col, param->line, true ) );
+      }
       ITT_TASKEND( itt_domain_dec, itt_handle_dmvr );
       return true;
     };
@@ -460,8 +451,6 @@ void DecLibRecon::decompressPicture( Picture* pcPic )
 
   if( m_decodeThreadPool->numThreads() == 0 )
   {
-    bool allDone = m_decodeThreadPool->processTasksOnMainThread();
-    CHECK( !allDone, "some tasks can not be finished due to locked barriers." );
   }
   else
   {
@@ -522,8 +511,14 @@ bool DecLibRecon::ctuTask( int tid, CtuTaskParam* param )
 
     for( int ctu = ctuStart; ctu < ctuEnd; ctu++ )
     {
-      const UnitArea ctuArea = getCtuArea( cs, ctu, line, true );
-      decLib.m_cCuDecoder[tid].TaskDeriveCtuMotionInfo( cs, ctuArea, param->common.perLineMiHist[line] );
+      CtuData& ctuData = cs.getCtuData( ctu, line );
+      memset( ctuData.motion, 0, sizeof( CtuData::motion ) );
+
+      if( !ctuData.cuPtr[0][0]->slice->isIntra() || cs.sps->getIBCFlag() )
+      {
+        const UnitArea ctuArea = getCtuArea( cs, ctu, line, true );
+        decLib.m_cCuDecoder[tid].TaskDeriveCtuMotionInfo( cs, ctuArea, param->common.perLineMiHist[line] );
+      }
     }
     thisCtuState = ( TaskType )( MIDER + 1 );
 
@@ -539,6 +534,9 @@ bool DecLibRecon::ctuTask( int tid, CtuTaskParam* param )
 
     for( int ctu = ctuStart; ctu < ctuEnd; ctu++ )
     {
+      CtuData& ctuData = cs.getCtuData( ctu, line );
+      memset( ctuData.lfParam, 0, sizeof( CtuData::lfParam ) );
+
       const UnitArea  ctuArea  = getCtuArea( cs, ctu, line, true );
       decLib.m_cLoopFilter.calcFilterStrengthsCTU( cs, ctuArea );
     }
@@ -550,7 +548,7 @@ bool DecLibRecon::ctuTask( int tid, CtuTaskParam* param )
 
   case INTER:
   {
-    if( cs.slice->isIntra() )
+    if( cs.picture->slices[0]->isIntra() )
     {
       // not really necessary, but only for optimizing the wave-fronts
       if( col > 1 && thisLine[col - 2] <= INTER )
@@ -573,10 +571,11 @@ bool DecLibRecon::ctuTask( int tid, CtuTaskParam* param )
 
     for( int ctu = ctuStart; ctu < ctuEnd; ctu++ )
     {
-      const UnitArea  ctuArea = getCtuArea( cs, ctu, line, true );
+      const CtuData& ctuData  = cs.getCtuData( ctu, line );
+      const UnitArea ctuArea  = getCtuArea( cs, ctu, line, true );
       decLib.m_cCuDecoder[tid].TaskTrafoCtu( cs, ctuArea );
 
-      if( !cs.slice->isIntra() )
+      if( !ctuData.cuPtr[0][0]->slice->isIntra() )
       {
         decLib.m_cCuDecoder[tid].TaskInterCtu( cs, ctuArea );
       }

@@ -1142,11 +1142,11 @@ void InterpolationFilter::filterHor( const ComponentID compID, const Pel* src, c
     {
       filterHor<NTAPS_BILINEAR>( clpRng, src, srcStride, dst, dstStride, width, height, isLast, m_bilinearFilterPrec4[frac], biMCForDMVR );
     }
-    else if( nFilterIdx >= 3 && nFilterIdx < 7 )
+    else if( nFilterIdx >= 2 && nFilterIdx < 7 )
     {
-      const TFilterCoeff* filterCoeff[4] = { m_lumaFilterRPR1[frac], m_lumaFilterRPR2[frac], m_affineLumaFilterRPR1[frac], m_affineLumaFilterRPR2[frac] };
+      const TFilterCoeff* filterCoeff[5] = { m_lumaFilter4x4[frac], m_lumaFilterRPR1[frac], m_lumaFilterRPR2[frac], m_affineLumaFilterRPR1[frac], m_affineLumaFilterRPR2[frac] };
 
-      filterHor<NTAPS_LUMA>( clpRng, src, srcStride, dst, dstStride, width, height, isLast, filterCoeff[nFilterIdx - 3], biMCForDMVR );
+      filterHor<NTAPS_LUMA>( clpRng, src, srcStride, dst, dstStride, width, height, isLast, filterCoeff[nFilterIdx - 2], biMCForDMVR );
     }
     else
     {
@@ -1173,7 +1173,7 @@ void InterpolationFilter::filterHor( const ComponentID compID, const Pel* src, c
     }
     else
     {
-      THROW( "Unknown chroma filter index '" << nFilterIdx << "'!" );
+      filterHor<NTAPS_CHROMA>( clpRng, src, srcStride, dst, dstStride, width, height, isLast, m_chromaFilter[frac << ( 1 - csx )], biMCForDMVR );
     }
   }
 }
@@ -1227,11 +1227,11 @@ void InterpolationFilter::filterVer( const ComponentID compID, const Pel* src, c
     {
       filterVer<NTAPS_BILINEAR>( clpRng, src, srcStride, dst, dstStride, width, height, isFirst, isLast, m_bilinearFilterPrec4[frac], biMCForDMVR );
     }
-    else if( nFilterIdx >= 3 && nFilterIdx < 7 )
+    else if( nFilterIdx >= 2 && nFilterIdx < 7 )
     {
-      const TFilterCoeff* filterCoeff[4] = { m_lumaFilterRPR1[frac], m_lumaFilterRPR2[frac], m_affineLumaFilterRPR1[frac], m_affineLumaFilterRPR2[frac] };
+      const TFilterCoeff* filterCoeff[5] = { m_lumaFilter4x4[frac], m_lumaFilterRPR1[frac], m_lumaFilterRPR2[frac], m_affineLumaFilterRPR1[frac], m_affineLumaFilterRPR2[frac] };
 
-      filterVer<NTAPS_LUMA>( clpRng, src, srcStride, dst, dstStride, width, height, isFirst, isLast, filterCoeff[nFilterIdx - 3], biMCForDMVR );
+      filterVer<NTAPS_LUMA>( clpRng, src, srcStride, dst, dstStride, width, height, isFirst, isLast, filterCoeff[nFilterIdx - 2], biMCForDMVR );
     }
     else
     {
@@ -1257,7 +1257,7 @@ void InterpolationFilter::filterVer( const ComponentID compID, const Pel* src, c
     }
     else
     {
-      THROW( "Unknown chroma filter index '" << nFilterIdx << "'!" );
+      filterVer<NTAPS_CHROMA>( clpRng, src, srcStride, dst, dstStride, width, height, isFirst, isLast, m_chromaFilter[frac << ( 1 - csy )], biMCForDMVR );
     }
   }
 }

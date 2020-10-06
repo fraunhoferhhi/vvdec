@@ -10,14 +10,65 @@ if( NOT CMAKE_VERSION VERSION_LESS 3.12.0 )
 endif()
 
 # project name
-project( vvdec )
+project( vvdec VERSION 0.1.2.0 )
 
-# enable or disable Boost
+if( NOT CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR )
+  # vvdec embedded by superproject, always include source/Lib/vvdec  as first component
+  list( PREPEND ${PROJECT_NAME}_ADD_SUBDIRECTORIES "source/Lib/vvdec" )
+  list( REMOVE_DUPLICATES ${PROJECT_NAME}_ADD_SUBDIRECTORIES )
+  message( STATUS "${CMAKE_CURRENT_SOURCE_DIR}: ${PROJECT_NAME} embedded, subdirectories to be added: ${${PROJECT_NAME}_ADD_SUBDIRECTORIES}" )
+  # add subdirectories the superproject asked for
+  foreach( subdir IN LISTS ${PROJECT_NAME}_ADD_SUBDIRECTORIES )
+    add_subdirectory( ${subdir} )
+  endforeach()
+  return()
+endif()
+
+# enable or disable bitstream download
 set( VVDEC_ENABLE_BITSTREAM_DOWNLOAD OFF CACHE BOOL "Enable or disable bitstream download" )
 
 # enable install target
 set( VVDEC_ENABLE_INSTALL ON CACHE BOOL "Enable or disable install target" )
 
+# enable postfix
+set( VVDEC_ENABLE_BUILD_TYPE_POSTFIX OFF CACHE BOOL "Enable or disable build type postfix for apps and libs" )
+
+# enable local bitstream download
+set( VVDEC_ENABLE_LOCAL_BITSTREAM_DOWNLOAD OFF CACHE BOOL "Enable or disable local bitstream download" )
+
+if( VVDEC_ENABLE_BUILD_TYPE_POSTFIX )
+  if( BUILD_SHARED_LIBS )
+    set( VVDEC_BUILD_TYPE_POSTFIX "-s" )
+  endif()
+  # set postfixes for libraries
+  set( CMAKE_RELEASE_POSTFIX        "${VVDEC_BUILD_TYPE_POSTFIX}"    CACHE STRING "Set release library postfix" )
+  set( CMAKE_DEBUG_POSTFIX          "-d${VVDEC_BUILD_TYPE_POSTFIX}"  CACHE STRING "Set debug library postfix" )
+  set( CMAKE_RELWITHDEBINFO_POSTFIX "-rd${VVDEC_BUILD_TYPE_POSTFIX}" CACHE STRING "Set relwithdebinfo library postfix" )
+  set( CMAKE_MINSIZEREL_POSTFIX     "-mr${VVDEC_BUILD_TYPE_POSTFIX}" CACHE STRING "Set minsizerel library postfix" )
+endif()
+
+# set VVDEC_OUTPUT_DIR_POSTFIX
+if( BUILD_SHARED_LIBS )
+  set( VVDEC_OUTPUT_DIR_POSTFIX shared )
+else()
+  set( VVDEC_OUTPUT_DIR_POSTFIX static )
+endif()
+
+# Using CMake's default library name convention which is the same for all configurations.
+set( CMAKE_ARCHIVE_OUTPUT_DIRECTORY_DEBUG          "${CMAKE_SOURCE_DIR}/lib/debug-${VVDEC_OUTPUT_DIR_POSTFIX}" )
+set( CMAKE_ARCHIVE_OUTPUT_DIRECTORY_RELEASE        "${CMAKE_SOURCE_DIR}/lib/release-${VVDEC_OUTPUT_DIR_POSTFIX}" )
+set( CMAKE_ARCHIVE_OUTPUT_DIRECTORY_RELWITHDEBINFO "${CMAKE_SOURCE_DIR}/lib/relwithdebinfo-${VVDEC_OUTPUT_DIR_POSTFIX}" )
+set( CMAKE_ARCHIVE_OUTPUT_DIRECTORY_MINSIZEREL     "${CMAKE_SOURCE_DIR}/lib/minsizerel-${VVDEC_OUTPUT_DIR_POSTFIX}" )
+
+set( CMAKE_LIBRARY_OUTPUT_DIRECTORY_DEBUG          "${CMAKE_ARCHIVE_OUTPUT_DIRECTORY_DEBUG}" )
+set( CMAKE_LIBRARY_OUTPUT_DIRECTORY_RELEASE        "${CMAKE_ARCHIVE_OUTPUT_DIRECTORY_RELEASE}" )
+set( CMAKE_LIBRARY_OUTPUT_DIRECTORY_RELWITHDEBINFO "${CMAKE_ARCHIVE_OUTPUT_DIRECTORY_RELWITHDEBINFO}" )
+set( CMAKE_LIBRARY_OUTPUT_DIRECTORY_MINSIZEREL     "${CMAKE_ARCHIVE_OUTPUT_DIRECTORY_MINSIZEREL}" )    
+
+set( CMAKE_RUNTIME_OUTPUT_DIRECTORY_DEBUG          "${CMAKE_SOURCE_DIR}/bin/debug-${VVDEC_OUTPUT_DIR_POSTFIX}" )
+set( CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELEASE        "${CMAKE_SOURCE_DIR}/bin/release-${VVDEC_OUTPUT_DIR_POSTFIX}" )
+set( CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELWITHDEBINFO "${CMAKE_SOURCE_DIR}/bin/relwithdebinfo-${VVDEC_OUTPUT_DIR_POSTFIX}" )
+set( CMAKE_RUNTIME_OUTPUT_DIRECTORY_MINSIZEREL     "${CMAKE_SOURCE_DIR}/bin/minsizerel-${VVDEC_OUTPUT_DIR_POSTFIX}" )
 
 # enable or disable Intel Vtune ITT Tracing
 #if( CMAKE_BUILD_TYPE STREQUAL "RelWithDebInfo" )
@@ -148,6 +199,31 @@ endif()
 #  endif()
 #endif()
 
+# handle rpath correctly
+if( VVDEC_ENABLE_INSTALL )
+  if( CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT )
+    set( CMAKE_INSTALL_PREFIX "${CMAKE_SOURCE_DIR}/install" CACHE PATH "Standard install prefix" FORCE )
+  endif()
+
+  # use GNU install dirs
+  include( GNUInstallDirs )
+  
+  if( BUILD_SHARED_LIBS AND NOT WIN32 )
+    set( CMAKE_SKIP_INSTALL_RPATH OFF CACHE BOOL "skip rpath" )
+    if( APPLE )
+      set( RPATH_BASE @loader_path )
+    elseif( UNIX )
+      set( RPATH_BASE $ORIGIN )
+    endif()
+    
+    file( RELATIVE_PATH RPATH_REL_DIR ${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_INSTALL_BINDIR} ${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_INSTALL_LIBDIR} )
+    
+    set( CMAKE_INSTALL_RPATH ${RPATH_BASE} ${RPATH_BASE}/${RPATH_REL_DIR} )
+    message( STATUS "CMAKE_INSTALL_RPATH=${CMAKE_INSTALL_RPATH}" )
+  endif()  
+endif()
+
+
 add_subdirectory( "source/Lib/vvdec" )
 add_subdirectory( "source/App/vvdecapp" )
 
@@ -158,31 +234,99 @@ if( VVDEC_ENABLE_BITSTREAM_DOWNLOAD )
   # enable FetchContent
   include( FetchContent )
   
-  # get bitstreams
-  set( BITSTREAM_URL_BASE "https://www.itu.int/wftp3/av-arch/jvet-site/bitstream_exchange/VVC/under_test/VTM-10.0" )
+  if( VVDEC_ENABLE_LOCAL_BITSTREAM_DOWNLOAD )
+    # get bitstreams
+    set( BITSTREAM_URL_BASE "https://visvn.fe.hhi.de/download/VTM-10.0" )
+  else()
+    # get bitstreams
+    set( BITSTREAM_URL_BASE "https://www.itu.int/wftp3/av-arch/jvet-site/bitstream_exchange/VVC/under_test/VTM-10.0" )
+  endif()
   
   # create a list of all test bitstreams
   list( APPEND BITSTREAM_FILES
-    "JCCR_A_Nokia_2.zip" "JCCR_B_Nokia_2.zip"
+    "AFF_A_HUAWEI_2.zip" "AFF_B_HUAWEI_2.zip"
+    "ALF_A_Huawei_3.zip" "ALF_B_Huawei_3.zip"
+    "ALF_A_KDDI_2.zip"
+    "AMVR_A_HHI_3.zip" "AMVR_B_HHI_3.zip"
     "APSLMCS_A_Dolby_3.zip" "APSLMCS_B_Dolby_3.zip" "APSLMCS_C_Dolby_2.zip"
+    "APSMULT_A_MediaTek_3.zip" "APSMULT_B_MediaTek_3.zip"
+    "AUD_A_Broadcom_3.zip"
+    "BCW_A_MediaTek_3.zip"
+    "BDOF_A_MediaTek_3.zip"
     "BDPCM_A_Orange_2.zip"
-    "DEBLOCKING_Ericsson_2.zip"
+    "BOUNDARY_A_Huawei_3.zip"
+    "CCALF_A_Sharp_3.zip" "CCALF_B_Sharp_3.zip" "CCALF_C_Sharp_3.zip" "CCALF_D_Sharp_3.zip"
+    "CCLM_A_KDDI_1.zip"
+    "CIIP_A_MediaTek_3.zip"
+    "CodingToolsSets_A_Tencent_2.zip" "CodingToolsSets_B_Tencent_2.zip" "CodingToolsSets_C_Tencent_2.zip" "CodingToolsSets_D_Tencent_2.zip"
+    #"CodingToolsSets_E_Tencent_1.zip" # fails because of sub-pictures
+    "CST_A_MediaTek_3.zip"
+    "CTU_A_MediaTek_3.zip" "CTU_B_MediaTek_3.zip" "CTU_C_MediaTek_3.zip"
+    "DBF_A_Huawei_3.zip"
+    "DEBLOCKING_A_Sharp_3.zip" "DEBLOCKING_B_Sharp_2.zip"
+    "DEBLOCKING_Ericsson_2.zip" "DEBLOCKING_F_Ericsson_1.zip"
+    "DMVR_A_Huawei_3.zip"
+    "DMVR_A_KDDI_2.zip"
     "DPB_A_Sharplabs_2.zip" "DPB_B_Sharplabs_2.zip"
-    # "MCS_A_Dolby_3.zip" "MCS_B_Dolby_2.zip" # fails
+    "DQ_A_HHI_3.zip" "DQ_B_HHI_3.zip"
+    "ENTMAINTIER_A_Sony_2.zip" "ENTMAINTIER_B_Sony_2.zip" "ENTMAINTIER_C_Sony_2.zip" "ENTMAINTIER_D_Sony_2.zip"
+    "ENTROPY_A_Qualcomm_2.zip"
+    "ENTROPY_A_Sharp_2.zip"
+    "GPM_A_Alibaba_3.zip"
+    "IBC_A_Tencent_2.zip" "IBC_B_Tencent_2.zip" "IBC_C_Tencent_2.zip" "IBC_D_Tencent_2.zip"
+    "IP_B_Nokia_1.zip"
+    "ISP_A_HHI_3.zip" "ISP_B_HHI_3.zip"
+    "JCCR_A_HHI_3.zip" "JCCR_B_HHI_3.zip"
+    "JCCR_A_Nokia_2.zip" "JCCR_B_Nokia_2.zip" "JCCR_E_Nokia_1.zip" "JCCR_F_Nokia_1.zip"
+    "LFNST_A_LGE_3.zip" "LFNST_B_LGE_3.zip"
+    "LFNST_COND_A_HHI_3.zip" "LFNST_COND_B_HHI_3.zip"
+    "LMCS_A_Dolby_3.zip"
+    #"LMCS_B_Dolby_2.zip" # fails because of sub-pictures
+    "LOSSLESS_A_HHI_2.zip" "LOSSLESS_B_HHI_2.zip"
+    #"LTRP_A_ERICSSON_2.zip" # long term reference pictures currently buggy
+    "MERGE_A_Qualcomm_2.zip" "MERGE_B_Qualcomm_2.zip" "MERGE_C_Qualcomm_2.zip" "MERGE_D_Qualcomm_2.zip" "MERGE_E_Qualcomm_2.zip"
+    "MERGE_F_Qualcomm_2.zip" "MERGE_G_Qualcomm_2.zip" "MERGE_H_Qualcomm_2.zip" "MERGE_I_Qualcomm_2.zip" "MERGE_J_Qualcomm_2.zip"
+    "MIP_A_HHI_3.zip" "MIP_B_HHI_3.zip"
+    "MMVD_A_SAMSUNG_2.zip"
+    "MVCOMP_A_Sharp_2.zip"
     "MPM_A_LGE_3.zip"
+    "MTS_A_LGE_3.zip" "MTS_B_LGE_3.zip"
+    "MTS_LFNST_A_LGE_3.zip" "MTS_LFNST_B_LGE_3.zip"
+    "PDPC_A_Qualcomm_3.zip" "PDPC_B_Qualcomm_3.zip" "PDPC_C_Qualcomm_2.zip" 
     "POUT_A_Sharplabs_2.zip"
     "PPS_A_Bytedance_1.zip" "PPS_B_Bytedance_1.zip" "PPS_C_Bytedance_1.zip"
+    "PROF_A_Interdigital_3.zip" "PROF_B_Interdigital_3.zip"
+    "PSEXT_A_Nokia_2.zip" "PSEXT_B_Nokia_2.zip"
+    "QTBTT_A_MediaTek_3.zip"
+    "QUANT_A_Huawei_2.zip" "QUANT_B_Huawei_2.zip" "QUANT_C_Huawei_2.zip" "QUANT_D_Huawei_2.zip"
+    #"RPL_A_ERICSSON_2.zip" # rpl management partially buggy
+    "RPR_A_Alibaba_3.zip" "RPR_B_Alibaba_3.zip" "RPR_C_Alibaba_3.zip"
+    "SAO_A_SAMSUNG_2.zip" "SAO_B_SAMSUNG_2.zip" "SAO_C_SAMSUNG_2.zip"
+    "SBT_A_HUAWEI_2.zip"
+    "SbTMVP_A_Bytedance_3.zip" "SbTMVP_B_Bytedance_3.zip"
     "SDH_A_Dolby_2.zip"
+    "SLICES_A_HUAWEI_2.zip"
+    "SMVD_A_HUAWEI_2.zip"
     "SPS_A_Bytedance_1.zip" "SPS_B_Bytedance_1.zip" "SPS_C_Bytedance_1.zip"
-    "VUI_A_Dolby_2.zip" )
+    #"SUBPIC_A_HUAWEI_3.zip" "SUBPIC_B_HUAWEI_3.zip" # subpictures currently not supported
+    "TEMPSCAL_A_Panasonic_3.zip" "TEMPSCAL_C_Panasonic_3.zip"
+    "TILE_A_Nokia_2.zip" "TILE_B_Nokia_2.zip" "TILE_C_Nokia_2.zip" "TILE_D_Nokia_2.zip" "TILE_E_Nokia_2.zip" "TILE_F_Nokia_2.zip"
+    "TREE_A_HHI_3.zip" "TREE_B_HHI_3.zip" "TREE_C_HHI_3.zip"
+    "VUI_A_Dolby_2.zip"
+    "WP_A_InterDigital_3.zip" "WP_B_InterDigital_3.zip"
+    "WPP_A_Sharp_3.zip" "WPP_B_Sharp_2.zip"
+    "WRAP_A_InterDigital_4.zip" "WRAP_B_InterDigital_4.zip" "WRAP_C_InterDigital_4.zip" "WRAP_D_InterDigital_4.zip"
+  )
   
   # download and uncompress
+  set( COUNTER 1 )
   foreach( BITSTREAM_FILE IN LISTS BITSTREAM_FILES )
     string( REGEX REPLACE ".*/(.*)\\..*" "\\1" SUB_DIR "${BITSTREAM_URL_BASE}/${BITSTREAM_FILE}" )
     set( BITSTREAM_INSTALL_DIR "${BITSTREAM_INSTALL_DIR_BASE}/${SUB_DIR}" )
     if( NOT EXISTS "${BITSTREAM_INSTALL_DIR}" )
-      FetchContent_Populate( ${SUB_DIR}_download SOURCE_DIR ${BITSTREAM_INSTALL_DIR} URL "${BITSTREAM_URL_BASE}/${BITSTREAM_FILE}" )  
-    endif()  
+      FetchContent_Populate( ${COUNTER} SOURCE_DIR ${BITSTREAM_INSTALL_DIR} URL "${BITSTREAM_URL_BASE}/${BITSTREAM_FILE}" )  
+    endif()
+    math( EXPR COUNTER "${COUNTER}+1" )
   endforeach()
 endif()
 
@@ -193,10 +337,13 @@ enable_testing()
 file( GLOB_RECURSE BITSTREAMS LIST_DIRECTORIES false ${BITSTREAM_INSTALL_DIR_BASE}/*.bit )
 foreach( BITSTREAM IN LISTS BITSTREAMS )
   string( REGEX REPLACE ".*/(.*)" "\\1" BITSTREAM_SHORT "${BITSTREAM}" )
-  add_test( NAME Test_${BITSTREAM_SHORT} COMMAND vvdecapp -b ${BITSTREAM} -dph )
+  if( NOT BITSTREAM_SHORT MATCHES "^\\..+" )
+    add_test( NAME Test_${BITSTREAM_SHORT} COMMAND vvdecapp -b ${BITSTREAM} -dph )
+    set_tests_properties( Test_${BITSTREAM_SHORT} PROPERTIES TIMEOUT 60 )
+  endif() 
 endforeach()
 
 if( VVDEC_ENABLE_INSTALL )
-  set( CMAKE_INSTALL_PREFIX "${CMAKE_SOURCE_DIR}/install" CACHE PATH "Standard install prefix" FORCE )
-  include( cmake/modules/VVDecInstall.cmake )
+  # include installer
+  include( cmake/modules/vvdecInstall.cmake )
 endif()

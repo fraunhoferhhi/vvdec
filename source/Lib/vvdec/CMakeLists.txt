@@ -4,6 +4,9 @@ set( LIB_NAME vvdec )
 # create upper case name
 string( TOUPPER ${LIB_NAME} LIB_NAME_UC )
 
+# create file version.h
+configure_file( version.h.in "${CMAKE_BINARY_DIR}/${LIB_NAME}/version.h" )
+
 # get source files
 file( GLOB BASE_SRC_FILES "*.cpp"  "../CommonLib/*.cpp"  "../Utilities/*.cpp" "../DecoderLib/*.cpp")
 
@@ -78,12 +81,12 @@ add_library( ${LIB_NAME} ${SRC_FILES} ${INC_FILES} ${NATVIS_FILES} )
 target_compile_definitions( ${LIB_NAME} PRIVATE ${LIB_NAME_UC}_SOURCE )
 target_compile_definitions( ${LIB_NAME} PUBLIC $<$<AND:$<PLATFORM_ID:Windows>,$<STREQUAL:$<TARGET_PROPERTY:${LIB_NAME},TYPE>,SHARED_LIBRARY>>:${LIB_NAME_UC}_DYN_LINK> )
 
-target_compile_options( ${LIB_NAME} PRIVATE $<$<OR:$<CXX_COMPILER_ID:Clang>,$<CXX_COMPILER_ID:AppleClang>>:-Wall -Wno-unused-function -Wno-enum-compare-switch -Wno-deprecated-register -Wno-unknown-attributes>
-                                            $<$<CXX_COMPILER_ID:GNU>:-Wall -Wno-unused-function  -Wno-unused-variable  -Wno-sign-compare  -fdiagnostics-show-option>
-                                            $<$<CXX_COMPILER_ID:MSVC>:/W4 /wd4100 /wd4127 /wd4244 /wd4245 /wd4389 /wd4456 /wd4457 /wd4458 /wd4459 /wd4505 /wd4701 /wd4702 /wd4703 >)
+target_compile_options( ${LIB_NAME} PRIVATE $<$<OR:$<CXX_COMPILER_ID:Clang>,$<CXX_COMPILER_ID:AppleClang>>:-Wall -Werror -Wno-unused-function -Wno-enum-compare-switch -Wno-unknown-attributes>
+                                            $<$<CXX_COMPILER_ID:GNU>:-Wall -Werror -Wno-unused-function -Wno-sign-compare -fdiagnostics-show-option>
+                                            $<$<CXX_COMPILER_ID:MSVC>:/W4 /WX /wd4100 /wd4127 /wd4244 /wd4245 /wd4389 /wd4456 /wd4457 /wd4458 /wd4459 /wd4505 /wd4701 /wd4702 /wd4703 >)
 
-target_include_directories( ${LIB_NAME} PRIVATE           $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../../include>                                        
-                                        SYSTEM INTERFACE  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../../include> )
+target_include_directories( ${LIB_NAME} PRIVATE           $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../../include> $<BUILD_INTERFACE:${CMAKE_BINARY_DIR}>                                        
+                                        SYSTEM INTERFACE  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../../include> $<BUILD_INTERFACE:${CMAKE_BINARY_DIR}> )
 target_include_directories( ${LIB_NAME} PRIVATE . .. ../DecoderLib ../CommonLib ../CommonLib/x86 ../libmd5 )
 
 target_link_libraries( ${LIB_NAME} ${OPENMP_LINK_TARGET} Threads::Threads )

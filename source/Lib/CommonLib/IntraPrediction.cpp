@@ -1099,7 +1099,7 @@ void IntraPrediction::initIntraPatternChType(const CodingUnit &cu, const CompAre
   if( bFilterRefSamples )
   {
     xFilterReferenceSamples( refBufUnfiltered, refBufFiltered, area, *cs.sps , cu.multiRefIdx() );
-  }  
+  }
 }
 
 void IntraPrediction::initIntraPatternChTypeISP(const CodingUnit& cu, const CompArea& area, PelBuf& recBuf)

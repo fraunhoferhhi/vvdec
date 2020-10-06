@@ -198,6 +198,14 @@ void Reshape::rspCtu( CodingStructure &cs, int col, int ln, const int offset ) c
   {
     return;
   }
+ 
+  const Slice* slice = cs.getCtuData( col, ln ).cuPtr[0][0]->slice;
+  if( !slice->getLmcsEnabledFlag() )
+
+  {
+    return;
+  }
+
   PROFILER_SCOPE_AND_STAGE_EXT( 1, g_timeProfiler, P_RESHAPER, cs, CH_L );
 
   const PreCalcValues &pcv = *cs.pcv;
