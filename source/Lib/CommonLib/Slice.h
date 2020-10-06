@@ -189,21 +189,15 @@ private:
 class ConstraintInfo
 {
   bool         m_gciPresentFlag                               = false;
-#if JVET_Q0114_ASPECT5_GCI_FLAG
   bool         m_noRprConstraintFlag                          = false;
-#endif
   bool         m_noResChangeInClvsConstraintFlag              = false;
   bool         m_oneTilePerPicConstraintFlag                  = false;
   bool         m_picHeaderInSliceHeaderConstraintFlag         = false;
   bool         m_oneSlicePerPicConstraintFlag                 = false;
-#if JVET_S0113_S0195_GCI
   bool         m_noIdrRplConstraintFlag                       = false;
   bool         m_noRectSliceConstraintFlag                    = false;
   bool         m_oneSlicePerSubpicConstraintFlag              = false;
   bool         m_noSubpicInfoConstraintFlag                   = false;
-#else
-  bool         m_oneSubpicPerPicConstraintFlag                = false;
-#endif
 #if !JVET_S0138_GCI_PTL
   bool         m_frameOnlyConstraintFlag                      = false;
 #endif
@@ -214,39 +208,31 @@ class ConstraintInfo
   bool         m_lowerBitRateConstraintFlag                   = false;
 
 #if !JVET_S0138_GCI_PTL
-  bool              m_singleLayerConstraintFlag               = false;
+  bool         m_singleLayerConstraintFlag                    = false;
 #endif
-  bool              m_allLayersIndependentConstraintFlag      = false;
-  bool              m_noMrlConstraintFlag                     = false;
-  bool              m_noIspConstraintFlag                     = false;
-  bool              m_noMipConstraintFlag                     = false;
-  bool              m_noLfnstConstraintFlag                   = false;
-  bool              m_noMmvdConstraintFlag                    = false;
-  bool              m_noSmvdConstraintFlag                    = false;
-  bool              m_noProfConstraintFlag                    = false;
-  bool              m_noPaletteConstraintFlag                 = false;
-  bool              m_noActConstraintFlag                     = false;
-  bool              m_noLmcsConstraintFlag                    = false;
+  bool         m_allLayersIndependentConstraintFlag           = false;
+  bool         m_noMrlConstraintFlag                          = false;
+  bool         m_noIspConstraintFlag                          = false;
+  bool         m_noMipConstraintFlag                          = false;
+  bool         m_noLfnstConstraintFlag                        = false;
+  bool         m_noMmvdConstraintFlag                         = false;
+  bool         m_noSmvdConstraintFlag                         = false;
+  bool         m_noProfConstraintFlag                         = false;
+  bool         m_noPaletteConstraintFlag                      = false;
+  bool         m_noActConstraintFlag                          = false;
+  bool         m_noLmcsConstraintFlag                         = false;
 
-#if JVET_S0050_GCI
-  bool              m_noExplicitScaleListConstraintFlag       = false;
-  bool              m_noVirtualBoundaryConstraintFlag         = false;
-#endif
-#if JVET_S0058_GCI
-  bool              m_noMttConstraintFlag                     = false;
-#endif
-#if JVET_R0341_GCI
-  bool              m_noChromaQpOffsetConstraintFlag          = false;
-#endif
+  bool         m_noExplicitScaleListConstraintFlag            = false;
+  bool         m_noVirtualBoundaryConstraintFlag              = false;
+  bool         m_noMttConstraintFlag                          = false;
+  bool         m_noChromaQpOffsetConstraintFlag               = false;
   bool         m_noQtbttDualTreeIntraConstraintFlag           = false;
   int          m_maxLog2CtuSizeConstraintIdc                  = 8;
   bool         m_noPartitionConstraintsOverrideConstraintFlag = false;
   bool         m_noSaoConstraintFlag                          = false;
   bool         m_noAlfConstraintFlag                          = false;
   bool         m_noCCAlfConstraintFlag                        = false;
-#if JVET_S0058_GCI
   bool         m_noWeightedPredictionConstraintFlag           = false;
-#endif
   bool         m_noRefWraparoundConstraintFlag                = false;
   bool         m_noTemporalMvpConstraintFlag                  = false;
   bool         m_noSbtmvpConstraintFlag                       = false;
@@ -295,11 +281,8 @@ public:
   ChromaFormat  getMaxChromaFormatConstraintIdc() const { return m_maxChromaFormatConstraintIdc; }
   void          setMaxChromaFormatConstraintIdc(ChromaFormat fmt) { m_maxChromaFormatConstraintIdc = fmt; }
 
-
-#if JVET_Q0114_ASPECT5_GCI_FLAG
   bool          getNoRprConstraintFlag() const { return m_noRprConstraintFlag; }
   void          setNoRprConstraintFlag(bool b) { m_noRprConstraintFlag = b; }
-#endif
 
   bool          getNoResChangeInClvsConstraintFlag() const { return m_noResChangeInClvsConstraintFlag; }
   void          setNoResChangeInClvsConstraintFlag(bool b) { m_noResChangeInClvsConstraintFlag = b; }
@@ -312,7 +295,6 @@ public:
   bool          getOneSlicePerPicConstraintFlag() const { return m_oneSlicePerPicConstraintFlag; }
   void          setOneSlicePerPicConstraintFlag(bool b) { m_oneSlicePerPicConstraintFlag = b; }
 
-#if JVET_S0113_S0195_GCI
   bool          getNoIdrRplConstraintFlag() const          { return m_noIdrRplConstraintFlag; }
   void          setNoIdrRplConstraintFlag(bool b)          { m_noIdrRplConstraintFlag = b; }
 
@@ -324,10 +306,6 @@ public:
 
   bool          getNoSubpicInfoConstraintFlag() const      { return m_noSubpicInfoConstraintFlag; }
   void          setNoSubpicInfoConstraintFlag(bool b)      { m_noSubpicInfoConstraintFlag = b; }
-#else
-  bool          getOneSubpicPerPicConstraintFlag() const { return m_oneSubpicPerPicConstraintFlag; }
-  void          setOneSubpicPerPicConstraintFlag(bool b) { m_oneSubpicPerPicConstraintFlag = b; }
-#endif
 
   bool          getIntraOnlyConstraintFlag() const { return m_intraOnlyConstraintFlag; }
   void          setIntraOnlyConstraintFlag(bool b) { m_intraOnlyConstraintFlag = b; }
@@ -363,20 +341,14 @@ public:
   void          setNoActConstraintFlag(bool b) { m_noActConstraintFlag = b; }
   bool          getNoLmcsConstraintFlag() const { return m_noLmcsConstraintFlag; }
   void          setNoLmcsConstraintFlag(bool b) { m_noLmcsConstraintFlag = b; }
-#if JVET_S0050_GCI
   bool          getNoExplicitScaleListConstraintFlag() const { return m_noExplicitScaleListConstraintFlag; }
   void          setNoExplicitScaleListConstraintFlag(bool b) { m_noExplicitScaleListConstraintFlag = b; }
   bool          getNoVirtualBoundaryConstraintFlag() const { return m_noVirtualBoundaryConstraintFlag; }
   void          setNoVirtualBoundaryConstraintFlag(bool b) { m_noVirtualBoundaryConstraintFlag = b; }
-#endif
-#if JVET_S0058_GCI
   bool          getNoMttConstraintFlag() const { return m_noMttConstraintFlag; }
   void          setNoMttConstraintFlag(bool bVal) { m_noMttConstraintFlag = bVal; }
-#endif
-#if JVET_R0341_GCI
   bool          getNoChromaQpOffsetConstraintFlag() const { return m_noChromaQpOffsetConstraintFlag; }
   void          setNoChromaQpOffsetConstraintFlag(bool b) { m_noChromaQpOffsetConstraintFlag = b; }
-#endif
   bool          getNoQtbttDualTreeIntraConstraintFlag() const { return m_noQtbttDualTreeIntraConstraintFlag; }
   void          setNoQtbttDualTreeIntraConstraintFlag(bool bVal) { m_noQtbttDualTreeIntraConstraintFlag = bVal; }
   int           getMaxLog2CtuSizeConstraintIdc() const { return m_maxLog2CtuSizeConstraintIdc; }
@@ -391,10 +363,8 @@ public:
   void          setNoCCAlfConstraintFlag(bool val) { m_noCCAlfConstraintFlag = val; }
   bool          getNoJointCbCrConstraintFlag() const { return m_noJointCbCrConstraintFlag; }
   void          setNoJointCbCrConstraintFlag(bool bVal) { m_noJointCbCrConstraintFlag = bVal; }
-#if JVET_S0058_GCI
   bool          getNoWeightedPredictionConstraintFlag() const { return m_noWeightedPredictionConstraintFlag; }
   void          setNoWeightedPredictionConstraintFlag(bool bVal) { m_noWeightedPredictionConstraintFlag = bVal; }
-#endif
   bool          getNoRefWraparoundConstraintFlag() const { return m_noRefWraparoundConstraintFlag; }
   void          setNoRefWraparoundConstraintFlag(bool bVal) { m_noRefWraparoundConstraintFlag = bVal; }
   bool          getNoTemporalMvpConstraintFlag() const { return m_noTemporalMvpConstraintFlag; }
@@ -2233,11 +2203,7 @@ private:
 
 #if JVET_Q0764_WRAP_AROUND_WITH_RPR
   bool             m_useWrapAround                       = false;               //< reference wrap around enabled or not
-#if JVET_R0162_WRAPAROUND_OFFSET_SIGNALING
   unsigned         m_picWidthMinusWrapAroundOffset       = 0;          // <pic_width_in_minCbSizeY - wraparound_offset_in_minCbSizeY
-#else
-  unsigned         m_wrapAroundOffsetMinusCtbSize        = 0;        //< reference wrap around offset minus ( CtbSizeY / MinCbSizeY ) + 2 in units of MinCbSizeY luma samples
-#endif
   unsigned         m_wrapAroundOffset                    = 0;                    //< reference wrap around offset in luma samples
 #endif
 
@@ -2326,13 +2292,8 @@ public:
 #if JVET_Q0764_WRAP_AROUND_WITH_RPR
   void                   setUseWrapAround(bool b)                                         { m_useWrapAround = b;                          }
   bool                   getUseWrapAround() const                                         { return m_useWrapAround;                       }
-#if JVET_R0162_WRAPAROUND_OFFSET_SIGNALING
   void                   setPicWidthMinusWrapAroundOffset(unsigned offset)                { m_picWidthMinusWrapAroundOffset = offset;     }
   unsigned               getPicWidthMinusWrapAroundOffset() const                         { return m_picWidthMinusWrapAroundOffset;       }
-#else
-  void                   setWrapAroundOffsetMinusCtbSize(unsigned offset)                 { m_wrapAroundOffsetMinusCtbSize = offset;      }
-  unsigned               getWrapAroundOffsetMinusCtbSize() const                          { return m_wrapAroundOffsetMinusCtbSize;        }
-#endif
   void                   setWrapAroundOffset(unsigned offset)                             { m_wrapAroundOffset = offset;                  }
   unsigned               getWrapAroundOffset() const                                      { return m_wrapAroundOffset;                    }
 #endif

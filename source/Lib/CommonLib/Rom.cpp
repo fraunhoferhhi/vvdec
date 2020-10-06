@@ -59,6 +59,9 @@ vvc@hhi.fraunhofer.de
 
 #if ENABLE_TRACING
 CDTrace *g_trace_ctx = NULL;
+std::string sTracingRule="D_SYNTAX,D_CABAC:poc==0";
+std::string sTracingFile="tracefile_dec.txt";
+bool   bTracingChannelsList = false;
 #endif
 
 #if ENABLE_TIME_PROFILING
