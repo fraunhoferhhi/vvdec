@@ -431,8 +431,8 @@ static const int DELTA_QP_ACT[4] =                  { -5, 1, 3, 1 };
 template<typename T>
 struct ClpRngTemplate
 {
-  T min() const { return 0; }
-  T max() const { return ( ( 1 << bd ) - 1 );}
+  inline T min() const { return 0; }
+  inline T max() const { return ( ( 1 << bd ) - 1 );}
   int bd;
 };
 
