@@ -325,6 +325,8 @@ void DecCu::predAndReco( CodingUnit& cu, bool doCiipIntra )
                 piPred      = cs.getPredBuf( cu ).Y().subBuf( pos, areaPredReg.size() );
 
                 m_pcIntraPred->predIntraAng( compID, piPred, pu, bUseFilteredPredictions );
+
+                piPred.width = area.width;
               }
             }
             else
