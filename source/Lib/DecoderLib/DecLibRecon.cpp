@@ -350,7 +350,6 @@ void DecLibRecon::decompressPicture( Picture* pcPic )
 #endif
   const TaskType ctuStartState = MIDER;
   const bool     doALF         = cs.sps->getUseALF() && !AdaptiveLoopFilter::getAlfSkipPic( cs );
-
   commonTaskParam.reset( cs, ctuStartState, numTasksPerLine, doALF );
 
   tasksDMVR = std::vector<LineTaskParam>( heightInCtus, LineTaskParam{ commonTaskParam, -1 } );

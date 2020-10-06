@@ -89,19 +89,19 @@ protected:
   virtual ~VLCReader() {};
 
   void  xReadCode    ( uint32_t   length, uint32_t& val );
-  void  xReadUvlc    (                uint32_t& val );
-  void  xReadSvlc    (                 int& val );
-  void  xReadFlag    (                uint32_t& val );
+  void  xReadUvlc    ( uint32_t& val );
+  void  xReadSvlc    ( int& val );
+  void  xReadFlag    ( uint32_t& val );
 #if ENABLE_TRACING
   void  xReadCodeTr  ( uint32_t  length, uint32_t& rValue, const char *pSymbolName );
-  void  xReadUvlcTr  (               uint32_t& rValue, const char *pSymbolName );
-  void  xReadSvlcTr  (                int& rValue, const char *pSymbolName );
-  void  xReadFlagTr  (               uint32_t& rValue, const char *pSymbolName );
+  void  xReadUvlcTr  ( uint32_t& rValue, const char *pSymbolName );
+  void  xReadSvlcTr  ( int& rValue, const char *pSymbolName );
+  void  xReadFlagTr  ( uint32_t& rValue, const char *pSymbolName );
 #endif
 #if ENABLE_TRACING
-  void  xReadSCode   ( uint32_t  length, int& val, const char *pSymbolName );
+  void  xReadSCode   ( uint32_t length, int& val, const char *pSymbolName );
 #else
-  void  xReadSCode   ( uint32_t  length, int& val );
+  void  xReadSCode   ( uint32_t length, int& val );
 #endif
 
 public:
@@ -110,7 +110,7 @@ public:
 
 protected:
   void xReadRbspTrailingBits();
-  bool isByteAligned() { return (m_pcBitstream->getNumBitsUntilByteAligned() == 0 ); }
+  bool isByteAligned() { return ( m_pcBitstream->getNumBitsUntilByteAligned() == 0 ); }
 };
 
 
@@ -120,7 +120,7 @@ class AUDReader: public VLCReader
 public:
   AUDReader() {};
   virtual ~AUDReader() {};
-  void parseAccessUnitDelimiter(InputBitstream* bs, uint32_t &picType);
+  void parseAccessUnitDelimiter( InputBitstream* bs, uint32_t &picType );
 };
 
 
@@ -142,8 +142,8 @@ public:
   virtual ~HLSyntaxReader();
 
 protected:
-  void  copyRefPicList(SPS* pcSPS, ReferencePictureList* source_rpl, ReferencePictureList* dest_rpl);
-  void  parseRefPicList(SPS* pcSPS, ReferencePictureList* rpl, int rplIdx);
+  void  copyRefPicList      ( SPS* pcSPS, ReferencePictureList* source_rpl, ReferencePictureList* dest_rpl );
+  void  parseRefPicList     ( SPS* pcSPS, ReferencePictureList* rpl, int rplIdx );
 
 public:
   void  setBitstream        ( InputBitstream* p )   { m_pcBitstream = p; }
@@ -156,11 +156,11 @@ public:
   void  parseLmcsAps        ( APS* pcAPS );
   void  parseScalingListAps ( APS* pcAPS );
   void  parseVUI            ( VUI* pcVUI, SPS* pcSPS );
-  void  parseConstraintInfo   (ConstraintInfo *cinfo);
+  void  parseConstraintInfo ( ConstraintInfo *cinfo );
 #if JVET_Q0786_PTL_only
-  void  parseProfileTierLevel(ProfileTierLevel *ptl, bool profileTierPresentFlag, int maxNumSubLayersMinus1);
+  void  parseProfileTierLevel( ProfileTierLevel *ptl, bool profileTierPresentFlag, int maxNumSubLayersMinus1 );
 #else
-  void  parseProfileTierLevel ( ProfileTierLevel *ptl, int maxNumSubLayersMinus1);
+  void  parseProfileTierLevel( ProfileTierLevel *ptl, int maxNumSubLayersMinus1 );
 #endif
   void  parseOlsHrdParameters    ( GeneralHrdParams* generalHrd, OlsHrdParams *olsHrd, uint32_t firstSubLayer, uint32_t tempLevelHigh );
   void  parseGeneralHrdParameters( GeneralHrdParams *generalHrd );
@@ -172,17 +172,17 @@ public:
   void  parseRemainingBytes ( bool noTrailingBytesExpected );
 
   void  parsePredWeightTable( Slice* pcSlice, const SPS *sps );
-  void parsePredWeightTable ( PicHeader *picHeader, const SPS *sps );
+  void  parsePredWeightTable( PicHeader *picHeader, const SPS *sps );
   void  parseScalingList    ( ScalingList *scalingList, bool aps_chromaPresentFlag );
-  void  decodeScalingList   ( ScalingList *scalingList, uint32_t scalingListId, bool isPredictor);
-  void parseReshaper        ( SliceReshapeInfo& sliceReshaperInfo, const SPS* pcSPS, const bool isIntra );
-  void alfFilter            ( AlfSliceParam& alfSliceParam, const bool isChroma, const int altIdx );
-  void ccAlfFilter          ( Slice *pcSlice );
+  void  decodeScalingList   ( ScalingList *scalingList, uint32_t scalingListId, bool isPredictor );
+  void  parseReshaper       ( SliceReshapeInfo& sliceReshaperInfo, const SPS* pcSPS, const bool isIntra );
+  void  alfFilter           ( AlfSliceParam& alfSliceParam, const bool isChroma, const int altIdx );
+  void  ccAlfFilter         ( Slice *pcSlice );
 #if JVET_P0117_PTL_SCALABILITY
-  void dpb_parameters       ( int maxSubLayersMinus1, bool subLayerInfoFlag, SPS *pcSPS );
+  void  dpb_parameters      ( int maxSubLayersMinus1, bool subLayerInfoFlag, SPS *pcSPS );
 #endif
-  void parseExtraPHBitsStruct( SPS *sps, int numBytes );
-  void parseExtraSHBitsStruct( SPS *sps, int numBytes );
+  void  parseExtraPHBitsStruct( SPS *sps, int numBytes );
+  void  parseExtraSHBitsStruct( SPS *sps, int numBytes );
 private:
 
 protected:

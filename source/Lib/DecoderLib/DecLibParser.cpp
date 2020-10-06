@@ -706,14 +706,12 @@ Slice*  DecLibParser::xDecodeSliceMain( InputNALUnit &nalu )
   CHECK( m_pcParsePic->layer != nalu.m_temporalId,
          "Currently parsed pic should have the same temporal layer as the NAL unit" );
 
-#if JVET_S0050_GCI
   if( pcSlice->getSPS()->getProfileTierLevel()->getConstraintInfo()->getNoApsConstraintFlag() )
   {
     bool flag = pcSlice->getSPS()->getUseCCALF() || pcSlice->getPicHeader()->getNumAlfAps() || pcSlice->getPicHeader()->getAlfEnabledFlag( COMPONENT_Cb ) || pcSlice->getPicHeader()->getAlfEnabledFlag( COMPONENT_Cr );
     CHECK( flag,
            "When no_aps_constraint_flag is equal to 1, the values of ph_num_alf_aps_ids_luma, sh_num_alf_aps_ids_luma, ph_alf_cb_flag, ph_alf_cr_flag, sh_alf_cb_flag, sh_alf_cr_flag, and sps_ccalf_enabled_flag shall all be equal to 0" )
   }
-#endif
 
   if( pcSlice->getNalUnitLayerId() != pcSlice->getSPS()->getLayerId() )
   {
@@ -1205,22 +1203,12 @@ Picture * DecLibParser::xActivateParameterSets( const int layerId )
 
   CHECK( sps->getProfileTierLevel()->getConstraintInfo()->getOneTilePerPicConstraintFlag() &&pps->getNumTiles() != 1,
          "When one_tile_per_pic_constraint_flag is equal to 1, each picture shall contain only one tile" );
-#if JVET_S0050_GCI
   CHECK( sps->getProfileTierLevel()->getConstraintInfo()->getOneSlicePerPicConstraintFlag() && pps->getRectSliceFlag() && pps->getNumSlicesInPic() != 1,
           "When one_slice_per_pic_constraint_flag is equal to 1 and if pps_rect_slice_flag is equal to 1, the value of num_slices_in_pic_minus1 shall be equal to 0" );
-#else
-  CHECK( sps->getProfileTierLevel()->getConstraintInfo()->getOneSlicePerPicConstraintFlag() && pps->getNumSlicesInPic() != 0,
-          "When one_slice_per_pic_constraint_flag is equal to 1, each picture shall contain only one slice");
-#endif
-  
-#if JVET_Q0114_ASPECT5_GCI_FLAG
   CHECK( sps->getProfileTierLevel()->getConstraintInfo()->getNoRprConstraintFlag() && sps->getRprEnabledFlag(),
          "When gci_no_ref_pic_resampling_constraint_flag is equal to 1, the value of sps_ref_pic_resampling_enabled_flag shall be equal to 0" );
   CHECK( sps->getProfileTierLevel()->getConstraintInfo()->getNoResChangeInClvsConstraintFlag() && sps->getResChangeInClvsEnabledFlag(),
          "When gci_no_res_change_in_clvs_constraint_flag is equal to 1, the value of sps_res_change_in_clvs_allowed_flag shall be equal to 0" );
-#endif
-
-#if JVET_S0113_S0195_GCI
   CHECK( sps->getProfileTierLevel()->getConstraintInfo()->getNoIdrRplConstraintFlag() && sps->getIDRRefParamListPresent(),
           "When gci_no_idr_rpl_constraint_flag equal to 1 , the value of sps_idr_rpl_present_flag shall be equal to 0" );
   CHECK( sps->getProfileTierLevel()->getConstraintInfo()->getNoMixedNaluTypesInPicConstraintFlag() && pps->getMixedNaluTypesInPicFlag(),
@@ -1231,16 +1219,7 @@ Picture * DecLibParser::xActivateParameterSets( const int layerId )
           "When gci_one_slice_per_subpic_constraint_flag equal to 1, the value of pps_single_slice_per_subpic_flag shall be equal to 1" );
   CHECK( sps->getProfileTierLevel()->getConstraintInfo()->getNoSubpicInfoConstraintFlag() && sps->getSubPicInfoPresentFlag(),
           "When gci_no_subpic_info_constraint_flag is equal to 1, the value of sps_subpic_info_present_flag shall be equal to 0" );
-#else
-#if JVET_S0050_GCI
-  if (sps->getProfileTierLevel()->getConstraintInfo()->getOneSubpicPerPicConstraintFlag())
-  {
-    CHECK(sps->getNumSubPics() != 1, "When one_subpic_per_pic_constraint_flag is equal to 1, the value of sps_num_subpics_minus1 shall be equal to 0")
-  }
-#endif
-#endif
 
-#if JVET_S0058_GCI
   if( sps->getProfileTierLevel()->getConstraintInfo()->getNoMttConstraintFlag() )
   {
     CHECK( sps->getMaxBTDepth() || sps->getMaxBTDepthI() || sps->getMaxBTDepthIChroma(),
@@ -1251,12 +1230,9 @@ Picture * DecLibParser::xActivateParameterSets( const int layerId )
     CHECK( sps->getUseWP() || sps->getUseWPBiPred(),
            "When gci_no_weighted_prediction_constraint_flag is equal to 1, the values of sps_weighted_pred_flag and sps_weighted_bipred_flag shall be equal to 0" );
   }
-#endif
 
-#if JVET_R0341_GCI
   CHECK( sps->getProfileTierLevel()->getConstraintInfo()->getNoChromaQpOffsetConstraintFlag() && pps->getCuChromaQpOffsetEnabledFlag(),
          "When gci_no_ChromaQpOffset_constraint_flag is equal to 1, the values of pps_cu_chroma_qp_offset_list_enabled_flag shall be equal to 0" );
-#endif
 
   CHECK( sps->getCTUSize() > ( 1 << sps->getProfileTierLevel()->getConstraintInfo()->getMaxLog2CtuSizeConstraintIdc() ),
          "The CTU size specified by sps_log2_ctu_size_minus5 shall not exceed the constraint specified by gci_three_minus_max_log2_ctu_size_constraint_idc" );
