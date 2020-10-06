@@ -78,7 +78,6 @@ void DecSlice::parseSlice( Slice* slice, InputBitstream* bitstream, int threadId
 
   // setup coding structure
   CodingStructure& cs = *pic->cs;
-  cs.slice            = slice;
   cs.chromaQpAdj      = 0;
 
   const int       startCtuTsAddr              = slice->getFirstCtuRsAddrInSlice();
@@ -195,7 +194,7 @@ void DecSlice::parseSlice( Slice* slice, InputBitstream* bitstream, int threadId
       pic->m_prevQP[0] = pic->m_prevQP[1] = slice->getSliceQp();
     }
 
-    bool updateBcwCodingOrder = cs.slice->getSliceType() == B_SLICE && ctuIdx == 0;
+    bool updateBcwCodingOrder = slice->getSliceType() == B_SLICE && ctuIdx == 0;
 
     if( updateBcwCodingOrder )
     {
@@ -204,7 +203,7 @@ void DecSlice::parseSlice( Slice* slice, InputBitstream* bitstream, int threadId
 
     //memset( cs.getCtuData( ctuRsAddr ).cuPtr, 0, sizeof( CtuData::cuPtr ) );
 
-    cabacReader.coding_tree_unit( cs, ctuArea, pic->m_prevQP, ctuRsAddr );
+    cabacReader.coding_tree_unit( cs, slice, ctuArea, pic->m_prevQP, ctuRsAddr );
 
     if( ctuXPosInCtus == tileXPosInCtus && wavefrontsEnabled )
     {

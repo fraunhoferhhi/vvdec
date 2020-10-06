@@ -2928,10 +2928,6 @@ private:
   uint32_t                   m_sliceSubPicId                 = false;
   SliceType                  m_encCABACTableIdx              = I_SLICE;   // Used to transmit table selection across slices.
 
-  std::chrono::time_point<std::chrono::steady_clock>
-                             m_processingStartTime;
-  double                     m_dProcessingTime               = 0;
-
   int                        m_numCus                        = 0;
   int                        m_numIntraCus                   = 0;
 
@@ -3183,10 +3179,6 @@ public:
   const ClpRng&               clpRng( ComponentID id)                           const { return m_clpRngs; }
   ClpRngs&                    getClpRngs()                                            { return m_clpRngs; }
   unsigned                    getMinPictureDistance()                           const ;
-  void startProcessingTimer();
-  void stopProcessingTimer();
-  void resetProcessingTime()       { m_dProcessingTime = 0; }
-  double getProcessingTime() const { return m_dProcessingTime; }
 
   void                        resetTileGroupAlfEnabledFlag()                          { memset(m_tileGroupAlfEnabledFlag, 0, sizeof(m_tileGroupAlfEnabledFlag)); }
   bool                        getTileGroupAlfEnabledFlag(ComponentID compId)    const { return m_tileGroupAlfEnabledFlag[compId]; }

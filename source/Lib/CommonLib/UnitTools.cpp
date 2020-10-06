@@ -55,9 +55,9 @@ vvc@hhi.fraunhofer.de
 #include <utility>
 #include <algorithm>
 
-bool CS::isDualITree( const CodingStructure &cs )
+static bool isDualITree( const Slice &slice )
 {
-  return cs.slice->isIRAP() && cs.sps->getUseDualITree();
+  return slice.isIRAP() && slice.getSPS()->getUseDualITree();
 }
 
 
@@ -66,9 +66,9 @@ bool CU::isDualITree( const CodingUnit &cu )
   return cu.slice->isIRAP() && cu.slice->getSPS()->getUseDualITree();
 }
 
-UnitArea CS::getArea( const CodingStructure &cs, const UnitArea &area, const ChannelType chType, const TreeType treeType )
+UnitArea getArea( const Slice &slice, const UnitArea &area, const ChannelType chType, const TreeType treeType )
 {
-  return isDualITree( cs ) || treeType != TREE_D ? area.singleChan( chType ) : area;
+  return isDualITree( slice ) || treeType != TREE_D ? area.singleChan( chType ) : area;
 }
 
 // CU tools
@@ -704,7 +704,7 @@ bool PU::xCheckSimilarMotion(const int mergeCandIndex, const int prevCnt, const 
 }
 
 
-bool PU::addMergeHMVPCand(const CodingStructure &cs, MergeCtx& mrgCtx, MotionHist& hist, bool canFastExit, const int& mrgCandIdx, const uint32_t maxNumMergeCandMin1, int &cnt, const int prevCnt, bool isAvailableSubPu, unsigned subPuMvpPos, bool ibcFlag, bool isGt4x4 )
+bool PU::addMergeHMVPCand(const CodingStructure &cs, MergeCtx& mrgCtx, MotionHist& hist, bool canFastExit, const int& mrgCandIdx, const uint32_t maxNumMergeCandMin1, int &cnt, const int prevCnt, bool isAvailableSubPu, unsigned subPuMvpPos, bool ibcFlag, bool isGt4x4, bool isInterB)
 {
   bool hasPruned[MRG_MAX_NUM_CANDS];
   memset(hasPruned, 0, MRG_MAX_NUM_CANDS * sizeof(bool));
@@ -721,7 +721,7 @@ bool PU::addMergeHMVPCand(const CodingStructure &cs, MergeCtx& mrgCtx, MotionHis
     mrgCtx.interDirNeighbours[cnt] = miNeighbor.interDir;
     mrgCtx.mvFieldNeighbours[cnt << 1].setMvField(miNeighbor.mv[0], miNeighbor.refIdx[0]);
     mrgCtx.useAltHpelIf[cnt] = !ibcFlag && miNeighbor.useAltHpelIf;
-    if (cs.slice->isInterB())
+    if (isInterB)
     {
       mrgCtx.mvFieldNeighbours[(cnt << 1) + 1].setMvField(miNeighbor.mv[1], miNeighbor.refIdx[1]);
     }
@@ -837,7 +837,7 @@ void PU::getIBCMergeCandidates(const PredictionUnit &pu, MergeCtx& mrgCtx, Motio
     bool isAvailableSubPu = false;
     unsigned subPuMvpPos = 0;
 
-    bool bFound = addMergeHMVPCand(cs, mrgCtx, hist, canFastExit, mrgCandIdx, maxNumMergeCandMin1, cnt, spatialCandPos, isAvailableSubPu, subPuMvpPos, true, isGt4x4 );
+    bool bFound = addMergeHMVPCand( cs, mrgCtx, hist, canFastExit, mrgCandIdx, maxNumMergeCandMin1, cnt, spatialCandPos, isAvailableSubPu, subPuMvpPos, true, isGt4x4, pu.slice->isInterB() );
     if( bFound )
     {
       return;
@@ -1185,7 +1185,7 @@ void PU::getInterMergeCandidates( const PredictionUnit &pu, MergeCtx& mrgCtx, Mo
   {
     bool isAvailableSubPu = false;
     unsigned subPuMvpPos = 0;
-    bool bFound = addMergeHMVPCand( cs, mrgCtx, hist, canFastExit, mrgCandIdx, maxNumMergeCandMin1, cnt, spatialCandPos, isAvailableSubPu, subPuMvpPos, CU::isIBC( pu ), true );
+    bool bFound = addMergeHMVPCand( cs, mrgCtx, hist, canFastExit, mrgCandIdx, maxNumMergeCandMin1, cnt, spatialCandPos, isAvailableSubPu, subPuMvpPos, CU::isIBC( pu ), true, pu.slice->isInterB() );
 
     if( bFound )
     {
@@ -1708,7 +1708,7 @@ void PU::fillMvpCand(PredictionUnit &pu, const RefPicList &eRefPicList, const in
   }
   if (pInfo->numCand < AMVP_MAX_NUM_CANDS)
   {
-    const int        currRefPOC = cs.slice->getRefPOC(eRefPicList, refIdx);
+    const int        currRefPOC = pu.slice->getRefPOC(eRefPicList, refIdx);
     const RefPicList eRefPicList2nd = (eRefPicList == REF_PIC_LIST_0) ? REF_PIC_LIST_1 : REF_PIC_LIST_0;
     addAMVPHMVPCand( pu, hist, eRefPicList, eRefPicList2nd, currRefPOC, *pInfo, pu.imv() );
   }

@@ -149,8 +149,9 @@ static void setNeighborCu( PartLevel& level, Partitioner& p, const CodingStructu
 }
 
 
-void Partitioner::initCtu( const UnitArea& ctuArea, const ChannelType _chType, const CodingStructure& cs )
+void Partitioner::initCtu( const UnitArea& ctuArea, const ChannelType _chType, const CodingStructure& cs, const Slice& slice )
 {
+  this->slice = &slice;
 #if _DEBUG
   m_currArea = ctuArea;
 #endif
@@ -168,7 +169,7 @@ void Partitioner::initCtu( const UnitArea& ctuArea, const ChannelType _chType, c
 #endif
   currImplicitBtDepth = 0;
 
-  currSliceIdx = cs.slice->getIndependentSliceIdx();
+  currSliceIdx = slice.getIndependentSliceIdx();
   currTileIdx  = cs.pps->getTileIdx( ctuArea.lumaPos() );
 
   m_partStack.resize_noinit( 1 );
@@ -182,9 +183,9 @@ void Partitioner::initCtu( const UnitArea& ctuArea, const ChannelType _chType, c
 
   const SPS& sps = *cs.sps;
 
-  isDualITree = cs.slice->isIRAP() && cs.slice->getSPS()->getUseDualITree();
+  isDualITree = slice.isIRAP() && slice.getSPS()->getUseDualITree();
 
-  const int valIdx = cs.slice->isIRAP() ? ( _chType << 1 ) : 1;
+  const int valIdx = slice.isIRAP() ? ( _chType << 1 ) : 1;
 
   const unsigned minBtSizeArr[] = { 1u << sps.getLog2MinCodingBlockSize(), 1u << sps.getLog2MinCodingBlockSize(), 1u << sps.getLog2MinCodingBlockSize() };
   const unsigned minTtSizeArr[] = { 1u << sps.getLog2MinCodingBlockSize(), 1u << sps.getLog2MinCodingBlockSize(), 1u << sps.getLog2MinCodingBlockSize() };
@@ -194,8 +195,6 @@ void Partitioner::initCtu( const UnitArea& ctuArea, const ChannelType _chType, c
 
   if( cs.picHeader->getSplitConsOverrideFlag() )
   {
-    const Slice& slice = *cs.slice;
-
     maxBTD    = slice.getPicHeader()->getMaxMTTHierarchyDepth( slice.getSliceType(), _chType );
     maxBtSize = slice.getPicHeader()->getMaxBTSize( slice.getSliceType(), _chType );
     maxTtSize = slice.getPicHeader()->getMaxTTSize( slice.getSliceType(), _chType );
@@ -236,7 +235,7 @@ void Partitioner::splitCurrArea( const PartSplit split, const CodingStructure& c
   else if( split >= SBT_VER_HALF_POS0_SPLIT && split <= SBT_HOR_QUAD_POS1_SPLIT )
     PartitionerImpl::getSbtTuTiling         ( area, cs, split, back.parts );
   else /* if( split == TU_1D_HORZ_SPLIT || split == TU_1D_VERT_SPLIT ) */
-    PartitionerImpl::getTUIntraSubPartitions( area, cs, split, back.parts, treeType );
+    PartitionerImpl::getTUIntraSubPartitions( area, cs, isDualITree, split, back.parts, treeType );
 
   switch( split )
   {
@@ -280,8 +279,8 @@ void Partitioner::splitCurrArea( const PartSplit split, const CodingStructure& c
   currDepth++;
   currSubdiv++;
   
-  qgEnable       &= ( currSubdiv <= cs.slice->getCuQpDeltaSubdiv() );
-  qgChromaEnable &= ( currSubdiv <= cs.slice->getCuChromaQpOffsetSubdiv() );
+  qgEnable       &= ( currSubdiv <= slice->getCuQpDeltaSubdiv() );
+  qgChromaEnable &= ( currSubdiv <= slice->getCuChromaQpOffsetSubdiv() );
   if( qgEnable )
     currQgPos = currArea().lumaPos();
   if( qgChromaEnable )
@@ -671,12 +670,10 @@ void PartitionerImpl::getCUSubPartitions( const UnitArea &cuArea, const CodingSt
   }
 }
 
-void PartitionerImpl::getTUIntraSubPartitions( const UnitArea &tuArea, const CodingStructure &cs, const PartSplit splitType, Partitioning &sub, const TreeType treeType )
+void PartitionerImpl::getTUIntraSubPartitions( const UnitArea &tuArea, const CodingStructure &cs, const bool isDualTree, const PartSplit splitType, Partitioning &sub, const TreeType treeType )
 {
   uint32_t nPartitions;
   uint32_t splitDimensionSize = CU::getISPSplitDim( tuArea.lumaSize().width, tuArea.lumaSize().height, splitType );
-
-  bool isDualTree = CS::isDualITree( cs ) || treeType != TREE_D;
 
   if( splitType == TU_1D_HORZ_SPLIT )
   {

@@ -292,13 +292,13 @@ Picture* DecLibParser::getNextDecodablePicture()
 
     bool allRefPicsDone = true;
     const CodingStructure& cs = *pic->cs;
-    if( !cs.slice->isIntra() )
+    if( !cs.picture->slices[0]->isIntra() )
     {
       for( int iDir = REF_PIC_LIST_0; iDir < NUM_REF_PIC_LIST_01 && allRefPicsDone; ++iDir )
       {
-        for( int iRefIdx = 0; iRefIdx < cs.slice->getNumRefIdx( (RefPicList)iDir ) && allRefPicsDone; iRefIdx++ )
+        for( int iRefIdx = 0; iRefIdx < cs.picture->slices[0]->getNumRefIdx( (RefPicList)iDir ) && allRefPicsDone; iRefIdx++ )
         {
-          const Picture* refPic = cs.slice->getRefPic( (RefPicList)iDir, iRefIdx );
+          const Picture* refPic = cs.picture->slices[0]->getRefPic( (RefPicList)iDir, iRefIdx );
           if( refPic->done.isBlocked() )
           {
             allRefPicsDone = false;
@@ -1007,13 +1007,13 @@ Slice*  DecLibParser::xDecodeSliceMain( InputNALUnit &nalu )
     auto& decLib    = slice->parseTaskParams.decLibParser;
     auto& bitstream = slice->parseTaskParams.bitstream;
 
-    slice->startProcessingTimer();
+    slice->getPic()->startProcessingTimer();
     //  Decode a picture
     ITT_TASKSTART( itt_domain_prs, itt_handle_parse );
     decLib->m_cSliceDecoder.parseSlice( slice, &bitstream, threadId );
     ITT_TASKEND( itt_domain_prs, itt_handle_parse );
 
-    slice->stopProcessingTimer();
+    slice->getPic()->stopProcessingTimer();
 
     bitstream.clearFifo();
     bitstream.clearEmulationPreventionByteLocation();
@@ -1371,8 +1371,6 @@ Picture* DecLibParser::prepareLostPicture( int iLostPoc, const int layerId )
   cFillPic->slices[0]->setTLayer( iTLayer );
   cFillPic->slices[0]->setNalUnitType( naluType );
   xUpdatePreviousTid0POC( cFillPic->slices[0] );
-
-  cFillPic->cs->slice = cFillPic->slices[0];
 
   cFillPic->layer           = iTLayer;
   cFillPic->referenced      = true;

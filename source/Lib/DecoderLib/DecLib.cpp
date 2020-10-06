@@ -256,7 +256,7 @@ int DecLib::finishPicture( Picture* pcPic, MsgLevel msgl )
   __itt_counter_inc( itt_frame_counter );
 #endif
 
-  Slice*  pcSlice = pcPic->cs->slice;
+  Slice*  pcSlice = pcPic->slices[0];
   if( pcPic->wasLost )
   {
     msg( msgl, "POC %4d TId: %1d LOST\n", pcPic->poc, pcSlice->getTLayer() );
@@ -277,7 +277,7 @@ int DecLib::finishPicture( Picture* pcPic, MsgLevel msgl )
          pcSlice->getTLayer(),
          c,
          pcSlice->getSliceQp() );
-  msg( msgl, "[DT %6.3f] ", pcSlice->getProcessingTime() );
+  msg( msgl, "[DT %6.3f] ", pcPic->getProcessingTime() );
 
   for (int iRefList = 0; iRefList < 2; iRefList++)
   {
@@ -355,7 +355,7 @@ void DecLib::checkPictureHashSEI( Picture* pcPic )
     msg( WARNING, "Warning: Got multiple decoded picture hash SEI messages. Using first." );
   }
   msg( INFO, "         " );
-  m_numberOfChecksumErrorsDetected += calcAndPrintHashStatus( pcPic->getRecoBuf(), hash, pcPic->cs->slice->getSPS()->getBitDepths(), INFO );
+  m_numberOfChecksumErrorsDetected += calcAndPrintHashStatus( pcPic->getRecoBuf(), hash, pcPic->cs->sps->getBitDepths(), INFO );
   msg( INFO, "\n" );
 }
 

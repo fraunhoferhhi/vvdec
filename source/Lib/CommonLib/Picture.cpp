@@ -207,7 +207,6 @@ void Picture::finalInit( const SPS *sps, const PPS *pps, PicHeader* picHeader, A
 #endif
   parseDone   . lock();
   cs->picture = this;
-  cs->slice   = nullptr;  // the slices for this picture have not been set at this point. update cs->slice after swapSliceObject()
   cs->pps     = pps ? pps->getSharedPtr() : nullptr;
   cs->sps     = sps ? sps->getSharedPtr() : nullptr;
 
@@ -1002,4 +1001,15 @@ bool Picture::getSpliceFull()
   if (count < m_ctuNums * 0.25)
     return false;
   return true;
+}
+
+void Picture::startProcessingTimer()
+{
+  m_processingStartTime = std::chrono::steady_clock::now();
+}
+
+void Picture::stopProcessingTimer()
+{
+  auto endTime = std::chrono::steady_clock::now();
+  m_dProcessingTime += std::chrono::duration<double>(endTime - m_processingStartTime).count();
 }

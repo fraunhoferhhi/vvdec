@@ -74,7 +74,7 @@ public:
   void        remaining_bytes           ( bool                          noTrailingBytesExpected );
 
   // coding tree unit (clause 7.3.11.2)
-  bool        coding_tree_unit          ( CodingStructure&              cs,     const UnitArea& area,             int (&qps)[2],   unsigned  ctuRsAddr );
+  bool        coding_tree_unit          ( CodingStructure&              cs,     Slice* slice, const UnitArea& area, int (&qps)[2], unsigned  ctuRsAddr );
   bool        dt_implicit_qt_split      ( CodingStructure&              cs,     Partitioner& pL, CUCtx& cuCtxL, Partitioner& pC, CUCtx& cuCtxC );
 
   // sao (clause 7.3.11.3)
@@ -169,6 +169,7 @@ private:
   int             m_blkPos [MAX_TU_SIZE_FOR_PROFILE*MAX_TU_SIZE_FOR_PROFILE];
   BinDecoder&     m_BinDecoder;
   InputBitstream* m_Bitstream;
+  Slice*          m_slice;
 };
 
 

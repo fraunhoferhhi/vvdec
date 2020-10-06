@@ -1435,9 +1435,9 @@ void LoopFilter::xEdgeFilterLuma( CodingStructure& cs, const Position& pos, cons
   Pel *           piSrc        = picYuvRec.bufAt( pos );
   const ptrdiff_t iStride      = picYuvRec.stride;
   const SPS &     sps          = *cs.sps;
-  const Slice &   slice        = *cs.slice;
+  const Slice &   slice        = *cs.m_ctuData[cs.ctuRsAddr( pos, CH_L )].cuPtr[0][0]->slice;
   const int       bitDepthLuma = sps.getBitDepth( CHANNEL_TYPE_LUMA );
-  const ClpRng &  clpRng       = cs.slice->clpRng( COMPONENT_Y );
+  const ClpRng &  clpRng       = slice.clpRng( COMPONENT_Y );
 
   const int  betaOffsetDiv2    = slice.getDeblockingFilterBetaOffsetDiv2();
   const int  tcOffsetDiv2      = slice.getDeblockingFilterTcOffsetDiv2();
@@ -1601,7 +1601,7 @@ void LoopFilter::xEdgeFilterChroma( CodingStructure &cs, const Position &pos, co
   Pel *              piSrcCr             = picYuvRecCr.bufAt( pos );
   const ptrdiff_t    iStride             = picYuvRecCb.stride;
   const SPS &        sps                 = *cs.sps;
-  const Slice &      slice               = *cs.slice;
+  const Slice &      slice               = *cs.m_ctuData[cs.ctuRsAddr( pos, CH_C )].cuPtr[1][0]->slice;
   const int          bitDepthChroma      = sps.getBitDepth( CHANNEL_TYPE_CHROMA );
 
   const int tcOffsetDiv2[2]              = { slice.getDeblockingFilterCbTcOffsetDiv2(),   slice.getDeblockingFilterCrTcOffsetDiv2() };
@@ -1650,7 +1650,7 @@ void LoopFilter::xEdgeFilterChroma( CodingStructure &cs, const Position &pos, co
   {
     if( bS[chromaIdx] == 2 || ( largeBoundary && bS[chromaIdx] == 1 ) )
     {
-      const ClpRng& clpRng( cs.slice->clpRng( ComponentID( chromaIdx + 1 ) ) );
+      const ClpRng& clpRng( cs.picture->slices[0]->clpRng( ComponentID( chromaIdx + 1 ) ) );
 
       int iQP = lfp.qp[chromaIdx + 1];
 

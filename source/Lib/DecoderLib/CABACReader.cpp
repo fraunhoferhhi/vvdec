@@ -122,22 +122,24 @@ void CABACReader::remaining_bytes( bool noTrailingBytesExpected )
 //================================================================================
 //  clause 7.3.11.2
 //--------------------------------------------------------------------------------
-//    bool  coding_tree_unit    ( cs, area, qps[2], ctuRsAddr )
+//    bool  coding_tree_unit    ( cs, slice, area, qps[2], ctuRsAddr )
 //    bool  dt_implicit_qt_split( cs, pL, cuCtxL, pC, cuCtxC )
 //================================================================================
 
-bool CABACReader::coding_tree_unit( CodingStructure& cs, const UnitArea& area, int (&qps)[2], unsigned ctuRsAddr )
+bool CABACReader::coding_tree_unit( CodingStructure& cs, Slice* slice, const UnitArea& area, int (&qps)[2], unsigned ctuRsAddr )
 {
+  m_slice = slice;
+
   CUCtx cuCtx( qps[CH_L] );
   Partitioner partitioner;
 
-  partitioner.initCtu( area, CH_L, cs );
+  partitioner.initCtu( area, CH_L, cs, *m_slice );
   partitioner.treeType = TREE_D;
   partitioner.modeType = MODE_TYPE_ALL;
 
   sao( cs, ctuRsAddr );
 
-  if( cs.slice->getTileGroupAlfEnabledFlag( COMPONENT_Y ) )
+  if( m_slice->getTileGroupAlfEnabledFlag( COMPONENT_Y ) )
   {
     const PreCalcValues& pcv                = *cs.pcv;
     int                 frame_width_in_ctus = pcv.widthInCtus;
@@ -152,9 +154,9 @@ bool CABACReader::coding_tree_unit( CodingStructure& cs, const UnitArea& area, i
   
     for( int compIdx = 0; compIdx < MAX_NUM_COMPONENT; compIdx++ )
     {
-      if( cs.slice->getTileGroupAlfEnabledFlag( ( ComponentID ) compIdx ) )
+      if( m_slice->getTileGroupAlfEnabledFlag( ( ComponentID ) compIdx ) )
       {
-        uint8_t* ctbAlfFlag = cs.slice->getPic()->getAlfCtuEnableFlag( compIdx );
+        uint8_t* ctbAlfFlag = m_slice->getPic()->getAlfCtuEnableFlag( compIdx );
         int ctx = 0;
         ctx += leftCTUAddr  > -1 ? ( ctbAlfFlag[leftCTUAddr]  ? 1 : 0 ) : 0;
         ctx += aboveCTUAddr > -1 ? ( ctbAlfFlag[aboveCTUAddr] ? 1 : 0 ) : 0;
@@ -168,11 +170,11 @@ bool CABACReader::coding_tree_unit( CodingStructure& cs, const UnitArea& area, i
 
         if( isChroma( ( ComponentID ) compIdx ) )
         {
-          const int apsIdx                  = cs.slice->getTileGroupApsIdChroma();
-          CHECK( cs.slice->getAlfAPSs()[apsIdx] == nullptr, "APS not initialized" );
-          const AlfSliceParam& alfParam     = cs.slice->getAlfAPSs()[apsIdx]->getAlfAPSParam();
+          const int apsIdx                  = m_slice->getTileGroupApsIdChroma();
+          CHECK( m_slice->getAlfAPSs()[apsIdx] == nullptr, "APS not initialized" );
+          const AlfSliceParam& alfParam     = m_slice->getAlfAPSs()[apsIdx]->getAlfAPSParam();
           const int numAlts                 = alfParam.numAlternativesChroma;
-          uint8_t* ctbAlfAlternative        = cs.slice->getPic()->getAlfCtuAlternativeData( compIdx-1 );
+          uint8_t* ctbAlfAlternative        = m_slice->getPic()->getAlfCtuAlternativeData( compIdx-1 );
           ctbAlfAlternative[ctuRsAddr]      = 0;
 
           if( ctbAlfFlag[ctuRsAddr] )
@@ -189,14 +191,14 @@ bool CABACReader::coding_tree_unit( CodingStructure& cs, const UnitArea& area, i
 
   for( int compIdx = 1; compIdx < getNumberValidComponents( cs.pcv->chrFormat ); compIdx++ )
   {
-    if( cs.slice->getTileGroupCcAlfEnabledFlag( compIdx - 1 ) )
+    if( m_slice->getTileGroupCcAlfEnabledFlag( compIdx - 1 ) )
     {
-      const int apsIdx        = compIdx == 1 ? cs.slice->getTileGroupCcAlfCbApsId() : cs.slice->getTileGroupCcAlfCrApsId();
-      const int filterCount   = cs.slice->getAlfAPSs()[apsIdx]->getCcAlfAPSParam().ccAlfFilterCount[compIdx - 1];
+      const int apsIdx        = compIdx == 1 ? m_slice->getTileGroupCcAlfCbApsId() : m_slice->getTileGroupCcAlfCrApsId();
+      const int filterCount   = m_slice->getAlfAPSs()[apsIdx]->getCcAlfAPSParam().ccAlfFilterCount[compIdx - 1];
   
       const Position lumaPos  = area.lumaPos();
   
-      ccAlfFilterControlIdc( cs, ComponentID(compIdx), ctuRsAddr, cs.slice->getPic()->getccAlfFilterControl( compIdx - 1 ), lumaPos, filterCount );
+      ccAlfFilterControlIdc( cs, ComponentID(compIdx), ctuRsAddr, m_slice->getPic()->getccAlfFilterControl( compIdx - 1 ), lumaPos, filterCount );
     }
   }
 
@@ -207,7 +209,7 @@ bool CABACReader::coding_tree_unit( CodingStructure& cs, const UnitArea& area, i
     CUCtx cuCtxC( qps[CH_C] );
     Partitioner partitionerC;
 
-    partitionerC.initCtu( area, CH_C, cs );
+    partitionerC.initCtu( area, CH_C, cs, *m_slice );
     partitionerC.treeType = TREE_D;
     partitionerC.modeType = MODE_TYPE_ALL;
 
@@ -222,8 +224,8 @@ bool CABACReader::coding_tree_unit( CodingStructure& cs, const UnitArea& area, i
     qps[CH_L] = cuCtx.qp;
   }
 
-  DTRACE_COND( ctuRsAddr == 0, g_trace_ctx, D_QP_PER_CTU, "\n%4d %2d", cs.picture->poc, cs.slice->getSliceQpBase() );
-  DTRACE     (                 g_trace_ctx, D_QP_PER_CTU, " %3d",           qps[CH_L] - cs.slice->getSliceQpBase() );
+  DTRACE_COND( ctuRsAddr == 0, g_trace_ctx, D_QP_PER_CTU, "\n%4d %2d", cs.picture->poc, m_slice->getSliceQpBase() );
+  DTRACE     (                 g_trace_ctx, D_QP_PER_CTU, " %3d",           qps[CH_L] - m_slice->getSliceQpBase() );
 
   return isLast;
 }
@@ -244,7 +246,7 @@ bool CABACReader::dt_implicit_qt_split( CodingStructure& cs, Partitioner& partit
       cuCtxC.isDQPCoded = false;
     }
 
-    if( cs.slice->getUseChromaQpAdj() && partitionerL.currQgChromaEnable() )
+    if( m_slice->getUseChromaQpAdj() && partitionerL.currQgChromaEnable() )
     {
       cuCtxL.isChromaQpAdjCoded = false;
       cuCtxC.isChromaQpAdjCoded = false;
@@ -276,8 +278,8 @@ bool CABACReader::dt_implicit_qt_split( CodingStructure& cs, Partitioner& partit
 
 void CABACReader::readAlfCtuFilterIndex( CodingStructure& cs, unsigned ctuRsAddr )
 {
-  short* alfCtbFilterSetIndex         = cs.slice->getPic()->getAlfCtbFilterIndex();
-  const unsigned numAps               = cs.slice->getTileGroupNumAps();
+  short* alfCtbFilterSetIndex         = m_slice->getPic()->getAlfCtbFilterIndex();
+  const unsigned numAps               = m_slice->getTileGroupNumAps();
   const unsigned numAvailableFiltSets = numAps + NUM_FIXED_FILTER_SETS;
   uint32_t filtIndex = 0;
 
@@ -305,7 +307,7 @@ void CABACReader::ccAlfFilterControlIdc(CodingStructure &cs, const ComponentID c
 {
   Position       leftLumaPos    = lumaPos.offset(-(int)cs.pcv->maxCUWidth, 0);
   Position       aboveLumaPos   = lumaPos.offset(0, -(int)cs.pcv->maxCUWidth);
-  const uint32_t curSliceIdx    = cs.slice->getIndependentSliceIdx();
+  const uint32_t curSliceIdx    = m_slice->getIndependentSliceIdx();
   const uint32_t curTileIdx     = cs.pps->getTileIdx( lumaPos );
   bool           leftAvail      = cs.getCURestricted( leftLumaPos,  lumaPos, curSliceIdx, curTileIdx, CH_L ) ? true : false;
   bool           aboveAvail     = cs.getCURestricted( aboveLumaPos, lumaPos, curSliceIdx, curTileIdx, CH_L ) ? true : false;
@@ -350,7 +352,7 @@ void CABACReader::sao( CodingStructure& cs, unsigned ctuRsAddr )
   sao_ctu_pars[ COMPONENT_Cr ].modeIdc      = SAO_MODE_OFF;
 
   const SPS&   sps                          = *cs.sps;
-  const Slice& slice                        = *cs.slice;
+  const Slice& slice                        = *m_slice;
   const bool   slice_sao_luma_flag          = ( slice.getSaoEnabledFlag( CHANNEL_TYPE_LUMA ) );
   const bool   slice_sao_chroma_flag        = ( slice.getSaoEnabledFlag( CHANNEL_TYPE_CHROMA ) && sps.getChromaFormatIdc() != CHROMA_400 );
 
@@ -365,7 +367,7 @@ void CABACReader::sao( CodingStructure& cs, unsigned ctuRsAddr )
   int             rx                      = ctuRsAddr - ry * frame_width_in_ctus;
   int             sao_merge_type          = -1;
   const Position  pos( rx * cs.pcv->maxCUWidth, ry * cs.pcv->maxCUHeight );
-  const unsigned  curSliceIdx = cs.slice->getIndependentSliceIdx();
+  const unsigned  curSliceIdx = m_slice->getIndependentSliceIdx();
   const unsigned  curTileIdx  = cs.pps->getTileIdx( pos );
 
   if( cs.getCURestricted( pos.offset(-(int)cs.pcv->maxCUWidth, 0), pos, curSliceIdx, curTileIdx, CH_L ) )
@@ -505,7 +507,7 @@ bool CABACReader::coding_tree( CodingStructure& cs, Partitioner& partitioner, CU
     cuCtx.qgStart     = true;
     cuCtx.isDQPCoded  = false;
   }
-  if( cs.slice->getUseChromaQpAdj() && partitioner.currQgChromaEnable() )
+  if( m_slice->getUseChromaQpAdj() && partitioner.currQgChromaEnable() )
   {
     cuCtx.isChromaQpAdjCoded = false;
     cs.chromaQpAdj           = 0;
@@ -566,13 +568,13 @@ bool CABACReader::coding_tree( CodingStructure& cs, Partitioner& partitioner, CU
 
   TreeType treeType = partitioner.treeType;
 
-  if( isChroma( partitioner.chType ) )                               { currArea.Y()                  = CompArea(); treeType = TREE_C; }
-  else if( CS::isDualITree( cs ) || partitioner.treeType == TREE_L ) { currArea.Cb() = currArea.Cr() = CompArea(); treeType = TREE_L; }
+  if( isChroma( partitioner.chType ) )                                 { currArea.Y()                  = CompArea(); treeType = TREE_C; }
+  else if( partitioner.isDualITree || partitioner.treeType == TREE_L ) { currArea.Cb() = currArea.Cr() = CompArea(); treeType = TREE_L; }
 
   CodingUnit& cu = cs.addCU( currArea, partitioner.chType, treeType, partitioner.modeType, partitioner.currPartLevel().cuLeft, partitioner.currPartLevel().cuAbove );
 
   partitioner.setCUData( cu );
-  cu.slice   = cs.slice;
+  cu.slice   = m_slice;
   cu.tileIdx = partitioner.currTileIdx;
   int lumaQPinLocalDualTree = -1;
 
@@ -638,9 +640,9 @@ bool CABACReader::coding_tree( CodingStructure& cs, Partitioner& partitioner, CU
   return isLastCtu;
 }
 
-int signalModeCons( const CodingStructure& cs, const PartSplit split, const Partitioner &partitioner, const ModeType modeTypeParent )
+int signalModeCons( const CodingStructure& cs, const Slice* slice, const PartSplit split, const Partitioner &partitioner, const ModeType modeTypeParent )
 {
-  if( CS::isDualITree( cs ) || modeTypeParent != MODE_TYPE_ALL || partitioner.currArea().chromaFormat == CHROMA_444 || partitioner.currArea().chromaFormat == CHROMA_400 )
+  if( partitioner.isDualITree || modeTypeParent != MODE_TYPE_ALL || partitioner.currArea().chromaFormat == CHROMA_444 || partitioner.currArea().chromaFormat == CHROMA_400 )
     return LDT_MODE_TYPE_INHERIT;
 
   int minLumaArea = partitioner.currArea().lumaSize().area();
@@ -658,12 +660,12 @@ int signalModeCons( const CodingStructure& cs, const PartSplit split, const Part
   return    minChromaBlock >= 16 &&
            !is2xNChroma ?
               LDT_MODE_TYPE_INHERIT :
-            ( minLumaArea < 32 || cs.slice->isIntra() ) ? LDT_MODE_TYPE_INFER : LDT_MODE_TYPE_SIGNAL;
+            ( minLumaArea < 32 || slice->isIntra() ) ? LDT_MODE_TYPE_INFER : LDT_MODE_TYPE_SIGNAL;
 }
 
 ModeType CABACReader::mode_constraint( CodingStructure& cs, Partitioner &partitioner, PartSplit splitMode )
 {
-  const int val = signalModeCons( cs, splitMode, partitioner, partitioner.modeType );
+  const int val = signalModeCons( cs, m_slice, splitMode, partitioner, partitioner.modeType );
 
   if( val == LDT_MODE_TYPE_SIGNAL )
   {
@@ -867,7 +869,7 @@ bool CABACReader::coding_unit( CodingUnit &cu, Partitioner &partitioner, CUCtx& 
   DTRACE( g_trace_ctx, D_SYNTAX, "coding_unit() treeType=%d modeType=%d\n", cu.treeType(), cu.modeType() );
 
   // skip flag
-  if( !cs.slice->isIntra() || cs.sps->getIBCFlag() )
+  if( !m_slice->isIntra() || cs.sps->getIBCFlag() )
   {
     if( cu.Y().valid() )
     {
@@ -2054,7 +2056,7 @@ void CABACReader::transform_tree( CodingStructure &cs, CodingUnit &cu, Partition
   }
   else
   {
-    TransformUnit &tu = cs.addTU( CS::getArea( cs, area, partitioner.chType, partitioner.treeType ), partitioner.chType, cu );
+    TransformUnit &tu = cs.addTU( getArea( *m_slice, area, partitioner.chType, partitioner.treeType ), partitioner.chType, cu );
     DTRACE( g_trace_ctx, D_SYNTAX, "transform_unit() pos=(%d,%d) size=%dx%d depth=%d trDepth=%d\n", tu.blocks[tu.chType].x, tu.blocks[tu.chType].y, tu.blocks[tu.chType].width, tu.blocks[tu.chType].height, cu.depth, partitioner.currTrDepth );
 
     transform_unit( tu, cuCtx, partitioner );
@@ -2382,7 +2384,7 @@ void CABACReader::residual_coding( TransformUnit& tu, ComponentID compID, CUCtx&
   }
 
   // determine sign hiding
-  bool signHiding  = ( cu.cs->slice->getSignDataHidingEnabledFlag() && tu.rdpcm[compID] == RDPCM_OFF );
+  bool signHiding  = ( m_slice->getSignDataHidingEnabledFlag() && tu.rdpcm[compID] == RDPCM_OFF );
   if(  signHiding && CU::isIntra(cu) && CU::isRDPCMEnabled(cu) && tu.mtsIdx[compID] == MTS_SKIP )
   {
     const ChannelType chType    = toChannelType( compID );
@@ -2411,7 +2413,7 @@ void CABACReader::residual_coding( TransformUnit& tu, ComponentID compID, CUCtx&
   }
 
   // parse subblocks
-  const int stateTransTab = ( cu.cs->slice->getDepQuantEnabledFlag() ? 32040 : 0 );
+  const int stateTransTab = ( m_slice->getDepQuantEnabledFlag() ? 32040 : 0 );
   int       state         = 0;
 
   TCoeffSig *coeff = m_cffTmp;
@@ -2612,7 +2614,7 @@ void CABACReader::residual_lfnst_mode( CodingUnit& cu,  CUCtx& cuCtx  )
     return;
   }
 
-  const int chIdx  = CS::isDualITree( *cu.cs ) && cu.chType() == CHANNEL_TYPE_CHROMA ? 1 : 0;
+  const int chIdx  = CU::isDualITree( cu ) && cu.chType() == CHANNEL_TYPE_CHROMA ? 1 : 0;
   if( ( cu.ispMode() && !CU::canUseLfnstWithISP( cu, cu.chType() ) ) ||
       ( cu.mipFlag() && !    allowLfnstWithMip ( cu.lumaSize() ) ) ||
       ( cu.chType() == CHANNEL_TYPE_CHROMA && std::min( cu.blocks[1].width, cu.blocks[1].height ) < 4 )

@@ -124,8 +124,8 @@ bool AdaptiveLoopFilter::isCrossedByVirtualBoundaries( const CodingStructure& cs
   numHorVirBndry = 0;
   numVerVirBndry = 0;
 
-  const Slice& slice = *(cs.slice);
-  const PPS*   pps = slice.getPPS();
+  const PPS* pps = cs.pps.get();
+  const SPS* sps = cs.sps.get();
   const PicHeader* picHeader = cs.picHeader;
 
   if( !picHeader->getVirtualBoundariesPresentFlag() )
@@ -164,15 +164,14 @@ bool AdaptiveLoopFilter::isCrossedByVirtualBoundaries( const CodingStructure& cs
     }
   }
 
-  int   ctuSize = slice.getSPS()->getCTUSize();
+  int   ctuSize = sps->getCTUSize();
   const Position currCtuPos( area.x, area.y );
   const CodingUnit *currCtu = cs.getCU(currCtuPos, CHANNEL_TYPE_LUMA);
 #if JVET_O1143_LPF_ACROSS_SUBPIC_BOUNDARY
   bool loopFilterAcrossSubPicEnabledFlag=1;
-  const SPS*   sps = slice.getSPS();
   if (sps->getSubPicInfoPresentFlag())
   {
-    const SubPic& curSubPic = slice.getPPS()->getSubPicFromPos(currCtuPos);
+    const SubPic& curSubPic = pps->getSubPicFromPos(currCtuPos);
     loopFilterAcrossSubPicEnabledFlag=curSubPic.getloopFilterAcrossEnabledFlag();
   }
 #endif
@@ -418,7 +417,7 @@ void AdaptiveLoopFilter::processCTU( CodingStructure & cs, unsigned col, unsigne
   const uint8_t ctuAlternativeData[2] = { cs.picture->getAlfCtuAlternativeData( 0 )[ctuIdx],
                                           cs.picture->getAlfCtuAlternativeData( 1 )[ctuIdx] };
 
-  filterCTU( cs.slice->getAlfAPSs(), recYuv.subBuf( ctuArea ), cs.m_alfBuf.subBuf( ctuArea ), ctuEnableFlag, ctuAlternativeData, cs.slice->getClpRngs(), chType, cs, ctuIdx, ctuArea.lumaPos(), tid );
+  filterCTU( recYuv.subBuf( ctuArea ), cs.m_alfBuf.subBuf( ctuArea ), ctuEnableFlag, ctuAlternativeData, cs.picture->slices[0]->getClpRngs(), chType, cs, ctuIdx, ctuArea.lumaPos(), tid );
 }
 
 void AdaptiveLoopFilter::swapBufs(CodingStructure & cs)
@@ -462,9 +461,11 @@ bool AdaptiveLoopFilter::getAlfSkipPic( const CodingStructure & cs )
 
   return false;
 }
-void AdaptiveLoopFilter::filterCTU( APS** aps, const CPelUnitBuf & srcBuf, const PelUnitBuf & dstBuf, const uint8_t ctuEnableFlag[3], const uint8_t ctuAlternativeData[2], const ClpRngs & clpRngs, const ChannelType chType, CodingStructure & cs, int ctuIdx, Position ctuPos, int tid )
+void AdaptiveLoopFilter::filterCTU( const CPelUnitBuf & srcBuf, const PelUnitBuf & dstBuf, const uint8_t ctuEnableFlag[3], const uint8_t ctuAlternativeData[2], const ClpRngs & clpRngs, const ChannelType chType, CodingStructure & cs, int ctuIdx, Position ctuPos, int tid )
 {
-  const short* alfCtuFilterIndex = cs.slice->getPic()->getAlfCtbFilterIndex();
+  Slice* slice = cs.getCtuData(ctuIdx).cuPtr[0][0]->slice;
+  APS** aps = slice->getAlfAPSs();
+  const short* alfCtuFilterIndex = slice->getPic()->getAlfCtbFilterIndex();
 
   const PreCalcValues& pcv = *cs.pcv;
   bool clipTop = false, clipBottom = false, clipLeft = false, clipRight = false;
@@ -546,8 +547,8 @@ void AdaptiveLoopFilter::filterCTU( APS** aps, const CPelUnitBuf & srcBuf, const
             const short* clip           = nullptr;
             if (filterSetIndex >= NUM_FIXED_FILTER_SETS)
             {
-              CHECK( cs.slice->getTileGroupNumAps() <= (filterSetIndex - NUM_FIXED_FILTER_SETS), "deduemm" );
-              int apsIdx = cs.slice->getTileGroupApsIdLuma()[filterSetIndex - NUM_FIXED_FILTER_SETS];
+              CHECK( slice->getTileGroupNumAps() <= (filterSetIndex - NUM_FIXED_FILTER_SETS), "deduemm" );
+              int apsIdx = slice->getTileGroupApsIdLuma()[filterSetIndex - NUM_FIXED_FILTER_SETS];
 
               APS* curAPS = aps[apsIdx]; //TODO: check this
               CHECK(curAPS == NULL, "invalid APS");
@@ -573,7 +574,7 @@ void AdaptiveLoopFilter::filterCTU( APS** aps, const CPelUnitBuf & srcBuf, const
           {
             if( ctuEnableFlag[compIdx] & 1 )
             {
-              const int  apsIdxChroma = cs.slice->getTileGroupApsIdChroma();
+              const int  apsIdxChroma = slice->getTileGroupApsIdChroma();
               const APS* curAPS       = aps[apsIdxChroma];
               CHECK( curAPS == NULL, "invalid APS" );
               const AlfSliceParam& alfSliceParam = curAPS->getAlfAPSParam();
@@ -593,14 +594,14 @@ void AdaptiveLoopFilter::filterCTU( APS** aps, const CPelUnitBuf & srcBuf, const
                              );
             }
             
-            if( cs.slice->getTileGroupCcAlfEnabledFlag( compIdx-1 ) )
+            if( slice->getTileGroupCcAlfEnabledFlag( compIdx-1 ) )
             {
               const int filterIdx = cs.picture->getccAlfFilterControl( compIdx - 1 )[ctuIdx];
 
               if( filterIdx != 0 )
               {
-                int apsIdx = compIdx == 1 ? cs.slice->getTileGroupCcAlfCbApsId() : cs.slice->getTileGroupCcAlfCrApsId();
-                const int16_t *filterCoeff = cs.slice->getAlfAPSs()[apsIdx]->getCcAlfAPSParam().ccAlfCoeff[compIdx - 1][filterIdx - 1];
+                int apsIdx = compIdx == 1 ? slice->getTileGroupCcAlfCbApsId() : slice->getTileGroupCcAlfCrApsId();
+                const int16_t *filterCoeff = slice->getAlfAPSs()[apsIdx]->getCcAlfAPSParam().ccAlfCoeff[compIdx - 1][filterIdx - 1];
 
                 const int chromaScaleX = getComponentScaleX( compID, srcBuf.chromaFormat );
                 const int chromaScaleY = getComponentScaleY( compID, srcBuf.chromaFormat );
@@ -629,8 +630,8 @@ void AdaptiveLoopFilter::filterCTU( APS** aps, const CPelUnitBuf & srcBuf, const
         short* clip;
         if( filterSetIndex >= NUM_FIXED_FILTER_SETS )
         {
-          CHECK( cs.slice->getTileGroupNumAps() <= ( filterSetIndex - NUM_FIXED_FILTER_SETS ), "deduemm" );
-          int apsIdx = cs.slice->getTileGroupApsIdLuma()[filterSetIndex - NUM_FIXED_FILTER_SETS];
+          CHECK( slice->getTileGroupNumAps() <= ( filterSetIndex - NUM_FIXED_FILTER_SETS ), "deduemm" );
+          int apsIdx = slice->getTileGroupApsIdLuma()[filterSetIndex - NUM_FIXED_FILTER_SETS];
 
           APS* curAPS = aps[apsIdx];   // TODO: check this
           CHECK( curAPS == NULL, "invalid APS" );
@@ -661,7 +662,7 @@ void AdaptiveLoopFilter::filterCTU( APS** aps, const CPelUnitBuf & srcBuf, const
       {
         if( ctuEnableFlag[compIdx] & 1 )
         {
-          int  apsIdxChroma = cs.slice->getTileGroupApsIdChroma();
+          int  apsIdxChroma = slice->getTileGroupApsIdChroma();
           APS* curAPS       = aps[apsIdxChroma];
           CHECK( curAPS == NULL, "invalid APS" );
           AlfSliceParam& alfSliceParam = curAPS->getAlfAPSParam();
@@ -686,14 +687,14 @@ void AdaptiveLoopFilter::filterCTU( APS** aps, const CPelUnitBuf & srcBuf, const
           dstBuf.get( compID ).copyFrom( srcBuf.get( compID ) );
         }
         
-        if( cs.slice->getTileGroupCcAlfEnabledFlag( compIdx-1 ) )
+        if( slice->getTileGroupCcAlfEnabledFlag( compIdx-1 ) )
         {
           const int filterIdx = cs.picture->getccAlfFilterControl( compIdx - 1 )[ctuIdx];
 
           if( filterIdx != 0 )
           {
-            int apsIdx = compIdx == 1 ? cs.slice->getTileGroupCcAlfCbApsId() : cs.slice->getTileGroupCcAlfCrApsId();
-            const int16_t *filterCoeff = cs.slice->getAlfAPSs()[apsIdx]->getCcAlfAPSParam().ccAlfCoeff[compIdx - 1][filterIdx - 1];
+            int apsIdx = compIdx == 1 ? slice->getTileGroupCcAlfCbApsId() : slice->getTileGroupCcAlfCrApsId();
+            const int16_t *filterCoeff = slice->getAlfAPSs()[apsIdx]->getCcAlfAPSParam().ccAlfCoeff[compIdx - 1][filterIdx - 1];
 
             Area blkSrc( 0, 0, width, height );
 
@@ -1229,7 +1230,7 @@ void AdaptiveLoopFilter::filterBlkCcAlf(const PelBuf &dstBuf, const CPelUnitBuf 
 
   CHECK(!isChroma(compId), "Must be chroma");
 
-  const SPS*     sps           = cs.slice->getSPS();
+  const SPS*     sps           = cs.sps.get();
   ChromaFormat nChromaFormat   = sps->getChromaFormatIdc();
   const int clsSizeY           = 4;
   const int clsSizeX           = 4;

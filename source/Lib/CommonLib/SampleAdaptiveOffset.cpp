@@ -702,7 +702,7 @@ void SampleAdaptiveOffset::offsetCTU( const UnitArea& area, const CPelUnitBuf& s
       }
 
       offsetBlock( cs.sps->getBitDepth(toChannelType(compID)),
-                   cs.slice->clpRng(compID),
+                   cs.getCtuData(cs.ctuRsAddr(area.Y().pos(), CH_L)).cuPtr[0][0]->slice->clpRng(compID),
                    ctbOffset.typeIdc, ctbOffset.offset,ctbOffset.typeAuxInfo
                   , srcBlk, resBlk, srcStride, resStride, compArea.width, compArea.height
                   , isLeftAvail, isRightAvail

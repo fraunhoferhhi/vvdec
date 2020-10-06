@@ -248,22 +248,22 @@ void DecLibRecon::decompressPicture( Picture* pcPic )
 #endif
 
   // Initialise the various objects for the new set of settings
-  const SPS * sps = cs.slice->getSPS();
-  const PPS * pps = cs.slice->getPPS();
+  const SPS * sps = cs.sps.get();
+  const PPS * pps = cs.pps.get();
 
   for( int i = 0; i < m_numDecThreads; i++ )
   {
     if( sps->getUseReshaper() )
     {
       m_cReshaper[i].createDec( sps->getBitDepth( CHANNEL_TYPE_LUMA ) );
-      m_cReshaper[i].initSlice( cs.slice );
+      m_cReshaper[i].initSlice( pcPic->slices[0] );
     }
 
     m_cIntraPred[i].init( sps->getChromaFormatIdc(), sps->getBitDepth( CHANNEL_TYPE_LUMA ) );
     m_cInterPred[i].init( &m_cRdCost, sps->getChromaFormatIdc(), sps->getMaxCUHeight() );
 
     // Recursive structure
-    m_cTrQuant[i]  .init( cs.slice );
+    m_cTrQuant[i]  .init( pcPic->slices[0] );
     m_cCuDecoder[i].init( &m_cIntraPred[i], &m_cInterPred[i], &m_cReshaper[i], &m_cTrQuant[i] );
   }
 
@@ -292,7 +292,7 @@ void DecLibRecon::decompressPicture( Picture* pcPic )
   {
     cs.initVIbcBuf( heightInCtus, sps->getChromaFormatIdc(), sps->getMaxCUHeight() );
   }
-  cs.slice->startProcessingTimer();
+  pcPic->startProcessingTimer();
 
   if( m_decodeThreadPool->numThreads() > 0 )
   {
@@ -308,9 +308,9 @@ void DecLibRecon::decompressPicture( Picture* pcPic )
 
   for( int iDir = REF_PIC_LIST_0; iDir < NUM_REF_PIC_LIST_01; ++iDir )
   {
-    for( int iRefIdx = 0; iRefIdx < cs.slice->getNumRefIdx( (RefPicList)iDir ); iRefIdx++ )
+    for( int iRefIdx = 0; iRefIdx < pcPic->slices[0]->getNumRefIdx( (RefPicList)iDir ); iRefIdx++ )
     {
-      Picture* pic = const_cast<Picture*>( cs.slice->getRefPic( (RefPicList)iDir, iRefIdx ) );
+      Picture* pic = const_cast<Picture*>( pcPic->slices[0]->getRefPic( (RefPicList)iDir, iRefIdx ) );
 
       if( !pic->isBorderExtended )
       {
@@ -338,7 +338,9 @@ void DecLibRecon::decompressPicture( Picture* pcPic )
     m_decodeThreadPool->processTasksOnMainThread();
   }
 
-  const int numColPerTask   = std::max( std::min( widthInCtus, ( widthInCtus / std::max( m_numDecThreads * ( cs.slice->isIntra() ? 2 : 1 ), 1 ) ) + ( cs.slice->isIntra() ? 0 : 1 ) ), 1 );
+  const bool isIntra = pcPic->slices[0]->isIntra();
+
+  const int numColPerTask   = std::max( std::min( widthInCtus, ( widthInCtus / std::max( m_numDecThreads * (isIntra ? 2 : 1 ), 1 ) ) + (isIntra ? 0 : 1 ) ), 1 );
   const int numTasksPerLine = widthInCtus / numColPerTask + !!( widthInCtus % numColPerTask );
 
 #if ALLOW_MIDER_LF_DURING_PICEXT
@@ -414,7 +416,7 @@ void DecLibRecon::decompressPicture( Picture* pcPic )
 #endif
       picture->done.unlock();
 
-      cs.slice->stopProcessingTimer();
+      picture->stopProcessingTimer();
 
       return true;
     };
@@ -546,7 +548,7 @@ bool DecLibRecon::ctuTask( int tid, CtuTaskParam* param )
 
   case INTER:
   {
-    if( cs.slice->isIntra() )
+    if( cs.picture->slices[0]->isIntra() )
     {
       // not really necessary, but only for optimizing the wave-fronts
       if( col > 1 && thisLine[col - 2] <= INTER )
@@ -569,10 +571,11 @@ bool DecLibRecon::ctuTask( int tid, CtuTaskParam* param )
 
     for( int ctu = ctuStart; ctu < ctuEnd; ctu++ )
     {
-      const UnitArea  ctuArea = getCtuArea( cs, ctu, line, true );
+      const CtuData& ctuData  = cs.getCtuData( ctu, line );
+      const UnitArea ctuArea  = getCtuArea( cs, ctu, line, true );
       decLib.m_cCuDecoder[tid].TaskTrafoCtu( cs, ctuArea );
 
-      if( !cs.slice->isIntra() )
+      if( !ctuData.cuPtr[0][0]->slice->isIntra() )
       {
         decLib.m_cCuDecoder[tid].TaskInterCtu( cs, ctuArea );
       }

@@ -139,6 +139,15 @@ public:
   void setSubPicSaved(bool bVal) { m_isSubPicBorderSaved = bVal; }
 #endif
 
+  void startProcessingTimer();
+  void stopProcessingTimer();
+  void resetProcessingTime() { m_dProcessingTime = 0; }
+  double getProcessingTime() const { return m_dProcessingTime; }
+  
+  std::chrono::time_point<std::chrono::steady_clock>
+                             m_processingStartTime;
+  double                     m_dProcessingTime               = 0;
+
   bool isBorderExtended               = false;
 #if JVET_Q0764_WRAP_AROUND_WITH_RPR
   bool wrapAroundValid                = false;

@@ -486,7 +486,7 @@ void CodingStructure::fillIBCbuffer( CodingUnit &cu, int lineIdx )
       if (!area.valid())
         continue;
 
-      const unsigned int lcuWidth = slice->getSPS()->getMaxCUWidth();
+      const unsigned int lcuWidth = sps->getMaxCUWidth();
       const int shiftSample = ::getComponentScaleX(area.compID, cu.chromaFormat);
       const int ctuSizeLog2 = getLog2(lcuWidth) - shiftSample;
       const int pux = area.x & ((m_IBCBufferWidth >> shiftSample) - 1);

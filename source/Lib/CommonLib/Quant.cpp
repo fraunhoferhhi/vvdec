@@ -308,7 +308,7 @@ void Quant::dequant(   const TransformUnit &tu,
   const bool            disableSMForLFNST  = tu.cu->slice->getExplicitScalingListUsed() ? sps->getDisableScalingMatrixForLfnstBlks() : false;
   const bool            isLfnstApplied     = tu.cu->lfnstIdx() > 0 && ( CU::isSepTree( *tu.cu ) ? true : isLuma( compID ) );
 #if JVET_R0380_SCALING_MATRIX_DISABLE_YCC_OR_RGB
-  const bool            disableSMForACT    = tu.cu->slice->getSPS()->getScalingMatrixForAlternativeColourSpaceDisabledFlag() && (tu.cu->cs->slice->getSPS()->getScalingMatrixDesignatedColourSpaceFlag() == tu.cu->colorTransform());
+  const bool            disableSMForACT    = tu.cu->cs->sps->getScalingMatrixForAlternativeColourSpaceDisabledFlag() && tu.cu->cs->sps->getScalingMatrixDesignatedColourSpaceFlag() == tu.cu->colorTransform();
   const bool            enableScalingLists = getUseScalingList(isTransformSkip, isLfnstApplied, disableSMForLFNST, disableSMForACT);
 #else
   const bool            enableScalingLists = getUseScalingList(isTransformSkip, isLfnstApplied, disableSMForLFNST);

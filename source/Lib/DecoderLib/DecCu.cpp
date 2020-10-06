@@ -67,7 +67,7 @@ void DecCu::TaskDeriveCtuMotionInfo( CodingStructure &cs, const UnitArea &ctuAre
   const unsigned  tileColIdx     = cs.pps->ctuToTileCol( ctuXPosInCtus );
   const unsigned  tileXPosInCtus = cs.pps->getTileColumnBd( tileColIdx );
 
-  if( ( cs.slice->getSliceType() != I_SLICE || cs.sps->getIBCFlag() ) && ctuXPosInCtus == tileXPosInCtus )
+  if( ctuXPosInCtus == tileXPosInCtus )
   {
     hist.motionLut.   resize(0);
     hist.motionLutIbc.resize(0);

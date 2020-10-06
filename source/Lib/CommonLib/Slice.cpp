@@ -1373,18 +1373,6 @@ void  Slice::initWpScaling(const SPS *sps)
   }
 }
 
-
-void Slice::startProcessingTimer()
-{
-  m_processingStartTime = std::chrono::steady_clock::now();
-}
-
-void Slice::stopProcessingTimer()
-{
-  auto endTime       = std::chrono::steady_clock::now();
-  m_dProcessingTime += std::chrono::duration<double>( endTime - m_processingStartTime ).count();
-}
-
 unsigned Slice::getMinPictureDistance() const
 {
   int minPicDist = MAX_INT;

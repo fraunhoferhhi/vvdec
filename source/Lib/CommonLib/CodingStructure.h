@@ -92,7 +92,6 @@ public:
   UnitArea         area;
 
   Picture         *picture;
-  Slice           *slice;
 
   UnitScale        unitScale[MAX_NUM_COMPONENT];
   int              chromaQpAdj;
