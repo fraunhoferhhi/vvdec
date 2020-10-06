@@ -134,7 +134,7 @@ struct AreaBuf : public Size
 
   void rspSignal            ( const Pel *lut );
   void scaleSignal          ( const int scale, const ClpRng& clpRng);
-  
+
         T& at( const int &x, const int &y )          { return buf[y * stride + x]; }
   const T& at( const int &x, const int &y ) const    { return buf[y * stride + x]; }
 

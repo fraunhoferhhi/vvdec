@@ -404,8 +404,6 @@ void SampleAdaptiveOffset::SAOProcess( CodingStructure& cs )
 void SampleAdaptiveOffset::SAOPrepareCTULine( CodingStructure &cs, const UnitArea &lineArea )
 {
   PROFILER_SCOPE_AND_STAGE( 1, g_timeProfiler, P_SAO );
-  SAOBlkParam* saoBlkParams = cs.picture->getSAO();
-  CHECK( !saoBlkParams, "No parameters present" );
 
   const PreCalcValues& pcv = *cs.pcv;
   PelUnitBuf           rec = cs.getRecoBuf();
@@ -423,13 +421,13 @@ void SampleAdaptiveOffset::SAOPrepareCTULine( CodingStructure &cs, const UnitAre
     const int ctuRsAddr = getCtuAddr( Position( x, y ), *cs.pcv );
 
     SAOBlkParam* mergeList[NUM_SAO_MERGE_TYPES] = { nullptr, nullptr };
-    getMergeList( cs, ctuRsAddr, saoBlkParams, mergeList );
+    getMergeList( cs, ctuRsAddr, mergeList );
 
-    reconstructBlkSAOParam( saoBlkParams[ctuRsAddr], mergeList );
+    reconstructBlkSAOParam( cs.m_ctuData[ctuRsAddr].saoParam, mergeList );
 
     for( int i = 0; i < MAX_NUM_COMPONENT; i++ )
     {
-      if( saoBlkParams[ctuRsAddr][i].modeIdc != SAO_MODE_OFF )
+      if( cs.m_ctuData[ctuRsAddr].saoParam[i].modeIdc != SAO_MODE_OFF )
       {
         anySaoBlk = true;
       }
@@ -459,8 +457,6 @@ void SampleAdaptiveOffset::SAOPrepareCTULine( CodingStructure &cs, const UnitAre
 void SampleAdaptiveOffset::SAOProcessCTULine( CodingStructure &cs, const UnitArea &lineArea )
 {
   PROFILER_SCOPE_AND_STAGE( 1, g_timeProfiler, P_SAO );
-  SAOBlkParam* saoBlkParams = cs.picture->getSAO();
-  CHECK(!saoBlkParams, "No parameters present");
 
   const PreCalcValues& pcv = *cs.pcv;
   PelUnitBuf           rec = cs.getRecoBuf();
@@ -476,7 +472,7 @@ void SampleAdaptiveOffset::SAOProcessCTULine( CodingStructure &cs, const UnitAre
 
     for( int i = 0; i < MAX_NUM_COMPONENT; i++ )
     {
-      if( saoBlkParams[ctuRsAddr][i].modeIdc != SAO_MODE_OFF )
+      if( cs.m_ctuData[ctuRsAddr].saoParam[i].modeIdc != SAO_MODE_OFF )
       {
         anySaoBlk = true;
       }
@@ -496,15 +492,13 @@ void SampleAdaptiveOffset::SAOProcessCTULine( CodingStructure &cs, const UnitAre
 
     const int ctuRsAddr = getCtuAddr( ctuArea.lumaPos(), *cs.pcv );
 
-    offsetCTU( ctuArea, m_tempBuf, rec, saoBlkParams[ctuRsAddr], cs, signLineBuf1, signLineBuf2 );
+    offsetCTU( ctuArea, m_tempBuf, rec, cs.m_ctuData[ctuRsAddr].saoParam, cs, signLineBuf1, signLineBuf2 );
   }
 }
 
 void SampleAdaptiveOffset::SAOProcessCTU( CodingStructure &cs, const UnitArea &ctuArea )
 {
   PROFILER_SCOPE_AND_STAGE( 1, g_timeProfiler, P_SAO );
-  SAOBlkParam* saoBlkParams = cs.picture->getSAO();
-  CHECK( !saoBlkParams, "No parameters present" );
 
   PelUnitBuf           rec = cs.getRecoBuf();
 
@@ -514,7 +508,7 @@ void SampleAdaptiveOffset::SAOProcessCTU( CodingStructure &cs, const UnitArea &c
 
   for( int i = 0; i < MAX_NUM_COMPONENT; i++ )
   {
-    if( saoBlkParams[ctuRsAddr][i].modeIdc != SAO_MODE_OFF )
+    if( cs.m_ctuData[ctuRsAddr].saoParam[i].modeIdc != SAO_MODE_OFF )
     {
       anySaoBlk = true;
     }
@@ -525,7 +519,7 @@ void SampleAdaptiveOffset::SAOProcessCTU( CodingStructure &cs, const UnitArea &c
   std::vector<int8_t> signLineBuf1;
   std::vector<int8_t> signLineBuf2;
 
-  offsetCTU( ctuArea, m_tempBuf, rec, saoBlkParams[ctuRsAddr], cs, signLineBuf1, signLineBuf2 );
+  offsetCTU( ctuArea, m_tempBuf, rec, cs.m_ctuData[ctuRsAddr].saoParam, cs, signLineBuf1, signLineBuf2 );
 }
 
 void SampleAdaptiveOffset::invertQuantOffsets(ComponentID compIdx, int typeIdc, int typeAuxInfo, int* dstOffsets, int* srcOffsets) const
@@ -553,13 +547,13 @@ void SampleAdaptiveOffset::invertQuantOffsets(ComponentID compIdx, int typeIdc, 
 
 }
 
-int SampleAdaptiveOffset::getMergeList(CodingStructure& cs, int ctuRsAddr, SAOBlkParam* blkParams, SAOBlkParam* mergeList[NUM_SAO_MERGE_TYPES])
+int SampleAdaptiveOffset::getMergeList(CodingStructure& cs, int ctuRsAddr, SAOBlkParam* mergeList[NUM_SAO_MERGE_TYPES])
 {
   const PreCalcValues& pcv = *cs.pcv;
 
-  int ctuX = ctuRsAddr % pcv.widthInCtus;
-  int ctuY = ctuRsAddr / pcv.widthInCtus;
-  const CodingUnit& cu = *cs.getCU(Position(ctuX*pcv.maxCUWidth, ctuY*pcv.maxCUHeight), CH_L);
+  const int ctuX       = ctuRsAddr % pcv.widthInCtus;
+  const int ctuY       = ctuRsAddr / pcv.widthInCtus;
+  const CodingUnit& cu = *cs.getCtuData( ctuRsAddr ).cuPtr[CH_L][0];
   int mergedCTUPos;
   int numValidMergeCandidates = 0;
 
@@ -574,9 +568,9 @@ int SampleAdaptiveOffset::getMergeList(CodingStructure& cs, int ctuRsAddr, SAOBl
         if(ctuY > 0)
         {
           mergedCTUPos = ctuRsAddr- pcv.widthInCtus;
-          if(cs.getCURestricted(Position(ctuX*pcv.maxCUWidth, (ctuY-1)*pcv.maxCUHeight), cu, CH_L ))
+          if(cu.above)
           {
-            mergeCandidate = &(blkParams[mergedCTUPos]);
+            mergeCandidate = &(cs.m_ctuData[mergedCTUPos].saoParam);
           }
         }
       }
@@ -586,9 +580,9 @@ int SampleAdaptiveOffset::getMergeList(CodingStructure& cs, int ctuRsAddr, SAOBl
         if(ctuX > 0)
         {
           mergedCTUPos = ctuRsAddr- 1;
-          if(cs.getCURestricted(Position((ctuX-1)*pcv.maxCUWidth, ctuY*pcv.maxCUHeight), cu, CH_L ))
+          if(cu.left)
           {
-            mergeCandidate = &(blkParams[mergedCTUPos]);
+            mergeCandidate = &(cs.m_ctuData[mergedCTUPos].saoParam);
           }
         }
       }
@@ -708,7 +702,7 @@ void SampleAdaptiveOffset::offsetCTU( const UnitArea& area, const CPelUnitBuf& s
       }
 
       offsetBlock( cs.sps->getBitDepth(toChannelType(compID)),
-                   cs.slice->clpRng(compID),
+                   cs.getCtuData(cs.ctuRsAddr(area.Y().pos(), CH_L)).cuPtr[0][0]->slice->clpRng(compID),
                    ctbOffset.typeIdc, ctbOffset.offset,ctbOffset.typeAuxInfo
                   , srcBlk, resBlk, srcStride, resStride, compArea.width, compArea.height
                   , isLeftAvail, isRightAvail
@@ -738,17 +732,22 @@ void SampleAdaptiveOffset::deriveLoopFilterBoundaryAvailibility( CodingStructure
                                                                  bool&            isBelowLeftAvail,
                                                                  bool&            isBelowRightAvail ) const
 {
-  const int width  = cs.pcv->maxCUWidth;
-  const int height = cs.pcv->maxCUHeight;
-  const CodingUnit* cuCurr = cs.getCU(pos, CH_L);
-  const CodingUnit* cuLeft = cs.getCU(pos.offset(-width, 0), CH_L);
-  const CodingUnit* cuRight = cs.getCU(pos.offset(width, 0), CH_L);
-  const CodingUnit* cuAbove = cs.getCU(pos.offset(0, -height), CH_L);
-  const CodingUnit* cuBelow = cs.getCU(pos.offset(0, height), CH_L);
-  const CodingUnit* cuAboveLeft = cs.getCU(pos.offset(-width, -height), CH_L);
-  const CodingUnit* cuAboveRight = cs.getCU(pos.offset(width, -height), CH_L);
-  const CodingUnit* cuBelowLeft = cs.getCU(pos.offset(-width, height), CH_L);
-  const CodingUnit* cuBelowRight = cs.getCU(pos.offset(width, height), CH_L);
+  const int ctusz  = cs.pcv->maxCUWidth;
+  const int ctuX   = pos.x / ctusz;
+  const int ctuY   = pos.y / ctusz;
+  const int width  = cs.pcv->widthInCtus;
+  const int height = cs.pcv->heightInCtus;
+
+  const CodingUnit* cuCurr        =                       cs.getCtuData( ctuX,     ctuY     ).cuPtr[0][0];
+  const CodingUnit* cuLeft        = ctuX     > 0        ? cs.getCtuData( ctuX - 1, ctuY     ).cuPtr[0][0] : nullptr;
+  const CodingUnit* cuRight       = ctuX + 1 < width    ? cs.getCtuData( ctuX + 1, ctuY     ).cuPtr[0][0] : nullptr;
+  const CodingUnit* cuAbove       = ctuY     > 0        ? cs.getCtuData( ctuX,     ctuY - 1 ).cuPtr[0][0] : nullptr;
+  const CodingUnit* cuBelow       = ctuY + 1 < height   ? cs.getCtuData( ctuX,     ctuY + 1 ).cuPtr[0][0] : nullptr;
+  const CodingUnit* cuAboveLeft   = cuLeft  && cuAbove  ? cs.getCtuData( ctuX - 1, ctuY - 1 ).cuPtr[0][0] : nullptr;
+  const CodingUnit* cuAboveRight  = cuRight && cuAbove  ? cs.getCtuData( ctuX + 1, ctuY - 1 ).cuPtr[0][0] : nullptr;
+  const CodingUnit* cuBelowLeft   = cuLeft  && cuBelow  ? cs.getCtuData( ctuX - 1, ctuY + 1 ).cuPtr[0][0] : nullptr;
+  const CodingUnit* cuBelowRight  = cuRight && cuBelow  ? cs.getCtuData( ctuX + 1, ctuY + 1 ).cuPtr[0][0] : nullptr;
+
 
   // check cross slice flags
   const bool isLoopFilterAcrossSlicePPS = cs.pps->getLoopFilterAcrossSlicesEnabledFlag();

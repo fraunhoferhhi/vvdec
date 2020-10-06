@@ -1,4 +1,4 @@
-# VVDecConfigVersion.cmake - checks version: major must match, minor must be less than or equal
+# vvdecConfigVersion.cmake - checks version: major must match, minor must be less than or equal
 
 set( PACKAGE_VERSION @PROJECT_VERSION@ )
 

@@ -19,6 +19,9 @@ core
 *.yuv
 .*.sw?
 /seqs/
-.*
+#.*
+.project
+.cproject
 /Testing/
 /out/
+/CMakeSettings.json

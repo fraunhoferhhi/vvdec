@@ -306,23 +306,23 @@ CodingUnit& CodingUnit::operator=( const MotionInfo& mi )
 
 const MotionInfo& CodingUnit::getMotionInfo() const
 {
-  return cs->getMotionInfo( lumaPos() );
+  return ctuData->motion[cs->inCtuPos( lumaPos(), CH_L )];
 }
 
 const MotionInfo& CodingUnit::getMotionInfo( const Position& pos ) const
 {
   CHECKD( !Y().contains( pos ), "Trying to access motion info outsied of PU" );
-  return cs->getMotionInfo( pos );
+  return ctuData->motion[cs->inCtuPos( pos, CH_L )];
 }
 
 MotionBuf CodingUnit::getMotionBuf()
 {
-  return cs->getMotionBuf( *this );
+  return MotionBuf( const_cast<MotionInfo*>( &getMotionInfo() ), cs->getLFPMapStride(), g_miScaling.scaleHor( lwidth() ), g_miScaling.scaleVer( lheight() ) );
 }
 
 CMotionBuf CodingUnit::getMotionBuf() const
 {
-  return cs->getMotionBuf( *this );
+  return CMotionBuf( &getMotionInfo(), cs->getLFPMapStride(), g_miScaling.scaleHor( lwidth() ), g_miScaling.scaleVer( lheight() ) );
 }
 
 // ---------------------------------------------------------------------------

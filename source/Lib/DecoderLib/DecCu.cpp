@@ -67,7 +67,7 @@ void DecCu::TaskDeriveCtuMotionInfo( CodingStructure &cs, const UnitArea &ctuAre
   const unsigned  tileColIdx     = cs.pps->ctuToTileCol( ctuXPosInCtus );
   const unsigned  tileXPosInCtus = cs.pps->getTileColumnBd( tileColIdx );
 
-  if( ( cs.slice->getSliceType() != I_SLICE || cs.sps->getIBCFlag() ) && ctuXPosInCtus == tileXPosInCtus )
+  if( ctuXPosInCtus == tileXPosInCtus )
   {
     hist.motionLut.   resize(0);
     hist.motionLutIbc.resize(0);
@@ -151,12 +151,12 @@ void DecCu::TaskCriticalIntraKernel( CodingStructure &cs, const UnitArea &ctuAre
 void DecCu::TaskDeriveDMVRMotionInfo( CodingStructure& cs, const UnitArea& ctuArea )
 {
   PROFILER_SCOPE_AND_STAGE_EXT( 1, g_timeProfiler, P_CONTROL_PARSE_DERIVE_LL, cs, CH_L );
-  MotionBuf   mb     = cs.getMotionBuf();
+  MotionBuf   mb     = cs.getMotionBuf( ctuArea.Y() );
   MotionInfo* orgPtr = mb.buf;
 
   for( CodingUnit &cu : cs.traverseCUs( ctuArea ) )
   {
-    CHECK( !ctuArea.blocks[cu.chType()].contains( cu.blocks[cu.chType()] ), "Should never happen!" );
+    CHECKD( !ctuArea.blocks[cu.chType()].contains( cu.blocks[cu.chType()] ), "Should never happen!" );
 
     PredictionUnit &pu = cu;
     
@@ -187,8 +187,7 @@ void DecCu::TaskDeriveDMVRMotionInfo( CodingStructure& cs, const UnitArea& ctuAr
 
             for( ; x2 < x + dx; x2 += scale )
             {
-              const Position mbPos = g_miScaling.scale( Position{ x2, y2 } );
-              mb.buf = orgPtr + rsAddr( mbPos, mb.stride );
+              mb.buf = orgPtr + cs.inCtuPos( Position{ x2, y2 }, CH_L );
 
               MotionInfo& mi = *mb.buf;
 
@@ -326,6 +325,8 @@ void DecCu::predAndReco( CodingUnit& cu, bool doCiipIntra )
                 piPred      = cs.getPredBuf( cu ).Y().subBuf( pos, areaPredReg.size() );
 
                 m_pcIntraPred->predIntraAng( compID, piPred, pu, bUseFilteredPredictions );
+
+                piPred.width = area.width;
               }
             }
             else
@@ -339,9 +340,8 @@ void DecCu::predAndReco( CodingUnit& cu, bool doCiipIntra )
 
         const Slice &slice      = *cu.slice;
         const bool   doChrScale = isChroma( compID )
-                                  && slice.getPicHeader()->getLmcsEnabledFlag()
+                                  && slice.getLmcsEnabledFlag()
                                   && slice.getPicHeader()->getLmcsChromaResidualScaleFlag()
-                                  && ( slice.isIntra() || ( !slice.isIntra() && m_pcReshape->getCTUFlag() ) )
                                   && tu.blocks[compID].area() > 4
                                   && ( TU::getCbf( tu, compID ) || tu.jointCbCr )
                                   ;
@@ -469,7 +469,7 @@ void DecCu::finishLMCSAndReco( CodingUnit &cu )
   CodingStructure &cs = *cu.cs;
 
   const uint32_t uiNumVaildComp = getNumberValidComponents( cu.chromaFormat );
-  const bool     doCS           = cs.picHeader->getLmcsEnabledFlag() && cs.picHeader->getLmcsChromaResidualScaleFlag();
+  const bool     doCS           = cs.picHeader->getLmcsEnabledFlag() && cs.picHeader->getLmcsChromaResidualScaleFlag() && cu.slice->getLmcsEnabledFlag();
   const PelUnitBuf predUnitBuf  = cs.getPredBuf( cu );
 
 #if !JVET_S0234_ACT_CRS_FIX
@@ -608,9 +608,8 @@ void DecCu::xIntraRecACT( CodingUnit &cu )
       PelBuf piReco = cs.getRecoBuf( area );
 
       const bool   doChrScale = isChroma( compID )
-                                && slice.getPicHeader()->getLmcsEnabledFlag()
+                                && slice.getLmcsEnabledFlag() 
                                 && slice.getPicHeader()->getLmcsChromaResidualScaleFlag()
-                                && ( slice.isIntra() || ( !slice.isIntra() && m_pcReshape->getCTUFlag() ) )
                                 && tu.blocks[compID].area() > 4
                                 && ( TU::getCbf( tu, compID ) || tu.jointCbCr )
                                 ;
@@ -852,7 +851,7 @@ void DecCu::xDeriveCUMV( CodingUnit &cu, MotionHist& hist )
         AMVPInfo amvpInfo;
         PU::fillIBCMvpCand( pu, amvpInfo, hist );
         Mv mvd = pu.mv[REF_PIC_LIST_0][0];
-        mvd <<= 2;
+        mvd <<= 4;
         if( pu.slice->getPicHeader()->getMaxNumIBCMergeCand() == 1 )
         {
           CHECK( pu.mvpIdx[REF_PIC_LIST_0], "mvpIdx for IBC mode should be 0" );

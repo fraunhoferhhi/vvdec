@@ -74,6 +74,19 @@ VVDec::~VVDec()
 
 int VVDec::init( const VVDecParameter& rcVVDecParameter )
 {
+#if ENABLE_TRACING
+  if( !g_trace_ctx )
+  {
+    g_trace_ctx = tracing_init( sTracingFile, sTracingRule );
+  }
+  if( bTracingChannelsList && g_trace_ctx )
+  {
+    std::string sChannelsList;
+    g_trace_ctx->getChannelsList( sChannelsList );
+    msg( INFO, "\nAvailable tracing channels:\n\n%s\n", sChannelsList.c_str() );
+  }
+#endif
+  
   if( m_pcVVDecImpl->m_bInitialized )
   {
     return m_pcVVDecImpl->setAndRetErrorMsg( VVDEC_ERR_INITIALIZE );

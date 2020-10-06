@@ -55,9 +55,9 @@ vvc@hhi.fraunhofer.de
 #include <utility>
 #include <algorithm>
 
-bool CS::isDualITree( const CodingStructure &cs )
+static bool isDualITree( const Slice &slice )
 {
-  return cs.slice->isIRAP() && !cs.pcv->ISingleTree;
+  return slice.isIRAP() && slice.getSPS()->getUseDualITree();
 }
 
 
@@ -66,9 +66,9 @@ bool CU::isDualITree( const CodingUnit &cu )
   return cu.slice->isIRAP() && cu.slice->getSPS()->getUseDualITree();
 }
 
-UnitArea CS::getArea( const CodingStructure &cs, const UnitArea &area, const ChannelType chType, const TreeType treeType )
+UnitArea getArea( const Slice &slice, const UnitArea &area, const ChannelType chType, const TreeType treeType )
 {
-  return isDualITree( cs ) || treeType != TREE_D ? area.singleChan( chType ) : area;
+  return isDualITree( slice ) || treeType != TREE_D ? area.singleChan( chType ) : area;
 }
 
 // CU tools
@@ -704,7 +704,7 @@ bool PU::xCheckSimilarMotion(const int mergeCandIndex, const int prevCnt, const 
 }
 
 
-bool PU::addMergeHMVPCand(const CodingStructure &cs, MergeCtx& mrgCtx, MotionHist& hist, bool canFastExit, const int& mrgCandIdx, const uint32_t maxNumMergeCandMin1, int &cnt, const int prevCnt, bool isAvailableSubPu, unsigned subPuMvpPos, bool ibcFlag, bool isGt4x4 )
+bool PU::addMergeHMVPCand(const CodingStructure &cs, MergeCtx& mrgCtx, MotionHist& hist, bool canFastExit, const int& mrgCandIdx, const uint32_t maxNumMergeCandMin1, int &cnt, const int prevCnt, bool isAvailableSubPu, unsigned subPuMvpPos, bool ibcFlag, bool isGt4x4, bool isInterB)
 {
   bool hasPruned[MRG_MAX_NUM_CANDS];
   memset(hasPruned, 0, MRG_MAX_NUM_CANDS * sizeof(bool));
@@ -721,7 +721,7 @@ bool PU::addMergeHMVPCand(const CodingStructure &cs, MergeCtx& mrgCtx, MotionHis
     mrgCtx.interDirNeighbours[cnt] = miNeighbor.interDir;
     mrgCtx.mvFieldNeighbours[cnt << 1].setMvField(miNeighbor.mv[0], miNeighbor.refIdx[0]);
     mrgCtx.useAltHpelIf[cnt] = !ibcFlag && miNeighbor.useAltHpelIf;
-    if (cs.slice->isInterB())
+    if (isInterB)
     {
       mrgCtx.mvFieldNeighbours[(cnt << 1) + 1].setMvField(miNeighbor.mv[1], miNeighbor.refIdx[1]);
     }
@@ -837,7 +837,7 @@ void PU::getIBCMergeCandidates(const PredictionUnit &pu, MergeCtx& mrgCtx, Motio
     bool isAvailableSubPu = false;
     unsigned subPuMvpPos = 0;
 
-    bool bFound = addMergeHMVPCand(cs, mrgCtx, hist, canFastExit, mrgCandIdx, maxNumMergeCandMin1, cnt, spatialCandPos, isAvailableSubPu, subPuMvpPos, true, isGt4x4 );
+    bool bFound = addMergeHMVPCand( cs, mrgCtx, hist, canFastExit, mrgCandIdx, maxNumMergeCandMin1, cnt, spatialCandPos, isAvailableSubPu, subPuMvpPos, true, isGt4x4, pu.slice->isInterB() );
     if( bFound )
     {
       return;
@@ -1185,7 +1185,7 @@ void PU::getInterMergeCandidates( const PredictionUnit &pu, MergeCtx& mrgCtx, Mo
   {
     bool isAvailableSubPu = false;
     unsigned subPuMvpPos = 0;
-    bool bFound = addMergeHMVPCand( cs, mrgCtx, hist, canFastExit, mrgCandIdx, maxNumMergeCandMin1, cnt, spatialCandPos, isAvailableSubPu, subPuMvpPos, CU::isIBC( pu ), true );
+    bool bFound = addMergeHMVPCand( cs, mrgCtx, hist, canFastExit, mrgCandIdx, maxNumMergeCandMin1, cnt, spatialCandPos, isAvailableSubPu, subPuMvpPos, CU::isIBC( pu ), true, pu.slice->isInterB() );
 
     if( bFound )
     {
@@ -1708,7 +1708,7 @@ void PU::fillMvpCand(PredictionUnit &pu, const RefPicList &eRefPicList, const in
   }
   if (pInfo->numCand < AMVP_MAX_NUM_CANDS)
   {
-    const int        currRefPOC = cs.slice->getRefPOC(eRefPicList, refIdx);
+    const int        currRefPOC = pu.slice->getRefPOC(eRefPicList, refIdx);
     const RefPicList eRefPicList2nd = (eRefPicList == REF_PIC_LIST_0) ? REF_PIC_LIST_1 : REF_PIC_LIST_0;
     addAMVPHMVPCand( pu, hist, eRefPicList, eRefPicList2nd, currRefPOC, *pInfo, pu.imv() );
   }
@@ -2218,7 +2218,7 @@ bool PU::isBipredRestriction( const PredictionUnit &pu )
 {
   const SizeType w = pu.lwidth(), h = pu.lheight();
   /* disable bi-prediction for 4x8/8x4 */
-  return ( w == 4 && h == 4 ) || ( w + h == 12 );
+  return ( w + h <= 12 );
 }
 
 void PU::getAffineControlPointCand( const PredictionUnit &pu, MotionInfo mi[4], bool isAvailable[4], int verIdx[4], int8_t bcwIdx, int modelIdx, int verNum, AffineMergeCtx& affMrgType )
@@ -2797,15 +2797,56 @@ void PU::setAllAffineMv( PredictionUnit& pu, Mv affLT, Mv affRT, Mv affLB, RefPi
 
   width  >>= MIN_CU_LOG2;
   height >>= MIN_CU_LOG2;
+  
+#if ENABLE_SIMD_OPT && defined( TARGET_SIMD_X86 )
+  __m128i xvbase = _mm_setr_epi32( mvScaleHor, mvScaleVer, mvScaleHor, mvScaleVer );
+  __m128i xvdvxy = _mm_setr_epi32( deltaMvVerX, deltaMvVerY, deltaMvVerX, deltaMvVerY );
+  __m128i xhdhxy = _mm_setr_epi32( deltaMvHorX, deltaMvHorY, deltaMvHorX, deltaMvHorY );
 
+#endif
   for( int h = 0; h < height; h++ )
   {
-    for( int w = 0; w < width; w++ )
+#if ENABLE_SIMD_OPT && defined( TARGET_SIMD_X86 )
+    __m128i
+    xvoff = _mm_set1_epi32 ( halfBH + ( h << MIN_CU_LOG2 ) );
+    xvoff = _mm_mullo_epi32( xvoff, xvdvxy );
+    xvoff = _mm_add_epi32  ( xvoff, xvbase );
+#endif
+    if( subblkMVSpreadOverLimit )
     {
-      MotionInfo &mi = mb.at( w, h );
-
-      if( !subblkMVSpreadOverLimit )
+      for( int w = 0; w < width; w++ )
       {
+        MotionInfo &mi = mb.at( w, h );
+        
+        mi.mv[eRefList] = flbMv;
+      }
+    }
+    else
+    {
+#if ENABLE_SIMD_OPT && defined( TARGET_SIMD_X86 )
+      for( int w = 0; w < width; w += 2 )
+      {
+        MotionInfo *mi = &mb.at( w, h );
+        
+        __m128i
+        xhoff = _mm_set1_epi32 ( 2 + ( w << MIN_CU_LOG2 ) );
+        xhoff = _mm_add_epi32  ( xhoff, _mm_setr_epi32( 0, 0, 1 << MIN_CU_LOG2, 1 << MIN_CU_LOG2 ) );
+        xhoff = _mm_mullo_epi32( xhoff, xhdhxy );
+        xhoff = _mm_add_epi32  ( xhoff, xvoff );
+        __m128i
+        xmv   = _mm_add_epi32  ( xhoff, _mm_set1_epi32( 1 << ( shift - 1 ) ) );
+        xmv   = _mm_add_epi32  ( xmv, _mm_cmpgt_epi32( xhoff, _mm_set1_epi32( -1 ) ) );
+        xmv   = _mm_srai_epi32 ( xmv, shift );
+        xmv   = _mm_max_epi32  ( _mm_set1_epi32( -( 1 << 17 ) ), _mm_min_epi32( _mm_set1_epi32( ( 1 << 17 ) - 1 ), xmv ) );
+
+        _mm_storel_epi64( ( __m128i* ) &mi[0].mv[eRefList], xmv );
+        _mm_storel_epi64( ( __m128i* ) &mi[1].mv[eRefList], _mm_unpackhi_epi64( xmv, _mm_setzero_si128() ) );
+      }
+#else
+      for( int w = 0; w < width; w++ )
+      {
+        MotionInfo &mi = mb.at( w, h );
+
         int mvHor = mvScaleHor + deltaMvHorX * ( 2 + ( w << MIN_CU_LOG2 ) ) + deltaMvVerX * ( halfBH + ( h << MIN_CU_LOG2 ) );
         int mvVer = mvScaleVer + deltaMvHorY * ( 2 + ( w << MIN_CU_LOG2 ) ) + deltaMvVerY * ( halfBH + ( h << MIN_CU_LOG2 ) );
 
@@ -2816,10 +2857,7 @@ void PU::setAllAffineMv( PredictionUnit& pu, Mv affLT, Mv affRT, Mv affLB, RefPi
 
         mi.mv[eRefList] = rndMv;
       }
-      else
-      {
-        mi.mv[eRefList] = flbMv;
-      }
+#endif
     }
   }
 
@@ -3395,20 +3433,17 @@ bool CU::hasSubCUNonZeroMVd( const CodingUnit& cu )
 
   const PredictionUnit &pu = cu;
 
-  if( !pu.mergeFlag()& !cu.skip() && !cu.affineFlag() )
+  if( pu.interDir() != 2 /* PRED_L1 */ )
   {
-    if( pu.interDir() != 2 /* PRED_L1 */ )
+    bNonZeroMvd |= pu.mv[REF_PIC_LIST_0][0].getHor() != 0;
+    bNonZeroMvd |= pu.mv[REF_PIC_LIST_0][0].getVer() != 0;
+  }
+  if( pu.interDir() != 1 /* PRED_L0 */ )
+  {
+    if( !pu.cs->picHeader->getMvdL1ZeroFlag() || pu.interDir() != 3 /* PRED_BI */ )
     {
-      bNonZeroMvd |= pu.mv[REF_PIC_LIST_0][0].getHor() != 0;
-      bNonZeroMvd |= pu.mv[REF_PIC_LIST_0][0].getVer() != 0;
-    }
-    if( pu.interDir() != 1 /* PRED_L0 */ )
-    {
-      if( !pu.cs->picHeader->getMvdL1ZeroFlag() || pu.interDir() != 3 /* PRED_BI */ )
-      {
-        bNonZeroMvd |= pu.mv[REF_PIC_LIST_1][0].getHor() != 0;
-        bNonZeroMvd |= pu.mv[REF_PIC_LIST_1][0].getVer() != 0;
-      }
+      bNonZeroMvd |= pu.mv[REF_PIC_LIST_1][0].getHor() != 0;
+      bNonZeroMvd |= pu.mv[REF_PIC_LIST_1][0].getVer() != 0;
     }
   }
 
@@ -3418,11 +3453,6 @@ bool CU::hasSubCUNonZeroMVd( const CodingUnit& cu )
 bool CU::hasSubCUNonZeroAffineMVd( const CodingUnit& cu )
 {
   bool nonZeroAffineMvd = false;
-
-  if ( !cu.affineFlag() || cu.mergeFlag() || cu.mergeFlag() || cu.skip() )
-  {
-    return false;
-  }
 
   const PredictionUnit &pu = cu;
 
@@ -3565,41 +3595,29 @@ bool CU::checkCCLMAllowed( const CodingUnit& cu )
   {
     allowCCLM = true;
   }
-  else if( cu.slice->getSPS()->getCTUSize() <= 32 ) //dual tree, CTUsize < 64
+  else if( cu.cs->sps->getCTUSize() <= 32 ) //dual tree, CTUsize < 64
   {
     allowCCLM = true;
   }
   else //dual tree, CTU size 64 or 128
   {
-    int depthFor64x64Node = cu.slice->getSPS()->getCTUSize() == 128 ? 1 : 0;
+    const int       depthFor64x64Node = cu.cs->sps->getCTUSize() == 128 ? 1 : 0;
     const PartSplit cuSplitTypeDepth1 = CU::getSplitAtDepth( cu, depthFor64x64Node );
     const PartSplit cuSplitTypeDepth2 = CU::getSplitAtDepth( cu, depthFor64x64Node + 1 );
 
     //allow CCLM if 64x64 chroma tree node uses QT split or HBT+VBT split combination
-    if( cuSplitTypeDepth1 == CU_QUAD_SPLIT || (cuSplitTypeDepth1 == CU_HORZ_SPLIT && cuSplitTypeDepth2 == CU_VERT_SPLIT) )
+    if( cuSplitTypeDepth1 == CU_QUAD_SPLIT || ( cuSplitTypeDepth1 == CU_HORZ_SPLIT && cuSplitTypeDepth2 == CU_VERT_SPLIT ) )
     {
-      if( cu.chromaFormat == CHROMA_420 )
-      {
-        CHECK( !(cu.blocks[COMPONENT_Cb].width <= 16 && cu.blocks[COMPONENT_Cb].height <= 16), "chroma cu size shall be <= 16x16 for YUV420 format" );
-      }
       allowCCLM = true;
     }
     //allow CCLM if 64x64 chroma tree node uses NS (No Split) and becomes a chroma CU containing 32x32 chroma blocks
     else if( cuSplitTypeDepth1 == CU_DONT_SPLIT )
     {
-      if( cu.chromaFormat == CHROMA_420 )
-      {
-        CHECK( !(cu.blocks[COMPONENT_Cb].width == 32 && cu.blocks[COMPONENT_Cb].height == 32), "chroma cu size shall be 32x32 for YUV420 format" );
-      }
       allowCCLM = true;
     }
     //allow CCLM if 64x32 chroma tree node uses NS and becomes a chroma CU containing 32x16 chroma blocks
     else if( cuSplitTypeDepth1 == CU_HORZ_SPLIT && cuSplitTypeDepth2 == CU_DONT_SPLIT )
     {
-      if( cu.chromaFormat == CHROMA_420 )
-      {
-        CHECK( !(cu.blocks[COMPONENT_Cb].width == 32 && cu.blocks[COMPONENT_Cb].height == 16), "chroma cu size shall be 32x16 for YUV420 format" );
-      }
       allowCCLM = true;
     }
 
@@ -3608,18 +3626,13 @@ bool CU::checkCCLMAllowed( const CodingUnit& cu )
     {
       //disallow CCLM if luma 64x64 block uses BT or TT or NS with ISP
       const Position lumaRefPos( cu.chromaPos().x << getComponentScaleX( COMPONENT_Cb, cu.chromaFormat ), cu.chromaPos().y << getComponentScaleY( COMPONENT_Cb, cu.chromaFormat ) );
-      const CodingUnit* colLumaCu = cu.cs->picture->cs->getCU( lumaRefPos, CHANNEL_TYPE_LUMA );
+      const CodingUnit* colLumaCu = cu.cs->getCU( lumaRefPos, CHANNEL_TYPE_LUMA );
 
-      if( colLumaCu->lwidth() < 64 || colLumaCu->lheight() < 64 ) //further split at 64x64 luma node
+      if( colLumaCu->depth > depthFor64x64Node && colLumaCu->qtDepth == depthFor64x64Node ) //further split at 64x64 luma node
       {
-        const PartSplit cuSplitTypeDepth1Luma = CU::getSplitAtDepth( *colLumaCu, depthFor64x64Node );
-        CHECK( !(cuSplitTypeDepth1Luma >= CU_QUAD_SPLIT && cuSplitTypeDepth1Luma <= CU_TRIV_SPLIT), "split mode shall be BT, TT or QT" );
-        if( cuSplitTypeDepth1Luma != CU_QUAD_SPLIT )
-        {
-          allowCCLM = false;
-        }
+        allowCCLM = false;
       }
-      else if( colLumaCu->lwidth() == 64 && colLumaCu->lheight() == 64 && colLumaCu->ispMode() ) //not split at 64x64 luma node and use ISP mode
+      else if( colLumaCu->depth == depthFor64x64Node && colLumaCu->ispMode() ) //not split at 64x64 luma node and use ISP mode
       {
         allowCCLM = false;
       }
@@ -3637,12 +3650,7 @@ bool CU::isBcwIdxCoded( const CodingUnit &cu )
     return false;
   }
 
-  if( cu.predMode() == MODE_IBC )
-  {
-    return false;
-  }
-
-  if( cu.predMode() == MODE_INTRA || cu.slice->isInterP() )
+  if( cu.predMode() == MODE_IBC || cu.predMode() == MODE_INTRA || cu.slice->isInterP() || cu.interDir() != 3 )
   {
     return false;
   }
@@ -3652,28 +3660,20 @@ bool CU::isBcwIdxCoded( const CodingUnit &cu )
     return false;
   }
 
-  if( !cu.mergeFlag() )
+  WPScalingParam *wp0;
+  WPScalingParam *wp1;
+  int refIdx0 = cu.refIdx[REF_PIC_LIST_0];
+  int refIdx1 = cu.refIdx[REF_PIC_LIST_1];
+
+  cu.slice->getWpScaling(REF_PIC_LIST_0, refIdx0, wp0);
+  cu.slice->getWpScaling(REF_PIC_LIST_1, refIdx1, wp1);
+
+  if ((wp0[COMPONENT_Y].bPresentFlag || wp0[COMPONENT_Cb].bPresentFlag || wp0[COMPONENT_Cr].bPresentFlag
+    || wp1[COMPONENT_Y].bPresentFlag || wp1[COMPONENT_Cb].bPresentFlag || wp1[COMPONENT_Cr].bPresentFlag))
   {
-    if( cu.interDir() == 3 )
-    {
-      WPScalingParam *wp0;
-      WPScalingParam *wp1;
-      int refIdx0 = cu.refIdx[REF_PIC_LIST_0];
-      int refIdx1 = cu.refIdx[REF_PIC_LIST_1];
-
-      cu.slice->getWpScaling(REF_PIC_LIST_0, refIdx0, wp0);
-      cu.slice->getWpScaling(REF_PIC_LIST_1, refIdx1, wp1);
-
-      if ((wp0[COMPONENT_Y].bPresentFlag || wp0[COMPONENT_Cb].bPresentFlag || wp0[COMPONENT_Cr].bPresentFlag
-        || wp1[COMPONENT_Y].bPresentFlag || wp1[COMPONENT_Cb].bPresentFlag || wp1[COMPONENT_Cr].bPresentFlag))
-      {
-        return false;
-      }
-      return true;
-    }
+    return false;
   }
-
-  return false;
+  return true;
 }
 
 void CU::setBcwIdx( CodingUnit &cu, uint8_t uh )
@@ -3704,14 +3704,14 @@ void CU::setBcwIdx( CodingUnit &cu, uint8_t uh )
 
 bool CU::bdpcmAllowed( const CodingUnit& cu, const ComponentID compID )
 {
-  SizeType transformSkipMaxSize = 1 << cu.cs->sps->getLog2MaxTransformSkipBlockSize();
+  const SizeType transformSkipMaxSize = 1 << cu.cs->sps->getLog2MaxTransformSkipBlockSize();
+  const Size&    blkSize              = cu.blocks[compID].size();
 
-  bool bdpcmAllowed = cu.cs->sps->getBDPCMEnabledFlag();
-    bdpcmAllowed &= CU::isIntra( cu );
-  if( isLuma(compID) )
-    bdpcmAllowed &= ( cu.lwidth() <= transformSkipMaxSize && cu.lheight() <= transformSkipMaxSize );
-  else
-    bdpcmAllowed &= ( cu.chromaSize().width <= transformSkipMaxSize && cu.chromaSize().height <= transformSkipMaxSize ) && !cu.colorTransform();
+  bool bdpcmAllowed = cu.cs->sps->getBDPCMEnabledFlag() &&
+                    ( isLuma( compID ) || !cu.colorTransform() ) &&
+                      blkSize.width <= transformSkipMaxSize &&
+                      blkSize.height <= transformSkipMaxSize;
+
   return bdpcmAllowed;
 }
 

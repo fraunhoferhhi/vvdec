@@ -41,7 +41,6 @@ vvc@hhi.fraunhofer.de
 ------------------------------------------------------------------------------------------- */
 
 #include <string>
-#include <thread>
 
 #ifdef _WIN32
     #include <intrin.h>
@@ -52,12 +51,12 @@ vvc@hhi.fraunhofer.de
 #endif
 
 #include "vvdecimpl.h"
-#include "../../../include/vvdec/vvdec.h"
-#include "../../../include/vvdec/version.h"
+#include "vvdec/vvdec.h"
+#include "vvdec/version.h"
 #include "DecoderLib/NALread.h"
 
 namespace vvdec {
-	
+  
 
 std::string VVDecImpl::m_cTmpErrorString;
 std::string VVDecImpl::m_cNalType;
@@ -79,13 +78,8 @@ int VVDecImpl::init( const VVDecParameter& rcVVDecParameter )
 
   initROM();
 
-  int iLogicalCpuCount = std::thread::hardware_concurrency();
-
-  int iNumThreads = (rcVVDecParameter.m_iThreads <= 0 )           ? iLogicalCpuCount : rcVVDecParameter.m_iThreads;
-  int iNumThreadsParse = (rcVVDecParameter.m_iParseThreads <= 0 ) ? iLogicalCpuCount : rcVVDecParameter.m_iParseThreads;
-
   // create decoder class
-  m_cDecLib.create( iNumThreads, iNumThreadsParse );
+  m_cDecLib.create( rcVVDecParameter.m_iThreads, rcVVDecParameter.m_iParseThreads );
 
   g_verbosity = MsgLevel( rcVVDecParameter.m_eLogLevel );
 
@@ -270,11 +264,15 @@ int VVDecImpl::decode( AccessUnit& rcAccessUnit, Frame** ppcFrame )
             nalUnit.push_back( rcAccessUnit.m_pucBuffer[pos]);
             uiNaluBytes++;
           }
+
+          InputBitstream& rBitstream = nalu.getBitstream();
           // perform anti-emulation prevention
-          if( 0 != xConvertPayloadToRBSP(nalUnit, (nalUnit[0] & 64) == 0) )
+          if( 0 != xConvertPayloadToRBSP(nalUnit, &rBitstream, (nalUnit[0] & 64) == 0) )
           {
             return VVDEC_ERR_UNSPECIFIED;
           }
+
+          rBitstream.resetToStart();
 
           if( 0 != xReadNalUnitHeader(nalu) )
           {
@@ -590,7 +588,7 @@ const char* VVDecImpl::getVersionNumber()
 
 const char* VVDecImpl::getDecoderInfo()
 {
-    m_sDecoderInfo  = "Open VVC Decoder ";
+    m_sDecoderInfo  = "Fraunhofer Versatile Video Decoder ";
 //     m_sDecoderInfo += "/";
     m_sDecoderInfo += " version ";
     m_sDecoderInfo += getVersionNumber();
@@ -631,7 +629,7 @@ NalType VVDecImpl::getNalUnitType ( AccessUnit& rcAccessUnit )
 
   if( found )
   {
-    iOffset=4;
+    iOffset=5;
   }
   else
   {
@@ -652,19 +650,15 @@ NalType VVDecImpl::getNalUnitType ( AccessUnit& rcAccessUnit )
 
     if( found )
     {
-      iOffset=3;
+      iOffset=4;
     }
   }
 
   if( found )
   {
     unsigned char uc = pcBuf[iOffset];
-
-    int zeroTidRequiredFlag = (uc>>7) & 0x1;
-    //uc >>= 1;
-    uint32_t nalUnitTypeLsb = uc & 0xf;
-    int type = (zeroTidRequiredFlag << 4) + nalUnitTypeLsb ;
-    eNalType = (NalType)type;
+    int nalUnitType   = ((uc >> 3) & 0x1F ); 
+    eNalType = (NalType)nalUnitType;
   }
 
   return eNalType;
@@ -1097,13 +1091,13 @@ int VVDecImpl::xRetrieveNalStartCode( unsigned char *pB, int iZerosInStartcode )
 }
 
 
-int VVDecImpl::xConvertPayloadToRBSP( std::vector<uint8_t>& nalUnitBuf,bool isVclNalUnit)
+int VVDecImpl::xConvertPayloadToRBSP( std::vector<uint8_t>& nalUnitBuf, InputBitstream *bitstream, bool isVclNalUnit)
 {
   uint32_t zeroCount = 0;
   std::vector<uint8_t>::iterator it_read, it_write;
 
   uint32_t pos = 0;
-  //bitstream->clearEmulationPreventionByteLocation();
+  bitstream->clearEmulationPreventionByteLocation();
   for (it_read = it_write = nalUnitBuf.begin(); it_read != nalUnitBuf.end(); it_read++, it_write++, pos++)
   {
     if(zeroCount >= 2 && *it_read < 0x03 )
@@ -1113,7 +1107,7 @@ int VVDecImpl::xConvertPayloadToRBSP( std::vector<uint8_t>& nalUnitBuf,bool isVc
     }
     if (zeroCount == 2 && *it_read == 0x03)
     {
-      //bitstream->pushEmulationPreventionByteLocation( pos );
+      bitstream->pushEmulationPreventionByteLocation( pos );
       pos++;
       it_read++;
       zeroCount = 0;

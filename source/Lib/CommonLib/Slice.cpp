@@ -437,7 +437,10 @@ Picture* Slice::xGetRefPic( const PicListRange & rcListPic, int poc, const int l
     return ( p->getPOC() == poc && p->layerId == layerId );
   } );
 
-  CHECK( it == end( rcListPic ), "POC not found in picList" );
+  if( it == end( rcListPic ) )
+  {
+    return nullptr;
+  }
   return *it;
 }
 
@@ -672,7 +675,8 @@ void Slice::checkRPL(const ReferencePictureList* pRPL0, const ReferencePictureLi
   int irapPOC = getAssociatedIRAPPOC();
   
 #if JVET_S0124_UNAVAILABLE_REFERENCE
-  const int numEntries[] = { pRPL0->getNumberOfShorttermPictures() + pRPL0->getNumberOfLongtermPictures() + pRPL0->getNumberOfInterLayerPictures(), pRPL1->getNumberOfShorttermPictures() + pRPL1->getNumberOfLongtermPictures() + pRPL1->getNumberOfInterLayerPictures() };
+  const int                   numEntries[]       = { pRPL0->getNumberOfShorttermPictures() + pRPL0->getNumberOfLongtermPictures() + pRPL0->getNumberOfInterLayerPictures(),
+                                                     pRPL1->getNumberOfShorttermPictures() + pRPL1->getNumberOfLongtermPictures() + pRPL1->getNumberOfInterLayerPictures() };
   const int numActiveEntries[] = { getNumRefIdx( REF_PIC_LIST_0 ), getNumRefIdx( REF_PIC_LIST_1 ) };
   const ReferencePictureList* rpl[] = { pRPL0, pRPL1 };
   const bool fieldSeqFlag = getSPS()->getFieldSeqFlag();
@@ -704,6 +708,11 @@ void Slice::checkRPL(const ReferencePictureList* pRPL0, const ReferencePictureLi
         }
         pcRefPic = xGetLongTermRefPic( rcListPic, ltrpPoc, rpl[refPicList]->getDeltaPocMSBPresentFlag( i ), m_pcPic->layerId );
         refPicPOC = pcRefPic->getPOC();
+      }
+      if( !pcRefPic )
+      {
+        // can't check decoding order for unavailable reference pictures
+        continue;
       }
       refPicDecodingOrderNumber = pcRefPic->getDecodingOrderNumber();
 
@@ -1211,11 +1220,9 @@ int Slice::checkThatAllRefPicsAreAvailable( const PicListRange& rcListPic, const
     return 0;   // Assume that all pic in the DPB will be flushed anyway so no need to check.
 
   *refPicIndex = 0;
-  
-  const int numberOfPictures = numActiveRefPics;
 
   // Check long term ref pics
-  for( int ii = 0; pRPL->getNumberOfLongtermPictures() > 0 && ii < numberOfPictures; ii++ )
+  for( int ii = 0; pRPL->getNumberOfLongtermPictures() > 0 && ii < numActiveRefPics; ii++ )
   {
     if( !pRPL->isRefPicLongterm( ii ) )
       continue;
@@ -1264,7 +1271,7 @@ int Slice::checkThatAllRefPicsAreAvailable( const PicListRange& rcListPic, const
   //report that a picture is lost if it is in the Reference Picture List but not in the DPB
 
   // Check short term ref pics
-  for( int ii = 0; ii < numberOfPictures; ii++ )
+  for( int ii = 0; ii < numActiveRefPics; ii++ )
   {
     if( pRPL->isRefPicLongterm( ii ) )
       continue;
@@ -1364,18 +1371,6 @@ void  Slice::initWpScaling(const SPS *sps)
       }
     }
   }
-}
-
-
-void Slice::startProcessingTimer()
-{
-  m_processingStartTime = std::chrono::steady_clock::now();
-}
-
-void Slice::stopProcessingTimer()
-{
-  auto endTime       = std::chrono::steady_clock::now();
-  m_dProcessingTime += std::chrono::duration<double>( endTime - m_processingStartTime ).count();
 }
 
 unsigned Slice::getMinPictureDistance() const
@@ -2052,16 +2047,6 @@ int ReferencePictureList::getPOC(int idx) const
   return m_POC[idx];
 }
 
-void ReferencePictureList::setNumberOfActivePictures(int numberActive)
-{
-  m_numberOfActivePictures = numberActive;
-}
-
-int ReferencePictureList::getNumberOfActivePictures() const
-{
-  return m_numberOfActivePictures;
-}
-
 void ReferencePictureList::printRefPicInfo() const
 {
   //DTRACE(g_trace_ctx, D_RPSINFO, "RefPics = { ");
@@ -2186,55 +2171,6 @@ void ScalingList::processDefaultMatrix(uint32_t scalingListId)
 bool ScalingList::isLumaScalingList( int scalingListId) const
 {
   return (scalingListId % MAX_NUM_COMPONENT == SCALING_LIST_1D_START_4x4 || scalingListId == SCALING_LIST_1D_START_64x64 + 1);
-}
-
-
-//! \}
-
-uint32_t PreCalcValues::getValIdx( const Slice &slice, const ChannelType chType ) const
-{
-  return slice.isIRAP() ? ( ISingleTree ? 0 : ( chType << 1 ) ) : 1;
-}
-
-uint32_t PreCalcValues::getMaxBtDepth( const Slice &slice, const ChannelType chType ) const
-{
-  if ( slice.getPicHeader()->getSplitConsOverrideFlag() )
-    return slice.getPicHeader()->getMaxMTTHierarchyDepth( slice.getSliceType(), ISingleTree ? CHANNEL_TYPE_LUMA : chType);
-  else
-  return maxBtDepth[getValIdx( slice, chType )];
-}
-
-uint32_t PreCalcValues::getMinBtSize( const Slice &slice, const ChannelType chType ) const
-{
-  return minBtSize[getValIdx( slice, chType )];
-}
-
-uint32_t PreCalcValues::getMaxBtSize( const Slice &slice, const ChannelType chType ) const
-{
-  if (slice.getPicHeader()->getSplitConsOverrideFlag())
-    return slice.getPicHeader()->getMaxBTSize( slice.getSliceType(), ISingleTree ? CHANNEL_TYPE_LUMA : chType);
-  else
-    return maxBtSize[getValIdx(slice, chType)];
-}
-
-uint32_t PreCalcValues::getMinTtSize( const Slice &slice, const ChannelType chType ) const
-{
-  return minTtSize[getValIdx( slice, chType )];
-}
-
-uint32_t PreCalcValues::getMaxTtSize( const Slice &slice, const ChannelType chType ) const
-{
-  if (slice.getPicHeader()->getSplitConsOverrideFlag())
-    return slice.getPicHeader()->getMaxTTSize( slice.getSliceType(), ISingleTree ? CHANNEL_TYPE_LUMA : chType);
-  else
-  return maxTtSize[getValIdx( slice, chType )];
-}
-uint32_t PreCalcValues::getMinQtSize( const Slice &slice, const ChannelType chType ) const
-{
-  if (slice.getPicHeader()->getSplitConsOverrideFlag())
-    return slice.getPicHeader()->getMinQTSize( slice.getSliceType(), ISingleTree ? CHANNEL_TYPE_LUMA : chType);
-  else
-  return minQtSize[getValIdx( slice, chType )];
 }
 
 void Slice::scaleRefPicList( PicHeader *picHeader, APS** apss, APS* lmcsAps, APS* scalingListAps, const bool isDecoder )
@@ -2437,28 +2373,18 @@ bool             operator == (const ConstraintInfo& op1, const ConstraintInfo& o
   if (op1.m_noPaletteConstraintFlag                      != op2.m_noPaletteConstraintFlag                        ) return false;
   if (op1.m_noActConstraintFlag                          != op2.m_noActConstraintFlag                            ) return false;
   if (op1.m_noLmcsConstraintFlag                         != op2.m_noLmcsConstraintFlag                           ) return false;
-#if JVET_S0050_GCI
   if (op1.m_noExplicitScaleListConstraintFlag            != op2.m_noExplicitScaleListConstraintFlag              ) return false;
   if (op1.m_noVirtualBoundaryConstraintFlag              != op2.m_noVirtualBoundaryConstraintFlag                ) return false;
-#endif
-#if JVET_R0341_GCI
   if (op1.m_noChromaQpOffsetConstraintFlag               != op2.m_noChromaQpOffsetConstraintFlag                 ) return false;
-#endif
-#if JVET_Q0114_ASPECT5_GCI_FLAG
   if (op1.m_noRprConstraintFlag                          != op2.m_noRprConstraintFlag                            ) return false;
   if (op1.m_noResChangeInClvsConstraintFlag              != op2.m_noResChangeInClvsConstraintFlag                ) return false;
-#endif
-#if JVET_S0058_GCI
   if (op1.m_noMttConstraintFlag                          != op2.m_noMttConstraintFlag                            ) return false;
-#endif
   if( op1.m_noQtbttDualTreeIntraConstraintFlag           != op2.m_noQtbttDualTreeIntraConstraintFlag             ) return false;
   if( op1.m_noPartitionConstraintsOverrideConstraintFlag != op2.m_noPartitionConstraintsOverrideConstraintFlag   ) return false;
   if( op1.m_noSaoConstraintFlag                          != op2.m_noSaoConstraintFlag                            ) return false;
   if( op1.m_noAlfConstraintFlag                          != op2.m_noAlfConstraintFlag                            ) return false;
   if( op1.m_noCCAlfConstraintFlag                        != op2.m_noCCAlfConstraintFlag                          ) return false;
-#if JVET_S0058_GCI
   if (op1.m_noWeightedPredictionConstraintFlag           != op2.m_noWeightedPredictionConstraintFlag             ) return false;
-#endif
   if( op1.m_noRefWraparoundConstraintFlag                != op2.m_noRefWraparoundConstraintFlag                  ) return false;
   if( op1.m_noTemporalMvpConstraintFlag                  != op2.m_noTemporalMvpConstraintFlag                    ) return false;
   if( op1.m_noSbtmvpConstraintFlag                       != op2.m_noSbtmvpConstraintFlag                         ) return false;

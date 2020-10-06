@@ -293,10 +293,10 @@ unsigned BinDecoder::decodeBin( unsigned ctxId )
 {
   BinProbModel& rcProbModel = m_Ctx[ctxId];
 
-  register unsigned bin, LPS;
-  register uint32_t Range      = m_Range;
-  register uint32_t Value      = m_Value;
-  register int32_t  bitsNeeded = m_bitsNeeded;
+  unsigned bin, LPS;
+  uint32_t Range      = m_Range;
+  uint32_t Value      = m_Value;
+  int32_t  bitsNeeded = m_bitsNeeded;
 
   rcProbModel.lpsmps( Range, LPS, bin );
 

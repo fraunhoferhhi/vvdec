@@ -71,12 +71,11 @@ vvc@hhi.fraunhofer.de
 #define JVET_O1170_CHECK_BV_AT_DECODER                    0 // For decoder to check if a BV is valid or not
 
 #define DISABLE_CONFROMANCE_CHECK                         1
+#define DISABLE_CHECK_NO_OUTPUT_PRIOR_PICS_FLAG           0
 
 #define TBD                                               1
 #define TBT                                               1
 #define TBC                                               0
-
-#define DISABLE_CHECK_NO_OUTPUT_PRIOR_PICS_FLAG           1
 
 #define JVET_O1143_SUBPIC_BOUNDARY                        TBT //to be tested // treat subpicture boundary as picture boundary
 #if JVET_O1143_SUBPIC_BOUNDARY
@@ -94,11 +93,8 @@ vvc@hhi.fraunhofer.de
 #define JVET_Q0438_MONOCHROME_BUGFIXES                    TBT //to be tested with 4:0:0 // JVET-Q0438: Monochrome bug fixes
 #define JVET_Q0818_PT_SEI                                 TBT //to be tested // JVET-Q0818: add display_elemental_periods_minus1 to picture timing SEI message
 #define JVET_Q0814_DPB                                    TBT //to be tested // JVET-Q0814: DPB capacity is based on picture units regardless of the resoltuion
-#define JVET_Q0114_ASPECT5_GCI_FLAG                       TBT //to be tested // JVET-Q0114 Aspect 5: Add a general constraint on no reference picture resampling
 
 #define JVET_R0058                                        TBT //to be tested // JVET-R0058: the combination of RPR, subpictures, and scalability
-#define JVET_R0162_WRAPAROUND_OFFSET_SIGNALING            TBT //to be tested // JVET-R0162 proposal 1 : signal "picture width minus wraparound offset" instead of "wraparound offset"
-#define JVET_R0188                                        TBT // JVET-R0188: Signalling slice_width_in_tiles_minus1[i] and slice_height_in_tiles_minus1[i]
 #define JVET_R0203_IRAP_LEADING_CONSTRAINT                TBT //to be tested // JVET-R0203: Constraint that IRAP NAL unit type cannot be mixed with RASL_NUT / RADL_NUT
 #define JVET_Q0764_WRAP_AROUND_WITH_RPR                   TBT // JVET-Q0764: Combination of wrap around offset and RPR
 #define JVET_R0483_SH_TSRC_DISABLED_FLAG_CLEANUP          TBT //to be tested // JVET-R0483 Comb 4: R0049 + R0271, only R0049 method 3 aspect (Skip signaling sh_ts_residual_coding_disabled_flag when sps_transform_skip_enabled_flag = 0, also proposed in R0068, R0097, R0142, R0153) as R0271 has its own macro
@@ -112,8 +108,6 @@ vvc@hhi.fraunhofer.de
 #define JVET_R0350_MIP_CHROMA_444_SINGLETREE              TBT //to be tested // JVET-R0350: MIP for chroma in case of 4:4:4 format and single tree
 #define JVET_R0294_SUBPIC_HASH                            TBT //to be tested // JVET-R0294: Allow decoded picture hash SEI messages to be nested in subpicture context
 
-#define JVET_S0058_GCI                                    TBT //to be tested // no_mtt_constraint_flag and no_weightedpred_constraint_flag
-#define JVET_R0341_GCI                                    TBT //to be tested // JVET-R0341: on constraint flag for local chroma QP control
 #define JVET_R0270                                        TBC // JVET-S0270: Treating picture with mixed RASL and RADL slices as RASL picture
 #define JVET_S0258_SUBPIC_CONSTRAINTS                     TBT //to be tested // JVET-S0258: sub-picture constraints
 #define JVET_S0234_ACT_CRS_FIX                            TBT //to be tested // JVET-S0234: perform chroma residual scaling in RGB domain when ACT is on
@@ -134,18 +128,9 @@ vvc@hhi.fraunhofer.de
 #define JVET_S0178_GENERAL_SEI_CHECK                      TBT //to be tested // JVET-S0178: General SEI semantics and constraints
 #define JVET_S0176_SLI_SEI                                TBT //to be tested // JVET-S0176: On the subpicture level information SEI message
 #define JVET_S0181_PROPOSAL2_BUFFERING_PERIOD_CLEANUP     TBT //to be tested // JVET-S0181 Proposal2: Move signalling of bp_max_sublayers_minus1 and conditionally signal bp_cpb_removal_delay_deltas_present_flag, bp_num_cpb_removal_delay_deltas_minus1, and bp_cpb_removal_delay
-#define JVET_S0050_GCI                                    TBT //to be tested // JVET-S0050: Signal new GCI flags no_virtual_boundaries_constraint_flag and no_explicit_scaling_list_constraint_flag
-                                                                   //             Constrain the value of one_subpic_per_pic_constraint_flag, one_slice_per_pic_constraint_flag and no_aps_constraint_flag
-                                                                   //             Remove all constraints that require GCI fields to be equal to a value that imposes a constraint
 #define JVET_S0138_GCI_PTL                                TBT //to be tested // JVET-S_Notes_d9: move frame_only_constraint_flag and single_layer_constraint_flag into PTL for easy access
-#define JVET_S0113_S0195_GCI                              TBT //to be tested // JVET-S0113: no_rectangular_slice_constraint_flag to constrain pps_rect_slice_flag
-                                                            //             one_slice_per_subpicture_constraint_flag to constrain pps_single_slice_per_subpic_flag
-                                                            // JVET-S0195: replace one_subpic_per_pic_constraint_flag with no_subpic_info_constraint_flag and its semantics
-                                                            //             add no_idr_rpl_constraint_flag
-#define JVET_S0182_RPL_SIGNALLING                         TBT //to be tested // JVET-S0182: modifications to rpl information signalling
 #define JVET_S0185_PROPOSAl1_PICTURE_TIMING_CLEANUP       TBT //to be tested // JVET-S0185: Proposal 1, put syntax element pt_cpb_removal_delay_minus1[] first, followed by similar information for sub-layers, followed by pt_dpb_output_delay
 #define JVET_S0183_VPS_INFORMATION_SIGNALLING             TBT //to be tested // JVET-S0183: Proposal 1, signal vps_num_output_layer_sets_minus1 as vps_num_output_layer_sets_minus2
-#define JVET_S0105_GCI_REORDER_IN_CATEGORY                TBT //to be tested // JVET-S0105: reorder and categorize GCI flags (assumes the following macros set to 1: JVET_S0050_GCI, JVET_S0113_S0195_GCI, JVET_S0066_GCI, JVET_S0138_GCI_PTL, JVET_S0058_GCI, JVET_R0341_GCI, JVET_Q0114_ASPECT5_GCI_FLAG)
 
 // ====================================================================================================================
 // NEXT software switches
@@ -492,13 +477,6 @@ enum CoeffScanGroupType
   SCAN_UNGROUPED   = 0,
   SCAN_GROUPED_4x4 = 1,
   SCAN_NUMBER_OF_GROUP_TYPES = 2
-};
-
-enum ScalingListMode
-{
-  SCALING_LIST_OFF,
-  SCALING_LIST_DEFAULT,
-  SCALING_LIST_FILE_READ
 };
 
 enum ScalingListSize

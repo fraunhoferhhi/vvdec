@@ -175,10 +175,7 @@ Picture* DecLib::decode( InputNALUnit& nalu, int* pSkipFrame )
 {
   PROFILER_SCOPE_AND_STAGE( 1, g_timeProfiler, P_NALU_SLICE_PIC_HL );
   Picture * pcParsedPic = nullptr;
-  if( ( m_iMaxTemporalLayer >= 0 && nalu.m_temporalId > m_iMaxTemporalLayer )
-//      || !isNaluWithinTargetDecLayerIdSet( &nalu )
-//      || !isNaluTheTargetLayer( &nalu )
-      )
+  if( m_iMaxTemporalLayer >= 0 && nalu.m_temporalId > m_iMaxTemporalLayer )
   {
     pcParsedPic = nullptr;
   }
@@ -196,10 +193,11 @@ Picture* DecLib::decode( InputNALUnit& nalu, int* pSkipFrame )
     this->decompressPicture( pcParsedPic );
   }
 
-  if( pcParsedPic
-      || nalu.m_nalUnitType == NAL_UNIT_EOS
-      || ( nalu.m_nalUnitType >= NAL_UNIT_CODED_SLICE_TRAIL && nalu.m_nalUnitType <= NAL_UNIT_RESERVED_IRAP_VCL_12 )
-      || ( nalu.m_nalUnitType >= NAL_UNIT_CODED_SLICE_IDR_W_RADL && nalu.m_nalUnitType <= NAL_UNIT_CODED_SLICE_GDR ) )
+  if(      pcParsedPic
+      ||   nalu.m_nalUnitType == NAL_UNIT_EOS
+      || ( nalu.m_nalUnitType >= NAL_UNIT_CODED_SLICE_TRAIL      && nalu.m_nalUnitType <= NAL_UNIT_RESERVED_IRAP_VCL_12 )
+      || ( nalu.m_nalUnitType >= NAL_UNIT_CODED_SLICE_IDR_W_RADL && nalu.m_nalUnitType <= NAL_UNIT_CODED_SLICE_GDR )
+    )
   {
     Picture* outPic = getNextOutputPic( false );
     CHECK_WARN( m_checkMissingOutput && !outPic, "missing output picture" ); // we don't need this CHECK in flushPic(), because flushPic() is usually only called until the first nullptr is returned
@@ -257,7 +255,8 @@ int DecLib::finishPicture( Picture* pcPic, MsgLevel msgl )
   // increment Framecounter
   __itt_counter_inc( itt_frame_counter );
 #endif
-  Slice*  pcSlice = pcPic->cs->slice;
+
+  Slice*  pcSlice = pcPic->slices[0];
   if( pcPic->wasLost )
   {
     msg( msgl, "POC %4d TId: %1d LOST\n", pcPic->poc, pcSlice->getTLayer() );
@@ -267,18 +266,18 @@ int DecLib::finishPicture( Picture* pcPic, MsgLevel msgl )
 
   ITT_TASKSTART( itt_domain_oth, itt_handle_finish );
 
-  char c = (pcSlice->isIntra() ? 'I' : pcSlice->isInterP() ? 'P' : 'B');
+  char c = ( pcSlice->isIntra() ? 'I' : pcSlice->isInterP() ? 'P' : 'B' );
   if( !pcPic->referenced )
   {
     c += 32;  // tolower
   }
 
   //-- For time output for each slice
-  msg( msgl, "POC %4d LId: %2d TId: %1d ( %c-SLICE, QP%3d ) ", pcSlice->getPOC(), pcSlice->getPic()->layerId,
+  msg( msgl, "POC %4d LId: %2d TId: %1d ( %c-SLICE, QP%3d ) ", pcPic->poc, pcPic->layerId,
          pcSlice->getTLayer(),
          c,
          pcSlice->getSliceQp() );
-  msg( msgl, "[DT %6.3f] ", pcSlice->getProcessingTime() );
+  msg( msgl, "[DT %6.3f] ", pcPic->getProcessingTime() );
 
   for (int iRefList = 0; iRefList < 2; iRefList++)
   {
@@ -356,7 +355,7 @@ void DecLib::checkPictureHashSEI( Picture* pcPic )
     msg( WARNING, "Warning: Got multiple decoded picture hash SEI messages. Using first." );
   }
   msg( INFO, "         " );
-  m_numberOfChecksumErrorsDetected += calcAndPrintHashStatus( pcPic->getRecoBuf(), hash, pcPic->cs->slice->getSPS()->getBitDepths(), INFO );
+  m_numberOfChecksumErrorsDetected += calcAndPrintHashStatus( pcPic->getRecoBuf(), hash, pcPic->cs->sps->getBitDepths(), INFO );
   msg( INFO, "\n" );
 }
 
@@ -365,15 +364,6 @@ Picture* DecLib::getNextOutputPic( bool bFlush )
   if( bFlush )
   {
     // wait for last pictures in bitstream
-#if 0
-    DecLibRecon* dec = &m_decLibRecon.front();
-    move_to_end( m_decLibRecon.begin(), m_decLibRecon );
-
-    if( Picture* donePic = dec->waitForPrevDecompressedPic() )
-    {
-      finishPicture( donePic );
-    }
-#else
     for( auto & dec: m_decLibRecon )
     {
       Picture* donePic = dec.waitForPrevDecompressedPic();
@@ -382,7 +372,6 @@ Picture* DecLib::getNextOutputPic( bool bFlush )
         finishPicture( donePic );
       }
     }
-#endif
   }
   if( m_picListManager.getFrontPic() == nullptr )
   {
@@ -459,28 +448,28 @@ void DecLib::checkNalUnitConstraints( uint32_t naluType )
 
 void DecLib::xCheckNalUnitConstraintFlags( const ConstraintInfo *cInfo, uint32_t naluType )
 {
-  if (cInfo != NULL)
+  if( cInfo != NULL )
   {
-    CHECK(cInfo->getNoTrailConstraintFlag() && naluType == NAL_UNIT_CODED_SLICE_TRAIL,
-      "Non-conforming bitstream. no_trail_constraint_flag is equal to 1 but bitstream contains NAL unit of type TRAIL_NUT.");
-    CHECK(cInfo->getNoStsaConstraintFlag() && naluType == NAL_UNIT_CODED_SLICE_STSA,
-      "Non-conforming bitstream. no_stsa_constraint_flag is equal to 1 but bitstream contains NAL unit of type STSA_NUT.");
-    CHECK(cInfo->getNoRaslConstraintFlag() && naluType == NAL_UNIT_CODED_SLICE_RASL,
-      "Non-conforming bitstream. no_rasl_constraint_flag is equal to 1 but bitstream contains NAL unit of type RASL_NUT.");
-    CHECK(cInfo->getNoRadlConstraintFlag() && naluType == NAL_UNIT_CODED_SLICE_RADL,
-      "Non-conforming bitstream. no_radl_constraint_flag is equal to 1 but bitstream contains NAL unit of type RADL_NUT.");
-    CHECK(cInfo->getNoIdrConstraintFlag() && (naluType == NAL_UNIT_CODED_SLICE_IDR_W_RADL),
-      "Non-conforming bitstream. no_idr_constraint_flag is equal to 1 but bitstream contains NAL unit of type IDR_W_RADL.");
-    CHECK(cInfo->getNoIdrConstraintFlag() && (naluType == NAL_UNIT_CODED_SLICE_IDR_N_LP),
-      "Non-conforming bitstream. no_idr_constraint_flag is equal to 1 but bitstream contains NAL unit of type IDR_N_LP.");
-    CHECK(cInfo->getNoCraConstraintFlag() && naluType == NAL_UNIT_CODED_SLICE_CRA,
-      "Non-conforming bitstream. no_cra_constraint_flag is equal to 1 but bitstream contains NAL unit of type CRA_NUT.");
-    CHECK(cInfo->getNoGdrConstraintFlag() && naluType == NAL_UNIT_CODED_SLICE_GDR,
-      "Non-conforming bitstream. no_gdr_constraint_flag is equal to 1 but bitstream contains NAL unit of type GDR_NUT.");
-    CHECK(cInfo->getNoApsConstraintFlag() && naluType == NAL_UNIT_PREFIX_APS,
-      "Non-conforming bitstream. no_aps_constraint_flag is equal to 1 but bitstream contains NAL unit of type APS_PREFIX_NUT.");
-    CHECK(cInfo->getNoApsConstraintFlag() && naluType == NAL_UNIT_SUFFIX_APS,
-      "Non-conforming bitstream. no_aps_constraint_flag is equal to 1 but bitstream contains NAL unit of type APS_SUFFIX_NUT.");
+    CHECK( cInfo->getNoTrailConstraintFlag() && naluType == NAL_UNIT_CODED_SLICE_TRAIL,
+           "Non-conforming bitstream. no_trail_constraint_flag is equal to 1 but bitstream contains NAL unit of type TRAIL_NUT." );
+    CHECK( cInfo->getNoStsaConstraintFlag()  && naluType == NAL_UNIT_CODED_SLICE_STSA,
+           "Non-conforming bitstream. no_stsa_constraint_flag is equal to 1 but bitstream contains NAL unit of type STSA_NUT." );
+    CHECK( cInfo->getNoRaslConstraintFlag()  && naluType == NAL_UNIT_CODED_SLICE_RASL,
+           "Non-conforming bitstream. no_rasl_constraint_flag is equal to 1 but bitstream contains NAL unit of type RASL_NUT." );
+    CHECK( cInfo->getNoRadlConstraintFlag()  && naluType == NAL_UNIT_CODED_SLICE_RADL,
+           "Non-conforming bitstream. no_radl_constraint_flag is equal to 1 but bitstream contains NAL unit of type RADL_NUT." );
+    CHECK( cInfo->getNoIdrConstraintFlag()   && naluType == NAL_UNIT_CODED_SLICE_IDR_W_RADL,
+           "Non-conforming bitstream. no_idr_constraint_flag is equal to 1 but bitstream contains NAL unit of type IDR_W_RADL." );
+    CHECK( cInfo->getNoIdrConstraintFlag()   && naluType == NAL_UNIT_CODED_SLICE_IDR_N_LP,
+           "Non-conforming bitstream. no_idr_constraint_flag is equal to 1 but bitstream contains NAL unit of type IDR_N_LP." );
+    CHECK( cInfo->getNoCraConstraintFlag()   && naluType == NAL_UNIT_CODED_SLICE_CRA,
+           "Non-conforming bitstream. no_cra_constraint_flag is equal to 1 but bitstream contains NAL unit of type CRA_NUT." );
+    CHECK( cInfo->getNoGdrConstraintFlag()   && naluType == NAL_UNIT_CODED_SLICE_GDR,
+           "Non-conforming bitstream. no_gdr_constraint_flag is equal to 1 but bitstream contains NAL unit of type GDR_NUT." );
+    CHECK( cInfo->getNoApsConstraintFlag()   && naluType == NAL_UNIT_PREFIX_APS,
+           "Non-conforming bitstream. no_aps_constraint_flag is equal to 1 but bitstream contains NAL unit of type APS_PREFIX_NUT." );
+    CHECK( cInfo->getNoApsConstraintFlag()   && naluType == NAL_UNIT_SUFFIX_APS,
+           "Non-conforming bitstream. no_aps_constraint_flag is equal to 1 but bitstream contains NAL unit of type APS_SUFFIX_NUT." );
   }
 }
 

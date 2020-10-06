@@ -142,6 +142,8 @@ public:
   TreeType treeType;
   ModeType modeType;
 
+  const Slice* slice;
+
   const PartLevel& currPartLevel          () const { return m_partStack.back(); }
   const UnitArea&  currArea               () const { return currPartLevel().parts[currPartIdx()]; }
         unsigned   currPartIdx            () const { return currPartLevel().idx; }
@@ -151,7 +153,7 @@ public:
 
   SplitSeries getSplitSeries              () const;
 
-  void initCtu                            ( const UnitArea& ctuArea, const ChannelType _chType, const CodingStructure& cs );
+  void initCtu                            ( const UnitArea& ctuArea, const ChannelType _chType, const CodingStructure& cs, const Slice& slice );
   void splitCurrArea                      ( const PartSplit split, const CodingStructure &cs );
   void exitCurrSplit                      ( const CodingStructure& cs );
   bool nextPart                           ( const CodingStructure &cs, bool autoPop = false );
@@ -173,7 +175,7 @@ namespace PartitionerImpl
 {
   void getCUSubPartitions     ( const UnitArea &area, const CodingStructure &cs, const PartSplit splitType, Partitioning& dst );
   void getMaxTuTiling         ( const UnitArea &area, const CodingStructure &cs,                            Partitioning& dst );
-  void getTUIntraSubPartitions( const UnitArea &area, const CodingStructure &cs, const PartSplit splitType, Partitioning &sub, const TreeType treeType );
+  void getTUIntraSubPartitions( const UnitArea &area, const CodingStructure &cs, const bool isDualITree,    const PartSplit splitType, Partitioning &sub, const TreeType treeType );
   void getSbtTuTiling         ( const UnitArea &area, const CodingStructure &cs, const PartSplit splitType, Partitioning& dst );
 };
 
