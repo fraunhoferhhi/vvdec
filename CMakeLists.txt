@@ -13,6 +13,10 @@ endif()
 project( vvdec VERSION 0.1.2.0 )
 
 if( NOT CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR )
+  # enable sse4.1 build for all source files for gcc and clang
+  if( UNIX OR MINGW )
+    add_compile_options( "-msse4.1" )
+  endif()
   # vvdec embedded by superproject, always include source/Lib/vvdec  as first component
   list( PREPEND ${PROJECT_NAME}_ADD_SUBDIRECTORIES "source/Lib/vvdec" )
   list( REMOVE_DUPLICATES ${PROJECT_NAME}_ADD_SUBDIRECTORIES )
