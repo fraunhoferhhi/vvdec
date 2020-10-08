@@ -46,7 +46,7 @@ vvc@hhi.fraunhofer.de
 // pick up top level version information.
 #include "vvdec/version.h"
 
-#define VS_FILE_VERSION     VVCDEC_VS_VERSION
-#define VS_FILE_VERSION_STR VVCDEC_VS_VERSION_STR
+#define VS_FILE_VERSION     VVDEC_VS_VERSION
+#define VS_FILE_VERSION_STR VVDEC_VS_VERSION_STR
 
 #endif
