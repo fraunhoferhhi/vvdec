@@ -1499,22 +1499,22 @@ void InterPrediction::motionCompensationGeo( PredictionUnit &pu, PelUnitBuf &pre
   const UnitArea localUnitArea( pu.cs->area.chromaFormat, Area( 0, 0, pu.lwidth(), pu.lheight() ) );
   PelUnitBuf tmpGeoBuf0 = m_geoPartBuf.getBuf( localUnitArea );
 
-  uint8_t locInterDir = pu.interDirrefIdxGeo0() >> 2;
+  uint8_t locInterDir = pu.interDirrefIdxGeo0() >> 4;
   CHECKD( !( locInterDir == 1 || locInterDir == 2 ), "Should not happen" );
   pu.mv  [REF_PIC_LIST_0][0] = locInterDir == 1 ? pu.mv[0][1] : Mv();
   pu.mv  [REF_PIC_LIST_1][0] = locInterDir == 1 ? Mv() : pu.mv[0][1];
-  pu.refIdx [REF_PIC_LIST_0] = locInterDir == 1 ? pu.interDirrefIdxGeo0() & 3 : -1;
-  pu.refIdx [REF_PIC_LIST_1] = locInterDir == 1 ? -1 : pu.interDirrefIdxGeo0() & 3;
+  pu.refIdx [REF_PIC_LIST_0] = locInterDir == 1 ? pu.interDirrefIdxGeo0() & 15 : -1;
+  pu.refIdx [REF_PIC_LIST_1] = locInterDir == 1 ? -1 : pu.interDirrefIdxGeo0() & 15;
   pu.mvpIdx [REF_PIC_LIST_0] = NOT_VALID;
   pu.mvpIdx [REF_PIC_LIST_1] = NOT_VALID;
   motionCompensation( pu, tmpGeoBuf0, true, isChromaEnabled( pu.chromaFormat ) );
     
-  locInterDir = pu.interDirrefIdxGeo1() >> 2;
+  locInterDir = pu.interDirrefIdxGeo1() >> 4;
   CHECKD( !( locInterDir == 1 || locInterDir == 2 ), "Should not happen" );
   pu.mv  [REF_PIC_LIST_0][0] = locInterDir == 1 ? pu.mv[1][1] : Mv();
   pu.mv  [REF_PIC_LIST_1][0] = locInterDir == 1 ? Mv() : pu.mv[1][1];
-  pu.refIdx [REF_PIC_LIST_0] = locInterDir == 1 ? pu.interDirrefIdxGeo1() & 3 : -1;
-  pu.refIdx [REF_PIC_LIST_1] = locInterDir == 1 ? -1 : pu.interDirrefIdxGeo1() & 3;
+  pu.refIdx [REF_PIC_LIST_0] = locInterDir == 1 ? pu.interDirrefIdxGeo1() & 15 : -1;
+  pu.refIdx [REF_PIC_LIST_1] = locInterDir == 1 ? -1 : pu.interDirrefIdxGeo1() & 15;
   pu.mvpIdx [REF_PIC_LIST_0] = NOT_VALID;
   pu.mvpIdx [REF_PIC_LIST_1] = NOT_VALID;
   motionCompensation( pu, predBuf, true, isChromaEnabled( pu.chromaFormat ) );

@@ -329,7 +329,7 @@ struct CodingUnit : public UnitArea
 
   SplitSeries       splitSeries;
 
-  int8_t            flags1;
+  int16_t           flags1;
   uint8_t           geoSplitDir;
   uint8_t           mmvdIdx;
   
@@ -385,9 +385,9 @@ struct CodingUnit : public UnitArea
   int               smvdMode()               const         { return int        ( ( flags0 >> 24 ) &  3 ); }
   int               BcwIdx()                 const         { return int        ( ( flags0 >> 26 ) &  7 ); }
                     
-  int               interDirrefIdxGeo0()     const         { return int        ( ( flags1 >>  0 ) & 15 ); }
-  int               interDirrefIdxGeo1()     const         { return int        ( ( flags1 >>  4 ) & 15 ); }
-                    
+  int               interDirrefIdxGeo0()     const         { return int        ( ( flags1 >>  0 ) & 255 ); }
+  int               interDirrefIdxGeo1()     const         { return int        ( ( flags1 >>  8 ) & 255 ); }
+
   void              setDmvrCondition( bool b )             { flags0 = ( flags0 & ~(  1 <<  0 ) ) | ( b  <<  0 ); }
   void              setMipTransposedFlag( bool b )         { flags0 = ( flags0 & ~(  1 <<  1 ) ) | ( b  <<  1 ); }
   void              setCiipFlag( bool b )                  { flags0 = ( flags0 & ~(  1 <<  2 ) ) | ( b  <<  2 ); }
@@ -407,9 +407,9 @@ struct CodingUnit : public UnitArea
   void              setSmvdMode( int id )                  { flags0 = ( flags0 & ~(  3 << 24 ) ) | ( id << 24 ); CHECKD( id >=  4, "SMVD mode needs to be smaller than '4'!"); }
   void              setBcwIdx( int id )                    { flags0 = ( flags0 & ~(  7 << 26 ) ) | ( id << 26 ); CHECKD( id >=  5, "BCW idx needs to be smaller than '5'!"); }
                     
-  void              setInterDirrefIdxGeo0( int id )        { flags1 = ( flags1 & ~( 15 <<  0 ) ) | ( id <<  0 ); CHECKD( id >= 16, "Inter dir needs to be smaller than '16'!"); }
-  void              setInterDirrefIdxGeo1( int id )        { flags1 = ( flags1 & ~( 15 <<  4 ) ) | ( id <<  4 ); CHECKD( id >= 16, "Inter dir needs to be smaller than '16'!"); }
-  
+  void              setInterDirrefIdxGeo0( int id )        { flags1 = ( flags1 & ~( 255 <<  0 ) ) | ( id <<  0 ); CHECKD( id >= 256, "Inter dir needs to be smaller than '256'!"); }
+  void              setInterDirrefIdxGeo1( int id )        { flags1 = ( flags1 & ~( 255 <<  8 ) ) | ( id <<  8 ); CHECKD( id >= 256, "Inter dir needs to be smaller than '256'!"); }
+
   CodingUnit() : flags2( 0 ), flags0( 0 ), flags1( 0 ) { }
 
   CodingUnit& operator=(const MotionInfo& mi);
