@@ -514,7 +514,7 @@ void Slice::constructRefPicLists( const PicListRange& rcListPic )
   constructSingleRefPicList( rcListPic, REF_PIC_LIST_1, *m_pRPL1, m_localRPL1 );
 }
 
-void Slice::constructSingleRefPicList(const PicListRange& rcListPic, RefPicList listId, const ReferencePictureList& pRPL, const ReferencePictureList& pLocalRPL )
+void Slice::constructSingleRefPicList(const PicListRange& rcListPic, RefPicList listId, const ReferencePictureList& pRPL, ReferencePictureList& pLocalRPL )
 {
   uint32_t numOfActiveRef = getNumRefIdx( listId );
   for( int ii = 0; ii < numOfActiveRef; ii++ )
@@ -533,7 +533,8 @@ void Slice::constructSingleRefPicList(const PicListRange& rcListPic, RefPicList 
       int ltrpPoc = pRPL.getRefPicIdentifier( ii ) & pocMask;                                                                 // TODO: really mix of m_RPL0 and m_localRPL0?
       if( pLocalRPL.getDeltaPocMSBPresentFlag( ii ) )                                                                         // TODO: really mix of m_RPL0 and m_localRPL0?
       {
-        ltrpPoc += pLocalRPL.getDeltaPocMSBCycleLT( ii ) << pocBits;                                                          // TODO: really mix of m_RPL0 and m_localRPL0?
+//        ltrpPoc += pLocalRPL.getDeltaPocMSBCycleLT( ii ) << pocBits;                                                          // TODO: really mix of m_RPL0 and m_localRPL0?
+        ltrpPoc += getPOC() - pLocalRPL.getDeltaPocMSBCycleLT( ii ) * ( pocMask + 1 ) - ( getPOC() & pocMask );
       }
 
       pcRefPic           = xGetLongTermRefPic( rcListPic, ltrpPoc, pLocalRPL.getDeltaPocMSBPresentFlag( ii ), m_pcPic->layerId );               // TODO: really mix of m_RPL0 and m_localRPL0?
@@ -542,6 +543,8 @@ void Slice::constructSingleRefPicList(const PicListRange& rcListPic, RefPicList 
 
     m_apcRefPicList    [listId][ii] = pcRefPic;
     m_bIsUsedAsLongTerm[listId][ii] = pcRefPic->longTerm;
+
+    pLocalRPL.setRefPicLongterm( ii,pcRefPic->longTerm );
   }
 }
 

@@ -189,7 +189,6 @@ Picture* PicListManager::getNewPicBuffer( const SPS& sps,const PPS& pps, const u
   return pcPic;
 }
 
-
 static bool findInRefPicList( Picture* checkRefPic, const ReferencePictureList* rpl, int currPicPoc )
 {
   // loop through all pictures in the Reference Picture Set
@@ -208,7 +207,7 @@ static bool findInRefPicList( Picture* checkRefPic, const ReferencePictureList* 
     {
       int pocCycle     = 1 << ( checkRefPic->cs->sps->getBitsForPOC() );
       int refPocMasked = checkRefPic->poc & ( pocCycle - 1 );
-      if( checkRefPic->longTerm && refPocMasked == rpl->getRefPicIdentifier( i ) )
+      if( refPocMasked == rpl->getRefPicIdentifier( i ) )
       {
         checkRefPic->longTerm = true;
         return true;
@@ -255,6 +254,7 @@ void PicListManager::applyDoneReferencePictureMarking()
   Picture* lastDonePic = nullptr;
 
   PicList::iterator firstNotDonePic = std::find_if( m_cPicList.begin(), m_cPicList.end(), []( Picture* p ) { return p->done.isBlocked(); } );
+
   if( firstNotDonePic == m_cPicList.begin() )
   {
     // nothing done, yet

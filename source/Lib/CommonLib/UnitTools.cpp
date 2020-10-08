@@ -2886,6 +2886,8 @@ static bool deriveScaledMotionTemporal( const Slice&      slice,
 
   CHECK( pColSlice == nullptr, "Couldn't find the colocated slice" );
 
+  const Slice &colSlice = *pColSlice;
+
   int iColPOC, iColRefPOC, iCurrPOC, iCurrRefPOC, iScale;
   bool bAllowMirrorMV = true;
   RefPicList eColRefPicList = slice.getCheckLDC() ? eCurrRefPicList : RefPicList(1 - eFetchRefPicList);
@@ -2912,6 +2914,13 @@ static bool deriveScaledMotionTemporal( const Slice&      slice,
     {
       return false;
     }
+  }
+
+  const bool bIsCurrRefLongTerm = slice.getIsUsedAsLongTerm( eCurrRefPicList, 0 );
+  const bool bIsColRefLongTerm  = colSlice.getIsUsedAsLongTerm( eCurrRefPicList, iColRefIdx );
+  if( bIsCurrRefLongTerm != bIsColRefLongTerm )
+  {
+    return false;
   }
 
   if (iColRefIdx >= 0 && slice.getNumRefIdx(eCurrRefPicList) > 0)
@@ -3321,8 +3330,8 @@ void PU::spanGeoMotionInfo( PredictionUnit &pu, MergeCtx &geoMrgCtx, const uint8
 
   uint8_t val0 = geoMrgCtx.interDirNeighbours[candIdx0];
   uint8_t val1 = geoMrgCtx.interDirNeighbours[candIdx1];
-  val0 <<= 2;
-  val1 <<= 2;
+  val0 <<= 4;
+  val1 <<= 4;
   val0 += geoMrgCtx.mvFieldNeighbours[( candIdx0 << 1 ) + off0].refIdx;
   val1 += geoMrgCtx.mvFieldNeighbours[( candIdx1 << 1 ) + off1].refIdx;
 

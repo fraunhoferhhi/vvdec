@@ -111,6 +111,8 @@ public:
   int     getRefPicIdentifier(int idx) const;
   bool    isRefPicLongterm(int idx) const;
 
+  void    setRefPicLongterm(int idx,bool isLongterm) { m_isLongtermRefPic[idx] = isLongterm; }
+
   void    setNumberOfShorttermPictures(int numberOfStrp);
   int     getNumberOfShorttermPictures() const;
 
@@ -3066,7 +3068,8 @@ public:
   void                        setPic( Picture* p )                                   { m_pcPic             = p;                                      }
 
   void                        constructRefPicLists( const PicListRange& rcListPic );
-  void                        constructSingleRefPicList( const PicListRange& rcListPic, RefPicList listId, const ReferencePictureList& pRPL, const ReferencePictureList & pLocalRPL );
+  void                        constructSingleRefPicList( const PicListRange& rcListPic, RefPicList listId, const ReferencePictureList& pRPL, ReferencePictureList & pLocalRPL );
+
   void                        setRefPOCList();
 
   void                        setColFromL0Flag( bool colFromL0 )                     { m_colFromL0Flag = colFromL0;                                  }
