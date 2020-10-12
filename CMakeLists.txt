@@ -37,24 +37,29 @@ endif()
 # enable or disable bitstream download
 set( VVDEC_ENABLE_BITSTREAM_DOWNLOAD OFF CACHE BOOL "Enable or disable bitstream download" )
 
+# enable local bitstream download
+set( VVDEC_ENABLE_LOCAL_BITSTREAM_DOWNLOAD OFF CACHE BOOL "Enable or disable local bitstream download" )
+
 # enable install target
 set( VVDEC_ENABLE_INSTALL ON CACHE BOOL "Enable or disable install target" )
 
 # enable postfix
 set( VVDEC_ENABLE_BUILD_TYPE_POSTFIX OFF CACHE BOOL "Enable or disable build type postfix for apps and libs" )
 
-# enable local bitstream download
-set( VVDEC_ENABLE_LOCAL_BITSTREAM_DOWNLOAD OFF CACHE BOOL "Enable or disable local bitstream download" )
-
 if( VVDEC_ENABLE_BUILD_TYPE_POSTFIX )
   if( BUILD_SHARED_LIBS )
-    set( VVDEC_BUILD_TYPE_POSTFIX "-s" )
+    # set postfixes for shared libraries
+    set( CMAKE_RELEASE_POSTFIX        "-s"   CACHE STRING "Set release library postfix" )
+    set( CMAKE_DEBUG_POSTFIX          "-ds"  CACHE STRING "Set debug library postfix" )
+    set( CMAKE_RELWITHDEBINFO_POSTFIX "-rds" CACHE STRING "Set relwithdebinfo library postfix" )
+    set( CMAKE_MINSIZEREL_POSTFIX     "-mrs" CACHE STRING "Set minsizerel library postfix" )
+  else()
+    # set postfixes for static libraries
+    set( CMAKE_RELEASE_POSTFIX        ""     CACHE STRING "Set release library postfix" )
+    set( CMAKE_DEBUG_POSTFIX          "-d"   CACHE STRING "Set debug library postfix" )
+    set( CMAKE_RELWITHDEBINFO_POSTFIX "-rd"  CACHE STRING "Set relwithdebinfo library postfix" )
+    set( CMAKE_MINSIZEREL_POSTFIX     "-mr"  CACHE STRING "Set minsizerel library postfix" )
   endif()
-  # set postfixes for libraries
-  set( CMAKE_RELEASE_POSTFIX        "${VVDEC_BUILD_TYPE_POSTFIX}"    CACHE STRING "Set release library postfix" )
-  set( CMAKE_DEBUG_POSTFIX          "-d${VVDEC_BUILD_TYPE_POSTFIX}"  CACHE STRING "Set debug library postfix" )
-  set( CMAKE_RELWITHDEBINFO_POSTFIX "-rd${VVDEC_BUILD_TYPE_POSTFIX}" CACHE STRING "Set relwithdebinfo library postfix" )
-  set( CMAKE_MINSIZEREL_POSTFIX     "-mr${VVDEC_BUILD_TYPE_POSTFIX}" CACHE STRING "Set minsizerel library postfix" )
 endif()
 
 # set VVDEC_OUTPUT_DIR_POSTFIX
