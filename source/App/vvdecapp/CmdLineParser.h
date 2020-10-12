@@ -47,7 +47,7 @@ vvc@hhi.fraunhofer.de
 #include <stdio.h>
 #include <string.h>
 
-#include "../../../include/vvdec/vvdec.h"
+#include "vvdec/vvdec.h"
 
 namespace vvdecoderapp {
 

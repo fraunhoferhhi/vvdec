@@ -54,7 +54,7 @@ vvc@hhi.fraunhofer.de
 #include <iomanip>
 #include <sstream>
 
-#include "../../../include/vvdec/vvdec.h"
+#include "vvdec/vvdec.h"
 
 #define MAX_CODED_PICTURE_SIZE  800000
 
