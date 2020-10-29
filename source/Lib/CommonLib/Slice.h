@@ -1461,8 +1461,8 @@ private:
   int               m_log2MinCodingBlockSize             = 0;
   unsigned          m_CTUSize                            = 0;
   unsigned          m_partitionOverrideEnalbed           = 0;            // enable partition constraints override function
-  unsigned          m_minQT[3]                           = { 0,0,0 };    // 0: I slice luma; 1: P/B slice; 2: I slice chroma
-  unsigned          m_maxBTDepth[3]                      = { MAX_BT_DEPTH, MAX_BT_DEPTH_INTER, MAX_BT_DEPTH_C };
+  unsigned          m_minQT[3]                           = { 0, 0, 0 };    // 0: I slice luma; 1: P/B slice; 2: I slice chroma
+  unsigned          m_maxBTDepth[3]                      = { 0, 0, 0 };
   unsigned          m_maxBTSize[3]                       = { 0, 0, 0 };
   unsigned          m_maxTTSize[3]                       = { 0, 0, 0 };
   bool              m_idrRefParamList                    = false;
