@@ -69,13 +69,12 @@ void         destroyROM();
 // ====================================================================================================================
 
 // flexible conversion from relative to absolute index
-extern const uint32_t   g_log2SbbSize   [MAX_CU_DEPTH+1][MAX_CU_DEPTH+1][2];
-extern       uint32_t*  g_scanOrder     [SCAN_NUMBER_OF_GROUP_TYPES][SCAN_NUMBER_OF_TYPES][MAX_CU_SIZE / 2 + 1][MAX_CU_SIZE / 2 + 1];
+extern const uint32_t   g_log2SbbSize   [MAX_LOG2_TU_SIZE_PLUS_ONE][MAX_LOG2_TU_SIZE_PLUS_ONE][2];
+extern       uint32_t*  g_scanOrder     [SCAN_NUMBER_OF_GROUP_TYPES][SCAN_NUMBER_OF_TYPES][MAX_LOG2_TU_SIZE_PLUS_ONE][MAX_LOG2_TU_SIZE_PLUS_ONE];
 
 extern       uint32_t*  g_coefTopLeftDiagScan8x8   [ MAX_CU_SIZE / 2 + 1 ];
 extern       uint8_t*   g_coefTopLeftDiagScan8x8pos[ MAX_CU_SIZE / 2 + 1 ];
 
-extern const int g_QuantScales   [2/*0=4^n blocks, 1=2*4^n blocks*/][SCALING_LIST_REM_NUM];          // Q(QP%6)
 extern const int g_InvQuantScales[2/*0=4^n blocks, 1=2*4^n blocks*/][SCALING_LIST_REM_NUM];          // IQ(QP%6)
 
 static const int g_numTransformMatrixSizes = 6;
@@ -88,7 +87,7 @@ static const int g_transformMatrixShift    = 6;
 
 extern const uint32_t   ctxIndMap4x4[4*4];
 
-extern const uint32_t   g_uiGroupIdx[ MAX_TU_SIZE ];
+extern const uint32_t   g_uiGroupIdx[ MAX_TU_SIZE_FOR_PROFILE ];
 extern const uint32_t   g_uiMinInGroup[ LAST_SIGNIFICANT_GROUPS ];
 extern const uint32_t   g_auiGoRiceParsCoeff     [ 32 ];
 inline uint32_t g_auiGoRicePosCoeff0(int st, uint32_t ricePar)
@@ -101,12 +100,7 @@ extern const uint32_t   g_auiGoRiceRange[ MAX_GR_ORDER_RESIDUAL ];              
 // Intra prediction table
 // ====================================================================================================================
 
-extern const uint8_t  g_aucIntraModeNumFast_UseMPM_2D[7 - MIN_CU_LOG2 + 1][7 - MIN_CU_LOG2 + 1];
-extern const uint8_t  g_aucIntraModeNumFast_UseMPM   [MAX_CU_DEPTH];
-extern const uint8_t  g_aucIntraModeNumFast_NotUseMPM[MAX_CU_DEPTH];
-
 extern const uint8_t  g_chroma422IntraAngleMappingTable[NUM_INTRA_MODE];
-
 
 // ====================================================================================================================
 // Mode-Dependent DST Matrices
@@ -143,28 +137,19 @@ extern int8_t          g_aucLog2                       [MAX_CU_SIZE + 1];
 extern int8_t          g_aucNextLog2        [MAX_CU_SIZE + 1];
 extern int8_t          g_aucPrevLog2        [MAX_CU_SIZE + 1];
 #endif
-extern const int8_t    i2Log2Tab[257];
 
 extern const int       g_ictModes[2][4];
 
 class SizeIndexInfoLog2
 {
 public:
-  constexpr inline SizeType numAllWidths()            const { return 8; }
-  constexpr inline SizeType numAllHeights()           const { return 8; }
-  constexpr inline SizeType numWidths()               const { return 6; }
-  constexpr inline SizeType numHeights()              const { return 6; }
+  constexpr inline SizeType numAllWidths()            const { return 7; }
+  constexpr inline SizeType numAllHeights()           const { return 7; }
   constexpr inline SizeType sizeFrom( SizeType idx )  const { return (1 << idx); }
             inline SizeType idxFrom( SizeType size )  const { return getLog2(size); }
-  constexpr inline bool     isCuSize( SizeType size ) const { return size >= ( 1 << MIN_CU_LOG2 ); }
 };
 
 extern const SizeIndexInfoLog2 g_sizeIdxInfo;
-
-inline bool isNonLog2BlockSize( const Size& size )
-{
-  return ( ( 1 << g_sizeIdxInfo.idxFrom(size.width) ) != size.width ) || ( ( 1 << g_sizeIdxInfo.idxFrom(size.height) ) != size.height );
-}
 
 extern const UnitScale g_miScaling; // scaling object for motion scaling
 
@@ -188,9 +173,6 @@ extern TimeProfiler2D *g_timeProfiler;
 
 const char* nalUnitTypeToString(NalUnitType type);
 
-extern const char *MatrixType   [SCALING_LIST_SIZE_NUM][SCALING_LIST_NUM];
-extern const char *MatrixType_DC[SCALING_LIST_SIZE_NUM][SCALING_LIST_NUM];
-
 extern const int g_quantTSDefault4x4   [4*4];
 extern const int g_quantIntraDefault8x8[8*8];
 extern const int g_quantInterDefault8x8[8*8];
@@ -203,19 +185,12 @@ extern const uint32_t g_scalingListId[SCALING_LIST_SIZE_NUM][SCALING_LIST_NUM];
 
 extern MsgLevel g_verbosity;
 
-extern const int g_aiNonLMPosThrs[];
-
 extern const int8_t g_BcwLog2WeightBase;
 extern const int8_t g_BcwWeightBase;
 extern const int8_t g_BcwWeights[BCW_NUM];
-extern const int8_t g_BcwSearchOrder[BCW_NUM];
-extern       int8_t g_BcwCodingOrder[BCW_NUM];
-extern       int8_t g_BcwParsingOrder[BCW_NUM];
+extern const int8_t g_BcwParsingOrder[BCW_NUM];
 
-class CodingStructure;
 int8_t getBcwWeight(uint8_t bcwIdx, uint8_t uhRefFrmList);
-void resetBcwCodingOrder(bool bRunDecoding, const CodingStructure &cs);
-uint32_t deriveWeightIdxBits(uint8_t bcwIdx);
 
 constexpr uint8_t g_tbMax[257] = { 0, 0, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3, 3, 3, 3, 3, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4,
                                    4, 4, 4, 4, 4, 4, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5,
@@ -239,7 +214,6 @@ const int g_IBCBufferSize = 256 * 128;
 void initGeoTemplate();
 extern int16_t** g_GeoParams;
 extern int16_t*  g_globalGeoWeights   [GEO_NUM_PRESTORED_MASK];
-extern int16_t*  g_globalGeoEncSADmask[GEO_NUM_PRESTORED_MASK];
 extern int16_t   g_weightOffset       [GEO_NUM_PARTITION_MODE][GEO_NUM_CU_SIZE][GEO_NUM_CU_SIZE][2];
 extern int8_t    g_angle2mask         [GEO_NUM_ANGLES];
 extern int8_t    g_Dis[GEO_NUM_ANGLES];

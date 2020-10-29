@@ -164,9 +164,7 @@ public:
 const int8_t g_BcwLog2WeightBase = 3;
 const int8_t g_BcwWeightBase = (1 << g_BcwLog2WeightBase);
 const int8_t g_BcwWeights[BCW_NUM] = { -2, 3, 4, 5, 10 };
-const int8_t g_BcwSearchOrder[BCW_NUM] = { BCW_DEFAULT, BCW_DEFAULT - 2, BCW_DEFAULT + 2, BCW_DEFAULT - 1, BCW_DEFAULT + 1 };
-int8_t g_BcwCodingOrder[BCW_NUM];
-int8_t g_BcwParsingOrder[BCW_NUM];
+const int8_t g_BcwParsingOrder[BCW_NUM] = { 2, 3, 1, 4, 0 };
 
 int8_t getBcwWeight(uint8_t bcwIdx, uint8_t uhRefFrmList)
 {
@@ -175,67 +173,16 @@ int8_t getBcwWeight(uint8_t bcwIdx, uint8_t uhRefFrmList)
   return (uhRefFrmList == REF_PIC_LIST_0 ? g_BcwWeightBase - g_BcwWeights[bcwIdx] : g_BcwWeights[bcwIdx]);
 }
 
-void resetBcwCodingOrder(bool bRunDecoding, const CodingStructure &cs)
-{
-  // Form parsing order: { BCW_DEFAULT, BCW_DEFAULT+1, BCW_DEFAULT-1, BCW_DEFAULT+2, BCW_DEFAULT-2, ... }
-  g_BcwParsingOrder[0] = BCW_DEFAULT;
-  for (int i = 1; i <= (BCW_NUM >> 1); ++i)
-  {
-    g_BcwParsingOrder[2 * i - 1] = BCW_DEFAULT + (int8_t)i;
-    g_BcwParsingOrder[2 * i] = BCW_DEFAULT - (int8_t)i;
-  }
-
-  // Form encoding order
-  if (!bRunDecoding)
-  {
-    for (int i = 0; i < BCW_NUM; ++i)
-    {
-      g_BcwCodingOrder[(uint32_t)g_BcwParsingOrder[i]] = i;
-    }
-  }
-}
-
-uint32_t deriveWeightIdxBits(uint8_t bcwIdx) // Note: align this with TEncSbac::codeGbiIdx and TDecSbac::parseGbiIdx
-{
-  uint32_t numBits = 1;
-  uint8_t  bcwCodingIdx = (uint8_t)g_BcwCodingOrder[bcwIdx];
-
-  if (BCW_NUM > 2 && bcwCodingIdx != 0)
-  {
-    uint32_t prefixNumBits = BCW_NUM - 2;
-    uint32_t step = 1;
-    uint8_t  prefixSymbol = bcwCodingIdx;
-
-    // Truncated unary code
-    uint8_t idx = 1;
-    for (int ui = 0; ui < prefixNumBits; ++ui)
-    {
-      if (prefixSymbol == idx)
-      {
-        ++numBits;
-        break;
-      }
-      else
-      {
-        ++numBits;
-        idx += step;
-      }
-    }
-  }
-  return numBits;
-}
-
-const uint32_t g_log2SbbSize[MAX_CU_DEPTH + 1][MAX_CU_DEPTH + 1][2] =
+const uint32_t g_log2SbbSize[MAX_LOG2_TU_SIZE_PLUS_ONE][MAX_LOG2_TU_SIZE_PLUS_ONE][2] =
 //===== luma/chroma =====
 {
-  { { 0,0 },{ 0,1 },{ 0,2 },{ 0,3 },{ 0,4 },{ 0,4 },{ 0,4 },{ 0,4 } },
-  { { 1,0 },{ 1,1 },{ 1,1 },{ 1,3 },{ 1,3 },{ 1,3 },{ 1,3 },{ 1,3 } },
-  { { 2,0 },{ 1,1 },{ 2,2 },{ 2,2 },{ 2,2 },{ 2,2 },{ 2,2 },{ 2,2 } },
-  { { 3,0 },{ 3,1 },{ 2,2 },{ 2,2 },{ 2,2 },{ 2,2 },{ 2,2 },{ 2,2 } },
-  { { 4,0 },{ 3,1 },{ 2,2 },{ 2,2 },{ 2,2 },{ 2,2 },{ 2,2 },{ 2,2 } },
-  { { 4,0 },{ 3,1 },{ 2,2 },{ 2,2 },{ 2,2 },{ 2,2 },{ 2,2 },{ 2,2 } },
-  { { 4,0 },{ 3,1 },{ 2,2 },{ 2,2 },{ 2,2 },{ 2,2 },{ 2,2 },{ 2,2 } },
-  { { 4,0 },{ 3,1 },{ 2,2 },{ 2,2 },{ 2,2 },{ 2,2 },{ 2,2 },{ 2,2 } }
+  { { 0,0 },{ 0,1 },{ 0,2 },{ 0,3 },{ 0,4 },{ 0,4 },{ 0,4 } },
+  { { 1,0 },{ 1,1 },{ 1,1 },{ 1,3 },{ 1,3 },{ 1,3 },{ 1,3 } },
+  { { 2,0 },{ 1,1 },{ 2,2 },{ 2,2 },{ 2,2 },{ 2,2 },{ 2,2 } },
+  { { 3,0 },{ 3,1 },{ 2,2 },{ 2,2 },{ 2,2 },{ 2,2 },{ 2,2 } },
+  { { 4,0 },{ 3,1 },{ 2,2 },{ 2,2 },{ 2,2 },{ 2,2 },{ 2,2 } },
+  { { 4,0 },{ 3,1 },{ 2,2 },{ 2,2 },{ 2,2 },{ 2,2 },{ 2,2 } },
+  { { 4,0 },{ 3,1 },{ 2,2 },{ 2,2 },{ 2,2 },{ 2,2 },{ 2,2 } }
 };
 // initialize ROM variables
 void initROM()
@@ -429,9 +376,9 @@ void destroyROM()
   {
     for (uint32_t scanOrderIndex = 0; scanOrderIndex < SCAN_NUMBER_OF_TYPES; scanOrderIndex++)
     {
-      for (uint32_t blockWidthIdx = 0; blockWidthIdx <= numWidths; blockWidthIdx++)
+      for (uint32_t blockWidthIdx = 0; blockWidthIdx < numWidths; blockWidthIdx++)
       {
-        for (uint32_t blockHeightIdx = 0; blockHeightIdx <= numHeights; blockHeightIdx++)
+        for (uint32_t blockHeightIdx = 0; blockHeightIdx < numHeights; blockHeightIdx++)
         {
           delete[] g_scanOrder[groupTypeIndex][scanOrderIndex][blockWidthIdx][blockHeightIdx];
           g_scanOrder[groupTypeIndex][scanOrderIndex][blockWidthIdx][blockHeightIdx] = nullptr;
@@ -449,21 +396,13 @@ void destroyROM()
   for( int i = 0; i < GEO_NUM_PRESTORED_MASK; i++ )
   {
     delete[] g_globalGeoWeights   [i];
-    delete[] g_globalGeoEncSADmask[i];
     g_globalGeoWeights   [i] = nullptr;
-    g_globalGeoEncSADmask[i] = nullptr;
   }
 }
 
 // ====================================================================================================================
 // Data structure related table & variable
 // ====================================================================================================================
-
-const int g_QuantScales[2][SCALING_LIST_REM_NUM] = // can be represented as a 9 element table
-{
-  { 26214,23302,20560,18396,16384,14564 },
-  { 18396,16384,14564,13107,11651,10280 } // Note: last 3 values of second row == half of the first 3 values of the first row
-};
 
 const int g_InvQuantScales[2][SCALING_LIST_REM_NUM] = // can be represented as a 9 element table
 {
@@ -542,7 +481,7 @@ const UnitScale g_miScaling( MIN_CU_LOG2, MIN_CU_LOG2 );
 // ====================================================================================================================
 
 // scanning order table
-uint32_t* g_scanOrder     [SCAN_NUMBER_OF_GROUP_TYPES][SCAN_NUMBER_OF_TYPES][MAX_CU_SIZE / 2 + 1][MAX_CU_SIZE / 2 + 1];
+uint32_t* g_scanOrder     [SCAN_NUMBER_OF_GROUP_TYPES][SCAN_NUMBER_OF_TYPES][MAX_LOG2_TU_SIZE_PLUS_ONE][MAX_LOG2_TU_SIZE_PLUS_ONE];
 uint32_t* g_coefTopLeftDiagScan8x8[ MAX_CU_SIZE / 2 + 1 ];
 uint8_t* g_coefTopLeftDiagScan8x8pos[ MAX_CU_SIZE / 2 + 1 ];
 
@@ -556,111 +495,10 @@ const uint32_t ctxIndMap4x4[4 * 4] =
 
 
 const uint32_t g_uiMinInGroup[LAST_SIGNIFICANT_GROUPS] = { 0,1,2,3,4,6,8,12,16,24,32,48,64,96 };
-const uint32_t g_uiGroupIdx[MAX_TU_SIZE] = { 0,1,2,3,4,4,5,5,6,6,6,6,7,7,7,7,8,8,8,8,8,8,8,8,9,9,9,9,9,9,9,9, 10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,11,11,11,11,11,11,11,11,11,11,11,11,11,11,11,11
-,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12
-,13,13,13,13,13,13,13,13,13,13,13,13,13,13,13,13,13,13,13,13,13,13,13,13,13,13,13,13,13,13,13,13 };
+const uint32_t g_uiGroupIdx[MAX_TU_SIZE_FOR_PROFILE] = { 0,1,2,3,4,4,5,5,6,6,6,6,7,7,7,7,8,8,8,8,8,8,8,8,9,9,9,9,9,9,9,9, 10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,11,11,11,11,11,11,11,11,11,11,11,11,11,11,11,11};
 const uint32_t g_auiGoRiceParsCoeff[32] =
 {
   0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 3, 3, 3, 3
-};
-const char *MatrixType[SCALING_LIST_SIZE_NUM][SCALING_LIST_NUM] =
-{
-  {
-    "INTRA1X1_LUMA",
-    "INTRA1X1_CHROMAU",
-    "INTRA1X1_CHROMAV",
-    "INTER1X1_LUMA",
-    "INTER1X1_CHROMAU",
-    "INTER1X1_CHROMAV"
-  },
-  {
-    "INTRA2X2_LUMA",
-    "INTRA2X2_CHROMAU",
-    "INTRA2X2_CHROMAV",
-    "INTER2X2_LUMA",
-    "INTER2X2_CHROMAU",
-    "INTER2X2_CHROMAV"
-  },
-  {
-    "INTRA4X4_LUMA",
-    "INTRA4X4_CHROMAU",
-    "INTRA4X4_CHROMAV",
-    "INTER4X4_LUMA",
-    "INTER4X4_CHROMAU",
-    "INTER4X4_CHROMAV"
-  },
-  {
-    "INTRA8X8_LUMA",
-    "INTRA8X8_CHROMAU",
-    "INTRA8X8_CHROMAV",
-    "INTER8X8_LUMA",
-    "INTER8X8_CHROMAU",
-    "INTER8X8_CHROMAV"
-  },
-  {
-    "INTRA16X16_LUMA",
-    "INTRA16X16_CHROMAU",
-    "INTRA16X16_CHROMAV",
-    "INTER16X16_LUMA",
-    "INTER16X16_CHROMAU",
-    "INTER16X16_CHROMAV"
-  },
-  {
-    "INTRA32X32_LUMA",
-    "INTRA32X32_CHROMAU",
-    "INTRA32X32_CHROMAV",
-    "INTER32X32_LUMA",
-    "INTER32X32_CHROMAU",
-    "INTER32X32_CHROMAV"
-  },
-  {
-    "INTRA64X64_LUMA",
-    "INTRA64X64_CHROMAU",
-    "INTRA64X64_CHROMAV",
-    "INTER64X64_LUMA",
-    "INTER64X64_CHROMAU",
-    "INTER64X64_CHROMAV"
-  },
-  {
-  },
-};
-
-const char *MatrixType_DC[SCALING_LIST_SIZE_NUM][SCALING_LIST_NUM] =
-{
-  {  //1x1
-  },
-  {
-  },
-  {
-  },
-  {
-  },
-  {
-    "INTRA16X16_LUMA_DC",
-    "INTRA16X16_CHROMAU_DC",
-    "INTRA16X16_CHROMAV_DC",
-    "INTER16X16_LUMA_DC",
-    "INTER16X16_CHROMAU_DC",
-    "INTER16X16_CHROMAV_DC"
-  },
-  {
-    "INTRA32X32_LUMA_DC",
-    "INTRA32X32_CHROMAU_DC",
-    "INTRA32X32_CHROMAV_DC",
-    "INTER32X32_LUMA_DC",
-    "INTER32X32_CHROMAU_DC",
-    "INTER32X32_CHROMAV_DC"
-  },
-  {
-    "INTRA64X64_LUMA_DC",
-    "INTRA64X64_CHROMAU_DC",
-    "INTRA64X64_CHROMAV_DC",
-    "INTER64X64_LUMA_DC",
-    "INTER64X64_CHROMAU_DC",
-    "INTER64X64_CHROMAV_DC"
-  },
-  {
-  },
 };
 
 const int g_quantTSDefault4x4[4 * 4] =
@@ -695,8 +533,8 @@ const int g_quantInterDefault8x8[8 * 8] =
   16,16,16,16,16,16,16,16
 };
 
-const uint32_t g_vvcScalingListSize [SCALING_LIST_SIZE_NUM] = { 1, 4, 16, 64, 256, 1024, 4096, 16384 };
-const uint32_t g_vvcScalingListSizeX[SCALING_LIST_SIZE_NUM] = { 1, 2,  4,  8,  16,   32,   64,   128 };
+const uint32_t g_vvcScalingListSize [SCALING_LIST_SIZE_NUM] = { 1, 4, 16, 64, 256, 1024, 4096 };
+const uint32_t g_vvcScalingListSizeX[SCALING_LIST_SIZE_NUM] = { 1, 2,  4,  8,  16,   32,   64 };
 
 #if JVET_R0166_SCALING_LISTS_CHROMA_444
 const uint32_t g_scalingListId[SCALING_LIST_SIZE_NUM][SCALING_LIST_NUM] =
@@ -708,7 +546,6 @@ const uint32_t g_scalingListId[SCALING_LIST_SIZE_NUM][SCALING_LIST_NUM] =
   { 14, 15, 16, 17, 18, 19},  // SCALING_LIST_16x16
   { 20, 21, 22, 23, 24, 25},  // SCALING_LIST_32x32
   { 26, 21, 22, 27, 24, 25},  // SCALING_LIST_64x64
-  {  0,  0,  0,  0,  0,  0},  // SCALING_LIST_128x128
 };
 #endif
 
@@ -739,7 +576,6 @@ void initGeoTemplate()
     if (g_angle2mask[angleIdx] == -1)
       continue;
     g_globalGeoWeights[g_angle2mask[angleIdx]] = new int16_t[GEO_WEIGHT_MASK_SIZE * GEO_WEIGHT_MASK_SIZE];
-    g_globalGeoEncSADmask[g_angle2mask[angleIdx]] = new int16_t[GEO_WEIGHT_MASK_SIZE * GEO_WEIGHT_MASK_SIZE];
   
     int distanceX = angleIdx;
     int distanceY = (distanceX + (GEO_NUM_ANGLES >> 2)) % GEO_NUM_ANGLES;
@@ -755,7 +591,6 @@ void initGeoTemplate()
         int16_t weightIdx = sx_i * g_Dis[distanceX] + lookUpY - rho;
         int weightLinearIdx = 32 + weightIdx;
         g_globalGeoWeights[g_angle2mask[angleIdx]][index] = Clip3(0, 8, (weightLinearIdx + 4) >> 3);
-        g_globalGeoEncSADmask[g_angle2mask[angleIdx]][index] = weightIdx > 0 ? 1 : 0;
       }
     }
   }
@@ -791,7 +626,6 @@ void initGeoTemplate()
 }
 int16_t** g_GeoParams;
 int16_t*  g_globalGeoWeights   [GEO_NUM_PRESTORED_MASK];
-int16_t*  g_globalGeoEncSADmask[GEO_NUM_PRESTORED_MASK];
 int16_t   g_weightOffset       [GEO_NUM_PARTITION_MODE][GEO_NUM_CU_SIZE][GEO_NUM_CU_SIZE][2];
 int8_t    g_angle2mask[GEO_NUM_ANGLES] = { 0, -1, 1, 2, 3, 4, -1, -1, 5, -1, -1, 4, 3, 2, 1, -1, 0, -1, 1, 2, 3, 4, -1, -1, 5, -1, -1, 4, 3, 2, 1, -1 };
 int8_t    g_Dis[GEO_NUM_ANGLES] = { 8, 8, 8, 8, 4, 4, 2, 1, 0, -1, -2, -4, -4, -8, -8, -8, -8, -8, -8, -8, -4, -4, -2, -1, 0, 1, 2, 4, 4, 8, 8, 8 };

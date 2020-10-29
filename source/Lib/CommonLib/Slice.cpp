@@ -2149,7 +2149,6 @@ const int* ScalingList::getScalingListDefaultAddress(uint32_t scalingListId)
     case SCALING_LIST_16x16:
     case SCALING_LIST_32x32:
     case SCALING_LIST_64x64:
-    case SCALING_LIST_128x128:
       src = g_quantInterDefault8x8;
       break;
     default:

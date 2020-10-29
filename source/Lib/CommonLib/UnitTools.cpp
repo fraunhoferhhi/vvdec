@@ -3786,7 +3786,7 @@ bool TU::needsSqrt2Scale( const TransformUnit &tu, const ComponentID &compID )
 
 bool TU::needsBlockSizeTrafoScale( const TransformUnit &tu, const ComponentID &compID )
 {
-  return needsSqrt2Scale( tu, compID ) || isNonLog2BlockSize( tu.blocks[compID] );
+  return needsSqrt2Scale( tu, compID );
 }
 
 const TransformUnit* TU::getPrevTU( const TransformUnit &tu, const ComponentID compID )

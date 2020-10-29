@@ -194,13 +194,6 @@ void DecSlice::parseSlice( Slice* slice, InputBitstream* bitstream, int threadId
       pic->m_prevQP[0] = pic->m_prevQP[1] = slice->getSliceQp();
     }
 
-    bool updateBcwCodingOrder = slice->getSliceType() == B_SLICE && ctuIdx == 0;
-
-    if( updateBcwCodingOrder )
-    {
-      resetBcwCodingOrder( true, cs );
-    }
-
     //memset( cs.getCtuData( ctuRsAddr ).cuPtr, 0, sizeof( CtuData::cuPtr ) );
 
     cabacReader.coding_tree_unit( cs, slice, ctuArea, pic->m_prevQP, ctuRsAddr );
