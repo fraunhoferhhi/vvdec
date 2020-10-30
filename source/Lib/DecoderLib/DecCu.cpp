@@ -278,13 +278,13 @@ void DecCu::predAndReco( CodingUnit& cu, bool doCiipIntra )
 
           if( CU::isMIP( cu, chType ) )
           {
-            m_pcIntraPred->initIntraPatternChType( *tu.cu, area );
+            m_pcIntraPred->initIntraPatternChType( tu, area );
             m_pcIntraPred->initIntraMip( pu, area );
             m_pcIntraPred->predIntraMip( compID, piPred, pu );
           }
           else if( compID != COMPONENT_Y && PU::isLMCMode( uiChFinalMode ) )
           {
-            m_pcIntraPred->initIntraPatternChType( *tu.cu, area );
+            m_pcIntraPred->initIntraPatternChType( tu, area );
             m_pcIntraPred->xGetLumaRecPixels( pu, area );
             m_pcIntraPred->predIntraChromaLM( compID, piPred, pu, area, uiChFinalMode );
           }
@@ -314,7 +314,7 @@ void DecCu::predAndReco( CodingUnit& cu, bool doCiipIntra )
             }
             else
             {
-              m_pcIntraPred->initIntraPatternChType( *tu.cu, area, bUseFilteredPredictions );
+              m_pcIntraPred->initIntraPatternChType( tu, area, bUseFilteredPredictions );
             }
 
             if( predRegDiffFromTB )
@@ -655,7 +655,7 @@ void DecCu::xIntraRecACT( CodingUnit &cu )
 
       if( CU::isMIP( cu, chType ) )
       {
-        m_pcIntraPred->initIntraPatternChType( *tu.cu, area );
+        m_pcIntraPred->initIntraPatternChType( tu, area );
         m_pcIntraPred->initIntraMip( pu, area );
         m_pcIntraPred->predIntraMip( compID, piPred, pu );
       }
@@ -681,7 +681,7 @@ void DecCu::xIntraRecACT( CodingUnit &cu )
         }
         else
         {
-          m_pcIntraPred->initIntraPatternChType( *tu.cu, area, bUseFilteredPredictions );
+          m_pcIntraPred->initIntraPatternChType( tu, area, bUseFilteredPredictions );
         }
 
         if( compID != COMPONENT_Y && PU::isLMCMode( uiChFinalMode ) )

@@ -287,7 +287,8 @@ struct TransformUnit : public UnitArea
   uint8_t         maxScanPosY  [MAX_NUM_TBLOCKS];
   uint8_t         mtsIdx       [MAX_NUM_TBLOCKS];
   int8_t          chromaQp     [2];
-
+  
+  unsigned        idx;
   ChannelType     chType;
   uint8_t         jointCbCr;
   int8_t          cbf;
