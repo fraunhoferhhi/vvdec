@@ -194,9 +194,10 @@ TransformUnit& CodingStructure::addTU( const UnitArea &unit, const ChannelType c
     cu.lastTU       = tu;
   }
 
+  tu->idx               = ++m_numTUs;
   tu->cu                =  &cu;
-  tu->chType            =  chType;
-  tu->UnitArea::operator=( unit );
+  tu->chType            =   chType;
+  tu->UnitArea::operator=(  unit );
 
   return *tu;
 }
@@ -287,6 +288,7 @@ void CodingStructure::rebindPicBufs()
 void CodingStructure::initStructData()
 {
   m_numCUs = 0;
+  m_numTUs = 0;
   m_lastCU = nullptr;
 
   m_cuCache->defragment();

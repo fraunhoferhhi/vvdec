@@ -168,6 +168,7 @@ private:
   ptrdiff_t       m_dmvrMvCacheOffset;
 
   unsigned                 m_numCUs;
+  unsigned                 m_numTUs;
 
   std::shared_ptr<CUCache> m_cuCache;
   std::shared_ptr<TUCache> m_tuCache;
