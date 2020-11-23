@@ -657,7 +657,7 @@ void Quant::processScalingListDec( const int *coeff, int *dequantcoeff, int invQ
  */
 void Quant::xInitScalingList( const Quant* other )
 {
-  m_isScalingListOwner = other == nullptr;
+  size_t numQuants = 0;
 
   for(uint32_t sizeIdX = 0; sizeIdX < SCALING_LIST_SIZE_NUM; sizeIdX++)
   {
@@ -667,14 +667,8 @@ void Quant::xInitScalingList( const Quant* other )
       {
         for(uint32_t listId = 0; listId < SCALING_LIST_NUM; listId++)
         {
-          if( m_isScalingListOwner )
-          {
-            m_dequantCoef [sizeIdX][sizeIdY][listId][qp] = new int    [g_vvcScalingListSizeX[sizeIdX]*g_vvcScalingListSizeX[sizeIdY]];
-          }
-          else
-          {
-            m_dequantCoef [sizeIdX][sizeIdY][listId][qp] = other->m_dequantCoef [sizeIdX][sizeIdY][listId][qp];
-          }
+          m_dequantCoef [sizeIdX][sizeIdY][listId][qp] = &m_dequantCoefBuf[numQuants];
+          numQuants += g_vvcScalingListSizeX[sizeIdX] * g_vvcScalingListSizeX[sizeIdY];
         } // listID loop
       }
     }
@@ -685,24 +679,6 @@ void Quant::xInitScalingList( const Quant* other )
  */
 void Quant::xDestroyScalingList()
 {
-  if( !m_isScalingListOwner ) return;
-
-  for(uint32_t sizeIdX = 0; sizeIdX < SCALING_LIST_SIZE_NUM; sizeIdX++)
-  {
-    for(uint32_t sizeIdY = 0; sizeIdY < SCALING_LIST_SIZE_NUM; sizeIdY++)
-    {
-      for(uint32_t listId = 0; listId < SCALING_LIST_NUM; listId++)
-      {
-        for(uint32_t qp = 0; qp < SCALING_LIST_REM_NUM; qp++)
-        {
-          if(m_dequantCoef[sizeIdX][sizeIdY][listId][qp])
-          {
-            delete [] m_dequantCoef[sizeIdX][sizeIdY][listId][qp];
-          }
-        }
-      }
-    }
-  }
 }
 
 void Quant::init( Slice *slice )

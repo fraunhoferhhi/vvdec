@@ -73,7 +73,6 @@ extern ThreadSafeCUCache g_globalUnitCache;
 
 struct CtuData
 {
-  std::shared_ptr<APS> alfAps;
   SAOBlkParam          saoParam;
 
   CodingUnit*     cuPtr  [MAX_NUM_CHANNEL_TYPE][NUM_PARTS_IN_CTU];
@@ -103,7 +102,8 @@ public:
   std::shared_ptr<APS>       lmcsAps;
   const PreCalcValues*       pcv;
 
-  std::vector<CtuData>       m_ctuData;
+  CtuData*          m_ctuData;
+  size_t            m_ctuDataSize;
 
 
   CodingStructure(std::shared_ptr<CUCache>, std::shared_ptr<TUCache>);
@@ -164,7 +164,8 @@ private:
 
   Pel*            m_predBuf    [MAX_NUM_COMPONENT];
 
-  std::vector<Mv> m_dmvrMvCache;
+  Mv*             m_dmvrMvCache;
+  size_t          m_dmvrMvCacheSize;
   ptrdiff_t       m_dmvrMvCacheOffset;
 
   unsigned                 m_numCUs;

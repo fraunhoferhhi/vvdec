@@ -126,7 +126,7 @@ void DecLibParser::recreateLostPicture( Picture* pcPic )
          ( referencedBy != m_parseFrameList.end() ) ? ( *referencedBy )->poc : -1 );
 
     pcPic->getRecoBuf().copyFrom( closestPic->getRecoBuf() );
-    for( int i = 0; i < pcPic->cs->m_ctuData.size(); i++ )
+    for( int i = 0; i < pcPic->cs->m_ctuDataSize; i++ )
     {
       memcpy( pcPic->cs->m_ctuData[i].motion, closestPic->cs->m_ctuData[i].motion, sizeof( CtuData::motion ) );
     }

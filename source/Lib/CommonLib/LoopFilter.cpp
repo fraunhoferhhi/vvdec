@@ -1006,7 +1006,7 @@ void LoopFilter::xSetMaxFilterLengthPQFromTransformSizes( const CodingUnit& cu, 
 
         if( ct == end && deriveBdStrngt )
         {
-          if( lfp.filterEdge( cu.chType() ) ) xGetBoundaryStrengthSingle<edgeDir>( lfp, cu, Position( ( area.x + edgeDir * d ) << csx, ( area.y + ( 1 - edgeDir ) * d ) << csy ), *cuPfstCh, ctuData, pqSameCtu );
+          if( bValue ) xGetBoundaryStrengthSingle<edgeDir>( lfp, cu, Position( ( area.x + edgeDir * d ) << csx, ( area.y + ( 1 - edgeDir ) * d ) << csy ), *cuPfstCh, ctuData, pqSameCtu );
           lfp.bs &= ~BsSet( 3, MAX_NUM_COMPONENT );
         }
 

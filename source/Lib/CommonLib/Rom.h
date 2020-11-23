@@ -177,7 +177,6 @@ extern const int g_quantTSDefault4x4   [4*4];
 extern const int g_quantIntraDefault8x8[8*8];
 extern const int g_quantInterDefault8x8[8*8];
 
-extern const uint32_t g_vvcScalingListSize [SCALING_LIST_SIZE_NUM];
 extern const uint32_t g_vvcScalingListSizeX[SCALING_LIST_SIZE_NUM];
 #if JVET_R0166_SCALING_LISTS_CHROMA_444
 extern const uint32_t g_scalingListId[SCALING_LIST_SIZE_NUM][SCALING_LIST_NUM];

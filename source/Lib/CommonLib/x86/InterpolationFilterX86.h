@@ -2254,8 +2254,11 @@ template<X86_VEXT vext, bool isLast>
 void simdFilter16xX_N8( const ClpRng& clpRng, const Pel* src, const ptrdiff_t srcStride, Pel* dst, const ptrdiff_t dstStride, int width, int height, TFilterCoeff const *coeffH, TFilterCoeff const *coeffV )
 {
   OFFSET( src, srcStride, -3, -3 );
-
-  _mm_prefetch( ( const char* ) ( src ), _MM_HINT_T0 );
+  
+  _mm_prefetch( ( const char* ) ( src +      0 * srcStride ), _MM_HINT_T0 );
+  _mm_prefetch( ( const char* ) ( src + 24 + 0 * srcStride ), _MM_HINT_T0 );
+  _mm_prefetch( ( const char* ) ( src +      1 * srcStride ), _MM_HINT_T0 );
+  _mm_prefetch( ( const char* ) ( src + 24 + 1 * srcStride ), _MM_HINT_T0 );
 
   int offset1st, offset2nd;
   int headRoom  = std::max<int>( 2, ( IF_INTERNAL_PREC - clpRng.bd ) );
@@ -2281,8 +2284,6 @@ void simdFilter16xX_N8( const ClpRng& clpRng, const Pel* src, const ptrdiff_t sr
 #if USE_AVX2
   if( vext >= AVX2 )
   {
-    static const int filterSpan = 8;
-
     __m256i voffset1   = _mm256_set1_epi32( offset1st );
     __m256i vibdimin   = _mm256_set1_epi16( clpRng.min() );
     __m256i vibdimax   = _mm256_set1_epi16( clpRng.max() );
@@ -2306,9 +2307,8 @@ void simdFilter16xX_N8( const ClpRng& clpRng, const Pel* src, const ptrdiff_t sr
 
     for( int row = 0; row < extHeight; row++ )
     {
-      _mm_prefetch( ( const char* ) ( src + 2 * srcStride ), _MM_HINT_T0 );
-      _mm_prefetch( ( const char* ) ( src + ( 16 >> 1 ) + 2 * srcStride ), _MM_HINT_T0 );
-      _mm_prefetch( ( const char* ) ( src + 16 + filterSpan + 2 * srcStride ), _MM_HINT_T0 );
+      _mm_prefetch( ( const char* ) ( src +      2 * srcStride ), _MM_HINT_T0 );
+      _mm_prefetch( ( const char* ) ( src + 24 + 2 * srcStride ), _MM_HINT_T0 );
 
       __m256i vsrca0, vsrca1, vsrcb0, vsrcb1;
       __m256i vsrc0 = _mm256_loadu_si256( ( const __m256i * ) &src[0] );
