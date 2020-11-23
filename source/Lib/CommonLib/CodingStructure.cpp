@@ -70,6 +70,10 @@ const UnitScale UnitScaleArray[NUM_CHROMA_FORMAT][MAX_NUM_COMPONENT] =
 CodingStructure::CodingStructure(std::shared_ptr<CUCache> cuCache, std::shared_ptr<TUCache> tuCache )
   : area      ()
   , picture   ( nullptr )
+  , m_ctuData ( nullptr )
+  , m_ctuDataSize( 0 )
+  , m_dmvrMvCache ( nullptr )
+  , m_dmvrMvCacheSize( 0 )
   , m_cuCache ( cuCache )
   , m_tuCache ( tuCache )
   , m_IBCBufferWidth( 0 )
@@ -85,12 +89,24 @@ void CodingStructure::destroy()
   m_rec_wrap.destroy();
   m_pred.destroy();
 
-  m_dmvrMvCache.clear();
+  if( m_dmvrMvCache )
+  {
+    free( m_dmvrMvCache );
+    m_dmvrMvCache = nullptr;
+    m_dmvrMvCacheSize = 0;
+  }
 
   m_cuCache->defragment();
   m_tuCache->defragment();
   
   m_virtualIBCbuf.clear();
+
+  if( m_ctuData )
+  {
+    free( m_ctuData );
+    m_ctuData = nullptr;
+    m_ctuDataSize = 0;
+  }
 }
 
 CodingUnit& CodingStructure::addCU( const UnitArea &unit, const ChannelType chType, const TreeType treeType, const ModeType modeType, const CodingUnit *cuLeft, const CodingUnit *cuAbove )
@@ -164,7 +180,7 @@ CodingUnit& CodingStructure::addCU( const UnitArea &unit, const ChannelType chTy
 
   if( isLuma( chType ) && unit.lheight() >= 8 && unit.lwidth()  >= 8 && unit.Y().area() >= 128 )
   {
-    CHECKD( m_dmvrMvCacheOffset >= m_dmvrMvCache.size(), "dmvr cache offset out of bounds" )
+    CHECKD( m_dmvrMvCacheOffset >= m_dmvrMvCacheSize, "dmvr cache offset out of bounds" )
     pu.mvdL0SubPu       = &m_dmvrMvCache[m_dmvrMvCacheOffset];
     m_dmvrMvCacheOffset += std::max<int>( 1, unit.lwidth() >> DMVR_SUBCU_WIDTH_LOG2 ) * std::max<int>( 1, unit.lheight() >> DMVR_SUBCU_HEIGHT_LOG2 );
   }
@@ -270,8 +286,13 @@ void CodingStructure::createInternals( const UnitArea& _unit )
   picture = nullptr;
 
   // for the worst case of all PUs being 8x8 and using DMVR
-  unsigned _maxNumDmvrMvs = ( area.lwidth() >> 3 ) * ( area.lheight() >> 3 );
-  m_dmvrMvCache.resize( _maxNumDmvrMvs );
+  const size_t _maxNumDmvrMvs = ( area.lwidth() >> 3 ) * ( area.lheight() >> 3 );
+  if( _maxNumDmvrMvs != m_dmvrMvCacheSize )
+  {
+    if( m_dmvrMvCache ) free( m_dmvrMvCache );
+    m_dmvrMvCacheSize = _maxNumDmvrMvs;
+    m_dmvrMvCache = ( Mv* ) malloc( sizeof( Mv ) * _maxNumDmvrMvs );
+  }
 }
 
 
@@ -302,10 +323,16 @@ void CodingStructure::initStructData()
   m_ctuWidthLog2[0] = pcv->maxCUWidthLog2 - unitScale[CH_L].posx;
   m_ctuWidthLog2[1] = m_ctuWidthLog2[0]; // same for luma and chroma, because of the 2x2 blocks
 
-  m_ctuData.resize( pcv->sizeInCtus );
-
-  for( auto &ctuData : m_ctuData )
+  if( m_ctuDataSize != pcv->sizeInCtus )
   {
+    m_ctuDataSize = pcv->sizeInCtus;
+    if( m_ctuData ) free( m_ctuData );
+    m_ctuData = ( CtuData* ) malloc( m_ctuDataSize * sizeof( CtuData ) );
+  }
+
+  for( int i = 0; i < m_ctuDataSize; i++ )
+  {
+    CtuData& ctuData = m_ctuData[i];
     memset( ctuData.cuPtr, 0, sizeof( ctuData.cuPtr ) );
   }
 
@@ -418,9 +445,13 @@ const CodingUnit* CodingStructure::getCURestricted( const Position &pos, const C
   {
     cu = curCu.ctuData->cuPtr[_chType][inCtuPos( pos, _chType )];
   }
+  else if( ydiff > 0 || xdiff > ( 1 - sps->getEntropyCodingSyncEnabledFlag() ) )
+  {
+    return nullptr;
+  }
   else
   {
-    cu = ydiff <= 0 ? getCU( pos, _chType ) : nullptr;
+    cu = getCU( pos, _chType );
   }
 
   if( !cu || cu->idx > curCu.idx ) return nullptr;
@@ -428,11 +459,6 @@ const CodingUnit* CodingStructure::getCURestricted( const Position &pos, const C
 
   if( cu->slice->getIndependentSliceIdx() == curCu.slice->getIndependentSliceIdx() && cu->tileIdx == curCu.tileIdx )
   {
-    if( xdiff > 0 && sps->getEntropyCodingSyncEnabledFlag() )
-    {
-      return nullptr;
-    }
-
     return cu;
   }
   else

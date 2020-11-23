@@ -715,9 +715,6 @@ struct SAOOffset
   int     typeAuxInfo;   // BO: starting band index
   int     offset[MAX_NUM_SAO_CLASSES];
 
-  SAOOffset() { reset(); }
-  ~SAOOffset() {}
-
   void reset()
   {
     modeIdc     = SAO_MODE_OFF;
@@ -739,9 +736,6 @@ struct SAOOffset
 
 struct SAOBlkParam
 {
-  SAOBlkParam() { reset(); }
-  ~SAOBlkParam() {}
-
   void reset()
   {
     for( int compIdx = 0; compIdx < MAX_NUM_COMPONENT; compIdx++ )
