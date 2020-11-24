@@ -577,6 +577,12 @@ void PelStorage::create( const ChromaFormat _chromaFormat, const Size& _size, co
     unsigned scaledWidth  = extWidth  >> scaleX;
     unsigned ymargin      = _margin >> (_scaleChromaMargin?scaleY:0);
     unsigned xmargin      = _margin >> (_scaleChromaMargin?scaleX:0);
+
+    //if( _alignment && xmargin )
+    //{
+    //  xmargin = ( ( xmargin + _alignment - 1 ) / _alignment ) * _alignment;
+    //}
+
     unsigned totalWidth   = scaledWidth + 2*xmargin;
     unsigned totalHeight  = scaledHeight +2*ymargin;
 
@@ -586,6 +592,7 @@ void PelStorage::create( const ChromaFormat _chromaFormat, const Size& _size, co
       CHECK( _alignment != MEMORY_ALIGN_DEF_SIZE, "Unsupported alignment" );
       totalWidth = ( ( totalWidth + _alignment - 1 ) / _alignment ) * _alignment;
     }
+
     uint32_t area = totalWidth * totalHeight;
     CHECK( !area, "Trying to create a buffer with zero area" );
 

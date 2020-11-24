@@ -2374,8 +2374,7 @@ void CABACReader::residual_coding( TransformUnit& tu, ComponentID compID, CUCtx&
     return;
 
   // parse transform skip and explicit rdpcm mode
-  ts_flag            ( tu, compID );
-  explicit_rdpcm_mode( tu, compID );
+  ts_flag( tu, compID );
 
   if( tu.mtsIdx[compID] == MTS_SKIP && !cu.slice->getTSResidualCodingDisabledFlag() )
   {
@@ -2384,16 +2383,7 @@ void CABACReader::residual_coding( TransformUnit& tu, ComponentID compID, CUCtx&
   }
 
   // determine sign hiding
-  bool signHiding  = ( m_slice->getSignDataHidingEnabledFlag() && tu.rdpcm[compID] == RDPCM_OFF );
-  if(  signHiding && CU::isIntra(cu) && CU::isRDPCMEnabled(cu) && tu.mtsIdx[compID] == MTS_SKIP )
-  {
-    const ChannelType chType    = toChannelType( compID );
-    const unsigned    intraMode = PU::getFinalIntraMode( cu, chType );
-    if( intraMode == HOR_IDX || intraMode == VER_IDX )
-    {
-      signHiding = false;
-    }
-  }
+  bool signHiding = m_slice->getSignDataHidingEnabledFlag();
   CoeffCodingContext  cctx    ( tu, compID, signHiding );
   // parse last coeff position
   cctx.setScanPosLast( last_sig_coeff( cctx, tu, compID ) );
@@ -2581,29 +2571,6 @@ void CABACReader::isp_mode( CodingUnit& cu )
     }
   }
   DTRACE( g_trace_ctx, D_SYNTAX, "intra_subPartitions() etype=%d pos=(%d,%d) ispIdx=%d\n", cu.chType(), cu.blocks[cu.chType()].x, cu.blocks[cu.chType()].y, (int)cu.ispMode() );
-}
-
-void CABACReader::explicit_rdpcm_mode( TransformUnit& tu, ComponentID compID )
-{
-  const CodingUnit& cu = *tu.cu;
-
-  //tu.rdpcm[compID] = RDPCM_OFF;
-
-  if( !CU::isIntra(cu) && CU::isRDPCMEnabled(cu) && tu.mtsIdx[compID] == 1 )
-  {
-    ChannelType chType = toChannelType( compID );
-    if( m_BinDecoder.decodeBin( Ctx::RdpcmFlag( chType ) ) )
-    {
-      if( m_BinDecoder.decodeBin( Ctx::RdpcmDir( chType ) ) )
-      {
-        tu.rdpcm[compID] = RDPCM_VER;
-      }
-      else
-      {
-        tu.rdpcm[compID] = RDPCM_HOR;
-      }
-    }
-  }
 }
 
 void CABACReader::residual_lfnst_mode( CodingUnit& cu,  CUCtx& cuCtx  )

@@ -69,9 +69,6 @@ static inline uint32_t        getNumberValidChannels    (const ChromaFormat fmt)
 static inline bool        isChromaEnabled           (const ChromaFormat fmt)                       { return !(fmt==CHROMA_400);                                         }
 static inline ComponentID getFirstComponentOfChannel(const ChannelType id)                         { return (isLuma(id) ? COMPONENT_Y : COMPONENT_Cb);                  }
 
-InputColourSpaceConversion stringToInputColourSpaceConvert(const std::string &value, const bool bIsForward);
-std::string getListOfColourSpaceConverts(const bool bIsForward);
-
 //------------------------------------------------
 
 static inline uint32_t getTotalSamples(const uint32_t width, const uint32_t height, const ChromaFormat format)

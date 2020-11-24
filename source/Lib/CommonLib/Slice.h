@@ -1355,67 +1355,67 @@ public:
 
 };
 
-/// SPS RExt class
-class SPSRExt // Names aligned to text specification
-{
-private:
-  bool m_transformSkipRotationEnabledFlag = false;
-  bool m_transformSkipContextEnabledFlag  = false;
-  bool m_rdpcmEnabledFlag[NUMBER_OF_RDPCM_SIGNALLING_MODES];
-  bool m_extendedPrecisionProcessingFlag     = false;
-  bool m_intraSmoothingDisabledFlag          = false;
-  bool m_highPrecisionOffsetsEnabledFlag     = false;
-  bool m_persistentRiceAdaptationEnabledFlag = false;
-  bool m_cabacBypassAlignmentEnabledFlag     = false;
-
-public:
-  SPSRExt()
-  {
-    for (uint32_t signallingModeIndex = 0; signallingModeIndex < NUMBER_OF_RDPCM_SIGNALLING_MODES; signallingModeIndex++)
-    {
-      m_rdpcmEnabledFlag[signallingModeIndex] = false;
-    }
-  }
-
-  bool settingsDifferFromDefaults() const
-  {
-    return getTransformSkipRotationEnabledFlag()
-        || getTransformSkipContextEnabledFlag()
-        || getRdpcmEnabledFlag(RDPCM_SIGNAL_IMPLICIT)
-        || getRdpcmEnabledFlag(RDPCM_SIGNAL_EXPLICIT)
-        || getExtendedPrecisionProcessingFlag()
-        || getIntraSmoothingDisabledFlag()
-        || getHighPrecisionOffsetsEnabledFlag()
-        || getPersistentRiceAdaptationEnabledFlag()
-        || getCabacBypassAlignmentEnabledFlag();
-  }
-
-
-  bool getTransformSkipRotationEnabledFlag() const                                     { return m_transformSkipRotationEnabledFlag;     }
-  void setTransformSkipRotationEnabledFlag(const bool value)                           { m_transformSkipRotationEnabledFlag = value;    }
-
-  bool getTransformSkipContextEnabledFlag() const                                      { return m_transformSkipContextEnabledFlag;      }
-  void setTransformSkipContextEnabledFlag(const bool value)                            { m_transformSkipContextEnabledFlag = value;     }
-
-  bool getRdpcmEnabledFlag(const RDPCMSignallingMode signallingMode) const             { return m_rdpcmEnabledFlag[signallingMode];     }
-  void setRdpcmEnabledFlag(const RDPCMSignallingMode signallingMode, const bool value) { m_rdpcmEnabledFlag[signallingMode] = value;    }
-
-  bool getExtendedPrecisionProcessingFlag() const                                      { return m_extendedPrecisionProcessingFlag;      }
-  void setExtendedPrecisionProcessingFlag(bool value)                                  { m_extendedPrecisionProcessingFlag = value;     }
-
-  bool getIntraSmoothingDisabledFlag() const                                           { return m_intraSmoothingDisabledFlag;           }
-  void setIntraSmoothingDisabledFlag(bool bValue)                                      { m_intraSmoothingDisabledFlag=bValue;           }
-
-  bool getHighPrecisionOffsetsEnabledFlag() const                                      { return m_highPrecisionOffsetsEnabledFlag;      }
-  void setHighPrecisionOffsetsEnabledFlag(bool value)                                  { m_highPrecisionOffsetsEnabledFlag = value;     }
-
-  bool getPersistentRiceAdaptationEnabledFlag() const                                  { return m_persistentRiceAdaptationEnabledFlag;  }
-  void setPersistentRiceAdaptationEnabledFlag(const bool value)                        { m_persistentRiceAdaptationEnabledFlag = value; }
-
-  bool getCabacBypassAlignmentEnabledFlag() const                                      { return m_cabacBypassAlignmentEnabledFlag;      }
-  void setCabacBypassAlignmentEnabledFlag(const bool value)                            { m_cabacBypassAlignmentEnabledFlag = value;     }
-};
-
+///// SPS RExt class
+//class SPSRExt // Names aligned to text specification
+//{
+//private:
+//  bool m_transformSkipRotationEnabledFlag = false;
+//  bool m_transformSkipContextEnabledFlag  = false;
+//  bool m_rdpcmEnabledFlag[NUMBER_OF_RDPCM_SIGNALLING_MODES];
+//  bool m_extendedPrecisionProcessingFlag     = false;
+//  bool m_intraSmoothingDisabledFlag          = false;
+//  bool m_highPrecisionOffsetsEnabledFlag     = false;
+//  bool m_persistentRiceAdaptationEnabledFlag = false;
+//  bool m_cabacBypassAlignmentEnabledFlag     = false;
+//
+//public:
+//  SPSRExt()
+//  {
+//    for (uint32_t signallingModeIndex = 0; signallingModeIndex < NUMBER_OF_RDPCM_SIGNALLING_MODES; signallingModeIndex++)
+//    {
+//      m_rdpcmEnabledFlag[signallingModeIndex] = false;
+//    }
+//  }
+//
+//  bool settingsDifferFromDefaults() const
+//  {
+//    return getTransformSkipRotationEnabledFlag()
+//        || getTransformSkipContextEnabledFlag()
+//        || getRdpcmEnabledFlag(RDPCM_SIGNAL_IMPLICIT)
+//        || getRdpcmEnabledFlag(RDPCM_SIGNAL_EXPLICIT)
+//        || getExtendedPrecisionProcessingFlag()
+//        || getIntraSmoothingDisabledFlag()
+//        || getHighPrecisionOffsetsEnabledFlag()
+//        || getPersistentRiceAdaptationEnabledFlag()
+//        || getCabacBypassAlignmentEnabledFlag();
+//  }
+//
+//
+//  bool getTransformSkipRotationEnabledFlag() const                                     { return m_transformSkipRotationEnabledFlag;     }
+//  void setTransformSkipRotationEnabledFlag(const bool value)                           { m_transformSkipRotationEnabledFlag = value;    }
+//
+//  bool getTransformSkipContextEnabledFlag() const                                      { return m_transformSkipContextEnabledFlag;      }
+//  void setTransformSkipContextEnabledFlag(const bool value)                            { m_transformSkipContextEnabledFlag = value;     }
+//
+//  bool getRdpcmEnabledFlag(const RDPCMSignallingMode signallingMode) const             { return m_rdpcmEnabledFlag[signallingMode];     }
+//  void setRdpcmEnabledFlag(const RDPCMSignallingMode signallingMode, const bool value) { m_rdpcmEnabledFlag[signallingMode] = value;    }
+//
+//  bool getExtendedPrecisionProcessingFlag() const                                      { return m_extendedPrecisionProcessingFlag;      }
+//  void setExtendedPrecisionProcessingFlag(bool value)                                  { m_extendedPrecisionProcessingFlag = value;     }
+//
+//  bool getIntraSmoothingDisabledFlag() const                                           { return m_intraSmoothingDisabledFlag;           }
+//  void setIntraSmoothingDisabledFlag(bool bValue)                                      { m_intraSmoothingDisabledFlag=bValue;           }
+//
+//  bool getHighPrecisionOffsetsEnabledFlag() const                                      { return m_highPrecisionOffsetsEnabledFlag;      }
+//  void setHighPrecisionOffsetsEnabledFlag(bool value)                                  { m_highPrecisionOffsetsEnabledFlag = value;     }
+//
+//  bool getPersistentRiceAdaptationEnabledFlag() const                                  { return m_persistentRiceAdaptationEnabledFlag;  }
+//  void setPersistentRiceAdaptationEnabledFlag(const bool value)                        { m_persistentRiceAdaptationEnabledFlag = value; }
+//
+//  bool getCabacBypassAlignmentEnabledFlag() const                                      { return m_cabacBypassAlignmentEnabledFlag;      }
+//  void setCabacBypassAlignmentEnabledFlag(const bool value)                            { m_cabacBypassAlignmentEnabledFlag = value;     }
+//};
+//
 
 /// SPS class
 class SPS : public BasePS<SPS>
@@ -1558,7 +1558,7 @@ private:
   unsigned          m_vuiPayloadSize                     = 0;
   VUI               m_vuiParameters;
 
-  SPSRExt           m_spsRangeExtension;
+  //SPSRExt           m_spsRangeExtension;
   static const      int m_winUnitX[NUM_CHROMA_FORMAT];
   static const      int m_winUnitY[NUM_CHROMA_FORMAT];
   ProfileTierLevel  m_profileTierLevel;
@@ -1811,7 +1811,8 @@ public:
   void                    setEntropyCodingSyncEntryPointsPresentFlag(bool val)                            { m_entropyCodingSyncEntryPointPresentFlag = val;                      }
 #endif
   
-  int                     getMaxLog2TrDynamicRange(ChannelType channelType) const                         { return getSpsRangeExtension().getExtendedPrecisionProcessingFlag() ? std::max<int>(15, int(m_bitDepths.recon[channelType] + 6)) : 15; }
+  //int                     getMaxLog2TrDynamicRange(ChannelType channelType) const                         { return getSpsRangeExtension().getExtendedPrecisionProcessingFlag() ? std::max<int>(15, int(m_bitDepths.recon[channelType] + 6)) : 15; }
+  constexpr int           getMaxLog2TrDynamicRange(ChannelType channelType) const                         { return 15; }
 
   int                     getDifferentialLumaChromaBitDepth() const                                       { return int(m_bitDepths.recon[CHANNEL_TYPE_LUMA]) - int(m_bitDepths.recon[CHANNEL_TYPE_CHROMA]); }
   int                     getQpBDOffset(ChannelType type) const                                           { return m_qpBDOffset[type];                                           }
@@ -1913,8 +1914,8 @@ public:
   const ProfileTierLevel* getProfileTierLevel() const                                                     { return &m_profileTierLevel; }
   ProfileTierLevel*       getProfileTierLevel()                                                           { return &m_profileTierLevel; }
 
-  const SPSRExt&          getSpsRangeExtension() const                                                    { return m_spsRangeExtension;                                          }
-  SPSRExt&                getSpsRangeExtension()                                                          { return m_spsRangeExtension;                                          }
+  //const SPSRExt&          getSpsRangeExtension() const                                                    { return m_spsRangeExtension;                                          }
+  //SPSRExt&                getSpsRangeExtension()                                                          { return m_spsRangeExtension;                                          }
 
 
   bool                    getUseALF() const                                                               { return m_useALF;                                                     }

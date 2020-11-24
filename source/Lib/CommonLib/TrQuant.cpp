@@ -319,65 +319,6 @@ void TrQuant::invTransformNxN( TransformUnit &tu, const ComponentID &compID, Pel
   }
 
   DTRACE_PEL_BUF( D_RESIDUALS, pResi, tu, tu.cu->predMode(), compID);
-  invRdpcmNxN( tu, compID, pResi );
-}
-
-void TrQuant::invRdpcmNxN(TransformUnit& tu, const ComponentID &compID, PelBuf &pcResidual)
-{
-  const CompArea &area    = tu.blocks[compID];
-
-  if( CU::isRDPCMEnabled( *tu.cu ) && tu.mtsIdx[compID] == 1 )
-  {
-    const uint32_t uiWidth  = area.width;
-    const uint32_t uiHeight = area.height;
-
-    RDPCMMode rdpcmMode = RDPCM_OFF;
-
-    if (tu.cu->predMode() == MODE_INTRA)
-    {
-      const ChannelType chType = toChannelType(compID);
-      const uint32_t uiChFinalMode = PU::getFinalIntraMode( *tu.cu, chType );
-
-      if (uiChFinalMode == VER_IDX || uiChFinalMode == HOR_IDX)
-      {
-        rdpcmMode = (uiChFinalMode == VER_IDX) ? RDPCM_VER : RDPCM_HOR;
-      }
-    }
-    else  // not intra case
-    {
-      rdpcmMode = RDPCMMode(tu.rdpcm[compID]);
-    }
-
-    const TCoeff pelMin = (TCoeff) std::numeric_limits<Pel>::min();
-    const TCoeff pelMax = (TCoeff) std::numeric_limits<Pel>::max();
-
-    if (rdpcmMode == RDPCM_VER)
-    {
-      for (uint32_t uiX = 0; uiX < uiWidth; uiX++)
-      {
-        TCoeff accumulator = pcResidual.at(uiX, 0); // 32-bit accumulator
-
-        for (uint32_t uiY = 1; uiY < uiHeight; uiY++)
-        {
-          accumulator            += pcResidual.at(uiX, uiY);
-          pcResidual.at(uiX, uiY) = (Pel) Clip3<TCoeff>(pelMin, pelMax, accumulator);
-        }
-      }
-    }
-    else if (rdpcmMode == RDPCM_HOR)
-    {
-      for (uint32_t uiY = 0; uiY < uiHeight; uiY++)
-      {
-        TCoeff accumulator = pcResidual.at(0, uiY);
-
-        for (uint32_t uiX = 1; uiX < uiWidth; uiX++)
-        {
-          accumulator            += pcResidual.at(uiX, uiY);
-          pcResidual.at(uiX, uiY) = (Pel) Clip3<TCoeff>(pelMin, pelMax, accumulator);
-        }
-      }
-    }
-  }
 }
 
 void TrQuant::invTransformICT( const TransformUnit &tu, PelBuf &resCb, PelBuf &resCr )

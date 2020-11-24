@@ -111,7 +111,7 @@ void  WeightPrediction::getWpScaling(const Slice                *pcSlice,
     }
   }
 
-  const bool bUseHighPrecisionPredictionWeighting = pcSlice->getSPS()->getSpsRangeExtension().getHighPrecisionOffsetsEnabledFlag();
+  const bool bUseHighPrecisionPredictionWeighting = false; // pcSlice->getSPS()->getSpsRangeExtension().getHighPrecisionOffsetsEnabledFlag();
 
   if (bBiPred)
   {
