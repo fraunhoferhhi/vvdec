@@ -67,8 +67,6 @@ namespace CU
   
   bool     isDualITree                (const CodingUnit &cu);
 
-  bool isRDPCMEnabled                 (const CodingUnit &cu);
-
   bool isSameCtu                      (const CodingUnit &cu, const CodingUnit &cu2);
   bool isSameSlice                    (const CodingUnit &cu, const CodingUnit &cu2);
   bool isSameTile                     (const CodingUnit &cu, const CodingUnit &cu2);

@@ -282,7 +282,6 @@ struct TransformUnit : public UnitArea
   CodingUnit     *cu;
   TransformUnit  *next;
 
-  RDPCMMode       rdpcm        [MAX_NUM_TBLOCKS];
   uint8_t         maxScanPosX  [MAX_NUM_TBLOCKS];
   uint8_t         maxScanPosY  [MAX_NUM_TBLOCKS];
   uint8_t         mtsIdx       [MAX_NUM_TBLOCKS];

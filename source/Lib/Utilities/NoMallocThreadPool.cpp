@@ -196,14 +196,14 @@ NoMallocThreadPool::TaskIterator NoMallocThreadPool::findNextTask( int threadId,
 
     Slot& t = *it;
     auto expected = WAITING;
-    if( t.state.load( std::memory_order_relaxed ) == WAITING && t.state.compare_exchange_strong( expected, RUNNING ) )
+    if( t.state == expected && t.state.compare_exchange_strong( expected, RUNNING ) )
     {
       if( !t.barriers.empty() )
       {
         if( std::any_of( t.barriers.cbegin(), t.barriers.cend(), []( const Barrier* b ) { return b && b->isBlocked(); } ) )
         {
           // reschedule
-          t.state.store( WAITING, std::memory_order_relaxed );
+          t.state = WAITING;
           continue;
         }
         t.barriers.clear();   // clear barriers, so we don't need to check them on the next try (we assume they won't get locked again)
@@ -211,7 +211,7 @@ NoMallocThreadPool::TaskIterator NoMallocThreadPool::findNextTask( int threadId,
       if( t.readyCheck && t.readyCheck( threadId, t.param ) == false )
       {
         // reschedule
-        t.state.store( WAITING, std::memory_order_relaxed );
+        t.state = WAITING;
         continue;
       }
 

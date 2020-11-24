@@ -91,8 +91,6 @@ public:
   void invTransformNxN(       TransformUnit &tu, const ComponentID &compID, PelBuf &pResi, const QpParam &cQPs );
   void invTransformICT( const TransformUnit &tu, PelBuf &resCb, PelBuf &resCr );
 
-  void invRdpcmNxN    (       TransformUnit& tu, const ComponentID &compID, PelBuf &pcResidual );
-
 
 
 protected:

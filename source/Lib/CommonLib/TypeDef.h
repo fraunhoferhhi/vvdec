@@ -305,34 +305,6 @@ enum SbtPos : int8_t
   NUMBER_SBT_POS
 };
 
-enum SbtMode : int8_t
-{
-  SBT_VER_H0 = 0,
-  SBT_VER_H1 = 1,
-  SBT_HOR_H0 = 2,
-  SBT_HOR_H1 = 3,
-  SBT_VER_Q0 = 4,
-  SBT_VER_Q1 = 5,
-  SBT_HOR_Q0 = 6,
-  SBT_HOR_Q1 = 7,
-  NUMBER_SBT_MODE
-};
-
-enum RDPCMMode : int8_t
-{
-  RDPCM_OFF             = 0,
-  RDPCM_HOR             = 1,
-  RDPCM_VER             = 2,
-  NUMBER_OF_RDPCM_MODES
-};
-
-enum RDPCMSignallingMode
-{
-  RDPCM_SIGNAL_IMPLICIT            = 0,
-  RDPCM_SIGNAL_EXPLICIT            = 1,
-  NUMBER_OF_RDPCM_SIGNALLING_MODES
-};
-
 /// supported slice type
 enum SliceType
 {
@@ -387,30 +359,6 @@ enum ComponentID : int8_t
 };
 
 #define MAP_CHROMA(c) (ComponentID(c))
-
-enum InputColourSpaceConversion // defined in terms of conversion prior to input of encoder.
-{
-  IPCOLOURSPACE_UNCHANGED               = 0,
-  IPCOLOURSPACE_YCbCrtoYCrCb            = 1, // Mainly used for debug!
-  IPCOLOURSPACE_YCbCrtoYYY              = 2, // Mainly used for debug!
-  IPCOLOURSPACE_RGBtoGBR                = 3,
-  NUMBER_INPUT_COLOUR_SPACE_CONVERSIONS = 4
-};
-
-enum MATRIX_COEFFICIENTS // Table E.5 (Matrix coefficients)
-{
-  MATRIX_COEFFICIENTS_RGB                           = 0,
-  MATRIX_COEFFICIENTS_BT709                         = 1,
-  MATRIX_COEFFICIENTS_UNSPECIFIED                   = 2,
-  MATRIX_COEFFICIENTS_RESERVED_BY_ITUISOIEC         = 3,
-  MATRIX_COEFFICIENTS_USFCCT47                      = 4,
-  MATRIX_COEFFICIENTS_BT601_625                     = 5,
-  MATRIX_COEFFICIENTS_BT601_525                     = 6,
-  MATRIX_COEFFICIENTS_SMPTE240                      = 7,
-  MATRIX_COEFFICIENTS_YCGCO                         = 8,
-  MATRIX_COEFFICIENTS_BT2020_NON_CONSTANT_LUMINANCE = 9,
-  MATRIX_COEFFICIENTS_BT2020_CONSTANT_LUMINANCE     = 10,
-};
 
 enum DeblockEdgeDir : int8_t
 {

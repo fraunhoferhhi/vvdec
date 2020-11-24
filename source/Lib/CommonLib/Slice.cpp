@@ -1350,7 +1350,7 @@ void  Slice::resetWpScaling()
 //! init WP table
 void  Slice::initWpScaling(const SPS *sps)
 {
-  const bool bUseHighPrecisionPredictionWeighting = sps->getSpsRangeExtension().getHighPrecisionOffsetsEnabledFlag();
+  const bool bUseHighPrecisionPredictionWeighting = false;// sps->getSpsRangeExtension().getHighPrecisionOffsetsEnabledFlag();
   for ( int e=0 ; e<NUM_REF_PIC_LIST_01 ; e++ )
   {
     for ( int i=0 ; i<MAX_NUM_REF ; i++ )
