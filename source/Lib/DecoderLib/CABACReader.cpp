@@ -614,6 +614,7 @@ bool CABACReader::coding_tree( CodingStructure& cs, Partitioner& partitioner, CU
     cuCtx.qp = lumaQPinLocalDualTree;
   }
 
+  if( isChromaEnabled( cs.pcv->chrFormat ) )
   for( TransformUnit& tu : TUTraverser( &cu.firstTU, cu.lastTU->next ) )
   {
     if( tu.Cb().valid() )
@@ -2162,7 +2163,7 @@ void CABACReader::transform_unit( TransformUnit& tu, CUCtx& cuCtx, Partitioner& 
   CodingUnit&      cu     = *tu.cu;
   ChromaCbfs       chromaCbfs;
 
-  const bool chromaCbfISP = area.blocks[COMPONENT_Cb].valid() && cu.ispMode();
+  const bool chromaCbfISP = isChromaEnabled( area.chromaFormat ) && area.blocks[COMPONENT_Cb].valid() && cu.ispMode();
   const bool tuNoResidual = TU::checkTuNoResidual( tu, partitioner.currPartIdx() );
 
   // cbf_cb & cbf_cr

@@ -627,9 +627,12 @@ void InterPrediction::xSubPuBio(PredictionUnit& pu, PelUnitBuf& predBuf )
       new ( &static_cast< UnitArea& >( subPu ) ) UnitArea( pu.chromaFormat, Area( x, y, subPuWidth, subPuHeight ) );
       subPu = curMi;
 
-      subPredBuf.bufs[0].buf = GET_OFFSET( predBuf.bufs[0].buf, predBuf.bufs[0].stride, dx,        dy );
-      subPredBuf.bufs[1].buf = GET_OFFSET( predBuf.bufs[1].buf, predBuf.bufs[1].stride, dx >> csx, dy >> csy );
-      subPredBuf.bufs[2].buf = GET_OFFSET( predBuf.bufs[2].buf, predBuf.bufs[2].stride, dx >> csx, dy >> csy );
+      subPredBuf  .bufs[0].buf = GET_OFFSET( predBuf.bufs[0].buf, predBuf.bufs[0].stride, dx,        dy );
+      if( isChromaEnabled( pu.chromaFormat ) )
+      {
+        subPredBuf.bufs[1].buf = GET_OFFSET( predBuf.bufs[1].buf, predBuf.bufs[1].stride, dx >> csx, dy >> csy );
+        subPredBuf.bufs[2].buf = GET_OFFSET( predBuf.bufs[2].buf, predBuf.bufs[2].stride, dx >> csx, dy >> csy );
+      }
 
       CHECKD( pu.refIdx[0] < 0 || pu.refIdx[1] < 0, "Bi-prediction required for BDOF!" );
 
@@ -719,8 +722,8 @@ void InterPrediction::xPredInterBi( PredictionUnit& pu, PelUnitBuf &pcYuvPred )
   const Slice &slice = *pu.slice;
   const PPS   &pps   = *slice.getPPS();
 
-  PelUnitBuf pcMbBuf0( pu.chromaFormat, PelBuf( m_acYuvPred[0][0], pcYuvPred.Y() ), PelBuf( m_acYuvPred[0][1], pcYuvPred.Cb() ), PelBuf( m_acYuvPred[0][2], pcYuvPred.Cr() ) );
-  PelUnitBuf pcMbBuf1( pu.chromaFormat, PelBuf( m_acYuvPred[1][0], pcYuvPred.Y() ), PelBuf( m_acYuvPred[1][1], pcYuvPred.Cb() ), PelBuf( m_acYuvPred[1][2], pcYuvPred.Cr() ) );
+  PelUnitBuf pcMbBuf0 = isChromaEnabled( pu.chromaFormat ) ? PelUnitBuf( pu.chromaFormat, PelBuf( m_acYuvPred[0][0], pcYuvPred.Y() ), PelBuf( m_acYuvPred[0][1], pcYuvPred.Cb() ), PelBuf( m_acYuvPred[0][2], pcYuvPred.Cr() ) ) : PelUnitBuf( pu.chromaFormat, PelBuf( m_acYuvPred[0][0], pcYuvPred.Y() ) );
+  PelUnitBuf pcMbBuf1 = isChromaEnabled( pu.chromaFormat ) ? PelUnitBuf( pu.chromaFormat, PelBuf( m_acYuvPred[1][0], pcYuvPred.Y() ), PelBuf( m_acYuvPred[1][1], pcYuvPred.Cb() ), PelBuf( m_acYuvPred[1][2], pcYuvPred.Cr() ) ) : PelUnitBuf( pu.chromaFormat, PelBuf( m_acYuvPred[1][0], pcYuvPred.Y() ) );
 
   const bool isBiPred = pu.refIdx[0] >= 0 && pu.refIdx[1] >= 0;
 
@@ -1944,11 +1947,11 @@ void InterPrediction::xProcessDMVR( PredictionUnit& pu, PelUnitBuf &pcYuvDst, co
     subPu                   = pu;
     subPu.UnitArea::operator=( UnitArea( pu.chromaFormat, Area( puPos.x, puPos.y, dx, dy ) ) );
 
-    m_cYuvRefBuffDMVRL0 = PelUnitBuf( pu.chromaFormat, PelBuf( m_cRefSamplesDMVRL0[0], subPu.Y() ), PelBuf( m_cRefSamplesDMVRL0[1], subPu.Cb() ), PelBuf( m_cRefSamplesDMVRL0[2], subPu.Cr() ) );
-    m_cYuvRefBuffDMVRL1 = PelUnitBuf( pu.chromaFormat, PelBuf( m_cRefSamplesDMVRL1[0], subPu.Y() ), PelBuf( m_cRefSamplesDMVRL1[1], subPu.Cb() ), PelBuf( m_cRefSamplesDMVRL1[2], subPu.Cr() ) );
+    m_cYuvRefBuffDMVRL0 = isChromaEnabled( pu.chromaFormat ) ? PelUnitBuf( pu.chromaFormat, PelBuf( m_cRefSamplesDMVRL0[0], subPu.Y() ), PelBuf( m_cRefSamplesDMVRL0[1], subPu.Cb() ), PelBuf( m_cRefSamplesDMVRL0[2], subPu.Cr() ) ) : PelUnitBuf( pu.chromaFormat, PelBuf( m_cRefSamplesDMVRL0[0], subPu.Y() ) );
+    m_cYuvRefBuffDMVRL1 = isChromaEnabled( pu.chromaFormat ) ? PelUnitBuf( pu.chromaFormat, PelBuf( m_cRefSamplesDMVRL1[0], subPu.Y() ), PelBuf( m_cRefSamplesDMVRL1[1], subPu.Cb() ), PelBuf( m_cRefSamplesDMVRL1[2], subPu.Cr() ) ) : PelUnitBuf( pu.chromaFormat, PelBuf( m_cRefSamplesDMVRL1[0], subPu.Y() ) );
 
-    PelUnitBuf srcPred0 = PelUnitBuf( pu.chromaFormat, PelBuf( m_acYuvPred[0][0], subPu.Y() ), PelBuf( m_acYuvPred[0][1], subPu.Cb() ), PelBuf( m_acYuvPred[0][2], subPu.Cr() ) );
-    PelUnitBuf srcPred1 = PelUnitBuf( pu.chromaFormat, PelBuf( m_acYuvPred[1][0], subPu.Y() ), PelBuf( m_acYuvPred[1][1], subPu.Cb() ), PelBuf( m_acYuvPred[1][2], subPu.Cr() ) );
+    PelUnitBuf srcPred0 = isChromaEnabled( pu.chromaFormat ) ? PelUnitBuf( pu.chromaFormat, PelBuf( m_acYuvPred[0][0], subPu.Y() ), PelBuf( m_acYuvPred[0][1], subPu.Cb() ), PelBuf( m_acYuvPred[0][2], subPu.Cr() ) ) : PelUnitBuf( pu.chromaFormat, PelBuf( m_acYuvPred[0][0], subPu.Y() ) );
+    PelUnitBuf srcPred1 = isChromaEnabled( pu.chromaFormat ) ? PelUnitBuf( pu.chromaFormat, PelBuf( m_acYuvPred[1][0], subPu.Y() ), PelBuf( m_acYuvPred[1][1], subPu.Cb() ), PelBuf( m_acYuvPred[1][2], subPu.Cr() ) ) : PelUnitBuf( pu.chromaFormat, PelBuf( m_acYuvPred[1][0], subPu.Y() ) );
 
     DistParam cDistParam;
     m_pcRdCost->setDistParam( cDistParam, nullptr, nullptr, m_biLinearBufStride, m_biLinearBufStride, clpRngs.bd, dx, dy, 1 );

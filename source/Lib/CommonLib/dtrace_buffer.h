@@ -161,7 +161,7 @@ inline void dtraceCRC( CDTrace *trace_ctx, DTRACE_CHANNEL channel, const CodingS
   const Area& area = parea ? *parea : cs.area.Y();
   DTRACE( trace_ctx, channel, " CRC: %6lld %3d @(%4d,%4d) [%2dx%2d] ,Checksum(%x %x %x)\n",
       DTRACE_GET_COUNTER( g_trace_ctx, channel ),
-      cs.slice->getPOC(),
+      cs.picture->poc,
       area.x, area.y, area.width, area.height,
       calcCheckSum( pelUnitBuf.bufs[COMPONENT_Y], cs.sps->getBitDepth (CHANNEL_TYPE_LUMA)),
       calcCheckSum( pelUnitBuf.bufs[COMPONENT_Cb], cs.sps->getBitDepth (CHANNEL_TYPE_CHROMA)),
@@ -173,7 +173,7 @@ inline void dtraceCCRC( CDTrace *trace_ctx, DTRACE_CHANNEL channel, const Coding
   const Area& area = parea ? *parea : cs.area.Y();
   DTRACE( trace_ctx, channel, "CRC: %6lld %3d @(%4d,%4d) [%2dx%2d] ,comp %d Checksum(%x)\n",
       DTRACE_GET_COUNTER( g_trace_ctx, channel ),
-      cs.slice->getPOC(),
+      cs.picture->poc,
       area.x, area.y, area.width, area.height, compId,
       calcCheckSum( pelBuf, cs.sps->getBitDepth ( toChannelType(compId) )));
 }

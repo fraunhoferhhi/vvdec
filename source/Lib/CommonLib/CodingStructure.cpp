@@ -342,9 +342,12 @@ void CodingStructure::initStructData()
 
   m_dmvrMvCacheOffset = 0;
 
-  m_predBuf[0] = m_pred.bufs[0].buf;
-  m_predBuf[1] = m_pred.bufs[1].buf;
-  m_predBuf[2] = m_pred.bufs[2].buf;
+  m_predBuf[0]   = m_pred.bufs[0].buf;
+  if( isChromaEnabled( area.chromaFormat ) )
+  {
+    m_predBuf[1] = m_pred.bufs[1].buf;
+    m_predBuf[2] = m_pred.bufs[2].buf;
+  }
 }
 
 MotionBuf CodingStructure::getMotionBuf( const Area& _area )
@@ -371,7 +374,7 @@ PelUnitBuf CodingStructure::getPredBuf(const CodingUnit &unit)
 {
   PelUnitBuf ret;
   ret.chromaFormat = unit.chromaFormat;
-  ret.bufs.resize_noinit( 3 );
+  ret.bufs.resize_noinit( getNumberValidComponents( unit.chromaFormat ) );
 
   if( unit.Y().valid() )
   {
@@ -381,20 +384,23 @@ PelUnitBuf CodingStructure::getPredBuf(const CodingUnit &unit)
     ret.bufs[0].height = unit.blocks [0].height;
   }
 
-  if( unit.Cb().valid() )
+  if( isChromaEnabled( unit.chromaFormat ) )
   {
-    ret.bufs[1].buf    = unit.predBuf[1];
-    ret.bufs[1].stride = unit.blocks [1].width;
-    ret.bufs[1].width  = unit.blocks [1].width;
-    ret.bufs[1].height = unit.blocks [1].height;
-  }
+    if( unit.Cb().valid() )
+    {
+      ret.bufs[1].buf    = unit.predBuf[1];
+      ret.bufs[1].stride = unit.blocks [1].width;
+      ret.bufs[1].width  = unit.blocks [1].width;
+      ret.bufs[1].height = unit.blocks [1].height;
+    }
 
-  if( unit.Cr().valid() )
-  {
-    ret.bufs[2].buf    = unit.predBuf[2];
-    ret.bufs[2].stride = unit.blocks [2].width;
-    ret.bufs[2].width  = unit.blocks [2].width;
-    ret.bufs[2].height = unit.blocks [2].height;
+    if( unit.Cr().valid() )
+    {
+      ret.bufs[2].buf    = unit.predBuf[2];
+      ret.bufs[2].stride = unit.blocks [2].width;
+      ret.bufs[2].width  = unit.blocks [2].width;
+      ret.bufs[2].height = unit.blocks [2].height;
+    }
   }
 
   return ret;

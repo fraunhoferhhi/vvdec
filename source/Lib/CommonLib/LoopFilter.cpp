@@ -389,7 +389,7 @@ void LoopFilter::loopFilterPic( CodingStructure& cs ) const
 
   const PreCalcValues& pcv = *cs.pcv;
 
-  DTRACE_UPDATE( g_trace_ctx, ( std::make_pair( "poc", cs.slice->getPOC() ) ) );
+  DTRACE_UPDATE( g_trace_ctx, ( std::make_pair( "poc", cs.picture->poc ) ) );
 
 #if ENABLE_TRACING
   for( int y = 0; y < pcv.heightInCtus; y++ )
@@ -554,7 +554,7 @@ void LoopFilter::xDeblockCtuArea( CodingStructure& cs, const UnitArea& area, con
   ptrdiff_t lfpStride           = cs.getLFPMapStride();
 
   const Position lumaPos = area.lumaPos();
-  const Position chrmPos = area.chromaPos();
+  const Position chrmPos = doChroma ? area.chromaPos() : lumaPos;
 
   for( int dy = 0, cdy = 0; dy < area.lheight(); dy += incy, cdy += ( incy >> csy ) )
   {
@@ -917,7 +917,7 @@ void LoopFilter::xSetMaxFilterLengthPQFromTransformSizes( const CodingUnit& cu, 
     }
   }
 
-  if( start != end && !currTU.Cb().valid() )
+  if( start != end && ( !isChromaEnabled( pcv.chrFormat ) || !currTU.Cb().valid() ) )
   {
     end = CH_L;
   }
@@ -1089,7 +1089,7 @@ void LoopFilter::xGetBoundaryStrengthSingle( LoopFilterParam& lfp, const CodingU
   const TransformUnit &tuP = cuP.firstTU.next == nullptr ? cuP.firstTU : *getTU( cuP, posP, chType ); //TODO: check this: based on chType of the current cu, because cuQ.chType and cuP.chType are not the same when local dual-tree is applied
   
   const bool hasLuma   = cuQ.Y(). valid();
-  const bool hasChroma = cuQ.Cb().valid();
+  const bool hasChroma = isChromaEnabled( cuQ.chromaFormat ) && cuQ.Cb().valid();
 
   bool cuPcIsIntra = false;
   int  chrmBS      = 2;

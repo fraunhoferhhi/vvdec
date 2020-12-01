@@ -308,6 +308,7 @@ void Quant::dequant(   const TransformUnit &tu,
   const TCoeff          transformMinimum   = -(1 << maxLog2TrDynamicRange);
   const TCoeff          transformMaximum   =  (1 << maxLog2TrDynamicRange) - 1;
   const bool            isTransformSkip    = ( tu.mtsIdx[compID] == MTS_SKIP );
+  setUseScalingList( tu.cu->slice->getExplicitScalingListUsed() );
 #if JVET_P0365_SCALING_MATRIX_LFNST
   const bool            disableSMForLFNST  = tu.cu->slice->getExplicitScalingListUsed() ? sps->getDisableScalingMatrixForLfnstBlks() : false;
   const bool            isLfnstApplied     = tu.cu->lfnstIdx() > 0 && ( CU::isSepTree( *tu.cu ) ? true : isLuma( compID ) );
