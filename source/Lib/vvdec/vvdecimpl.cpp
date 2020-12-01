@@ -826,10 +826,12 @@ int VVDecImpl::xAddPicture( Picture* pcPic )
   Frame cFrame;
   xCreateFrame ( cFrame, cPicBuf, uiWidth, uiHeight, bitDepths );
 
+  const int maxComponent = getNumberValidComponents( cPicBuf.chromaFormat );
+
   if( m_bCreateNewPicBuf )
   {
     // copy picture into target memory
-    for( uint32_t comp=0; comp < MAX_NUM_COMPONENT; comp++ )
+    for( uint32_t comp=0; comp < maxComponent; comp++ )
     {
       const ComponentID compID      = ComponentID(comp);
       const uint32_t    csx         = ::getComponentScaleX(compID, cPicBuf.chromaFormat);
@@ -850,7 +852,7 @@ int VVDecImpl::xAddPicture( Picture* pcPic )
   else
   {
     // use internal lib picture memory
-    for( uint32_t comp=0; comp < MAX_NUM_COMPONENT; comp++ )
+    for( uint32_t comp=0; comp < maxComponent; comp++ )
     {
       const ComponentID compID      = ComponentID(comp);
       const uint32_t    csx         = ::getComponentScaleX(compID, cPicBuf.chromaFormat);

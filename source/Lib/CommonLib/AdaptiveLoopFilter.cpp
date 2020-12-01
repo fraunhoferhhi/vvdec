@@ -494,7 +494,8 @@ void AdaptiveLoopFilter::filterCTU( const CPelUnitBuf & srcBuf, const PelUnitBuf
   const int height = ( ctuPos.y + pcv.maxCUHeight > pcv.lumaHeight ) ? ( pcv.lumaHeight - ctuPos.y ) : pcv.maxCUHeight;
 
   AlfClassifier classifier[MAX_CU_SIZE * MAX_CU_SIZE >> ( 2 + 2 )];
-  for( int compIdx = 0; compIdx < MAX_NUM_COMPONENT; compIdx++ )
+  const int numComp = getNumberValidComponents( pcv.chrFormat );
+  for( int compIdx = 0; compIdx < numComp; compIdx++ )
   {
     ComponentID compID = ComponentID( compIdx );
 

@@ -1056,7 +1056,7 @@ void IntraPrediction::geneIntrainterPred( const CodingUnit &cu )
   for( int currCompID = 0; currCompID < 3; currCompID++ )
 #endif
   {
-    if( pu.chromaSize().width <= 2 && currCompID > 0 ) continue;
+    if( currCompID > 0 && pu.chromaSize().width <= 2 ) continue;
 
     const ComponentID currCompID2 = (ComponentID) currCompID;
 
@@ -1068,7 +1068,7 @@ void IntraPrediction::geneIntrainterPred( const CodingUnit &cu )
   predIntraAng( COMPONENT_Y, predBuf.Y(), pu, isUseFilter );
 
 #if JVET_Q0438_MONOCHROME_BUGFIXES
-  if( pu.chromaSize().width > 2 && isChromaEnabled( pu.chromaFormat ) )
+  if( isChromaEnabled( pu.chromaFormat ) && pu.chromaSize().width > 2 )
 #else
   if( pu.chromaSize().width > 2 )
 #endif

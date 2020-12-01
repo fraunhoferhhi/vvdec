@@ -76,7 +76,7 @@ inline void dtracePicComp( DTRACE_CHANNEL channel, CodingStructure& cs, const CP
   uint32_t       uiChromaScaleX = getComponentScaleX( compId, pelUnitBuf.chromaFormat );
   uint32_t       uiChromaScaleY = getComponentScaleY( compId, pelUnitBuf.chromaFormat );
 
-  DTRACE                ( g_trace_ctx, channel, "\n%s: poc = %d, size=%dx%d\n\n", g_trace_ctx->getChannelName(channel), cs.slice->getPOC(), uiWidth, uiHeight );
+  DTRACE                ( g_trace_ctx, channel, "\n%s: poc = %d, size=%dx%d\n\n", g_trace_ctx->getChannelName(channel), cs.picture->poc, uiWidth, uiHeight );
   DTRACE_FRAME_BLOCKWISE( g_trace_ctx, channel, piSrc, uiStride, uiWidth, uiHeight, cs.sps->getMaxCUWidth() >> uiChromaScaleX, cs.sps->getMaxCUHeight() >> uiChromaScaleY);
 }
 
