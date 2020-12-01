@@ -613,8 +613,8 @@ void HLSyntaxReader::parsePPS( PPS* pcPPS, ParameterSetManager *parameterSetMana
   }
   READ_FLAG( uiCode, "pps_cabac_init_present_flag" );                       pcPPS->setCabacInitPresentFlag( uiCode ? true : false );
 
-  READ_UVLC( uiCode, "pps_num_ref_idx_default_active_minus1[ 0 ]" );        pcPPS->setNumRefIdxL0DefaultActive( uiCode + 1 );
-  READ_UVLC( uiCode, "pps_num_ref_idx_default_active_minus1[ 1 ]" );        pcPPS->setNumRefIdxL1DefaultActive( uiCode + 1 );
+  READ_UVLC( uiCode, "pps_num_ref_idx_default_active_minus1[0]" );          pcPPS->setNumRefIdxL0DefaultActive( uiCode + 1 );
+  READ_UVLC( uiCode, "pps_num_ref_idx_default_active_minus1[1]" );          pcPPS->setNumRefIdxL1DefaultActive( uiCode + 1 );
 
   READ_FLAG( uiCode, "pps_rpl1_idx_present_flag" );                         pcPPS->setRpl1IdxPresentFlag( uiCode );
   READ_FLAG( uiCode, "pps_weighted_pred_flag" );                            pcPPS->setUseWP( uiCode == 1 );
@@ -652,7 +652,7 @@ void HLSyntaxReader::parsePPS( PPS* pcPPS, ParameterSetManager *parameterSetMana
 
     READ_FLAG( uiCode, "pps_slice_chroma_qp_offsets_present_flag" );        pcPPS->setSliceChromaQpFlag( uiCode ? true : false );
 
-    READ_FLAG( uiCode, "pps_cu_chroma_qp_offset_enabled_flag" );
+    READ_FLAG( uiCode, "pps_cu_chroma_qp_offset_list_enabled_flag" );
     if( uiCode == 0 )
     {
       pcPPS->clearChromaQpOffsetList();
@@ -759,7 +759,7 @@ void HLSyntaxReader::parsePPS( PPS* pcPPS, ParameterSetManager *parameterSetMana
   READ_FLAG( uiCode, "pps_picture_header_extension_present_flag" );         pcPPS->setPictureHeaderExtensionPresentFlag( uiCode );
   READ_FLAG( uiCode, "pps_slice_header_extension_present_flag" );           pcPPS->setSliceHeaderExtensionPresentFlag( uiCode );
 
-  READ_FLAG( uiCode, "pps_extension_present_flag" );
+  READ_FLAG( uiCode, "pps_extension_flag" );
   if( uiCode )
   {
     while( xMoreRbspData() )
@@ -785,7 +785,7 @@ void HLSyntaxReader::parseAPS( APS* aps )
 
   uint32_t  code;
   READ_CODE( 3, code, "aps_params_type" );                                  aps->setAPSType( code );
-  READ_CODE( 5, code, "aps_adaptation_parameter_set_id" );                  aps->setAPSId( code );
+  READ_CODE( 5, code, "adaptation_parameter_set_id" );                      aps->setAPSId( code );
   READ_FLAG( code, "aps_chroma_present_flag" );                             aps->chromaPresentFlag = code;
 
   const int apsType = aps->getAPSType();
@@ -954,11 +954,11 @@ void HLSyntaxReader::parseLmcsAps( APS* aps )
   CHECK( info.maxNbitsNeededDeltaCW == 0, "wrong" );
   for( uint32_t i = info.reshaperModelMinBinIdx; i <= info.reshaperModelMaxBinIdx; i++ )
   {
-    READ_CODE( info.maxNbitsNeededDeltaCW, code, "lmcs_delta_abs_cw[i]" );
+    READ_CODE( info.maxNbitsNeededDeltaCW, code, "lmcs_delta_abs_cw[ i ]" );
     int absCW = code;
     if( absCW > 0 )
     {
-      READ_CODE( 1, code, "lmcs_delta_sign_cw_flag[i]" );
+      READ_CODE( 1, code, "lmcs_delta_sign_cw_flag[ i ]" );
     }
     int signCW = code;
     info.reshaperModelBinCWDelta[i] = ( 1 - 2 * signCW ) * absCW;
@@ -1936,18 +1936,18 @@ void HLSyntaxReader::parseSPS( SPS* pcSPS, ParameterSetManager *parameterSetMana
 
   if( pcSPS->getVirtualBoundariesEnabledFlag() )
   {
-    READ_FLAG( uiCode, "sps_virtual_boundaries_present_flag" );              pcSPS->setVirtualBoundariesPresentFlag( uiCode != 0 );
+    READ_FLAG( uiCode, "sps_loop_filter_across_virtual_boundaries_present_flag" );              pcSPS->setVirtualBoundariesPresentFlag( uiCode != 0 );
     if( pcSPS->getVirtualBoundariesPresentFlag() )
     {
-      READ_CODE( 2, uiCode, "sps_num_ver_virtual_boundaries" );              pcSPS->setNumVerVirtualBoundaries( uiCode );
+      READ_UVLC( uiCode, "sps_num_ver_virtual_boundaries" );                pcSPS->setNumVerVirtualBoundaries( uiCode );
       for( unsigned i = 0; i < pcSPS->getNumVerVirtualBoundaries(); i++ )
       {
-        READ_UVLC( uiCode, "sps_virtual_boundary_pos_x_minus1[ i ]" );       pcSPS->setVirtualBoundariesPosX( uiCode << 3, i );
+        READ_UVLC( uiCode, "sps_virtual_boundary_pos_x_minus1[i]" );        pcSPS->setVirtualBoundariesPosX( uiCode << 3, i );
       }
-      READ_CODE( 2, uiCode, "sps_num_hor_virtual_boundaries" );              pcSPS->setNumHorVirtualBoundaries( uiCode );
+      READ_UVLC( uiCode, "sps_num_hor_virtual_boundaries" );                pcSPS->setNumHorVirtualBoundaries( uiCode );
       for( unsigned i = 0; i < pcSPS->getNumHorVirtualBoundaries(); i++ )
       {
-        READ_UVLC(uiCode, "sps_virtual_boundary_pos_y_minus1[ i ]" );        pcSPS->setVirtualBoundariesPosY( uiCode << 3, i );
+        READ_UVLC( uiCode, "sps_virtual_boundary_pos_y_minus1[i]" );        pcSPS->setVirtualBoundariesPosY( uiCode << 3, i );
       }
     }
     else
@@ -2641,7 +2641,7 @@ void HLSyntaxReader::parsePictureHeader( PicHeader* picHeader, ParameterSetManag
     READ_FLAG( uiCode, "ph_virtual_boundaries_present_flag" );               picHeader->setVirtualBoundariesPresentFlag( uiCode != 0 );
     if( picHeader->getVirtualBoundariesPresentFlag() )
     {
-      READ_CODE( 2, uiCode, "ph_num_ver_virtual_boundaries" );               picHeader->setNumVerVirtualBoundaries( uiCode );
+      READ_UVLC( uiCode, "ph_num_ver_virtual_boundaries" );               picHeader->setNumVerVirtualBoundaries( uiCode );
       if( pps->getPicWidthInLumaSamples() <= 8 )
       {
         CHECK( picHeader->getNumVerVirtualBoundaries() != 0, "PH: When picture width is less than or equal to 8, the number of vertical virtual boundaries shall be equal to 0" );
@@ -2650,7 +2650,7 @@ void HLSyntaxReader::parsePictureHeader( PicHeader* picHeader, ParameterSetManag
       {
         READ_UVLC( uiCode, "ph_virtual_boundary_pos_x_minus1[ i ]" );        picHeader->setVirtualBoundariesPosX( uiCode << 3, i );
       }
-      READ_CODE( 2, uiCode, "ph_num_hor_virtual_boundaries" );               picHeader->setNumHorVirtualBoundaries( uiCode );
+      READ_UVLC( uiCode, "ph_num_hor_virtual_boundaries" );               picHeader->setNumHorVirtualBoundaries( uiCode );
       if( pps->getPicHeightInLumaSamples() <= 8 )
       {
         CHECK( picHeader->getNumHorVirtualBoundaries() != 0, "PH: When picture width is less than or equal to 8, the number of horizontal virtual boundaries shall be equal to 0" );
@@ -2710,7 +2710,7 @@ void HLSyntaxReader::parsePictureHeader( PicHeader* picHeader, ParameterSetManag
       }
       else
       {
-        READ_FLAG( uiCode, "rpl_sps_flag[ listIdx ]" );
+        READ_FLAG( uiCode, "ref_pic_list_sps_flag[ listIdx ]" );
       }
       // explicit RPL in picture header
       if( !uiCode )
@@ -2731,7 +2731,7 @@ void HLSyntaxReader::parsePictureHeader( PicHeader* picHeader, ParameterSetManag
         else if( sps->getNumRPL( listIdx ) > 1 )
         {
           int numBits = (int)ceil( log2( sps->getNumRPL( listIdx ) ) );
-          READ_CODE( numBits, uiCode, "rpl_idx[ listIdx ]" );
+          READ_CODE( numBits, uiCode, "ref_pic_list_idx[ listIdx ]" );
           picHeader->setRPLIdx( listIdx, uiCode );
           picHeader->setRPL( listIdx, &sps->getRPLList( listIdx )[uiCode] );
         }
@@ -2921,7 +2921,7 @@ void HLSyntaxReader::parsePictureHeader( PicHeader* picHeader, ParameterSetManag
     // full-pel MMVD flag
     if( sps->getFpelMmvdEnabledFlag() )
     {
-      READ_FLAG( uiCode, "ph_mmvd_fullpel_only_flag" );                      picHeader->setDisFracMMVD( uiCode != 0 );
+      READ_FLAG( uiCode, "ph_fpel_mmvd_enabled_flag" );                      picHeader->setDisFracMMVD( uiCode != 0 );
     }
     else
     {
@@ -3467,7 +3467,7 @@ void HLSyntaxReader::parseSliceHeader( Slice* pcSlice, PicHeader* parsedPicHeade
 
     if( sps->getUseCCALF() && pcSlice->getTileGroupAlfEnabledFlag( COMPONENT_Y ) )
     {
-      READ_FLAG( uiCode, "sh_cc_alf_cb_enabled_flag" );
+      READ_FLAG( uiCode, "sh_alf_cc_cb_enabled_flag" );
       pcSlice->setTileGroupCcAlfCbEnabledFlag( uiCode );
       pcSlice->setTileGroupCcAlfCbApsId( -1 );
       if( uiCode )
@@ -3477,7 +3477,7 @@ void HLSyntaxReader::parseSliceHeader( Slice* pcSlice, PicHeader* parsedPicHeade
         pcSlice->setTileGroupCcAlfCbApsId( uiCode );
       }
       // Cr
-      READ_FLAG(uiCode, "sh_cc_alf_cr_enabled_flag" );
+      READ_FLAG(uiCode, "sh_alf_cc_cr_enabled_flag" );
       pcSlice->setTileGroupCcAlfCrEnabledFlag( uiCode );
       pcSlice->setTileGroupCcAlfCrApsId(-1);
       if( uiCode )
@@ -3536,7 +3536,7 @@ void HLSyntaxReader::parseSliceHeader( Slice* pcSlice, PicHeader* parsedPicHeade
     //Read L0 related syntax elements
     if( sps->getNumRPL0() > 0 )
     {
-        READ_FLAG( uiCode, "rpl_sps_flag[ 0 ]" );
+        READ_FLAG( uiCode, "ref_pic_list_sps_flag[0]" );
     }
     else
     {
@@ -3556,7 +3556,7 @@ void HLSyntaxReader::parseSliceHeader( Slice* pcSlice, PicHeader* parsedPicHeade
       if( sps->getNumRPL0() > 1 )
       {
         int numBits = (int)ceil( log2( sps->getNumRPL0() ) );
-        READ_CODE( numBits, uiCode, "rpl_idx[ 0 ]" );
+        READ_CODE( numBits, uiCode, "ref_pic_list_idx[0]" );
         pcSlice->setRPL0idx( uiCode );
         pcSlice->setRPL0( &sps->getRPLList0()[uiCode] );
       }
@@ -3606,7 +3606,7 @@ void HLSyntaxReader::parseSliceHeader( Slice* pcSlice, PicHeader* parsedPicHeade
       if( sps->getNumRPL1() > 0 )
       {
         {
-          READ_FLAG( uiCode, "rpl_sps_flag[ 1 ]" );
+          READ_FLAG( uiCode, "ref_pic_list_sps_flag[1]" );
         }
       }
       else
@@ -3619,7 +3619,7 @@ void HLSyntaxReader::parseSliceHeader( Slice* pcSlice, PicHeader* parsedPicHeade
         if( sps->getNumRPL1() > 1 )
         {
           int numBits = (int)ceil( log2( sps->getNumRPL1() ) );
-          READ_CODE( numBits, uiCode, "rpl_idx[ 1 ]" );
+          READ_CODE( numBits, uiCode, "ref_pic_list_idx[1]" );
           pcSlice->setRPL1idx( uiCode );
           pcSlice->setRPL1( &sps->getRPLList1()[uiCode] );
         }
@@ -3877,12 +3877,12 @@ void HLSyntaxReader::parseSliceHeader( Slice* pcSlice, PicHeader* parsedPicHeade
 
   if( sps->getUseSAO() && !pps->getSaoInfoInPhFlag() )
   {
-    READ_FLAG( uiCode, "sh_sao_luma_flag" );
+    READ_FLAG( uiCode, "sh_sao_luma_used_flag" );
     pcSlice->setSaoEnabledFlag( CHANNEL_TYPE_LUMA, (bool)uiCode );
 
     if( bChroma )
     {
-      READ_FLAG( uiCode, "sh_sao_chroma_flag" );
+      READ_FLAG( uiCode, "sh_sao_chroma_used_flag" );
       pcSlice->setSaoEnabledFlag( CHANNEL_TYPE_CHROMA, (bool)uiCode );
     }
   }
@@ -4823,11 +4823,11 @@ void HLSyntaxReader::alfFilter( AlfSliceParam& alfSliceParam, const bool isChrom
   {
     for( int i = 0; i < numCoeff - 1; i++ )
     {
-      READ_UVLC( code, isLuma ? "alf_luma_coeff_abs[ ind ][ i ]" : "alf_chroma_coeff_abs[ ind ][ i ]" );
+      READ_UVLC( code, isLuma ? "alf_luma_coeff_abs" : "alf_chroma_coeff_abs" );
       coeff[ ind * MAX_NUM_ALF_LUMA_COEFF + i ] = code;
       if( coeff[ ind * MAX_NUM_ALF_LUMA_COEFF + i ] != 0 )
       {
-        READ_FLAG( code, isLuma ? "alf_luma_coeff_sign[ ind ][ i ]" : "alf_chroma_coeff_sign[ ind ][ i ]" );
+        READ_FLAG( code, isLuma ? "alf_luma_coeff_sign" : "alf_chroma_coeff_sign" );
         coeff[ ind * MAX_NUM_ALF_LUMA_COEFF + i ] = ( code ) ? -coeff[ ind * MAX_NUM_ALF_LUMA_COEFF + i ] : coeff[ ind * MAX_NUM_ALF_LUMA_COEFF + i ];
        }
     }
@@ -4850,7 +4850,7 @@ void HLSyntaxReader::alfFilter( AlfSliceParam& alfSliceParam, const bool isChrom
     {
       for( int i = 0; i < numCoeff - 1; i++ )
       {
-        READ_CODE( 2, code, isLuma ? "alf_luma_clip_idx[ ind ][ i ]" : "alf_chroma_clip_idx[ ind ][ i ]" );
+        READ_CODE( 2, code, isLuma ? "alf_luma_clip_idx" : "alf_chroma_clip_idx" );
         clipp[ind * MAX_NUM_ALF_LUMA_COEFF + i] = code;
       }
     }
