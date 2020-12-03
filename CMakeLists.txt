@@ -251,10 +251,10 @@ if( VVDEC_ENABLE_BITSTREAM_DOWNLOAD )
   
   if( VVDEC_ENABLE_LOCAL_BITSTREAM_DOWNLOAD )
     # get bitstreams
-    set( BITSTREAM_URL_BASE "https://visvn.fe.hhi.de/download/VVC/under_test/VTM-10.1" )
+    set( BITSTREAM_URL_BASE "https://visvn.fe.hhi.de/download/VVC/under_test/VTM-11.0" )
   else()
     # get bitstreams
-    set( BITSTREAM_URL_BASE "https://www.itu.int/wftp3/av-arch/jvet-site/bitstream_exchange/VVC/under_test/VTM-10.1" )
+    set( BITSTREAM_URL_BASE "https://www.itu.int/wftp3/av-arch/jvet-site/bitstream_exchange/VVC/under_test/VTM-11.0" )
   endif()
   
   # create a list of all test bitstreams
@@ -275,7 +275,7 @@ if( VVDEC_ENABLE_BITSTREAM_DOWNLOAD )
     "BDOF_A_MediaTek_3.zip"
     "BDPCM_A_Orange_2.zip"
     "BOUNDARY_A_Huawei_3.zip"
-    "BUMP_A_LGE_1.zip" "BUMP_B_LGE_1.zip" "BUMP_C_LGE_1.zip"
+    #"BUMP_A_LGE_1.zip" "BUMP_B_LGE_1.zip" "BUMP_C_LGE_1.zip" # missing in 11.0
     "CCALF_A_Sharp_3.zip" "CCALF_B_Sharp_3.zip" "CCALF_C_Sharp_3.zip" "CCALF_D_Sharp_3.zip"
     "CCLM_A_KDDI_1.zip"
     "CIIP_A_MediaTek_3.zip"
@@ -326,14 +326,14 @@ if( VVDEC_ENABLE_BITSTREAM_DOWNLOAD )
     "PROF_A_Interdigital_3.zip" "PROF_B_Interdigital_3.zip"
     "PSEXT_A_Nokia_2.zip" "PSEXT_B_Nokia_2.zip"
     "QTBTT_A_MediaTek_3.zip"
-    "QUANT_A_Huawei_2.zip" "QUANT_B_Huawei_2.zip" "QUANT_C_Huawei_2.zip" "QUANT_D_Huawei_3.zip"
+    "QUANT_A_Huawei_2.zip" "QUANT_B_Huawei_2.zip" "QUANT_C_Huawei_2.zip" "QUANT_D_Huawei_2.zip"
     "RAP_A_HHI_1.zip" "RAP_B_HHI_1.zip" "RAP_C_HHI_1.zip" "RAP_D_HHI_1.zip"
     "RPL_A_ERICSSON_2.zip"
     "RPR_A_Alibaba_4.zip" "RPR_B_Alibaba_3.zip" "RPR_C_Alibaba_3.zip"
     "SAO_A_SAMSUNG_3.zip" "SAO_B_SAMSUNG_3.zip" "SAO_C_SAMSUNG_3.zip"
     "SBT_A_HUAWEI_2.zip"
     "SbTMVP_A_Bytedance_3.zip" "SbTMVP_B_Bytedance_3.zip"
-    "SCALING_A_InterDigital_1.zip" "SCALING_B_InterDigital_1.zip" #"SCALING_C_InterDigital_1.zip" # TODO
+    "SCALING_A_InterDigital_1.zip" "SCALING_B_InterDigital_1.zip" "SCALING_C_InterDigital_1.zip"
     "SDH_A_Dolby_2.zip"
     "SLICES_A_HUAWEI_2.zip"
     "SMVD_A_HUAWEI_2.zip"

@@ -456,8 +456,15 @@ void SEIReader::xParseSEIDecodedPictureHash(SEIDecodedPictureHash& sei, uint32_t
   output_sei_message_header(sei, pDecodedMessageOutputStream, payloadSize);
 
   uint32_t val;
-  sei_read_code( pDecodedMessageOutputStream, 8, val, "hash_type");
+  sei_read_code( pDecodedMessageOutputStream, 8, val, "dpb_sei_hash_type" );
   sei.method = static_cast<HashType>(val); bytesRead++;
+  sei_read_code( pDecodedMessageOutputStream, 1, val, "dph_sei_single_component_flag");
+  sei.singleCompFlag = val;
+  sei_read_code( pDecodedMessageOutputStream, 7, val, "dph_sei_reserved_zero_7bits");
+  bytesRead++;
+  uint32_t expectedSize = ( sei.singleCompFlag ? 1 : 3 ) * (sei.method == 0 ? 16 : (sei.method == 1 ? 2 : 4));
+  CHECK ((payloadSize - bytesRead) != expectedSize, "The size of the decoded picture hash does not match the expected size.");
+
 
   const char *traceString="\0";
   switch (sei.method)

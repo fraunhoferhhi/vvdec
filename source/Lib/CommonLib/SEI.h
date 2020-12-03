@@ -255,8 +255,8 @@ public:
   SEIDecodedPictureHash() {}
   virtual ~SEIDecodedPictureHash() {}
 
-  HashType method;
-
+  HashType    method;
+  bool        singleCompFlag;
   PictureHash m_pictureHash;
 };
 
