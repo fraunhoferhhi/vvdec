@@ -1085,7 +1085,7 @@ void HLSyntaxReader::parseGeneralHrdParameters( GeneralHrdParams *hrd )
   if( hrd->getGeneralNalHrdParametersPresentFlag() || hrd->getGeneralVclHrdParametersPresentFlag() )
   {
     READ_FLAG( symbol, "general_same_pic_timing_in_all_ols_flag" );          hrd->setGeneralSamePicTimingInAllOlsFlag( symbol == 1 ? true : false );
-    READ_FLAG( symbol, "general_du_hrd_params_present_flag" );               hrd->setGeneralDecodingUnitHrdParamsPresentFlag( symbol == 1 ? true : false );
+    READ_FLAG( symbol, "general_decoding_unit_hrd_params_present_flag" );    hrd->setGeneralDecodingUnitHrdParamsPresentFlag( symbol == 1 ? true : false );
     if( hrd->getGeneralDecodingUnitHrdParamsPresentFlag() )
     {
       READ_CODE( 8, symbol, "tick_divisor_minus2" );                         hrd->setTickDivisorMinus2( symbol );
@@ -1107,10 +1107,10 @@ void HLSyntaxReader::parseOlsHrdParameters( GeneralHrdParams * generalHrd, OlsHr
   for( int i = firstSubLayer; i <= maxNumSubLayersMinus1; i ++ )
   {
     OlsHrdParams *hrd = &(olsHrd[i]);
-    READ_FLAG( symbol, "fixed_pic_rate_general_flag[i]" );                 hrd->setFixedPicRateGeneralFlag( symbol == 1 ? true : false );
+    READ_FLAG( symbol, "fixed_pic_rate_general_flag" );                 hrd->setFixedPicRateGeneralFlag( symbol == 1 ? true : false );
     if( !hrd->getFixedPicRateGeneralFlag() )
     {
-      READ_FLAG( symbol, "fixed_pic_rate_within_cvs_flag[i]" );            hrd->setFixedPicRateWithinCvsFlag( symbol == 1 ? true : false );
+      READ_FLAG( symbol, "fixed_pic_rate_within_cvs_flag" );            hrd->setFixedPicRateWithinCvsFlag( symbol == 1 ? true : false );
     }
     else
     {
@@ -1121,11 +1121,11 @@ void HLSyntaxReader::parseOlsHrdParameters( GeneralHrdParams * generalHrd, OlsHr
 
     if( hrd->getFixedPicRateWithinCvsFlag() )
     {
-      READ_UVLC( symbol, "elemental_duration_in_tc_minus1[i]" );           hrd->setElementDurationInTcMinus1( symbol );
+      READ_UVLC( symbol, "elemental_duration_in_tc_minus1" );           hrd->setElementDurationInTcMinus1( symbol );
     }
     else if( generalHrd->getHrdCpbCntMinus1() == 0 )
     {
-      READ_FLAG(symbol, "low_delay_hrd_flag[i]");                          hrd->setLowDelayHrdFlag( symbol == 1 ? true : false );
+      READ_FLAG(symbol, "low_delay_hrd_flag");                          hrd->setLowDelayHrdFlag( symbol == 1 ? true : false );
     }
 
     for( int nalOrVcl = 0; nalOrVcl < 2; nalOrVcl ++ )
@@ -1134,14 +1134,14 @@ void HLSyntaxReader::parseOlsHrdParameters( GeneralHrdParams * generalHrd, OlsHr
       {
         for( int j = 0; j <= generalHrd->getHrdCpbCntMinus1(); j++ )
         {
-          READ_UVLC( symbol, "bit_rate_value_minus1[i][j]");             hrd->setBitRateValueMinus1( j, nalOrVcl, symbol );
-          READ_UVLC( symbol, "cpb_size_value_minus1[i][j]");             hrd->setCpbSizeValueMinus1( j, nalOrVcl, symbol );
+          READ_UVLC( symbol, "bit_rate_value_minus1");             hrd->setBitRateValueMinus1( j, nalOrVcl, symbol );
+          READ_UVLC( symbol, "cpb_size_value_minus1");             hrd->setCpbSizeValueMinus1( j, nalOrVcl, symbol );
           if( generalHrd->getGeneralDecodingUnitHrdParamsPresentFlag() )
           {
-            READ_UVLC( symbol, "bit_rate_du_value_minus1[i][j]" );       hrd->setDuBitRateValueMinus1( j, nalOrVcl, symbol );
-            READ_UVLC( symbol, "cpb_size_du_value_minus1[i][j]" );       hrd->setDuCpbSizeValueMinus1( j, nalOrVcl, symbol );
+            READ_UVLC( symbol, "bit_rate_du_value_minus1" );       hrd->setDuBitRateValueMinus1( j, nalOrVcl, symbol );
+            READ_UVLC( symbol, "cpb_size_du_value_minus1" );       hrd->setDuCpbSizeValueMinus1( j, nalOrVcl, symbol );
           }
-          READ_FLAG( symbol, "cbr_flag[i][ j ]" );                         hrd->setCbrFlag( j, nalOrVcl, symbol == 1 ? true : false );
+          READ_FLAG( symbol, "cbr_flag" );                         hrd->setCbrFlag( j, nalOrVcl, symbol == 1 ? true : false );
         }
       }
     }
