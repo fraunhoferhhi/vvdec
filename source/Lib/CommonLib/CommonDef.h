@@ -1,43 +1,47 @@
 /* -----------------------------------------------------------------------------
-Software Copyright License for the Fraunhofer Software Library VVdec
+The copyright in this software is being made available under the BSD
+License, included below. No patent rights, trademark rights and/or 
+other Intellectual Property Rights other than the copyrights concerning 
+the Software are granted under this license.
 
-(c) Copyright (2018-2020) Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. 
-
-1.    INTRODUCTION
-
-The Fraunhofer Software Library VVdec (“Fraunhofer Versatile Video Decoding Library”) is software that implements (parts of) the Versatile Video Coding Standard - ITU-T H.266 | MPEG-I - Part 3 (ISO/IEC 23090-3) and related technology. 
-The standard contains Fraunhofer patents as well as third-party patents. Patent licenses from third party standard patent right holders may be required for using the Fraunhofer Versatile Video Decoding Library. It is in your responsibility to obtain those if necessary. 
-
-The Fraunhofer Versatile Video Decoding Library which mean any source code provided by Fraunhofer are made available under this software copyright license. 
-It is based on the official ITU/ISO/IEC VVC Test Model (VTM) reference software whose copyright holders are indicated in the copyright notices of its source files. The VVC Test Model (VTM) reference software is licensed under the 3-Clause BSD License and therefore not subject of this software copyright license.
-
-2.    COPYRIGHT LICENSE
-
-Internal use of the Fraunhofer Versatile Video Decoding Library, in source and binary forms, with or without modification, is permitted without payment of copyright license fees for non-commercial purposes of evaluation, testing and academic research. 
-
-No right or license, express or implied, is granted to any part of the Fraunhofer Versatile Video Decoding Library except and solely to the extent as expressly set forth herein. Any commercial use or exploitation of the Fraunhofer Versatile Video Decoding Library and/or any modifications thereto under this license are prohibited.
-
-For any other use of the Fraunhofer Versatile Video Decoding Library than permitted by this software copyright license You need another license from Fraunhofer. In such case please contact Fraunhofer under the CONTACT INFORMATION below.
-
-3.    LIMITED PATENT LICENSE
-
-As mentioned under 1. Fraunhofer patents are implemented by the Fraunhofer Versatile Video Decoding Library. If You use the Fraunhofer Versatile Video Decoding Library in Germany, the use of those Fraunhofer patents for purposes of testing, evaluating and research and development is permitted within the statutory limitations of German patent law. However, if You use the Fraunhofer Versatile Video Decoding Library in a country where the use for research and development purposes is not permitted without a license, you must obtain an appropriate license from Fraunhofer. It is Your responsibility to check the legal requirements for any use of applicable patents.    
-
-Fraunhofer provides no warranty of patent non-infringement with respect to the Fraunhofer Versatile Video Decoding Library.
-
-
-4.    DISCLAIMER
-
-The Fraunhofer Versatile Video Decoding Library is provided by Fraunhofer "AS IS" and WITHOUT ANY EXPRESS OR IMPLIED WARRANTIES, including but not limited to the implied warranties fitness for a particular purpose. IN NO EVENT SHALL FRAUNHOFER BE LIABLE for any direct, indirect, incidental, special, exemplary, or consequential damages, including but not limited to procurement of substitute goods or services; loss of use, data, or profits, or business interruption, however caused and on any theory of liability, whether in contract, strict liability, or tort (including negligence), arising in any way out of the use of the Fraunhofer Versatile Video Decoding Library, even if advised of the possibility of such damage.
-
-5.    CONTACT INFORMATION
+For any license concerning other Intellectual Property rights than the software, 
+especially patent licenses, a separate Agreement needs to be closed. 
+For more information please contact:
 
 Fraunhofer Heinrich Hertz Institute
-Attention: Video Coding & Analytics Department
 Einsteinufer 37
 10587 Berlin, Germany
 www.hhi.fraunhofer.de/vvc
 vvc@hhi.fraunhofer.de
+
+Copyright (c) 2018-2020, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. 
+All rights reserved.
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are met:
+
+ * Redistributions of source code must retain the above copyright notice,
+   this list of conditions and the following disclaimer.
+ * Redistributions in binary form must reproduce the above copyright notice,
+   this list of conditions and the following disclaimer in the documentation
+   and/or other materials provided with the distribution.
+ * Neither the name of Fraunhofer nor the names of its contributors may
+   be used to endorse or promote products derived from this software without
+   specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS
+BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
+THE POSSIBILITY OF SUCH DAMAGE.
+
+
 ------------------------------------------------------------------------------------------- */
 
 /** \file     CommonDef.h
@@ -251,7 +255,6 @@ static const int MDLM_L_IDX =                          LM_CHROMA_IDX + 1; ///< M
 static const int MDLM_T_IDX =                          LM_CHROMA_IDX + 2; ///< MDLM_T
 static const int DM_CHROMA_IDX =                       NUM_INTRA_MODE; ///< chroma mode index for derived from luma intra mode
 
-static const uint32_t  NUM_TRAFO_MODES_MTS =                            6; ///< Max Intra CU size applying EMT, supported values: 8, 16, 32, 64, 128
 static const uint32_t  MTS_INTRA_MAX_CU_SIZE =                         32; ///< Max Intra CU size applying EMT, supported values: 8, 16, 32, 64, 128
 static const uint32_t  MTS_INTER_MAX_CU_SIZE =                         32; ///< Max Inter CU size applying EMT, supported values: 8, 16, 32, 64, 128
 static const int NUM_MOST_PROBABLE_MODES = 6;
@@ -289,8 +292,7 @@ static const int MAX_CU_SIZE =                        1<<MAX_CU_DEPTH;
 static const int MIN_CU_LOG2 =                                      2;
 static const int MIN_PU_SIZE =                                      4;
 static const int MIN_TU_SIZE =                                      4;
-static const int MAX_TU_SIZE =                                    128;
-static const int MAX_LOG2_TU_SIZE_PLUS_ONE =                        8; ///< log2(MAX_TU_SIZE) + 1
+static const int MAX_LOG2_TU_SIZE_PLUS_ONE =                        7; ///< log2(MAX_TU_SIZE) + 1
 static const int MAX_NUM_PARTS_IN_CTU =                         ( ( MAX_CU_SIZE * MAX_CU_SIZE ) >> ( MIN_CU_LOG2 << 1 ) );
 static const int MAX_TU_SIZE_FOR_PROFILE =                         64;
 static const int MAX_LOG2_DIFF_CU_TR_SIZE =                         3;
@@ -301,7 +303,6 @@ static const int JVET_C0024_ZERO_OUT_TH =                          32;
 static const int MAX_NUM_PART_IDXS_IN_CTU_WIDTH = MAX_CU_SIZE/MIN_PU_SIZE; ///< maximum number of partition indices across the width of a CTU (or height of a CTU)
 static const int SCALING_LIST_REM_NUM =                             6;
 
-static const int QUANT_SHIFT =                                     14; ///< Q(4) = 2^14
 static const int IQUANT_SHIFT =                                     6;
 static const int SCALE_BITS =                                      15; ///< Precision for fractional bit estimates
 
@@ -348,17 +349,6 @@ static const int DMVR_SUBCU_HEIGHT_LOG2 =                           4;
 static const int MAX_NUM_SUBCU_DMVR     =                           ((MAX_CU_SIZE * MAX_CU_SIZE) >> (DMVR_SUBCU_WIDTH_LOG2 + DMVR_SUBCU_HEIGHT_LOG2));
 static const int DMVR_NUM_ITERATION     =                           2;
 
-//QTBT high level parameters
-//for I slice luma CTB configuration para.
-static const int    MAX_BT_DEPTH  =                                 4;      ///<  <=7
-                                                                            //for P/B slice CTU config. para.
-static const int    MAX_BT_DEPTH_INTER =                            4;      ///< <=7
-static const int    MIN_BT_SIZE_INTER  =                            4;      ///<
-
-                                                                            //for I slice chroma CTB configuration para. (in luma samples)
-static const int    MAX_BT_DEPTH_C      =                           0;      ///< <=7
-static const int    MIN_BT_SIZE_C       =                           4;      ///< can be set down to 4, in luma samples
-
 static const int    MIN_DUALTREE_CHROMA_WIDTH  =                    4;
 static const int    MIN_DUALTREE_CHROMA_SIZE   =                   16;
 
@@ -389,14 +379,7 @@ static const int GEO_NUM_DISTANCES =                                4;
 static const int GEO_NUM_PRESTORED_MASK =                           6;
 static const int GEO_WEIGHT_MASK_SIZE = 3 * (GEO_MAX_CU_SIZE >> 3) * 2 + GEO_MAX_CU_SIZE;
 static const int GEO_MV_MASK_SIZE =         GEO_WEIGHT_MASK_SIZE >> 2;
-static const int GEO_MAX_TRY_WEIGHTED_SAD = 60;
-static const int GEO_MAX_TRY_WEIGHTED_SATD = 8;
 
-static const int SBT_MAX_SIZE =                                    64; ///< maximum CU size for using SBT
-static const int SBT_NUM_SL =                                      10; ///< maximum number of historical PU decision saved for a CU
-static const int SBT_NUM_RDO =                                      2; ///< maximum number of SBT mode tried for a PU
-
-static const int NUM_INTER_CU_INFO_SAVE =                           8; ///< maximum number of inter cu information saved for fast algorithm
 static const int LDT_MODE_TYPE_INHERIT =                            0; ///< No need to signal mode_constraint_flag, and the modeType of the region is inherited from its parent node
 static const int LDT_MODE_TYPE_INFER =                              1; ///< No need to signal mode_constraint_flag, and the modeType of the region is inferred as MODE_TYPE_INTRA
 static const int LDT_MODE_TYPE_SIGNAL =                             2; ///< Need to signal mode_constraint_flag, and the modeType of the region is determined by the flag
@@ -412,13 +395,9 @@ static constexpr int MV_BITS =                                      18;
 static const int MVD_MAX =                            (1 << 17) - 1;
 static const int MVD_MIN =                               -(1 << 17);
 
-static const int PIC_ANALYZE_CW_BINS =                           32;
 static const int PIC_CODE_CW_BINS =                              16;
 static const int FP_PREC =                                       11;
 static const int CSCALE_FP_PREC =                                11;
-static const int  NEIG_NUM_LOG  =                                 6;
-static const int  NEIG_NUM =                      1 << NEIG_NUM_LOG;
-static const int ENC_PPS_ID_RPR =                                 3;
 static const int SCALE_RATIO_BITS =                              14;
 static const int MAX_SCALING_RATIO =                              8;  // max scaling ratio allowed in the software, it is used to allocated an internla buffer in the rescaling
 static const std::pair<int, int> SCALE_1X = std::pair<int, int>( 1 << SCALE_RATIO_BITS, 1 << SCALE_RATIO_BITS );  // scale ratio 1x

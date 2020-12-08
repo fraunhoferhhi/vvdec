@@ -1,43 +1,47 @@
 /* -----------------------------------------------------------------------------
-Software Copyright License for the Fraunhofer Software Library VVdec
+The copyright in this software is being made available under the BSD
+License, included below. No patent rights, trademark rights and/or 
+other Intellectual Property Rights other than the copyrights concerning 
+the Software are granted under this license.
 
-(c) Copyright (2018-2020) Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. 
-
-1.    INTRODUCTION
-
-The Fraunhofer Software Library VVdec (“Fraunhofer Versatile Video Decoding Library”) is software that implements (parts of) the Versatile Video Coding Standard - ITU-T H.266 | MPEG-I - Part 3 (ISO/IEC 23090-3) and related technology. 
-The standard contains Fraunhofer patents as well as third-party patents. Patent licenses from third party standard patent right holders may be required for using the Fraunhofer Versatile Video Decoding Library. It is in your responsibility to obtain those if necessary. 
-
-The Fraunhofer Versatile Video Decoding Library which mean any source code provided by Fraunhofer are made available under this software copyright license. 
-It is based on the official ITU/ISO/IEC VVC Test Model (VTM) reference software whose copyright holders are indicated in the copyright notices of its source files. The VVC Test Model (VTM) reference software is licensed under the 3-Clause BSD License and therefore not subject of this software copyright license.
-
-2.    COPYRIGHT LICENSE
-
-Internal use of the Fraunhofer Versatile Video Decoding Library, in source and binary forms, with or without modification, is permitted without payment of copyright license fees for non-commercial purposes of evaluation, testing and academic research. 
-
-No right or license, express or implied, is granted to any part of the Fraunhofer Versatile Video Decoding Library except and solely to the extent as expressly set forth herein. Any commercial use or exploitation of the Fraunhofer Versatile Video Decoding Library and/or any modifications thereto under this license are prohibited.
-
-For any other use of the Fraunhofer Versatile Video Decoding Library than permitted by this software copyright license You need another license from Fraunhofer. In such case please contact Fraunhofer under the CONTACT INFORMATION below.
-
-3.    LIMITED PATENT LICENSE
-
-As mentioned under 1. Fraunhofer patents are implemented by the Fraunhofer Versatile Video Decoding Library. If You use the Fraunhofer Versatile Video Decoding Library in Germany, the use of those Fraunhofer patents for purposes of testing, evaluating and research and development is permitted within the statutory limitations of German patent law. However, if You use the Fraunhofer Versatile Video Decoding Library in a country where the use for research and development purposes is not permitted without a license, you must obtain an appropriate license from Fraunhofer. It is Your responsibility to check the legal requirements for any use of applicable patents.    
-
-Fraunhofer provides no warranty of patent non-infringement with respect to the Fraunhofer Versatile Video Decoding Library.
-
-
-4.    DISCLAIMER
-
-The Fraunhofer Versatile Video Decoding Library is provided by Fraunhofer "AS IS" and WITHOUT ANY EXPRESS OR IMPLIED WARRANTIES, including but not limited to the implied warranties fitness for a particular purpose. IN NO EVENT SHALL FRAUNHOFER BE LIABLE for any direct, indirect, incidental, special, exemplary, or consequential damages, including but not limited to procurement of substitute goods or services; loss of use, data, or profits, or business interruption, however caused and on any theory of liability, whether in contract, strict liability, or tort (including negligence), arising in any way out of the use of the Fraunhofer Versatile Video Decoding Library, even if advised of the possibility of such damage.
-
-5.    CONTACT INFORMATION
+For any license concerning other Intellectual Property rights than the software, 
+especially patent licenses, a separate Agreement needs to be closed. 
+For more information please contact:
 
 Fraunhofer Heinrich Hertz Institute
-Attention: Video Coding & Analytics Department
 Einsteinufer 37
 10587 Berlin, Germany
 www.hhi.fraunhofer.de/vvc
 vvc@hhi.fraunhofer.de
+
+Copyright (c) 2018-2020, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. 
+All rights reserved.
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are met:
+
+ * Redistributions of source code must retain the above copyright notice,
+   this list of conditions and the following disclaimer.
+ * Redistributions in binary form must reproduce the above copyright notice,
+   this list of conditions and the following disclaimer in the documentation
+   and/or other materials provided with the distribution.
+ * Neither the name of Fraunhofer nor the names of its contributors may
+   be used to endorse or promote products derived from this software without
+   specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS
+BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
+THE POSSIBILITY OF SUCH DAMAGE.
+
+
 ------------------------------------------------------------------------------------------- */
 
 /** \file     Slice.h
@@ -110,6 +114,8 @@ public:
   void    setRefPicIdentifier( int idx, int identifier, bool isLongterm, bool isInterLayerRefPic, int interLayerIdx );
   int     getRefPicIdentifier(int idx) const;
   bool    isRefPicLongterm(int idx) const;
+
+  void    setRefPicLongterm(int idx,bool isLongterm) { m_isLongtermRefPic[idx] = isLongterm; }
 
   void    setNumberOfShorttermPictures(int numberOfStrp);
   int     getNumberOfShorttermPictures() const;
@@ -1353,67 +1359,67 @@ public:
 
 };
 
-/// SPS RExt class
-class SPSRExt // Names aligned to text specification
-{
-private:
-  bool m_transformSkipRotationEnabledFlag = false;
-  bool m_transformSkipContextEnabledFlag  = false;
-  bool m_rdpcmEnabledFlag[NUMBER_OF_RDPCM_SIGNALLING_MODES];
-  bool m_extendedPrecisionProcessingFlag     = false;
-  bool m_intraSmoothingDisabledFlag          = false;
-  bool m_highPrecisionOffsetsEnabledFlag     = false;
-  bool m_persistentRiceAdaptationEnabledFlag = false;
-  bool m_cabacBypassAlignmentEnabledFlag     = false;
-
-public:
-  SPSRExt()
-  {
-    for (uint32_t signallingModeIndex = 0; signallingModeIndex < NUMBER_OF_RDPCM_SIGNALLING_MODES; signallingModeIndex++)
-    {
-      m_rdpcmEnabledFlag[signallingModeIndex] = false;
-    }
-  }
-
-  bool settingsDifferFromDefaults() const
-  {
-    return getTransformSkipRotationEnabledFlag()
-        || getTransformSkipContextEnabledFlag()
-        || getRdpcmEnabledFlag(RDPCM_SIGNAL_IMPLICIT)
-        || getRdpcmEnabledFlag(RDPCM_SIGNAL_EXPLICIT)
-        || getExtendedPrecisionProcessingFlag()
-        || getIntraSmoothingDisabledFlag()
-        || getHighPrecisionOffsetsEnabledFlag()
-        || getPersistentRiceAdaptationEnabledFlag()
-        || getCabacBypassAlignmentEnabledFlag();
-  }
-
-
-  bool getTransformSkipRotationEnabledFlag() const                                     { return m_transformSkipRotationEnabledFlag;     }
-  void setTransformSkipRotationEnabledFlag(const bool value)                           { m_transformSkipRotationEnabledFlag = value;    }
-
-  bool getTransformSkipContextEnabledFlag() const                                      { return m_transformSkipContextEnabledFlag;      }
-  void setTransformSkipContextEnabledFlag(const bool value)                            { m_transformSkipContextEnabledFlag = value;     }
-
-  bool getRdpcmEnabledFlag(const RDPCMSignallingMode signallingMode) const             { return m_rdpcmEnabledFlag[signallingMode];     }
-  void setRdpcmEnabledFlag(const RDPCMSignallingMode signallingMode, const bool value) { m_rdpcmEnabledFlag[signallingMode] = value;    }
-
-  bool getExtendedPrecisionProcessingFlag() const                                      { return m_extendedPrecisionProcessingFlag;      }
-  void setExtendedPrecisionProcessingFlag(bool value)                                  { m_extendedPrecisionProcessingFlag = value;     }
-
-  bool getIntraSmoothingDisabledFlag() const                                           { return m_intraSmoothingDisabledFlag;           }
-  void setIntraSmoothingDisabledFlag(bool bValue)                                      { m_intraSmoothingDisabledFlag=bValue;           }
-
-  bool getHighPrecisionOffsetsEnabledFlag() const                                      { return m_highPrecisionOffsetsEnabledFlag;      }
-  void setHighPrecisionOffsetsEnabledFlag(bool value)                                  { m_highPrecisionOffsetsEnabledFlag = value;     }
-
-  bool getPersistentRiceAdaptationEnabledFlag() const                                  { return m_persistentRiceAdaptationEnabledFlag;  }
-  void setPersistentRiceAdaptationEnabledFlag(const bool value)                        { m_persistentRiceAdaptationEnabledFlag = value; }
-
-  bool getCabacBypassAlignmentEnabledFlag() const                                      { return m_cabacBypassAlignmentEnabledFlag;      }
-  void setCabacBypassAlignmentEnabledFlag(const bool value)                            { m_cabacBypassAlignmentEnabledFlag = value;     }
-};
-
+///// SPS RExt class
+//class SPSRExt // Names aligned to text specification
+//{
+//private:
+//  bool m_transformSkipRotationEnabledFlag = false;
+//  bool m_transformSkipContextEnabledFlag  = false;
+//  bool m_rdpcmEnabledFlag[NUMBER_OF_RDPCM_SIGNALLING_MODES];
+//  bool m_extendedPrecisionProcessingFlag     = false;
+//  bool m_intraSmoothingDisabledFlag          = false;
+//  bool m_highPrecisionOffsetsEnabledFlag     = false;
+//  bool m_persistentRiceAdaptationEnabledFlag = false;
+//  bool m_cabacBypassAlignmentEnabledFlag     = false;
+//
+//public:
+//  SPSRExt()
+//  {
+//    for (uint32_t signallingModeIndex = 0; signallingModeIndex < NUMBER_OF_RDPCM_SIGNALLING_MODES; signallingModeIndex++)
+//    {
+//      m_rdpcmEnabledFlag[signallingModeIndex] = false;
+//    }
+//  }
+//
+//  bool settingsDifferFromDefaults() const
+//  {
+//    return getTransformSkipRotationEnabledFlag()
+//        || getTransformSkipContextEnabledFlag()
+//        || getRdpcmEnabledFlag(RDPCM_SIGNAL_IMPLICIT)
+//        || getRdpcmEnabledFlag(RDPCM_SIGNAL_EXPLICIT)
+//        || getExtendedPrecisionProcessingFlag()
+//        || getIntraSmoothingDisabledFlag()
+//        || getHighPrecisionOffsetsEnabledFlag()
+//        || getPersistentRiceAdaptationEnabledFlag()
+//        || getCabacBypassAlignmentEnabledFlag();
+//  }
+//
+//
+//  bool getTransformSkipRotationEnabledFlag() const                                     { return m_transformSkipRotationEnabledFlag;     }
+//  void setTransformSkipRotationEnabledFlag(const bool value)                           { m_transformSkipRotationEnabledFlag = value;    }
+//
+//  bool getTransformSkipContextEnabledFlag() const                                      { return m_transformSkipContextEnabledFlag;      }
+//  void setTransformSkipContextEnabledFlag(const bool value)                            { m_transformSkipContextEnabledFlag = value;     }
+//
+//  bool getRdpcmEnabledFlag(const RDPCMSignallingMode signallingMode) const             { return m_rdpcmEnabledFlag[signallingMode];     }
+//  void setRdpcmEnabledFlag(const RDPCMSignallingMode signallingMode, const bool value) { m_rdpcmEnabledFlag[signallingMode] = value;    }
+//
+//  bool getExtendedPrecisionProcessingFlag() const                                      { return m_extendedPrecisionProcessingFlag;      }
+//  void setExtendedPrecisionProcessingFlag(bool value)                                  { m_extendedPrecisionProcessingFlag = value;     }
+//
+//  bool getIntraSmoothingDisabledFlag() const                                           { return m_intraSmoothingDisabledFlag;           }
+//  void setIntraSmoothingDisabledFlag(bool bValue)                                      { m_intraSmoothingDisabledFlag=bValue;           }
+//
+//  bool getHighPrecisionOffsetsEnabledFlag() const                                      { return m_highPrecisionOffsetsEnabledFlag;      }
+//  void setHighPrecisionOffsetsEnabledFlag(bool value)                                  { m_highPrecisionOffsetsEnabledFlag = value;     }
+//
+//  bool getPersistentRiceAdaptationEnabledFlag() const                                  { return m_persistentRiceAdaptationEnabledFlag;  }
+//  void setPersistentRiceAdaptationEnabledFlag(const bool value)                        { m_persistentRiceAdaptationEnabledFlag = value; }
+//
+//  bool getCabacBypassAlignmentEnabledFlag() const                                      { return m_cabacBypassAlignmentEnabledFlag;      }
+//  void setCabacBypassAlignmentEnabledFlag(const bool value)                            { m_cabacBypassAlignmentEnabledFlag = value;     }
+//};
+//
 
 /// SPS class
 class SPS : public BasePS<SPS>
@@ -1459,8 +1465,8 @@ private:
   int               m_log2MinCodingBlockSize             = 0;
   unsigned          m_CTUSize                            = 0;
   unsigned          m_partitionOverrideEnalbed           = 0;            // enable partition constraints override function
-  unsigned          m_minQT[3]                           = { 0,0,0 };    // 0: I slice luma; 1: P/B slice; 2: I slice chroma
-  unsigned          m_maxBTDepth[3]                      = { MAX_BT_DEPTH, MAX_BT_DEPTH_INTER, MAX_BT_DEPTH_C };
+  unsigned          m_minQT[3]                           = { 0, 0, 0 };    // 0: I slice luma; 1: P/B slice; 2: I slice chroma
+  unsigned          m_maxBTDepth[3]                      = { 0, 0, 0 };
   unsigned          m_maxBTSize[3]                       = { 0, 0, 0 };
   unsigned          m_maxTTSize[3]                       = { 0, 0, 0 };
   bool              m_idrRefParamList                    = false;
@@ -1556,7 +1562,7 @@ private:
   unsigned          m_vuiPayloadSize                     = 0;
   VUI               m_vuiParameters;
 
-  SPSRExt           m_spsRangeExtension;
+  //SPSRExt           m_spsRangeExtension;
   static const      int m_winUnitX[NUM_CHROMA_FORMAT];
   static const      int m_winUnitY[NUM_CHROMA_FORMAT];
   ProfileTierLevel  m_profileTierLevel;
@@ -1809,7 +1815,8 @@ public:
   void                    setEntropyCodingSyncEntryPointsPresentFlag(bool val)                            { m_entropyCodingSyncEntryPointPresentFlag = val;                      }
 #endif
   
-  int                     getMaxLog2TrDynamicRange(ChannelType channelType) const                         { return getSpsRangeExtension().getExtendedPrecisionProcessingFlag() ? std::max<int>(15, int(m_bitDepths.recon[channelType] + 6)) : 15; }
+  //int                     getMaxLog2TrDynamicRange(ChannelType channelType) const                         { return getSpsRangeExtension().getExtendedPrecisionProcessingFlag() ? std::max<int>(15, int(m_bitDepths.recon[channelType] + 6)) : 15; }
+  constexpr int           getMaxLog2TrDynamicRange(ChannelType channelType) const                         { return 15; }
 
   int                     getDifferentialLumaChromaBitDepth() const                                       { return int(m_bitDepths.recon[CHANNEL_TYPE_LUMA]) - int(m_bitDepths.recon[CHANNEL_TYPE_CHROMA]); }
   int                     getQpBDOffset(ChannelType type) const                                           { return m_qpBDOffset[type];                                           }
@@ -1911,8 +1918,8 @@ public:
   const ProfileTierLevel* getProfileTierLevel() const                                                     { return &m_profileTierLevel; }
   ProfileTierLevel*       getProfileTierLevel()                                                           { return &m_profileTierLevel; }
 
-  const SPSRExt&          getSpsRangeExtension() const                                                    { return m_spsRangeExtension;                                          }
-  SPSRExt&                getSpsRangeExtension()                                                          { return m_spsRangeExtension;                                          }
+  //const SPSRExt&          getSpsRangeExtension() const                                                    { return m_spsRangeExtension;                                          }
+  //SPSRExt&                getSpsRangeExtension()                                                          { return m_spsRangeExtension;                                          }
 
 
   bool                    getUseALF() const                                                               { return m_useALF;                                                     }
@@ -3066,7 +3073,8 @@ public:
   void                        setPic( Picture* p )                                   { m_pcPic             = p;                                      }
 
   void                        constructRefPicLists( const PicListRange& rcListPic );
-  void                        constructSingleRefPicList( const PicListRange& rcListPic, RefPicList listId, const ReferencePictureList& pRPL, const ReferencePictureList & pLocalRPL );
+  void                        constructSingleRefPicList( const PicListRange& rcListPic, RefPicList listId, const ReferencePictureList& pRPL, ReferencePictureList & pLocalRPL );
+
   void                        setRefPOCList();
 
   void                        setColFromL0Flag( bool colFromL0 )                     { m_colFromL0Flag = colFromL0;                                  }
