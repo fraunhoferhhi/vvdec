@@ -339,7 +339,9 @@ if( VVDEC_ENABLE_BITSTREAM_DOWNLOAD )
     "SMVD_A_HUAWEI_2.zip"
     "SPS_A_Bytedance_1.zip" "SPS_B_Bytedance_1.zip" "SPS_C_Bytedance_1.zip"
     #"SUBPIC_A_HUAWEI_3.zip" "SUBPIC_B_HUAWEI_3.zip" # subpictures currently not supported
-    "TEMPSCAL_A_Panasonic_4.zip" "TEMPSCAL_B_Panasonic_4.zip" "TEMPSCAL_C_Panasonic_3.zip"
+    "TEMPSCAL_A_Panasonic_4.zip"
+    #"TEMPSCAL_B_Panasonic_4.zip" # seems broken, doesn't decode with VTM-11
+    "TEMPSCAL_C_Panasonic_3.zip"
     "TILE_A_Nokia_2.zip" "TILE_B_Nokia_2.zip" "TILE_C_Nokia_2.zip" "TILE_D_Nokia_2.zip" "TILE_E_Nokia_2.zip" "TILE_F_Nokia_2.zip" "TILE_G_Nokia_2.zip"
     "TMVP_A_Chipsnmedia_3.zip" "TMVP_B_Chipsnmedia_3.zip" "TMVP_C_Chipsnmedia_3.zip" "TMVP_D_Chipsnmedia_3.zip"
     "TRANS_A_Chipsnmedia_2.zip" "TRANS_B_Chipsnmedia_2.zip" "TRANS_C_Chipsnmedia_2.zip" "TRANS_D_Chipsnmedia_2.zip"
