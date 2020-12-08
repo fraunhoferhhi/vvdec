@@ -1,43 +1,47 @@
 /* -----------------------------------------------------------------------------
-Software Copyright License for the Fraunhofer Software Library VVdec
+The copyright in this software is being made available under the BSD
+License, included below. No patent rights, trademark rights and/or 
+other Intellectual Property Rights other than the copyrights concerning 
+the Software are granted under this license.
 
-(c) Copyright (2018-2020) Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. 
-
-1.    INTRODUCTION
-
-The Fraunhofer Software Library VVdec (“Fraunhofer Versatile Video Decoding Library”) is software that implements (parts of) the Versatile Video Coding Standard - ITU-T H.266 | MPEG-I - Part 3 (ISO/IEC 23090-3) and related technology. 
-The standard contains Fraunhofer patents as well as third-party patents. Patent licenses from third party standard patent right holders may be required for using the Fraunhofer Versatile Video Decoding Library. It is in your responsibility to obtain those if necessary. 
-
-The Fraunhofer Versatile Video Decoding Library which mean any source code provided by Fraunhofer are made available under this software copyright license. 
-It is based on the official ITU/ISO/IEC VVC Test Model (VTM) reference software whose copyright holders are indicated in the copyright notices of its source files. The VVC Test Model (VTM) reference software is licensed under the 3-Clause BSD License and therefore not subject of this software copyright license.
-
-2.    COPYRIGHT LICENSE
-
-Internal use of the Fraunhofer Versatile Video Decoding Library, in source and binary forms, with or without modification, is permitted without payment of copyright license fees for non-commercial purposes of evaluation, testing and academic research. 
-
-No right or license, express or implied, is granted to any part of the Fraunhofer Versatile Video Decoding Library except and solely to the extent as expressly set forth herein. Any commercial use or exploitation of the Fraunhofer Versatile Video Decoding Library and/or any modifications thereto under this license are prohibited.
-
-For any other use of the Fraunhofer Versatile Video Decoding Library than permitted by this software copyright license You need another license from Fraunhofer. In such case please contact Fraunhofer under the CONTACT INFORMATION below.
-
-3.    LIMITED PATENT LICENSE
-
-As mentioned under 1. Fraunhofer patents are implemented by the Fraunhofer Versatile Video Decoding Library. If You use the Fraunhofer Versatile Video Decoding Library in Germany, the use of those Fraunhofer patents for purposes of testing, evaluating and research and development is permitted within the statutory limitations of German patent law. However, if You use the Fraunhofer Versatile Video Decoding Library in a country where the use for research and development purposes is not permitted without a license, you must obtain an appropriate license from Fraunhofer. It is Your responsibility to check the legal requirements for any use of applicable patents.    
-
-Fraunhofer provides no warranty of patent non-infringement with respect to the Fraunhofer Versatile Video Decoding Library.
-
-
-4.    DISCLAIMER
-
-The Fraunhofer Versatile Video Decoding Library is provided by Fraunhofer "AS IS" and WITHOUT ANY EXPRESS OR IMPLIED WARRANTIES, including but not limited to the implied warranties fitness for a particular purpose. IN NO EVENT SHALL FRAUNHOFER BE LIABLE for any direct, indirect, incidental, special, exemplary, or consequential damages, including but not limited to procurement of substitute goods or services; loss of use, data, or profits, or business interruption, however caused and on any theory of liability, whether in contract, strict liability, or tort (including negligence), arising in any way out of the use of the Fraunhofer Versatile Video Decoding Library, even if advised of the possibility of such damage.
-
-5.    CONTACT INFORMATION
+For any license concerning other Intellectual Property rights than the software, 
+especially patent licenses, a separate Agreement needs to be closed. 
+For more information please contact:
 
 Fraunhofer Heinrich Hertz Institute
-Attention: Video Coding & Analytics Department
 Einsteinufer 37
 10587 Berlin, Germany
 www.hhi.fraunhofer.de/vvc
 vvc@hhi.fraunhofer.de
+
+Copyright (c) 2018-2020, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. 
+All rights reserved.
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are met:
+
+ * Redistributions of source code must retain the above copyright notice,
+   this list of conditions and the following disclaimer.
+ * Redistributions in binary form must reproduce the above copyright notice,
+   this list of conditions and the following disclaimer in the documentation
+   and/or other materials provided with the distribution.
+ * Neither the name of Fraunhofer nor the names of its contributors may
+   be used to endorse or promote products derived from this software without
+   specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS
+BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
+THE POSSIBILITY OF SUCH DAMAGE.
+
+
 ------------------------------------------------------------------------------------------- */
 
 /** \file     BufferX86.h
@@ -64,6 +68,7 @@ void addAvg_SSE( const int16_t* src0, ptrdiff_t src0Stride, const int16_t* src1,
 #if USE_AVX2
   if( W == 16 )
   {
+    __m256i vone      = _mm256_set1_epi16( 1 );
     __m256i voffset   = _mm256_set1_epi32( offset );
     __m256i vibdimin  = _mm256_set1_epi16( clpRng.min() );
     __m256i vibdimax  = _mm256_set1_epi16( clpRng.max() );
@@ -74,19 +79,15 @@ void addAvg_SSE( const int16_t* src0, ptrdiff_t src0Stride, const int16_t* src1,
       {
         __m256i vsrc0 = _mm256_load_si256( ( const __m256i* )&src0[col] );
         __m256i vsrc1 = _mm256_load_si256( ( const __m256i* )&src1[col] );
-        __m256i vsgn0 = _mm256_cmpgt_epi16( _mm256_setzero_si256(), vsrc0 );
-        __m256i vsgn1 = _mm256_cmpgt_epi16( _mm256_setzero_si256(), vsrc1 );
 
-        __m256i vsumlo = _mm256_add_epi32( _mm256_unpacklo_epi16( vsrc0, vsgn0 ),
-                                           _mm256_unpacklo_epi16( vsrc1, vsgn1 ) );
-        __m256i vsumhi = _mm256_add_epi32( _mm256_unpackhi_epi16( vsrc0, vsgn0 ),
-                                           _mm256_unpackhi_epi16( vsrc1, vsgn1 ) );
- 
+        __m256i vsumlo = _mm256_madd_epi16( _mm256_unpacklo_epi16( vsrc0, vsrc1 ), vone );
+        __m256i vsumhi = _mm256_madd_epi16( _mm256_unpackhi_epi16( vsrc0, vsrc1 ), vone );
+
         vsumlo = _mm256_add_epi32        ( vsumlo, voffset );
         vsumhi = _mm256_add_epi32        ( vsumhi, voffset );
         vsumlo = _mm256_srai_epi32       ( vsumlo, shift );
         vsumhi = _mm256_srai_epi32       ( vsumhi, shift );
-
+        
         __m256i vsum = _mm256_packs_epi32( vsumlo, vsumhi );
         vsum = _mm256_min_epi16( vibdimax, _mm256_max_epi16( vibdimin, vsum ) );
 
@@ -98,41 +99,14 @@ void addAvg_SSE( const int16_t* src0, ptrdiff_t src0Stride, const int16_t* src1,
       dst  +=  dstStride;
     }
   }
-  else if( W >= 8 )
-  {
-    __m256i voffset  = _mm256_set1_epi32( offset );
-    __m128i vibdimin = _mm_set1_epi16   ( clpRng.min() );
-    __m128i vibdimax = _mm_set1_epi16   ( clpRng.max() );
-
-    for( int row = 0; row < height; row++ )
-    {
-      for( int col = 0; col < width; col += 8 )
-      {
-        __m256i vsrc0 = _mm256_cvtepi16_epi32( _mm_load_si128( ( const __m128i* )&src0[col] ) );
-        __m256i vsrc1 = _mm256_cvtepi16_epi32( _mm_load_si128( ( const __m128i* )&src1[col] ) );
-
-        __m256i
-        vsum = _mm256_add_epi32        ( vsrc0, vsrc1 );
-        vsum = _mm256_add_epi32        ( vsum, voffset );
-        vsum = _mm256_srai_epi32       ( vsum, shift );
-
-        __m128i
-        xsum = _mm_min_epi16( vibdimax, _mm_max_epi16( vibdimin, _mm256_cvtepi32_epi16x( vsum ) ) );
-        _mm_storeu_si128( ( __m128i * )&dst[col], xsum );
-      }
-
-      src0 += src0Stride;
-      src1 += src1Stride;
-      dst  +=  dstStride;
-    }
-  }
-#else
+  else
+#endif
   if( W >= 8 )
   {
-    __m128i vzero    = _mm_setzero_si128();
-    __m128i voffset  = _mm_set1_epi32( offset );
-    __m128i vibdimin = _mm_set1_epi16( clpRng.min() );
-    __m128i vibdimax = _mm_set1_epi16( clpRng.max() );
+    __m128i vone      = _mm_set1_epi16( 1 );
+    __m128i voffset   = _mm_set1_epi32( offset );
+    __m128i vibdimin  = _mm_set1_epi16( clpRng.min() );
+    __m128i vibdimax  = _mm_set1_epi16( clpRng.max() );
 
     for( int row = 0; row < height; row++ )
     {
@@ -141,23 +115,17 @@ void addAvg_SSE( const int16_t* src0, ptrdiff_t src0Stride, const int16_t* src1,
         __m128i vsrc0 = _mm_load_si128( ( const __m128i* )&src0[col] );
         __m128i vsrc1 = _mm_load_si128( ( const __m128i* )&src1[col] );
 
-        __m128i vtmp, vsum, vdst;
-        vsum = _mm_cvtepi16_epi32   ( vsrc0 );
-        vdst = _mm_cvtepi16_epi32   ( vsrc1 );
-        vsum = _mm_add_epi32        ( vsum, vdst );
-        vsum = _mm_add_epi32        ( vsum, voffset );
-        vtmp = _mm_srai_epi32       ( vsum, shift );
+        __m128i vsumlo = _mm_madd_epi16( _mm_unpacklo_epi16( vsrc0, vsrc1 ), vone );
+        __m128i vsumhi = _mm_madd_epi16( _mm_unpackhi_epi16( vsrc0, vsrc1 ), vone );
 
-        vsrc0 = _mm_unpackhi_epi64  ( vsrc0, vzero );
-        vsrc1 = _mm_unpackhi_epi64  ( vsrc1, vzero );
-        vsum = _mm_cvtepi16_epi32   ( vsrc0 );
-        vdst = _mm_cvtepi16_epi32   ( vsrc1 );
-        vsum = _mm_add_epi32        ( vsum, vdst );
-        vsum = _mm_add_epi32        ( vsum, voffset );
-        vsum = _mm_srai_epi32       ( vsum, shift );
-        vsum = _mm_packs_epi32      ( vtmp, vsum );
-
+        vsumlo = _mm_add_epi32        ( vsumlo, voffset );
+        vsumhi = _mm_add_epi32        ( vsumhi, voffset );
+        vsumlo = _mm_srai_epi32       ( vsumlo, shift );
+        vsumhi = _mm_srai_epi32       ( vsumhi, shift );
+        
+        __m128i vsum = _mm_packs_epi32( vsumlo, vsumhi );
         vsum = _mm_min_epi16( vibdimax, _mm_max_epi16( vibdimin, vsum ) );
+
         _mm_storeu_si128( ( __m128i * )&dst[col], vsum );
       }
 
@@ -166,28 +134,29 @@ void addAvg_SSE( const int16_t* src0, ptrdiff_t src0Stride, const int16_t* src1,
       dst  +=  dstStride;
     }
   }
-#endif
   else if( W == 4 )
   {
-    __m128i vzero     = _mm_setzero_si128();
+    __m128i vone      = _mm_set1_epi16( 1 );
     __m128i voffset   = _mm_set1_epi32( offset );
     __m128i vibdimin  = _mm_set1_epi16( clpRng.min() );
     __m128i vibdimax  = _mm_set1_epi16( clpRng.max() );
+    __m128i vsumhi    = _mm_setzero_si128();
 
     for( int row = 0; row < height; row++ )
     {
       for( int col = 0; col < width; col += 4 )
       {
-        __m128i vsum = _mm_loadl_epi64  ( ( const __m128i * )&src0[col] );
-        __m128i vdst = _mm_loadl_epi64  ( ( const __m128i * )&src1[col] );
-        vsum = _mm_cvtepi16_epi32       ( vsum );
-        vdst = _mm_cvtepi16_epi32       ( vdst );
-        vsum = _mm_add_epi32            ( vsum, vdst );
-        vsum = _mm_add_epi32            ( vsum, voffset );
-        vsum = _mm_srai_epi32           ( vsum, shift );
-        vsum = _mm_packs_epi32          ( vsum, vzero );
+        __m128i vsrc0 = _mm_loadl_epi64( ( const __m128i* )&src0[col] );
+        __m128i vsrc1 = _mm_loadl_epi64( ( const __m128i* )&src1[col] );
 
+        __m128i vsumlo = _mm_madd_epi16( _mm_unpacklo_epi16( vsrc0, vsrc1 ), vone );
+
+        vsumlo = _mm_add_epi32        ( vsumlo, voffset );
+        vsumlo = _mm_srai_epi32       ( vsumlo, shift );
+        
+        __m128i vsum = _mm_packs_epi32( vsumlo, vsumhi );
         vsum = _mm_min_epi16( vibdimax, _mm_max_epi16( vibdimin, vsum ) );
+
         _mm_storel_epi64( ( __m128i * )&dst[col], vsum );
       }
 
@@ -445,35 +414,73 @@ void addWghtAvg_SSE( const int16_t* src0, ptrdiff_t src0Stride, const int16_t* s
 {
   if( W == 8 )
   {
-    __m128i voffset  = _mm_set1_epi32( offset );
-    __m128i vibdimin = _mm_set1_epi16( clpRng.min() );
-    __m128i vibdimax = _mm_set1_epi16( clpRng.max() );
-    __m128i vw       = _mm_unpacklo_epi16( _mm_set1_epi16( w0 ), _mm_set1_epi16( w1 ) );
-
-    for( int row = 0; row < height; row++ )
+#if USE_AVX2
+    if( ( width & 15 ) == 0 && vext >= AVX2 )
     {
-      for( int col = 0; col < width; col += 8 )
+      __m256i voffset  = _mm256_set1_epi32( offset );
+      __m256i vibdimin = _mm256_set1_epi16( clpRng.min() );
+      __m256i vibdimax = _mm256_set1_epi16( clpRng.max() );
+      __m256i vw       = _mm256_unpacklo_epi16( _mm256_set1_epi16( w0 ), _mm256_set1_epi16( w1 ) );
+
+      for( int row = 0; row < height; row++ )
       {
-        __m128i vsrc0 = _mm_load_si128( ( const __m128i * )&src0[col] );
-        __m128i vsrc1 = _mm_load_si128( ( const __m128i * )&src1[col] );
+        for( int col = 0; col < width; col += 16 )
+        {
+          __m256i vsrc0 = _mm256_loadu_si256( ( const __m256i * )&src0[col] );
+          __m256i vsrc1 = _mm256_loadu_si256( ( const __m256i * )&src1[col] );
 
-        __m128i vtmp, vsum;
-        vsum = _mm_madd_epi16       ( vw, _mm_unpacklo_epi16( vsrc0, vsrc1 ) );
-        vsum = _mm_add_epi32        ( vsum, voffset );
-        vtmp = _mm_srai_epi32       ( vsum, shift );
+          __m256i vtmp, vsum;
+          vsum = _mm256_madd_epi16       ( vw, _mm256_unpacklo_epi16( vsrc0, vsrc1 ) );
+          vsum = _mm256_add_epi32        ( vsum, voffset );
+          vtmp = _mm256_srai_epi32       ( vsum, shift );
         
-        vsum = _mm_madd_epi16       ( vw, _mm_unpackhi_epi16( vsrc0, vsrc1 ) );
-        vsum = _mm_add_epi32        ( vsum, voffset );
-        vsum = _mm_srai_epi32       ( vsum, shift );
-        vsum = _mm_packs_epi32      ( vtmp, vsum );
+          vsum = _mm256_madd_epi16       ( vw, _mm256_unpackhi_epi16( vsrc0, vsrc1 ) );
+          vsum = _mm256_add_epi32        ( vsum, voffset );
+          vsum = _mm256_srai_epi32       ( vsum, shift );
+          vsum = _mm256_packs_epi32      ( vtmp, vsum );
 
-        vsum = _mm_min_epi16( vibdimax, _mm_max_epi16( vibdimin, vsum ) );
-        _mm_storeu_si128( ( __m128i * )&dst[col], vsum );
+          vsum = _mm256_min_epi16( vibdimax, _mm256_max_epi16( vibdimin, vsum ) );
+          _mm256_storeu_si256( ( __m256i * )&dst[col], vsum );
+        }
+
+        src0 += src0Stride;
+        src1 += src1Stride;
+        dst  +=  dstStride;
       }
+    }
+    else
+#endif
+    {
+      __m128i voffset  = _mm_set1_epi32( offset );
+      __m128i vibdimin = _mm_set1_epi16( clpRng.min() );
+      __m128i vibdimax = _mm_set1_epi16( clpRng.max() );
+      __m128i vw       = _mm_unpacklo_epi16( _mm_set1_epi16( w0 ), _mm_set1_epi16( w1 ) );
 
-      src0 += src0Stride;
-      src1 += src1Stride;
-      dst  +=  dstStride;
+      for( int row = 0; row < height; row++ )
+      {
+        for( int col = 0; col < width; col += 8 )
+        {
+          __m128i vsrc0 = _mm_load_si128( ( const __m128i * )&src0[col] );
+          __m128i vsrc1 = _mm_load_si128( ( const __m128i * )&src1[col] );
+
+          __m128i vtmp, vsum;
+          vsum = _mm_madd_epi16       ( vw, _mm_unpacklo_epi16( vsrc0, vsrc1 ) );
+          vsum = _mm_add_epi32        ( vsum, voffset );
+          vtmp = _mm_srai_epi32       ( vsum, shift );
+        
+          vsum = _mm_madd_epi16       ( vw, _mm_unpackhi_epi16( vsrc0, vsrc1 ) );
+          vsum = _mm_add_epi32        ( vsum, voffset );
+          vsum = _mm_srai_epi32       ( vsum, shift );
+          vsum = _mm_packs_epi32      ( vtmp, vsum );
+
+          vsum = _mm_min_epi16( vibdimax, _mm_max_epi16( vibdimin, vsum ) );
+          _mm_storeu_si128( ( __m128i * )&dst[col], vsum );
+        }
+
+        src0 += src0Stride;
+        src1 += src1Stride;
+        dst  +=  dstStride;
+      }
     }
   }
   else if( W == 4 )
@@ -739,8 +746,8 @@ void applyLut_SIMD( Pel* ptr, ptrdiff_t ptrStride, int width, int height, const 
 
     for( int y = 0; y < height; y += 2 )
     {
+      _mm_prefetch( ( const char* ) &ptr[1 * ptrStride], _MM_HINT_T0 );
       _mm_prefetch( ( const char* ) &ptr[2 * ptrStride], _MM_HINT_T0 );
-      _mm_prefetch( ( const char* ) &ptr[3 * ptrStride], _MM_HINT_T0 );
 
       for( int x = 0; x < width; x += 16 )
       {

@@ -1,43 +1,47 @@
 /* -----------------------------------------------------------------------------
-Software Copyright License for the Fraunhofer Software Library VVdec
+The copyright in this software is being made available under the BSD
+License, included below. No patent rights, trademark rights and/or 
+other Intellectual Property Rights other than the copyrights concerning 
+the Software are granted under this license.
 
-(c) Copyright (2018-2020) Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. 
-
-1.    INTRODUCTION
-
-The Fraunhofer Software Library VVdec (“Fraunhofer Versatile Video Decoding Library”) is software that implements (parts of) the Versatile Video Coding Standard - ITU-T H.266 | MPEG-I - Part 3 (ISO/IEC 23090-3) and related technology. 
-The standard contains Fraunhofer patents as well as third-party patents. Patent licenses from third party standard patent right holders may be required for using the Fraunhofer Versatile Video Decoding Library. It is in your responsibility to obtain those if necessary. 
-
-The Fraunhofer Versatile Video Decoding Library which mean any source code provided by Fraunhofer are made available under this software copyright license. 
-It is based on the official ITU/ISO/IEC VVC Test Model (VTM) reference software whose copyright holders are indicated in the copyright notices of its source files. The VVC Test Model (VTM) reference software is licensed under the 3-Clause BSD License and therefore not subject of this software copyright license.
-
-2.    COPYRIGHT LICENSE
-
-Internal use of the Fraunhofer Versatile Video Decoding Library, in source and binary forms, with or without modification, is permitted without payment of copyright license fees for non-commercial purposes of evaluation, testing and academic research. 
-
-No right or license, express or implied, is granted to any part of the Fraunhofer Versatile Video Decoding Library except and solely to the extent as expressly set forth herein. Any commercial use or exploitation of the Fraunhofer Versatile Video Decoding Library and/or any modifications thereto under this license are prohibited.
-
-For any other use of the Fraunhofer Versatile Video Decoding Library than permitted by this software copyright license You need another license from Fraunhofer. In such case please contact Fraunhofer under the CONTACT INFORMATION below.
-
-3.    LIMITED PATENT LICENSE
-
-As mentioned under 1. Fraunhofer patents are implemented by the Fraunhofer Versatile Video Decoding Library. If You use the Fraunhofer Versatile Video Decoding Library in Germany, the use of those Fraunhofer patents for purposes of testing, evaluating and research and development is permitted within the statutory limitations of German patent law. However, if You use the Fraunhofer Versatile Video Decoding Library in a country where the use for research and development purposes is not permitted without a license, you must obtain an appropriate license from Fraunhofer. It is Your responsibility to check the legal requirements for any use of applicable patents.    
-
-Fraunhofer provides no warranty of patent non-infringement with respect to the Fraunhofer Versatile Video Decoding Library.
-
-
-4.    DISCLAIMER
-
-The Fraunhofer Versatile Video Decoding Library is provided by Fraunhofer "AS IS" and WITHOUT ANY EXPRESS OR IMPLIED WARRANTIES, including but not limited to the implied warranties fitness for a particular purpose. IN NO EVENT SHALL FRAUNHOFER BE LIABLE for any direct, indirect, incidental, special, exemplary, or consequential damages, including but not limited to procurement of substitute goods or services; loss of use, data, or profits, or business interruption, however caused and on any theory of liability, whether in contract, strict liability, or tort (including negligence), arising in any way out of the use of the Fraunhofer Versatile Video Decoding Library, even if advised of the possibility of such damage.
-
-5.    CONTACT INFORMATION
+For any license concerning other Intellectual Property rights than the software, 
+especially patent licenses, a separate Agreement needs to be closed. 
+For more information please contact:
 
 Fraunhofer Heinrich Hertz Institute
-Attention: Video Coding & Analytics Department
 Einsteinufer 37
 10587 Berlin, Germany
 www.hhi.fraunhofer.de/vvc
 vvc@hhi.fraunhofer.de
+
+Copyright (c) 2018-2020, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. 
+All rights reserved.
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are met:
+
+ * Redistributions of source code must retain the above copyright notice,
+   this list of conditions and the following disclaimer.
+ * Redistributions in binary form must reproduce the above copyright notice,
+   this list of conditions and the following disclaimer in the documentation
+   and/or other materials provided with the distribution.
+ * Neither the name of Fraunhofer nor the names of its contributors may
+   be used to endorse or promote products derived from this software without
+   specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS
+BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
+THE POSSIBILITY OF SUCH DAMAGE.
+
+
 ------------------------------------------------------------------------------------------- */
 
 /** \file     CodingStructure.h
@@ -70,6 +74,10 @@ const UnitScale UnitScaleArray[NUM_CHROMA_FORMAT][MAX_NUM_COMPONENT] =
 CodingStructure::CodingStructure(std::shared_ptr<CUCache> cuCache, std::shared_ptr<TUCache> tuCache )
   : area      ()
   , picture   ( nullptr )
+  , m_ctuData ( nullptr )
+  , m_ctuDataSize( 0 )
+  , m_dmvrMvCache ( nullptr )
+  , m_dmvrMvCacheSize( 0 )
   , m_cuCache ( cuCache )
   , m_tuCache ( tuCache )
   , m_IBCBufferWidth( 0 )
@@ -85,12 +93,24 @@ void CodingStructure::destroy()
   m_rec_wrap.destroy();
   m_pred.destroy();
 
-  m_dmvrMvCache.clear();
+  if( m_dmvrMvCache )
+  {
+    free( m_dmvrMvCache );
+    m_dmvrMvCache = nullptr;
+    m_dmvrMvCacheSize = 0;
+  }
 
   m_cuCache->defragment();
   m_tuCache->defragment();
   
   m_virtualIBCbuf.clear();
+
+  if( m_ctuData )
+  {
+    free( m_ctuData );
+    m_ctuData = nullptr;
+    m_ctuDataSize = 0;
+  }
 }
 
 CodingUnit& CodingStructure::addCU( const UnitArea &unit, const ChannelType chType, const TreeType treeType, const ModeType modeType, const CodingUnit *cuLeft, const CodingUnit *cuAbove )
@@ -164,7 +184,7 @@ CodingUnit& CodingStructure::addCU( const UnitArea &unit, const ChannelType chTy
 
   if( isLuma( chType ) && unit.lheight() >= 8 && unit.lwidth()  >= 8 && unit.Y().area() >= 128 )
   {
-    CHECKD( m_dmvrMvCacheOffset >= m_dmvrMvCache.size(), "dmvr cache offset out of bounds" )
+    CHECKD( m_dmvrMvCacheOffset >= m_dmvrMvCacheSize, "dmvr cache offset out of bounds" )
     pu.mvdL0SubPu       = &m_dmvrMvCache[m_dmvrMvCacheOffset];
     m_dmvrMvCacheOffset += std::max<int>( 1, unit.lwidth() >> DMVR_SUBCU_WIDTH_LOG2 ) * std::max<int>( 1, unit.lheight() >> DMVR_SUBCU_HEIGHT_LOG2 );
   }
@@ -194,9 +214,10 @@ TransformUnit& CodingStructure::addTU( const UnitArea &unit, const ChannelType c
     cu.lastTU       = tu;
   }
 
+  tu->idx               = ++m_numTUs;
   tu->cu                =  &cu;
-  tu->chType            =  chType;
-  tu->UnitArea::operator=( unit );
+  tu->chType            =   chType;
+  tu->UnitArea::operator=(  unit );
 
   return *tu;
 }
@@ -269,8 +290,13 @@ void CodingStructure::createInternals( const UnitArea& _unit )
   picture = nullptr;
 
   // for the worst case of all PUs being 8x8 and using DMVR
-  unsigned _maxNumDmvrMvs = ( area.lwidth() >> 3 ) * ( area.lheight() >> 3 );
-  m_dmvrMvCache.resize( _maxNumDmvrMvs );
+  const size_t _maxNumDmvrMvs = ( area.lwidth() >> 3 ) * ( area.lheight() >> 3 );
+  if( _maxNumDmvrMvs != m_dmvrMvCacheSize )
+  {
+    if( m_dmvrMvCache ) free( m_dmvrMvCache );
+    m_dmvrMvCacheSize = _maxNumDmvrMvs;
+    m_dmvrMvCache = ( Mv* ) malloc( sizeof( Mv ) * _maxNumDmvrMvs );
+  }
 }
 
 
@@ -287,6 +313,7 @@ void CodingStructure::rebindPicBufs()
 void CodingStructure::initStructData()
 {
   m_numCUs = 0;
+  m_numTUs = 0;
   m_lastCU = nullptr;
 
   m_cuCache->defragment();
@@ -300,18 +327,27 @@ void CodingStructure::initStructData()
   m_ctuWidthLog2[0] = pcv->maxCUWidthLog2 - unitScale[CH_L].posx;
   m_ctuWidthLog2[1] = m_ctuWidthLog2[0]; // same for luma and chroma, because of the 2x2 blocks
 
-  m_ctuData.resize( pcv->sizeInCtus );
-
-  for( auto &ctuData : m_ctuData )
+  if( m_ctuDataSize != pcv->sizeInCtus )
   {
+    m_ctuDataSize = pcv->sizeInCtus;
+    if( m_ctuData ) free( m_ctuData );
+    m_ctuData = ( CtuData* ) malloc( m_ctuDataSize * sizeof( CtuData ) );
+  }
+
+  for( int i = 0; i < m_ctuDataSize; i++ )
+  {
+    CtuData& ctuData = m_ctuData[i];
     memset( ctuData.cuPtr, 0, sizeof( ctuData.cuPtr ) );
   }
 
   m_dmvrMvCacheOffset = 0;
 
-  m_predBuf[0] = m_pred.bufs[0].buf;
-  m_predBuf[1] = m_pred.bufs[1].buf;
-  m_predBuf[2] = m_pred.bufs[2].buf;
+  m_predBuf[0]   = m_pred.bufs[0].buf;
+  if( isChromaEnabled( area.chromaFormat ) )
+  {
+    m_predBuf[1] = m_pred.bufs[1].buf;
+    m_predBuf[2] = m_pred.bufs[2].buf;
+  }
 }
 
 MotionBuf CodingStructure::getMotionBuf( const Area& _area )
@@ -338,7 +374,7 @@ PelUnitBuf CodingStructure::getPredBuf(const CodingUnit &unit)
 {
   PelUnitBuf ret;
   ret.chromaFormat = unit.chromaFormat;
-  ret.bufs.resize_noinit( 3 );
+  ret.bufs.resize_noinit( getNumberValidComponents( unit.chromaFormat ) );
 
   if( unit.Y().valid() )
   {
@@ -348,20 +384,23 @@ PelUnitBuf CodingStructure::getPredBuf(const CodingUnit &unit)
     ret.bufs[0].height = unit.blocks [0].height;
   }
 
-  if( unit.Cb().valid() )
+  if( isChromaEnabled( unit.chromaFormat ) )
   {
-    ret.bufs[1].buf    = unit.predBuf[1];
-    ret.bufs[1].stride = unit.blocks [1].width;
-    ret.bufs[1].width  = unit.blocks [1].width;
-    ret.bufs[1].height = unit.blocks [1].height;
-  }
+    if( unit.Cb().valid() )
+    {
+      ret.bufs[1].buf    = unit.predBuf[1];
+      ret.bufs[1].stride = unit.blocks [1].width;
+      ret.bufs[1].width  = unit.blocks [1].width;
+      ret.bufs[1].height = unit.blocks [1].height;
+    }
 
-  if( unit.Cr().valid() )
-  {
-    ret.bufs[2].buf    = unit.predBuf[2];
-    ret.bufs[2].stride = unit.blocks [2].width;
-    ret.bufs[2].width  = unit.blocks [2].width;
-    ret.bufs[2].height = unit.blocks [2].height;
+    if( unit.Cr().valid() )
+    {
+      ret.bufs[2].buf    = unit.predBuf[2];
+      ret.bufs[2].stride = unit.blocks [2].width;
+      ret.bufs[2].width  = unit.blocks [2].width;
+      ret.bufs[2].height = unit.blocks [2].height;
+    }
   }
 
   return ret;
@@ -416,9 +455,13 @@ const CodingUnit* CodingStructure::getCURestricted( const Position &pos, const C
   {
     cu = curCu.ctuData->cuPtr[_chType][inCtuPos( pos, _chType )];
   }
+  else if( ydiff > 0 || xdiff > ( 1 - sps->getEntropyCodingSyncEnabledFlag() ) )
+  {
+    return nullptr;
+  }
   else
   {
-    cu = ydiff <= 0 ? getCU( pos, _chType ) : nullptr;
+    cu = getCU( pos, _chType );
   }
 
   if( !cu || cu->idx > curCu.idx ) return nullptr;
@@ -426,11 +469,6 @@ const CodingUnit* CodingStructure::getCURestricted( const Position &pos, const C
 
   if( cu->slice->getIndependentSliceIdx() == curCu.slice->getIndependentSliceIdx() && cu->tileIdx == curCu.tileIdx )
   {
-    if( xdiff > 0 && sps->getEntropyCodingSyncEnabledFlag() )
-    {
-      return nullptr;
-    }
-
     return cu;
   }
   else

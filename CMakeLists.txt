@@ -10,9 +10,19 @@ if( NOT CMAKE_VERSION VERSION_LESS 3.12.0 )
 endif()
 
 # project name
-project( vvdec VERSION 0.1.2.0 )
+project( vvdec VERSION 0.2.0.0 )
 
 if( NOT CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR )
+  # enable sse4.1 build for all source files for gcc and clang
+  if( UNIX OR MINGW )
+    add_compile_options( "-msse4.1" )
+  endif()
+  
+  # set exception handling
+  if( MSVC )
+    add_compile_options( "/EHsc" )
+  endif()
+
   # vvdec embedded by superproject, always include source/Lib/vvdec  as first component
   list( PREPEND ${PROJECT_NAME}_ADD_SUBDIRECTORIES "source/Lib/vvdec" )
   list( REMOVE_DUPLICATES ${PROJECT_NAME}_ADD_SUBDIRECTORIES )
@@ -27,24 +37,29 @@ endif()
 # enable or disable bitstream download
 set( VVDEC_ENABLE_BITSTREAM_DOWNLOAD OFF CACHE BOOL "Enable or disable bitstream download" )
 
+# enable local bitstream download
+set( VVDEC_ENABLE_LOCAL_BITSTREAM_DOWNLOAD OFF CACHE BOOL "Enable or disable local bitstream download" )
+
 # enable install target
 set( VVDEC_ENABLE_INSTALL ON CACHE BOOL "Enable or disable install target" )
 
 # enable postfix
 set( VVDEC_ENABLE_BUILD_TYPE_POSTFIX OFF CACHE BOOL "Enable or disable build type postfix for apps and libs" )
 
-# enable local bitstream download
-set( VVDEC_ENABLE_LOCAL_BITSTREAM_DOWNLOAD OFF CACHE BOOL "Enable or disable local bitstream download" )
-
 if( VVDEC_ENABLE_BUILD_TYPE_POSTFIX )
   if( BUILD_SHARED_LIBS )
-    set( VVDEC_BUILD_TYPE_POSTFIX "-s" )
+    # set postfixes for shared libraries
+    set( CMAKE_RELEASE_POSTFIX        "-s"   CACHE STRING "Set release library postfix" )
+    set( CMAKE_DEBUG_POSTFIX          "-ds"  CACHE STRING "Set debug library postfix" )
+    set( CMAKE_RELWITHDEBINFO_POSTFIX "-rds" CACHE STRING "Set relwithdebinfo library postfix" )
+    set( CMAKE_MINSIZEREL_POSTFIX     "-mrs" CACHE STRING "Set minsizerel library postfix" )
+  else()
+    # set postfixes for static libraries
+    set( CMAKE_RELEASE_POSTFIX        ""     CACHE STRING "Set release library postfix" )
+    set( CMAKE_DEBUG_POSTFIX          "-d"   CACHE STRING "Set debug library postfix" )
+    set( CMAKE_RELWITHDEBINFO_POSTFIX "-rd"  CACHE STRING "Set relwithdebinfo library postfix" )
+    set( CMAKE_MINSIZEREL_POSTFIX     "-mr"  CACHE STRING "Set minsizerel library postfix" )
   endif()
-  # set postfixes for libraries
-  set( CMAKE_RELEASE_POSTFIX        "${VVDEC_BUILD_TYPE_POSTFIX}"    CACHE STRING "Set release library postfix" )
-  set( CMAKE_DEBUG_POSTFIX          "-d${VVDEC_BUILD_TYPE_POSTFIX}"  CACHE STRING "Set debug library postfix" )
-  set( CMAKE_RELWITHDEBINFO_POSTFIX "-rd${VVDEC_BUILD_TYPE_POSTFIX}" CACHE STRING "Set relwithdebinfo library postfix" )
-  set( CMAKE_MINSIZEREL_POSTFIX     "-mr${VVDEC_BUILD_TYPE_POSTFIX}" CACHE STRING "Set minsizerel library postfix" )
 endif()
 
 # set VVDEC_OUTPUT_DIR_POSTFIX
@@ -236,18 +251,23 @@ if( VVDEC_ENABLE_BITSTREAM_DOWNLOAD )
   
   if( VVDEC_ENABLE_LOCAL_BITSTREAM_DOWNLOAD )
     # get bitstreams
-    set( BITSTREAM_URL_BASE "https://visvn.fe.hhi.de/download/VTM-10.0" )
+    set( BITSTREAM_URL_BASE "https://visvn.fe.hhi.de/download/VVC/under_test/VTM-11.0" )
   else()
     # get bitstreams
-    set( BITSTREAM_URL_BASE "https://www.itu.int/wftp3/av-arch/jvet-site/bitstream_exchange/VVC/under_test/VTM-10.0" )
+    set( BITSTREAM_URL_BASE "https://www.itu.int/wftp3/av-arch/jvet-site/bitstream_exchange/VVC/under_test/VTM-11.0" )
   endif()
   
   # create a list of all test bitstreams
   list( APPEND BITSTREAM_FILES
+    "10b400_A_Bytedance_2.zip" "10b400_B_Bytedance_2.zip"
+    "8b400_A_Bytedance_2.zip" "8b400_B_Bytedance_2.zip"
+    "8b420_A_Bytedance_2.zip" "8b420_B_Bytedance_2.zip"
     "AFF_A_HUAWEI_2.zip" "AFF_B_HUAWEI_2.zip"
     "ALF_A_Huawei_3.zip" "ALF_B_Huawei_3.zip"
-    "ALF_A_KDDI_2.zip"
+    "ALF_C_KDDI_2.zip"
+    "ALF_D_Qualcomm_2.zip"
     "AMVR_A_HHI_3.zip" "AMVR_B_HHI_3.zip"
+    "APSALF_A_Qualcomm_2.zip"
     "APSLMCS_A_Dolby_3.zip" "APSLMCS_B_Dolby_3.zip" "APSLMCS_C_Dolby_2.zip"
     "APSMULT_A_MediaTek_3.zip" "APSMULT_B_MediaTek_3.zip"
     "AUD_A_Broadcom_3.zip"
@@ -255,64 +275,76 @@ if( VVDEC_ENABLE_BITSTREAM_DOWNLOAD )
     "BDOF_A_MediaTek_3.zip"
     "BDPCM_A_Orange_2.zip"
     "BOUNDARY_A_Huawei_3.zip"
+    #"BUMP_A_LGE_1.zip" "BUMP_B_LGE_1.zip" "BUMP_C_LGE_1.zip" # missing in 11.0
     "CCALF_A_Sharp_3.zip" "CCALF_B_Sharp_3.zip" "CCALF_C_Sharp_3.zip" "CCALF_D_Sharp_3.zip"
     "CCLM_A_KDDI_1.zip"
     "CIIP_A_MediaTek_3.zip"
     "CodingToolsSets_A_Tencent_2.zip" "CodingToolsSets_B_Tencent_2.zip" "CodingToolsSets_C_Tencent_2.zip" "CodingToolsSets_D_Tencent_2.zip"
     #"CodingToolsSets_E_Tencent_1.zip" # fails because of sub-pictures
+    "CROP_A_Panasonic_3.zip" "CROP_B_Panasonic_4.zip"
     "CST_A_MediaTek_3.zip"
     "CTU_A_MediaTek_3.zip" "CTU_B_MediaTek_3.zip" "CTU_C_MediaTek_3.zip"
-    "DBF_A_Huawei_3.zip"
     "DEBLOCKING_A_Sharp_3.zip" "DEBLOCKING_B_Sharp_2.zip"
-    "DEBLOCKING_Ericsson_2.zip" "DEBLOCKING_F_Ericsson_1.zip"
+    "DEBLOCKING_C_Huawei_3.zip"
+    "DEBLOCKING_E_Ericsson_2.zip" "DEBLOCKING_F_Ericsson_1.zip"
     "DMVR_A_Huawei_3.zip"
-    "DMVR_A_KDDI_2.zip"
+    "DMVR_B_KDDI_3.zip"
     "DPB_A_Sharplabs_2.zip" "DPB_B_Sharplabs_2.zip"
     "DQ_A_HHI_3.zip" "DQ_B_HHI_3.zip"
-    "ENTMAINTIER_A_Sony_2.zip" "ENTMAINTIER_B_Sony_2.zip" "ENTMAINTIER_C_Sony_2.zip" "ENTMAINTIER_D_Sony_2.zip"
+    "ENTMAINTIER_A_Sony_3.zip" "ENTMAINTIER_B_Sony_3.zip" "ENTMAINTIER_C_Sony_3.zip" "ENTMAINTIER_D_Sony_3.zip"
+    "ENTROPY_A_Chipsnmedia_2.zip"
     "ENTROPY_A_Qualcomm_2.zip"
-    "ENTROPY_A_Sharp_2.zip"
+    "ENTROPY_B_Sharp_2.zip"
     "GPM_A_Alibaba_3.zip"
+    "HLG_A_NHK_2.zip" "HLG_B_NHK_2.zip"
     "IBC_A_Tencent_2.zip" "IBC_B_Tencent_2.zip" "IBC_C_Tencent_2.zip" "IBC_D_Tencent_2.zip"
     "IP_B_Nokia_1.zip"
     "ISP_A_HHI_3.zip" "ISP_B_HHI_3.zip"
-    "JCCR_A_HHI_3.zip" "JCCR_B_HHI_3.zip"
+    "JCCR_C_HHI_3.zip" "JCCR_D_HHI_3.zip"
     "JCCR_A_Nokia_2.zip" "JCCR_B_Nokia_2.zip" "JCCR_E_Nokia_1.zip" "JCCR_F_Nokia_1.zip"
     "LFNST_A_LGE_3.zip" "LFNST_B_LGE_3.zip"
-    "LFNST_COND_A_HHI_3.zip" "LFNST_COND_B_HHI_3.zip"
+    "LFNST_C_HHI_3.zip" "LFNST_D_HHI_3.zip"
     "LMCS_A_Dolby_3.zip"
     #"LMCS_B_Dolby_2.zip" # fails because of sub-pictures
-    "LOSSLESS_A_HHI_2.zip" "LOSSLESS_B_HHI_2.zip"
-    #"LTRP_A_ERICSSON_2.zip" # long term reference pictures currently buggy
+    "LOSSLESS_A_HHI_3.zip" "LOSSLESS_B_HHI_3.zip"
+    "LTRP_A_ERICSSON_2.zip"
     "MERGE_A_Qualcomm_2.zip" "MERGE_B_Qualcomm_2.zip" "MERGE_C_Qualcomm_2.zip" "MERGE_D_Qualcomm_2.zip" "MERGE_E_Qualcomm_2.zip"
     "MERGE_F_Qualcomm_2.zip" "MERGE_G_Qualcomm_2.zip" "MERGE_H_Qualcomm_2.zip" "MERGE_I_Qualcomm_2.zip" "MERGE_J_Qualcomm_2.zip"
     "MIP_A_HHI_3.zip" "MIP_B_HHI_3.zip"
-    "MMVD_A_SAMSUNG_2.zip"
-    "MVCOMP_A_Sharp_2.zip"
+    "MMVD_A_SAMSUNG_3.zip"
     "MPM_A_LGE_3.zip"
+    "MRLP_A_HHI_2.zip" "MRLP_B_HHI_2.zip"
     "MTS_A_LGE_3.zip" "MTS_B_LGE_3.zip"
     "MTS_LFNST_A_LGE_3.zip" "MTS_LFNST_B_LGE_3.zip"
+    "MVCOMP_A_Sharp_2.zip"
     "PDPC_A_Qualcomm_3.zip" "PDPC_B_Qualcomm_3.zip" "PDPC_C_Qualcomm_2.zip" 
+    "PHSH_B_Sharp_1.zip"
+    "POC_A_Nokia_1.zip"
     "POUT_A_Sharplabs_2.zip"
     "PPS_A_Bytedance_1.zip" "PPS_B_Bytedance_1.zip" "PPS_C_Bytedance_1.zip"
+    "PQ_A_Dolby_1.zip"
     "PROF_A_Interdigital_3.zip" "PROF_B_Interdigital_3.zip"
     "PSEXT_A_Nokia_2.zip" "PSEXT_B_Nokia_2.zip"
     "QTBTT_A_MediaTek_3.zip"
     "QUANT_A_Huawei_2.zip" "QUANT_B_Huawei_2.zip" "QUANT_C_Huawei_2.zip" "QUANT_D_Huawei_2.zip"
-    #"RPL_A_ERICSSON_2.zip" # rpl management partially buggy
-    "RPR_A_Alibaba_3.zip" "RPR_B_Alibaba_3.zip" "RPR_C_Alibaba_3.zip"
-    "SAO_A_SAMSUNG_2.zip" "SAO_B_SAMSUNG_2.zip" "SAO_C_SAMSUNG_2.zip"
+    "RAP_A_HHI_1.zip" "RAP_B_HHI_1.zip" "RAP_C_HHI_1.zip" "RAP_D_HHI_1.zip"
+    "RPL_A_ERICSSON_2.zip"
+    "RPR_A_Alibaba_4.zip" "RPR_B_Alibaba_3.zip" "RPR_C_Alibaba_3.zip"
+    "SAO_A_SAMSUNG_3.zip" "SAO_B_SAMSUNG_3.zip" "SAO_C_SAMSUNG_3.zip"
     "SBT_A_HUAWEI_2.zip"
     "SbTMVP_A_Bytedance_3.zip" "SbTMVP_B_Bytedance_3.zip"
+    "SCALING_A_InterDigital_1.zip" "SCALING_B_InterDigital_1.zip" "SCALING_C_InterDigital_1.zip"
     "SDH_A_Dolby_2.zip"
     "SLICES_A_HUAWEI_2.zip"
     "SMVD_A_HUAWEI_2.zip"
     "SPS_A_Bytedance_1.zip" "SPS_B_Bytedance_1.zip" "SPS_C_Bytedance_1.zip"
     #"SUBPIC_A_HUAWEI_3.zip" "SUBPIC_B_HUAWEI_3.zip" # subpictures currently not supported
-    "TEMPSCAL_A_Panasonic_3.zip" "TEMPSCAL_C_Panasonic_3.zip"
-    "TILE_A_Nokia_2.zip" "TILE_B_Nokia_2.zip" "TILE_C_Nokia_2.zip" "TILE_D_Nokia_2.zip" "TILE_E_Nokia_2.zip" "TILE_F_Nokia_2.zip"
+    "TEMPSCAL_A_Panasonic_4.zip" "TEMPSCAL_B_Panasonic_4.zip" "TEMPSCAL_C_Panasonic_3.zip"
+    "TILE_A_Nokia_2.zip" "TILE_B_Nokia_2.zip" "TILE_C_Nokia_2.zip" "TILE_D_Nokia_2.zip" "TILE_E_Nokia_2.zip" "TILE_F_Nokia_2.zip" "TILE_G_Nokia_2.zip"
+    "TMVP_A_Chipsnmedia_3.zip" "TMVP_B_Chipsnmedia_3.zip" "TMVP_C_Chipsnmedia_3.zip" "TMVP_D_Chipsnmedia_3.zip"
+    "TRANS_A_Chipsnmedia_2.zip" "TRANS_B_Chipsnmedia_2.zip" "TRANS_C_Chipsnmedia_2.zip" "TRANS_D_Chipsnmedia_2.zip"
     "TREE_A_HHI_3.zip" "TREE_B_HHI_3.zip" "TREE_C_HHI_3.zip"
-    "VUI_A_Dolby_2.zip"
+    #"VIRTUAL_A_MediaTek_3.zip" "VIRTUAL_B_MediaTek_3.zip" # TODO
     "WP_A_InterDigital_3.zip" "WP_B_InterDigital_3.zip"
     "WPP_A_Sharp_3.zip" "WPP_B_Sharp_2.zip"
     "WRAP_A_InterDigital_4.zip" "WRAP_B_InterDigital_4.zip" "WRAP_C_InterDigital_4.zip" "WRAP_D_InterDigital_4.zip"
