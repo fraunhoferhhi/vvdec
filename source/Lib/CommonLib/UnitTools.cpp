@@ -1264,7 +1264,8 @@ void PU::getInterMergeCandidates( const PredictionUnit &pu, MergeCtx& mrgCtx, Mo
 
   int r = 0;
   int refcnt = 0;
-  while (uiArrayAddr < maxNumMergeCand)
+  // second condition needed for gcc-10 overflow checking. Required for now. TODO: fix properly
+  while (uiArrayAddr < maxNumMergeCand && uiArrayAddr < MRG_MAX_NUM_CANDS)
   {
     mrgCtx.interDirNeighbours [uiArrayAddr     ] = 1;
     mrgCtx.BcwIdx             [uiArrayAddr     ] = BCW_DEFAULT;
@@ -3085,7 +3086,9 @@ bool PU::getInterMergeSubPuMvpCand(const PredictionUnit &pu, MergeCtx& mrgCtx, b
       for( int x = puPos.x; x < puPos.x + puSize.width; x += puWidth, miLinePtr += g_miScaling.scaleHor( puWidth ) )
       {
         mi.refIdx[0] = mi.refIdx[1] = NOT_VALID;
+        GCC_WARNING_DISABLE_class_memaccess
         memset( mi.mv, 0, sizeof( mi.mv ) );
+        GCC_WARNING_RESET
 
         Position colPos{ x + xOff, y + yOff };
 
