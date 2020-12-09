@@ -516,7 +516,9 @@ bool DecLibRecon::ctuTask( int tid, CtuTaskParam* param )
     for( int ctu = ctuStart; ctu < ctuEnd; ctu++ )
     {
       CtuData& ctuData = cs.getCtuData( ctu, line );
+      GCC_WARNING_DISABLE_class_memaccess
       memset( ctuData.motion, 0, sizeof( CtuData::motion ) );
+      GCC_WARNING_RESET
 
       if( !ctuData.cuPtr[0][0]->slice->isIntra() || cs.sps->getIBCFlag() )
       {
