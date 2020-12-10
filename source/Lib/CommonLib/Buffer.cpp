@@ -55,7 +55,9 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #include "Buffer.h"
 #include "InterpolationFilter.h"
 
+#ifdef TARGET_SIMD_X86
 #include "CommonDefX86.h"
+#endif
 
 template< typename T >
 void addAvgCore( const T* src1, ptrdiff_t src1Stride, const T* src2, ptrdiff_t src2Stride, T* dest, ptrdiff_t dstStride, int width, int height, int rshift, int offset, const ClpRng& clpRng )
