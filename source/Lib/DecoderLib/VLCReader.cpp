@@ -373,7 +373,7 @@ void HLSyntaxReader::parsePPS( PPS* pcPPS, ParameterSetManager *parameterSetMana
   READ_UVLC( uiCode, "pps_pic_width_in_luma_samples" );                      pcPPS->setPicWidthInLumaSamples( uiCode );
   READ_UVLC( uiCode, "pps_pic_height_in_luma_samples" );                     pcPPS->setPicHeightInLumaSamples( uiCode );
 
-  READ_FLAG( uiCode, "pps_conformance_window_flag" );
+  READ_FLAG(uiCode, "pps_conformance_window_flag");                          pcPPS->setConformanceWindowPresentFlag( uiCode );
   if( uiCode != 0 )
   {
     Window &conf = pcPPS->getConformanceWindow();
@@ -1293,7 +1293,7 @@ void HLSyntaxReader::parseSPS( SPS* pcSPS, ParameterSetManager *parameterSetMana
   READ_UVLC( uiCode, "sps_pic_width_max_in_luma_samples" );                  pcSPS->setMaxPicWidthInLumaSamples( uiCode );
   READ_UVLC( uiCode, "sps_pic_height_max_in_luma_samples" );                 pcSPS->setMaxPicHeightInLumaSamples( uiCode );
 
-  READ_FLAG( uiCode, "sps_conformance_window_flag" );
+  READ_FLAG( uiCode, "sps_conformance_window_flag" );                        pcSPS->setConformanceWindowPresentFlag( uiCode );
   if( uiCode != 0 )
   {
     Window& conf = pcSPS->getConformanceWindow();

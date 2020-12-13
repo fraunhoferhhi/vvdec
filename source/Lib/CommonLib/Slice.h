@@ -1473,6 +1473,7 @@ private:
   unsigned          m_dualITree                          = 0;
   uint32_t          m_uiMaxCUWidth                       = 32;
   uint32_t          m_uiMaxCUHeight                      = 32;
+  bool              m_conformanceWindowPresentFlag       = false;
   Window            m_conformanceWindow;
   bool              m_independentSubPicsFlag             = false;
 #if JVET_S0071_SAME_SIZE_SUBPIC_LAYOUT
@@ -1656,6 +1657,8 @@ public:
   uint32_t                getMaxPicWidthInLumaSamples() const                                             { return  m_maxWidthInLumaSamples; }
   void                    setMaxPicHeightInLumaSamples( uint32_t u )                                      { m_maxHeightInLumaSamples = u; }
   uint32_t                getMaxPicHeightInLumaSamples() const                                            { return  m_maxHeightInLumaSamples; }
+  void                    setConformanceWindowPresentFlag(bool b)                                         { m_conformanceWindowPresentFlag = b;           }
+  bool                    getConformanceWindowPresentFlag() const                                         { return m_conformanceWindowPresentFlag;        }
   Window&                 getConformanceWindow()                                                          { return  m_conformanceWindow;                                         }
   const Window&           getConformanceWindow() const                                                    { return  m_conformanceWindow;                                         }
   void                    setConformanceWindow(Window& conformanceWindow )                                { m_conformanceWindow = conformanceWindow;                             }
@@ -2204,6 +2207,7 @@ private:
   ScalingList      m_scalingList;                       //!< ScalingList class
   uint32_t         m_picWidthInLumaSamples;
   uint32_t         m_picHeightInLumaSamples;
+  bool             m_conformanceWindowPresentFlag        = false;
   Window           m_conformanceWindow;
   Window           m_scalingWindow;
   PPSRExt          m_ppsRangeExtension;
@@ -2477,6 +2481,8 @@ public:
   void                    setPicHeightInLumaSamples( uint32_t u )                         { m_picHeightInLumaSamples = u; }
   uint32_t                getPicHeightInLumaSamples() const                               { return  m_picHeightInLumaSamples; }
 
+  void                    setConformanceWindowPresentFlag(bool b)                         { m_conformanceWindowPresentFlag = b;           }
+  bool                    getConformanceWindowPresentFlag() const                         { return m_conformanceWindowPresentFlag;        }
   Window&                 getConformanceWindow()                                          { return  m_conformanceWindow; }
   const Window&           getConformanceWindow() const                                    { return  m_conformanceWindow; }
   void                    setConformanceWindow( Window& conformanceWindow )               { m_conformanceWindow = conformanceWindow; }
