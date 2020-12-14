@@ -1,43 +1,47 @@
 /* -----------------------------------------------------------------------------
-Software Copyright License for the Fraunhofer Software Library VVdec
+The copyright in this software is being made available under the BSD
+License, included below. No patent rights, trademark rights and/or 
+other Intellectual Property Rights other than the copyrights concerning 
+the Software are granted under this license.
 
-(c) Copyright (2018-2020) Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. 
-
-1.    INTRODUCTION
-
-The Fraunhofer Software Library VVdec (“Fraunhofer Versatile Video Decoding Library”) is software that implements (parts of) the Versatile Video Coding Standard - ITU-T H.266 | MPEG-I - Part 3 (ISO/IEC 23090-3) and related technology. 
-The standard contains Fraunhofer patents as well as third-party patents. Patent licenses from third party standard patent right holders may be required for using the Fraunhofer Versatile Video Decoding Library. It is in your responsibility to obtain those if necessary. 
-
-The Fraunhofer Versatile Video Decoding Library which mean any source code provided by Fraunhofer are made available under this software copyright license. 
-It is based on the official ITU/ISO/IEC VVC Test Model (VTM) reference software whose copyright holders are indicated in the copyright notices of its source files. The VVC Test Model (VTM) reference software is licensed under the 3-Clause BSD License and therefore not subject of this software copyright license.
-
-2.    COPYRIGHT LICENSE
-
-Internal use of the Fraunhofer Versatile Video Decoding Library, in source and binary forms, with or without modification, is permitted without payment of copyright license fees for non-commercial purposes of evaluation, testing and academic research. 
-
-No right or license, express or implied, is granted to any part of the Fraunhofer Versatile Video Decoding Library except and solely to the extent as expressly set forth herein. Any commercial use or exploitation of the Fraunhofer Versatile Video Decoding Library and/or any modifications thereto under this license are prohibited.
-
-For any other use of the Fraunhofer Versatile Video Decoding Library than permitted by this software copyright license You need another license from Fraunhofer. In such case please contact Fraunhofer under the CONTACT INFORMATION below.
-
-3.    LIMITED PATENT LICENSE
-
-As mentioned under 1. Fraunhofer patents are implemented by the Fraunhofer Versatile Video Decoding Library. If You use the Fraunhofer Versatile Video Decoding Library in Germany, the use of those Fraunhofer patents for purposes of testing, evaluating and research and development is permitted within the statutory limitations of German patent law. However, if You use the Fraunhofer Versatile Video Decoding Library in a country where the use for research and development purposes is not permitted without a license, you must obtain an appropriate license from Fraunhofer. It is Your responsibility to check the legal requirements for any use of applicable patents.    
-
-Fraunhofer provides no warranty of patent non-infringement with respect to the Fraunhofer Versatile Video Decoding Library.
-
-
-4.    DISCLAIMER
-
-The Fraunhofer Versatile Video Decoding Library is provided by Fraunhofer "AS IS" and WITHOUT ANY EXPRESS OR IMPLIED WARRANTIES, including but not limited to the implied warranties fitness for a particular purpose. IN NO EVENT SHALL FRAUNHOFER BE LIABLE for any direct, indirect, incidental, special, exemplary, or consequential damages, including but not limited to procurement of substitute goods or services; loss of use, data, or profits, or business interruption, however caused and on any theory of liability, whether in contract, strict liability, or tort (including negligence), arising in any way out of the use of the Fraunhofer Versatile Video Decoding Library, even if advised of the possibility of such damage.
-
-5.    CONTACT INFORMATION
+For any license concerning other Intellectual Property rights than the software, 
+especially patent licenses, a separate Agreement needs to be closed. 
+For more information please contact:
 
 Fraunhofer Heinrich Hertz Institute
-Attention: Video Coding & Analytics Department
 Einsteinufer 37
 10587 Berlin, Germany
 www.hhi.fraunhofer.de/vvc
 vvc@hhi.fraunhofer.de
+
+Copyright (c) 2018-2020, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. 
+All rights reserved.
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are met:
+
+ * Redistributions of source code must retain the above copyright notice,
+   this list of conditions and the following disclaimer.
+ * Redistributions in binary form must reproduce the above copyright notice,
+   this list of conditions and the following disclaimer in the documentation
+   and/or other materials provided with the distribution.
+ * Neither the name of Fraunhofer nor the names of its contributors may
+   be used to endorse or promote products derived from this software without
+   specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS
+BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
+THE POSSIBILITY OF SUCH DAMAGE.
+
+
 ------------------------------------------------------------------------------------------- */
 
 /** \file     SampleAdaptiveOffset.cpp
@@ -404,8 +408,6 @@ void SampleAdaptiveOffset::SAOProcess( CodingStructure& cs )
 void SampleAdaptiveOffset::SAOPrepareCTULine( CodingStructure &cs, const UnitArea &lineArea )
 {
   PROFILER_SCOPE_AND_STAGE( 1, g_timeProfiler, P_SAO );
-  SAOBlkParam* saoBlkParams = cs.picture->getSAO();
-  CHECK( !saoBlkParams, "No parameters present" );
 
   const PreCalcValues& pcv = *cs.pcv;
   PelUnitBuf           rec = cs.getRecoBuf();
@@ -423,13 +425,13 @@ void SampleAdaptiveOffset::SAOPrepareCTULine( CodingStructure &cs, const UnitAre
     const int ctuRsAddr = getCtuAddr( Position( x, y ), *cs.pcv );
 
     SAOBlkParam* mergeList[NUM_SAO_MERGE_TYPES] = { nullptr, nullptr };
-    getMergeList( cs, ctuRsAddr, saoBlkParams, mergeList );
+    getMergeList( cs, ctuRsAddr, mergeList );
 
-    reconstructBlkSAOParam( saoBlkParams[ctuRsAddr], mergeList );
+    reconstructBlkSAOParam( cs.m_ctuData[ctuRsAddr].saoParam, mergeList );
 
     for( int i = 0; i < MAX_NUM_COMPONENT; i++ )
     {
-      if( saoBlkParams[ctuRsAddr][i].modeIdc != SAO_MODE_OFF )
+      if( cs.m_ctuData[ctuRsAddr].saoParam[i].modeIdc != SAO_MODE_OFF )
       {
         anySaoBlk = true;
       }
@@ -459,8 +461,6 @@ void SampleAdaptiveOffset::SAOPrepareCTULine( CodingStructure &cs, const UnitAre
 void SampleAdaptiveOffset::SAOProcessCTULine( CodingStructure &cs, const UnitArea &lineArea )
 {
   PROFILER_SCOPE_AND_STAGE( 1, g_timeProfiler, P_SAO );
-  SAOBlkParam* saoBlkParams = cs.picture->getSAO();
-  CHECK(!saoBlkParams, "No parameters present");
 
   const PreCalcValues& pcv = *cs.pcv;
   PelUnitBuf           rec = cs.getRecoBuf();
@@ -476,7 +476,7 @@ void SampleAdaptiveOffset::SAOProcessCTULine( CodingStructure &cs, const UnitAre
 
     for( int i = 0; i < MAX_NUM_COMPONENT; i++ )
     {
-      if( saoBlkParams[ctuRsAddr][i].modeIdc != SAO_MODE_OFF )
+      if( cs.m_ctuData[ctuRsAddr].saoParam[i].modeIdc != SAO_MODE_OFF )
       {
         anySaoBlk = true;
       }
@@ -496,15 +496,13 @@ void SampleAdaptiveOffset::SAOProcessCTULine( CodingStructure &cs, const UnitAre
 
     const int ctuRsAddr = getCtuAddr( ctuArea.lumaPos(), *cs.pcv );
 
-    offsetCTU( ctuArea, m_tempBuf, rec, saoBlkParams[ctuRsAddr], cs, signLineBuf1, signLineBuf2 );
+    offsetCTU( ctuArea, m_tempBuf, rec, cs.m_ctuData[ctuRsAddr].saoParam, cs, signLineBuf1, signLineBuf2 );
   }
 }
 
 void SampleAdaptiveOffset::SAOProcessCTU( CodingStructure &cs, const UnitArea &ctuArea )
 {
   PROFILER_SCOPE_AND_STAGE( 1, g_timeProfiler, P_SAO );
-  SAOBlkParam* saoBlkParams = cs.picture->getSAO();
-  CHECK( !saoBlkParams, "No parameters present" );
 
   PelUnitBuf           rec = cs.getRecoBuf();
 
@@ -514,7 +512,7 @@ void SampleAdaptiveOffset::SAOProcessCTU( CodingStructure &cs, const UnitArea &c
 
   for( int i = 0; i < MAX_NUM_COMPONENT; i++ )
   {
-    if( saoBlkParams[ctuRsAddr][i].modeIdc != SAO_MODE_OFF )
+    if( cs.m_ctuData[ctuRsAddr].saoParam[i].modeIdc != SAO_MODE_OFF )
     {
       anySaoBlk = true;
     }
@@ -525,7 +523,7 @@ void SampleAdaptiveOffset::SAOProcessCTU( CodingStructure &cs, const UnitArea &c
   std::vector<int8_t> signLineBuf1;
   std::vector<int8_t> signLineBuf2;
 
-  offsetCTU( ctuArea, m_tempBuf, rec, saoBlkParams[ctuRsAddr], cs, signLineBuf1, signLineBuf2 );
+  offsetCTU( ctuArea, m_tempBuf, rec, cs.m_ctuData[ctuRsAddr].saoParam, cs, signLineBuf1, signLineBuf2 );
 }
 
 void SampleAdaptiveOffset::invertQuantOffsets(ComponentID compIdx, int typeIdc, int typeAuxInfo, int* dstOffsets, int* srcOffsets) const
@@ -553,13 +551,13 @@ void SampleAdaptiveOffset::invertQuantOffsets(ComponentID compIdx, int typeIdc, 
 
 }
 
-int SampleAdaptiveOffset::getMergeList(CodingStructure& cs, int ctuRsAddr, SAOBlkParam* blkParams, SAOBlkParam* mergeList[NUM_SAO_MERGE_TYPES])
+int SampleAdaptiveOffset::getMergeList(CodingStructure& cs, int ctuRsAddr, SAOBlkParam* mergeList[NUM_SAO_MERGE_TYPES])
 {
   const PreCalcValues& pcv = *cs.pcv;
 
-  int ctuX = ctuRsAddr % pcv.widthInCtus;
-  int ctuY = ctuRsAddr / pcv.widthInCtus;
-  const CodingUnit& cu = *cs.getCU(Position(ctuX*pcv.maxCUWidth, ctuY*pcv.maxCUHeight), CH_L);
+  const int ctuX       = ctuRsAddr % pcv.widthInCtus;
+  const int ctuY       = ctuRsAddr / pcv.widthInCtus;
+  const CodingUnit& cu = *cs.getCtuData( ctuRsAddr ).cuPtr[CH_L][0];
   int mergedCTUPos;
   int numValidMergeCandidates = 0;
 
@@ -574,9 +572,9 @@ int SampleAdaptiveOffset::getMergeList(CodingStructure& cs, int ctuRsAddr, SAOBl
         if(ctuY > 0)
         {
           mergedCTUPos = ctuRsAddr- pcv.widthInCtus;
-          if(cs.getCURestricted(Position(ctuX*pcv.maxCUWidth, (ctuY-1)*pcv.maxCUHeight), cu, CH_L ))
+          if(cu.above)
           {
-            mergeCandidate = &(blkParams[mergedCTUPos]);
+            mergeCandidate = &(cs.m_ctuData[mergedCTUPos].saoParam);
           }
         }
       }
@@ -586,9 +584,9 @@ int SampleAdaptiveOffset::getMergeList(CodingStructure& cs, int ctuRsAddr, SAOBl
         if(ctuX > 0)
         {
           mergedCTUPos = ctuRsAddr- 1;
-          if(cs.getCURestricted(Position((ctuX-1)*pcv.maxCUWidth, ctuY*pcv.maxCUHeight), cu, CH_L ))
+          if(cu.left)
           {
-            mergeCandidate = &(blkParams[mergedCTUPos]);
+            mergeCandidate = &(cs.m_ctuData[mergedCTUPos].saoParam);
           }
         }
       }
@@ -708,7 +706,7 @@ void SampleAdaptiveOffset::offsetCTU( const UnitArea& area, const CPelUnitBuf& s
       }
 
       offsetBlock( cs.sps->getBitDepth(toChannelType(compID)),
-                   cs.slice->clpRng(compID),
+                   cs.getCtuData(cs.ctuRsAddr(area.Y().pos(), CH_L)).cuPtr[0][0]->slice->clpRng(compID),
                    ctbOffset.typeIdc, ctbOffset.offset,ctbOffset.typeAuxInfo
                   , srcBlk, resBlk, srcStride, resStride, compArea.width, compArea.height
                   , isLeftAvail, isRightAvail
@@ -738,17 +736,22 @@ void SampleAdaptiveOffset::deriveLoopFilterBoundaryAvailibility( CodingStructure
                                                                  bool&            isBelowLeftAvail,
                                                                  bool&            isBelowRightAvail ) const
 {
-  const int width  = cs.pcv->maxCUWidth;
-  const int height = cs.pcv->maxCUHeight;
-  const CodingUnit* cuCurr = cs.getCU(pos, CH_L);
-  const CodingUnit* cuLeft = cs.getCU(pos.offset(-width, 0), CH_L);
-  const CodingUnit* cuRight = cs.getCU(pos.offset(width, 0), CH_L);
-  const CodingUnit* cuAbove = cs.getCU(pos.offset(0, -height), CH_L);
-  const CodingUnit* cuBelow = cs.getCU(pos.offset(0, height), CH_L);
-  const CodingUnit* cuAboveLeft = cs.getCU(pos.offset(-width, -height), CH_L);
-  const CodingUnit* cuAboveRight = cs.getCU(pos.offset(width, -height), CH_L);
-  const CodingUnit* cuBelowLeft = cs.getCU(pos.offset(-width, height), CH_L);
-  const CodingUnit* cuBelowRight = cs.getCU(pos.offset(width, height), CH_L);
+  const int ctusz  = cs.pcv->maxCUWidth;
+  const int ctuX   = pos.x / ctusz;
+  const int ctuY   = pos.y / ctusz;
+  const int width  = cs.pcv->widthInCtus;
+  const int height = cs.pcv->heightInCtus;
+
+  const CodingUnit* cuCurr        =                       cs.getCtuData( ctuX,     ctuY     ).cuPtr[0][0];
+  const CodingUnit* cuLeft        = ctuX     > 0        ? cs.getCtuData( ctuX - 1, ctuY     ).cuPtr[0][0] : nullptr;
+  const CodingUnit* cuRight       = ctuX + 1 < width    ? cs.getCtuData( ctuX + 1, ctuY     ).cuPtr[0][0] : nullptr;
+  const CodingUnit* cuAbove       = ctuY     > 0        ? cs.getCtuData( ctuX,     ctuY - 1 ).cuPtr[0][0] : nullptr;
+  const CodingUnit* cuBelow       = ctuY + 1 < height   ? cs.getCtuData( ctuX,     ctuY + 1 ).cuPtr[0][0] : nullptr;
+  const CodingUnit* cuAboveLeft   = cuLeft  && cuAbove  ? cs.getCtuData( ctuX - 1, ctuY - 1 ).cuPtr[0][0] : nullptr;
+  const CodingUnit* cuAboveRight  = cuRight && cuAbove  ? cs.getCtuData( ctuX + 1, ctuY - 1 ).cuPtr[0][0] : nullptr;
+  const CodingUnit* cuBelowLeft   = cuLeft  && cuBelow  ? cs.getCtuData( ctuX - 1, ctuY + 1 ).cuPtr[0][0] : nullptr;
+  const CodingUnit* cuBelowRight  = cuRight && cuBelow  ? cs.getCtuData( ctuX + 1, ctuY + 1 ).cuPtr[0][0] : nullptr;
+
 
   // check cross slice flags
   const bool isLoopFilterAcrossSlicePPS = cs.pps->getLoopFilterAcrossSlicesEnabledFlag();

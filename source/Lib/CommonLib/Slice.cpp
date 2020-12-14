@@ -1,43 +1,47 @@
 /* -----------------------------------------------------------------------------
-Software Copyright License for the Fraunhofer Software Library VVdec
+The copyright in this software is being made available under the BSD
+License, included below. No patent rights, trademark rights and/or 
+other Intellectual Property Rights other than the copyrights concerning 
+the Software are granted under this license.
 
-(c) Copyright (2018-2020) Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. 
-
-1.    INTRODUCTION
-
-The Fraunhofer Software Library VVdec (“Fraunhofer Versatile Video Decoding Library”) is software that implements (parts of) the Versatile Video Coding Standard - ITU-T H.266 | MPEG-I - Part 3 (ISO/IEC 23090-3) and related technology. 
-The standard contains Fraunhofer patents as well as third-party patents. Patent licenses from third party standard patent right holders may be required for using the Fraunhofer Versatile Video Decoding Library. It is in your responsibility to obtain those if necessary. 
-
-The Fraunhofer Versatile Video Decoding Library which mean any source code provided by Fraunhofer are made available under this software copyright license. 
-It is based on the official ITU/ISO/IEC VVC Test Model (VTM) reference software whose copyright holders are indicated in the copyright notices of its source files. The VVC Test Model (VTM) reference software is licensed under the 3-Clause BSD License and therefore not subject of this software copyright license.
-
-2.    COPYRIGHT LICENSE
-
-Internal use of the Fraunhofer Versatile Video Decoding Library, in source and binary forms, with or without modification, is permitted without payment of copyright license fees for non-commercial purposes of evaluation, testing and academic research. 
-
-No right or license, express or implied, is granted to any part of the Fraunhofer Versatile Video Decoding Library except and solely to the extent as expressly set forth herein. Any commercial use or exploitation of the Fraunhofer Versatile Video Decoding Library and/or any modifications thereto under this license are prohibited.
-
-For any other use of the Fraunhofer Versatile Video Decoding Library than permitted by this software copyright license You need another license from Fraunhofer. In such case please contact Fraunhofer under the CONTACT INFORMATION below.
-
-3.    LIMITED PATENT LICENSE
-
-As mentioned under 1. Fraunhofer patents are implemented by the Fraunhofer Versatile Video Decoding Library. If You use the Fraunhofer Versatile Video Decoding Library in Germany, the use of those Fraunhofer patents for purposes of testing, evaluating and research and development is permitted within the statutory limitations of German patent law. However, if You use the Fraunhofer Versatile Video Decoding Library in a country where the use for research and development purposes is not permitted without a license, you must obtain an appropriate license from Fraunhofer. It is Your responsibility to check the legal requirements for any use of applicable patents.    
-
-Fraunhofer provides no warranty of patent non-infringement with respect to the Fraunhofer Versatile Video Decoding Library.
-
-
-4.    DISCLAIMER
-
-The Fraunhofer Versatile Video Decoding Library is provided by Fraunhofer "AS IS" and WITHOUT ANY EXPRESS OR IMPLIED WARRANTIES, including but not limited to the implied warranties fitness for a particular purpose. IN NO EVENT SHALL FRAUNHOFER BE LIABLE for any direct, indirect, incidental, special, exemplary, or consequential damages, including but not limited to procurement of substitute goods or services; loss of use, data, or profits, or business interruption, however caused and on any theory of liability, whether in contract, strict liability, or tort (including negligence), arising in any way out of the use of the Fraunhofer Versatile Video Decoding Library, even if advised of the possibility of such damage.
-
-5.    CONTACT INFORMATION
+For any license concerning other Intellectual Property rights than the software, 
+especially patent licenses, a separate Agreement needs to be closed. 
+For more information please contact:
 
 Fraunhofer Heinrich Hertz Institute
-Attention: Video Coding & Analytics Department
 Einsteinufer 37
 10587 Berlin, Germany
 www.hhi.fraunhofer.de/vvc
 vvc@hhi.fraunhofer.de
+
+Copyright (c) 2018-2020, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. 
+All rights reserved.
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are met:
+
+ * Redistributions of source code must retain the above copyright notice,
+   this list of conditions and the following disclaimer.
+ * Redistributions in binary form must reproduce the above copyright notice,
+   this list of conditions and the following disclaimer in the documentation
+   and/or other materials provided with the distribution.
+ * Neither the name of Fraunhofer nor the names of its contributors may
+   be used to endorse or promote products derived from this software without
+   specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS
+BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
+THE POSSIBILITY OF SUCH DAMAGE.
+
+
 ------------------------------------------------------------------------------------------- */
 
 /** \file     Slice.cpp
@@ -514,7 +518,7 @@ void Slice::constructRefPicLists( const PicListRange& rcListPic )
   constructSingleRefPicList( rcListPic, REF_PIC_LIST_1, *m_pRPL1, m_localRPL1 );
 }
 
-void Slice::constructSingleRefPicList(const PicListRange& rcListPic, RefPicList listId, const ReferencePictureList& pRPL, const ReferencePictureList& pLocalRPL )
+void Slice::constructSingleRefPicList(const PicListRange& rcListPic, RefPicList listId, const ReferencePictureList& pRPL, ReferencePictureList& pLocalRPL )
 {
   uint32_t numOfActiveRef = getNumRefIdx( listId );
   for( int ii = 0; ii < numOfActiveRef; ii++ )
@@ -533,7 +537,8 @@ void Slice::constructSingleRefPicList(const PicListRange& rcListPic, RefPicList 
       int ltrpPoc = pRPL.getRefPicIdentifier( ii ) & pocMask;                                                                 // TODO: really mix of m_RPL0 and m_localRPL0?
       if( pLocalRPL.getDeltaPocMSBPresentFlag( ii ) )                                                                         // TODO: really mix of m_RPL0 and m_localRPL0?
       {
-        ltrpPoc += pLocalRPL.getDeltaPocMSBCycleLT( ii ) << pocBits;                                                          // TODO: really mix of m_RPL0 and m_localRPL0?
+//        ltrpPoc += pLocalRPL.getDeltaPocMSBCycleLT( ii ) << pocBits;                                                          // TODO: really mix of m_RPL0 and m_localRPL0?
+        ltrpPoc += getPOC() - pLocalRPL.getDeltaPocMSBCycleLT( ii ) * ( pocMask + 1 ) - ( getPOC() & pocMask );
       }
 
       pcRefPic           = xGetLongTermRefPic( rcListPic, ltrpPoc, pLocalRPL.getDeltaPocMSBPresentFlag( ii ), m_pcPic->layerId );               // TODO: really mix of m_RPL0 and m_localRPL0?
@@ -542,6 +547,8 @@ void Slice::constructSingleRefPicList(const PicListRange& rcListPic, RefPicList 
 
     m_apcRefPicList    [listId][ii] = pcRefPic;
     m_bIsUsedAsLongTerm[listId][ii] = pcRefPic->longTerm;
+
+    pLocalRPL.setRefPicLongterm( ii,pcRefPic->longTerm );
   }
 }
 
@@ -1347,7 +1354,7 @@ void  Slice::resetWpScaling()
 //! init WP table
 void  Slice::initWpScaling(const SPS *sps)
 {
-  const bool bUseHighPrecisionPredictionWeighting = sps->getSpsRangeExtension().getHighPrecisionOffsetsEnabledFlag();
+  const bool bUseHighPrecisionPredictionWeighting = false;// sps->getSpsRangeExtension().getHighPrecisionOffsetsEnabledFlag();
   for ( int e=0 ; e<NUM_REF_PIC_LIST_01 ; e++ )
   {
     for ( int i=0 ; i<MAX_NUM_REF ; i++ )
@@ -1371,18 +1378,6 @@ void  Slice::initWpScaling(const SPS *sps)
       }
     }
   }
-}
-
-
-void Slice::startProcessingTimer()
-{
-  m_processingStartTime = std::chrono::steady_clock::now();
-}
-
-void Slice::stopProcessingTimer()
-{
-  auto endTime       = std::chrono::steady_clock::now();
-  m_dProcessingTime += std::chrono::duration<double>( endTime - m_processingStartTime ).count();
 }
 
 unsigned Slice::getMinPictureDistance() const
@@ -2158,7 +2153,6 @@ const int* ScalingList::getScalingListDefaultAddress(uint32_t scalingListId)
     case SCALING_LIST_16x16:
     case SCALING_LIST_32x32:
     case SCALING_LIST_64x64:
-    case SCALING_LIST_128x128:
       src = g_quantInterDefault8x8;
       break;
     default:
@@ -2385,28 +2379,18 @@ bool             operator == (const ConstraintInfo& op1, const ConstraintInfo& o
   if (op1.m_noPaletteConstraintFlag                      != op2.m_noPaletteConstraintFlag                        ) return false;
   if (op1.m_noActConstraintFlag                          != op2.m_noActConstraintFlag                            ) return false;
   if (op1.m_noLmcsConstraintFlag                         != op2.m_noLmcsConstraintFlag                           ) return false;
-#if JVET_S0050_GCI
   if (op1.m_noExplicitScaleListConstraintFlag            != op2.m_noExplicitScaleListConstraintFlag              ) return false;
   if (op1.m_noVirtualBoundaryConstraintFlag              != op2.m_noVirtualBoundaryConstraintFlag                ) return false;
-#endif
-#if JVET_R0341_GCI
   if (op1.m_noChromaQpOffsetConstraintFlag               != op2.m_noChromaQpOffsetConstraintFlag                 ) return false;
-#endif
-#if JVET_Q0114_ASPECT5_GCI_FLAG
   if (op1.m_noRprConstraintFlag                          != op2.m_noRprConstraintFlag                            ) return false;
   if (op1.m_noResChangeInClvsConstraintFlag              != op2.m_noResChangeInClvsConstraintFlag                ) return false;
-#endif
-#if JVET_S0058_GCI
   if (op1.m_noMttConstraintFlag                          != op2.m_noMttConstraintFlag                            ) return false;
-#endif
   if( op1.m_noQtbttDualTreeIntraConstraintFlag           != op2.m_noQtbttDualTreeIntraConstraintFlag             ) return false;
   if( op1.m_noPartitionConstraintsOverrideConstraintFlag != op2.m_noPartitionConstraintsOverrideConstraintFlag   ) return false;
   if( op1.m_noSaoConstraintFlag                          != op2.m_noSaoConstraintFlag                            ) return false;
   if( op1.m_noAlfConstraintFlag                          != op2.m_noAlfConstraintFlag                            ) return false;
   if( op1.m_noCCAlfConstraintFlag                        != op2.m_noCCAlfConstraintFlag                          ) return false;
-#if JVET_S0058_GCI
   if (op1.m_noWeightedPredictionConstraintFlag           != op2.m_noWeightedPredictionConstraintFlag             ) return false;
-#endif
   if( op1.m_noRefWraparoundConstraintFlag                != op2.m_noRefWraparoundConstraintFlag                  ) return false;
   if( op1.m_noTemporalMvpConstraintFlag                  != op2.m_noTemporalMvpConstraintFlag                    ) return false;
   if( op1.m_noSbtmvpConstraintFlag                       != op2.m_noSbtmvpConstraintFlag                         ) return false;

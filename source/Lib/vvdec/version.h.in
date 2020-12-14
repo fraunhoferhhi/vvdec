@@ -44,20 +44,18 @@ THE POSSIBILITY OF SUCH DAMAGE.
 
 ------------------------------------------------------------------------------------------- */
 
-/// \cond NEVER_DOC
-#pragma once
-/// \endcond
+#if !defined( VVDEC_VERSION )
 
-#if defined( _WIN32 )
-# if defined( VVDEC_DYN_LINK )
-#   if defined( VVDEC_SOURCE )
-#     define VVDEC_DECL __declspec(dllexport)
-#   else
-#     define VVDEC_DECL __declspec(dllimport)
-#   endif  // VVDEC_SOURCE
-# endif // VVDEC_DYN_LINK
-#endif // _WIN32
+#define VVDEC_VERSION "${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}.${PROJECT_VERSION_PATCH}.${PROJECT_VERSION_TWEAK}"
 
-#if !defined( VVDEC_DECL )
-# define VVDEC_DECL
+#define VVDEC_VERSION_MAJOR ${PROJECT_VERSION_MAJOR}
+#define VVDEC_VERSION_MINOR ${PROJECT_VERSION_MINOR}
+#define VVDEC_VERSION_PATCH ${PROJECT_VERSION_PATCH}
+#define VVDEC_VERSION_TWEAK ${PROJECT_VERSION_TWEAK}
+
+#ifdef _WIN32
+#define VVDEC_VS_VERSION      ${PROJECT_VERSION_MAJOR},${PROJECT_VERSION_MINOR},${PROJECT_VERSION_PATCH},${PROJECT_VERSION_TWEAK}
+#define VVDEC_VS_VERSION_STR "${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}.${PROJECT_VERSION_PATCH}.${PROJECT_VERSION_TWEAK}"
+#endif
+
 #endif

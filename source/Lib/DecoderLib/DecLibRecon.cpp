@@ -1,43 +1,47 @@
 /* -----------------------------------------------------------------------------
-Software Copyright License for the Fraunhofer Software Library VVdec
+The copyright in this software is being made available under the BSD
+License, included below. No patent rights, trademark rights and/or 
+other Intellectual Property Rights other than the copyrights concerning 
+the Software are granted under this license.
 
-(c) Copyright (2018-2020) Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. 
-
-1.    INTRODUCTION
-
-The Fraunhofer Software Library VVdec (“Fraunhofer Versatile Video Decoding Library”) is software that implements (parts of) the Versatile Video Coding Standard - ITU-T H.266 | MPEG-I - Part 3 (ISO/IEC 23090-3) and related technology. 
-The standard contains Fraunhofer patents as well as third-party patents. Patent licenses from third party standard patent right holders may be required for using the Fraunhofer Versatile Video Decoding Library. It is in your responsibility to obtain those if necessary. 
-
-The Fraunhofer Versatile Video Decoding Library which mean any source code provided by Fraunhofer are made available under this software copyright license. 
-It is based on the official ITU/ISO/IEC VVC Test Model (VTM) reference software whose copyright holders are indicated in the copyright notices of its source files. The VVC Test Model (VTM) reference software is licensed under the 3-Clause BSD License and therefore not subject of this software copyright license.
-
-2.    COPYRIGHT LICENSE
-
-Internal use of the Fraunhofer Versatile Video Decoding Library, in source and binary forms, with or without modification, is permitted without payment of copyright license fees for non-commercial purposes of evaluation, testing and academic research. 
-
-No right or license, express or implied, is granted to any part of the Fraunhofer Versatile Video Decoding Library except and solely to the extent as expressly set forth herein. Any commercial use or exploitation of the Fraunhofer Versatile Video Decoding Library and/or any modifications thereto under this license are prohibited.
-
-For any other use of the Fraunhofer Versatile Video Decoding Library than permitted by this software copyright license You need another license from Fraunhofer. In such case please contact Fraunhofer under the CONTACT INFORMATION below.
-
-3.    LIMITED PATENT LICENSE
-
-As mentioned under 1. Fraunhofer patents are implemented by the Fraunhofer Versatile Video Decoding Library. If You use the Fraunhofer Versatile Video Decoding Library in Germany, the use of those Fraunhofer patents for purposes of testing, evaluating and research and development is permitted within the statutory limitations of German patent law. However, if You use the Fraunhofer Versatile Video Decoding Library in a country where the use for research and development purposes is not permitted without a license, you must obtain an appropriate license from Fraunhofer. It is Your responsibility to check the legal requirements for any use of applicable patents.    
-
-Fraunhofer provides no warranty of patent non-infringement with respect to the Fraunhofer Versatile Video Decoding Library.
-
-
-4.    DISCLAIMER
-
-The Fraunhofer Versatile Video Decoding Library is provided by Fraunhofer "AS IS" and WITHOUT ANY EXPRESS OR IMPLIED WARRANTIES, including but not limited to the implied warranties fitness for a particular purpose. IN NO EVENT SHALL FRAUNHOFER BE LIABLE for any direct, indirect, incidental, special, exemplary, or consequential damages, including but not limited to procurement of substitute goods or services; loss of use, data, or profits, or business interruption, however caused and on any theory of liability, whether in contract, strict liability, or tort (including negligence), arising in any way out of the use of the Fraunhofer Versatile Video Decoding Library, even if advised of the possibility of such damage.
-
-5.    CONTACT INFORMATION
+For any license concerning other Intellectual Property rights than the software, 
+especially patent licenses, a separate Agreement needs to be closed. 
+For more information please contact:
 
 Fraunhofer Heinrich Hertz Institute
-Attention: Video Coding & Analytics Department
 Einsteinufer 37
 10587 Berlin, Germany
 www.hhi.fraunhofer.de/vvc
 vvc@hhi.fraunhofer.de
+
+Copyright (c) 2018-2020, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. 
+All rights reserved.
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are met:
+
+ * Redistributions of source code must retain the above copyright notice,
+   this list of conditions and the following disclaimer.
+ * Redistributions in binary form must reproduce the above copyright notice,
+   this list of conditions and the following disclaimer in the documentation
+   and/or other materials provided with the distribution.
+ * Neither the name of Fraunhofer nor the names of its contributors may
+   be used to endorse or promote products derived from this software without
+   specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS
+BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
+THE POSSIBILITY OF SUCH DAMAGE.
+
+
 ------------------------------------------------------------------------------------------- */
 
 /** \file     DecLibRecon.cpp
@@ -248,22 +252,22 @@ void DecLibRecon::decompressPicture( Picture* pcPic )
 #endif
 
   // Initialise the various objects for the new set of settings
-  const SPS * sps = cs.slice->getSPS();
-  const PPS * pps = cs.slice->getPPS();
+  const SPS * sps = cs.sps.get();
+  const PPS * pps = cs.pps.get();
 
   for( int i = 0; i < m_numDecThreads; i++ )
   {
     if( sps->getUseReshaper() )
     {
       m_cReshaper[i].createDec( sps->getBitDepth( CHANNEL_TYPE_LUMA ) );
-      m_cReshaper[i].initSlice( cs.slice );
+      m_cReshaper[i].initSlice( pcPic->slices[0] );
     }
 
     m_cIntraPred[i].init( sps->getChromaFormatIdc(), sps->getBitDepth( CHANNEL_TYPE_LUMA ) );
     m_cInterPred[i].init( &m_cRdCost, sps->getChromaFormatIdc(), sps->getMaxCUHeight() );
 
     // Recursive structure
-    m_cTrQuant[i]  .init( cs.slice );
+    m_cTrQuant[i]  .init( pcPic->slices[0] );
     m_cCuDecoder[i].init( &m_cIntraPred[i], &m_cInterPred[i], &m_cReshaper[i], &m_cTrQuant[i] );
   }
 
@@ -292,7 +296,7 @@ void DecLibRecon::decompressPicture( Picture* pcPic )
   {
     cs.initVIbcBuf( heightInCtus, sps->getChromaFormatIdc(), sps->getMaxCUHeight() );
   }
-  cs.slice->startProcessingTimer();
+  pcPic->startProcessingTimer();
 
   if( m_decodeThreadPool->numThreads() > 0 )
   {
@@ -308,9 +312,9 @@ void DecLibRecon::decompressPicture( Picture* pcPic )
 
   for( int iDir = REF_PIC_LIST_0; iDir < NUM_REF_PIC_LIST_01; ++iDir )
   {
-    for( int iRefIdx = 0; iRefIdx < cs.slice->getNumRefIdx( (RefPicList)iDir ); iRefIdx++ )
+    for( int iRefIdx = 0; iRefIdx < pcPic->slices[0]->getNumRefIdx( (RefPicList)iDir ); iRefIdx++ )
     {
-      Picture* pic = const_cast<Picture*>( cs.slice->getRefPic( (RefPicList)iDir, iRefIdx ) );
+      Picture* pic = const_cast<Picture*>( pcPic->slices[0]->getRefPic( (RefPicList)iDir, iRefIdx ) );
 
       if( !pic->isBorderExtended )
       {
@@ -338,7 +342,9 @@ void DecLibRecon::decompressPicture( Picture* pcPic )
     m_decodeThreadPool->processTasksOnMainThread();
   }
 
-  const int numColPerTask   = std::max( std::min( widthInCtus, ( widthInCtus / std::max( m_numDecThreads * ( cs.slice->isIntra() ? 2 : 1 ), 1 ) ) + ( cs.slice->isIntra() ? 0 : 1 ) ), 1 );
+  const bool isIntra = pcPic->slices[0]->isIntra();
+
+  const int numColPerTask   = std::max( std::min( widthInCtus, ( widthInCtus / std::max( m_numDecThreads * (isIntra ? 2 : 1 ), 1 ) ) + (isIntra ? 0 : 1 ) ), 1 );
   const int numTasksPerLine = widthInCtus / numColPerTask + !!( widthInCtus % numColPerTask );
 
 #if ALLOW_MIDER_LF_DURING_PICEXT
@@ -349,17 +355,13 @@ void DecLibRecon::decompressPicture( Picture* pcPic )
 
 #endif
   const TaskType ctuStartState = MIDER;
-  const bool     doALF         = cs.sps->getUseALF() && !AdaptiveLoopFilter::getAlfSkipSlice( cs );
-
+  const bool     doALF         = cs.sps->getUseALF() && !AdaptiveLoopFilter::getAlfSkipPic( cs );
   commonTaskParam.reset( cs, ctuStartState, numTasksPerLine, doALF );
 
   tasksDMVR = std::vector<LineTaskParam>( heightInCtus, LineTaskParam{ commonTaskParam, -1 } );
   tasksCtu  = std::vector<CtuTaskParam >( heightInCtus * numTasksPerLine, CtuTaskParam{ commonTaskParam, -1, -1, {} } );
 
   pcPic->done.lock();
-#if RECO_WHILE_PARSE
-  const bool singleSlice = cs.picture->slices.size() == 1;
-#endif
 
   for( int i = 0; i < numTasksPerLine + heightInCtus; ++i )
   {
@@ -371,21 +373,11 @@ void DecLibRecon::decompressPicture( Picture* pcPic )
         CBarrierVec ctuBarriesrs = picBarriers;
 
 #if RECO_WHILE_PARSE
-        if( singleSlice )
+        const int ctuStart = col * numColPerTask;
+        const int ctuEnd   = std::min( ctuStart + numColPerTask, widthInCtus );
+        for( int ctu = ctuStart; ctu < ctuEnd; ctu++ )
         {
-          const int ctuStart = col * numColPerTask;
-          const int ctuEnd   = std::min( ctuStart + numColPerTask, widthInCtus );
-          for( int ctu = ctuStart; ctu < ctuEnd; ctu++ )
-          {
-            ctuBarriesrs.push_back( &pcPic->ctuParsedBarrier[line * widthInCtus + ctu] );
-          }
-          // add the next parsed CTU to avoid the race condition on the ->next pointer of the CTU
-          if     ( ctuEnd < widthInCtus )    ctuBarriesrs.push_back( &pcPic->ctuParsedBarrier[line * widthInCtus + ctuEnd] );
-          else if( line < heightInCtus - 1 ) ctuBarriesrs.push_back( &pcPic->ctuParsedBarrier[( line + 1 ) * widthInCtus] );
-        }
-        else
-        {
-          ctuBarriesrs.push_back( &cs.picture->parseDone );
+          ctuBarriesrs.push_back( &pcPic->ctuParsedBarrier[line * widthInCtus + ctu] );
         }
 #endif
         CtuTaskParam* param = &tasksCtu[line * numTasksPerLine + col];
@@ -406,7 +398,7 @@ void DecLibRecon::decompressPicture( Picture* pcPic )
 
   if( commonTaskParam.doALF )
   {
-    AdaptiveLoopFilter::prepareSlice( cs );
+    AdaptiveLoopFilter::preparePic( cs );
     commonTaskParam.alfPrepared.unlock();
   }
 
@@ -414,7 +406,7 @@ void DecLibRecon::decompressPicture( Picture* pcPic )
     static auto doneTask = []( int, Picture* picture )
     {
       CodingStructure& cs = *picture->cs;
-      if( cs.sps->getUseALF() && !AdaptiveLoopFilter::getAlfSkipSlice( cs ) )
+      if( cs.sps->getUseALF() && !AdaptiveLoopFilter::getAlfSkipPic( cs ) )
       {
         AdaptiveLoopFilter::swapBufs( cs );
       }
@@ -428,7 +420,7 @@ void DecLibRecon::decompressPicture( Picture* pcPic )
 #endif
       picture->done.unlock();
 
-      cs.slice->stopProcessingTimer();
+      picture->stopProcessingTimer();
 
       return true;
     };
@@ -524,7 +516,9 @@ bool DecLibRecon::ctuTask( int tid, CtuTaskParam* param )
     for( int ctu = ctuStart; ctu < ctuEnd; ctu++ )
     {
       CtuData& ctuData = cs.getCtuData( ctu, line );
+      GCC_WARNING_DISABLE_class_memaccess
       memset( ctuData.motion, 0, sizeof( CtuData::motion ) );
+      GCC_WARNING_RESET
 
       if( !ctuData.cuPtr[0][0]->slice->isIntra() || cs.sps->getIBCFlag() )
       {
@@ -560,7 +554,7 @@ bool DecLibRecon::ctuTask( int tid, CtuTaskParam* param )
 
   case INTER:
   {
-    if( cs.slice->isIntra() )
+    if( cs.picture->slices[0]->isIntra() )
     {
       // not really necessary, but only for optimizing the wave-fronts
       if( col > 1 && thisLine[col - 2] <= INTER )
@@ -583,10 +577,11 @@ bool DecLibRecon::ctuTask( int tid, CtuTaskParam* param )
 
     for( int ctu = ctuStart; ctu < ctuEnd; ctu++ )
     {
-      const UnitArea  ctuArea = getCtuArea( cs, ctu, line, true );
+      const CtuData& ctuData  = cs.getCtuData( ctu, line );
+      const UnitArea ctuArea  = getCtuArea( cs, ctu, line, true );
       decLib.m_cCuDecoder[tid].TaskTrafoCtu( cs, ctuArea );
 
-      if( !cs.slice->isIntra() )
+      if( !ctuData.cuPtr[0][0]->slice->isIntra() )
       {
         decLib.m_cCuDecoder[tid].TaskInterCtu( cs, ctuArea );
       }

@@ -1,43 +1,47 @@
 /* -----------------------------------------------------------------------------
-Software Copyright License for the Fraunhofer Software Library VVdec
+The copyright in this software is being made available under the BSD
+License, included below. No patent rights, trademark rights and/or 
+other Intellectual Property Rights other than the copyrights concerning 
+the Software are granted under this license.
 
-(c) Copyright (2018-2020) Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. 
-
-1.    INTRODUCTION
-
-The Fraunhofer Software Library VVdec (“Fraunhofer Versatile Video Decoding Library”) is software that implements (parts of) the Versatile Video Coding Standard - ITU-T H.266 | MPEG-I - Part 3 (ISO/IEC 23090-3) and related technology. 
-The standard contains Fraunhofer patents as well as third-party patents. Patent licenses from third party standard patent right holders may be required for using the Fraunhofer Versatile Video Decoding Library. It is in your responsibility to obtain those if necessary. 
-
-The Fraunhofer Versatile Video Decoding Library which mean any source code provided by Fraunhofer are made available under this software copyright license. 
-It is based on the official ITU/ISO/IEC VVC Test Model (VTM) reference software whose copyright holders are indicated in the copyright notices of its source files. The VVC Test Model (VTM) reference software is licensed under the 3-Clause BSD License and therefore not subject of this software copyright license.
-
-2.    COPYRIGHT LICENSE
-
-Internal use of the Fraunhofer Versatile Video Decoding Library, in source and binary forms, with or without modification, is permitted without payment of copyright license fees for non-commercial purposes of evaluation, testing and academic research. 
-
-No right or license, express or implied, is granted to any part of the Fraunhofer Versatile Video Decoding Library except and solely to the extent as expressly set forth herein. Any commercial use or exploitation of the Fraunhofer Versatile Video Decoding Library and/or any modifications thereto under this license are prohibited.
-
-For any other use of the Fraunhofer Versatile Video Decoding Library than permitted by this software copyright license You need another license from Fraunhofer. In such case please contact Fraunhofer under the CONTACT INFORMATION below.
-
-3.    LIMITED PATENT LICENSE
-
-As mentioned under 1. Fraunhofer patents are implemented by the Fraunhofer Versatile Video Decoding Library. If You use the Fraunhofer Versatile Video Decoding Library in Germany, the use of those Fraunhofer patents for purposes of testing, evaluating and research and development is permitted within the statutory limitations of German patent law. However, if You use the Fraunhofer Versatile Video Decoding Library in a country where the use for research and development purposes is not permitted without a license, you must obtain an appropriate license from Fraunhofer. It is Your responsibility to check the legal requirements for any use of applicable patents.    
-
-Fraunhofer provides no warranty of patent non-infringement with respect to the Fraunhofer Versatile Video Decoding Library.
-
-
-4.    DISCLAIMER
-
-The Fraunhofer Versatile Video Decoding Library is provided by Fraunhofer "AS IS" and WITHOUT ANY EXPRESS OR IMPLIED WARRANTIES, including but not limited to the implied warranties fitness for a particular purpose. IN NO EVENT SHALL FRAUNHOFER BE LIABLE for any direct, indirect, incidental, special, exemplary, or consequential damages, including but not limited to procurement of substitute goods or services; loss of use, data, or profits, or business interruption, however caused and on any theory of liability, whether in contract, strict liability, or tort (including negligence), arising in any way out of the use of the Fraunhofer Versatile Video Decoding Library, even if advised of the possibility of such damage.
-
-5.    CONTACT INFORMATION
+For any license concerning other Intellectual Property rights than the software, 
+especially patent licenses, a separate Agreement needs to be closed. 
+For more information please contact:
 
 Fraunhofer Heinrich Hertz Institute
-Attention: Video Coding & Analytics Department
 Einsteinufer 37
 10587 Berlin, Germany
 www.hhi.fraunhofer.de/vvc
 vvc@hhi.fraunhofer.de
+
+Copyright (c) 2018-2020, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. 
+All rights reserved.
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are met:
+
+ * Redistributions of source code must retain the above copyright notice,
+   this list of conditions and the following disclaimer.
+ * Redistributions in binary form must reproduce the above copyright notice,
+   this list of conditions and the following disclaimer in the documentation
+   and/or other materials provided with the distribution.
+ * Neither the name of Fraunhofer nor the names of its contributors may
+   be used to endorse or promote products derived from this software without
+   specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS
+BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
+THE POSSIBILITY OF SUCH DAMAGE.
+
+
 ------------------------------------------------------------------------------------------- */
 
 /** \file     Prediction.cpp
@@ -1052,7 +1056,7 @@ void IntraPrediction::geneIntrainterPred( const CodingUnit &cu )
   for( int currCompID = 0; currCompID < 3; currCompID++ )
 #endif
   {
-    if( pu.chromaSize().width <= 2 && currCompID > 0 ) continue;
+    if( currCompID > 0 && pu.chromaSize().width <= 2 ) continue;
 
     const ComponentID currCompID2 = (ComponentID) currCompID;
 
@@ -1060,33 +1064,32 @@ void IntraPrediction::geneIntrainterPred( const CodingUnit &cu )
   }
 
   const bool isUseFilter = IntraPrediction::useFilteredIntraRefSamples( COMPONENT_Y, pu, cu );
-  initIntraPatternChType( cu, pu.Y(), isUseFilter );
+  initIntraPatternChType( cu.firstTU, pu.Y(), isUseFilter );
   predIntraAng( COMPONENT_Y, predBuf.Y(), pu, isUseFilter );
 
 #if JVET_Q0438_MONOCHROME_BUGFIXES
-  if( pu.chromaSize().width > 2 && isChromaEnabled( pu.chromaFormat ) )
+  if( isChromaEnabled( pu.chromaFormat ) && pu.chromaSize().width > 2 )
 #else
   if( pu.chromaSize().width > 2 )
 #endif
   {
-    initIntraPatternChType( cu, pu.Cb(), false );
+    initIntraPatternChType( cu.firstTU, pu.Cb(), false );
     predIntraAng( COMPONENT_Cb, predBuf.Cb(), pu, false );
 
-    initIntraPatternChType( cu, pu.Cr(), false );
+    initIntraPatternChType( cu.firstTU, pu.Cr(), false );
     predIntraAng( COMPONENT_Cr, predBuf.Cr(), pu, false );
   }
 }
 
-inline bool isAboveLeftAvailable  ( const CodingUnit &cu, const ChannelType &chType, const Position &posLT );
-inline int  isAboveAvailable      ( const CodingUnit &cu, const ChannelType &chType, const Position &posLT, const uint32_t uiNumUnitsInPU, const uint32_t unitWidth, bool *validFlags, const CodingUnit* startCU = nullptr );
-inline int  isLeftAvailable       ( const CodingUnit &cu, const ChannelType &chType, const Position &posLT, const uint32_t uiNumUnitsInPU, const uint32_t unitWidth, bool *validFlags, const CodingUnit* startCU = nullptr, int tuHeight = 0 );
-inline int  isAboveRightAvailable ( const CodingUnit &cu, const ChannelType &chType, const Position &posRT, const uint32_t uiNumUnitsInPU, const uint32_t unitHeight, bool *validFlags );
-inline int  isBelowLeftAvailable  ( const CodingUnit &cu, const ChannelType &chType, const Position &posLB, const uint32_t uiNumUnitsInPU, const uint32_t unitHeight, bool *validFlags );
+inline int  isAboveAvailable      ( const TransformUnit &tu, const ChannelType &chType, const Position &posLT, const uint32_t uiNumUnitsInPU, const uint32_t unitWidth,  bool *validFlags );
+inline int  isLeftAvailable       ( const TransformUnit &tu, const ChannelType &chType, const Position &posLT, const uint32_t uiNumUnitsInPU, const uint32_t unitWidth,  bool *validFlags );
+inline int  isAboveRightAvailable ( const TransformUnit &tu, const ChannelType &chType, const Position &posRT, const uint32_t uiNumUnitsInPU, const uint32_t unitHeight, bool *validFlags );
+inline int  isBelowLeftAvailable  ( const TransformUnit &tu, const ChannelType &chType, const Position &posLB, const uint32_t uiNumUnitsInPU, const uint32_t unitHeight, bool *validFlags );
 
-void IntraPrediction::initIntraPatternChType(const CodingUnit &cu, const CompArea &area, const bool bFilterRefSamples)
+void IntraPrediction::initIntraPatternChType(const TransformUnit &tu, const CompArea &area, const bool bFilterRefSamples)
 {
   CHECK( area.width == 2, "Width of 2 is not supported" );
-  const CodingStructure& cs   = *cu.cs;
+  const CodingStructure& cs   = *tu.cu->cs;
 
   Pel *refBufUnfiltered   = m_piYuvExt[area.compID][PRED_BUF_UNFILTERED];
   Pel *refBufFiltered     = m_piYuvExt[area.compID][PRED_BUF_FILTERED];
@@ -1094,12 +1097,12 @@ void IntraPrediction::initIntraPatternChType(const CodingUnit &cu, const CompAre
   setReferenceArrayLengths( area );
 
   // ----- Step 1: unfiltered reference samples -----
-  xFillReferenceSamples( cs.picture->getRecoBuf( area ), refBufUnfiltered, area, cu );
+  xFillReferenceSamples( cs.picture->getRecoBuf( area ), refBufUnfiltered, area, tu );
   // ----- Step 2: filtered reference samples -----
   if( bFilterRefSamples )
   {
-    xFilterReferenceSamples( refBufUnfiltered, refBufFiltered, area, *cs.sps , cu.multiRefIdx() );
-  }  
+    xFilterReferenceSamples( refBufUnfiltered, refBufFiltered, area, *cs.sps , tu.cu->multiRefIdx() );
+  }
 }
 
 void IntraPrediction::initIntraPatternChTypeISP(const CodingUnit& cu, const CompArea& area, PelBuf& recBuf)
@@ -1132,7 +1135,7 @@ void IntraPrediction::initIntraPatternChTypeISP(const CodingUnit& cu, const Comp
     m_pelBufISP[0] = m_pelBufISPBase[0] = PelBuf(m_piYuvExt[area.compID][PRED_BUF_UNFILTERED], srcStride, srcHStride);
     m_pelBufISP[1] = m_pelBufISPBase[1] = PelBuf(m_piYuvExt[area.compID][PRED_BUF_FILTERED], srcStride, srcHStride);
 
-    xFillReferenceSamples(cs.picture->getRecoBuf(cu.Y()), refBufUnfiltered, cu.Y(), cu);
+    xFillReferenceSamples( cs.picture->getRecoBuf( cu.Y() ), refBufUnfiltered, cu.Y(), isLuma( area.compID ) ? cu.firstTU : *cu.lastTU );
 
     // After having retrieved all the CU reference samples, the number of reference samples is now adjusted for the current subpartition
     m_topRefLength = cu.blocks[area.compID].width + area.width;
@@ -1208,9 +1211,10 @@ void IntraPrediction::initIntraPatternChTypeISP(const CodingUnit& cu, const Comp
   }
 }
 
-void IntraPrediction::xFillReferenceSamples( const CPelBuf &recoBuf, Pel* refBufUnfiltered, const CompArea &area, const CodingUnit &cu ) const
+void IntraPrediction::xFillReferenceSamples( const CPelBuf &recoBuf, Pel* refBufUnfiltered, const CompArea &area, const TransformUnit &tu ) const
 {
   const ChannelType      chType = toChannelType( area.compID );
+  const CodingUnit      &cu     = *tu.cu;
   const CodingStructure &cs     = *cu.cs;
   const SPS             &sps    = *cs.sps;
   const PreCalcValues   &pcv    = *cs.pcv;
@@ -1245,8 +1249,8 @@ void IntraPrediction::xFillReferenceSamples( const CPelBuf &recoBuf, Pel* refBuf
   const CodingUnit *aboveLeftCu = cu.cs->getCURestricted( posLT.offset( -1, -1 ), cu, chType, cu.left ? cu.left : cu.above );
   neighborFlags[totalLeftUnits] = !!aboveLeftCu;
   int numIntraNeighbor = aboveLeftCu ? 1 : 0;
-  numIntraNeighbor    += isAboveAvailable( cu, chType, posLT, numAboveUnits + numAboveRightUnits, unitWidth,  neighborFlags + totalLeftUnits + 1, area.y == cu.blocks[area.compID].y ? cu.above : &cu );
-  numIntraNeighbor    += isLeftAvailable ( cu, chType, posLT, numLeftUnits  + numLeftBelowUnits,  unitHeight, neighborFlags + totalLeftUnits - 1, area.x == cu.blocks[area.compID].x ? cu.left  : &cu, tuHeight );
+  numIntraNeighbor    += isAboveAvailable( tu, chType, posLT, numAboveUnits + numAboveRightUnits, unitWidth,  neighborFlags + totalLeftUnits + 1 );
+  numIntraNeighbor    += isLeftAvailable ( tu, chType, posLT, numLeftUnits  + numLeftBelowUnits,  unitHeight, neighborFlags + totalLeftUnits - 1 );
 
   // ----- Step 2: fill reference samples (depending on neighborhood) -----
   CHECK((predHSize + 1) * predStride > m_iYuvExtSize, "Reference sample area not supported");
@@ -1533,34 +1537,44 @@ bool IntraPrediction::useFilteredIntraRefSamples( const ComponentID &compID, con
   }
 }
 
-
-bool isAboveLeftAvailable(const CodingUnit &cu, const ChannelType &chType, const Position &posLT)
+static inline TransformUnit const* getTU( const CodingUnit& cu, const Position& pos, const ChannelType chType )
 {
-  const CodingStructure& cs       = *cu.cs;
-  const Position refPos           = posLT.offset( -1, -1 );
-  const CodingUnit* pcCUAboveLeft = cs.getCURestricted( refPos, cu, chType, cu.left ? cu.left : cu.above );
+  const TransformUnit* ptu = &cu.firstTU;
 
-  return pcCUAboveLeft ? true : false;
+  if( !ptu->next ) return ptu;
+
+  while( !( ptu->blocks[chType].x + ptu->blocks[chType].width > pos.x && ptu->blocks[chType].y + ptu->blocks[chType].height > pos.y ) )
+  {
+    ptu = ptu->next;
+  }
+
+  return ptu;
 }
 
-int isAboveAvailable(const CodingUnit &cu, const ChannelType &chType, const Position &posLT, const uint32_t uiNumUnitsInPU, const uint32_t unitWidth, bool *bValidFlags, const CodingUnit* pcCUAbove)
+int isAboveAvailable( const TransformUnit &tu, const ChannelType &chType, const Position &posLT, const uint32_t uiNumUnitsInPU, const uint32_t unitWidth, bool *bValidFlags )
 {
+  const CodingUnit& cu      = *tu.cu;
   const CodingStructure& cs = *cu.cs;
   bool *pbValidFlags        = bValidFlags;
   int iNumIntra             = 0;
   int maxDx                 = uiNumUnitsInPU * unitWidth;
-  int rightXAbove           = pcCUAbove ? ( pcCUAbove->blocks[chType].x + pcCUAbove->blocks[chType].width ) : -1;
+  int rightXAbove           = -1;
   Position refPos           = posLT.offset( 0, -1 );
+  const TransformUnit* pcTUAbove = nullptr;
 
   for( uint32_t dx = 0; dx < maxDx; dx += unitWidth, refPos.x += unitWidth )
   {
-    if( !pcCUAbove || refPos.x >= rightXAbove )
+    if( !pcTUAbove || refPos.x >= rightXAbove )
     {
-      pcCUAbove   = cs.getCURestricted( refPos, cu, chType, pcCUAbove ? nullptr : cu.above );
-      rightXAbove = pcCUAbove ? ( pcCUAbove->blocks[chType].x + pcCUAbove->blocks[chType].width ) : -1;
+      const CodingUnit* cuAbove = cs.getCURestricted( refPos, cu, chType, pcTUAbove ? nullptr : cu.above );
+
+      if( !cuAbove ) return iNumIntra;
+
+      pcTUAbove   = getTU( *cuAbove, refPos, chType );
+      rightXAbove = pcTUAbove->blocks[chType].x + pcTUAbove->blocks[chType].width;
     }
 
-    if( pcCUAbove )
+    if( pcTUAbove->idx < tu.idx )
     {
       iNumIntra++;
       *pbValidFlags++ = true;
@@ -1574,39 +1588,30 @@ int isAboveAvailable(const CodingUnit &cu, const ChannelType &chType, const Posi
   return iNumIntra;
 }
 
-int isLeftAvailable(const CodingUnit &cu, const ChannelType &chType, const Position &posLT, const uint32_t uiNumUnitsInPU, const uint32_t unitHeight, bool *bValidFlags, const CodingUnit* pcCULeft, int tuHeight)
+int isLeftAvailable( const TransformUnit &tu, const ChannelType &chType, const Position &posLT, const uint32_t uiNumUnitsInPU, const uint32_t unitHeight, bool *bValidFlags )
 {
+  const CodingUnit& cu      = *tu.cu;
   const CodingStructure& cs = *cu.cs;
   bool *pbValidFlags        = bValidFlags;
   int iNumIntra             = 0;
   int maxDy                 = uiNumUnitsInPU * unitHeight;
-  int bottomYLeft           = pcCULeft ? ( pcCULeft->blocks[chType].y + pcCULeft->blocks[chType].height ) : -1;
+  int bottomYLeft           = -1;
   Position refPos           = posLT.offset( -1, 0 );
+  const TransformUnit* pcTULeft = nullptr;
 
-  bool check    = false;
-  int  bttmYlft = 0;
-
-  if( pcCULeft && *pcCULeft == cu && !cu.ispMode() )
-  {
-    bttmYlft = posLT.y + tuHeight - 1;
-    check = true;
-  }
-
-  bool avail = true;
   for( uint32_t dy = 0; dy < maxDy; dy += unitHeight, refPos.y += unitHeight )
   {
-    if( !pcCULeft || refPos.y >= bottomYLeft )
+    if( !pcTULeft || refPos.y >= bottomYLeft )
     {
-      pcCULeft    = cs.getCURestricted( refPos, cu, chType, pcCULeft ? nullptr : cu.left );
-      bottomYLeft = pcCULeft ? ( pcCULeft->blocks[chType].y + pcCULeft->blocks[chType].height ) : -1;
+      const CodingUnit* cuLeft = cs.getCURestricted( refPos, cu, chType, pcTULeft ? nullptr : cu.left );
+
+      if( !cuLeft ) return iNumIntra;
+
+      pcTULeft    = getTU( *cuLeft, refPos, chType );
+      bottomYLeft = pcTULeft->blocks[chType].y + pcTULeft->blocks[chType].height;
     }
 
-    if( check && refPos.y >= bttmYlft )
-    {
-      //we are inside the same cu with more than one tu and the bottom left tu is not reconstructed yet 
-      avail = false;
-    }
-    if( pcCULeft && avail )
+    if( pcTULeft->idx < tu.idx )
     {
       iNumIntra++;
       *pbValidFlags-- = true;
@@ -1620,25 +1625,30 @@ int isLeftAvailable(const CodingUnit &cu, const ChannelType &chType, const Posit
   return iNumIntra;
 }
 
-int isAboveRightAvailable( const CodingUnit &cu, const ChannelType &chType, const Position &posRT, const uint32_t uiNumUnitsInPU, const uint32_t unitWidth, bool *bValidFlags )
+int isAboveRightAvailable( const TransformUnit &tu, const ChannelType &chType, const Position &posRT, const uint32_t uiNumUnitsInPU, const uint32_t unitWidth, bool *bValidFlags )
 {
+  const CodingUnit& cu      = *tu.cu;
   const CodingStructure& cs = *cu.cs;
   bool *pbValidFlags        = bValidFlags;
   int iNumIntra             = 0;
   int maxDx                 = uiNumUnitsInPU * unitWidth;
   int rightXAbove           = -1;
   Position refPos           = posRT.offset( unitWidth, -1 );
-  const CodingUnit *pcCUAbove = nullptr;
+  const TransformUnit* pcTUAbove = nullptr;
 
   for( uint32_t dx = 0; dx < maxDx; dx += unitWidth, refPos.x += unitWidth )
   {
-    if( !pcCUAbove || refPos.x >= rightXAbove )
+    if( !pcTUAbove || refPos.x >= rightXAbove )
     {
-      pcCUAbove   = cs.getCURestricted( refPos, cu, chType, pcCUAbove ? nullptr : cu.above );
-      rightXAbove = pcCUAbove ? ( pcCUAbove->blocks[chType].x + pcCUAbove->blocks[chType].width ) : -1;
+      const CodingUnit* cuAbove = cs.getCURestricted( refPos, cu, chType, pcTUAbove ? nullptr : cu.above );
+
+      if( !cuAbove ) return iNumIntra;
+
+      pcTUAbove   = getTU( *cuAbove, refPos, chType );
+      rightXAbove = pcTUAbove->blocks[chType].x + pcTUAbove->blocks[chType].width;
     }
 
-    if( pcCUAbove )
+    if( pcTUAbove->idx < tu.idx )
     {
       iNumIntra++;
       *pbValidFlags++ = true;
@@ -1651,26 +1661,30 @@ int isAboveRightAvailable( const CodingUnit &cu, const ChannelType &chType, cons
   return iNumIntra;
 }
 
-int isBelowLeftAvailable( const CodingUnit &cu, const ChannelType &chType, const Position &posLB, const uint32_t uiNumUnitsInPU, const uint32_t unitHeight, bool *bValidFlags )
+int isBelowLeftAvailable( const TransformUnit &tu, const ChannelType &chType, const Position &posLB, const uint32_t uiNumUnitsInPU, const uint32_t unitHeight, bool *bValidFlags )
 {
+  const CodingUnit& cu      = *tu.cu;
   const CodingStructure& cs = *cu.cs;
   bool *pbValidFlags        = bValidFlags;
   int iNumIntra             = 0;
   int maxDy                 = uiNumUnitsInPU * unitHeight;
   int bottomYLeft           = -1;
   Position refPos           = posLB.offset( -1, unitHeight );
-  const CodingUnit *pcCULeft = nullptr;
+  const TransformUnit *pcTULeft = nullptr;
 
-  bool avail = true;
   for( uint32_t dy = 0; dy < maxDy; dy += unitHeight, refPos.y += unitHeight )
   {
-    if( !pcCULeft || refPos.y >= bottomYLeft )
+    if( !pcTULeft || refPos.y >= bottomYLeft )
     {
-      pcCULeft    = cs.getCURestricted( refPos, cu, chType, pcCULeft ? nullptr : cu.left );
-      bottomYLeft = pcCULeft ? ( pcCULeft->blocks[chType].y + pcCULeft->blocks[chType].height ) : -1;
+      const CodingUnit* cuLeft = cs.getCURestricted( refPos, cu, chType, pcTULeft ? nullptr : cu.left );
+
+      if( !cuLeft ) return iNumIntra;
+
+      pcTULeft    = getTU( *cuLeft, refPos, chType );
+      bottomYLeft = pcTULeft->blocks[chType].y + pcTULeft->blocks[chType].height;
     }
 
-    if( pcCULeft && avail )
+    if( pcTULeft->idx < tu.idx )
     {
       iNumIntra++;
       *pbValidFlags-- = true;
@@ -1752,13 +1766,14 @@ void IntraPrediction::xGetLumaRecPixels(const PredictionUnit &pu, CompArea chrom
   bool  bNeighborFlags[4 * MAX_NUM_PART_IDXS_IN_CTU_WIDTH + 1];
   memset(bNeighborFlags, 0, totalUnits);
 
-  const CodingUnit& chromaCU = isChroma( pu.chType() ) ? cu : lumaCU;
+  const CodingUnit&    chromaCU = isChroma( pu.chType() ) ? cu : lumaCU;
+  const TransformUnit& chromaTU = *getTU( chromaCU, chromaArea.pos(), CH_C );
 
-  int availlableUnit = isLeftAvailable( chromaCU, toChannelType( area.compID ), area.pos(), iLeftUnits, iUnitHeight, bNeighborFlags + iLeftUnits + leftBelowUnits - 1, cu.left );
+  int availlableUnit = isLeftAvailable( chromaTU, toChannelType( area.compID ), area.pos(), iLeftUnits, iUnitHeight, bNeighborFlags + iLeftUnits + leftBelowUnits - 1 );
 
   const bool bLeftAvaillable = availlableUnit == iTUHeightInUnits;
 
-  availlableUnit = isAboveAvailable( chromaCU, toChannelType( area.compID ), area.pos(), iAboveUnits, iUnitWidth, bNeighborFlags + iLeftUnits + leftBelowUnits + 1, cu.above );
+  availlableUnit = isAboveAvailable( chromaTU, toChannelType( area.compID ), area.pos(), iAboveUnits, iUnitWidth, bNeighborFlags + iLeftUnits + leftBelowUnits + 1 );
 
   const bool bAboveAvaillable = availlableUnit == iTUWidthInUnits;
 
@@ -1770,12 +1785,12 @@ void IntraPrediction::xGetLumaRecPixels(const PredictionUnit &pu, CompArea chrom
   }
   if( bLeftAvaillable && checkIt ) // if left is not available, then the below left is not available
   {
-    avaiLeftBelowUnits = isBelowLeftAvailable( chromaCU, toChannelType( area.compID ), area.bottomLeftComp( pu.chromaFormat, area.compID ), leftBelowUnits, iUnitHeight, bNeighborFlags + leftBelowUnits - 1 );
+    avaiLeftBelowUnits = isBelowLeftAvailable( chromaTU, toChannelType( area.compID ), area.bottomLeftComp( pu.chromaFormat, area.compID ), leftBelowUnits, iUnitHeight, bNeighborFlags + leftBelowUnits - 1 );
   }
 
   if( bAboveAvaillable ) // if above is not available, then  the above right is not available.
   {
-    avaiAboveRightUnits = isAboveRightAvailable( chromaCU, toChannelType( area.compID ), area.topRightComp( pu.chromaFormat, area.compID ), aboveRightUnits, iUnitWidth, bNeighborFlags + iLeftUnits + leftBelowUnits + iAboveUnits + 1 );
+    avaiAboveRightUnits = isAboveRightAvailable( chromaTU, toChannelType( area.compID ), area.topRightComp( pu.chromaFormat, area.compID ), aboveRightUnits, iUnitWidth, bNeighborFlags + iLeftUnits + leftBelowUnits + iAboveUnits + 1 );
   }
 
   Pel*       pDst  = nullptr;
@@ -1822,7 +1837,7 @@ void IntraPrediction::xGetLumaRecPixels(const PredictionUnit &pu, CompArea chrom
 
         if ((i == 0 && !bLeftAvaillable) || (i == uiCWidth + addedAboveRight - 1 + logSubWidthC))
         {
-          pDst[i] = (piSrc[mult * i] * c0_3tap + piSrc[mult * i] * c1_3tap + piSrc[mult * i + 1] * c2_3tap + offset_3tap) >> shift_3tap;          
+          pDst[i] = (piSrc[mult * i] * c0_3tap + piSrc[mult * i] * c1_3tap + piSrc[mult * i + 1] * c2_3tap + offset_3tap) >> shift_3tap;
         }
         else
         {
@@ -2056,10 +2071,12 @@ void IntraPrediction::xGetLMParameters(const PredictionUnit &pu, const Component
 
   bool aboveAvailable, leftAvailable;
 
-  int availableUnit = isAboveAvailable( cu, CHANNEL_TYPE_CHROMA, posLT, aboveUnits, unitWidth, neighborFlags + leftUnits + leftBelowUnits + 1, cu.above );
+  const TransformUnit& tu = *getTU( cu, chromaArea.pos(), CH_C );
+
+  int availableUnit = isAboveAvailable( tu, CHANNEL_TYPE_CHROMA, posLT, aboveUnits, unitWidth, neighborFlags + leftUnits + leftBelowUnits + 1 );
   aboveAvailable = availableUnit == tuWidthInUnits;
 
-  availableUnit = isLeftAvailable( cu, CHANNEL_TYPE_CHROMA, posLT, leftUnits, unitHeight, neighborFlags + leftUnits + leftBelowUnits - 1, cu.left );
+  availableUnit = isLeftAvailable( tu, CHANNEL_TYPE_CHROMA, posLT, leftUnits, unitHeight, neighborFlags + leftUnits + leftBelowUnits - 1 );
   leftAvailable = availableUnit == tuHeightInUnits;
 
   bool checkIt = true;
@@ -2073,12 +2090,12 @@ void IntraPrediction::xGetLMParameters(const PredictionUnit &pu, const Component
   if (leftAvailable && checkIt) // if left is not available, then the below left is not available
   {
     avaiLeftUnits = tuHeightInUnits;
-    avaiLeftBelowUnits = isBelowLeftAvailable( cu, CHANNEL_TYPE_CHROMA, chromaArea.bottomLeftComp( nChromaFormat, chromaArea.compID ), leftBelowUnits, unitHeight, neighborFlags + leftBelowUnits - 1 );
+    avaiLeftBelowUnits = isBelowLeftAvailable( tu, CHANNEL_TYPE_CHROMA, chromaArea.bottomLeftComp( nChromaFormat, chromaArea.compID ), leftBelowUnits, unitHeight, neighborFlags + leftBelowUnits - 1 );
   }
   if (aboveAvailable) // if above is not available, then  the above right is not available.
   {
     avaiAboveUnits = tuWidthInUnits;
-    avaiAboveRightUnits = isAboveRightAvailable( cu, CHANNEL_TYPE_CHROMA, chromaArea.topRightComp( nChromaFormat, chromaArea.compID ), aboveRightUnits, unitWidth, neighborFlags + leftUnits + leftBelowUnits + aboveUnits + 1 );
+    avaiAboveRightUnits = isAboveRightAvailable( tu, CHANNEL_TYPE_CHROMA, chromaArea.topRightComp( nChromaFormat, chromaArea.compID ), aboveRightUnits, unitWidth, neighborFlags + leftUnits + leftBelowUnits + aboveUnits + 1 );
   }
   Pel *srcColor0, *curChroma0;
   int  srcStride, curStride;

@@ -1,43 +1,47 @@
 /* -----------------------------------------------------------------------------
-Software Copyright License for the Fraunhofer Software Library VVdec
+The copyright in this software is being made available under the BSD
+License, included below. No patent rights, trademark rights and/or 
+other Intellectual Property Rights other than the copyrights concerning 
+the Software are granted under this license.
 
-(c) Copyright (2018-2020) Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. 
-
-1.    INTRODUCTION
-
-The Fraunhofer Software Library VVdec (“Fraunhofer Versatile Video Decoding Library”) is software that implements (parts of) the Versatile Video Coding Standard - ITU-T H.266 | MPEG-I - Part 3 (ISO/IEC 23090-3) and related technology. 
-The standard contains Fraunhofer patents as well as third-party patents. Patent licenses from third party standard patent right holders may be required for using the Fraunhofer Versatile Video Decoding Library. It is in your responsibility to obtain those if necessary. 
-
-The Fraunhofer Versatile Video Decoding Library which mean any source code provided by Fraunhofer are made available under this software copyright license. 
-It is based on the official ITU/ISO/IEC VVC Test Model (VTM) reference software whose copyright holders are indicated in the copyright notices of its source files. The VVC Test Model (VTM) reference software is licensed under the 3-Clause BSD License and therefore not subject of this software copyright license.
-
-2.    COPYRIGHT LICENSE
-
-Internal use of the Fraunhofer Versatile Video Decoding Library, in source and binary forms, with or without modification, is permitted without payment of copyright license fees for non-commercial purposes of evaluation, testing and academic research. 
-
-No right or license, express or implied, is granted to any part of the Fraunhofer Versatile Video Decoding Library except and solely to the extent as expressly set forth herein. Any commercial use or exploitation of the Fraunhofer Versatile Video Decoding Library and/or any modifications thereto under this license are prohibited.
-
-For any other use of the Fraunhofer Versatile Video Decoding Library than permitted by this software copyright license You need another license from Fraunhofer. In such case please contact Fraunhofer under the CONTACT INFORMATION below.
-
-3.    LIMITED PATENT LICENSE
-
-As mentioned under 1. Fraunhofer patents are implemented by the Fraunhofer Versatile Video Decoding Library. If You use the Fraunhofer Versatile Video Decoding Library in Germany, the use of those Fraunhofer patents for purposes of testing, evaluating and research and development is permitted within the statutory limitations of German patent law. However, if You use the Fraunhofer Versatile Video Decoding Library in a country where the use for research and development purposes is not permitted without a license, you must obtain an appropriate license from Fraunhofer. It is Your responsibility to check the legal requirements for any use of applicable patents.    
-
-Fraunhofer provides no warranty of patent non-infringement with respect to the Fraunhofer Versatile Video Decoding Library.
-
-
-4.    DISCLAIMER
-
-The Fraunhofer Versatile Video Decoding Library is provided by Fraunhofer "AS IS" and WITHOUT ANY EXPRESS OR IMPLIED WARRANTIES, including but not limited to the implied warranties fitness for a particular purpose. IN NO EVENT SHALL FRAUNHOFER BE LIABLE for any direct, indirect, incidental, special, exemplary, or consequential damages, including but not limited to procurement of substitute goods or services; loss of use, data, or profits, or business interruption, however caused and on any theory of liability, whether in contract, strict liability, or tort (including negligence), arising in any way out of the use of the Fraunhofer Versatile Video Decoding Library, even if advised of the possibility of such damage.
-
-5.    CONTACT INFORMATION
+For any license concerning other Intellectual Property rights than the software, 
+especially patent licenses, a separate Agreement needs to be closed. 
+For more information please contact:
 
 Fraunhofer Heinrich Hertz Institute
-Attention: Video Coding & Analytics Department
 Einsteinufer 37
 10587 Berlin, Germany
 www.hhi.fraunhofer.de/vvc
 vvc@hhi.fraunhofer.de
+
+Copyright (c) 2018-2020, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. 
+All rights reserved.
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are met:
+
+ * Redistributions of source code must retain the above copyright notice,
+   this list of conditions and the following disclaimer.
+ * Redistributions in binary form must reproduce the above copyright notice,
+   this list of conditions and the following disclaimer in the documentation
+   and/or other materials provided with the distribution.
+ * Neither the name of Fraunhofer nor the names of its contributors may
+   be used to endorse or promote products derived from this software without
+   specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS
+BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
+THE POSSIBILITY OF SUCH DAMAGE.
+
+
 ------------------------------------------------------------------------------------------- */
 
 /**
@@ -87,6 +91,8 @@ static void fullPelCopySSE( const ClpRng& clpRng, const void*_src, ptrdiff_t src
   int offset   = IF_INTERNAL_OFFS;
   __m128i voffset  = _mm_set1_epi16( offset );
   __m128i voffset_headroom  = _mm_set1_epi16( headroom_offset );
+  __m128i vmin = _mm_set1_epi16( clpRng.min() );
+  __m128i vmax = _mm_set1_epi16( clpRng.max() );
 
   __m128i vsrc, vsum;
 
@@ -125,6 +131,11 @@ static void fullPelCopySSE( const ClpRng& clpRng, const void*_src, ptrdiff_t src
           vsum = vsrc;
         }
 
+        if( isLast )
+        {
+          vsum = _mm_max_epi16( _mm_min_epi16( vmax, vsum ), vmin );
+        }
+
         _mm_storeu_si128( ( __m128i * )&dst[col+i], vsum );
       }
     }
@@ -143,6 +154,8 @@ static void fullPelCopySSE_M4( const ClpRng& clpRng, const void*_src, ptrdiff_t 
   int offset   = IF_INTERNAL_OFFS;
   __m128i voffset  = _mm_set1_epi16( offset );
   __m128i voffset_headroom  = _mm_set1_epi16( headroom_offset );
+  __m128i vmin = _mm_set1_epi16( clpRng.min() );
+  __m128i vmax = _mm_set1_epi16( clpRng.max() );
 
   __m128i vsrc, vsum;
 
@@ -180,6 +193,11 @@ static void fullPelCopySSE_M4( const ClpRng& clpRng, const void*_src, ptrdiff_t 
         vsum = vsrc;
       }
 
+      if( isLast )
+      {
+        vsum = _mm_max_epi16( _mm_min_epi16( vmax, vsum ), vmin );
+      }
+
       _mm_storel_epi64( ( __m128i * )&dst[col], vsum );
     }
     src += srcStride;
@@ -199,6 +217,8 @@ static void fullPelCopyAVX2( const ClpRng& clpRng, const void*_src, ptrdiff_t sr
 
   __m256i vinternal_offset = _mm256_set1_epi16( internal_offset );
   __m256i vheadroom_offset = _mm256_set1_epi16( offset );
+  __m256i vmin = _mm256_set1_epi16( clpRng.min() );
+  __m256i vmax = _mm256_set1_epi16( clpRng.max() );
 
   __m256i vsrc, vsum;
 
@@ -236,6 +256,11 @@ static void fullPelCopyAVX2( const ClpRng& clpRng, const void*_src, ptrdiff_t sr
           vsrc = _mm256_add_epi16( vsrc, vheadroom_offset );
           vsrc = _mm256_srai_epi16( vsrc, headroom );
           vsum = vsrc;
+        }
+
+        if( isLast )
+        {
+          vsum = _mm256_max_epi16( _mm256_min_epi16( vmax, vsum ), vmin );
         }
 
         _mm256_storeu_si256( ( __m256i * )&dst[col+i], vsum );
@@ -1261,8 +1286,7 @@ static void simdInterpolateN2_2D( const ClpRng& clpRng, const Pel* src, const pt
   _mm_prefetch( ( const char * ) src, _MM_HINT_T0 );
 
 #if USE_AVX2
-  if( ( ( width - 4 ) & 15 ) == 0 )
-  {
+  if( ( ( width - 4 ) & 15 ) == 0 )  {
     __m256i mm256Offset1   = _mm256_set1_epi16( offset1st );
     __m256i mm256Offset2   = _mm256_set1_epi16( offset2nd );
     __m256i mm256CoeffH[2] = { _mm256_set1_epi16( ch[0] ), _mm256_set1_epi16( ch[1] ) };
@@ -1339,7 +1363,7 @@ static void simdInterpolateN2_2D( const ClpRng& clpRng, const Pel* src, const pt
 #if USE_AVX2
     __m128i mmLastH [1];
 #else
-    __m128i mmLastH [16];
+    __m128i mmLastH[16];
 #endif
     __m128i mmLast4H;
 
@@ -1392,6 +1416,7 @@ static void simdInterpolateN2_2D( const ClpRng& clpRng, const Pel* src, const pt
           mmFiltered2 = _mm_add_epi16  ( mmFiltered2, _mm_mullo_epi16( mmLastH[idx], mmCoeffV[0] ) );
           mmFiltered2 = _mm_add_epi16  ( mmFiltered2, _mm_mullo_epi16( mmFiltered,   mmCoeffV[1] ) );
           mmFiltered2 = _mm_srai_epi16 ( mmFiltered2, shift2nd );
+
 
           _mm_storeu_si128( ( __m128i* ) ( dst + x ), mmFiltered2 );
         }
@@ -1754,7 +1779,7 @@ void simdFilter4x4_N6( const ClpRng& clpRng, const Pel* src, const ptrdiff_t src
     _dst0         = _mm256_set1_epi32     ( offset2nd );
     _dst2         = _mm256_set1_epi32     ( offset2nd );
 
-    for( row = 1; row < 9; row += 2 )
+    for( row = 1; row <= 9; row += 2 )
     {
       _mm_prefetch( ( const char* ) ( src + 2 * srcStride ), _MM_HINT_T0 );
       _mm_prefetch( ( const char* ) ( src + 3 * srcStride ), _MM_HINT_T0 );
@@ -1780,6 +1805,8 @@ void simdFilter4x4_N6( const ClpRng& clpRng, const Pel* src, const ptrdiff_t src
 
       _src3  = _mm256_hadd_epi32    ( _src1, _src2 );
 
+      if( row == 9 ) goto skip_second_line_4x4_simd_N6;
+
       INCY( src, srcStride );
 
       // hor filter of row 1
@@ -1793,6 +1820,8 @@ void simdFilter4x4_N6( const ClpRng& clpRng, const Pel* src, const ptrdiff_t src
       _src1  = _mm256_madd_epi16    ( _src1, cH );
       _src2  = _mm256_madd_epi16    ( _src2, cH );
       _src1  = _mm256_hadd_epi32    ( _src1, _src2 );
+
+skip_second_line_4x4_simd_N6:
       
       _src1  = _mm256_hadd_epi32    ( _src1, _src3 );
       _src1  = _mm256_add_epi32     ( _src1, off );
@@ -1811,32 +1840,6 @@ void simdFilter4x4_N6( const ClpRng& clpRng, const Pel* src, const ptrdiff_t src
       _dst0  = _mm256_add_epi32     ( _src1, _dst0 );
       _dst2  = _mm256_add_epi32     ( _src3, _dst2 );
     }
-
-    // process last row (9)
-    _src1x = _mm_alignr_epi8      ( cVp1, cVp2, 14 );
-    _src1x = _mm_cvtepu16_epi32   ( _src1x );
-    cV     = _mm256_seti_m128i    ( _src1x, _src1x );
-
-    _src1x = _mm_loadu_si128      ( ( const __m128i* ) &src[0] );
-    _src2x = _mm_loadu_si128      ( ( const __m128i* ) &src[1] );
-    _src1  = _mm256_seti_m128i    ( _src2x, _src1x );
-    _src1x = _mm_loadu_si128      ( ( const __m128i* ) &src[2] );
-    _src2x = _mm_loadu_si128      ( ( const __m128i* ) &src[3] );
-    _src2  = _mm256_seti_m128i    ( _src2x, _src1x );
-    _src1  = _mm256_madd_epi16    ( _src1, cH );
-    _src2  = _mm256_madd_epi16    ( _src2, cH );
-    _src1  = _mm256_hadd_epi32    ( _src1, _src2 );
-    _src1  = _mm256_hadd_epi32    ( _src1, _mm256_setzero_si256() );
-    _src1  = _mm256_add_epi32     ( _src1, off );
-    _src3  = _mm256_srai_epi32    ( _src1, shift1st );
-    _src2  = _mm256_shuffle_epi32 ( _src3, ( 1 << 0 ) + ( 1 << 2 ) + ( 1 << 4 ) + ( 1 << 6 ) );
-    _src1  = _mm256_shuffle_epi32 ( _src3, ( 0 << 0 ) + ( 0 << 2 ) + ( 0 << 4 ) + ( 0 << 6 ) );
-
-    _src2  = _mm256_madd_epi16    ( _src2, cV );
-    _src1  = _mm256_madd_epi16    ( _src1, cV );
-
-    _dst0  = _mm256_add_epi32     ( _src1, _dst0 );
-    _dst2  = _mm256_add_epi32     ( _src2, _dst2 );
 
     _dst0 = _mm256_srai_epi32     ( _dst0, shift2nd );
     _dst2 = _mm256_srai_epi32     ( _dst2, shift2nd );
@@ -2000,7 +2003,6 @@ void simdFilter4x4_N4( const ClpRng& clpRng, const Pel* src, const ptrdiff_t src
     ALIGN_DATA( 64, const TFilterCoeff coeffV[4] ) = { _coeffV[3], _coeffV[2], _coeffV[1], _coeffV[0] };
 
     __m256i off   = _mm256_set1_epi32     ( offset1st );
-    __m256i zero  = _mm256_setzero_si256  ();
     __m128i _src1x, _src2x, cVp1, cVp2;
     __m256i _dst0, _dst2, _src1, _src2, _src3;
     __m256i cV, cH;
@@ -2016,7 +2018,7 @@ void simdFilter4x4_N4( const ClpRng& clpRng, const Pel* src, const ptrdiff_t src
     cVp1    = _src1x;
     cVp2    = _src2x;
 
-    for( row = 0; row < 6; row += 2 )
+    for( row = 0; row <= 6; row += 2 )
     {
       _mm_prefetch( ( const char* ) ( src + 2 * srcStride ), _MM_HINT_T0 );
       _mm_prefetch( ( const char* ) ( src + 3 * srcStride ), _MM_HINT_T0 );
@@ -2040,11 +2042,9 @@ void simdFilter4x4_N4( const ClpRng& clpRng, const Pel* src, const ptrdiff_t src
 
       _src1  = _mm256_unpacklo_epi64( _src1, _src2 );
 
-      _src2  = _mm256_madd_epi16    ( _src1, cH );
+      _src3  = _mm256_madd_epi16    ( _src1, cH );
 
-      _src1  = _mm256_hadd_epi32    ( _src2, zero );
-      _src1  = _mm256_add_epi32     ( _src1, off );
-      _src3  = _mm256_srai_epi32    ( _src1, shift1st );
+      if( row == 6 ) goto skip_last_line_4x4_simd_N4;
 
       INCY( src, srcStride );
 
@@ -2061,14 +2061,17 @@ void simdFilter4x4_N4( const ClpRng& clpRng, const Pel* src, const ptrdiff_t src
 
       _src2  = _mm256_madd_epi16    ( _src1, cH );
 
-      _src1  = _mm256_hadd_epi32    ( _src2, zero );
-      _src1  = _mm256_add_epi32     ( _src1, off );
-      _src1  = _mm256_srai_epi32    ( _src1, shift1st );
-
       INCY( src, srcStride );
 
+skip_last_line_4x4_simd_N4:
+
+      _src1 = _mm256_hadd_epi32     ( _src3, _src2 );
+
+      _src1 = _mm256_add_epi32      ( _src1, off );
+      _src1 = _mm256_srai_epi32     ( _src1, shift1st );
+
       // vertical filter
-      _src2  = _mm256_unpacklo_epi16( _src3, _src1 );
+      _src2  = _mm256_unpacklo_epi16( _src1, _mm256_unpackhi_epi64( _src1, _src1 ) );
       _src1  = _mm256_shuffle_epi32 ( _src2, ( 0 << 0 ) + ( 0 << 2 ) + ( 0 << 4 ) + ( 0 << 6 ) );
       _src3  = _mm256_shuffle_epi32 ( _src2, ( 2 << 0 ) + ( 2 << 2 ) + ( 2 << 4 ) + ( 2 << 6 ) );
 
@@ -2077,38 +2080,7 @@ void simdFilter4x4_N4( const ClpRng& clpRng, const Pel* src, const ptrdiff_t src
 
       _dst0  = _mm256_add_epi32     ( _src1, _dst0 );
       _dst2  = _mm256_add_epi32     ( _src3, _dst2 );
-      // REF END
     }
-
-    _src1x = _mm_alignr_epi8      ( cVp1, cVp2, 14 );
-    _src1x = _mm_cvtepu16_epi32   ( _src1x );
-    cV     = _mm256_seti_m128i    ( _src1x, _src1x );
-
-    _src1x = _mm_loadl_epi64      ( ( const __m128i* ) &src[0] );
-    _src2x = _mm_loadl_epi64      ( ( const __m128i* ) &src[1] );
-    _src1  = _mm256_seti_m128i    ( _src2x, _src1x );
-
-    _src1x = _mm_loadl_epi64      ( ( const __m128i* ) &src[2] );
-    _src2x = _mm_loadl_epi64      ( ( const __m128i* ) &src[3] );
-    _src2  = _mm256_seti_m128i    ( _src2x, _src1x );
-
-    _src1  = _mm256_unpacklo_epi64( _src1, _src2 );
-
-    _src2  = _mm256_madd_epi16    ( _src1, cH );
-
-    _src1  = _mm256_hadd_epi32    ( _src2, zero );
-    _src1  = _mm256_add_epi32     ( _src1, off );
-    _src1  = _mm256_srai_epi32    ( _src1, shift1st );
-
-    _src2  = _mm256_unpacklo_epi16( _src1, zero );
-    _src1  = _mm256_shuffle_epi32 ( _src2, ( 0 << 0 ) + ( 0 << 2 ) + ( 0 << 4 ) + ( 0 << 6 ) );
-    _src3  = _mm256_shuffle_epi32 ( _src2, ( 2 << 0 ) + ( 2 << 2 ) + ( 2 << 4 ) + ( 2 << 6 ) );
-
-    _src1  = _mm256_madd_epi16    ( _src1, cV );
-    _src3  = _mm256_madd_epi16    ( _src3, cV );
-
-    _dst0  = _mm256_add_epi32     ( _src1, _dst0 );
-    _dst2  = _mm256_add_epi32     ( _src3, _dst2 );
 
     _dst0 = _mm256_srai_epi32( _dst0, shift2nd );
     _dst2 = _mm256_srai_epi32( _dst2, shift2nd );
@@ -2233,8 +2205,11 @@ template<X86_VEXT vext, bool isLast>
 void simdFilter16xX_N8( const ClpRng& clpRng, const Pel* src, const ptrdiff_t srcStride, Pel* dst, const ptrdiff_t dstStride, int width, int height, TFilterCoeff const *coeffH, TFilterCoeff const *coeffV )
 {
   OFFSET( src, srcStride, -3, -3 );
-
-  _mm_prefetch( ( const char* ) ( src ), _MM_HINT_T0 );
+  
+  _mm_prefetch( ( const char* ) ( src +      0 * srcStride ), _MM_HINT_T0 );
+  _mm_prefetch( ( const char* ) ( src + 24 + 0 * srcStride ), _MM_HINT_T0 );
+  _mm_prefetch( ( const char* ) ( src +      1 * srcStride ), _MM_HINT_T0 );
+  _mm_prefetch( ( const char* ) ( src + 24 + 1 * srcStride ), _MM_HINT_T0 );
 
   int offset1st, offset2nd;
   int headRoom  = std::max<int>( 2, ( IF_INTERNAL_PREC - clpRng.bd ) );
@@ -2260,8 +2235,6 @@ void simdFilter16xX_N8( const ClpRng& clpRng, const Pel* src, const ptrdiff_t sr
 #if USE_AVX2
   if( vext >= AVX2 )
   {
-    static const int filterSpan = 8;
-
     __m256i voffset1   = _mm256_set1_epi32( offset1st );
     __m256i vibdimin   = _mm256_set1_epi16( clpRng.min() );
     __m256i vibdimax   = _mm256_set1_epi16( clpRng.max() );
@@ -2285,9 +2258,8 @@ void simdFilter16xX_N8( const ClpRng& clpRng, const Pel* src, const ptrdiff_t sr
 
     for( int row = 0; row < extHeight; row++ )
     {
-      _mm_prefetch( ( const char* ) ( src + 2 * srcStride ), _MM_HINT_T0 );
-      _mm_prefetch( ( const char* ) ( src + ( 16 >> 1 ) + 2 * srcStride ), _MM_HINT_T0 );
-      _mm_prefetch( ( const char* ) ( src + 16 + filterSpan + 2 * srcStride ), _MM_HINT_T0 );
+      _mm_prefetch( ( const char* ) ( src +      2 * srcStride ), _MM_HINT_T0 );
+      _mm_prefetch( ( const char* ) ( src + 24 + 2 * srcStride ), _MM_HINT_T0 );
 
       __m256i vsrca0, vsrca1, vsrcb0, vsrcb1;
       __m256i vsrc0 = _mm256_loadu_si256( ( const __m256i * ) &src[0] );

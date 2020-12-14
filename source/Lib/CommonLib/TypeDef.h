@@ -1,43 +1,47 @@
 /* -----------------------------------------------------------------------------
-Software Copyright License for the Fraunhofer Software Library VVdec
+The copyright in this software is being made available under the BSD
+License, included below. No patent rights, trademark rights and/or 
+other Intellectual Property Rights other than the copyrights concerning 
+the Software are granted under this license.
 
-(c) Copyright (2018-2020) Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. 
-
-1.    INTRODUCTION
-
-The Fraunhofer Software Library VVdec (“Fraunhofer Versatile Video Decoding Library”) is software that implements (parts of) the Versatile Video Coding Standard - ITU-T H.266 | MPEG-I - Part 3 (ISO/IEC 23090-3) and related technology. 
-The standard contains Fraunhofer patents as well as third-party patents. Patent licenses from third party standard patent right holders may be required for using the Fraunhofer Versatile Video Decoding Library. It is in your responsibility to obtain those if necessary. 
-
-The Fraunhofer Versatile Video Decoding Library which mean any source code provided by Fraunhofer are made available under this software copyright license. 
-It is based on the official ITU/ISO/IEC VVC Test Model (VTM) reference software whose copyright holders are indicated in the copyright notices of its source files. The VVC Test Model (VTM) reference software is licensed under the 3-Clause BSD License and therefore not subject of this software copyright license.
-
-2.    COPYRIGHT LICENSE
-
-Internal use of the Fraunhofer Versatile Video Decoding Library, in source and binary forms, with or without modification, is permitted without payment of copyright license fees for non-commercial purposes of evaluation, testing and academic research. 
-
-No right or license, express or implied, is granted to any part of the Fraunhofer Versatile Video Decoding Library except and solely to the extent as expressly set forth herein. Any commercial use or exploitation of the Fraunhofer Versatile Video Decoding Library and/or any modifications thereto under this license are prohibited.
-
-For any other use of the Fraunhofer Versatile Video Decoding Library than permitted by this software copyright license You need another license from Fraunhofer. In such case please contact Fraunhofer under the CONTACT INFORMATION below.
-
-3.    LIMITED PATENT LICENSE
-
-As mentioned under 1. Fraunhofer patents are implemented by the Fraunhofer Versatile Video Decoding Library. If You use the Fraunhofer Versatile Video Decoding Library in Germany, the use of those Fraunhofer patents for purposes of testing, evaluating and research and development is permitted within the statutory limitations of German patent law. However, if You use the Fraunhofer Versatile Video Decoding Library in a country where the use for research and development purposes is not permitted without a license, you must obtain an appropriate license from Fraunhofer. It is Your responsibility to check the legal requirements for any use of applicable patents.    
-
-Fraunhofer provides no warranty of patent non-infringement with respect to the Fraunhofer Versatile Video Decoding Library.
-
-
-4.    DISCLAIMER
-
-The Fraunhofer Versatile Video Decoding Library is provided by Fraunhofer "AS IS" and WITHOUT ANY EXPRESS OR IMPLIED WARRANTIES, including but not limited to the implied warranties fitness for a particular purpose. IN NO EVENT SHALL FRAUNHOFER BE LIABLE for any direct, indirect, incidental, special, exemplary, or consequential damages, including but not limited to procurement of substitute goods or services; loss of use, data, or profits, or business interruption, however caused and on any theory of liability, whether in contract, strict liability, or tort (including negligence), arising in any way out of the use of the Fraunhofer Versatile Video Decoding Library, even if advised of the possibility of such damage.
-
-5.    CONTACT INFORMATION
+For any license concerning other Intellectual Property rights than the software, 
+especially patent licenses, a separate Agreement needs to be closed. 
+For more information please contact:
 
 Fraunhofer Heinrich Hertz Institute
-Attention: Video Coding & Analytics Department
 Einsteinufer 37
 10587 Berlin, Germany
 www.hhi.fraunhofer.de/vvc
 vvc@hhi.fraunhofer.de
+
+Copyright (c) 2018-2020, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. 
+All rights reserved.
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are met:
+
+ * Redistributions of source code must retain the above copyright notice,
+   this list of conditions and the following disclaimer.
+ * Redistributions in binary form must reproduce the above copyright notice,
+   this list of conditions and the following disclaimer in the documentation
+   and/or other materials provided with the distribution.
+ * Neither the name of Fraunhofer nor the names of its contributors may
+   be used to endorse or promote products derived from this software without
+   specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS
+BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
+THE POSSIBILITY OF SUCH DAMAGE.
+
+
 ------------------------------------------------------------------------------------------- */
 
 /** \file     TypeDef.h
@@ -72,7 +76,6 @@ vvc@hhi.fraunhofer.de
 
 #define DISABLE_CONFROMANCE_CHECK                         1
 #define DISABLE_CHECK_NO_OUTPUT_PRIOR_PICS_FLAG           0
-#define DISABLE_FEATURE_CHECKS                            1
 
 #define TBD                                               1
 #define TBT                                               1
@@ -94,11 +97,8 @@ vvc@hhi.fraunhofer.de
 #define JVET_Q0438_MONOCHROME_BUGFIXES                    TBT //to be tested with 4:0:0 // JVET-Q0438: Monochrome bug fixes
 #define JVET_Q0818_PT_SEI                                 TBT //to be tested // JVET-Q0818: add display_elemental_periods_minus1 to picture timing SEI message
 #define JVET_Q0814_DPB                                    TBT //to be tested // JVET-Q0814: DPB capacity is based on picture units regardless of the resoltuion
-#define JVET_Q0114_ASPECT5_GCI_FLAG                       TBT //to be tested // JVET-Q0114 Aspect 5: Add a general constraint on no reference picture resampling
 
 #define JVET_R0058                                        TBT //to be tested // JVET-R0058: the combination of RPR, subpictures, and scalability
-#define JVET_R0162_WRAPAROUND_OFFSET_SIGNALING            TBT //to be tested // JVET-R0162 proposal 1 : signal "picture width minus wraparound offset" instead of "wraparound offset"
-#define JVET_R0188                                        TBT // JVET-R0188: Signalling slice_width_in_tiles_minus1[i] and slice_height_in_tiles_minus1[i]
 #define JVET_R0203_IRAP_LEADING_CONSTRAINT                TBT //to be tested // JVET-R0203: Constraint that IRAP NAL unit type cannot be mixed with RASL_NUT / RADL_NUT
 #define JVET_Q0764_WRAP_AROUND_WITH_RPR                   TBT // JVET-Q0764: Combination of wrap around offset and RPR
 #define JVET_R0483_SH_TSRC_DISABLED_FLAG_CLEANUP          TBT //to be tested // JVET-R0483 Comb 4: R0049 + R0271, only R0049 method 3 aspect (Skip signaling sh_ts_residual_coding_disabled_flag when sps_transform_skip_enabled_flag = 0, also proposed in R0068, R0097, R0142, R0153) as R0271 has its own macro
@@ -112,8 +112,6 @@ vvc@hhi.fraunhofer.de
 #define JVET_R0350_MIP_CHROMA_444_SINGLETREE              TBT //to be tested // JVET-R0350: MIP for chroma in case of 4:4:4 format and single tree
 #define JVET_R0294_SUBPIC_HASH                            TBT //to be tested // JVET-R0294: Allow decoded picture hash SEI messages to be nested in subpicture context
 
-#define JVET_S0058_GCI                                    TBT //to be tested // no_mtt_constraint_flag and no_weightedpred_constraint_flag
-#define JVET_R0341_GCI                                    TBT //to be tested // JVET-R0341: on constraint flag for local chroma QP control
 #define JVET_R0270                                        TBC // JVET-S0270: Treating picture with mixed RASL and RADL slices as RASL picture
 #define JVET_S0258_SUBPIC_CONSTRAINTS                     TBT //to be tested // JVET-S0258: sub-picture constraints
 #define JVET_S0234_ACT_CRS_FIX                            TBT //to be tested // JVET-S0234: perform chroma residual scaling in RGB domain when ACT is on
@@ -134,18 +132,9 @@ vvc@hhi.fraunhofer.de
 #define JVET_S0178_GENERAL_SEI_CHECK                      TBT //to be tested // JVET-S0178: General SEI semantics and constraints
 #define JVET_S0176_SLI_SEI                                TBT //to be tested // JVET-S0176: On the subpicture level information SEI message
 #define JVET_S0181_PROPOSAL2_BUFFERING_PERIOD_CLEANUP     TBT //to be tested // JVET-S0181 Proposal2: Move signalling of bp_max_sublayers_minus1 and conditionally signal bp_cpb_removal_delay_deltas_present_flag, bp_num_cpb_removal_delay_deltas_minus1, and bp_cpb_removal_delay
-#define JVET_S0050_GCI                                    TBT //to be tested // JVET-S0050: Signal new GCI flags no_virtual_boundaries_constraint_flag and no_explicit_scaling_list_constraint_flag
-                                                                   //             Constrain the value of one_subpic_per_pic_constraint_flag, one_slice_per_pic_constraint_flag and no_aps_constraint_flag
-                                                                   //             Remove all constraints that require GCI fields to be equal to a value that imposes a constraint
 #define JVET_S0138_GCI_PTL                                TBT //to be tested // JVET-S_Notes_d9: move frame_only_constraint_flag and single_layer_constraint_flag into PTL for easy access
-#define JVET_S0113_S0195_GCI                              TBT //to be tested // JVET-S0113: no_rectangular_slice_constraint_flag to constrain pps_rect_slice_flag
-                                                            //             one_slice_per_subpicture_constraint_flag to constrain pps_single_slice_per_subpic_flag
-                                                            // JVET-S0195: replace one_subpic_per_pic_constraint_flag with no_subpic_info_constraint_flag and its semantics
-                                                            //             add no_idr_rpl_constraint_flag
-#define JVET_S0182_RPL_SIGNALLING                         TBT //to be tested // JVET-S0182: modifications to rpl information signalling
 #define JVET_S0185_PROPOSAl1_PICTURE_TIMING_CLEANUP       TBT //to be tested // JVET-S0185: Proposal 1, put syntax element pt_cpb_removal_delay_minus1[] first, followed by similar information for sub-layers, followed by pt_dpb_output_delay
 #define JVET_S0183_VPS_INFORMATION_SIGNALLING             TBT //to be tested // JVET-S0183: Proposal 1, signal vps_num_output_layer_sets_minus1 as vps_num_output_layer_sets_minus2
-#define JVET_S0105_GCI_REORDER_IN_CATEGORY                TBT //to be tested // JVET-S0105: reorder and categorize GCI flags (assumes the following macros set to 1: JVET_S0050_GCI, JVET_S0113_S0195_GCI, JVET_S0066_GCI, JVET_S0138_GCI_PTL, JVET_S0058_GCI, JVET_R0341_GCI, JVET_Q0114_ASPECT5_GCI_FLAG)
 
 // ====================================================================================================================
 // NEXT software switches
@@ -320,34 +309,6 @@ enum SbtPos : int8_t
   NUMBER_SBT_POS
 };
 
-enum SbtMode : int8_t
-{
-  SBT_VER_H0 = 0,
-  SBT_VER_H1 = 1,
-  SBT_HOR_H0 = 2,
-  SBT_HOR_H1 = 3,
-  SBT_VER_Q0 = 4,
-  SBT_VER_Q1 = 5,
-  SBT_HOR_Q0 = 6,
-  SBT_HOR_Q1 = 7,
-  NUMBER_SBT_MODE
-};
-
-enum RDPCMMode : int8_t
-{
-  RDPCM_OFF             = 0,
-  RDPCM_HOR             = 1,
-  RDPCM_VER             = 2,
-  NUMBER_OF_RDPCM_MODES
-};
-
-enum RDPCMSignallingMode
-{
-  RDPCM_SIGNAL_IMPLICIT            = 0,
-  RDPCM_SIGNAL_EXPLICIT            = 1,
-  NUMBER_OF_RDPCM_SIGNALLING_MODES
-};
-
 /// supported slice type
 enum SliceType
 {
@@ -402,30 +363,6 @@ enum ComponentID : int8_t
 };
 
 #define MAP_CHROMA(c) (ComponentID(c))
-
-enum InputColourSpaceConversion // defined in terms of conversion prior to input of encoder.
-{
-  IPCOLOURSPACE_UNCHANGED               = 0,
-  IPCOLOURSPACE_YCbCrtoYCrCb            = 1, // Mainly used for debug!
-  IPCOLOURSPACE_YCbCrtoYYY              = 2, // Mainly used for debug!
-  IPCOLOURSPACE_RGBtoGBR                = 3,
-  NUMBER_INPUT_COLOUR_SPACE_CONVERSIONS = 4
-};
-
-enum MATRIX_COEFFICIENTS // Table E.5 (Matrix coefficients)
-{
-  MATRIX_COEFFICIENTS_RGB                           = 0,
-  MATRIX_COEFFICIENTS_BT709                         = 1,
-  MATRIX_COEFFICIENTS_UNSPECIFIED                   = 2,
-  MATRIX_COEFFICIENTS_RESERVED_BY_ITUISOIEC         = 3,
-  MATRIX_COEFFICIENTS_USFCCT47                      = 4,
-  MATRIX_COEFFICIENTS_BT601_625                     = 5,
-  MATRIX_COEFFICIENTS_BT601_525                     = 6,
-  MATRIX_COEFFICIENTS_SMPTE240                      = 7,
-  MATRIX_COEFFICIENTS_YCGCO                         = 8,
-  MATRIX_COEFFICIENTS_BT2020_NON_CONSTANT_LUMINANCE = 9,
-  MATRIX_COEFFICIENTS_BT2020_CONSTANT_LUMINANCE     = 10,
-};
 
 enum DeblockEdgeDir : int8_t
 {
@@ -494,13 +431,6 @@ enum CoeffScanGroupType
   SCAN_NUMBER_OF_GROUP_TYPES = 2
 };
 
-enum ScalingListMode
-{
-  SCALING_LIST_OFF,
-  SCALING_LIST_DEFAULT,
-  SCALING_LIST_FILE_READ
-};
-
 enum ScalingListSize
 {
   SCALING_LIST_1x1 = 0,
@@ -510,7 +440,6 @@ enum ScalingListSize
   SCALING_LIST_16x16,
   SCALING_LIST_32x32,
   SCALING_LIST_64x64,
-  SCALING_LIST_128x128,
   SCALING_LIST_SIZE_NUM,
   //for user define matrix
   SCALING_LIST_FIRST_CODED = SCALING_LIST_2x2,
@@ -738,9 +667,6 @@ struct SAOOffset
   int     typeAuxInfo;   // BO: starting band index
   int     offset[MAX_NUM_SAO_CLASSES];
 
-  SAOOffset() { reset(); }
-  ~SAOOffset() {}
-
   void reset()
   {
     modeIdc     = SAO_MODE_OFF;
@@ -762,9 +688,6 @@ struct SAOOffset
 
 struct SAOBlkParam
 {
-  SAOBlkParam() { reset(); }
-  ~SAOBlkParam() {}
-
   void reset()
   {
     for( int compIdx = 0; compIdx < MAX_NUM_COMPONENT; compIdx++ )

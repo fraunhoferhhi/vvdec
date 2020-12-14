@@ -1,43 +1,47 @@
 /* -----------------------------------------------------------------------------
-Software Copyright License for the Fraunhofer Software Library VVdec
+The copyright in this software is being made available under the BSD
+License, included below. No patent rights, trademark rights and/or 
+other Intellectual Property Rights other than the copyrights concerning 
+the Software are granted under this license.
 
-(c) Copyright (2018-2020) Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. 
-
-1.    INTRODUCTION
-
-The Fraunhofer Software Library VVdec (“Fraunhofer Versatile Video Decoding Library”) is software that implements (parts of) the Versatile Video Coding Standard - ITU-T H.266 | MPEG-I - Part 3 (ISO/IEC 23090-3) and related technology. 
-The standard contains Fraunhofer patents as well as third-party patents. Patent licenses from third party standard patent right holders may be required for using the Fraunhofer Versatile Video Decoding Library. It is in your responsibility to obtain those if necessary. 
-
-The Fraunhofer Versatile Video Decoding Library which mean any source code provided by Fraunhofer are made available under this software copyright license. 
-It is based on the official ITU/ISO/IEC VVC Test Model (VTM) reference software whose copyright holders are indicated in the copyright notices of its source files. The VVC Test Model (VTM) reference software is licensed under the 3-Clause BSD License and therefore not subject of this software copyright license.
-
-2.    COPYRIGHT LICENSE
-
-Internal use of the Fraunhofer Versatile Video Decoding Library, in source and binary forms, with or without modification, is permitted without payment of copyright license fees for non-commercial purposes of evaluation, testing and academic research. 
-
-No right or license, express or implied, is granted to any part of the Fraunhofer Versatile Video Decoding Library except and solely to the extent as expressly set forth herein. Any commercial use or exploitation of the Fraunhofer Versatile Video Decoding Library and/or any modifications thereto under this license are prohibited.
-
-For any other use of the Fraunhofer Versatile Video Decoding Library than permitted by this software copyright license You need another license from Fraunhofer. In such case please contact Fraunhofer under the CONTACT INFORMATION below.
-
-3.    LIMITED PATENT LICENSE
-
-As mentioned under 1. Fraunhofer patents are implemented by the Fraunhofer Versatile Video Decoding Library. If You use the Fraunhofer Versatile Video Decoding Library in Germany, the use of those Fraunhofer patents for purposes of testing, evaluating and research and development is permitted within the statutory limitations of German patent law. However, if You use the Fraunhofer Versatile Video Decoding Library in a country where the use for research and development purposes is not permitted without a license, you must obtain an appropriate license from Fraunhofer. It is Your responsibility to check the legal requirements for any use of applicable patents.    
-
-Fraunhofer provides no warranty of patent non-infringement with respect to the Fraunhofer Versatile Video Decoding Library.
-
-
-4.    DISCLAIMER
-
-The Fraunhofer Versatile Video Decoding Library is provided by Fraunhofer "AS IS" and WITHOUT ANY EXPRESS OR IMPLIED WARRANTIES, including but not limited to the implied warranties fitness for a particular purpose. IN NO EVENT SHALL FRAUNHOFER BE LIABLE for any direct, indirect, incidental, special, exemplary, or consequential damages, including but not limited to procurement of substitute goods or services; loss of use, data, or profits, or business interruption, however caused and on any theory of liability, whether in contract, strict liability, or tort (including negligence), arising in any way out of the use of the Fraunhofer Versatile Video Decoding Library, even if advised of the possibility of such damage.
-
-5.    CONTACT INFORMATION
+For any license concerning other Intellectual Property rights than the software, 
+especially patent licenses, a separate Agreement needs to be closed. 
+For more information please contact:
 
 Fraunhofer Heinrich Hertz Institute
-Attention: Video Coding & Analytics Department
 Einsteinufer 37
 10587 Berlin, Germany
 www.hhi.fraunhofer.de/vvc
 vvc@hhi.fraunhofer.de
+
+Copyright (c) 2018-2020, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. 
+All rights reserved.
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are met:
+
+ * Redistributions of source code must retain the above copyright notice,
+   this list of conditions and the following disclaimer.
+ * Redistributions in binary form must reproduce the above copyright notice,
+   this list of conditions and the following disclaimer in the documentation
+   and/or other materials provided with the distribution.
+ * Neither the name of Fraunhofer nor the names of its contributors may
+   be used to endorse or promote products derived from this software without
+   specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS
+BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
+THE POSSIBILITY OF SUCH DAMAGE.
+
+
 ------------------------------------------------------------------------------------------- */
 
 #include "DecLibParser.h"
@@ -126,7 +130,7 @@ void DecLibParser::recreateLostPicture( Picture* pcPic )
          ( referencedBy != m_parseFrameList.end() ) ? ( *referencedBy )->poc : -1 );
 
     pcPic->getRecoBuf().copyFrom( closestPic->getRecoBuf() );
-    for( int i = 0; i < pcPic->cs->m_ctuData.size(); i++ )
+    for( int i = 0; i < pcPic->cs->m_ctuDataSize; i++ )
     {
       memcpy( pcPic->cs->m_ctuData[i].motion, closestPic->cs->m_ctuData[i].motion, sizeof( CtuData::motion ) );
     }
@@ -292,13 +296,13 @@ Picture* DecLibParser::getNextDecodablePicture()
 
     bool allRefPicsDone = true;
     const CodingStructure& cs = *pic->cs;
-    if( !cs.slice->isIntra() )
+    if( !cs.picture->slices[0]->isIntra() )
     {
       for( int iDir = REF_PIC_LIST_0; iDir < NUM_REF_PIC_LIST_01 && allRefPicsDone; ++iDir )
       {
-        for( int iRefIdx = 0; iRefIdx < cs.slice->getNumRefIdx( (RefPicList)iDir ) && allRefPicsDone; iRefIdx++ )
+        for( int iRefIdx = 0; iRefIdx < cs.picture->slices[0]->getNumRefIdx( (RefPicList)iDir ) && allRefPicsDone; iRefIdx++ )
         {
-          const Picture* refPic = cs.slice->getRefPic( (RefPicList)iDir, iRefIdx );
+          const Picture* refPic = cs.picture->slices[0]->getRefPic( (RefPicList)iDir, iRefIdx );
           if( refPic->done.isBlocked() )
           {
             allRefPicsDone = false;
@@ -379,7 +383,7 @@ DecLibParser::SliceHeadResult DecLibParser::xDecodeSliceHead( InputNALUnit& nalu
     return SkipPicture;
   }
 
-  m_bFirstSliceInPicture = ( m_apcSlicePilot->getPOC() != m_prevPOC );
+  m_bFirstSliceInPicture = m_apcSlicePilot->getCtuAddrInSlice( 0 ) == 0;
 
   if( m_bFirstSliceInPicture )
   {
@@ -448,10 +452,6 @@ DecLibParser::SliceHeadResult DecLibParser::xDecodeSliceHead( InputNALUnit& nalu
   {
     uiIndependentSliceIdx = m_pcParsePic->slices[m_uiSliceSegmentIdx - 1]->getIndependentSliceIdx();
     uiIndependentSliceIdx++;
-
-#if !DISABLE_FEATURE_CHECKS
-    THROW( "more than one slice in picture not supported yet" );
-#endif
   }
   m_apcSlicePilot->setIndependentSliceIdx( uiIndependentSliceIdx );
 
@@ -706,14 +706,12 @@ Slice*  DecLibParser::xDecodeSliceMain( InputNALUnit &nalu )
   CHECK( m_pcParsePic->layer != nalu.m_temporalId,
          "Currently parsed pic should have the same temporal layer as the NAL unit" );
 
-#if JVET_S0050_GCI
   if( pcSlice->getSPS()->getProfileTierLevel()->getConstraintInfo()->getNoApsConstraintFlag() )
   {
     bool flag = pcSlice->getSPS()->getUseCCALF() || pcSlice->getPicHeader()->getNumAlfAps() || pcSlice->getPicHeader()->getAlfEnabledFlag( COMPONENT_Cb ) || pcSlice->getPicHeader()->getAlfEnabledFlag( COMPONENT_Cr );
     CHECK( flag,
            "When no_aps_constraint_flag is equal to 1, the values of ph_num_alf_aps_ids_luma, sh_num_alf_aps_ids_luma, ph_alf_cb_flag, ph_alf_cr_flag, sh_alf_cb_flag, sh_alf_cr_flag, and sps_ccalf_enabled_flag shall all be equal to 0" )
   }
-#endif
 
   if( pcSlice->getNalUnitLayerId() != pcSlice->getSPS()->getLayerId() )
   {
@@ -1013,13 +1011,13 @@ Slice*  DecLibParser::xDecodeSliceMain( InputNALUnit &nalu )
     auto& decLib    = slice->parseTaskParams.decLibParser;
     auto& bitstream = slice->parseTaskParams.bitstream;
 
-    slice->startProcessingTimer();
+    slice->getPic()->startProcessingTimer();
     //  Decode a picture
     ITT_TASKSTART( itt_domain_prs, itt_handle_parse );
     decLib->m_cSliceDecoder.parseSlice( slice, &bitstream, threadId );
     ITT_TASKEND( itt_domain_prs, itt_handle_parse );
 
-    slice->stopProcessingTimer();
+    slice->getPic()->stopProcessingTimer();
 
     bitstream.clearFifo();
     bitstream.clearEmulationPreventionByteLocation();
@@ -1072,7 +1070,7 @@ Picture * DecLibParser::xActivateParameterSets( const int layerId )
     xParsePrefixSEImessages();
 
 #if RExt__HIGH_BIT_DEPTH_SUPPORT == 0
-    if( sps->getSpsRangeExtension().getExtendedPrecisionProcessingFlag() || sps->getBitDepth( CHANNEL_TYPE_LUMA ) > 12 || sps->getBitDepth( CHANNEL_TYPE_CHROMA ) > 12 )
+    if( /* sps->getSpsRangeExtension().getExtendedPrecisionProcessingFlag() ||*/ sps->getBitDepth( CHANNEL_TYPE_LUMA ) > 12 || sps->getBitDepth( CHANNEL_TYPE_CHROMA ) > 12 )
     {
       THROW( "High bit depth support must be enabled at compile-time in order to decode this bitstream\n" );
     }
@@ -1205,22 +1203,12 @@ Picture * DecLibParser::xActivateParameterSets( const int layerId )
 
   CHECK( sps->getProfileTierLevel()->getConstraintInfo()->getOneTilePerPicConstraintFlag() &&pps->getNumTiles() != 1,
          "When one_tile_per_pic_constraint_flag is equal to 1, each picture shall contain only one tile" );
-#if JVET_S0050_GCI
   CHECK( sps->getProfileTierLevel()->getConstraintInfo()->getOneSlicePerPicConstraintFlag() && pps->getRectSliceFlag() && pps->getNumSlicesInPic() != 1,
           "When one_slice_per_pic_constraint_flag is equal to 1 and if pps_rect_slice_flag is equal to 1, the value of num_slices_in_pic_minus1 shall be equal to 0" );
-#else
-  CHECK( sps->getProfileTierLevel()->getConstraintInfo()->getOneSlicePerPicConstraintFlag() && pps->getNumSlicesInPic() != 0,
-          "When one_slice_per_pic_constraint_flag is equal to 1, each picture shall contain only one slice");
-#endif
-  
-#if JVET_Q0114_ASPECT5_GCI_FLAG
   CHECK( sps->getProfileTierLevel()->getConstraintInfo()->getNoRprConstraintFlag() && sps->getRprEnabledFlag(),
          "When gci_no_ref_pic_resampling_constraint_flag is equal to 1, the value of sps_ref_pic_resampling_enabled_flag shall be equal to 0" );
   CHECK( sps->getProfileTierLevel()->getConstraintInfo()->getNoResChangeInClvsConstraintFlag() && sps->getResChangeInClvsEnabledFlag(),
          "When gci_no_res_change_in_clvs_constraint_flag is equal to 1, the value of sps_res_change_in_clvs_allowed_flag shall be equal to 0" );
-#endif
-
-#if JVET_S0113_S0195_GCI
   CHECK( sps->getProfileTierLevel()->getConstraintInfo()->getNoIdrRplConstraintFlag() && sps->getIDRRefParamListPresent(),
           "When gci_no_idr_rpl_constraint_flag equal to 1 , the value of sps_idr_rpl_present_flag shall be equal to 0" );
   CHECK( sps->getProfileTierLevel()->getConstraintInfo()->getNoMixedNaluTypesInPicConstraintFlag() && pps->getMixedNaluTypesInPicFlag(),
@@ -1231,16 +1219,7 @@ Picture * DecLibParser::xActivateParameterSets( const int layerId )
           "When gci_one_slice_per_subpic_constraint_flag equal to 1, the value of pps_single_slice_per_subpic_flag shall be equal to 1" );
   CHECK( sps->getProfileTierLevel()->getConstraintInfo()->getNoSubpicInfoConstraintFlag() && sps->getSubPicInfoPresentFlag(),
           "When gci_no_subpic_info_constraint_flag is equal to 1, the value of sps_subpic_info_present_flag shall be equal to 0" );
-#else
-#if JVET_S0050_GCI
-  if (sps->getProfileTierLevel()->getConstraintInfo()->getOneSubpicPerPicConstraintFlag())
-  {
-    CHECK(sps->getNumSubPics() != 1, "When one_subpic_per_pic_constraint_flag is equal to 1, the value of sps_num_subpics_minus1 shall be equal to 0")
-  }
-#endif
-#endif
 
-#if JVET_S0058_GCI
   if( sps->getProfileTierLevel()->getConstraintInfo()->getNoMttConstraintFlag() )
   {
     CHECK( sps->getMaxBTDepth() || sps->getMaxBTDepthI() || sps->getMaxBTDepthIChroma(),
@@ -1251,12 +1230,9 @@ Picture * DecLibParser::xActivateParameterSets( const int layerId )
     CHECK( sps->getUseWP() || sps->getUseWPBiPred(),
            "When gci_no_weighted_prediction_constraint_flag is equal to 1, the values of sps_weighted_pred_flag and sps_weighted_bipred_flag shall be equal to 0" );
   }
-#endif
 
-#if JVET_R0341_GCI
   CHECK( sps->getProfileTierLevel()->getConstraintInfo()->getNoChromaQpOffsetConstraintFlag() && pps->getCuChromaQpOffsetEnabledFlag(),
          "When gci_no_ChromaQpOffset_constraint_flag is equal to 1, the values of pps_cu_chroma_qp_offset_list_enabled_flag shall be equal to 0" );
-#endif
 
   CHECK( sps->getCTUSize() > ( 1 << sps->getProfileTierLevel()->getConstraintInfo()->getMaxLog2CtuSizeConstraintIdc() ),
          "The CTU size specified by sps_log2_ctu_size_minus5 shall not exceed the constraint specified by gci_three_minus_max_log2_ctu_size_constraint_idc" );
@@ -1399,8 +1375,6 @@ Picture* DecLibParser::prepareLostPicture( int iLostPoc, const int layerId )
   cFillPic->slices[0]->setTLayer( iTLayer );
   cFillPic->slices[0]->setNalUnitType( naluType );
   xUpdatePreviousTid0POC( cFillPic->slices[0] );
-
-  cFillPic->cs->slice = cFillPic->slices[0];
 
   cFillPic->layer           = iTLayer;
   cFillPic->referenced      = true;

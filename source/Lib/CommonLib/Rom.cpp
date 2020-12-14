@@ -1,43 +1,47 @@
 /* -----------------------------------------------------------------------------
-Software Copyright License for the Fraunhofer Software Library VVdec
+The copyright in this software is being made available under the BSD
+License, included below. No patent rights, trademark rights and/or 
+other Intellectual Property Rights other than the copyrights concerning 
+the Software are granted under this license.
 
-(c) Copyright (2018-2020) Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. 
-
-1.    INTRODUCTION
-
-The Fraunhofer Software Library VVdec (“Fraunhofer Versatile Video Decoding Library”) is software that implements (parts of) the Versatile Video Coding Standard - ITU-T H.266 | MPEG-I - Part 3 (ISO/IEC 23090-3) and related technology. 
-The standard contains Fraunhofer patents as well as third-party patents. Patent licenses from third party standard patent right holders may be required for using the Fraunhofer Versatile Video Decoding Library. It is in your responsibility to obtain those if necessary. 
-
-The Fraunhofer Versatile Video Decoding Library which mean any source code provided by Fraunhofer are made available under this software copyright license. 
-It is based on the official ITU/ISO/IEC VVC Test Model (VTM) reference software whose copyright holders are indicated in the copyright notices of its source files. The VVC Test Model (VTM) reference software is licensed under the 3-Clause BSD License and therefore not subject of this software copyright license.
-
-2.    COPYRIGHT LICENSE
-
-Internal use of the Fraunhofer Versatile Video Decoding Library, in source and binary forms, with or without modification, is permitted without payment of copyright license fees for non-commercial purposes of evaluation, testing and academic research. 
-
-No right or license, express or implied, is granted to any part of the Fraunhofer Versatile Video Decoding Library except and solely to the extent as expressly set forth herein. Any commercial use or exploitation of the Fraunhofer Versatile Video Decoding Library and/or any modifications thereto under this license are prohibited.
-
-For any other use of the Fraunhofer Versatile Video Decoding Library than permitted by this software copyright license You need another license from Fraunhofer. In such case please contact Fraunhofer under the CONTACT INFORMATION below.
-
-3.    LIMITED PATENT LICENSE
-
-As mentioned under 1. Fraunhofer patents are implemented by the Fraunhofer Versatile Video Decoding Library. If You use the Fraunhofer Versatile Video Decoding Library in Germany, the use of those Fraunhofer patents for purposes of testing, evaluating and research and development is permitted within the statutory limitations of German patent law. However, if You use the Fraunhofer Versatile Video Decoding Library in a country where the use for research and development purposes is not permitted without a license, you must obtain an appropriate license from Fraunhofer. It is Your responsibility to check the legal requirements for any use of applicable patents.    
-
-Fraunhofer provides no warranty of patent non-infringement with respect to the Fraunhofer Versatile Video Decoding Library.
-
-
-4.    DISCLAIMER
-
-The Fraunhofer Versatile Video Decoding Library is provided by Fraunhofer "AS IS" and WITHOUT ANY EXPRESS OR IMPLIED WARRANTIES, including but not limited to the implied warranties fitness for a particular purpose. IN NO EVENT SHALL FRAUNHOFER BE LIABLE for any direct, indirect, incidental, special, exemplary, or consequential damages, including but not limited to procurement of substitute goods or services; loss of use, data, or profits, or business interruption, however caused and on any theory of liability, whether in contract, strict liability, or tort (including negligence), arising in any way out of the use of the Fraunhofer Versatile Video Decoding Library, even if advised of the possibility of such damage.
-
-5.    CONTACT INFORMATION
+For any license concerning other Intellectual Property rights than the software, 
+especially patent licenses, a separate Agreement needs to be closed. 
+For more information please contact:
 
 Fraunhofer Heinrich Hertz Institute
-Attention: Video Coding & Analytics Department
 Einsteinufer 37
 10587 Berlin, Germany
 www.hhi.fraunhofer.de/vvc
 vvc@hhi.fraunhofer.de
+
+Copyright (c) 2018-2020, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. 
+All rights reserved.
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are met:
+
+ * Redistributions of source code must retain the above copyright notice,
+   this list of conditions and the following disclaimer.
+ * Redistributions in binary form must reproduce the above copyright notice,
+   this list of conditions and the following disclaimer in the documentation
+   and/or other materials provided with the distribution.
+ * Neither the name of Fraunhofer nor the names of its contributors may
+   be used to endorse or promote products derived from this software without
+   specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS
+BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
+THE POSSIBILITY OF SUCH DAMAGE.
+
+
 ------------------------------------------------------------------------------------------- */
 
 /** \file     Rom.cpp
@@ -59,6 +63,9 @@ vvc@hhi.fraunhofer.de
 
 #if ENABLE_TRACING
 CDTrace *g_trace_ctx = NULL;
+std::string sTracingRule="D_HEADER:poc<=1";
+std::string sTracingFile="tracefile_dec.txt";
+bool   bTracingChannelsList = false;
 #endif
 
 #if ENABLE_TIME_PROFILING
@@ -161,9 +168,7 @@ public:
 const int8_t g_BcwLog2WeightBase = 3;
 const int8_t g_BcwWeightBase = (1 << g_BcwLog2WeightBase);
 const int8_t g_BcwWeights[BCW_NUM] = { -2, 3, 4, 5, 10 };
-const int8_t g_BcwSearchOrder[BCW_NUM] = { BCW_DEFAULT, BCW_DEFAULT - 2, BCW_DEFAULT + 2, BCW_DEFAULT - 1, BCW_DEFAULT + 1 };
-int8_t g_BcwCodingOrder[BCW_NUM];
-int8_t g_BcwParsingOrder[BCW_NUM];
+const int8_t g_BcwParsingOrder[BCW_NUM] = { 2, 3, 1, 4, 0 };
 
 int8_t getBcwWeight(uint8_t bcwIdx, uint8_t uhRefFrmList)
 {
@@ -172,67 +177,16 @@ int8_t getBcwWeight(uint8_t bcwIdx, uint8_t uhRefFrmList)
   return (uhRefFrmList == REF_PIC_LIST_0 ? g_BcwWeightBase - g_BcwWeights[bcwIdx] : g_BcwWeights[bcwIdx]);
 }
 
-void resetBcwCodingOrder(bool bRunDecoding, const CodingStructure &cs)
-{
-  // Form parsing order: { BCW_DEFAULT, BCW_DEFAULT+1, BCW_DEFAULT-1, BCW_DEFAULT+2, BCW_DEFAULT-2, ... }
-  g_BcwParsingOrder[0] = BCW_DEFAULT;
-  for (int i = 1; i <= (BCW_NUM >> 1); ++i)
-  {
-    g_BcwParsingOrder[2 * i - 1] = BCW_DEFAULT + (int8_t)i;
-    g_BcwParsingOrder[2 * i] = BCW_DEFAULT - (int8_t)i;
-  }
-
-  // Form encoding order
-  if (!bRunDecoding)
-  {
-    for (int i = 0; i < BCW_NUM; ++i)
-    {
-      g_BcwCodingOrder[(uint32_t)g_BcwParsingOrder[i]] = i;
-    }
-  }
-}
-
-uint32_t deriveWeightIdxBits(uint8_t bcwIdx) // Note: align this with TEncSbac::codeGbiIdx and TDecSbac::parseGbiIdx
-{
-  uint32_t numBits = 1;
-  uint8_t  bcwCodingIdx = (uint8_t)g_BcwCodingOrder[bcwIdx];
-
-  if (BCW_NUM > 2 && bcwCodingIdx != 0)
-  {
-    uint32_t prefixNumBits = BCW_NUM - 2;
-    uint32_t step = 1;
-    uint8_t  prefixSymbol = bcwCodingIdx;
-
-    // Truncated unary code
-    uint8_t idx = 1;
-    for (int ui = 0; ui < prefixNumBits; ++ui)
-    {
-      if (prefixSymbol == idx)
-      {
-        ++numBits;
-        break;
-      }
-      else
-      {
-        ++numBits;
-        idx += step;
-      }
-    }
-  }
-  return numBits;
-}
-
-const uint32_t g_log2SbbSize[MAX_CU_DEPTH + 1][MAX_CU_DEPTH + 1][2] =
+const uint32_t g_log2SbbSize[MAX_LOG2_TU_SIZE_PLUS_ONE][MAX_LOG2_TU_SIZE_PLUS_ONE][2] =
 //===== luma/chroma =====
 {
-  { { 0,0 },{ 0,1 },{ 0,2 },{ 0,3 },{ 0,4 },{ 0,4 },{ 0,4 },{ 0,4 } },
-  { { 1,0 },{ 1,1 },{ 1,1 },{ 1,3 },{ 1,3 },{ 1,3 },{ 1,3 },{ 1,3 } },
-  { { 2,0 },{ 1,1 },{ 2,2 },{ 2,2 },{ 2,2 },{ 2,2 },{ 2,2 },{ 2,2 } },
-  { { 3,0 },{ 3,1 },{ 2,2 },{ 2,2 },{ 2,2 },{ 2,2 },{ 2,2 },{ 2,2 } },
-  { { 4,0 },{ 3,1 },{ 2,2 },{ 2,2 },{ 2,2 },{ 2,2 },{ 2,2 },{ 2,2 } },
-  { { 4,0 },{ 3,1 },{ 2,2 },{ 2,2 },{ 2,2 },{ 2,2 },{ 2,2 },{ 2,2 } },
-  { { 4,0 },{ 3,1 },{ 2,2 },{ 2,2 },{ 2,2 },{ 2,2 },{ 2,2 },{ 2,2 } },
-  { { 4,0 },{ 3,1 },{ 2,2 },{ 2,2 },{ 2,2 },{ 2,2 },{ 2,2 },{ 2,2 } }
+  { { 0,0 },{ 0,1 },{ 0,2 },{ 0,3 },{ 0,4 },{ 0,4 },{ 0,4 } },
+  { { 1,0 },{ 1,1 },{ 1,1 },{ 1,3 },{ 1,3 },{ 1,3 },{ 1,3 } },
+  { { 2,0 },{ 1,1 },{ 2,2 },{ 2,2 },{ 2,2 },{ 2,2 },{ 2,2 } },
+  { { 3,0 },{ 3,1 },{ 2,2 },{ 2,2 },{ 2,2 },{ 2,2 },{ 2,2 } },
+  { { 4,0 },{ 3,1 },{ 2,2 },{ 2,2 },{ 2,2 },{ 2,2 },{ 2,2 } },
+  { { 4,0 },{ 3,1 },{ 2,2 },{ 2,2 },{ 2,2 },{ 2,2 },{ 2,2 } },
+  { { 4,0 },{ 3,1 },{ 2,2 },{ 2,2 },{ 2,2 },{ 2,2 },{ 2,2 } }
 };
 // initialize ROM variables
 void initROM()
@@ -426,9 +380,9 @@ void destroyROM()
   {
     for (uint32_t scanOrderIndex = 0; scanOrderIndex < SCAN_NUMBER_OF_TYPES; scanOrderIndex++)
     {
-      for (uint32_t blockWidthIdx = 0; blockWidthIdx <= numWidths; blockWidthIdx++)
+      for (uint32_t blockWidthIdx = 0; blockWidthIdx < numWidths; blockWidthIdx++)
       {
-        for (uint32_t blockHeightIdx = 0; blockHeightIdx <= numHeights; blockHeightIdx++)
+        for (uint32_t blockHeightIdx = 0; blockHeightIdx < numHeights; blockHeightIdx++)
         {
           delete[] g_scanOrder[groupTypeIndex][scanOrderIndex][blockWidthIdx][blockHeightIdx];
           g_scanOrder[groupTypeIndex][scanOrderIndex][blockWidthIdx][blockHeightIdx] = nullptr;
@@ -446,21 +400,13 @@ void destroyROM()
   for( int i = 0; i < GEO_NUM_PRESTORED_MASK; i++ )
   {
     delete[] g_globalGeoWeights   [i];
-    delete[] g_globalGeoEncSADmask[i];
     g_globalGeoWeights   [i] = nullptr;
-    g_globalGeoEncSADmask[i] = nullptr;
   }
 }
 
 // ====================================================================================================================
 // Data structure related table & variable
 // ====================================================================================================================
-
-const int g_QuantScales[2][SCALING_LIST_REM_NUM] = // can be represented as a 9 element table
-{
-  { 26214,23302,20560,18396,16384,14564 },
-  { 18396,16384,14564,13107,11651,10280 } // Note: last 3 values of second row == half of the first 3 values of the first row
-};
 
 const int g_InvQuantScales[2][SCALING_LIST_REM_NUM] = // can be represented as a 9 element table
 {
@@ -480,37 +426,6 @@ const int g_InvQuantScales[2][SCALING_LIST_REM_NUM] = // can be represented as a
 // ====================================================================================================================
 // Intra prediction
 // ====================================================================================================================
-
-const uint8_t g_aucIntraModeNumFast_UseMPM_2D[7 - MIN_CU_LOG2 + 1][7 - MIN_CU_LOG2 + 1] =
-{
-  {3, 3, 3, 3, 2, 2},  //   4x4,   4x8,   4x16,   4x32,   4x64,   4x128,
-  {3, 3, 3, 3, 3, 2},  //   8x4,   8x8,   8x16,   8x32,   8x64,   8x128,
-  {3, 3, 3, 3, 3, 2},  //  16x4,  16x8,  16x16,  16x32,  16x64,  16x128,
-  {3, 3, 3, 3, 3, 2},  //  32x4,  32x8,  32x16,  32x32,  32x64,  32x128,
-  {2, 3, 3, 3, 3, 2},  //  64x4,  64x8,  64x16,  64x32,  64x64,  64x128,
-  {2, 2, 2, 2, 2, 3},  // 128x4, 128x8, 128x16, 128x32, 128x64, 128x128,
-};
-
-const uint8_t g_aucIntraModeNumFast_UseMPM[MAX_CU_DEPTH] =
-{
-  3,  //   2x2
-  8,  //   4x4
-  8,  //   8x8
-  3,  //  16x16
-  3,  //  32x32
-  3,  //  64x64
-  3   // 128x128
-};
-const uint8_t g_aucIntraModeNumFast_NotUseMPM[MAX_CU_DEPTH] =
-{
-  3,  //   2x2
-  9,  //   4x4
-  9,  //   8x8
-  4,  //  16x16   33
-  4,  //  32x32   33
-  5,  //  64x64   33
-  5   // 128x128
-};
 
 const uint8_t g_chroma422IntraAngleMappingTable[NUM_INTRA_MODE] =
 //                                    *                                H                              *                                D      *   *   *   *       *   *   *                   *        V       *                   *   *   *      *   *   *   *
@@ -539,7 +454,7 @@ const UnitScale g_miScaling( MIN_CU_LOG2, MIN_CU_LOG2 );
 // ====================================================================================================================
 
 // scanning order table
-uint32_t* g_scanOrder     [SCAN_NUMBER_OF_GROUP_TYPES][SCAN_NUMBER_OF_TYPES][MAX_CU_SIZE / 2 + 1][MAX_CU_SIZE / 2 + 1];
+uint32_t* g_scanOrder     [SCAN_NUMBER_OF_GROUP_TYPES][SCAN_NUMBER_OF_TYPES][MAX_LOG2_TU_SIZE_PLUS_ONE][MAX_LOG2_TU_SIZE_PLUS_ONE];
 uint32_t* g_coefTopLeftDiagScan8x8[ MAX_CU_SIZE / 2 + 1 ];
 uint8_t* g_coefTopLeftDiagScan8x8pos[ MAX_CU_SIZE / 2 + 1 ];
 
@@ -553,111 +468,10 @@ const uint32_t ctxIndMap4x4[4 * 4] =
 
 
 const uint32_t g_uiMinInGroup[LAST_SIGNIFICANT_GROUPS] = { 0,1,2,3,4,6,8,12,16,24,32,48,64,96 };
-const uint32_t g_uiGroupIdx[MAX_TU_SIZE] = { 0,1,2,3,4,4,5,5,6,6,6,6,7,7,7,7,8,8,8,8,8,8,8,8,9,9,9,9,9,9,9,9, 10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,11,11,11,11,11,11,11,11,11,11,11,11,11,11,11,11
-,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12
-,13,13,13,13,13,13,13,13,13,13,13,13,13,13,13,13,13,13,13,13,13,13,13,13,13,13,13,13,13,13,13,13 };
+const uint32_t g_uiGroupIdx[MAX_TU_SIZE_FOR_PROFILE] = { 0,1,2,3,4,4,5,5,6,6,6,6,7,7,7,7,8,8,8,8,8,8,8,8,9,9,9,9,9,9,9,9, 10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,11,11,11,11,11,11,11,11,11,11,11,11,11,11,11,11};
 const uint32_t g_auiGoRiceParsCoeff[32] =
 {
   0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 3, 3, 3, 3
-};
-const char *MatrixType[SCALING_LIST_SIZE_NUM][SCALING_LIST_NUM] =
-{
-  {
-    "INTRA1X1_LUMA",
-    "INTRA1X1_CHROMAU",
-    "INTRA1X1_CHROMAV",
-    "INTER1X1_LUMA",
-    "INTER1X1_CHROMAU",
-    "INTER1X1_CHROMAV"
-  },
-  {
-    "INTRA2X2_LUMA",
-    "INTRA2X2_CHROMAU",
-    "INTRA2X2_CHROMAV",
-    "INTER2X2_LUMA",
-    "INTER2X2_CHROMAU",
-    "INTER2X2_CHROMAV"
-  },
-  {
-    "INTRA4X4_LUMA",
-    "INTRA4X4_CHROMAU",
-    "INTRA4X4_CHROMAV",
-    "INTER4X4_LUMA",
-    "INTER4X4_CHROMAU",
-    "INTER4X4_CHROMAV"
-  },
-  {
-    "INTRA8X8_LUMA",
-    "INTRA8X8_CHROMAU",
-    "INTRA8X8_CHROMAV",
-    "INTER8X8_LUMA",
-    "INTER8X8_CHROMAU",
-    "INTER8X8_CHROMAV"
-  },
-  {
-    "INTRA16X16_LUMA",
-    "INTRA16X16_CHROMAU",
-    "INTRA16X16_CHROMAV",
-    "INTER16X16_LUMA",
-    "INTER16X16_CHROMAU",
-    "INTER16X16_CHROMAV"
-  },
-  {
-    "INTRA32X32_LUMA",
-    "INTRA32X32_CHROMAU",
-    "INTRA32X32_CHROMAV",
-    "INTER32X32_LUMA",
-    "INTER32X32_CHROMAU",
-    "INTER32X32_CHROMAV"
-  },
-  {
-    "INTRA64X64_LUMA",
-    "INTRA64X64_CHROMAU",
-    "INTRA64X64_CHROMAV",
-    "INTER64X64_LUMA",
-    "INTER64X64_CHROMAU",
-    "INTER64X64_CHROMAV"
-  },
-  {
-  },
-};
-
-const char *MatrixType_DC[SCALING_LIST_SIZE_NUM][SCALING_LIST_NUM] =
-{
-  {  //1x1
-  },
-  {
-  },
-  {
-  },
-  {
-  },
-  {
-    "INTRA16X16_LUMA_DC",
-    "INTRA16X16_CHROMAU_DC",
-    "INTRA16X16_CHROMAV_DC",
-    "INTER16X16_LUMA_DC",
-    "INTER16X16_CHROMAU_DC",
-    "INTER16X16_CHROMAV_DC"
-  },
-  {
-    "INTRA32X32_LUMA_DC",
-    "INTRA32X32_CHROMAU_DC",
-    "INTRA32X32_CHROMAV_DC",
-    "INTER32X32_LUMA_DC",
-    "INTER32X32_CHROMAU_DC",
-    "INTER32X32_CHROMAV_DC"
-  },
-  {
-    "INTRA64X64_LUMA_DC",
-    "INTRA64X64_CHROMAU_DC",
-    "INTRA64X64_CHROMAV_DC",
-    "INTER64X64_LUMA_DC",
-    "INTER64X64_CHROMAU_DC",
-    "INTER64X64_CHROMAV_DC"
-  },
-  {
-  },
 };
 
 const int g_quantTSDefault4x4[4 * 4] =
@@ -692,8 +506,7 @@ const int g_quantInterDefault8x8[8 * 8] =
   16,16,16,16,16,16,16,16
 };
 
-const uint32_t g_vvcScalingListSize [SCALING_LIST_SIZE_NUM] = { 1, 4, 16, 64, 256, 1024, 4096, 16384 };
-const uint32_t g_vvcScalingListSizeX[SCALING_LIST_SIZE_NUM] = { 1, 2,  4,  8,  16,   32,   64,   128 };
+const uint32_t g_vvcScalingListSizeX[SCALING_LIST_SIZE_NUM] = { 1, 2,  4,  8,  16,   32,   64 };
 
 #if JVET_R0166_SCALING_LISTS_CHROMA_444
 const uint32_t g_scalingListId[SCALING_LIST_SIZE_NUM][SCALING_LIST_NUM] =
@@ -705,7 +518,6 @@ const uint32_t g_scalingListId[SCALING_LIST_SIZE_NUM][SCALING_LIST_NUM] =
   { 14, 15, 16, 17, 18, 19},  // SCALING_LIST_16x16
   { 20, 21, 22, 23, 24, 25},  // SCALING_LIST_32x32
   { 26, 21, 22, 27, 24, 25},  // SCALING_LIST_64x64
-  {  0,  0,  0,  0,  0,  0},  // SCALING_LIST_128x128
 };
 #endif
 
@@ -736,7 +548,6 @@ void initGeoTemplate()
     if (g_angle2mask[angleIdx] == -1)
       continue;
     g_globalGeoWeights[g_angle2mask[angleIdx]] = new int16_t[GEO_WEIGHT_MASK_SIZE * GEO_WEIGHT_MASK_SIZE];
-    g_globalGeoEncSADmask[g_angle2mask[angleIdx]] = new int16_t[GEO_WEIGHT_MASK_SIZE * GEO_WEIGHT_MASK_SIZE];
   
     int distanceX = angleIdx;
     int distanceY = (distanceX + (GEO_NUM_ANGLES >> 2)) % GEO_NUM_ANGLES;
@@ -752,7 +563,6 @@ void initGeoTemplate()
         int16_t weightIdx = sx_i * g_Dis[distanceX] + lookUpY - rho;
         int weightLinearIdx = 32 + weightIdx;
         g_globalGeoWeights[g_angle2mask[angleIdx]][index] = Clip3(0, 8, (weightLinearIdx + 4) >> 3);
-        g_globalGeoEncSADmask[g_angle2mask[angleIdx]][index] = weightIdx > 0 ? 1 : 0;
       }
     }
   }
@@ -788,7 +598,6 @@ void initGeoTemplate()
 }
 int16_t** g_GeoParams;
 int16_t*  g_globalGeoWeights   [GEO_NUM_PRESTORED_MASK];
-int16_t*  g_globalGeoEncSADmask[GEO_NUM_PRESTORED_MASK];
 int16_t   g_weightOffset       [GEO_NUM_PARTITION_MODE][GEO_NUM_CU_SIZE][GEO_NUM_CU_SIZE][2];
 int8_t    g_angle2mask[GEO_NUM_ANGLES] = { 0, -1, 1, 2, 3, 4, -1, -1, 5, -1, -1, 4, 3, 2, 1, -1, 0, -1, 1, 2, 3, 4, -1, -1, 5, -1, -1, 4, 3, 2, 1, -1 };
 int8_t    g_Dis[GEO_NUM_ANGLES] = { 8, 8, 8, 8, 4, 4, 2, 1, 0, -1, -2, -4, -4, -8, -8, -8, -8, -8, -8, -8, -4, -4, -2, -1, 0, 1, 2, 4, 4, 8, 8, 8 };
