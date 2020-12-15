@@ -58,6 +58,7 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #include "vvdec/vvdec.h"
 #include "vvdec/version.h"
 #include "DecoderLib/NALread.h"
+//#include "CommonLib/SEI.h"
 
 namespace vvdec {
   
@@ -171,6 +172,7 @@ int VVDecImpl::uninit()
 
      if( NULL != pic.m_pcPicExtendedAttributes )
      {
+       seimsg::deleteSEIs( pic.m_pcPicExtendedAttributes->m_cSeiMsgLst );
        delete pic.m_pcPicExtendedAttributes;
        pic.m_pcPicExtendedAttributes = NULL;
      }
@@ -295,7 +297,10 @@ int VVDecImpl::decode( AccessUnit& rcAccessUnit, Frame** ppcFrame )
           nalu.m_bits = uiNaluBytes*8;
 
           pcPic = m_cDecLib.decode( nalu );
-          xHandleOutput( pcPic );
+          if( 0 != xHandleOutput( pcPic ))
+          {
+            iRet = VVDEC_ERR_UNSPECIFIED;
+          }
 
           if( iAU != iStartCodePosVec.size() - 1 )
           {
@@ -388,7 +393,11 @@ int VVDecImpl::flush( Frame** ppcFrame )
     while( bContinue )
     {
       pcPic = m_cDecLib.flushPic();
-      xHandleOutput( pcPic );
+      if( 0 != xHandleOutput( pcPic ))
+      {
+        iRet = VVDEC_ERR_UNSPECIFIED;
+      }
+
       if( !pcPic || !m_rcFrameList.empty() )
       {
         bContinue = false;
@@ -498,6 +507,7 @@ int VVDecImpl::objectUnref( Frame* pcFrame )
 
       if( NULL != pic.m_pcPicExtendedAttributes )
       {
+         seimsg::deleteSEIs( pic.m_pcPicExtendedAttributes->m_cSeiMsgLst );
          delete pic.m_pcPicExtendedAttributes;
          pic.m_pcPicExtendedAttributes = NULL;
       }
@@ -674,45 +684,45 @@ const char* VVDecImpl::getNalUnitTypeAsString( NalType t )
 
   switch ( t )
   {
-  case NAL_UNIT_CODED_SLICE_TRAIL:           m_cNalType = "NAL_UNIT_CODED_SLICE_TRAIL"; break; // 0
-  case NAL_UNIT_CODED_SLICE_STSA:            m_cNalType = "NAL_UNIT_CODED_SLICE_STSA"; break; // 1
-  case NAL_UNIT_CODED_SLICE_RADL:            m_cNalType = "NAL_UNIT_CODED_SLICE_RADL"; break; // 2
-  case NAL_UNIT_CODED_SLICE_RASL:            m_cNalType = "NAL_UNIT_CODED_SLICE_RASL"; break; // 3
+  case VVC_NAL_UNIT_CODED_SLICE_TRAIL:           m_cNalType = "NAL_UNIT_CODED_SLICE_TRAIL"; break; // 0
+  case VVC_NAL_UNIT_CODED_SLICE_STSA:            m_cNalType = "NAL_UNIT_CODED_SLICE_STSA"; break; // 1
+  case VVC_NAL_UNIT_CODED_SLICE_RADL:            m_cNalType = "NAL_UNIT_CODED_SLICE_RADL"; break; // 2
+  case VVC_NAL_UNIT_CODED_SLICE_RASL:            m_cNalType = "NAL_UNIT_CODED_SLICE_RASL"; break; // 3
 
-  case NAL_UNIT_RESERVED_VCL_4:              m_cNalType = "NAL_UNIT_RESERVED_VCL_4"; break; // 4
-  case NAL_UNIT_RESERVED_VCL_5:              m_cNalType = "NAL_UNIT_RESERVED_VCL_5"; break; // 5
-  case NAL_UNIT_RESERVED_VCL_6:              m_cNalType = "NAL_UNIT_RESERVED_VCL_6"; break; // 6
+  case VVC_NAL_UNIT_RESERVED_VCL_4:              m_cNalType = "NAL_UNIT_RESERVED_VCL_4"; break; // 4
+  case VVC_NAL_UNIT_RESERVED_VCL_5:              m_cNalType = "NAL_UNIT_RESERVED_VCL_5"; break; // 5
+  case VVC_NAL_UNIT_RESERVED_VCL_6:              m_cNalType = "NAL_UNIT_RESERVED_VCL_6"; break; // 6
 
-  case NAL_UNIT_CODED_SLICE_IDR_W_RADL:      m_cNalType = "NAL_UNIT_CODED_SLICE_IDR_W_RADL"; break; // 7
-  case NAL_UNIT_CODED_SLICE_IDR_N_LP:        m_cNalType = "NAL_UNIT_CODED_SLICE_IDR_N_LP"; break; // 8
-  case NAL_UNIT_CODED_SLICE_CRA:             m_cNalType = "NAL_UNIT_CODED_SLICE_CRA"; break; // 9
-  case NAL_UNIT_CODED_SLICE_GDR:             m_cNalType = "NAL_UNIT_CODED_SLICE_GDR"; break; // 10
+  case VVC_NAL_UNIT_CODED_SLICE_IDR_W_RADL:      m_cNalType = "NAL_UNIT_CODED_SLICE_IDR_W_RADL"; break; // 7
+  case VVC_NAL_UNIT_CODED_SLICE_IDR_N_LP:        m_cNalType = "NAL_UNIT_CODED_SLICE_IDR_N_LP"; break; // 8
+  case VVC_NAL_UNIT_CODED_SLICE_CRA:             m_cNalType = "NAL_UNIT_CODED_SLICE_CRA"; break; // 9
+  case VVC_NAL_UNIT_CODED_SLICE_GDR:             m_cNalType = "NAL_UNIT_CODED_SLICE_GDR"; break; // 10
 
-  case NAL_UNIT_RESERVED_IRAP_VCL_11:        m_cNalType = "NAL_UNIT_RESERVED_IRAP_VCL_11"; break; // 11
-  case NAL_UNIT_RESERVED_IRAP_VCL_12:        m_cNalType = "NAL_UNIT_RESERVED_IRAP_VCL_12"; break; // 12
+  case VVC_NAL_UNIT_RESERVED_IRAP_VCL_11:        m_cNalType = "NAL_UNIT_RESERVED_IRAP_VCL_11"; break; // 11
+  case VVC_NAL_UNIT_RESERVED_IRAP_VCL_12:        m_cNalType = "NAL_UNIT_RESERVED_IRAP_VCL_12"; break; // 12
 
-  case NAL_UNIT_DCI:                         m_cNalType = "NAL_UNIT_DCI"; break; // 13
-  case NAL_UNIT_VPS:                         m_cNalType = "NAL_UNIT_VPS"; break; // 14
-  case NAL_UNIT_SPS:                         m_cNalType = "NAL_UNIT_SPS"; break; // 15
-  case NAL_UNIT_PPS:                         m_cNalType = "NAL_UNIT_PPS"; break; // 16
-  case NAL_UNIT_PREFIX_APS:                  m_cNalType = "NAL_UNIT_PREFIX_APS"; break; // 17
-  case NAL_UNIT_SUFFIX_APS:                  m_cNalType = "NAL_UNIT_SUFFIX_APS"; break; // 18
-  case NAL_UNIT_PH:                          m_cNalType = "NAL_UNIT_PH"; break; // 19
-  case NAL_UNIT_ACCESS_UNIT_DELIMITER:       m_cNalType = "NAL_UNIT_ACCESS_UNIT_DELIMITER"; break; // 20
-  case NAL_UNIT_EOS:                         m_cNalType = "NAL_UNIT_EOS"; break; // 21
-  case NAL_UNIT_EOB:                         m_cNalType = "NAL_UNIT_EOB"; break; // 22
-  case NAL_UNIT_PREFIX_SEI:                  m_cNalType = "NAL_UNIT_PREFIX_SEI"; break; // 23
-  case NAL_UNIT_SUFFIX_SEI:                  m_cNalType = "NAL_UNIT_SUFFIX_SEI"; break; // 24
-  case NAL_UNIT_FD:                          m_cNalType = "NAL_UNIT_FD"; break; // 25
+  case VVC_NAL_UNIT_DCI:                         m_cNalType = "NAL_UNIT_DCI"; break; // 13
+  case VVC_NAL_UNIT_VPS:                         m_cNalType = "NAL_UNIT_VPS"; break; // 14
+  case VVC_NAL_UNIT_SPS:                         m_cNalType = "NAL_UNIT_SPS"; break; // 15
+  case VVC_NAL_UNIT_PPS:                         m_cNalType = "NAL_UNIT_PPS"; break; // 16
+  case VVC_NAL_UNIT_PREFIX_APS:                  m_cNalType = "NAL_UNIT_PREFIX_APS"; break; // 17
+  case VVC_NAL_UNIT_SUFFIX_APS:                  m_cNalType = "NAL_UNIT_SUFFIX_APS"; break; // 18
+  case VVC_NAL_UNIT_PH:                          m_cNalType = "NAL_UNIT_PH"; break; // 19
+  case VVC_NAL_UNIT_ACCESS_UNIT_DELIMITER:       m_cNalType = "NAL_UNIT_ACCESS_UNIT_DELIMITER"; break; // 20
+  case VVC_NAL_UNIT_EOS:                         m_cNalType = "NAL_UNIT_EOS"; break; // 21
+  case VVC_NAL_UNIT_EOB:                         m_cNalType = "NAL_UNIT_EOB"; break; // 22
+  case VVC_NAL_UNIT_PREFIX_SEI:                  m_cNalType = "NAL_UNIT_PREFIX_SEI"; break; // 23
+  case VVC_NAL_UNIT_SUFFIX_SEI:                  m_cNalType = "NAL_UNIT_SUFFIX_SEI"; break; // 24
+  case VVC_NAL_UNIT_FD:                          m_cNalType = "NAL_UNIT_FD"; break; // 25
 
 
-  case NAL_UNIT_RESERVED_NVCL_26:            m_cNalType = "NAL_UNIT_RESERVED_NVCL_26"; break; // 26
-  case NAL_UNIT_RESERVED_NVCL_27:            m_cNalType = "NAL_UNIT_RESERVED_NVCL_27"; break; // 27
+  case VVC_NAL_UNIT_RESERVED_NVCL_26:            m_cNalType = "NAL_UNIT_RESERVED_NVCL_26"; break; // 26
+  case VVC_NAL_UNIT_RESERVED_NVCL_27:            m_cNalType = "NAL_UNIT_RESERVED_NVCL_27"; break; // 27
 
-  case NAL_UNIT_UNSPECIFIED_28:              m_cNalType = "NAL_UNIT_UNSPECIFIED_28"; break; // 28
-  case NAL_UNIT_UNSPECIFIED_29:              m_cNalType = "NAL_UNIT_UNSPECIFIED_29"; break; // 29
-  case NAL_UNIT_UNSPECIFIED_30:              m_cNalType = "NAL_UNIT_UNSPECIFIED_30"; break; // 30
-  case NAL_UNIT_UNSPECIFIED_31:              m_cNalType = "NAL_UNIT_UNSPECIFIED_31"; break; // 31
+  case VVC_NAL_UNIT_UNSPECIFIED_28:              m_cNalType = "NAL_UNIT_UNSPECIFIED_28"; break; // 28
+  case VVC_NAL_UNIT_UNSPECIFIED_29:              m_cNalType = "NAL_UNIT_UNSPECIFIED_29"; break; // 29
+  case VVC_NAL_UNIT_UNSPECIFIED_30:              m_cNalType = "NAL_UNIT_UNSPECIFIED_30"; break; // 30
+  case VVC_NAL_UNIT_UNSPECIFIED_31:              m_cNalType = "NAL_UNIT_UNSPECIFIED_31"; break; // 31
 
   default:                                   m_cNalType = "NAL_UNIT_INVALID"; break;
   }
@@ -785,6 +795,7 @@ int VVDecImpl::copyComp( const unsigned char* pucSrc, unsigned char* pucDest, un
 
 int VVDecImpl::xAddPicture( Picture* pcPic )
 {
+  int ret = 0;
   // copy internal picture to external
   const Window &conf    = pcPic->cs->pps->getConformanceWindow();
 //          const Window  defDisp = (m_respectDefDispWindow && pcPic->cs->sps->getVuiParametersPresentFlag())
@@ -831,7 +842,7 @@ int VVDecImpl::xAddPicture( Picture* pcPic )
   if( m_bCreateNewPicBuf )
   {
     // copy picture into target memory
-    for( uint32_t comp=0; comp < maxComponent; comp++ )
+    for( int comp=0; comp < maxComponent; comp++ )
     {
       const ComponentID compID      = ComponentID(comp);
       const uint32_t    csx         = ::getComponentScaleX(compID, cPicBuf.chromaFormat);
@@ -852,7 +863,7 @@ int VVDecImpl::xAddPicture( Picture* pcPic )
   else
   {
     // use internal lib picture memory
-    for( uint32_t comp=0; comp < maxComponent; comp++ )
+    for( int comp=0; comp < maxComponent; comp++ )
     {
       const ComponentID compID      = ComponentID(comp);
       const uint32_t    csx         = ::getComponentScaleX(compID, cPicBuf.chromaFormat);
@@ -894,6 +905,11 @@ int VVDecImpl::xAddPicture( Picture* pcPic )
     }
   }
 
+  if( 0 != xHandleSEIs ( cFrame, pcPic ) )
+  {
+    ret = -1;
+  }
+
   m_rcFrameList.push_back( cFrame );
 
   if( m_pcFrameNext == m_rcFrameList.end() )
@@ -917,7 +933,7 @@ int VVDecImpl::xAddPicture( Picture* pcPic )
 
   m_uiSeqNumber++;
 
-  return 0;
+  return ret;
 }
 
 
@@ -1076,6 +1092,202 @@ int VVDecImpl::xCreateFrame( Frame& rcFrame, const CPelUnitBuf& rcPicBuf, uint32
   return 0;
 }
 
+int VVDecImpl::xHandleSEIs ( Frame& rcFrame, Picture* pcPic )
+{
+  std::stringstream css;
+  int unhandled=0;
+  for( auto &sei : pcPic->SEIs )
+  {
+    switch( sei->payloadType() )
+    {
+      case SEI::BUFFERING_PERIOD                     :
+        {
+          SEIBufferingPeriod* src = (SEIBufferingPeriod*)sei;
+          vvdec::seiBufferingPeriod* t = new vvdec::seiBufferingPeriod;
+          src->copyTo(*t);
+          rcFrame.m_pcPicExtendedAttributes->m_cSeiMsgLst.push_back(t);
+        }
+        break;
+      case SEI::PICTURE_TIMING                       :
+        {
+          SEIPictureTiming* src = (SEIPictureTiming*)sei;
+          vvdec::seiPictureTiming* t = new vvdec::seiPictureTiming;
+          src->copyTo(*t);
+          rcFrame.m_pcPicExtendedAttributes->m_cSeiMsgLst.push_back(t);
+        }
+        break;
+      case SEI::FILLER_PAYLOAD                       :
+        break;
+      case SEI::USER_DATA_REGISTERED_ITU_T_T35       :
+        {
+          SEIUserDataRegistered* src = (SEIUserDataRegistered*)sei;
+          vvdec::seiUserDataRegistered* t = new vvdec::seiUserDataRegistered;
+          src->copyTo(*t);
+          rcFrame.m_pcPicExtendedAttributes->m_cSeiMsgLst.push_back(t);
+        }
+        break;
+      case SEI::USER_DATA_UNREGISTERED               :
+        {
+          SEIuserDataUnregistered* src = (SEIuserDataUnregistered*)sei;
+          vvdec::seiUserDataUnregistered* t = new vvdec::seiUserDataUnregistered;
+          src->copyTo(*t);
+          rcFrame.m_pcPicExtendedAttributes->m_cSeiMsgLst.push_back(t);
+        }
+        break;
+      case SEI::FILM_GRAIN_CHARACTERISTICS           :
+        {
+          SEIFilmGrainCharacteristics* src = (SEIFilmGrainCharacteristics*)sei;
+          vvdec::seiFilmGrainCharacteristics* t = new vvdec::seiFilmGrainCharacteristics;
+          src->copyTo(*t);
+          rcFrame.m_pcPicExtendedAttributes->m_cSeiMsgLst.push_back(t);
+        }
+        break;
+
+      case SEI::FRAME_PACKING                        :
+        {
+          SEIFramePacking* src = (SEIFramePacking*)sei;
+          vvdec::seiFramePacking* t = new vvdec::seiFramePacking;
+          src->copyTo(*t);
+          rcFrame.m_pcPicExtendedAttributes->m_cSeiMsgLst.push_back(t);
+        }
+        break;
+      case SEI::PARAMETER_SETS_INCLUSION_INDICATION  :
+        {
+          SEIParameterSetsInclusionIndication* src = (SEIParameterSetsInclusionIndication*)sei;
+          vvdec::seiParameterSetsInclusionIndication* t = new vvdec::seiParameterSetsInclusionIndication;
+          src->copyTo(*t);
+          rcFrame.m_pcPicExtendedAttributes->m_cSeiMsgLst.push_back(t);
+        }
+        break;
+      case SEI::DECODING_UNIT_INFO                   :
+        {
+          SEIDecodingUnitInfo* src = (SEIDecodingUnitInfo*)sei;
+          vvdec::seiDecodingUnitInfo* t = new vvdec::seiDecodingUnitInfo;
+          src->copyTo(*t);
+          rcFrame.m_pcPicExtendedAttributes->m_cSeiMsgLst.push_back(t);
+        }
+        break;
+      case SEI::DECODED_PICTURE_HASH                 :
+        {
+          SEIDecodedPictureHash* src = (SEIDecodedPictureHash*)sei;
+          vvdec::seiDecodedPictureHash* t = new vvdec::seiDecodedPictureHash;
+          src->copyTo(*t);
+          rcFrame.m_pcPicExtendedAttributes->m_cSeiMsgLst.push_back(t);
+        }
+        break;
+      case SEI::SCALABLE_NESTING                     :
+        {
+          SEIScalableNesting* src = (SEIScalableNesting*)sei;
+          vvdec::seiScalableNesting* t = new vvdec::seiScalableNesting;
+          src->copyTo(*t);
+          rcFrame.m_pcPicExtendedAttributes->m_cSeiMsgLst.push_back(t);
+        }
+        break;
+      case SEI::MASTERING_DISPLAY_COLOUR_VOLUME      :
+        {
+          SEIMasteringDisplayColourVolume* src = (SEIMasteringDisplayColourVolume*)sei;
+          vvdec::seiMasteringDisplayColourVolume* t = new vvdec::seiMasteringDisplayColourVolume;
+          src->copyTo(*t);
+          rcFrame.m_pcPicExtendedAttributes->m_cSeiMsgLst.push_back(t);
+        }
+        break;
+
+      // TODO: cl
+      case SEI::DEPENDENT_RAP_INDICATION             : break;
+      case SEI::EQUIRECTANGULAR_PROJECTION           : break;
+      case SEI::SPHERE_ROTATION                      : break;
+      case SEI::REGION_WISE_PACKING                  : break;
+      case SEI::OMNI_VIEWPORT                        : break;
+
+
+      case SEI::GENERALIZED_CUBEMAP_PROJECTION       :
+        {
+          SEIGeneralizedCubemapProjection* src = (SEIGeneralizedCubemapProjection*)sei;
+          vvdec::seiGeneralizedCubemapProjection* t = new vvdec::seiGeneralizedCubemapProjection;
+          src->copyTo(*t);
+          rcFrame.m_pcPicExtendedAttributes->m_cSeiMsgLst.push_back(t);
+        }
+        break;
+      case SEI::FRAME_FIELD_INFO                     :
+        {
+          SEIFrameFieldInfo* src = (SEIFrameFieldInfo*)sei;
+          vvdec::seiFrameFieldInfo* t = new vvdec::seiFrameFieldInfo;
+          src->copyTo(*t);
+          rcFrame.m_pcPicExtendedAttributes->m_cSeiMsgLst.push_back(t);
+        }
+        break;
+      case SEI::SUBPICTURE_LEVEL_INFO                :
+        {
+          SEISubpicureLevelInfo* src = (SEISubpicureLevelInfo*)sei;
+          vvdec::seiSubpicureLevelInfo* t = new vvdec::seiSubpicureLevelInfo;
+          src->copyTo(*t);
+          rcFrame.m_pcPicExtendedAttributes->m_cSeiMsgLst.push_back(t);
+        }
+        break;
+      case SEI::SAMPLE_ASPECT_RATIO_INFO             :
+        {
+          SEISampleAspectRatioInfo* src = (SEISampleAspectRatioInfo*)sei;
+          vvdec::seiSampleAspectRatioInfo* t = new vvdec::seiSampleAspectRatioInfo;
+          src->copyTo(*t);
+          rcFrame.m_pcPicExtendedAttributes->m_cSeiMsgLst.push_back(t);
+        }
+        break;
+      case SEI::CONTENT_LIGHT_LEVEL_INFO             :
+        {
+          SEIContentLightLevelInfo* src = (SEIContentLightLevelInfo*)sei;
+          vvdec::seiContentLightLevelInfo* t = new vvdec::seiContentLightLevelInfo;
+          src->copyTo(*t);
+          rcFrame.m_pcPicExtendedAttributes->m_cSeiMsgLst.push_back(t);
+        }
+        break;
+      case SEI::ALTERNATIVE_TRANSFER_CHARACTERISTICS :
+        {
+          SEIAlternativeTransferCharacteristics* src = (SEIAlternativeTransferCharacteristics*)sei;
+          vvdec::seiAlternativeTransferCharacteristics* t = new vvdec::seiAlternativeTransferCharacteristics;
+          src->copyTo(*t);
+          rcFrame.m_pcPicExtendedAttributes->m_cSeiMsgLst.push_back(t);
+        }
+        break;
+      case SEI::AMBIENT_VIEWING_ENVIRONMENT          :
+        {
+          SEIAmbientViewingEnvironment* src = (SEIAmbientViewingEnvironment*)sei;
+          vvdec::seiAmbientViewingEnvironment* t = new vvdec::seiAmbientViewingEnvironment;
+          src->copyTo(*t);
+          rcFrame.m_pcPicExtendedAttributes->m_cSeiMsgLst.push_back(t);
+        }
+        break;
+
+      case SEI::CONTENT_COLOUR_VOLUME                :
+        {
+          SEIContentColourVolume* src = (SEIContentColourVolume*)sei;
+          vvdec::seiContentColourVolume* t = new vvdec::seiContentColourVolume;
+          src->copyTo(*t);
+          rcFrame.m_pcPicExtendedAttributes->m_cSeiMsgLst.push_back(t);
+        }
+        break;
+
+      default:
+        css << sei->getSEIMessageString( sei->payloadType() ) ;
+        if( unhandled )
+        {
+          css << " ";
+        }
+        unhandled++;
+        break;
+    }
+  }
+
+  if( unhandled != 0)
+  {
+    std::stringstream cssErr;
+    cssErr << "found " << unhandled << " unhandled SEI messages: " << css.str();
+    m_cAdditionalErrorString = cssErr.str();
+    return -1;
+  }
+
+  return 0;
+}
+
 int VVDecImpl::xRetrieveNalStartCode( unsigned char *pB, int iZerosInStartcode )
 {
   int found = 1;
@@ -1204,10 +1416,14 @@ int VVDecImpl::xReadNalUnitHeader(InputNALUnit& nalu)
 
 int VVDecImpl::xHandleOutput( Picture* pcPic )
 {
+  int ret = 0;
   if( pcPic )
   {
     // copy internal picture to external
-    xAddPicture( pcPic );
+    if( 0 != xAddPicture( pcPic ))
+    {
+      ret = -1;
+    }
 
     if ( m_bCreateNewPicBuf )
     {
@@ -1215,7 +1431,7 @@ int VVDecImpl::xHandleOutput( Picture* pcPic )
     }
   }
 
-  return 0;
+  return ret;
 }
 
 

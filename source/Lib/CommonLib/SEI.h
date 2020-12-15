@@ -55,6 +55,8 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #include "CommonDef.h"
 #include "libmd5/MD5.h"
 
+#include "vvdec/seimsg.h"
+
 //! \ingroup CommonLib
 //! \{
 class SPS;
@@ -193,6 +195,7 @@ class SEIGeneralizedCubemapProjection : public SEI
 {
 public:
   PayloadType payloadType() const { return GENERALIZED_CUBEMAP_PROJECTION; }
+  void copyTo (vvdec::seiGeneralizedCubemapProjection& target) const;
 
   SEIGeneralizedCubemapProjection()  {}
   virtual ~SEIGeneralizedCubemapProjection() {}
@@ -217,6 +220,8 @@ class SEISampleAspectRatioInfo : public SEI
 {
 public:
   PayloadType payloadType() const { return SAMPLE_ASPECT_RATIO_INFO; }
+  void copyTo (vvdec::seiSampleAspectRatioInfo& target) const;
+
   SEISampleAspectRatioInfo() {}
   virtual ~SEISampleAspectRatioInfo() {}
   bool                  m_sariCancelFlag;
@@ -232,6 +237,7 @@ class SEIuserDataUnregistered : public SEI
 {
 public:
   PayloadType payloadType() const { return USER_DATA_UNREGISTERED; }
+  void copyTo (vvdec::seiUserDataUnregistered& target) const;
 
   SEIuserDataUnregistered()
     : userData(0)
@@ -251,9 +257,11 @@ class SEIDecodedPictureHash : public SEI
 {
 public:
   PayloadType payloadType() const { return DECODED_PICTURE_HASH; }
+  void copyTo (vvdec::seiDecodedPictureHash& target) const;
 
   SEIDecodedPictureHash() {}
   virtual ~SEIDecodedPictureHash() {}
+
 
   HashType    method;
   bool        singleCompFlag;
@@ -274,6 +282,7 @@ class SEIBufferingPeriod : public SEI
 public:
   PayloadType payloadType() const { return BUFFERING_PERIOD; }
   void copyTo (SEIBufferingPeriod& target) const;
+  void copyTo (vvdec::seiBufferingPeriod& target) const;
 
   SEIBufferingPeriod()
   : m_bpNalCpbParamsPresentFlag (false)
@@ -341,6 +350,7 @@ class SEIPictureTiming : public SEI
 public:
   PayloadType payloadType() const { return PICTURE_TIMING; }
   void copyTo (SEIPictureTiming& target) const;
+  void copyTo (vvdec::seiPictureTiming& target) const;
 
   SEIPictureTiming()
   : m_picDpbOutputDelay (0)
@@ -392,6 +402,7 @@ class SEIDecodingUnitInfo : public SEI
 {
 public:
   PayloadType payloadType() const { return DECODING_UNIT_INFO; }
+  void copyTo (vvdec::seiDecodingUnitInfo& target) const;
 
   SEIDecodingUnitInfo()
     : m_decodingUnitIdx(0)
@@ -413,6 +424,7 @@ class SEIFrameFieldInfo : public SEI
 {
 public:
   PayloadType payloadType() const { return FRAME_FIELD_INFO; }
+  void copyTo (vvdec::seiFrameFieldInfo& target) const;
 
   SEIFrameFieldInfo()
     : m_fieldPicFlag(false)
@@ -442,6 +454,7 @@ class SEIFramePacking : public SEI
 {
 public:
   PayloadType payloadType() const { return FRAME_PACKING; }
+  void copyTo (vvdec::seiFramePacking& target) const;
 
   SEIFramePacking() {}
   virtual ~SEIFramePacking() {}
@@ -470,6 +483,8 @@ class SEIParameterSetsInclusionIndication : public SEI
 {
 public:
   PayloadType payloadType() const { return PARAMETER_SETS_INCLUSION_INDICATION; }
+  void copyTo (vvdec::seiParameterSetsInclusionIndication& target) const;
+
   SEIParameterSetsInclusionIndication() {}
   virtual ~SEIParameterSetsInclusionIndication() {}
 
@@ -480,6 +495,8 @@ class SEIMasteringDisplayColourVolume : public SEI
 {
 public:
     PayloadType payloadType() const { return MASTERING_DISPLAY_COLOUR_VOLUME; }
+    void copyTo (vvdec::seiMasteringDisplayColourVolume& target) const;
+
     SEIMasteringDisplayColourVolume() {}
     virtual ~SEIMasteringDisplayColourVolume(){}
 
@@ -501,6 +518,7 @@ class SEIScalableNesting : public SEI
 {
 public:
   PayloadType payloadType() const { return SCALABLE_NESTING; }
+  void copyTo (vvdec::seiScalableNesting& target) const;
 
   SEIScalableNesting()
   : m_snOlsFlag (false)
@@ -545,6 +563,7 @@ class SEIAlternativeTransferCharacteristics : public SEI
 {
 public:
   PayloadType payloadType() const { return ALTERNATIVE_TRANSFER_CHARACTERISTICS; }
+  void copyTo (vvdec::seiAlternativeTransferCharacteristics& target) const;
 
   SEIAlternativeTransferCharacteristics() : m_preferredTransferCharacteristics(18)
   { }
@@ -558,6 +577,7 @@ class SEIUserDataRegistered : public SEI
 {
 public:
   PayloadType payloadType() const { return USER_DATA_REGISTERED_ITU_T_T35; }
+  void copyTo (vvdec::seiUserDataRegistered& target) const;
 
   SEIUserDataRegistered() {}
   virtual ~SEIUserDataRegistered() {}
@@ -570,6 +590,7 @@ class SEIFilmGrainCharacteristics : public SEI
 {
 public:
   PayloadType payloadType() const { return FILM_GRAIN_CHARACTERISTICS; }
+  void copyTo (vvdec::seiFilmGrainCharacteristics& target) const;
 
   SEIFilmGrainCharacteristics() {}
   virtual ~SEIFilmGrainCharacteristics() {}
@@ -608,6 +629,8 @@ class SEIContentLightLevelInfo : public SEI
 {
 public:
   PayloadType payloadType() const { return CONTENT_LIGHT_LEVEL_INFO; }
+  void copyTo (vvdec::seiContentLightLevelInfo& target) const;
+
   SEIContentLightLevelInfo() { }
 
   virtual ~SEIContentLightLevelInfo() { }
@@ -620,6 +643,8 @@ class SEIAmbientViewingEnvironment : public SEI
 {
 public:
   PayloadType payloadType() const { return AMBIENT_VIEWING_ENVIRONMENT; }
+  void copyTo (vvdec::seiAmbientViewingEnvironment& target) const;
+
   SEIAmbientViewingEnvironment() { }
 
   virtual ~SEIAmbientViewingEnvironment() { }
@@ -633,6 +658,8 @@ class SEIContentColourVolume : public SEI
 {
 public:
   PayloadType payloadType() const { return CONTENT_COLOUR_VOLUME; }
+  void copyTo (vvdec::seiContentColourVolume& target) const;
+
   SEIContentColourVolume() {}
   virtual ~SEIContentColourVolume() {}
 
@@ -654,6 +681,8 @@ class SEISubpicureLevelInfo : public SEI
 {
 public:
   PayloadType payloadType() const { return SUBPICTURE_LEVEL_INFO; }
+  void copyTo (vvdec::seiSubpicureLevelInfo& target) const;
+
   SEISubpicureLevelInfo()
   : m_numRefLevels(0)
   , m_explicitFractionPresentFlag (false)

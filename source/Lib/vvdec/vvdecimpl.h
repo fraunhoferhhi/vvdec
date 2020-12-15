@@ -102,6 +102,8 @@ private:
 
    int xAddPicture                  ( Picture* pcPic );
    int xCreateFrame                 ( Frame& rcFrame, const CPelUnitBuf& rcPicBuf, uint32_t uiWidth, uint32_t uiHeight, const BitDepths& rcBitDepths );
+   int xHandleSEIs                  ( Frame& rcFrame, Picture* pcPic );
+
    static int xRetrieveNalStartCode ( unsigned char *pB, int iZerosInStartcode );
    static int xConvertPayloadToRBSP ( std::vector<uint8_t>& nalUnitBuf, InputBitstream *bitstream, bool isVclNalUnit);
    static int xReadNalUnitHeader    ( InputNALUnit& nalu );

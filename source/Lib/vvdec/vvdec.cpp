@@ -235,39 +235,5 @@ bool VVDec::isNalUnitSideData( NalType t )
   return VVDecImpl::isNalUnitSideData(t);
 }
 
-
-const char *SEIMsg::getSEIMsgString(SEIMsg::PayloadType payloadType)
-{
-  switch (payloadType)
-  {
-    case SEIMsg::BUFFERING_PERIOD:                     return "Buffering period";
-    case SEIMsg::PICTURE_TIMING:                       return "Picture timing";
-    case SEIMsg::FILLER_PAYLOAD:                       return "Filler payload";                       // not currently decoded
-    case SEIMsg::USER_DATA_REGISTERED_ITU_T_T35:       return "User data registered";                 // not currently decoded
-    case SEIMsg::USER_DATA_UNREGISTERED:               return "User data unregistered";
-    case SEIMsg::FILM_GRAIN_CHARACTERISTICS:           return "Film grain characteristics";           // not currently decoded
-    case SEIMsg::FRAME_PACKING:                        return "Frame packing arrangement";
-    case SEIMsg::PARAMETER_SETS_INCLUSION_INDICATION:  return "Parameter sets inclusion indication";
-    case SEIMsg::DECODING_UNIT_INFO:                   return "Decoding unit information";
-    case SEIMsg::SCALABLE_NESTING:                     return "Scalable nesting";
-    case SEIMsg::DECODED_PICTURE_HASH:                 return "Decoded picture hash";
-    case SEIMsg::DEPENDENT_RAP_INDICATION:             return "Dependent RAP indication";
-    case SEIMsg::MASTERING_DISPLAY_COLOUR_VOLUME:      return "Mastering display colour volume";
-    case SEIMsg::ALTERNATIVE_TRANSFER_CHARACTERISTICS: return "Alternative transfer characteristics";
-    case SEIMsg::CONTENT_LIGHT_LEVEL_INFO:             return "Content light level information";
-    case SEIMsg::AMBIENT_VIEWING_ENVIRONMENT:          return "Ambient viewing environment";
-    case SEIMsg::CONTENT_COLOUR_VOLUME:                return "Content colour volume";
-    case SEIMsg::EQUIRECTANGULAR_PROJECTION:           return "Equirectangular projection";
-    case SEIMsg::SPHERE_ROTATION:                      return "Sphere rotation";
-    case SEIMsg::REGION_WISE_PACKING:                  return "Region wise packing information";
-    case SEIMsg::OMNI_VIEWPORT:                        return "Omni viewport";
-    case SEIMsg::GENERALIZED_CUBEMAP_PROJECTION:       return "Generalized cubemap projection";
-    case SEIMsg::SAMPLE_ASPECT_RATIO_INFO:             return "Sample aspect ratio information";
-    case SEIMsg::SUBPICTURE_LEVEL_INFO:                return "Subpicture level information";
-    default:                                        return "Unknown";
-  }
-}
-
-
 } // namespace
 
