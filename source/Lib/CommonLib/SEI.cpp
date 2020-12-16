@@ -109,6 +109,72 @@ void deleteSEIs (SEIMessages &seiList)
   seiList.clear();
 }
 
+void SEIEquirectangularProjection::copyTo (vvdec::seiEquirectangularProjection& target) const
+{
+  target.m_erpCancelFlag          = m_erpCancelFlag;
+  target.m_erpPersistenceFlag     = m_erpPersistenceFlag;
+  target.m_erpGuardBandFlag       = m_erpGuardBandFlag;
+  target.m_erpGuardBandType       = m_erpGuardBandType;
+  target.m_erpLeftGuardBandWidth  = m_erpLeftGuardBandWidth ;
+  target.m_erpRightGuardBandWidth = m_erpRightGuardBandWidth;
+}
+
+void SEISphereRotation::copyTo (vvdec::seiSphereRotation& target) const
+{
+  target.m_sphereRotationCancelFlag      = m_sphereRotationCancelFlag;
+  target.m_sphereRotationPersistenceFlag = m_sphereRotationPersistenceFlag;
+  target.m_sphereRotationYaw             = m_sphereRotationYaw;
+  target.m_sphereRotationPitch           = m_sphereRotationPitch;
+  target.m_sphereRotationRoll            = m_sphereRotationRoll;
+}
+
+void SEIOmniViewport::copyTo (vvdec::seiOmniViewport& target) const
+{
+  target.m_omniViewportId              = m_omniViewportId;
+  target.m_omniViewportCancelFlag      = m_omniViewportCancelFlag;
+  target.m_omniViewportPersistenceFlag = m_omniViewportPersistenceFlag;
+  target.m_omniViewportCnt             = m_omniViewportCntMinus1+1;
+
+  target.m_omniViewportRegions.resize(m_omniViewportRegions.size());
+  for (size_t i = 0; i < m_omniViewportRegions.size(); i++)
+  {
+    target.m_omniViewportRegions[i].azimuthCentre   = m_omniViewportRegions[i].azimuthCentre;
+    target.m_omniViewportRegions[i].elevationCentre = m_omniViewportRegions[i].elevationCentre;
+    target.m_omniViewportRegions[i].tiltCentre      = m_omniViewportRegions[i].tiltCentre;
+    target.m_omniViewportRegions[i].horRange        = m_omniViewportRegions[i].horRange;
+    target.m_omniViewportRegions[i].verRange        = m_omniViewportRegions[i].verRange;
+  }
+}
+
+void SEIRegionWisePacking::copyTo (vvdec::seiRegionWisePacking& target) const
+{
+  target.m_rwpCancelFlag                  = m_rwpCancelFlag;
+  target.m_rwpPersistenceFlag             = m_rwpPersistenceFlag;
+  target.m_constituentPictureMatchingFlag = m_constituentPictureMatchingFlag;
+  target.m_numPackedRegions               = m_numPackedRegions;
+  target.m_projPictureWidth               = m_projPictureWidth;
+  target.m_projPictureHeight              = m_projPictureHeight;
+  target.m_packedPictureWidth             = m_packedPictureWidth;
+  target.m_packedPictureHeight            = m_packedPictureHeight;
+
+  std::copy(m_rwpTransformType.begin(), m_rwpTransformType.end(), std::back_inserter(target.m_rwpTransformType));
+  std::copy(m_rwpGuardBandFlag.begin(), m_rwpGuardBandFlag.end(), std::back_inserter(target.m_rwpGuardBandFlag));
+  std::copy(m_projRegionWidth.begin(), m_projRegionWidth.end(), std::back_inserter(target.m_projRegionWidth));
+  std::copy(m_projRegionHeight.begin(), m_projRegionHeight.end(), std::back_inserter(target.m_projRegionHeight));
+  std::copy(m_rwpProjRegionTop.begin(), m_rwpProjRegionTop.end(), std::back_inserter(target.m_rwpProjRegionTop));
+  std::copy(m_projRegionLeft.begin(), m_projRegionLeft.end(), std::back_inserter(target.m_projRegionLeft));
+  std::copy(m_packedRegionWidth.begin(), m_packedRegionWidth.end(), std::back_inserter(target.m_packedRegionWidth));
+  std::copy(m_packedRegionHeight.begin(), m_packedRegionHeight.end(), std::back_inserter(target.m_packedRegionHeight));
+  std::copy(m_packedRegionTop.begin(), m_packedRegionTop.end(), std::back_inserter(target.m_packedRegionTop));
+  std::copy(m_packedRegionLeft.begin(), m_packedRegionLeft.end(), std::back_inserter(target.m_packedRegionLeft));
+  std::copy(m_rwpLeftGuardBandWidth.begin(), m_rwpLeftGuardBandWidth.end(), std::back_inserter(target.m_rwpLeftGuardBandWidth));
+  std::copy(m_rwpRightGuardBandWidth.begin(), m_rwpRightGuardBandWidth.end(), std::back_inserter(target.m_rwpRightGuardBandWidth));
+  std::copy(m_rwpTopGuardBandHeight.begin(), m_rwpTopGuardBandHeight.end(), std::back_inserter(target.m_rwpTopGuardBandHeight));
+  std::copy(m_rwpBottomGuardBandHeight.begin(), m_rwpBottomGuardBandHeight.end(), std::back_inserter(target.m_rwpBottomGuardBandHeight));
+  std::copy(m_rwpGuardBandNotUsedForPredFlag.begin(), m_rwpGuardBandNotUsedForPredFlag.end(), std::back_inserter(target.m_rwpGuardBandNotUsedForPredFlag));
+  std::copy(m_rwpGuardBandType.begin(), m_rwpGuardBandType.end(), std::back_inserter(target.m_rwpGuardBandType));
+}
+
 void SEIGeneralizedCubemapProjection::copyTo (vvdec::seiGeneralizedCubemapProjection& target) const
 {
   target.m_gcmpCancelFlag      = m_gcmpCancelFlag;
@@ -425,7 +491,14 @@ void SEIScalableNesting::copyTo (vvdec::seiScalableNesting& target) const
           target.m_nestedSEIs.push_back( t );
         }
         break;
-      case SEI::SCALABLE_NESTING                     : break;
+      case SEI::SCALABLE_NESTING                     :
+        {
+          SEIScalableNesting* src = (SEIScalableNesting*)sei;
+          vvdec::seiScalableNesting* t = new vvdec::seiScalableNesting;
+          src->copyTo(*t);
+          target.m_nestedSEIs.push_back( t );
+        }
+        break;
       case SEI::MASTERING_DISPLAY_COLOUR_VOLUME      :
         {
           SEIMasteringDisplayColourVolume* src = (SEIMasteringDisplayColourVolume*)sei;
@@ -436,11 +509,46 @@ void SEIScalableNesting::copyTo (vvdec::seiScalableNesting& target) const
         break;
 
       case SEI::DEPENDENT_RAP_INDICATION             : break;
-      case SEI::EQUIRECTANGULAR_PROJECTION           : break;
-      case SEI::SPHERE_ROTATION                      : break;
-      case SEI::REGION_WISE_PACKING                  : break;
-      case SEI::OMNI_VIEWPORT                        : break;
-      case SEI::GENERALIZED_CUBEMAP_PROJECTION       : break;
+      case SEI::EQUIRECTANGULAR_PROJECTION           :
+        {
+          SEIEquirectangularProjection* src = (SEIEquirectangularProjection*)sei;
+          vvdec::seiEquirectangularProjection* t = new vvdec::seiEquirectangularProjection;
+          src->copyTo(*t);
+          target.m_nestedSEIs.push_back( t );
+        }
+        break;
+      case SEI::SPHERE_ROTATION                      :
+        {
+          SEISphereRotation* src = (SEISphereRotation*)sei;
+          vvdec::seiSphereRotation* t = new vvdec::seiSphereRotation;
+          src->copyTo(*t);
+          target.m_nestedSEIs.push_back( t );
+        }
+        break;
+      case SEI::REGION_WISE_PACKING                  :
+        {
+          SEIRegionWisePacking* src = (SEIRegionWisePacking*)sei;
+          vvdec::seiRegionWisePacking* t = new vvdec::seiRegionWisePacking;
+          src->copyTo(*t);
+          target.m_nestedSEIs.push_back( t );
+        }
+        break;
+      case SEI::OMNI_VIEWPORT                        :
+        {
+          SEIOmniViewport* src = (SEIOmniViewport*)sei;
+          vvdec::seiOmniViewport* t = new vvdec::seiOmniViewport;
+          src->copyTo(*t);
+          target.m_nestedSEIs.push_back( t );
+        }
+        break;
+      case SEI::GENERALIZED_CUBEMAP_PROJECTION       :
+        {
+          SEIGeneralizedCubemapProjection* src = (SEIGeneralizedCubemapProjection*)sei;
+          vvdec::seiGeneralizedCubemapProjection* t = new vvdec::seiGeneralizedCubemapProjection;
+          src->copyTo(*t);
+          target.m_nestedSEIs.push_back( t );
+        }
+        break;
       case SEI::FRAME_FIELD_INFO                     :
         {
           SEIFrameFieldInfo* src = (SEIFrameFieldInfo*)sei;
@@ -457,7 +565,14 @@ void SEIScalableNesting::copyTo (vvdec::seiScalableNesting& target) const
           target.m_nestedSEIs.push_back( t );
         }
         break;
-      case SEI::SAMPLE_ASPECT_RATIO_INFO             : break;
+      case SEI::SAMPLE_ASPECT_RATIO_INFO             :
+        {
+          SEISampleAspectRatioInfo* src = (SEISampleAspectRatioInfo*)sei;
+          vvdec::seiSampleAspectRatioInfo* t = new vvdec::seiSampleAspectRatioInfo;
+          src->copyTo(*t);
+          target.m_nestedSEIs.push_back( t );
+        }
+        break;
       case SEI::CONTENT_LIGHT_LEVEL_INFO             :
         {
           SEIContentLightLevelInfo* src = (SEIContentLightLevelInfo*)sei;

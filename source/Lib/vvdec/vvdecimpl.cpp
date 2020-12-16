@@ -1194,12 +1194,38 @@ int VVDecImpl::xHandleSEIs ( Frame& rcFrame, Picture* pcPic )
 
       // TODO: cl
       case SEI::DEPENDENT_RAP_INDICATION             : break;
-      case SEI::EQUIRECTANGULAR_PROJECTION           : break;
-      case SEI::SPHERE_ROTATION                      : break;
-      case SEI::REGION_WISE_PACKING                  : break;
-      case SEI::OMNI_VIEWPORT                        : break;
-
-
+      case SEI::EQUIRECTANGULAR_PROJECTION           :
+        {
+          SEIEquirectangularProjection* src = (SEIEquirectangularProjection*)sei;
+          vvdec::seiEquirectangularProjection* t = new vvdec::seiEquirectangularProjection;
+          src->copyTo(*t);
+          rcFrame.m_pcPicExtendedAttributes->m_cSeiMsgLst.push_back(t);
+        }
+        break;
+      case SEI::SPHERE_ROTATION                      :
+        {
+          SEISphereRotation* src = (SEISphereRotation*)sei;
+          vvdec::seiSphereRotation* t = new vvdec::seiSphereRotation;
+          src->copyTo(*t);
+          rcFrame.m_pcPicExtendedAttributes->m_cSeiMsgLst.push_back(t);
+        }
+        break;
+      case SEI::REGION_WISE_PACKING                  :
+        {
+          SEIRegionWisePacking* src = (SEIRegionWisePacking*)sei;
+          vvdec::seiRegionWisePacking* t = new vvdec::seiRegionWisePacking;
+          src->copyTo(*t);
+          rcFrame.m_pcPicExtendedAttributes->m_cSeiMsgLst.push_back(t);
+        }
+        break;
+      case SEI::OMNI_VIEWPORT                        :
+        {
+          SEIOmniViewport* src = (SEIOmniViewport*)sei;
+          vvdec::seiOmniViewport* t = new vvdec::seiOmniViewport;
+          src->copyTo(*t);
+          rcFrame.m_pcPicExtendedAttributes->m_cSeiMsgLst.push_back(t);
+        }
+        break;
       case SEI::GENERALIZED_CUBEMAP_PROJECTION       :
         {
           SEIGeneralizedCubemapProjection* src = (SEIGeneralizedCubemapProjection*)sei;

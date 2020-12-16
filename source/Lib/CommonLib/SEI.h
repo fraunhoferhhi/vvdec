@@ -108,6 +108,7 @@ class SEIEquirectangularProjection : public SEI
 {
 public:
   PayloadType payloadType() const { return EQUIRECTANGULAR_PROJECTION; }
+  void copyTo (vvdec::seiEquirectangularProjection& target) const;
 
   SEIEquirectangularProjection()  {}
   virtual ~SEIEquirectangularProjection() {}
@@ -124,6 +125,7 @@ class SEISphereRotation : public SEI
 {
 public:
   PayloadType payloadType() const { return SPHERE_ROTATION; }
+  void copyTo (vvdec::seiSphereRotation& target) const;
 
   SEISphereRotation()  {}
   virtual ~SEISphereRotation() {}
@@ -139,6 +141,7 @@ class SEIOmniViewport : public SEI
 {
 public:
   PayloadType payloadType() const { return OMNI_VIEWPORT; }
+  void copyTo (vvdec::seiOmniViewport& target) const;
 
   SEIOmniViewport() {}
   virtual ~SEIOmniViewport() {}
@@ -163,6 +166,8 @@ class SEIRegionWisePacking : public SEI
 {
 public:
   PayloadType payloadType() const { return REGION_WISE_PACKING; }
+  void copyTo (vvdec::seiRegionWisePacking& target) const;
+
   SEIRegionWisePacking() {}
   virtual ~SEIRegionWisePacking() {}
   bool                  m_rwpCancelFlag;

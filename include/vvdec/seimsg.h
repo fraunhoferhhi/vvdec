@@ -159,7 +159,7 @@ public:
   uint32_t m_omniViewportId              = 0;
   bool     m_omniViewportCancelFlag      = false;
   bool     m_omniViewportPersistenceFlag = false;
-  uint8_t  m_omniViewportCntMinus1       = 0;
+  uint8_t  m_omniViewportCnt             = 0;
   std::vector<OmniViewport> m_omniViewportRegions;
 };
 
