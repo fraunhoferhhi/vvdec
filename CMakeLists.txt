@@ -43,6 +43,9 @@ set( VVDEC_ENABLE_LOCAL_BITSTREAM_DOWNLOAD OFF CACHE BOOL "Enable or disable loc
 # enable install target
 set( VVDEC_ENABLE_INSTALL ON CACHE BOOL "Enable or disable install target" )
 
+#enable Tracing
+set( VVDEC_ENABLE_TRACING OFF CACHE BOOL "Enable or disable tracing" )
+
 # enable postfix
 set( VVDEC_ENABLE_BUILD_TYPE_POSTFIX OFF CACHE BOOL "Enable or disable build type postfix for apps and libs" )
 
@@ -206,13 +209,13 @@ endif()
 #    set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -march=${OPT_TARGET_ARCH} -mtune=${OPT_TARGET_ARCH}" )
 #endif()
 
-#if( SET_ENABLE_TRACING )
-#  if( ENABLE_TRACING )
-#    add_compile_definitions( ENABLE_TRACING=1 )
-#  else()
-#    add_compile_definitions( ENABLE_TRACING=0 )
-#  endif()
-#endif()
+if( VVDEC_ENABLE_TRACING )
+  if( ENABLE_TRACING )
+    add_compile_definitions( ENABLE_TRACING=1 )
+  else()
+    add_compile_definitions( ENABLE_TRACING=0 )
+  endif()
+endif()
 
 # handle rpath correctly
 if( VVDEC_ENABLE_INSTALL )
