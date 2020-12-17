@@ -169,7 +169,7 @@ void DecCu::TaskDeriveDMVRMotionInfo( CodingStructure& cs, const UnitArea& ctuAr
       const int dy = std::min<int>( pu.lumaSize().height, DMVR_SUBCU_HEIGHT );
       const int dx = std::min<int>( pu.lumaSize().width,  DMVR_SUBCU_WIDTH );
       
-      static constexpr unsigned scale = 4 * std::max<int>(1, 4 * AMVP_DECIMATION_FACTOR / 4);
+      static constexpr unsigned scale = 4 * AMVP_DECIMATION_FACTOR;
       static constexpr unsigned mask  = scale - 1;
 
       const Position puPos = pu.lumaPos();
