@@ -48,9 +48,9 @@ THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "vvdec/vvdecDecl.h"
 
-#include <string>
 #include <list>
 #include <vector>
+#include <cstdint>
 #include <cstring>
 
 namespace vvdec {
