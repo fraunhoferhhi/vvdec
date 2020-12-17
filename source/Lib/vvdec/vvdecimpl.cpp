@@ -1192,8 +1192,9 @@ int VVDecImpl::xHandleSEIs ( Frame& rcFrame, Picture* pcPic )
         }
         break;
 
-      // TODO: cl
-      case SEI::DEPENDENT_RAP_INDICATION             : break;
+      case SEI::DEPENDENT_RAP_INDICATION             : /* not implemented yet in lib */
+        break;
+
       case SEI::EQUIRECTANGULAR_PROJECTION           :
         {
           SEIEquirectangularProjection* src = (SEIEquirectangularProjection*)sei;
