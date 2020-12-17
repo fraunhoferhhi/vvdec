@@ -56,9 +56,6 @@ THE POSSIBILITY OF SUCH DAMAGE.
 namespace vvdec {
 
 
-class seimsg;
-typedef std::list<seimsg*> seimsgLst;
-
 class VVDEC_DECL seimsg
 {
 public:
@@ -97,18 +94,18 @@ public:
   static const char *getSEIMsgString(seimsg::PayloadType payloadType);
 
   /// output a selection of SEI messages by payload type. Ownership stays in original message list.
-  static seimsgLst getSeisByType(const seimsgLst &seiList, seimsg::PayloadType seiType);
+  static std::list<seimsg*> getSeisByType(const std::list<seimsg*> &seiList, seimsg::PayloadType seiType);
 
   /// remove a selection of SEI messages by payload type from the original list and return them in a new list.
-  static seimsgLst extractSeisByType(seimsgLst &seiList, seimsg::PayloadType seiType);
+  static std::list<seimsg*> extractSeisByType(std::list<seimsg*> &seiList, seimsg::PayloadType seiType);
 
   /// delete list of SEI messages (freeing the referenced objects)
-  static void deleteSEIs (seimsgLst &seiList);
+  static void deleteSEIs (std::list<seimsg*> &seiList);
 
   virtual PayloadType payloadType() const = 0;
 };
 
-class seiEquirectangularProjection : public seimsg
+class VVDEC_DECL seiEquirectangularProjection : public seimsg
 {
 public:
   PayloadType payloadType() const { return EQUIRECTANGULAR_PROJECTION; }
@@ -124,7 +121,7 @@ public:
   uint8_t m_erpRightGuardBandWidth = 0;
 };
 
-class seiSphereRotation : public seimsg
+class VVDEC_DECL seiSphereRotation : public seimsg
 {
 public:
   PayloadType payloadType() const { return SPHERE_ROTATION; }
@@ -139,7 +136,7 @@ public:
   int   m_sphereRotationRoll            = 0;
 };
 
-class seiOmniViewport : public seimsg
+class VVDEC_DECL seiOmniViewport : public seimsg
 {
 public:
   PayloadType payloadType() const { return OMNI_VIEWPORT; }
@@ -163,7 +160,7 @@ public:
   std::vector<OmniViewport> m_omniViewportRegions;
 };
 
-class seiRegionWisePacking : public seimsg
+class VVDEC_DECL seiRegionWisePacking : public seimsg
 {
 public:
   PayloadType payloadType() const { return REGION_WISE_PACKING; }
@@ -195,7 +192,7 @@ public:
   std::vector<uint8_t>  m_rwpGuardBandType;
 };
 
-class seiGeneralizedCubemapProjection : public seimsg
+class VVDEC_DECL seiGeneralizedCubemapProjection : public seimsg
 {
 public:
   PayloadType payloadType() const { return GENERALIZED_CUBEMAP_PROJECTION; }
@@ -219,7 +216,7 @@ public:
   uint8_t              m_gcmpGuardBandSamples              = 0;
 };
 
-class seiSampleAspectRatioInfo : public seimsg
+class VVDEC_DECL seiSampleAspectRatioInfo : public seimsg
 {
 public:
   PayloadType payloadType() const { return SAMPLE_ASPECT_RATIO_INFO; }
@@ -234,7 +231,7 @@ public:
 
 static const uint32_t ISO_IEC_11578_LEN=16;
 
-class seiUserDataUnregistered : public seimsg
+class VVDEC_DECL seiUserDataUnregistered : public seimsg
 {
 public:
   PayloadType payloadType() const { return USER_DATA_UNREGISTERED; }
@@ -252,7 +249,7 @@ public:
   uint8_t *userData;
 };
 
-class seiDecodedPictureHash : public seimsg
+class VVDEC_DECL seiDecodedPictureHash : public seimsg
 {
 public:
 
@@ -302,7 +299,7 @@ public:
   PictureHash m_pictureHash;
 };
 
-class seiDependentRAPIndication : public seimsg
+class VVDEC_DECL seiDependentRAPIndication : public seimsg
 {
 public:
   PayloadType payloadType() const { return DEPENDENT_RAP_INDICATION; }
@@ -311,7 +308,7 @@ public:
   virtual ~seiDependentRAPIndication() { }
 };
 
-class seiBufferingPeriod : public seimsg
+class VVDEC_DECL seiBufferingPeriod : public seimsg
 {
 public:
   PayloadType payloadType() const { return BUFFERING_PERIOD; }
@@ -359,7 +356,7 @@ public:
   bool     m_useAltCpbParamsFlag                       = false;
 };
 
-class seiPictureTiming : public seimsg
+class VVDEC_DECL seiPictureTiming : public seimsg
 {
 public:
   PayloadType payloadType() const { return PICTURE_TIMING; }
@@ -400,7 +397,7 @@ public:
   int                                m_ptDisplayElementalPeriodsMinus1 = 0;
 };
 
-class seiDecodingUnitInfo : public seimsg
+class VVDEC_DECL seiDecodingUnitInfo : public seimsg
 {
 public:
   PayloadType payloadType() const { return DECODING_UNIT_INFO; }
@@ -418,7 +415,7 @@ public:
   int  m_picSptDpbOutputDuDelay = 0;
 };
 
-class seiFrameFieldInfo : public seimsg
+class VVDEC_DECL seiFrameFieldInfo : public seimsg
 {
 public:
   PayloadType payloadType() const { return FRAME_FIELD_INFO; }
@@ -438,7 +435,7 @@ public:
   bool m_duplicateFlag                 = false;
 };
 
-class seiFramePacking : public seimsg
+class VVDEC_DECL seiFramePacking : public seimsg
 {
 public:
   PayloadType payloadType() const { return FRAME_PACKING; }
@@ -466,7 +463,7 @@ public:
   bool m_upsampledAspectRatio        = false;
 };
 
-class seiParameterSetsInclusionIndication : public seimsg
+class VVDEC_DECL seiParameterSetsInclusionIndication : public seimsg
 {
 public:
   PayloadType payloadType() const { return PARAMETER_SETS_INCLUSION_INDICATION; }
@@ -476,7 +473,7 @@ public:
   int m_selfContainedClvsFlag;
 };
 
-class seiMasteringDisplayColourVolume : public seimsg
+class VVDEC_DECL seiMasteringDisplayColourVolume : public seimsg
 {
 public:
     PayloadType payloadType() const { return MASTERING_DISPLAY_COLOUR_VOLUME; }
@@ -494,7 +491,7 @@ public:
     uint16_t whitePoint[2];
 };
 
-class seiScalableNesting : public seimsg
+class VVDEC_DECL seiScalableNesting : public seimsg
 {
 public:
   PayloadType payloadType() const { return SCALABLE_NESTING; }
@@ -524,11 +521,11 @@ public:
   std::vector<uint16_t> m_snSubpicId;
   uint32_t  m_snNumSEIs         = 0;
 
-  seimsgLst m_nestedSEIs;
+  std::list<seimsg*> m_nestedSEIs;
 };
 
 
-class seiAlternativeTransferCharacteristics : public seimsg
+class VVDEC_DECL seiAlternativeTransferCharacteristics : public seimsg
 {
 public:
   PayloadType payloadType() const { return ALTERNATIVE_TRANSFER_CHARACTERISTICS; }
@@ -541,7 +538,7 @@ public:
   uint32_t m_preferredTransferCharacteristics = 0;
 };
 
-class seiUserDataRegistered : public seimsg
+class VVDEC_DECL seiUserDataRegistered : public seimsg
 {
 public:
   PayloadType payloadType() const { return USER_DATA_REGISTERED_ITU_T_T35; }
@@ -553,7 +550,7 @@ public:
   std::vector<uint8_t> m_userData;
 };
 
-class seiFilmGrainCharacteristics : public seimsg
+class VVDEC_DECL seiFilmGrainCharacteristics : public seimsg
 {
 public:
   PayloadType payloadType() const { return FILM_GRAIN_CHARACTERISTICS; }
@@ -591,7 +588,7 @@ public:
   bool      m_filmGrainCharacteristicsPersistenceFlag = false;
 };
 
-class seiContentLightLevelInfo : public seimsg
+class VVDEC_DECL seiContentLightLevelInfo : public seimsg
 {
 public:
   PayloadType payloadType() const { return CONTENT_LIGHT_LEVEL_INFO; }
@@ -603,7 +600,7 @@ public:
   uint32_t m_maxPicAverageLightLevel = 0;
 };
 
-class seiAmbientViewingEnvironment : public seimsg
+class VVDEC_DECL seiAmbientViewingEnvironment : public seimsg
 {
 public:
   PayloadType payloadType() const { return AMBIENT_VIEWING_ENVIRONMENT; }
@@ -616,7 +613,7 @@ public:
   uint16_t m_ambientLightY      = 0;
 };
 
-class seiContentColourVolume : public seimsg
+class VVDEC_DECL seiContentColourVolume : public seimsg
 {
 public:
   PayloadType payloadType() const { return CONTENT_COLOUR_VOLUME; }
@@ -641,7 +638,7 @@ public:
 };
 
 
-class seiSubpicureLevelInfo : public seimsg
+class VVDEC_DECL seiSubpicureLevelInfo : public seimsg
 {
 public:
   enum VvcLevel

@@ -79,11 +79,11 @@ const char *seimsg::getSEIMsgString(seimsg::PayloadType payloadType)
   }
 }
 
-seimsgLst seimsg::getSeisByType(const seimsgLst &seiList, seimsg::PayloadType seiType)
+std::list<seimsg*> seimsg::getSeisByType(const std::list<seimsg*> &seiList, seimsg::PayloadType seiType)
 {
-  seimsgLst result;
+  std::list<seimsg*> result;
 
-  for (seimsgLst::const_iterator it=seiList.begin(); it!=seiList.end(); it++)
+  for (std::list<seimsg*>::const_iterator it=seiList.begin(); it!=seiList.end(); it++)
   {
     if ((*it)->payloadType() == seiType)
     {
@@ -93,10 +93,10 @@ seimsgLst seimsg::getSeisByType(const seimsgLst &seiList, seimsg::PayloadType se
   return result;
 }
 
-seimsgLst seimsg::extractSeisByType(seimsgLst &seiList, seimsg::PayloadType seiType)
+std::list<seimsg*> seimsg::extractSeisByType(std::list<seimsg*> &seiList, seimsg::PayloadType seiType)
 {
-  seimsgLst result;
-  seimsgLst::iterator it=seiList.begin();
+  std::list<seimsg*> result;
+  std::list<seimsg*>::iterator it=seiList.begin();
   while ( it!=seiList.end() )
   {
     if ((*it)->payloadType() == seiType)
@@ -113,9 +113,9 @@ seimsgLst seimsg::extractSeisByType(seimsgLst &seiList, seimsg::PayloadType seiT
 }
 
 
-void seimsg::deleteSEIs (seimsgLst &seiList)
+void seimsg::deleteSEIs (std::list<seimsg*> &seiList)
 {
-  for (seimsgLst::iterator it=seiList.begin(); it!=seiList.end(); it++)
+  for (std::list<seimsg*>::iterator it=seiList.begin(); it!=seiList.end(); it++)
   {
     delete (*it);
   }

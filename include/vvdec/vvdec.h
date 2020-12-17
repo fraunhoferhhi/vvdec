@@ -292,7 +292,7 @@ typedef struct VVDEC_DECL PicExtendedAttributes
   int            m_iMatrixCoefficients                 = 0;
   //boost::optional< dpl::ImagePacket::HdrMasteringDisplayColorVolume > m_cHdrMasteringDisplayColorVolume;
 
-  seimsgLst      m_cSeiMsgLst;
+  std::list<seimsg*> m_cSeiMsgLst;
 
 } PicExtendedAttributes_t;
 
