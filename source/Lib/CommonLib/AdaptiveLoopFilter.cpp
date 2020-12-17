@@ -1018,8 +1018,7 @@ void AdaptiveLoopFilter::deriveClassificationBlk( AlfClassifier *classifier, con
         d0 = sumD0;
         dirTempD = 2;
       }
-
-      if( d1 * hv0 > hv1 * d0 )
+      if( (uint32_t)d1 * (uint32_t)hv0 > (uint32_t)hv1 * (uint32_t)d0 )
       {
         hvd1 = d1;
         hvd0 = d0;
