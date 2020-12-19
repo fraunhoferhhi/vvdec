@@ -474,7 +474,7 @@ DecLibParser::SliceHeadResult DecLibParser::xDecodeSliceHead( InputNALUnit& nalu
   m_apcSlicePilot->setAssociatedIRAPType( m_associatedIRAPType );
 
   //For inference of NoOutputOfPriorPicsFlag
-  if( m_apcSlicePilot->getRapPicFlag() || m_apcSlicePilot->getNalUnitType() == NAL_UNIT_CODED_SLICE_GDR )
+  if( /*m_apcSlicePilot->getRapPicFlag() ||*/ m_apcSlicePilot->getNalUnitType() == NAL_UNIT_CODED_SLICE_GDR )
   {
     if( !pps->getMixedNaluTypesInPicFlag() )
     {
