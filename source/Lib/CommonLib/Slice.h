@@ -112,6 +112,7 @@ private:
 public:
   ReferencePictureList();
   void    setRefPicIdentifier( int idx, int identifier, bool isLongterm, bool isInterLayerRefPic, int interLayerIdx );
+  void    setRefPicIdentifier( int idx, int identifier ) { m_refPicIdentifier[idx] = identifier; }
   int     getRefPicIdentifier(int idx) const;
   bool    isRefPicLongterm(int idx) const;
 

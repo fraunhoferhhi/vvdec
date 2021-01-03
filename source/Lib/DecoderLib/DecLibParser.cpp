@@ -586,6 +586,35 @@ DecLibParser::SliceHeadResult DecLibParser::xDecodeSliceHead( InputNALUnit& nalu
 
   m_prevLayerID = nalu.m_nuhLayerId;
 
+  // Copy LongTerm Identifier flag to RPL item if it is uninitialized
+  if( m_apcSlicePilot->getRPL0()->getNumberOfLongtermPictures() > 0 )
+  {
+    auto rpl0       = const_cast<ReferencePictureList*>( m_apcSlicePilot->getRPL0() );
+    auto rpl0_local = m_apcSlicePilot->getLocalRPL0();
+
+    for( int ii = 0; ii < m_apcSlicePilot->getNumRefIdx( REF_PIC_LIST_0 ); ii++ )
+    {
+      if( rpl0->isRefPicLongterm( ii ) && !rpl0->getRefPicIdentifier( ii ) )
+      {
+        rpl0->setRefPicIdentifier( ii, rpl0_local->getRefPicIdentifier( ii ) );
+      }
+    }
+  }
+
+  if( m_apcSlicePilot->getRPL1()->getNumberOfLongtermPictures() > 0 )
+  {
+    auto rpl1       = const_cast<ReferencePictureList*>( m_apcSlicePilot->getRPL1() );
+    auto rpl1_local = m_apcSlicePilot->getLocalRPL1();
+
+    for( int ii = 0; ii < m_apcSlicePilot->getNumRefIdx( REF_PIC_LIST_1 ); ii++ )
+    {
+      if( rpl1->isRefPicLongterm( ii ) && !rpl1->getRefPicIdentifier( ii ) )
+      {
+        rpl1->setRefPicIdentifier( ii, rpl1_local->getRefPicIdentifier( ii ) );
+      }
+    }
+  }
+
   //detect lost reference picture and insert copy of earlier frame.
   {
     int lostPoc = MAX_INT;
