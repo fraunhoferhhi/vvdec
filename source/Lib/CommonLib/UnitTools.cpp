@@ -1439,8 +1439,8 @@ bool PU::getColocatedMVP(const PredictionUnit &pu, const RefPicList &eRefPicList
   }
 
   // don't perform MV compression when generally disabled or subPuMvp is used
-  const unsigned scale = 4 * std::max<int>(1, 4 * AMVP_DECIMATION_FACTOR / 4);
-  const unsigned mask  = ~( scale - 1 );
+  static constexpr unsigned scale = 4 * AMVP_DECIMATION_FACTOR;
+  static constexpr unsigned mask  = ~( scale - 1 );
 
   const Position pos = Position{ PosType( _pos.x & mask ), PosType( _pos.y & mask ) };
 
@@ -2980,8 +2980,8 @@ void clipColPos(int& posX, int& posY, const PredictionUnit& pu)
 bool PU::getInterMergeSubPuMvpCand(const PredictionUnit &pu, MergeCtx& mrgCtx, bool& LICFlag, const int count )
 {
   const Slice   &slice = *pu.slice;
-  const unsigned scale = 4 * std::max<int>(1, 4 * AMVP_DECIMATION_FACTOR / 4);
-  const unsigned mask  = ~(scale - 1);
+  static constexpr unsigned scale = 4 * AMVP_DECIMATION_FACTOR;
+  static constexpr unsigned mask  = ~(scale - 1);
 
   const Picture *pColPic = slice.getRefPic(RefPicList(slice.isInterB() ? 1 - slice.getColFromL0Flag() : 0), slice.getColRefIdx());
   Mv cTMv;
