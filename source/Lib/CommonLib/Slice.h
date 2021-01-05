@@ -111,6 +111,8 @@ private:
   int   m_numberOfInterLayerPictures = 0;
 public:
   ReferencePictureList();
+  void clear();
+
   void    setRefPicIdentifier( int idx, int identifier, bool isLongterm, bool isInterLayerRefPic, int interLayerIdx );
   int     getRefPicIdentifier(int idx) const;
   bool    isRefPicLongterm(int idx) const;
@@ -2583,10 +2585,8 @@ private:
   unsigned                    m_virtualBoundariesPosX[3]                      = { 0, 0, 0 }; //!< horizontal virtual boundary positions
   unsigned                    m_virtualBoundariesPosY[3]                      = { 0, 0, 0 }; //!< vertical virtual boundary positions
   bool                        m_picOutputFlag                                 = true;   //!< picture output flag
-  const ReferencePictureList* m_pRPL0                                         = nullptr; //!< pointer to RPL for L0, either in the SPS or the local RPS in the picture header
-  const ReferencePictureList* m_pRPL1                                         = nullptr; //!< pointer to RPL for L1, either in the SPS or the local RPS in the picture header
-  ReferencePictureList        m_localRPL0;                                              //!< RPL for L0 when present in picture header
-  ReferencePictureList        m_localRPL1;                                              //!< RPL for L1 when present in picture header
+  ReferencePictureList        m_RPL0;                                              //!< RPL for L0 when present in picture header
+  ReferencePictureList        m_RPL1;                                              //!< RPL for L1 when present in picture header
   int                         m_rpl0Idx                                       = 0;      //!< index of used RPL in the SPS or -1 for local RPL in the picture header
   int                         m_rpl1Idx                                       = 0;      //!< index of used RPL in the SPS or -1 for local RPL in the picture header
   bool                        m_picInterSliceAllowedFlag                      = false;  //!< inter slice allowed flag in PH
@@ -2680,17 +2680,13 @@ public:
   unsigned                    getVirtualBoundariesPosY(unsigned idx) const              { CHECK( idx >= 3, "boundary index exceeds valid range" ); return m_virtualBoundariesPosY[idx];}
   void                        setPicOutputFlag( bool b )                                { m_picOutputFlag = b;                                                                         }
   bool                        getPicOutputFlag() const                                  { return m_picOutputFlag;                                                                      }
-  void                        setRPL( bool b, const ReferencePictureList *pcRPL)        { if(b==1) { m_pRPL1 = pcRPL; } else { m_pRPL0 = pcRPL; }                                      }
-  const ReferencePictureList* getRPL( bool b )                                          { return b==1 ? m_pRPL1 : m_pRPL0;                                                             }
-  ReferencePictureList*       getLocalRPL( bool b )                                     { return b==1 ? &m_localRPL1 : &m_localRPL0;                                                   }
+  void                        clearRPL( bool idx )                                      { if( idx == 0 ) { m_RPL1.clear(); } else { m_RPL1.clear(); }                                  }
+  void                        setRPL( bool idx, ReferencePictureList& rpl )             { if( idx == 0 ) { m_RPL0 = rpl; } else { m_RPL1 = rpl; }                                      }
+  ReferencePictureList*       getRPL( bool b )                                          { return b==1 ? &m_RPL1 : &m_RPL0;                                                             }
   void                        setRPLIdx( bool b, int rplIdx)                            { if(b==1) { m_rpl1Idx = rplIdx; } else { m_rpl0Idx = rplIdx; }                                }
   int                         getRPLIdx( bool b ) const                                 { return b==1 ? m_rpl1Idx : m_rpl0Idx;                                                         }
-  void                        setRPL0(const ReferencePictureList *pcRPL)                { m_pRPL0 = pcRPL;                                                                             }
-  void                        setRPL1(const ReferencePictureList *pcRPL)                { m_pRPL1 = pcRPL;                                                                             }
-  const ReferencePictureList* getRPL0()                                                 { return m_pRPL0;                                                                              }
-  const ReferencePictureList* getRPL1()                                                 { return m_pRPL1;                                                                              }
-  ReferencePictureList*       getLocalRPL0()                                            { return &m_localRPL0;                                                                         }
-  ReferencePictureList*       getLocalRPL1()                                            { return &m_localRPL1;                                                                         }
+  ReferencePictureList*       getRPL0()                                                 { return &m_RPL0;                                                                              }
+  ReferencePictureList*       getRPL1()                                                 { return &m_RPL1;                                                                              }
   void                        setRPL0idx(int rplIdx)                                    { m_rpl0Idx = rplIdx;                                                                          }
   void                        setRPL1idx(int rplIdx)                                    { m_rpl1Idx = rplIdx;                                                                          }
   int                         getRPL0idx() const                                        { return m_rpl0Idx;                                                                            }
@@ -2845,10 +2841,8 @@ private:
   int                         m_iLastIDR                             = 0;
   int                         m_iAssociatedIRAP                      = 0;
   NalUnitType                 m_iAssociatedIRAPType                  = NAL_UNIT_INVALID;
-  const ReferencePictureList* m_pRPL0                                = nullptr;   //< pointer to RPL for L0, either in the SPS or the local RPS in the same slice header
-  const ReferencePictureList* m_pRPL1                                = nullptr;   //< pointer to RPL for L1, either in the SPS or the local RPS in the same slice header
-  ReferencePictureList        m_localRPL0;                                        //< RPL for L0 when present in slice header
-  ReferencePictureList        m_localRPL1;                                        //< RPL for L1 when present in slice header
+  ReferencePictureList        m_RPL0;                                        //< RPL for L0 when present in slice header
+  ReferencePictureList        m_RPL1;                                        //< RPL for L1 when present in slice header
   int                         m_rpl0Idx                              = -1;        //< index of used RPL in the SPS or -1 for local RPL in the slice header
   int                         m_rpl1Idx                              = -1;        //< index of used RPL in the SPS or -1 for local RPL in the slice header
   NalUnitType                m_eNalUnitType                     = NAL_UNIT_CODED_SLICE_IDR_W_RADL;   ///< Nal unit type for the slice
@@ -2973,16 +2967,15 @@ public:
   APS**                       getAlfAPSs()                                           { return m_alfApss;                                             }
   void                        setSaoEnabledFlag(ChannelType chType, bool s)          { m_saoEnabledFlag[chType] = s;                                 }
   bool                        getSaoEnabledFlag(ChannelType chType) const            { return m_saoEnabledFlag[chType];                              }
-  void                        setRPL0(const ReferencePictureList *pcRPL)             { m_pRPL0 = pcRPL;                                             }
-  void                        setRPL1(const ReferencePictureList *pcRPL)             { m_pRPL1 = pcRPL;                                             }
-  const ReferencePictureList* getRPL0()                                              { return m_pRPL0;                                              }
-  const ReferencePictureList* getRPL1()                                              { return m_pRPL1;                                              }
-  ReferencePictureList*       getLocalRPL0()                                         { return &m_localRPL0;                                         }
-  ReferencePictureList*       getLocalRPL1()                                         { return &m_localRPL1;                                         }
-  void                        setRPL0idx(int rplIdx)                                 { m_rpl0Idx = rplIdx;                                          }
-  void                        setRPL1idx(int rplIdx)                                 { m_rpl1Idx = rplIdx;                                          }
-  int                         getRPL0idx() const                                     { return m_rpl0Idx;                                            }
-  int                         getRPL1idx() const                                     { return m_rpl1Idx;                                            }
+  void                        clearRPL( bool idx )                                   { if( !idx ) m_RPL0.clear(); else m_RPL1.clear();               }
+  void                        setRPL( bool idx, const ReferencePictureList& rpl )    { if( !idx ) m_RPL0 = rpl; else m_RPL1 = rpl;                   }
+  ReferencePictureList*       getRPL( bool idx )                                     { if( !idx ) return &m_RPL0; else return &m_RPL1;               }
+  ReferencePictureList*       getRPL0()                                              { return &m_RPL0;                                               }
+  ReferencePictureList*       getRPL1()                                              { return &m_RPL1;                                               }
+  void                        setRPL0idx(int rplIdx)                                 { m_rpl0Idx = rplIdx;                                           }
+  void                        setRPL1idx(int rplIdx)                                 { m_rpl1Idx = rplIdx;                                           }
+  int                         getRPL0idx() const                                     { return m_rpl0Idx;                                             }
+  int                         getRPL1idx() const                                     { return m_rpl1Idx;                                             }
   void                        setLastIDR(int iIDRPOC)                                { m_iLastIDR = iIDRPOC;                                         }
   int                         getLastIDR() const                                     { return m_iLastIDR;                                            }
   void                        setAssociatedIRAPPOC(int iAssociatedIRAPPOC)           { m_iAssociatedIRAP = iAssociatedIRAPPOC;                       }
@@ -3079,7 +3072,7 @@ public:
   void                        setPic( Picture* p )                                   { m_pcPic             = p;                                      }
 
   void                        constructRefPicLists( const PicListRange& rcListPic );
-  void                        constructSingleRefPicList( const PicListRange& rcListPic, RefPicList listId, const ReferencePictureList& pRPL, ReferencePictureList & pLocalRPL );
+  void                        constructSingleRefPicList( const PicListRange& rcListPic, RefPicList listId, ReferencePictureList& rRPL );
 
   void                        setRefPOCList();
 
