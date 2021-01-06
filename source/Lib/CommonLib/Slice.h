@@ -2971,6 +2971,7 @@ public:
   void                        setRPLIdx( RefPicList l, int RPLIdx )                  { m_RPLIdx[l] = RPLIdx;                                         }
   void                        setRPL0idx(int RPLIdx)                                 { m_RPLIdx[0] = RPLIdx;                                         }
   void                        setRPL1idx(int RPLIdx)                                 { m_RPLIdx[1] = RPLIdx;                                         }
+  int                         getRPLIdx( RefPicList l )                              { return m_RPLIdx[l];                                           }
   int                         getRPL0idx() const                                     { return m_RPLIdx[0];                                           }
   int                         getRPL1idx() const                                     { return m_RPLIdx[1];                                           }
   void                        setLastIDR(int iIDRPOC)                                { m_iLastIDR = iIDRPOC;                                         }

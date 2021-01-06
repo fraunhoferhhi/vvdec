@@ -3511,7 +3511,6 @@ void HLSyntaxReader::parseSliceHeader( Slice* pcSlice, PicHeader* parsedPicHeade
     pcSlice->setExplicitScalingListUsed( pcSlice->getPictureHeaderInSliceHeader() ? picHeader->getExplicitScalingListEnabledFlag() : false );
   }
 
-
   if( pps->getRplInfoInPhFlag() )
   {
     pcSlice->setRPL( REF_PIC_LIST_0, *picHeader->getRPL0() );
@@ -3524,141 +3523,90 @@ void HLSyntaxReader::parseSliceHeader( Slice* pcSlice, PicHeader* parsedPicHeade
   }
   else
   {
-    //Read L0 related syntax elements
-    if( sps->getNumRPL0() > 0 )
+    // List0 and List1
+    for( int iListIdx = 0; iListIdx < 2; iListIdx++ )
     {
-      READ_FLAG( uiCode, "ref_pic_list_sps_flag[0]" );
-    }
-    else
-    {
-      uiCode = 0;
-    }
+      const RefPicList listIdx = static_cast<RefPicList>( iListIdx );
 
-    if( !uiCode ) //explicitly carried in this SH
-    {
-      pcSlice->clearRPL( REF_PIC_LIST_0 );
-      parseRefPicList( sps, pcSlice->getRPL0(), -1 );
-      pcSlice->setRPL0idx( -1 );
-    }
-    else    //Refer to list in SPS
-    {
-      if( sps->getNumRPL0() > 1 )
+      if( listIdx == REF_PIC_LIST_1 && !pps->getRpl1IdxPresentFlag() )   // copy L1 index from L0 index
       {
-        int numBits = (int)ceil( log2( sps->getNumRPL0() ) );
-        READ_CODE( numBits, uiCode, "ref_pic_list_idx[0]" );
-        pcSlice->setRPL0idx( uiCode );
-        pcSlice->setRPL( REF_PIC_LIST_0, sps->getRPLList0()[uiCode] );
-      }
-      else
-      {
-        pcSlice->setRPL0idx( 0 );
-        pcSlice->setRPL( REF_PIC_LIST_0, sps->getRPLList0()[0] );
-      }
-    }
-    //Deal POC Msb cycle signalling for LTRP
-    for( int i = 0; i < pcSlice->getRPL0()->getNumberOfLongtermPictures() + pcSlice->getRPL0()->getNumberOfShorttermPictures(); i++ )
-    {
-      pcSlice->getRPL0()->setDeltaPocMSBPresentFlag( i, false );
-      pcSlice->getRPL0()->setDeltaPocMSBCycleLT( i, 0 );
-    }
-    if( pcSlice->getRPL0()->getNumberOfLongtermPictures() )
-    {
-      for( int i = 0; i < pcSlice->getRPL0()->getNumberOfLongtermPictures() + pcSlice->getRPL0()->getNumberOfShorttermPictures(); i++ )
-      {
-        if( pcSlice->getRPL0()->isRefPicLongterm( i ) )
+        const int rpl0idx = pcSlice->getRPL0idx();
+        pcSlice->setRPL1idx( rpl0idx );
+        if( rpl0idx != -1 )
         {
-          if( pcSlice->getRPL0()->getLtrpInSliceHeaderFlag() )
-          {
-            READ_CODE( sps->getBitsForPOC(), uiCode, "poc_lsb_lt[ 0 ][i]" );
-            pcSlice->getRPL0()->setRefPicIdentifier( i, uiCode, true, false, 0 );
-          }
-          READ_FLAG(uiCode, "delta_poc_msb_cycle_present_flag[ 0 ][i]");
-          pcSlice->getRPL0()->setDeltaPocMSBPresentFlag(i, uiCode ? true : false);
-          if (uiCode)
-          {
-            READ_UVLC(uiCode, "delta_poc_msb_cycle_lt[ 0 ][i]");
-            pcSlice->getRPL0()->setDeltaPocMSBCycleLT(i, uiCode);
-          }
+          pcSlice->setRPL( listIdx, sps->getRPLList( listIdx )[rpl0idx] );
         }
       }
-    }
-
-    //Read L1 related syntax elements
-    if( !pps->getRpl1IdxPresentFlag() )
-    {
-      pcSlice->setRPL1idx( pcSlice->getRPL0idx() );
-      if( pcSlice->getRPL1idx() != -1 )
-      {
-        pcSlice->setRPL( REF_PIC_LIST_1, sps->getRPLList1()[pcSlice->getRPL0idx()] );
-      }
-    }
-    else
-    {
-      if( sps->getNumRPL1() > 0 )
-      {
-        READ_FLAG( uiCode, "ref_pic_list_sps_flag[1]" );
-      }
       else
       {
-        uiCode = 0;
-      }
-      
-      if( uiCode == 1 )
-      {
-        if( sps->getNumRPL1() > 1 )
+        // Read L0/L1 related syntax elements
+        if( sps->getNumRPL( listIdx ) > 0 )
         {
-          int numBits = (int)ceil( log2( sps->getNumRPL1() ) );
-          READ_CODE( numBits, uiCode, "ref_pic_list_idx[1]" );
-          pcSlice->setRPL1idx( uiCode );
-          pcSlice->setRPL( REF_PIC_LIST_1, sps->getRPLList1()[uiCode] );
+          READ_FLAG( uiCode, "ref_pic_list_sps_flag[ listidx ]" );
         }
         else
         {
-          pcSlice->setRPL1idx( 0 );
-          pcSlice->setRPL( REF_PIC_LIST_1,  sps->getRPLList1()[0] );
+          uiCode = 0;
+        }
+
+        if( uiCode )
+        {
+          if( sps->getNumRPL( listIdx ) > 1 )
+          {
+            int numBits = (int)ceil( log2( sps->getNumRPL( listIdx ) ) );
+            READ_CODE( numBits, uiCode, "ref_pic_list_idx[ listIdx ]" );
+            pcSlice->setRPLIdx( listIdx, uiCode );
+            pcSlice->setRPL( listIdx, sps->getRPLList( listIdx )[uiCode] );
+          }
+          else
+          {
+            pcSlice->setRPLIdx( listIdx, 0 );
+            pcSlice->setRPL( listIdx, sps->getRPLList( listIdx )[0] );
+          }
+        }
+        else
+        {
+          pcSlice->setRPLIdx( listIdx, -1 );
         }
       }
-      else
-      {
-        pcSlice->setRPL1idx( -1 );
-      }
-    }
-    if( pcSlice->getRPL1idx() == -1 ) //explicitly carried in this SH
-    {
-      pcSlice->clearRPL( REF_PIC_LIST_1 );
-      parseRefPicList( sps, pcSlice->getRPL1(), -1 );
-      pcSlice->setRPL1idx( -1 );
-    }
 
-    //Deal POC Msb cycle signalling for LTRP
-    for( int i = 0; i < pcSlice->getRPL1()->getNumberOfLongtermPictures() + pcSlice->getRPL1()->getNumberOfShorttermPictures(); i++ )
-    {
-      pcSlice->getRPL1()->setDeltaPocMSBPresentFlag( i, false );
-      pcSlice->getRPL1()->setDeltaPocMSBCycleLT( i, 0 );
-    }
-    if( pcSlice->getRPL1()->getNumberOfLongtermPictures() )
-    {
-      for( int i = 0; i < pcSlice->getRPL1()->getNumberOfLongtermPictures() + pcSlice->getRPL1()->getNumberOfShorttermPictures(); i++ )
+      if( pcSlice->getRPLIdx( listIdx ) == -1 )   // explicitly carried in this SH
       {
-        if( pcSlice->getRPL1()->isRefPicLongterm( i ) )
+        pcSlice->clearRPL( listIdx );
+        parseRefPicList( sps, pcSlice->getRPL( listIdx ), -1 );
+        pcSlice->setRPLIdx( listIdx, -1 );
+      }
+
+      // Deal POC Msb cycle signalling for LTRP
+      for( int i = 0; i < pcSlice->getRPL( listIdx )->getNumberOfLongtermPictures() + pcSlice->getRPL( listIdx )->getNumberOfShorttermPictures(); i++ )
+      {
+        pcSlice->getRPL( listIdx )->setDeltaPocMSBPresentFlag( i, false );
+        pcSlice->getRPL( listIdx )->setDeltaPocMSBCycleLT( i, 0 );
+      }
+      if( pcSlice->getRPL( listIdx )->getNumberOfLongtermPictures() )
+      {
+        for( int i = 0; i < pcSlice->getRPL( listIdx )->getNumberOfLongtermPictures() + pcSlice->getRPL( listIdx )->getNumberOfShorttermPictures(); i++ )
         {
-          if( pcSlice->getRPL1()->getLtrpInSliceHeaderFlag() )
+          if( pcSlice->getRPL( listIdx )->isRefPicLongterm( i ) )
           {
-            READ_CODE( sps->getBitsForPOC(), uiCode, "poc_lsb_lt[ 1 ][i]" );
-            pcSlice->getRPL1()->setRefPicIdentifier( i, uiCode, true, false, 0 );
-          }
-          READ_FLAG( uiCode, "delta_poc_msb_cycle_present_flag[ 1 ][i]" );
-          pcSlice->getRPL1()->setDeltaPocMSBPresentFlag( i, uiCode ? true : false );
-          if( uiCode )
-          {
-            READ_UVLC( uiCode, "delta_poc_msb_cycle_lt[ 1 ][i]" );
-            pcSlice->getRPL1()->setDeltaPocMSBCycleLT( i, uiCode );
+            if( pcSlice->getRPL( listIdx )->getLtrpInSliceHeaderFlag() )
+            {
+              READ_CODE( sps->getBitsForPOC(), uiCode, "poc_lsb_lt[ 1 ][i]" );
+              pcSlice->getRPL( listIdx )->setRefPicIdentifier( i, uiCode, true, false, 0 );
+            }
+            READ_FLAG( uiCode, "delta_poc_msb_cycle_present_flag[ 1 ][i]" );
+            pcSlice->getRPL( listIdx )->setDeltaPocMSBPresentFlag( i, uiCode ? true : false );
+            if( uiCode )
+            {
+              READ_UVLC( uiCode, "delta_poc_msb_cycle_lt[ 1 ][i]" );
+              pcSlice->getRPL( listIdx )->setDeltaPocMSBCycleLT( i, uiCode );
+            }
           }
         }
       }
     }
   }
-  
+
   if( !pps->getRplInfoInPhFlag() && pcSlice->getIdrPicFlag() && !(sps->getIDRRefParamListPresent()) )
   {
     pcSlice->setNumRefIdx(REF_PIC_LIST_0, 0);
