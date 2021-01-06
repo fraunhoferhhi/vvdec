@@ -2710,12 +2710,12 @@ void HLSyntaxReader::parsePictureHeader( PicHeader* picHeader, ParameterSetManag
       {
         READ_FLAG( uiCode, "ref_pic_list_sps_flag[ listIdx ]" );
       }
+
       // explicit RPL in picture header
       if( !uiCode )
       {
         picHeader->clearRPL( listIdx );
-        ReferencePictureList* rpl = picHeader->getRPL( listIdx );
-        parseRefPicList( sps, rpl, -1 );
+        parseRefPicList( sps, picHeader->getRPL( listIdx ), -1 );
         picHeader->setRPLIdx( listIdx, -1 );
       }
       // use list from SPS
@@ -2738,6 +2738,7 @@ void HLSyntaxReader::parsePictureHeader( PicHeader* picHeader, ParameterSetManag
           picHeader->setRPL( listIdx, sps->getRPLList( listIdx )[0] );
         }
       }
+
 
       // POC MSB cycle signalling for LTRP
       for( int i = 0; i < picHeader->getRPL( listIdx )->getNumberOfLongtermPictures() + picHeader->getRPL( listIdx )->getNumberOfShorttermPictures(); i++ )
@@ -3528,54 +3529,51 @@ void HLSyntaxReader::parseSliceHeader( Slice* pcSlice, PicHeader* parsedPicHeade
     {
       const RefPicList listIdx = static_cast<RefPicList>( iListIdx );
 
-      if( listIdx == REF_PIC_LIST_1 && !pps->getRpl1IdxPresentFlag() )   // copy L1 index from L0 index
+      // copy L1 index from L0 index
+      if( listIdx == REF_PIC_LIST_1 && !pps->getRpl1IdxPresentFlag() )
       {
         const int rpl0idx = pcSlice->getRPL0idx();
         pcSlice->setRPL1idx( rpl0idx );
-        if( rpl0idx != -1 )
-        {
-          pcSlice->setRPL( listIdx, sps->getRPLList( listIdx )[rpl0idx] );
-        }
+        uiCode = ( rpl0idx != -1 );
+      }
+      // RPL in picture header or SPS
+      else if( sps->getNumRPL( listIdx ) == 0 )
+      {
+        uiCode = 0;
       }
       else
       {
-        // Read L0/L1 related syntax elements
-        if( sps->getNumRPL( listIdx ) > 0 )
-        {
-          READ_FLAG( uiCode, "ref_pic_list_sps_flag[ listidx ]" );
-        }
-        else
-        {
-          uiCode = 0;
-        }
-
-        if( uiCode )
-        {
-          if( sps->getNumRPL( listIdx ) > 1 )
-          {
-            int numBits = (int)ceil( log2( sps->getNumRPL( listIdx ) ) );
-            READ_CODE( numBits, uiCode, "ref_pic_list_idx[ listIdx ]" );
-            pcSlice->setRPLIdx( listIdx, uiCode );
-            pcSlice->setRPL( listIdx, sps->getRPLList( listIdx )[uiCode] );
-          }
-          else
-          {
-            pcSlice->setRPLIdx( listIdx, 0 );
-            pcSlice->setRPL( listIdx, sps->getRPLList( listIdx )[0] );
-          }
-        }
-        else
-        {
-          pcSlice->setRPLIdx( listIdx, -1 );
-        }
+        READ_FLAG( uiCode, "ref_pic_list_sps_flag[ listidx ]" );
       }
 
-      if( pcSlice->getRPLIdx( listIdx ) == -1 )   // explicitly carried in this SH
+      // explicitly carried in this SH
+      if( !uiCode )
       {
         pcSlice->clearRPL( listIdx );
         parseRefPicList( sps, pcSlice->getRPL( listIdx ), -1 );
         pcSlice->setRPLIdx( listIdx, -1 );
       }
+      // use list from SPS
+      else
+      {
+        if( listIdx == REF_PIC_LIST_1 && !pps->getRpl1IdxPresentFlag() )
+        {
+          pcSlice->setRPL( listIdx, sps->getRPLList( listIdx )[pcSlice->getRPLIdx( listIdx )] );
+        }
+        else if( sps->getNumRPL( listIdx ) > 1 )
+        {
+          int numBits = (int)ceil( log2( sps->getNumRPL( listIdx ) ) );
+          READ_CODE( numBits, uiCode, "ref_pic_list_idx[ listIdx ]" );
+          pcSlice->setRPLIdx( listIdx, uiCode );
+          pcSlice->setRPL( listIdx, sps->getRPLList( listIdx )[uiCode] );
+        }
+        else
+        {
+          pcSlice->setRPLIdx( listIdx, 0 );
+          pcSlice->setRPL( listIdx, sps->getRPLList( listIdx )[0] );
+        }
+      }
+
 
       // Deal POC Msb cycle signalling for LTRP
       for( int i = 0; i < pcSlice->getRPL( listIdx )->getNumberOfLongtermPictures() + pcSlice->getRPL( listIdx )->getNumberOfShorttermPictures(); i++ )
@@ -4801,4 +4799,3 @@ void HLSyntaxReader::alfFilter( AlfSliceParam& alfSliceParam, const bool isChrom
 
 
 //! \}
-
