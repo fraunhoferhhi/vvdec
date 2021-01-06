@@ -2679,7 +2679,7 @@ public:
   void                        setPicOutputFlag( bool b )                                { m_picOutputFlag = b;                                                                         }
   bool                        getPicOutputFlag() const                                  { return m_picOutputFlag;                                                                      }
   void                        clearRPL( RefPicList l )                                  { m_RPL[l].clear();                                                                            }
-  void                        setRPL( RefPicList l, ReferencePictureList& rpl )         { m_RPL[l] = rpl;                                                                              }
+  void                        setRPL( RefPicList l, const ReferencePictureList& rpl )   { m_RPL[l] = rpl;                                                                              }
   ReferencePictureList*       getRPL( RefPicList l )                                    { return &m_RPL[l];                                                                            }
   ReferencePictureList*       getRPL0()                                                 { return &m_RPL[0];                                                                            }
   ReferencePictureList*       getRPL1()                                                 { return &m_RPL[1];                                                                            }
