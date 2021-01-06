@@ -2691,10 +2691,12 @@ void HLSyntaxReader::parsePictureHeader( PicHeader* picHeader, ParameterSetManag
   if( pps->getRplInfoInPhFlag() )
   {
     // List0 and List1
-    for( int listIdx = 0; listIdx < 2; listIdx++ )
+    for( int iListIdx = 0; iListIdx < 2; iListIdx++ )
     {
+      const RefPicList listIdx = static_cast<RefPicList>( iListIdx );
+
       // copy L1 index from L0 index
-      if( listIdx == 1 && !pps->getRpl1IdxPresentFlag() )
+      if( listIdx == REF_PIC_LIST_1 && !pps->getRpl1IdxPresentFlag() )
       {
         picHeader->setRPL1idx( picHeader->getRPL0idx() );
         uiCode = ( picHeader->getRPL0idx() != -1 );
@@ -2719,7 +2721,7 @@ void HLSyntaxReader::parsePictureHeader( PicHeader* picHeader, ParameterSetManag
       // use list from SPS
       else
       {
-        if( listIdx == 1 && !pps->getRpl1IdxPresentFlag() )
+        if( listIdx == REF_PIC_LIST_1 && !pps->getRpl1IdxPresentFlag() )
         {
           picHeader->setRPL( listIdx, sps->getRPLList( listIdx )[picHeader->getRPLIdx( listIdx )] );
         }
@@ -2880,7 +2882,7 @@ void HLSyntaxReader::parsePictureHeader( PicHeader* picHeader, ParameterSetManag
 
     if( picHeader->getEnableTMVPFlag() && pps->getRplInfoInPhFlag() )
     {
-      if( picHeader->getRPL(1)->getNumRefEntries() > 0 )
+      if( picHeader->getRPL(REF_PIC_LIST_1)->getNumRefEntries() > 0 )
       {
         READ_CODE( 1, uiCode, "ph_collocated_from_l0_flag" );                picHeader->setPicColFromL0Flag( uiCode );
       }
@@ -2888,8 +2890,8 @@ void HLSyntaxReader::parsePictureHeader( PicHeader* picHeader, ParameterSetManag
       {
         picHeader->setPicColFromL0Flag(1);
       }
-      if( ( picHeader->getPicColFromL0Flag() == 1 && picHeader->getRPL( 0 )->getNumRefEntries() > 1 ) ||
-          ( picHeader->getPicColFromL0Flag() == 0 && picHeader->getRPL( 1 )->getNumRefEntries() > 1 ) )
+      if( ( picHeader->getPicColFromL0Flag() == 1 && picHeader->getRPL( REF_PIC_LIST_0 )->getNumRefEntries() > 1 ) ||
+          ( picHeader->getPicColFromL0Flag() == 0 && picHeader->getRPL( REF_PIC_LIST_1 )->getNumRefEntries() > 1 ) )
       {
         READ_UVLC( uiCode, "ph_collocated_ref_idx" );                        picHeader->setColRefIdx( uiCode );
       }
@@ -2924,7 +2926,7 @@ void HLSyntaxReader::parsePictureHeader( PicHeader* picHeader, ParameterSetManag
     }
     
     // mvd L1 zero flag
-    if( !pps->getRplInfoInPhFlag() || picHeader->getRPL( 1 )->getNumRefEntries() > 0 )
+    if( !pps->getRplInfoInPhFlag() || picHeader->getRPL( REF_PIC_LIST_1 )->getNumRefEntries() > 0 )
     {
       READ_FLAG( uiCode, "ph_mvd_l1_zero_flag" );                            picHeader->setMvdL1ZeroFlag( uiCode != 0 );
     }
@@ -2934,7 +2936,7 @@ void HLSyntaxReader::parsePictureHeader( PicHeader* picHeader, ParameterSetManag
     }
 
     // picture level BDOF disable flags
-    if( sps->getBdofControlPresentFlag() && ( !pps->getRplInfoInPhFlag() || picHeader->getRPL( 1 )->getNumRefEntries() > 0 ) )
+    if( sps->getBdofControlPresentFlag() && ( !pps->getRplInfoInPhFlag() || picHeader->getRPL( REF_PIC_LIST_1 )->getNumRefEntries() > 0 ) )
     {
       READ_FLAG( uiCode, "ph_bdof_disabled_flag" );                          picHeader->setDisBdofFlag( uiCode != 0 );
     }
@@ -2951,7 +2953,7 @@ void HLSyntaxReader::parsePictureHeader( PicHeader* picHeader, ParameterSetManag
     }
 
     // picture level DMVR disable flags
-    if( sps->getDmvrControlPresentFlag() && ( !pps->getRplInfoInPhFlag() || picHeader->getRPL( 1 )->getNumRefEntries() > 0 ) )
+    if( sps->getDmvrControlPresentFlag() && ( !pps->getRplInfoInPhFlag() || picHeader->getRPL( REF_PIC_LIST_1 )->getNumRefEntries() > 0 ) )
     {
       READ_FLAG( uiCode, "ph_dmvr_disabled_flag" );                          picHeader->setDisDmvrFlag( uiCode != 0 );
     }
@@ -3512,13 +3514,13 @@ void HLSyntaxReader::parseSliceHeader( Slice* pcSlice, PicHeader* parsedPicHeade
 
   if( pps->getRplInfoInPhFlag() )
   {
-    pcSlice->setRPL( 0, *picHeader->getRPL0() );
-    pcSlice->setRPL( 1, *picHeader->getRPL1() );
+    pcSlice->setRPL( REF_PIC_LIST_0, *picHeader->getRPL0() );
+    pcSlice->setRPL( REF_PIC_LIST_1, *picHeader->getRPL1() );
   }
   else if( pcSlice->getIdrPicFlag() && !sps->getIDRRefParamListPresent() )
   {
-    pcSlice->clearRPL( 0 );
-    pcSlice->clearRPL( 1 );
+    pcSlice->clearRPL( REF_PIC_LIST_0 );
+    pcSlice->clearRPL( REF_PIC_LIST_1 );
   }
   else
   {
@@ -3534,7 +3536,7 @@ void HLSyntaxReader::parseSliceHeader( Slice* pcSlice, PicHeader* parsedPicHeade
 
     if( !uiCode ) //explicitly carried in this SH
     {
-      pcSlice->clearRPL( 0 );
+      pcSlice->clearRPL( REF_PIC_LIST_0 );
       parseRefPicList( sps, pcSlice->getRPL0(), -1 );
       pcSlice->setRPL0idx( -1 );
     }
@@ -3545,12 +3547,12 @@ void HLSyntaxReader::parseSliceHeader( Slice* pcSlice, PicHeader* parsedPicHeade
         int numBits = (int)ceil( log2( sps->getNumRPL0() ) );
         READ_CODE( numBits, uiCode, "ref_pic_list_idx[0]" );
         pcSlice->setRPL0idx( uiCode );
-        pcSlice->setRPL( 0, sps->getRPLList0()[uiCode] );
+        pcSlice->setRPL( REF_PIC_LIST_0, sps->getRPLList0()[uiCode] );
       }
       else
       {
         pcSlice->setRPL0idx( 0 );
-        pcSlice->setRPL( 0, sps->getRPLList0()[0] );
+        pcSlice->setRPL( REF_PIC_LIST_0, sps->getRPLList0()[0] );
       }
     }
     //Deal POC Msb cycle signalling for LTRP
@@ -3587,7 +3589,7 @@ void HLSyntaxReader::parseSliceHeader( Slice* pcSlice, PicHeader* parsedPicHeade
       pcSlice->setRPL1idx( pcSlice->getRPL0idx() );
       if( pcSlice->getRPL1idx() != -1 )
       {
-        pcSlice->setRPL( 1, sps->getRPLList1()[pcSlice->getRPL0idx()] );
+        pcSlice->setRPL( REF_PIC_LIST_1, sps->getRPLList1()[pcSlice->getRPL0idx()] );
       }
     }
     else
@@ -3608,12 +3610,12 @@ void HLSyntaxReader::parseSliceHeader( Slice* pcSlice, PicHeader* parsedPicHeade
           int numBits = (int)ceil( log2( sps->getNumRPL1() ) );
           READ_CODE( numBits, uiCode, "ref_pic_list_idx[1]" );
           pcSlice->setRPL1idx( uiCode );
-          pcSlice->setRPL( 1, sps->getRPLList1()[uiCode] );
+          pcSlice->setRPL( REF_PIC_LIST_1, sps->getRPLList1()[uiCode] );
         }
         else
         {
           pcSlice->setRPL1idx( 0 );
-          pcSlice->setRPL( 1,  sps->getRPLList1()[0] );
+          pcSlice->setRPL( REF_PIC_LIST_1,  sps->getRPLList1()[0] );
         }
       }
       else
@@ -3623,7 +3625,7 @@ void HLSyntaxReader::parseSliceHeader( Slice* pcSlice, PicHeader* parsedPicHeade
     }
     if( pcSlice->getRPL1idx() == -1 ) //explicitly carried in this SH
     {
-      pcSlice->clearRPL( 1 );
+      pcSlice->clearRPL( REF_PIC_LIST_1 );
       parseRefPicList( sps, pcSlice->getRPL1(), -1 );
       pcSlice->setRPL1idx( -1 );
     }
@@ -4634,7 +4636,7 @@ void HLSyntaxReader::parsePredWeightTable( PicHeader *picHeader, const SPS *sps 
 
     if( numRef == 0 )
     {
-      if( picHeader->getRPL( 1 )->getNumRefEntries() > 0 )
+      if( picHeader->getRPL( REF_PIC_LIST_1 )->getNumRefEntries() > 0 )
       {
         READ_UVLC( numLxWeights, "num_l1_weights" );
       }

@@ -325,21 +325,20 @@ void Slice::initSlice()
 }
 
 void Slice::inheritFromPicHeader( PicHeader *picHeader, const PPS *pps, const SPS *sps )
-{ 
+{
   if( pps->getRplInfoInPhFlag() )
   {
-    setRPL0idx( picHeader->getRPL0idx() );
-    m_RPL0 = *picHeader->getRPL(0);
-    if(getRPL0idx() != -1)
+    for( auto l: { REF_PIC_LIST_0, REF_PIC_LIST_1 } )
     {
-      m_RPL0 = sps->getRPLList1()[getRPL1idx()];
-    }
-
-    setRPL1idx( picHeader->getRPL1idx() );
-    m_RPL1 = *picHeader->getRPL(1);
-    if(getRPL1idx() != -1)
-    {
-      m_RPL1 = sps->getRPLList1()[getRPL1idx()];
+      m_RPLIdx[l] = picHeader->getRPLIdx( l );
+      if( m_RPLIdx[l] == -1 )
+      {
+        m_RPL[l] = *picHeader->getRPL( l );
+      }
+      else
+      {
+        m_RPL[l] = sps->getRPLList1()[m_RPLIdx[l]];
+      }
     }
   }
 
@@ -506,12 +505,14 @@ void Slice::constructRefPicLists( const PicListRange& rcListPic )
     return;
   }
 
-  constructSingleRefPicList( rcListPic, REF_PIC_LIST_0, m_RPL0 );
-  constructSingleRefPicList( rcListPic, REF_PIC_LIST_1, m_RPL1 );
+  constructSingleRefPicList( rcListPic, REF_PIC_LIST_0 );
+  constructSingleRefPicList( rcListPic, REF_PIC_LIST_1 );
 }
 
-void Slice::constructSingleRefPicList(const PicListRange& rcListPic, RefPicList listId, ReferencePictureList& rRPL )
+void Slice::constructSingleRefPicList(const PicListRange& rcListPic, RefPicList listId )
 {
+  ReferencePictureList& rRPL = m_RPL[listId];
+
   uint32_t numOfActiveRef = getNumRefIdx( listId );
   for( int ii = 0; ii < numOfActiveRef; ii++ )
   {
@@ -570,30 +571,21 @@ void Slice::checkColRefIdx(uint32_t curSliceSegmentIdx, const Picture* pic)
 
 void Slice::checkCRA( int& pocCRA, NalUnitType& associatedIRAPType, const PicListRange& rcListPic )
 {
-  if (pocCRA < MAX_UINT && getPOC() > pocCRA)
+  if( pocCRA < MAX_UINT && getPOC() > pocCRA )
   {
-    uint32_t numRefPic = m_RPL0.getNumberOfShorttermPictures() + m_RPL0.getNumberOfLongtermPictures();
-    for (int i = 0; i < numRefPic; i++)
+    for( int l = 0; l < NUM_REF_PIC_LIST_01; ++l )
     {
-      if (!m_RPL0.isRefPicLongterm(i))
+      const uint32_t numRefPic = m_RPL[l].getNumberOfShorttermPictures() + m_RPL[l].getNumberOfLongtermPictures();
+      for( int i = 0; i < numRefPic; i++ )
       {
-        CHECK(getPOC() + m_RPL0.getRefPicIdentifier(i) < pocCRA, "Invalid state");
-      }
-      else
-      {
-        CHECK(xGetLongTermRefPic(rcListPic, m_RPL0.getRefPicIdentifier(i), m_RPL0.getDeltaPocMSBPresentFlag(i), m_pcPic->layerId)->getPOC() < pocCRA, "Invalid state");
-      }
-    }
-    numRefPic = m_RPL1.getNumberOfShorttermPictures() + m_RPL1.getNumberOfLongtermPictures();
-    for (int i = 0; i < numRefPic; i++)
-    {
-      if (!m_RPL1.isRefPicLongterm(i))
-      {
-        CHECK(getPOC() + m_RPL1.getRefPicIdentifier(i) < pocCRA, "Invalid state");
-      }
-      else
-      {
-        CHECK(xGetLongTermRefPic(rcListPic, m_RPL1.getRefPicIdentifier(i), m_RPL1.getDeltaPocMSBPresentFlag(i), m_pcPic->layerId)->getPOC() < pocCRA, "Invalid state");
+        if( !m_RPL[l].isRefPicLongterm( i ) )
+        {
+          CHECK( getPOC() + m_RPL[l].getRefPicIdentifier( i ) < pocCRA, "Invalid state" );
+        }
+        else
+        {
+          CHECK( xGetLongTermRefPic( rcListPic, m_RPL[l].getRefPicIdentifier( i ), m_RPL[l].getDeltaPocMSBPresentFlag( i ), m_pcPic->layerId )->getPOC() < pocCRA, "Invalid state" );
+        }
       }
     }
   }
@@ -1028,8 +1020,11 @@ void Slice::copySliceInfo(Slice *pSrc, bool cpyAlmostAll)
   }
 
   // access channel
-  if (cpyAlmostAll) m_RPL0 = pSrc->m_RPL0;
-  if (cpyAlmostAll) m_RPL1 = pSrc->m_RPL1;
+  if( cpyAlmostAll )
+  {
+    memcpy( m_RPL, pSrc->m_RPL, sizeof( m_RPL ) );
+  }
+
   m_iLastIDR             = pSrc->m_iLastIDR;
 
   if( cpyAlmostAll ) m_pcPic  = pSrc->m_pcPic;
