@@ -3437,8 +3437,8 @@ void HLSyntaxReader::parseSliceHeader( Slice* pcSlice, PicHeader* parsedPicHeade
 
   if( pps->getRplInfoInPhFlag() )
   {
-    pcSlice->setRPL( REF_PIC_LIST_0, *picHeader->getRPL0() );
-    pcSlice->setRPL( REF_PIC_LIST_1, *picHeader->getRPL1() );
+    pcSlice->setRPL( REF_PIC_LIST_0, *picHeader->getRPL( REF_PIC_LIST_0 ) );
+    pcSlice->setRPL( REF_PIC_LIST_1, *picHeader->getRPL( REF_PIC_LIST_1 ) );
   }
   else if( pcSlice->getIdrPicFlag() && !sps->getIDRRefParamListPresent() )
   {
@@ -3456,13 +3456,13 @@ void HLSyntaxReader::parseSliceHeader( Slice* pcSlice, PicHeader* parsedPicHeade
     pcSlice->setNumRefIdx(REF_PIC_LIST_1, 0);
   }
 
-  if( ( !pcSlice->isIntra() && pcSlice->getRPL0()->getNumRefEntries() > 1 ) ||
-      ( pcSlice->isInterB() && pcSlice->getRPL1()->getNumRefEntries() > 1 ) )
+  if( ( !pcSlice->isIntra() && pcSlice->getRPL( REF_PIC_LIST_0 )->getNumRefEntries() > 1 ) ||
+      ( pcSlice->isInterB() && pcSlice->getRPL( REF_PIC_LIST_1 )->getNumRefEntries() > 1 ) )
   {
     READ_FLAG( uiCode, "sh_num_ref_idx_active_override_flag" );
     if( uiCode )
     {
-      if( pcSlice->getRPL0()->getNumRefEntries() > 1 )
+      if( pcSlice->getRPL( REF_PIC_LIST_0 )->getNumRefEntries() > 1 )
       {
         READ_UVLC( uiCode, "sh_num_ref_idx_active_minus1[ 0 ]" );
       }
@@ -3473,7 +3473,7 @@ void HLSyntaxReader::parseSliceHeader( Slice* pcSlice, PicHeader* parsedPicHeade
       pcSlice->setNumRefIdx( REF_PIC_LIST_0, uiCode + 1 );
       if( pcSlice->isInterB() )
       {
-        if( pcSlice->getRPL1()->getNumRefEntries() > 1 )
+        if( pcSlice->getRPL( REF_PIC_LIST_1 )->getNumRefEntries() > 1 )
         {
           READ_UVLC( uiCode, "sh_num_ref_idx_active_minus1[ 1 ]" );
         }
@@ -3490,24 +3490,24 @@ void HLSyntaxReader::parseSliceHeader( Slice* pcSlice, PicHeader* parsedPicHeade
     }
     else
     {
-      if( pcSlice->getRPL0()->getNumRefEntries() >= pps->getNumRefIdxL0DefaultActive() )
+      if( pcSlice->getRPL( REF_PIC_LIST_0 )->getNumRefEntries() >= pps->getNumRefIdxL0DefaultActive() )
       {
         pcSlice->setNumRefIdx( REF_PIC_LIST_0, pps->getNumRefIdxL0DefaultActive() );
       }
       else
       {
-        pcSlice->setNumRefIdx( REF_PIC_LIST_0, pcSlice->getRPL0()->getNumRefEntries() );
+        pcSlice->setNumRefIdx( REF_PIC_LIST_0, pcSlice->getRPL( REF_PIC_LIST_0 )->getNumRefEntries() );
       }
 
       if( pcSlice->isInterB() )
       {
-        if( pcSlice->getRPL1()->getNumRefEntries() >= pps->getNumRefIdxL1DefaultActive() )
+        if( pcSlice->getRPL( REF_PIC_LIST_1 )->getNumRefEntries() >= pps->getNumRefIdxL1DefaultActive() )
         {
           pcSlice->setNumRefIdx( REF_PIC_LIST_1, pps->getNumRefIdxL1DefaultActive() );
         }
         else
         {
-          pcSlice->setNumRefIdx( REF_PIC_LIST_1, pcSlice->getRPL1()->getNumRefEntries() );
+          pcSlice->setNumRefIdx( REF_PIC_LIST_1, pcSlice->getRPL( REF_PIC_LIST_1 )->getNumRefEntries() );
         }
       }
       else
@@ -3520,11 +3520,11 @@ void HLSyntaxReader::parseSliceHeader( Slice* pcSlice, PicHeader* parsedPicHeade
   {
     if( !pcSlice->isIntra() )
     {
-      pcSlice->setNumRefIdx( REF_PIC_LIST_0, pcSlice->getRPL0()->getNumRefEntries() );
+      pcSlice->setNumRefIdx( REF_PIC_LIST_0, pcSlice->getRPL( REF_PIC_LIST_0 )->getNumRefEntries() );
     }
     if( pcSlice->isInterB() )
     {
-      pcSlice->setNumRefIdx( REF_PIC_LIST_1, pcSlice->getRPL1()->getNumRefEntries() );
+      pcSlice->setNumRefIdx( REF_PIC_LIST_1, pcSlice->getRPL( REF_PIC_LIST_1 )->getNumRefEntries() );
     }
   }
 
@@ -3862,8 +3862,8 @@ void HLSyntaxReader::parsePicOrSliceHeaderRPL( HeaderT* header, const SPS* sps, 
     // copy L1 index from L0 index
     if( listIdx == REF_PIC_LIST_1 && !pps->getRpl1IdxPresentFlag() )
     {
-      const int rpl0idx = header->getRPL0idx();
-      header->setRPL1idx( rpl0idx );
+      const int rpl0idx = header->getRPLIdx( REF_PIC_LIST_0 );
+      header->setRPLIdx( REF_PIC_LIST_1, rpl0idx );
       readExplicitRPL = ( rpl0idx == -1 );
     }
     // RPL in picture header or SPS

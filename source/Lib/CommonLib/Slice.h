@@ -2681,14 +2681,8 @@ public:
   void                        clearRPL( RefPicList l )                                  { m_RPL[l].clear();                                                                            }
   void                        setRPL( RefPicList l, const ReferencePictureList& rpl )   { m_RPL[l] = rpl;                                                                              }
   ReferencePictureList*       getRPL( RefPicList l )                                    { return &m_RPL[l];                                                                            }
-  ReferencePictureList*       getRPL0()                                                 { return &m_RPL[0];                                                                            }
-  ReferencePictureList*       getRPL1()                                                 { return &m_RPL[1];                                                                            }
   void                        setRPLIdx( RefPicList l, int RPLIdx)                      { m_RPLIdx[l] = RPLIdx;                                                                        }
-  void                        setRPL0idx(int RPLIdx)                                    { m_RPLIdx[0] = RPLIdx;                                                                        }
-  void                        setRPL1idx(int RPLIdx)                                    { m_RPLIdx[1] = RPLIdx;                                                                        }
   int                         getRPLIdx( RefPicList l ) const                           { return m_RPLIdx[l];                                                                          }
-  int                         getRPL0idx() const                                        { return m_RPLIdx[0];                                                                          }
-  int                         getRPL1idx() const                                        { return m_RPLIdx[1];                                                                          }
   void                        setPicInterSliceAllowedFlag(bool b)                       { m_picInterSliceAllowedFlag = b; }
   bool                        getPicInterSliceAllowedFlag() const                       { return m_picInterSliceAllowedFlag; }
   void                        setPicIntraSliceAllowedFlag(bool b)                       { m_picIntraSliceAllowedFlag = b; }
@@ -2969,11 +2963,7 @@ public:
   ReferencePictureList*       getRPL0()                                              { return &m_RPL[0];                                             }
   ReferencePictureList*       getRPL1()                                              { return &m_RPL[1];                                             }
   void                        setRPLIdx( RefPicList l, int RPLIdx )                  { m_RPLIdx[l] = RPLIdx;                                         }
-  void                        setRPL0idx(int RPLIdx)                                 { m_RPLIdx[0] = RPLIdx;                                         }
-  void                        setRPL1idx(int RPLIdx)                                 { m_RPLIdx[1] = RPLIdx;                                         }
-  int                         getRPLIdx( RefPicList l )                              { return m_RPLIdx[l];                                           }
-  int                         getRPL0idx() const                                     { return m_RPLIdx[0];                                           }
-  int                         getRPL1idx() const                                     { return m_RPLIdx[1];                                           }
+  int                         getRPLIdx( RefPicList l ) const                        { return m_RPLIdx[l];                                           }
   void                        setLastIDR(int iIDRPOC)                                { m_iLastIDR = iIDRPOC;                                         }
   int                         getLastIDR() const                                     { return m_iLastIDR;                                            }
   void                        setAssociatedIRAPPOC(int iAssociatedIRAPPOC)           { m_iAssociatedIRAP = iAssociatedIRAPPOC;                       }
