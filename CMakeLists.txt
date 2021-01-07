@@ -35,16 +35,28 @@ if( NOT CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR )
 endif()
 
 # enable or disable bitstream download
-set( VVDEC_ENABLE_BITSTREAM_DOWNLOAD OFF CACHE BOOL "Enable or disable bitstream download" )
+set( VVDEC_ENABLE_BITSTREAM_DOWNLOAD        OFF CACHE BOOL   "Enable or disable bitstream download" )
+                                                             
+# enable local bitstream download                            
+set( VVDEC_ENABLE_LOCAL_BITSTREAM_DOWNLOAD  OFF CACHE BOOL   "Enable or disable local bitstream download" )
+                                                             
+# enable install target                                      
+set( VVDEC_ENABLE_INSTALL                   ON  CACHE BOOL   "Enable or disable install target" )
+                                                             
+# enable postfix                                             
+set( VVDEC_ENABLE_BUILD_TYPE_POSTFIX        OFF CACHE BOOL   "Enable or disable build type postfix for apps and libs" )
+                                                             
+set( VVDEC_ENABLE_LINK_TIME_OPT             ON  CACHE BOOL   "Enable link time optimization for release and profile builds" )
 
-# enable local bitstream download
-set( VVDEC_ENABLE_LOCAL_BITSTREAM_DOWNLOAD OFF CACHE BOOL "Enable or disable local bitstream download" )
-
-# enable install target
-set( VVDEC_ENABLE_INSTALL ON CACHE BOOL "Enable or disable install target" )
-
-# enable postfix
-set( VVDEC_ENABLE_BUILD_TYPE_POSTFIX OFF CACHE BOOL "Enable or disable build type postfix for apps and libs" )
+if( CMAKE_CXX_COMPILER_ID STREQUAL "GNU" OR
+    CMAKE_CXX_COMPILER_ID STREQUAL "Clang" )
+    
+  # enable address sanitizer
+  set( VVDEC_USE_ADDRESS_SANITIZER          OFF CACHE BOOL   "Enable or disable address sanitizer" )
+  
+  # add -march=native
+  set( VVDEC_OPT_TARGET_ARCH                ""  CACHE STRING "Enable or disable building with architecture specific optimization" )
+endif()
 
 if( VVDEC_ENABLE_BUILD_TYPE_POSTFIX )
   if( BUILD_SHARED_LIBS )
@@ -97,15 +109,6 @@ if( NOT CMAKE_BUILD_TYPE )
   set( CMAKE_BUILD_TYPE "Release" CACHE STRING "Choose the type of build, options are: Debug Release RelWithDebInfo MinSizeRel." FORCE )
 endif()
 
-#if( CMAKE_CXX_COMPILER_ID STREQUAL "GNU" OR
-#    CMAKE_CXX_COMPILER_ID STREQUAL "Clang" )
-#  set( USE_ADDRESS_SANITIZER OFF CACHE BOOL "Compiles and links with -fsanitize=address" )
-#endif()
-
-#set( ENABLE_LINK_TIME_OPT     ON       CACHE BOOL   "Enable link time optimization for release and profile builds" )
-#set( OPT_TARGET_ARCH         "native"  CACHE STRING "Create code and optimize for this architecture (default native)" )
-#set( DISABLE_BOOST_DEPENDENCY OFF      CACHE BOOL   "Disable Boost dependency => disables the test suite" )
-
 #set( SET_ENABLE_TRACING OFF CACHE BOOL "Set ENABLE_TRACING as a compiler flag" )
 #set( ENABLE_TRACING OFF CACHE BOOL "If SET_ENABLE_TRACING is on, it will be set to this value" )
 
@@ -146,12 +149,23 @@ if( MSVC )
   add_compile_options( "/EHsc" )
 endif()
 
-## set address sanitizer compiler arguments
-#if( USE_ADDRESS_SANITIZER )
-#  # add compile options
-#  add_compile_options( "-fsanitize=address" )
-#  add_link_options( "-fsanitize=address" )
-#endif()
+# set address sanitizer compiler arguments
+if( VVDEC_USE_ADDRESS_SANITIZER )
+  # add compile options
+  add_compile_options( "-fsanitize=address" )
+  add_link_options( "-fsanitize=address" )
+endif()
+
+if( ( UNIX OR MINGW ) AND NOT VVDEC_OPT_TARGET_ARCH STREQUAL "" )
+  set( CMAKE_C_FLAGS   "${CMAKE_C_FLAGS} -march=${VVDEC_OPT_TARGET_ARCH} -mtune=${VVDEC_OPT_TARGET_ARCH}" )
+  set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -march=${VVDEC_OPT_TARGET_ARCH} -mtune=${VVDEC_OPT_TARGET_ARCH}" )
+endif()
+
+if( VVDEC_ENABLE_LINK_TIME_OPT )
+    set( CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE ON )
+    set( CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELWITHDEBINFO ON )
+    set( CMAKE_INTERPROCEDURAL_OPTIMIZATION_MINSIZEREL ON )
+endif()
 
 # use ccache
 find_program( CCACHE_FOUND ccache )
@@ -194,17 +208,6 @@ if( VVDEC_ENABLE_ITT )
     message( WARNING "ITT_PATH ${ITT_PATH} not found, ignoring option VVCLib_ENABLE_ITT" )
   endif()
 endif()
-
-#if( ENABLE_LINK_TIME_OPT )
-#    set( CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE ON )
-#    set( CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELWITHDEBINFO ON )
-#    set( CMAKE_INTERPROCEDURAL_OPTIMIZATION_MINSIZEREL ON )
-#endif()
-
-#if( (UNIX OR MINGW) AND NOT OPT_TARGET_ARCH STREQUAL "" )
-#    set( CMAKE_C_FLAGS   "${CMAKE_C_FLAGS} -march=${OPT_TARGET_ARCH} -mtune=${OPT_TARGET_ARCH}" )
-#    set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -march=${OPT_TARGET_ARCH} -mtune=${OPT_TARGET_ARCH}" )
-#endif()
 
 #if( SET_ENABLE_TRACING )
 #  if( ENABLE_TRACING )
