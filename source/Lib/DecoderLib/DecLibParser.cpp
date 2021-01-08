@@ -373,7 +373,7 @@ DecLibParser::SliceHeadResult DecLibParser::xDecodeSliceHead( InputNALUnit& nalu
   
   PicHeader *picHeader = m_picHeader;
 
-  m_HLSReader.parseSliceHeader      ( m_apcSlicePilot, picHeader, &m_parameterSetManager, m_prevTid0POC, m_pcParsePic );
+  m_HLSReader.parseSliceHeader( m_apcSlicePilot, picHeader, &m_parameterSetManager, m_prevTid0POC, m_pcParsePic );
 
   if( pSkipFrame && *pSkipFrame )
   {
@@ -587,12 +587,14 @@ DecLibParser::SliceHeadResult DecLibParser::xDecodeSliceHead( InputNALUnit& nalu
   m_prevLayerID = nalu.m_nuhLayerId;
 
   //detect lost reference picture and insert copy of earlier frame.
+  for( const auto rplIdx: { REF_PIC_LIST_0, REF_PIC_LIST_1 } )
   {
-    int lostPoc = MAX_INT;
-    int refPicIndex = 0;
+    const auto* rpl             = m_apcSlicePilot->getRPL( rplIdx );
+    int         lostPoc         = MAX_INT;
+    int         lostRefPicIndex = 0;
     while( lostPoc > 0 )
     {
-      lostPoc = m_apcSlicePilot->checkThatAllRefPicsAreAvailable( m_picListManager.getPicListRange( m_picListManager.getBackPic() ), m_apcSlicePilot->getRPL0(), true, &refPicIndex, m_apcSlicePilot->getNumRefIdx( REF_PIC_LIST_0 ) );
+      lostPoc = m_apcSlicePilot->checkThatAllRefPicsAreAvailable( m_picListManager.getPicListRange( m_picListManager.getBackPic() ), rpl, true, &lostRefPicIndex, m_apcSlicePilot->getNumRefIdx( rplIdx ) );
       if( lostPoc > 0 )
       {
         if( !pps->getMixedNaluTypesInPicFlag() && (
@@ -603,53 +605,18 @@ DecLibParser::SliceHeadResult DecLibParser::xDecodeSliceHead( InputNALUnit& nalu
           ( ( m_apcSlicePilot->getNalUnitType() == NAL_UNIT_CODED_SLICE_GDR || m_apcSlicePilot->getNalUnitType() == NAL_UNIT_CODED_SLICE_CRA )
          && m_picHeader->getNoOutputBeforeRecoveryFlag() ) ) )
         {
-          if( m_apcSlicePilot->getRPL0()->isInterLayerRefPic( refPicIndex ) == 0 )
+          if( rpl->isInterLayerRefPic( lostRefPicIndex ) == 0 )
           {
 #if JVET_S0124_UNAVAILABLE_REFERENCE
-            m_parseFrameList.push_back( prepareUnavailablePicture( pps, lostPoc - 1, m_apcSlicePilot->getPic()->layerId, m_apcSlicePilot->getRPL0()->isRefPicLongterm( refPicIndex ), m_apcSlicePilot->getPic()->layer ) );
-            // -1 because checkThatAllRefPicsAreAvailable() returns iPocLost+1
+            m_parseFrameList.push_back( prepareUnavailablePicture( pps, lostPoc - 1, m_apcSlicePilot->getPic()->layerId, rpl->isRefPicLongterm( lostRefPicIndex ), m_apcSlicePilot->getPic()->layer ) ); // -1 because checkThatAllRefPicsAreAvailable() returns iPocLost+1
 #else
-            m_parseFrameList.push_back( prepareUnavailablePicture( lostPoc - 1, m_apcSlicePilot->getPic()->layerId, m_apcSlicePilot->getRPL0()->isRefPicLongterm(refPicIndex) ) );
-            // -1 because checkThatAllRefPicsAreAvailable() returns iPocLost+1
+            m_parseFrameList.push_back( prepareUnavailablePicture( lostPoc - 1, m_apcSlicePilot->getPic()->layerId, rpl->isRefPicLongterm(refPicIndex) ) ); // -1 because checkThatAllRefPicsAreAvailable() returns iPocLost+1
 #endif
           }
         }
         else
         {
-          m_parseFrameList.push_back( prepareLostPicture( lostPoc - 1, m_apcSlicePilot->getPic()->layerId ) );
-          // -1 because checkThatAllRefPicsAreAvailable() returns iPocLost+1
-        }
-      }
-    }
-
-    lostPoc = MAX_INT;
-    while( lostPoc > 0 )
-    {
-      lostPoc = m_apcSlicePilot->checkThatAllRefPicsAreAvailable( m_picListManager.getPicListRange( m_picListManager.getBackPic() ), m_apcSlicePilot->getRPL1(), true, &refPicIndex, m_apcSlicePilot->getNumRefIdx( REF_PIC_LIST_1 ) );
-      if( lostPoc > 0 )
-      {
-        if( !pps->getMixedNaluTypesInPicFlag() && (
-#if JVET_S0123_IDR_UNAVAILABLE_REFERENCE
-          ( ( m_apcSlicePilot->getNalUnitType() == NAL_UNIT_CODED_SLICE_IDR_W_RADL || m_apcSlicePilot->getNalUnitType() == NAL_UNIT_CODED_SLICE_IDR_N_LP )
-         && ( sps->getIDRRefParamListPresent() || pps->getRplInfoInPhFlag() ) ) ||
-#endif
-          ( ( m_apcSlicePilot->getNalUnitType() == NAL_UNIT_CODED_SLICE_GDR || m_apcSlicePilot->getNalUnitType() == NAL_UNIT_CODED_SLICE_CRA ) && m_picHeader->getNoOutputBeforeRecoveryFlag() ) ) )
-        {
-          if( m_apcSlicePilot->getRPL1()->isInterLayerRefPic( refPicIndex ) == 0 )
-          {
-#if JVET_S0124_UNAVAILABLE_REFERENCE
-            m_parseFrameList.push_back( prepareUnavailablePicture( pps, lostPoc - 1, m_apcSlicePilot->getPic()->layerId, m_apcSlicePilot->getRPL1()->isRefPicLongterm( refPicIndex ), m_apcSlicePilot->getPic()->layer ) );
-            // -1 because checkThatAllRefPicsAreAvailable() returns iPocLost+1
-#else
-            m_parseFrameList.push_back( prepareUnavailablePicture( lostPoc - 1, m_apcSlicePilot->getPic()->layerId, m_apcSlicePilot->getRPL1()->isRefPicLongterm(refPicIndex) ) );
-            // -1 because checkThatAllRefPicsAreAvailable() returns iPocLost+1
-#endif
-          }
-        }
-        else
-        {
-          m_parseFrameList.push_back( prepareLostPicture( lostPoc - 1, m_apcSlicePilot->getPic()->layerId ) );
-          // -1 because checkThatAllRefPicsAreAvailable() returns iPocLost+1
+          m_parseFrameList.push_back( prepareLostPicture( lostPoc - 1, m_apcSlicePilot->getPic()->layerId ) );  // -1 because checkThatAllRefPicsAreAvailable() returns iPocLost+1
         }
       }
     }

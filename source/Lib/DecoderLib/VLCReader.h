@@ -147,7 +147,7 @@ public:
 
 protected:
   void  copyRefPicList      ( SPS* pcSPS, ReferencePictureList* source_rpl, ReferencePictureList* dest_rpl );
-  void  parseRefPicList     ( SPS* pcSPS, ReferencePictureList* rpl, int rplIdx );
+  void  parseRefPicList     (const SPS* pcSPS, ReferencePictureList* rpl, int rplIdx );
 
 public:
   void  setBitstream        ( InputBitstream* p )   { m_pcBitstream = p; }
@@ -170,7 +170,9 @@ public:
   void  parseGeneralHrdParameters( GeneralHrdParams *generalHrd );
   void  parsePictureHeader  ( PicHeader* picHeader, ParameterSetManager *parameterSetManager, bool readRbspTrailingBits );
   void  parseSliceHeader    ( Slice* pcSlice, PicHeader* parsedPicHeader, ParameterSetManager *parameterSetManager, const int prevTid0POC, Picture* parsePic );
-  void  checkAlfNaluTidAndPicTid(Slice* pcSlice, PicHeader* picHeader, ParameterSetManager *parameterSetManager);
+  template<typename HeaderT>
+  void  parsePicOrSliceHeaderRPL( HeaderT* header, const SPS* sps, const PPS* pps );
+  void  checkAlfNaluTidAndPicTid( Slice* pcSlice, PicHeader* picHeader, ParameterSetManager *parameterSetManager);
   void  getSlicePoc         ( Slice* pcSlice, PicHeader* picHeader, ParameterSetManager *parameterSetManager, const int prevTid0POC );
   void  parseTerminatingBit ( uint32_t& ruiBit );
   void  parseRemainingBytes ( bool noTrailingBytesExpected );
