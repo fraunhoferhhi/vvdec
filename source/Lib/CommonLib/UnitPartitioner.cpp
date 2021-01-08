@@ -339,9 +339,7 @@ void Partitioner::canSplit( const CodingStructure &cs, bool& canNo, bool& canQt,
   // don't allow QT-splitting below a BT split
   if( lastSplit != CTU_LEVEL && lastSplit != CU_QUAD_SPLIT ) canQt = false;
   // minQtSize is in luma samples unit
-  const unsigned minQTThreshold = minQtSize >> ( ( cs.area.chromaFormat == CHROMA_400 )
-                                                ? 0
-                                                : ( ( int ) getChannelTypeScaleX( CHANNEL_TYPE_CHROMA, cs.area.chromaFormat ) - ( int ) getChannelTypeScaleY( CHANNEL_TYPE_CHROMA, cs.area.chromaFormat ) ) );
+  const unsigned minQTThreshold = minQtSize;
   if( area.width <= minQTThreshold )                         canQt = false;
 
 #if JVET_Q0438_MONOCHROME_BUGFIXES

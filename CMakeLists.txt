@@ -310,7 +310,7 @@ if( VVDEC_ENABLE_BITSTREAM_DOWNLOAD )
     "LMCS_A_Dolby_3.zip"
     #"LMCS_B_Dolby_2.zip" # fails because of sub-pictures
     "LOSSLESS_A_HHI_3.zip" "LOSSLESS_B_HHI_3.zip"
-    "LTRP_A_ERICSSON_2.zip"
+    "LTRP_A_ERICSSON_3.zip"
     "MERGE_A_Qualcomm_2.zip" "MERGE_B_Qualcomm_2.zip" "MERGE_C_Qualcomm_2.zip" "MERGE_D_Qualcomm_2.zip" "MERGE_E_Qualcomm_2.zip"
     "MERGE_F_Qualcomm_2.zip" "MERGE_G_Qualcomm_2.zip" "MERGE_H_Qualcomm_2.zip" "MERGE_I_Qualcomm_2.zip" "MERGE_J_Qualcomm_2.zip"
     "MIP_A_HHI_3.zip" "MIP_B_HHI_3.zip"

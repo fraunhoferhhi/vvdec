@@ -383,8 +383,8 @@ void MergeCtx::setMmvdMergeCandiInfo( PredictionUnit& pu, int candIdx )
       tempMv[1] = tempMv[0];
 
       const int  scale           = PU::getDistScaleFactor( currPoc, poc0, currPoc, poc1 );
-      const bool isL0RefLongTerm = pu.slice->getLocalRPL0()->isRefPicLongterm( refList0 );
-      const bool isL1RefLongTerm = pu.slice->getLocalRPL1()->isRefPicLongterm( refList1 );
+      const bool isL0RefLongTerm = pu.slice->getRPL0()->isRefPicLongterm( refList0 );
+      const bool isL1RefLongTerm = pu.slice->getRPL1()->isRefPicLongterm( refList1 );
 
       if( isL0RefLongTerm || isL1RefLongTerm )
       {
@@ -403,8 +403,8 @@ void MergeCtx::setMmvdMergeCandiInfo( PredictionUnit& pu, int candIdx )
     else
     {
       const int  scale            = PU::getDistScaleFactor( currPoc, poc1, currPoc, poc0 );
-      const bool isL0RefLongTerm  = pu.slice->getLocalRPL0()->isRefPicLongterm( refList0 );
-      const bool isL1RefLongTerm  = pu.slice->getLocalRPL1()->isRefPicLongterm( refList1 );
+      const bool isL0RefLongTerm  = pu.slice->getRPL0()->isRefPicLongterm( refList0 );
+      const bool isL1RefLongTerm  = pu.slice->getRPL1()->isRefPicLongterm( refList1 );
 
       if( isL0RefLongTerm || isL1RefLongTerm )
       {
