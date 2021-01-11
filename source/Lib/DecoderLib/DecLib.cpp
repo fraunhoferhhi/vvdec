@@ -197,22 +197,16 @@ Picture* DecLib::decode( InputNALUnit& nalu, int* pSkipFrame )
     this->decompressPicture( pcParsedPic );
   }
 
-  if( m_decLibParser.getParseNewPicture() )
+  if( m_decLibParser.getParseNewPicture() &&
+      ( pcParsedPic || nalu.isSlice() || nalu.m_nalUnitType == NAL_UNIT_EOS ) )
   {
-    if(      pcParsedPic
-        ||   nalu.m_nalUnitType == NAL_UNIT_EOS
-        || ( nalu.m_nalUnitType >= NAL_UNIT_CODED_SLICE_TRAIL      && nalu.m_nalUnitType <= NAL_UNIT_RESERVED_IRAP_VCL_12 )
-        || ( nalu.m_nalUnitType >= NAL_UNIT_CODED_SLICE_IDR_W_RADL && nalu.m_nalUnitType <= NAL_UNIT_CODED_SLICE_GDR )
-      )
+    Picture* outPic = getNextOutputPic( false );
+    CHECK_WARN( m_checkMissingOutput && !outPic, "missing output picture" ); // we don't need this CHECK in flushPic(), because flushPic() is usually only called until the first nullptr is returned
+    if( outPic )
     {
-      Picture* outPic = getNextOutputPic( false );
-      CHECK_WARN( m_checkMissingOutput && !outPic, "missing output picture" ); // we don't need this CHECK in flushPic(), because flushPic() is usually only called until the first nullptr is returned
-      if( outPic )
-      {
-        m_checkMissingOutput = true;
-      }
-      return outPic;
+      m_checkMissingOutput = true;
     }
+    return outPic;
   }
 
   return nullptr;
