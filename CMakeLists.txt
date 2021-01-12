@@ -315,7 +315,7 @@ if( VVDEC_ENABLE_BITSTREAM_DOWNLOAD )
     "ENTROPY_B_Sharp_2.zip"
     "ERP_A_MediaTek_3.zip"
     "FIELD_A_Panasonic_3.zip"
-    #"FILLER_A_Bytedance_1.zip"                                   # TODO: Invalid NAL unit type
+    "FILLER_A_Bytedance_1.zip"
     #"GDR_A_ERICSSON_2.zip"                                       # Invalid NAL unit type: GDR
     #"GDR_A_NOKIA_1.zip" "GDR_B_NOKIA_1.zip" "GDR_C_NOKIA_1.zip"  # Invalid NAL unit type: GDR
     "GPM_A_Alibaba_3.zip" "GPM_B_Alibaba_1.zip"

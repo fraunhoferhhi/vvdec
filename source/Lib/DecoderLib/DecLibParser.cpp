@@ -249,6 +249,10 @@ Picture* DecLibParser::parse( InputNALUnit& nalu, int* pSkipFrame )
 
   case NAL_UNIT_EOB:
     return nullptr;
+
+  case NAL_UNIT_FD:
+    return nullptr;
+
   case NAL_UNIT_RESERVED_IRAP_VCL_11:
   case NAL_UNIT_RESERVED_IRAP_VCL_12:
     msg( NOTICE, "Note: found reserved VCL NAL unit.\n");
