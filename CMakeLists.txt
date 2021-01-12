@@ -17,7 +17,7 @@ if( NOT CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR )
   if( UNIX OR MINGW )
     add_compile_options( "-msse4.1" )
   endif()
-  
+
   # set exception handling
   if( MSVC )
     add_compile_options( "/EHsc" )
@@ -36,24 +36,24 @@ endif()
 
 # enable or disable bitstream download
 set( VVDEC_ENABLE_BITSTREAM_DOWNLOAD        OFF CACHE BOOL   "Enable or disable bitstream download" )
-                                                             
-# enable local bitstream download                            
+
+# enable local bitstream download
 set( VVDEC_ENABLE_LOCAL_BITSTREAM_DOWNLOAD  OFF CACHE BOOL   "Enable or disable local bitstream download" )
-                                                             
-# enable install target                                      
+
+# enable install target
 set( VVDEC_ENABLE_INSTALL                   ON  CACHE BOOL   "Enable or disable install target" )
-                                                             
-# enable postfix                                             
+
+# enable postfix
 set( VVDEC_ENABLE_BUILD_TYPE_POSTFIX        OFF CACHE BOOL   "Enable or disable build type postfix for apps and libs" )
-                                                             
+
 set( VVDEC_ENABLE_LINK_TIME_OPT             ON  CACHE BOOL   "Enable link time optimization for release and profile builds" )
 
 if( CMAKE_CXX_COMPILER_ID STREQUAL "GNU" OR
     CMAKE_CXX_COMPILER_ID STREQUAL "Clang" )
-    
+
   # enable address sanitizer
   set( VVDEC_USE_ADDRESS_SANITIZER          OFF CACHE BOOL   "Enable or disable address sanitizer" )
-  
+
   # add -march=native
   set( VVDEC_OPT_TARGET_ARCH                ""  CACHE STRING "Enable or disable building with architecture specific optimization" )
 endif()
@@ -90,7 +90,7 @@ set( CMAKE_ARCHIVE_OUTPUT_DIRECTORY_MINSIZEREL     "${CMAKE_SOURCE_DIR}/lib/mins
 set( CMAKE_LIBRARY_OUTPUT_DIRECTORY_DEBUG          "${CMAKE_ARCHIVE_OUTPUT_DIRECTORY_DEBUG}" )
 set( CMAKE_LIBRARY_OUTPUT_DIRECTORY_RELEASE        "${CMAKE_ARCHIVE_OUTPUT_DIRECTORY_RELEASE}" )
 set( CMAKE_LIBRARY_OUTPUT_DIRECTORY_RELWITHDEBINFO "${CMAKE_ARCHIVE_OUTPUT_DIRECTORY_RELWITHDEBINFO}" )
-set( CMAKE_LIBRARY_OUTPUT_DIRECTORY_MINSIZEREL     "${CMAKE_ARCHIVE_OUTPUT_DIRECTORY_MINSIZEREL}" )    
+set( CMAKE_LIBRARY_OUTPUT_DIRECTORY_MINSIZEREL     "${CMAKE_ARCHIVE_OUTPUT_DIRECTORY_MINSIZEREL}" )
 
 set( CMAKE_RUNTIME_OUTPUT_DIRECTORY_DEBUG          "${CMAKE_SOURCE_DIR}/bin/debug-${VVDEC_OUTPUT_DIR_POSTFIX}" )
 set( CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELEASE        "${CMAKE_SOURCE_DIR}/bin/release-${VVDEC_OUTPUT_DIR_POSTFIX}" )
@@ -225,7 +225,7 @@ if( VVDEC_ENABLE_INSTALL )
 
   # use GNU install dirs
   include( GNUInstallDirs )
-  
+
   if( BUILD_SHARED_LIBS AND NOT WIN32 )
     set( CMAKE_SKIP_INSTALL_RPATH OFF CACHE BOOL "skip rpath" )
     if( APPLE )
@@ -233,12 +233,12 @@ if( VVDEC_ENABLE_INSTALL )
     elseif( UNIX )
       set( RPATH_BASE $ORIGIN )
     endif()
-    
+
     file( RELATIVE_PATH RPATH_REL_DIR ${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_INSTALL_BINDIR} ${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_INSTALL_LIBDIR} )
-    
+
     set( CMAKE_INSTALL_RPATH ${RPATH_BASE} ${RPATH_BASE}/${RPATH_REL_DIR} )
     message( STATUS "CMAKE_INSTALL_RPATH=${CMAKE_INSTALL_RPATH}" )
-  endif()  
+  endif()
 endif()
 
 
@@ -251,7 +251,7 @@ set( BITSTREAM_INSTALL_DIR_BASE "${CMAKE_SOURCE_DIR}/ext/bitstreams" )
 if( VVDEC_ENABLE_BITSTREAM_DOWNLOAD )
   # enable FetchContent
   include( FetchContent )
-  
+
   if( VVDEC_ENABLE_LOCAL_BITSTREAM_DOWNLOAD )
     # get bitstreams
     set( BITSTREAM_URL_BASE "https://visvn.fe.hhi.de/download/VVC/under_test/VTM-11.0" )
@@ -259,7 +259,7 @@ if( VVDEC_ENABLE_BITSTREAM_DOWNLOAD )
     # get bitstreams
     set( BITSTREAM_URL_BASE "https://www.itu.int/wftp3/av-arch/jvet-site/bitstream_exchange/VVC/under_test/VTM-11.0" )
   endif()
-  
+
   # create a list of all test bitstreams
   list( APPEND BITSTREAM_FILES
     "10b400_A_Bytedance_2.zip" "10b400_B_Bytedance_2.zip"
@@ -320,7 +320,7 @@ if( VVDEC_ENABLE_BITSTREAM_DOWNLOAD )
     "MTS_A_LGE_3.zip" "MTS_B_LGE_3.zip"
     "MTS_LFNST_A_LGE_3.zip" "MTS_LFNST_B_LGE_3.zip"
     "MVCOMP_A_Sharp_2.zip"
-    "PDPC_A_Qualcomm_3.zip" "PDPC_B_Qualcomm_3.zip" "PDPC_C_Qualcomm_2.zip" 
+    "PDPC_A_Qualcomm_3.zip" "PDPC_B_Qualcomm_3.zip" "PDPC_C_Qualcomm_2.zip"
     "PHSH_B_Sharp_1.zip"
     "POC_A_Nokia_1.zip"
     "POUT_A_Sharplabs_2.zip"
@@ -354,31 +354,44 @@ if( VVDEC_ENABLE_BITSTREAM_DOWNLOAD )
     "WPP_A_Sharp_3.zip" "WPP_B_Sharp_2.zip"
     "WRAP_A_InterDigital_4.zip" "WRAP_B_InterDigital_4.zip" "WRAP_C_InterDigital_4.zip" "WRAP_D_InterDigital_4.zip"
   )
-  
+
   # download and uncompress
   set( COUNTER 1 )
   foreach( BITSTREAM_FILE IN LISTS BITSTREAM_FILES )
     string( REGEX REPLACE ".*/(.*)\\..*" "\\1" SUB_DIR "${BITSTREAM_URL_BASE}/${BITSTREAM_FILE}" )
     set( BITSTREAM_INSTALL_DIR "${BITSTREAM_INSTALL_DIR_BASE}/${SUB_DIR}" )
     if( NOT EXISTS "${BITSTREAM_INSTALL_DIR}" )
-      FetchContent_Populate( ${COUNTER} SOURCE_DIR ${BITSTREAM_INSTALL_DIR} URL "${BITSTREAM_URL_BASE}/${BITSTREAM_FILE}" )  
+      FetchContent_Populate( ${COUNTER} SOURCE_DIR ${BITSTREAM_INSTALL_DIR} URL "${BITSTREAM_URL_BASE}/${BITSTREAM_FILE}" )
     endif()
     math( EXPR COUNTER "${COUNTER}+1" )
   endforeach()
 endif()
 
-# enable testing with ctest
-enable_testing()
-
-# find all bitstreams and add test
+# find all bitstreams
 file( GLOB_RECURSE BITSTREAMS LIST_DIRECTORIES false ${BITSTREAM_INSTALL_DIR_BASE}/*.bit )
-foreach( BITSTREAM IN LISTS BITSTREAMS )
-  string( REGEX REPLACE ".*/(.*)" "\\1" BITSTREAM_SHORT "${BITSTREAM}" )
-  if( NOT BITSTREAM_SHORT MATCHES "^\\..+" )
-    add_test( NAME Test_${BITSTREAM_SHORT} COMMAND vvdecapp -b ${BITSTREAM} -dph )
-    set_tests_properties( Test_${BITSTREAM_SHORT} PROPERTIES TIMEOUT 60 )
-  endif() 
-endforeach()
+
+if( BITSTREAMS )
+  # enable testing with ctest
+  enable_testing()
+
+  # add tests for bitstreams
+  foreach( BITSTREAM IN LISTS BITSTREAMS )
+    string( REGEX REPLACE ".*/(.*)" "\\1" BITSTREAM_SHORT "${BITSTREAM}" )
+    if( NOT BITSTREAM_SHORT MATCHES "^\\..+" )
+      add_test( NAME Test_${BITSTREAM_SHORT} COMMAND vvdecapp -b ${BITSTREAM} -dph )
+      set_tests_properties( Test_${BITSTREAM_SHORT} PROPERTIES TIMEOUT 60 )
+    endif()
+  endforeach()
+else()
+  # add dummy target if no bitstreams are found
+  foreach( target in test RUN_TESTS )
+    add_custom_target( ${target} )
+    add_custom_command( TARGET ${target}
+                        COMMAND ${CMAKE_COMMAND} -E echo ""
+                        COMMAND ${CMAKE_COMMAND} -E echo "ERROR: No bitstreams found. Reconfigure with -DVVDEC_ENABLE_BITSTREAM_DOWNLOAD=ON"
+                        COMMAND ${CMAKE_COMMAND} -E echo "       \\(or using top level Makefile: make test enable-bitstream-download=1\\)" )
+  endforeach()
+endif()
 
 if( VVDEC_ENABLE_INSTALL )
   # include installer
