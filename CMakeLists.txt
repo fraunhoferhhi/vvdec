@@ -316,8 +316,8 @@ if( VVDEC_ENABLE_BITSTREAM_DOWNLOAD )
     "ERP_A_MediaTek_3.zip"
     "FIELD_A_Panasonic_3.zip"
     "FILLER_A_Bytedance_1.zip"
-    #"GDR_A_ERICSSON_2.zip"                                       # Invalid NAL unit type: GDR
-    #"GDR_A_NOKIA_1.zip" "GDR_B_NOKIA_1.zip" "GDR_C_NOKIA_1.zip"  # Invalid NAL unit type: GDR
+    #"GDR_A_ERICSSON_2.zip"                                       # GDR currently not supported
+    #"GDR_A_NOKIA_1.zip" "GDR_B_NOKIA_1.zip" "GDR_C_NOKIA_1.zip"  # GDR currently not supported
     "GPM_A_Alibaba_3.zip" "GPM_B_Alibaba_1.zip"
     "HLG_A_NHK_3.zip" "HLG_B_NHK_3.zip"
     "HRD_A_Fujitsu_3.zip" "HRD_B_Fujitsu_2.zip"

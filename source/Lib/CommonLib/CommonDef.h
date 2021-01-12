@@ -101,6 +101,13 @@ inline int64_t abs (int64_t x) { return _abs64(x); };
 # define GCC_WARNING_DISABLE_class_memaccess
 #endif
 
+#if defined __GNUC__
+# define GCC_EXTRA_WARNING_switch_enum           _Pragma("GCC diagnostic push"); \
+                                                 _Pragma("GCC diagnostic error \"-Wswitch-enum\"");
+#else
+# define GCC_EXTRA_WARNING_switch_enum
+#endif
+
 //! \ingroup CommonLib
 //! \{
 
