@@ -245,53 +245,53 @@ endif()
 add_subdirectory( "source/Lib/vvdec" )
 add_subdirectory( "source/App/vvdecapp" )
 
+# create a list of all test bitstreams in variable BITSTREAM_FILES
+# also defines BITSTREAM_URL_BASE
+include( define_bitstream_files.cmake )
+
 # set directory global
 set( BITSTREAM_INSTALL_DIR_BASE "${CMAKE_SOURCE_DIR}/ext/bitstreams" )
 if( VVDEC_ENABLE_BITSTREAM_DOWNLOAD )
   # enable FetchContent
   include( FetchContent )
 
-  # create a list of all test bitstreams in variable BITSTREAM_FILES
-  # also defines BITSTREAM_URL_BASE
-  include( define_bitstream_files.cmake )
-
   # download and uncompress
   set( COUNTER 1 )
-  foreach( BITSTREAM_FILE IN LISTS BITSTREAM_FILES )
-    string( REGEX REPLACE ".*/(.*)\\..*" "\\1" SUB_DIR "${BITSTREAM_URL_BASE}/${BITSTREAM_FILE}" )
+  foreach( BITSTREAM_ZIP IN LISTS BITSTREAM_FILES )
+    string( REGEX REPLACE ".*/(.*)\\..*" "\\1" SUB_DIR "${BITSTREAM_URL_BASE}/${BITSTREAM_ZIP}" )
     set( BITSTREAM_INSTALL_DIR "${BITSTREAM_INSTALL_DIR_BASE}/${SUB_DIR}" )
-    if( NOT EXISTS "${BITSTREAM_INSTALL_DIR}" )
-      message( STATUS "Downloading ${BITSTREAM_URL_BASE}/${BITSTREAM_FILE}" )
-      FetchContent_Populate( ${COUNTER} QUIET SOURCE_DIR ${BITSTREAM_INSTALL_DIR} URL "${BITSTREAM_URL_BASE}/${BITSTREAM_FILE}" )
+    string( REGEX REPLACE "(.*).zip" "\\1" BITSTREAM_SHORT "${BITSTREAM_ZIP}" )
+    if( NOT EXISTS "${BITSTREAM_INSTALL_DIR}/${BITSTREAM_SHORT}.bit" )
+      message( STATUS "Downloading ${BITSTREAM_URL_BASE}/${BITSTREAM_ZIP}" )
+      FetchContent_Populate( download_${COUNTER} QUIET SOURCE_DIR ${BITSTREAM_INSTALL_DIR} URL "${BITSTREAM_URL_BASE}/${BITSTREAM_ZIP}" )
     endif()
     math( EXPR COUNTER "${COUNTER}+1" )
   endforeach()
 endif()
 
-# find all bitstreams
-file( GLOB_RECURSE BITSTREAMS LIST_DIRECTORIES false ${BITSTREAM_INSTALL_DIR_BASE}/*.bit )
+# enable testing with ctest
+enable_testing()
 
-if( BITSTREAMS )
-  # enable testing with ctest
-  enable_testing()
+# add tests for bitstreams
+foreach( BITSTREAM IN LISTS BITSTREAM_FILES )
+  string( REGEX REPLACE "(.*).zip" "\\1" BITSTREAM_SHORT "${BITSTREAM}" )
+  set( BITSTREAM_FILE "${BITSTREAM_INSTALL_DIR_BASE}/${BITSTREAM_SHORT}/${BITSTREAM_SHORT}.bit" )
 
-  # add tests for bitstreams
-  foreach( BITSTREAM IN LISTS BITSTREAMS )
-    string( REGEX REPLACE ".*/(.*)" "\\1" BITSTREAM_SHORT "${BITSTREAM}" )
-    if( NOT BITSTREAM_SHORT MATCHES "^\\..+" )
-      add_test( NAME Test_${BITSTREAM_SHORT} COMMAND vvdecapp -b ${BITSTREAM} -dph )
-      set_tests_properties( Test_${BITSTREAM_SHORT} PROPERTIES TIMEOUT 60 )
-    endif()
-  endforeach()
-else()
-  # add dummy target if no bitstreams are found
-  foreach( target in test RUN_TESTS )
-    add_custom_target( ${target} )
-    add_custom_command( TARGET ${target}
-                        COMMAND ${CMAKE_COMMAND} -E echo ""
-                        COMMAND ${CMAKE_COMMAND} -E echo "ERROR: No bitstreams found. Reconfigure with -DVVDEC_ENABLE_BITSTREAM_DOWNLOAD=ON"
-                        COMMAND ${CMAKE_COMMAND} -E echo "       \\(or using top level Makefile: make test enable-bitstream-download=1\\)" )
-  endforeach()
+  if( EXISTS ${BITSTREAM_FILE} )
+    add_test( NAME Test:${BITSTREAM_SHORT}.bit COMMAND vvdecapp -b ${BITSTREAM_FILE} -dph )
+    set_tests_properties( Test:${BITSTREAM_SHORT}.bit PROPERTIES TIMEOUT 60 )
+  else()
+    add_test( NAME MISSING:${BITSTREAM_SHORT}.bit COMMAND vvdecapp -b ${BITSTREAM_FILE} -dph )
+    set_tests_properties( MISSING:${BITSTREAM_SHORT}.bit PROPERTIES TIMEOUT 60 )
+
+    set( MISSING_BITSTREAM_FILES TRUE )
+  endif()
+endforeach()
+
+if( MISSING_BITSTREAM_FILES )
+  message( STATUS "Some bitstream files are missing." )
+  message( STATUS "  If you want to run tests, reconfigure with -DVVDEC_ENABLE_BITSTREAM_DOWNLOAD=ON" )
+  message( STATUS "  (or using top level Makefile: make test enable-bitstream-download=1)" )
 endif()
 
 if( VVDEC_ENABLE_INSTALL )
