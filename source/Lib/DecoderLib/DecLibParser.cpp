@@ -155,6 +155,7 @@ Picture* DecLibParser::parse( InputNALUnit& nalu, int* pSkipFrame )
     return nullptr;
   }
 
+  GCC_EXTRA_WARNING_switch_enum
   switch( nalu.m_nalUnitType )
   {
   case NAL_UNIT_VPS:
@@ -213,6 +214,7 @@ Picture* DecLibParser::parse( InputNALUnit& nalu, int* pSkipFrame )
   case NAL_UNIT_CODED_SLICE_IDR_W_RADL:
   case NAL_UNIT_CODED_SLICE_IDR_N_LP:
   case NAL_UNIT_CODED_SLICE_CRA:
+  case NAL_UNIT_CODED_SLICE_GDR:
   case NAL_UNIT_CODED_SLICE_RADL:
   case NAL_UNIT_CODED_SLICE_RASL:
   {
@@ -249,6 +251,10 @@ Picture* DecLibParser::parse( InputNALUnit& nalu, int* pSkipFrame )
 
   case NAL_UNIT_EOB:
     return nullptr;
+
+  case NAL_UNIT_FD:
+    return nullptr;
+
   case NAL_UNIT_RESERVED_IRAP_VCL_11:
   case NAL_UNIT_RESERVED_IRAP_VCL_12:
     msg( NOTICE, "Note: found reserved VCL NAL unit.\n");
@@ -267,10 +273,12 @@ Picture* DecLibParser::parse( InputNALUnit& nalu, int* pSkipFrame )
   case NAL_UNIT_UNSPECIFIED_31:
     msg( NOTICE, "Note: found unspecified NAL unit.\n");
     return nullptr;
+  case NAL_UNIT_INVALID:
   default:
     THROW( "Invalid NAL unit type" );
     break;
   }
+  GCC_WARNING_RESET
 
   return nullptr;
 }

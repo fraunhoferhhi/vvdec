@@ -17,7 +17,7 @@ if( NOT CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR )
   if( UNIX OR MINGW )
     add_compile_options( "-msse4.1" )
   endif()
-  
+
   # set exception handling
   if( MSVC )
     add_compile_options( "/EHsc" )
@@ -36,24 +36,24 @@ endif()
 
 # enable or disable bitstream download
 set( VVDEC_ENABLE_BITSTREAM_DOWNLOAD        OFF CACHE BOOL   "Enable or disable bitstream download" )
-                                                             
-# enable local bitstream download                            
+
+# enable local bitstream download
 set( VVDEC_ENABLE_LOCAL_BITSTREAM_DOWNLOAD  OFF CACHE BOOL   "Enable or disable local bitstream download" )
-                                                             
-# enable install target                                      
+
+# enable install target
 set( VVDEC_ENABLE_INSTALL                   ON  CACHE BOOL   "Enable or disable install target" )
-                                                             
-# enable postfix                                             
+
+# enable postfix
 set( VVDEC_ENABLE_BUILD_TYPE_POSTFIX        OFF CACHE BOOL   "Enable or disable build type postfix for apps and libs" )
-                                                             
+
 set( VVDEC_ENABLE_LINK_TIME_OPT             ON  CACHE BOOL   "Enable link time optimization for release and profile builds" )
 
 if( CMAKE_CXX_COMPILER_ID STREQUAL "GNU" OR
     CMAKE_CXX_COMPILER_ID STREQUAL "Clang" )
-    
+
   # enable address sanitizer
   set( VVDEC_USE_ADDRESS_SANITIZER          OFF CACHE BOOL   "Enable or disable address sanitizer" )
-  
+
   # add -march=native
   set( VVDEC_OPT_TARGET_ARCH                ""  CACHE STRING "Enable or disable building with architecture specific optimization" )
 endif()
@@ -90,7 +90,7 @@ set( CMAKE_ARCHIVE_OUTPUT_DIRECTORY_MINSIZEREL     "${CMAKE_SOURCE_DIR}/lib/mins
 set( CMAKE_LIBRARY_OUTPUT_DIRECTORY_DEBUG          "${CMAKE_ARCHIVE_OUTPUT_DIRECTORY_DEBUG}" )
 set( CMAKE_LIBRARY_OUTPUT_DIRECTORY_RELEASE        "${CMAKE_ARCHIVE_OUTPUT_DIRECTORY_RELEASE}" )
 set( CMAKE_LIBRARY_OUTPUT_DIRECTORY_RELWITHDEBINFO "${CMAKE_ARCHIVE_OUTPUT_DIRECTORY_RELWITHDEBINFO}" )
-set( CMAKE_LIBRARY_OUTPUT_DIRECTORY_MINSIZEREL     "${CMAKE_ARCHIVE_OUTPUT_DIRECTORY_MINSIZEREL}" )    
+set( CMAKE_LIBRARY_OUTPUT_DIRECTORY_MINSIZEREL     "${CMAKE_ARCHIVE_OUTPUT_DIRECTORY_MINSIZEREL}" )
 
 set( CMAKE_RUNTIME_OUTPUT_DIRECTORY_DEBUG          "${CMAKE_SOURCE_DIR}/bin/debug-${VVDEC_OUTPUT_DIR_POSTFIX}" )
 set( CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELEASE        "${CMAKE_SOURCE_DIR}/bin/release-${VVDEC_OUTPUT_DIR_POSTFIX}" )
@@ -225,7 +225,7 @@ if( VVDEC_ENABLE_INSTALL )
 
   # use GNU install dirs
   include( GNUInstallDirs )
-  
+
   if( BUILD_SHARED_LIBS AND NOT WIN32 )
     set( CMAKE_SKIP_INSTALL_RPATH OFF CACHE BOOL "skip rpath" )
     if( APPLE )
@@ -233,12 +233,12 @@ if( VVDEC_ENABLE_INSTALL )
     elseif( UNIX )
       set( RPATH_BASE $ORIGIN )
     endif()
-    
+
     file( RELATIVE_PATH RPATH_REL_DIR ${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_INSTALL_BINDIR} ${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_INSTALL_LIBDIR} )
-    
+
     set( CMAKE_INSTALL_RPATH ${RPATH_BASE} ${RPATH_BASE}/${RPATH_REL_DIR} )
     message( STATUS "CMAKE_INSTALL_RPATH=${CMAKE_INSTALL_RPATH}" )
-  endif()  
+  endif()
 endif()
 
 
@@ -247,11 +247,10 @@ add_subdirectory( "source/App/vvdecapp" )
 
 # set directory global
 set( BITSTREAM_INSTALL_DIR_BASE "${CMAKE_SOURCE_DIR}/ext/bitstreams" )
-
 if( VVDEC_ENABLE_BITSTREAM_DOWNLOAD )
   # enable FetchContent
   include( FetchContent )
-  
+
   if( VVDEC_ENABLE_LOCAL_BITSTREAM_DOWNLOAD )
     # get bitstreams
     set( BITSTREAM_URL_BASE "https://visvn.fe.hhi.de/download/VVC/under_test/VTM-11.0" )
@@ -259,126 +258,49 @@ if( VVDEC_ENABLE_BITSTREAM_DOWNLOAD )
     # get bitstreams
     set( BITSTREAM_URL_BASE "https://www.itu.int/wftp3/av-arch/jvet-site/bitstream_exchange/VVC/under_test/VTM-11.0" )
   endif()
-  
-  # create a list of all test bitstreams
-  list( APPEND BITSTREAM_FILES
-    "10b400_A_Bytedance_2.zip" "10b400_B_Bytedance_2.zip"
-    "8b400_A_Bytedance_2.zip" "8b400_B_Bytedance_2.zip"
-    "8b420_A_Bytedance_2.zip" "8b420_B_Bytedance_2.zip"
-    "AFF_A_HUAWEI_2.zip" "AFF_B_HUAWEI_2.zip"
-    "ALF_A_Huawei_3.zip" "ALF_B_Huawei_3.zip"
-    "ALF_C_KDDI_2.zip"
-    "ALF_D_Qualcomm_2.zip"
-    "AMVR_A_HHI_3.zip" "AMVR_B_HHI_3.zip"
-    "APSALF_A_Qualcomm_2.zip"
-    "APSLMCS_A_Dolby_3.zip" "APSLMCS_B_Dolby_3.zip" "APSLMCS_C_Dolby_2.zip"
-    "APSMULT_A_MediaTek_3.zip" "APSMULT_B_MediaTek_3.zip"
-    "AUD_A_Broadcom_3.zip"
-    "BCW_A_MediaTek_3.zip"
-    "BDOF_A_MediaTek_3.zip"
-    "BDPCM_A_Orange_2.zip"
-    "BOUNDARY_A_Huawei_3.zip"
-    #"BUMP_A_LGE_1.zip" "BUMP_B_LGE_1.zip" "BUMP_C_LGE_1.zip" # missing in 11.0
-    "CCALF_A_Sharp_3.zip" "CCALF_B_Sharp_3.zip" "CCALF_C_Sharp_3.zip" "CCALF_D_Sharp_3.zip"
-    "CCLM_A_KDDI_1.zip"
-    "CIIP_A_MediaTek_3.zip"
-    "CodingToolsSets_A_Tencent_2.zip" "CodingToolsSets_B_Tencent_2.zip" "CodingToolsSets_C_Tencent_2.zip" "CodingToolsSets_D_Tencent_2.zip"
-    #"CodingToolsSets_E_Tencent_1.zip" # fails because of sub-pictures
-    "CROP_A_Panasonic_3.zip" "CROP_B_Panasonic_4.zip"
-    "CST_A_MediaTek_3.zip"
-    "CTU_A_MediaTek_3.zip" "CTU_B_MediaTek_3.zip" "CTU_C_MediaTek_3.zip"
-    "DEBLOCKING_A_Sharp_3.zip" "DEBLOCKING_B_Sharp_2.zip"
-    "DEBLOCKING_C_Huawei_3.zip"
-    "DEBLOCKING_E_Ericsson_2.zip" "DEBLOCKING_F_Ericsson_1.zip"
-    "DMVR_A_Huawei_3.zip"
-    "DMVR_B_KDDI_3.zip"
-    "DPB_A_Sharplabs_2.zip" "DPB_B_Sharplabs_2.zip"
-    "DQ_A_HHI_3.zip" "DQ_B_HHI_3.zip"
-    "ENTMAINTIER_A_Sony_3.zip" "ENTMAINTIER_B_Sony_3.zip" "ENTMAINTIER_C_Sony_3.zip" "ENTMAINTIER_D_Sony_3.zip"
-    "ENTROPY_A_Chipsnmedia_2.zip"
-    "ENTROPY_A_Qualcomm_2.zip"
-    "ENTROPY_B_Sharp_2.zip"
-    "GPM_A_Alibaba_3.zip"
-    "HLG_A_NHK_2.zip" "HLG_B_NHK_2.zip"
-    "IBC_A_Tencent_2.zip" "IBC_B_Tencent_2.zip" "IBC_C_Tencent_2.zip" "IBC_D_Tencent_2.zip"
-    "IP_B_Nokia_1.zip"
-    "ISP_A_HHI_3.zip" "ISP_B_HHI_3.zip"
-    "JCCR_C_HHI_3.zip" "JCCR_D_HHI_3.zip"
-    "JCCR_A_Nokia_2.zip" "JCCR_B_Nokia_2.zip" "JCCR_E_Nokia_1.zip" "JCCR_F_Nokia_1.zip"
-    "LFNST_A_LGE_3.zip" "LFNST_B_LGE_3.zip"
-    "LFNST_C_HHI_3.zip" "LFNST_D_HHI_3.zip"
-    "LMCS_A_Dolby_3.zip"
-    #"LMCS_B_Dolby_2.zip" # fails because of sub-pictures
-    "LOSSLESS_A_HHI_3.zip" "LOSSLESS_B_HHI_3.zip"
-    "LTRP_A_ERICSSON_3.zip"
-    "MERGE_A_Qualcomm_2.zip" "MERGE_B_Qualcomm_2.zip" "MERGE_C_Qualcomm_2.zip" "MERGE_D_Qualcomm_2.zip" "MERGE_E_Qualcomm_2.zip"
-    "MERGE_F_Qualcomm_2.zip" "MERGE_G_Qualcomm_2.zip" "MERGE_H_Qualcomm_2.zip" "MERGE_I_Qualcomm_2.zip" "MERGE_J_Qualcomm_2.zip"
-    "MIP_A_HHI_3.zip" "MIP_B_HHI_3.zip"
-    "MMVD_A_SAMSUNG_3.zip"
-    "MPM_A_LGE_3.zip"
-    "MRLP_A_HHI_2.zip" "MRLP_B_HHI_2.zip"
-    "MTS_A_LGE_3.zip" "MTS_B_LGE_3.zip"
-    "MTS_LFNST_A_LGE_3.zip" "MTS_LFNST_B_LGE_3.zip"
-    "MVCOMP_A_Sharp_2.zip"
-    "PDPC_A_Qualcomm_3.zip" "PDPC_B_Qualcomm_3.zip" "PDPC_C_Qualcomm_2.zip" 
-    "PHSH_B_Sharp_1.zip"
-    "POC_A_Nokia_1.zip"
-    "POUT_A_Sharplabs_2.zip"
-    "PPS_A_Bytedance_1.zip" "PPS_B_Bytedance_1.zip" "PPS_C_Bytedance_1.zip"
-    "PQ_A_Dolby_1.zip"
-    "PROF_A_Interdigital_3.zip" "PROF_B_Interdigital_3.zip"
-    "PSEXT_A_Nokia_2.zip" "PSEXT_B_Nokia_2.zip"
-    "QTBTT_A_MediaTek_3.zip"
-    "QUANT_A_Huawei_2.zip" "QUANT_B_Huawei_2.zip" "QUANT_C_Huawei_2.zip" "QUANT_D_Huawei_2.zip"
-    "RAP_A_HHI_1.zip" "RAP_B_HHI_1.zip" "RAP_C_HHI_1.zip" "RAP_D_HHI_1.zip"
-    "RPL_A_ERICSSON_2.zip"
-    "RPR_A_Alibaba_4.zip" "RPR_B_Alibaba_3.zip" "RPR_C_Alibaba_3.zip"
-    "SAO_A_SAMSUNG_3.zip" "SAO_B_SAMSUNG_3.zip" "SAO_C_SAMSUNG_3.zip"
-    "SBT_A_HUAWEI_2.zip"
-    "SbTMVP_A_Bytedance_3.zip" "SbTMVP_B_Bytedance_3.zip"
-    "SCALING_A_InterDigital_1.zip" "SCALING_B_InterDigital_1.zip" "SCALING_C_InterDigital_1.zip"
-    "SDH_A_Dolby_2.zip"
-    "SLICES_A_HUAWEI_2.zip"
-    "SMVD_A_HUAWEI_2.zip"
-    "SPS_A_Bytedance_1.zip" "SPS_B_Bytedance_1.zip" "SPS_C_Bytedance_1.zip"
-    #"SUBPIC_A_HUAWEI_3.zip" "SUBPIC_B_HUAWEI_3.zip" # subpictures currently not supported
-    "TEMPSCAL_A_Panasonic_4.zip"
-    #"TEMPSCAL_B_Panasonic_4.zip" # seems broken, doesn't decode with VTM-11
-    "TEMPSCAL_C_Panasonic_3.zip"
-    "TILE_A_Nokia_2.zip" "TILE_B_Nokia_2.zip" "TILE_C_Nokia_2.zip" "TILE_D_Nokia_2.zip" "TILE_E_Nokia_2.zip" "TILE_F_Nokia_2.zip" "TILE_G_Nokia_2.zip"
-    "TMVP_A_Chipsnmedia_3.zip" "TMVP_B_Chipsnmedia_3.zip" "TMVP_C_Chipsnmedia_3.zip" "TMVP_D_Chipsnmedia_3.zip"
-    "TRANS_A_Chipsnmedia_2.zip" "TRANS_B_Chipsnmedia_2.zip" "TRANS_C_Chipsnmedia_2.zip" "TRANS_D_Chipsnmedia_2.zip"
-    "TREE_A_HHI_3.zip" "TREE_B_HHI_3.zip" "TREE_C_HHI_3.zip"
-    #"VIRTUAL_A_MediaTek_3.zip" "VIRTUAL_B_MediaTek_3.zip" # TODO
-    "WP_A_InterDigital_3.zip" "WP_B_InterDigital_3.zip"
-    "WPP_A_Sharp_3.zip" "WPP_B_Sharp_2.zip"
-    "WRAP_A_InterDigital_4.zip" "WRAP_B_InterDigital_4.zip" "WRAP_C_InterDigital_4.zip" "WRAP_D_InterDigital_4.zip"
-  )
-  
+
+  # create a list of all test bitstreams in variable BITSTREAM_FILES
+  include( define_bitstream_files.cmake )
+
+
   # download and uncompress
   set( COUNTER 1 )
   foreach( BITSTREAM_FILE IN LISTS BITSTREAM_FILES )
     string( REGEX REPLACE ".*/(.*)\\..*" "\\1" SUB_DIR "${BITSTREAM_URL_BASE}/${BITSTREAM_FILE}" )
     set( BITSTREAM_INSTALL_DIR "${BITSTREAM_INSTALL_DIR_BASE}/${SUB_DIR}" )
     if( NOT EXISTS "${BITSTREAM_INSTALL_DIR}" )
-      FetchContent_Populate( ${COUNTER} SOURCE_DIR ${BITSTREAM_INSTALL_DIR} URL "${BITSTREAM_URL_BASE}/${BITSTREAM_FILE}" )  
+      message( STATUS "Downloading ${BITSTREAM_URL_BASE}/${BITSTREAM_FILE}" )
+      FetchContent_Populate( ${COUNTER} QUIET SOURCE_DIR ${BITSTREAM_INSTALL_DIR} URL "${BITSTREAM_URL_BASE}/${BITSTREAM_FILE}" )
     endif()
     math( EXPR COUNTER "${COUNTER}+1" )
   endforeach()
 endif()
 
-# enable testing with ctest
-enable_testing()
-
-# find all bitstreams and add test
+# find all bitstreams
 file( GLOB_RECURSE BITSTREAMS LIST_DIRECTORIES false ${BITSTREAM_INSTALL_DIR_BASE}/*.bit )
-foreach( BITSTREAM IN LISTS BITSTREAMS )
-  string( REGEX REPLACE ".*/(.*)" "\\1" BITSTREAM_SHORT "${BITSTREAM}" )
-  if( NOT BITSTREAM_SHORT MATCHES "^\\..+" )
-    add_test( NAME Test_${BITSTREAM_SHORT} COMMAND vvdecapp -b ${BITSTREAM} -dph )
-    set_tests_properties( Test_${BITSTREAM_SHORT} PROPERTIES TIMEOUT 60 )
-  endif() 
-endforeach()
+
+if( BITSTREAMS )
+  # enable testing with ctest
+  enable_testing()
+
+  # add tests for bitstreams
+  foreach( BITSTREAM IN LISTS BITSTREAMS )
+    string( REGEX REPLACE ".*/(.*)" "\\1" BITSTREAM_SHORT "${BITSTREAM}" )
+    if( NOT BITSTREAM_SHORT MATCHES "^\\..+" )
+      add_test( NAME Test_${BITSTREAM_SHORT} COMMAND vvdecapp -b ${BITSTREAM} -dph )
+      set_tests_properties( Test_${BITSTREAM_SHORT} PROPERTIES TIMEOUT 60 )
+    endif()
+  endforeach()
+else()
+  # add dummy target if no bitstreams are found
+  foreach( target in test RUN_TESTS )
+    add_custom_target( ${target} )
+    add_custom_command( TARGET ${target}
+                        COMMAND ${CMAKE_COMMAND} -E echo ""
+                        COMMAND ${CMAKE_COMMAND} -E echo "ERROR: No bitstreams found. Reconfigure with -DVVDEC_ENABLE_BITSTREAM_DOWNLOAD=ON"
+                        COMMAND ${CMAKE_COMMAND} -E echo "       \\(or using top level Makefile: make test enable-bitstream-download=1\\)" )
+  endforeach()
+endif()
 
 if( VVDEC_ENABLE_INSTALL )
   # include installer

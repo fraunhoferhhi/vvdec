@@ -672,6 +672,7 @@ const char* VVDecImpl::getNalUnitTypeAsString( NalType t )
 {
   m_cNalType = "NAL_UNIT_INVALID";
 
+  GCC_EXTRA_WARNING_switch_enum
   switch ( t )
   {
   case NAL_UNIT_CODED_SLICE_TRAIL:           m_cNalType = "NAL_UNIT_CODED_SLICE_TRAIL"; break; // 0
@@ -714,8 +715,10 @@ const char* VVDecImpl::getNalUnitTypeAsString( NalType t )
   case NAL_UNIT_UNSPECIFIED_30:              m_cNalType = "NAL_UNIT_UNSPECIFIED_30"; break; // 30
   case NAL_UNIT_UNSPECIFIED_31:              m_cNalType = "NAL_UNIT_UNSPECIFIED_31"; break; // 31
 
+  case NAL_UNIT_INVALID:
   default:                                   m_cNalType = "NAL_UNIT_INVALID"; break;
   }
+  GCC_WARNING_RESET
 
   return m_cNalType.c_str();
 }

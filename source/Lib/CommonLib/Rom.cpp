@@ -81,6 +81,7 @@ MsgLevel g_verbosity = VERBOSE;
 
 const char* nalUnitTypeToString(NalUnitType type)
 {
+  GCC_EXTRA_WARNING_switch_enum
   switch (type)
   {
   case NAL_UNIT_CODED_SLICE_TRAIL:      return "TRAIL";
@@ -104,9 +105,21 @@ const char* nalUnitTypeToString(NalUnitType type)
   case NAL_UNIT_PREFIX_SEI:             return "Prefix SEI";
   case NAL_UNIT_SUFFIX_SEI:             return "Suffix SEI";
   case NAL_UNIT_FD:                     return "FD";
+  case NAL_UNIT_RESERVED_VCL_4:
+  case NAL_UNIT_RESERVED_VCL_5:
+  case NAL_UNIT_RESERVED_VCL_6:
+  case NAL_UNIT_RESERVED_IRAP_VCL_11:
+  case NAL_UNIT_RESERVED_IRAP_VCL_12:
+  case NAL_UNIT_RESERVED_NVCL_26:
+  case NAL_UNIT_RESERVED_NVCL_27:
+  case NAL_UNIT_UNSPECIFIED_28:
+  case NAL_UNIT_UNSPECIFIED_29:
+  case NAL_UNIT_UNSPECIFIED_30:
+  case NAL_UNIT_UNSPECIFIED_31:
+  case NAL_UNIT_INVALID:
   default:                              return "UNK";
-
   }
+  GCC_WARNING_RESET
 }
 
 class ScanGenerator
