@@ -1,3 +1,11 @@
+if( VVDEC_ENABLE_LOCAL_BITSTREAM_DOWNLOAD )
+  # get bitstreams
+  set( BITSTREAM_URL_BASE "https://visvn.fe.hhi.de/download/VVC/under_test/VTM-11.0" )
+else()
+  # get bitstreams
+  set( BITSTREAM_URL_BASE "https://www.itu.int/wftp3/av-arch/jvet-site/bitstream_exchange/VVC/under_test/VTM-11.0" )
+endif()
+
 list( APPEND BITSTREAM_FILES
   "10b400_A_Bytedance_2.zip" "10b400_B_Bytedance_2.zip"
   #"10b422_A_Sony_4.zip"                                                                                                                # MAIN_10_444 and MAIN_10_444_STILL_PICTURE is still experimental.

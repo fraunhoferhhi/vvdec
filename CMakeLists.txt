@@ -251,17 +251,9 @@ if( VVDEC_ENABLE_BITSTREAM_DOWNLOAD )
   # enable FetchContent
   include( FetchContent )
 
-  if( VVDEC_ENABLE_LOCAL_BITSTREAM_DOWNLOAD )
-    # get bitstreams
-    set( BITSTREAM_URL_BASE "https://visvn.fe.hhi.de/download/VVC/under_test/VTM-11.0" )
-  else()
-    # get bitstreams
-    set( BITSTREAM_URL_BASE "https://www.itu.int/wftp3/av-arch/jvet-site/bitstream_exchange/VVC/under_test/VTM-11.0" )
-  endif()
-
   # create a list of all test bitstreams in variable BITSTREAM_FILES
+  # also defines BITSTREAM_URL_BASE
   include( define_bitstream_files.cmake )
-
 
   # download and uncompress
   set( COUNTER 1 )
