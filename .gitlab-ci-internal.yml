@@ -9,6 +9,8 @@ stages:
       key:
         files:
           - define_bitstream_files.cmake
+   variables:
+     CTEST_OUTPUT_ON_FAILURE: 1
    script:
       - make enable-bitstream-download=1 enable-local-bitstream-download=1 all
       - make test
