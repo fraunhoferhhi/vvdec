@@ -432,10 +432,6 @@ void IntraPredAngleCore_SIMD(int16_t* pDstBuf,const ptrdiff_t dstStride,int16_t*
 #endif
 }
 
-#define _mm_storeu_si32(p, a) (void)(*(int*)(p) = _mm_cvtsi128_si32((a)))
-#define _mm_loadu_si64(p) _mm_cvtsi64_si128( *(int64_t*)p )
-#define _mm_loadu_si32(p) _mm_cvtsi32_si128( *(int32_t*)p )
-
 template< X86_VEXT vext, int W >
 void  IntraPredSampleFilter_SIMD(Pel *ptrSrc,const ptrdiff_t srcStride,PelBuf &piPred,const uint32_t uiDirMode,const ClpRng& clpRng)
 {

@@ -241,6 +241,7 @@ if( VVDEC_ENABLE_INSTALL )
   endif()
 endif()
 
+include( cmake/modules/check_missing_intrinsics.cmake )
 
 add_subdirectory( "source/Lib/vvdec" )
 add_subdirectory( "source/App/vvdecapp" )
@@ -279,10 +280,10 @@ foreach( BITSTREAM IN LISTS BITSTREAM_FILES )
 
   if( EXISTS ${BITSTREAM_FILE} )
     add_test( NAME Test:${BITSTREAM_SHORT}.bit COMMAND vvdecapp -b ${BITSTREAM_FILE} -dph )
-    set_tests_properties( Test:${BITSTREAM_SHORT}.bit PROPERTIES TIMEOUT 60 )
+    set_tests_properties( Test:${BITSTREAM_SHORT}.bit PROPERTIES TIMEOUT 120 )
   else()
     add_test( NAME MISSING:${BITSTREAM_SHORT}.bit COMMAND vvdecapp -b ${BITSTREAM_FILE} -dph )
-    set_tests_properties( MISSING:${BITSTREAM_SHORT}.bit PROPERTIES TIMEOUT 60 )
+    set_tests_properties( MISSING:${BITSTREAM_SHORT}.bit PROPERTIES TIMEOUT 120 )
 
     set( MISSING_BITSTREAM_FILES TRUE )
   endif()
