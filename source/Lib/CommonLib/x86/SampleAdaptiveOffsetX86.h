@@ -155,24 +155,23 @@ void offsetBlock_SIMD( const int            channelBitDepth,
     {
       p_eo_offsets[i] = offset[startIdx + i];
     }
-#  ifdef USE_AVX2
-    // AVX2
-    if( ( width > 8 ) && ( vext >= AVX2 ) )
+    for( y = 0; y < height; y++ )
     {
-      __m256i vsrc;
-      __m256i vbaseoffset = _mm256_set1_epi16( startIdx );
-      __m256i vminus      = _mm256_set1_epi8( -1 );
-      __m256i vzero       = _mm256_set1_epi8( 0 );
-
-      __m256i vfour      = _mm256_set1_epi16( 4 );
-      __m256i vibdimax   = _mm256_set1_epi16( ( 1 << channelBitDepth ) - 1 );
-      __m256i voffsettbl = _mm256_broadcastsi128_si256( _mm_loadu_si128( (__m128i*)p_eo_offsets ) );
-
-      for( y = 0; y < height; y++ )
+      for( x = 0; x < width; )
       {
-        for( x = 0; x < width; x += 16 )
+#  ifdef USE_AVX2
+        // AVX2
+        if( width - x >= 16 && vext >= AVX2 )
         {
-          vsrc          = _mm256_loadu_si256( (__m256i*)&srcLine[x] );
+          __m256i vbaseoffset = _mm256_set1_epi16( startIdx );
+          __m256i vminus      = _mm256_set1_epi8( -1 );
+          __m256i vzero       = _mm256_set1_epi8( 0 );
+
+          __m256i vfour      = _mm256_set1_epi16( 4 );
+          __m256i vibdimax   = _mm256_set1_epi16( ( 1 << channelBitDepth ) - 1 );
+          __m256i voffsettbl = _mm256_broadcastsi128_si256( _mm_loadu_si128( (__m128i*)p_eo_offsets ) );
+
+          __m256i vsrc  = _mm256_loadu_si256( (__m256i*)&srcLine[x] );
           __m256i bands = _mm256_srai_epi16( vsrc, shiftBits );
           bands         = _mm256_sub_epi16( bands, vbaseoffset );
           __m256i mask1 = _mm256_cmpgt_epi16( bands, vminus );
@@ -188,27 +187,21 @@ void offsetBlock_SIMD( const int            channelBitDepth,
           vsrc = _mm256_add_epi16( vsrc, veoffsets );
           vsrc = _mm256_min_epi16( _mm256_max_epi16( vsrc, vzero ), vibdimax );
           _mm256_storeu_si256( (__m256i*)&resLine[x], vsrc );
-        }
-        srcLine += srcStride;
-        resLine += resStride;
-      }
-    }
-    else
-#  endif
-    {
-      __m128i vsrc;
-      __m128i vbaseoffset = _mm_set1_epi16( startIdx );
-      __m128i vminus      = _mm_set1_epi8( -1 );
-      __m128i vzero       = _mm_set1_epi8( 0 );
 
-      __m128i vfour      = _mm_set1_epi16( 4 );
-      __m128i vibdimax   = _mm_set1_epi16( ( 1 << channelBitDepth ) - 1 );
-      __m128i voffsettbl = _mm_loadu_si128( (__m128i*)p_eo_offsets );
-      for( y = 0; y < height; y++ )
-      {
-        for( x = 0; x < width; x += 8 )
+          x += 16;
+        }
+        else
+#  endif
         {
-          vsrc          = _mm_loadu_si128( (__m128i*)&srcLine[x] );
+          __m128i vbaseoffset = _mm_set1_epi16( startIdx );
+          __m128i vminus      = _mm_set1_epi8( -1 );
+          __m128i vzero       = _mm_set1_epi8( 0 );
+
+          __m128i vfour      = _mm_set1_epi16( 4 );
+          __m128i vibdimax   = _mm_set1_epi16( ( 1 << channelBitDepth ) - 1 );
+          __m128i voffsettbl = _mm_loadu_si128( (__m128i*)p_eo_offsets );
+
+          __m128i vsrc  = _mm_loadu_si128( (__m128i*)&srcLine[x] );
           __m128i bands = _mm_srai_epi16( vsrc, shiftBits );
           bands         = _mm_sub_epi16( bands, vbaseoffset );
           __m128i mask1 = _mm_cmpgt_epi16( bands, vminus );
@@ -224,10 +217,12 @@ void offsetBlock_SIMD( const int            channelBitDepth,
           vsrc = _mm_add_epi16( vsrc, veoffsets );
           vsrc = _mm_min_epi16( _mm_max_epi16( vsrc, vzero ), vibdimax );
           _mm_store_si128( (__m128i*)&resLine[x], vsrc );
+
+          x += 8;
         }
-        srcLine += srcStride;
-        resLine += resStride;
       }
+      srcLine += srcStride;
+      resLine += resStride;
     }
   }
 
