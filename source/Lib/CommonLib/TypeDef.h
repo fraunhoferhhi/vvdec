@@ -1084,49 +1084,17 @@ struct CcAlfFilterParam
 // general helpers
 // ---------------------------------------------------------------------------
 // move an element within a list to the list's end without moving or copying the contained object
-template<typename TList> static void move_to_end( typename TList::const_iterator it, TList& list )
+template<typename TList>
+static void move_to_end( typename TList::const_iterator it, TList& list )
 {
 #ifdef _DEBUG
-  const auto* oldAddr = &list.front();
+  const auto* oldAddr = &( *it );
 #endif
 
   list.splice( list.cend(), list, it );
 
   CHECKD( &list.back() != oldAddr, "moving failed" );
 }
-
-
-// ---------------------------------------------------------------------------
-// c++11/14 workarounds
-// ---------------------------------------------------------------------------
-
-// move_wrapper:
-//   adapter class, that moves an object instead of copying
-//   (not needed with c++14, when we have generalized lambda capture)
-//
-//   Be careful, when using this class to not acciedentially create 'copies'
-//   invalidating the state of the copied-from object.
-#ifndef __cpp_init_captures
-template<class T>
-struct move_wrapper: public T
-{
-  // constuct from rvalue-ref
-  explicit move_wrapper(T && rref): T(std::forward<T>(rref)) {}
-
-  // the copy-constructor actually does a move of the contained object
-  move_wrapper(move_wrapper & other): T( std::move(other) )  {}
-
-  // normal move constructor and assignment
-  move_wrapper(move_wrapper &&)             = default;
-  move_wrapper & operator=(move_wrapper &&) = default;
-
-  // disable default and const-copy construction
-  move_wrapper() = delete;
-  move_wrapper(const move_wrapper &) = delete;
-  move_wrapper & operator=(const move_wrapper &) = delete;
-
-};
-#endif // !__cpp_init_captures
 
 //! \}
 
