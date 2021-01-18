@@ -3124,12 +3124,10 @@ void HLSyntaxReader::checkAlfNaluTidAndPicTid( Slice* pcSlice, PicHeader* picHea
   }
 }
 
-void HLSyntaxReader::parseSliceHeader( Slice* pcSlice, PicHeader* parsedPicHeader, ParameterSetManager *parameterSetManager, const int prevTid0POC, Picture* parsePic )
+void HLSyntaxReader::parseSliceHeader( Slice* pcSlice, PicHeader* picHeader, ParameterSetManager *parameterSetManager, const int prevTid0POC, Picture* parsePic )
 {
   uint32_t  uiCode;
   int   iCode;
-
-  PicHeader* picHeader = parsedPicHeader;
   
 #if ENABLE_TRACING
   xTraceSliceHeader();
@@ -3145,7 +3143,7 @@ void HLSyntaxReader::parseSliceHeader( Slice* pcSlice, PicHeader* parsedPicHeade
   }
   else if( !picHeader->isValid() && nullptr != parsePic )
   {
-    picHeader = parsePic->picHeader;
+    picHeader = parsePic->picHeader.get();
   }
   CHECK( picHeader==0, "Invalid Picture Header" );
   CHECK( picHeader->isValid() == false, "Invalid Picture Header" );

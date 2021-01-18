@@ -136,7 +136,7 @@ private:
   ParameterSetManager       m_parameterSetManager;   // storage for parameter sets
   PicListManager&           m_picListManager;
 
-  PicHeader*                m_picHeader = nullptr;            // picture header
+  std::shared_ptr<PicHeader> m_picHeader;            // picture header
 
   unsigned int              m_numDecThreads   = 0;
   unsigned int              m_parseFrameDelay = 0;
