@@ -228,7 +228,7 @@ void Picture::finalInit( const SPS *sps, const PPS *pps, PicHeader* picHeader, A
     cs->lmcsAps = lmcsAps ? lmcsAps->getSharedPtr() : nullptr;
   }
 
-  cs->pcv     = pps->pcv;
+  cs->pcv     = pps->pcv.get();
 
   cs->rebindPicBufs();
 

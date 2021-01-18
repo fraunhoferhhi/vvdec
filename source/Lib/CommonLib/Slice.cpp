@@ -1481,12 +1481,6 @@ void ChromaQpMappingTable::derivedChromaQPMappingTables()
 }
 
 
-
-PPS::~PPS()
-{
-  delete pcv;
-}
-
 void PPS::resetTileSliceInfo()
 {
   m_numExpTileCols = 0;
