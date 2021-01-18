@@ -72,11 +72,7 @@ extern __itt_string_handle* itt_handle_start;
 
 DecLibParser::~DecLibParser()
 {
-  while( !m_prefixSEINALUs.empty() )
-  {
-    delete m_prefixSEINALUs.front();
-    m_prefixSEINALUs.pop_front();
-  }
+  m_prefixSEINALUs.clear();
 
   destroy();
 }
@@ -185,14 +181,14 @@ Picture* DecLibParser::parse( InputNALUnit& nalu, int* pSkipFrame )
 
   case NAL_UNIT_PREFIX_SEI:
     // Buffer up prefix SEI messages until SPS of associated VCL is known.
-    m_prefixSEINALUs.push_back( new InputNALUnit( nalu ) );
-    m_pictureSeiNalus.push_back( new InputNALUnit( nalu ) );
+    m_prefixSEINALUs.emplace_back( nalu );
+    m_pictureSeiNalus.emplace_back( nalu );
     return nullptr;
 
   case NAL_UNIT_SUFFIX_SEI:
     if( m_pcParsePic )
     {
-      m_pictureSeiNalus.push_back( new InputNALUnit( nalu ) );
+      m_pictureSeiNalus.emplace_back( nalu );
       const SPS *sps = m_parameterSetManager.getActiveSPS();
       const VPS *vps = m_parameterSetManager.getVPS( sps->getVPSId() );
       m_seiReader.parseSEImessage( &( nalu.getBitstream() ), m_pcParsePic->SEIs, nalu.m_nalUnitType, nalu.m_nuhLayerId, nalu.m_temporalId, vps, sps, m_HRD, m_pDecodedSEIOutputStream );
@@ -1411,11 +1407,10 @@ void DecLibParser::xParsePrefixSEImessages()
 {
   while( !m_prefixSEINALUs.empty() )
   {
-    InputNALUnit & nalu = *m_prefixSEINALUs.front();
+    InputNALUnit& nalu = m_prefixSEINALUs.front();
     const SPS *sps = m_parameterSetManager.getActiveSPS();
     const VPS *vps = m_parameterSetManager.getVPS(sps->getVPSId());
     m_seiReader.parseSEImessage( &(nalu.getBitstream()), m_SEIs, nalu.m_nalUnitType, nalu.m_nuhLayerId, nalu.m_temporalId, vps, sps, m_HRD, m_pDecodedSEIOutputStream );
-    delete m_prefixSEINALUs.front();
     m_prefixSEINALUs.pop_front();
   }
 }
@@ -1426,7 +1421,7 @@ void DecLibParser::xParsePrefixSEIsForUnknownVCLNal()
   {
     // do nothing?
     msg( NOTICE, "Discarding Prefix SEI associated with unknown VCL NAL unit.\n");
-    delete m_prefixSEINALUs.front();
+    m_prefixSEINALUs.pop_front();
   }
   // TODO: discard following suffix SEIs as well?
 }
