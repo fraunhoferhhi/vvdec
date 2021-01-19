@@ -241,14 +241,12 @@ if( VVDEC_ENABLE_INSTALL )
   endif()
 endif()
 
-include( cmake/modules/check_missing_intrinsics.cmake )
-
 add_subdirectory( "source/Lib/vvdec" )
 add_subdirectory( "source/App/vvdecapp" )
 
 # create a list of all test bitstreams in variable BITSTREAM_FILES
 # also defines BITSTREAM_URL_BASE
-include( define_bitstream_files.cmake )
+include( define_bitstream_files )
 
 # set directory global
 set( BITSTREAM_INSTALL_DIR_BASE "${CMAKE_SOURCE_DIR}/ext/bitstreams" )

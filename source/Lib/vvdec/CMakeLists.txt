@@ -4,6 +4,8 @@ set( LIB_NAME vvdec )
 # create upper case name
 string( TOUPPER ${LIB_NAME} LIB_NAME_UC )
 
+include( check_missing_intrinsics )
+
 # create file version.h
 configure_file( version.h.in "${CMAKE_BINARY_DIR}/${LIB_NAME}/version.h" )
 
