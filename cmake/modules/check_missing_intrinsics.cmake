@@ -1,3 +1,5 @@
+include_guard(GLOBAL)
+
 include(CheckCSourceCompiles)
 
 macro( check_intrinsic symbol_name code )

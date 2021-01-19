@@ -3,12 +3,13 @@ stages:
 
 .build_template:
    stage: build
+   interruptible: true
    cache:
       paths:
          - ext/
       key:
         files:
-          - define_bitstream_files.cmake
+          - cmake/modules/define_bitstream_files.cmake
    variables:
      CTEST_OUTPUT_ON_FAILURE: 1
    script:
