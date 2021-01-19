@@ -72,18 +72,20 @@ void updateParameterSetChangedFlag( bool&                       bChanged,
 
 ParameterSetManager::ActivePSs ParameterSetManager::xActivateParameterSets( const Slice* pSlicePilot, const PicHeader* picHeader )
 {
-  PPS* pps = getPPS( picHeader->getPPSId() );   // this is a temporary PPS object. Do not store this value
+  PPS* pps = getPPS( picHeader->getPPSId() );
   CHECK( pps == 0, "No PPS present" );
 
-  SPS* sps = getSPS( pps->getSPSId() );   // this is a temporary SPS object. Do not store this value
+  SPS* sps = getSPS( pps->getSPSId() );
   CHECK( sps == 0, "No SPS present" );
 
-  if( NULL == pps->pcv )
+  if( !pps->pcv )
   {
-    delete getPPS( picHeader->getPPSId() )->pcv;
+    pps->pcv = std::make_unique<PreCalcValues>( *sps, *pps );
   }
-
-  getPPS( picHeader->getPPSId() )->pcv = new PreCalcValues( *sps, *pps );
+  else
+  {
+    CHECK( !pps->pcv->isCorrect( *sps, *pps ), "PPS has PCV already, but values chaged???" );
+  }
 
   sps->clearChangedFlag();
   pps->clearChangedFlag();

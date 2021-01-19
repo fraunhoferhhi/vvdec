@@ -132,9 +132,8 @@ Picture* PicListManager::getNewPicBuffer( const SPS& sps,const PPS& pps, const u
     pcPic->create( sps.getChromaFormatIdc(),
                    Size( pps.getPicWidthInLumaSamples(), pps.getPicHeightInLumaSamples() ),
                    sps.getMaxCUWidth(),
-                   sps.getMaxCUWidth() + 16
-                 , layerId
-                  );
+                   sps.getMaxCUWidth() + 16,
+                   layerId );
     m_cPicList.push_back( pcPic );
 
     return pcPic;
@@ -146,12 +145,11 @@ Picture* PicListManager::getNewPicBuffer( const SPS& sps,const PPS& pps, const u
     if( !pic->referenced && !pic->neededForOutput && !pic->lockedByApplication )
     {
       // take the picture to be reused and move it to the end of the list
-      if (pic->cs->picHeader)
+      if( pic->picHeader || pic->cs->picHeader )
       {
-          delete(pic->cs->picHeader);
+        pic->setPicHead( nullptr );
       }
-      m_cPicList.erase( itPic );
-      m_cPicList.push_back( pic );
+      move_to_end( itPic, m_cPicList );
       pcPic = pic;
       break;
     }
@@ -164,9 +162,8 @@ Picture* PicListManager::getNewPicBuffer( const SPS& sps,const PPS& pps, const u
     pcPic->create( sps.getChromaFormatIdc(),
                    Size( pps.getPicWidthInLumaSamples(), pps.getPicHeightInLumaSamples() ),
                    sps.getMaxCUWidth(),
-                   sps.getMaxCUWidth() + 16
-                 , layerId
-                  );
+                   sps.getMaxCUWidth() + 16,
+                   layerId );
     m_cPicList.push_back( pcPic );
 
     return pcPic;
@@ -183,9 +180,8 @@ Picture* PicListManager::getNewPicBuffer( const SPS& sps,const PPS& pps, const u
     pcPic->create( sps.getChromaFormatIdc(),
                    Size( pps.getPicWidthInLumaSamples(), pps.getPicHeightInLumaSamples() ),
                    sps.getMaxCUWidth(),
-                   sps.getMaxCUWidth() + 16
-                 , layerId
-                  );
+                   sps.getMaxCUWidth() + 16,
+                   layerId );
   }
 
   pcPic->resetForUse();

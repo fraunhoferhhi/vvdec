@@ -60,8 +60,6 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #if ENABLE_SIMD_OPT_QUANT
 #ifdef TARGET_SIMD_X86
 
-#define _mm_loadu_si64(p) _mm_loadl_epi64((__m128i const*)(p))
-#define _mm_storeu_si64(p, a) (_mm_storel_epi64((__m128i*)(p), (a)))
 #if USE_AVX2 && !defined( _mm256_set_m128i )
 #define VVCLIB_OWN_mm256_set_m128i
 #define _mm256_set_m128i( v0, v1 ) _mm256_inserti128_si256( _mm256_castsi128_si256( v1 ), ( v0 ), 1 )

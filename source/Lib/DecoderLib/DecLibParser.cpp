@@ -72,11 +72,7 @@ extern __itt_string_handle* itt_handle_start;
 
 DecLibParser::~DecLibParser()
 {
-  while( !m_prefixSEINALUs.empty() )
-  {
-    delete m_prefixSEINALUs.front();
-    m_prefixSEINALUs.pop_front();
-  }
+  m_prefixSEINALUs.clear();
 
   destroy();
 }
@@ -89,7 +85,7 @@ void DecLibParser::create( NoMallocThreadPool* tp, int parserFrameDelay, int num
   m_maxPicReconSkip   = numReconInst - 1;
 
   m_apcSlicePilot     = new Slice;
-  m_picHeader         = new PicHeader;
+  m_picHeader         = std::make_shared<PicHeader>();
   m_uiSliceSegmentIdx = 0;
   
   m_cSliceDecoder.setContextStateVec( numDecThreads );
@@ -102,8 +98,7 @@ void DecLibParser::destroy()
   delete m_apcSlicePilot;
   m_apcSlicePilot = nullptr;
   
-  delete m_picHeader;
-  m_picHeader = nullptr;
+  m_picHeader.reset();
   
   m_cSliceDecoder.destroy();
   
@@ -186,14 +181,14 @@ Picture* DecLibParser::parse( InputNALUnit& nalu, int* pSkipFrame )
 
   case NAL_UNIT_PREFIX_SEI:
     // Buffer up prefix SEI messages until SPS of associated VCL is known.
-    m_prefixSEINALUs.push_back( new InputNALUnit( nalu ) );
-    m_pictureSeiNalus.push_back( new InputNALUnit( nalu ) );
+    m_prefixSEINALUs.emplace_back( nalu );
+    m_pictureSeiNalus.emplace_back( nalu );
     return nullptr;
 
   case NAL_UNIT_SUFFIX_SEI:
     if( m_pcParsePic )
     {
-      m_pictureSeiNalus.push_back( new InputNALUnit( nalu ) );
+      m_pictureSeiNalus.emplace_back( nalu );
       const SPS *sps = m_parameterSetManager.getActiveSPS();
       const VPS *vps = m_parameterSetManager.getVPS( sps->getVPSId() );
       m_seiReader.parseSEImessage( &( nalu.getBitstream() ), m_pcParsePic->SEIs, nalu.m_nalUnitType, nalu.m_nuhLayerId, nalu.m_temporalId, vps, sps, m_HRD, m_pDecodedSEIOutputStream );
@@ -378,10 +373,8 @@ DecLibParser::SliceHeadResult DecLibParser::xDecodeSliceHead( InputNALUnit& nalu
   m_apcSlicePilot->setTLayer        ( nalu.m_temporalId  );
 
   m_HLSReader.setBitstream( &nalu.getBitstream() );
-  
-  PicHeader *picHeader = m_picHeader;
 
-  m_HLSReader.parseSliceHeader( m_apcSlicePilot, picHeader, &m_parameterSetManager, m_prevTid0POC, m_pcParsePic );
+  m_HLSReader.parseSliceHeader( m_apcSlicePilot, m_picHeader.get(), &m_parameterSetManager, m_prevTid0POC, m_pcParsePic );
 
   if( pSkipFrame && *pSkipFrame )
   {
@@ -396,7 +389,7 @@ DecLibParser::SliceHeadResult DecLibParser::xDecodeSliceHead( InputNALUnit& nalu
   if( m_bFirstSliceInPicture )
   {
     m_uiSliceSegmentIdx = 0;
-    m_apcSlicePilot->setPicHeader   ( m_picHeader );
+    m_apcSlicePilot->setPicHeader   ( m_picHeader.get() );
   }
   else // if it turns out, this was not the first slice in the picture, we need to parse the header again
   {
@@ -412,7 +405,7 @@ DecLibParser::SliceHeadResult DecLibParser::xDecodeSliceHead( InputNALUnit& nalu
     nalu.readNalUnitHeader();
     m_HLSReader.setBitstream        ( &nalu.getBitstream() );
 
-    m_HLSReader.parseSliceHeader    ( m_apcSlicePilot, picHeader, &m_parameterSetManager, m_prevTid0POC, m_pcParsePic );
+    m_HLSReader.parseSliceHeader    ( m_apcSlicePilot, m_picHeader.get(), &m_parameterSetManager, m_prevTid0POC, m_pcParsePic );
   }
 
   PPS *pps = m_parameterSetManager.getPPS( m_apcSlicePilot->getPicHeader()->getPPSId() );
@@ -1035,7 +1028,7 @@ Picture * DecLibParser::xActivateParameterSets( const int layerId )
 
   if( m_bFirstSliceInPicture )
   {
-    auto paramSets = m_parameterSetManager.xActivateParameterSets( m_apcSlicePilot, m_picHeader );
+    auto paramSets = m_parameterSetManager.xActivateParameterSets( m_apcSlicePilot, m_picHeader.get() );
     const SPS*  sps     = paramSets.sps;
     const PPS*  pps     = paramSets.pps;
           APS** alfApss = paramSets.alfAPSs->data();
@@ -1064,7 +1057,7 @@ Picture * DecLibParser::xActivateParameterSets( const int layerId )
 #if !DISABLE_CONFROMANCE_CHECK
     m_apcSlicePilot->checkLeadingPictureRestrictions( m_picListManager.getPicListRange( pcPic ) );
 #endif
-    pcPic->finalInit( sps, pps, m_picHeader, alfApss, lmcsAPS, scalingListAPS );
+    pcPic->finalInit( sps, pps, m_picHeader.get(), alfApss, lmcsAPS, scalingListAPS );
 
     // Set Field/Frame coding mode
     pcPic->fieldPic = false;
@@ -1088,9 +1081,9 @@ Picture * DecLibParser::xActivateParameterSets( const int layerId )
 
   if( m_bFirstSliceInPicture )
   {
-    pcPic              ->allocatePicHead();
-    m_picHeader = pcPic->swapPicHead ( m_picHeader );
-    pSlice             ->setPicHeader( pcPic->picHeader );
+    pcPic->setPicHead( m_picHeader );
+    pSlice->setPicHeader( m_picHeader.get() );
+    m_picHeader = std::make_shared<PicHeader>();
   }
 
   const VPS*  vps     = pSlice->getVPS();
@@ -1307,7 +1300,7 @@ Picture* DecLibParser::prepareLostPicture( int iLostPoc, const int layerId )
 #else
   Picture* cFillPic = m_picListManager.getNewPicBuffer( *m_parameterSetManager.getFirstSPS(), *m_parameterSetManager.getFirstPPS(), 0, layerId );
 #endif
-  cFillPic->finalInit( m_parameterSetManager.getFirstSPS(), m_parameterSetManager.getFirstPPS(), m_picHeader, m_parameterSetManager.getAlfAPSs().data(), nullptr, nullptr ); //TODO: check this
+  cFillPic->finalInit( m_parameterSetManager.getFirstSPS(), m_parameterSetManager.getFirstPPS(), m_picHeader.get(), m_parameterSetManager.getAlfAPSs().data(), nullptr, nullptr ); //TODO: check this
 
   int         iTLayer  = m_apcSlicePilot->getTLayer();   // TLayer needs to be <= TLayer of referencing frame
   bool        isIRAP   = false;
@@ -1382,7 +1375,7 @@ Picture* DecLibParser::prepareUnavailablePicture( int iUnavailablePoc, const int
 #else
   Picture* cFillPic = m_picListManager.getNewPicBuffer( *m_parameterSetManager.getFirstSPS(), *m_parameterSetManager.getFirstPPS(), 0, layerId );
 #endif
-  cFillPic->finalInit( m_parameterSetManager.getFirstSPS(), m_parameterSetManager.getFirstPPS(), m_picHeader, m_parameterSetManager.getAlfAPSs().data(), nullptr, nullptr ); //TODO: check this
+  cFillPic->finalInit( m_parameterSetManager.getFirstSPS(), m_parameterSetManager.getFirstPPS(), m_picHeader.get(), m_parameterSetManager.getAlfAPSs().data(), nullptr, nullptr ); //TODO: check this
 
   cFillPic->slices[0]->initSlice();
 
@@ -1414,11 +1407,10 @@ void DecLibParser::xParsePrefixSEImessages()
 {
   while( !m_prefixSEINALUs.empty() )
   {
-    InputNALUnit & nalu = *m_prefixSEINALUs.front();
+    InputNALUnit& nalu = m_prefixSEINALUs.front();
     const SPS *sps = m_parameterSetManager.getActiveSPS();
     const VPS *vps = m_parameterSetManager.getVPS(sps->getVPSId());
     m_seiReader.parseSEImessage( &(nalu.getBitstream()), m_SEIs, nalu.m_nalUnitType, nalu.m_nuhLayerId, nalu.m_temporalId, vps, sps, m_HRD, m_pDecodedSEIOutputStream );
-    delete m_prefixSEINALUs.front();
     m_prefixSEINALUs.pop_front();
   }
 }
@@ -1429,7 +1421,7 @@ void DecLibParser::xParsePrefixSEIsForUnknownVCLNal()
   {
     // do nothing?
     msg( NOTICE, "Discarding Prefix SEI associated with unknown VCL NAL unit.\n");
-    delete m_prefixSEINALUs.front();
+    m_prefixSEINALUs.pop_front();
   }
   // TODO: discard following suffix SEIs as well?
 }
@@ -1437,7 +1429,7 @@ void DecLibParser::xParsePrefixSEIsForUnknownVCLNal()
 void DecLibParser::xDecodePicHeader( InputNALUnit& nalu )
 {
   m_HLSReader.setBitstream( &nalu.getBitstream() );
-  m_HLSReader.parsePictureHeader( m_picHeader, &m_parameterSetManager, true );
+  m_HLSReader.parsePictureHeader( m_picHeader.get(), &m_parameterSetManager, true );
   m_picHeader->setValid();
 }
 
