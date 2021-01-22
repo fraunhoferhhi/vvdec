@@ -1482,7 +1482,7 @@ void HLSyntaxReader::parseSPS( SPS* pcSPS, ParameterSetManager *parameterSetMana
     }
   }
 
-  CHECK( pcSPS->getNumSubPics() > 1, "more than one sup picture not supported yet" );
+//  CHECK( pcSPS->getNumSubPics() > 1, "more than one sup picture not supported yet" );
   
   READ_UVLC( uiCode, "sps_bitdepth_minus8" );
   CHECK( uiCode > 8, "Invalid bit depth signalled" );

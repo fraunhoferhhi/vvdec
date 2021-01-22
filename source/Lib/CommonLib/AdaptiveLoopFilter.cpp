@@ -365,7 +365,21 @@ void AdaptiveLoopFilter::create( const PicHeader* picHeader, const SPS* sps, con
 
   CHECK( m_inputBitDepth[CHANNEL_TYPE_LUMA] > 10 || m_inputBitDepth[CHANNEL_TYPE_CHROMA] > 10, "m_alfClippingValues or m_alfClippVls needs to be enabled/adjusted" );
 
-  if( picHeader->getVirtualBoundariesPresentFlag() || !pps->getLoopFilterAcrossSlicesEnabledFlag() || !pps->getLoopFilterAcrossTilesEnabledFlag() )
+  bool loopFilterAcrossSubPicEnabledFlag = true;
+  if( sps->getSubPicInfoPresentFlag() )
+  {
+    for( int i = 0; i < sps->getNumSubPics(); ++i )
+    {
+      if( !sps->getLoopFilterAcrossSubpicEnabledFlag( i ) )
+      {
+        loopFilterAcrossSubPicEnabledFlag = false;
+        break;
+      }
+    }
+  }
+
+  if( picHeader->getVirtualBoundariesPresentFlag() || !pps->getLoopFilterAcrossSlicesEnabledFlag() || !pps->getLoopFilterAcrossTilesEnabledFlag()
+      || !loopFilterAcrossSubPicEnabledFlag )
   {
     m_tempBuf.resize( std::max( 1, numThreads ) );
     for( auto &buf: m_tempBuf )
