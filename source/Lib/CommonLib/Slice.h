@@ -1010,10 +1010,10 @@ public:
   {
     return pos.x >= m_subPicLeft && pos.x <= m_subPicRight && pos.y >= m_subPicTop  && pos.y <= m_subPicBottom;
   }
-  void             setTreatedAsPicFlag           (bool u)  {         m_treatedAsPicFlag = u;   }
-  bool             getTreatedAsPicFlag           ()  const { return  m_treatedAsPicFlag;       }
-  void             setloopFilterAcrossEnabledFlag(bool u)  {         m_loopFilterAcrossSubPicEnabledFlag = u; }
-  bool             getloopFilterAcrossEnabledFlag()  const { return  m_loopFilterAcrossSubPicEnabledFlag;     }
+  void             setTreatedAsPicFlag                 (bool u)  {         m_treatedAsPicFlag = u;   }
+  bool             getTreatedAsPicFlag                 ()  const { return  m_treatedAsPicFlag;       }
+  void             setloopFilterAcrossSubPicEnabledFlag(bool u)  {         m_loopFilterAcrossSubPicEnabledFlag = u; }
+  bool             getloopFilterAcrossSubPicEnabledFlag()  const { return  m_loopFilterAcrossSubPicEnabledFlag;     }
 
   bool             isFirstCTUinSubPic(uint32_t ctuAddr)    { return  ctuAddr == m_firstCtuInSubPic;  }
   bool              isLastCTUinSubPic(uint32_t ctuAddr)    { return  ctuAddr == m_lastCtuInSubPic;   }
@@ -2349,8 +2349,6 @@ public:
   uint32_t               getLog2MaxTransformSkipBlockSize() const                         { return m_log2MaxTransformSkipBlockSize; }
   void                   setLog2MaxTransformSkipBlockSize(uint32_t u)                     { m_log2MaxTransformSkipBlockSize = u; }
 
-  void                   setLoopFilterAcrossBricksEnabledFlag(bool b)                     { m_loopFilterAcrossBricksEnabledFlag = b;      }
-  bool                   getLoopFilterAcrossBricksEnabledFlag() const                     { return m_loopFilterAcrossBricksEnabledFlag;   }
   void                   setTileUniformSpacingFlag(bool b)                                { m_uniformSpacingFlag = b;                     }
   bool                   getTileUniformSpacingFlag() const                                { return m_uniformSpacingFlag;                  }
   void                   setNumTileColumnsMinus1(int i)                                   { m_numTileColumnsMinus1 = i;                   }

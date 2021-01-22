@@ -1,11 +1,11 @@
 /* -----------------------------------------------------------------------------
 The copyright in this software is being made available under the BSD
-License, included below. No patent rights, trademark rights and/or 
-other Intellectual Property Rights other than the copyrights concerning 
+License, included below. No patent rights, trademark rights and/or
+other Intellectual Property Rights other than the copyrights concerning
 the Software are granted under this license.
 
-For any license concerning other Intellectual Property rights than the software, 
-especially patent licenses, a separate Agreement needs to be closed. 
+For any license concerning other Intellectual Property rights than the software,
+especially patent licenses, a separate Agreement needs to be closed.
 For more information please contact:
 
 Fraunhofer Heinrich Hertz Institute
@@ -14,7 +14,7 @@ Einsteinufer 37
 www.hhi.fraunhofer.de/vvc
 vvc@hhi.fraunhofer.de
 
-Copyright (c) 2018-2020, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. 
+Copyright (c) 2018-2020, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V.
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -111,15 +111,15 @@ AdaptiveLoopFilter::AdaptiveLoopFilter()
 }
 
 bool AdaptiveLoopFilter::isCrossedByVirtualBoundaries( const CodingStructure& cs,
-                                                       const Area& area,
-                                                       bool&       clipTop,
-                                                       bool&       clipBottom,
-                                                       bool&       clipLeft,
-                                                       bool&       clipRight,
-                                                       int&        numHorVirBndry,
-                                                       int&        numVerVirBndry,
-                                                       int         horVirBndryPos[],
-                                                       int         verVirBndryPos[] )
+                                                       const Area&            area,
+                                                       bool&                  clipTop,
+                                                       bool&                  clipBottom,
+                                                       bool&                  clipLeft,
+                                                       bool&                  clipRight,
+                                                       int&                   numHorVirBndry,
+                                                       int&                   numVerVirBndry,
+                                                       int                    horVirBndryPos[],
+                                                       int                    verVirBndryPos[] )
 {
   clipTop        = false;
   clipBottom     = false;
@@ -128,112 +128,114 @@ bool AdaptiveLoopFilter::isCrossedByVirtualBoundaries( const CodingStructure& cs
   numHorVirBndry = 0;
   numVerVirBndry = 0;
 
-  const PPS* pps = cs.pps.get();
-  const SPS* sps = cs.sps.get();
+  const PPS*       pps       = cs.pps.get();
+  const SPS*       sps       = cs.sps.get();
   const PicHeader* picHeader = cs.picHeader;
 
-  if( !picHeader->getVirtualBoundariesPresentFlag() )
+  if( picHeader->getVirtualBoundariesPresentFlag() )
   {
-    return false;
+    for( int i = 0; i < picHeader->getNumHorVirtualBoundaries(); i++ )
+    {
+      if( picHeader->getVirtualBoundariesPosY( i ) == area.y )
+      {
+        clipTop = true;
+      }
+      else if( picHeader->getVirtualBoundariesPosY( i ) == area.y + area.height )
+      {
+        clipBottom = true;
+      }
+      else if( area.y < picHeader->getVirtualBoundariesPosY( i ) && picHeader->getVirtualBoundariesPosY( i ) < area.y + area.height )
+      {
+        horVirBndryPos[numHorVirBndry++] = picHeader->getVirtualBoundariesPosY( i );
+      }
+    }
+    for( int i = 0; i < picHeader->getNumVerVirtualBoundaries(); i++ )
+    {
+      if( picHeader->getVirtualBoundariesPosX( i ) == area.x )
+      {
+        clipLeft = true;
+      }
+      else if( picHeader->getVirtualBoundariesPosX( i ) == area.x + area.width )
+      {
+        clipRight = true;
+      }
+      else if( area.x < picHeader->getVirtualBoundariesPosX( i ) && picHeader->getVirtualBoundariesPosX( i ) < area.x + area.width )
+      {
+        verVirBndryPos[numVerVirBndry++] = picHeader->getVirtualBoundariesPosX( i );
+      }
+    }
   }
 
-  for( int i = 0; i < picHeader->getNumHorVirtualBoundaries(); i++ )
-  {
-    if( picHeader->getVirtualBoundariesPosY(i) == area.y )
-    {
-      clipTop = true;
-    }
-    else if( picHeader->getVirtualBoundariesPosY(i) == area.y + area.height )
-    {
-      clipBottom = true;
-    }
-    else if( area.y < picHeader->getVirtualBoundariesPosY(i) && picHeader->getVirtualBoundariesPosY(i) < area.y + area.height )
-    {
-      horVirBndryPos[numHorVirBndry++] = picHeader->getVirtualBoundariesPosY(i);
-    }
-  }
-  for( int i = 0; i < picHeader->getNumVerVirtualBoundaries(); i++ )
-  {
-    if( picHeader->getVirtualBoundariesPosX(i) == area.x )
-    {
-      clipLeft = true;
-    }
-    else if( picHeader->getVirtualBoundariesPosX(i) == area.x + area.width )
-    {
-      clipRight = true;
-    }
-    else if( area.x < picHeader->getVirtualBoundariesPosX(i) && picHeader->getVirtualBoundariesPosX(i) < area.x + area.width )
-    {
-      verVirBndryPos[numVerVirBndry++] = picHeader->getVirtualBoundariesPosX(i);
-    }
-  }
-
-  int   ctuSize = sps->getCTUSize();
-  const Position currCtuPos( area.x, area.y );
-  const CodingUnit *currCtu = cs.getCU(currCtuPos, CHANNEL_TYPE_LUMA);
+  int               ctuSize = sps->getCTUSize();
+  const Position    currCtuPos( area.x, area.y );
+  const CodingUnit* currCtu = cs.getCU( currCtuPos, CHANNEL_TYPE_LUMA );
 #if JVET_O1143_LPF_ACROSS_SUBPIC_BOUNDARY
-  bool loopFilterAcrossSubPicEnabledFlag=1;
-  if (sps->getSubPicInfoPresentFlag())
+  bool loopFilterAcrossSubPicEnabledFlag = 1;
+  if( sps->getSubPicInfoPresentFlag() )
   {
-    const SubPic& curSubPic = pps->getSubPicFromPos(currCtuPos);
-    loopFilterAcrossSubPicEnabledFlag=curSubPic.getloopFilterAcrossEnabledFlag();
+    const SubPic& curSubPic           = pps->getSubPicFromPos( currCtuPos );
+    loopFilterAcrossSubPicEnabledFlag = curSubPic.getloopFilterAcrossSubPicEnabledFlag();
   }
 #endif
-  //top
+  // top
   if( area.y >= ctuSize && clipTop == false )
   {
-    const Position prevCtuPos( area.x, area.y - ctuSize );
-    const CodingUnit *prevCtu = cs.getCU(prevCtuPos, CHANNEL_TYPE_LUMA);
-    if( (!pps->getLoopFilterAcrossBricksEnabledFlag() && !CU::isSameSlice(*currCtu, *prevCtu))
+    const Position    prevCtuPos( area.x, area.y - ctuSize );
+    const CodingUnit* prevCtu = cs.getCU( prevCtuPos, CHANNEL_TYPE_LUMA );
+    if( ( !pps->getLoopFilterAcrossSlicesEnabledFlag() && !CU::isSameSlice( *currCtu, *prevCtu ) )
+        || ( !pps->getLoopFilterAcrossTilesEnabledFlag() && !CU::isSameTile( *currCtu, *prevCtu ) )
 #if JVET_O1143_LPF_ACROSS_SUBPIC_BOUNDARY
-     || (!loopFilterAcrossSubPicEnabledFlag && !CU::isSameSubPic(*currCtu, *prevCtu))
+        || ( !loopFilterAcrossSubPicEnabledFlag && !CU::isSameSubPic( *currCtu, *prevCtu ) )
 #endif
-      )
+    )
     {
       clipTop = true;
     }
   }
 
-  //bottom
+  // bottom
   if( area.y + ctuSize < cs.pcv->lumaHeight && clipBottom == false )
   {
-    const Position nextCtuPos( area.x, area.y + ctuSize );
-    const CodingUnit *nextCtu = cs.getCU(nextCtuPos, CHANNEL_TYPE_LUMA);
-    if( (!pps->getLoopFilterAcrossBricksEnabledFlag() && !CU::isSameSlice(*currCtu, *nextCtu))
+    const Position    nextCtuPos( area.x, area.y + ctuSize );
+    const CodingUnit* nextCtu = cs.getCU( nextCtuPos, CHANNEL_TYPE_LUMA );
+    if ((!pps->getLoopFilterAcrossSlicesEnabledFlag() && !CU::isSameSlice(*currCtu, *nextCtu)) ||
+        (!pps->getLoopFilterAcrossTilesEnabledFlag()  && !CU::isSameTile(*currCtu,  *nextCtu))
 #if JVET_O1143_LPF_ACROSS_SUBPIC_BOUNDARY
-     || (!loopFilterAcrossSubPicEnabledFlag && !CU::isSameSubPic(*currCtu, *nextCtu))
+        || ( !loopFilterAcrossSubPicEnabledFlag && !CU::isSameSubPic( *currCtu, *nextCtu ) )
 #endif
-      )
+    )
     {
       clipBottom = true;
     }
   }
 
-  //left
+  // left
   if( area.x >= ctuSize && clipLeft == false )
   {
-    const Position prevCtuPos( area.x - ctuSize, area.y );
-    const CodingUnit *prevCtu = cs.getCU(prevCtuPos, CHANNEL_TYPE_LUMA);
-    if( (!pps->getLoopFilterAcrossBricksEnabledFlag() && !CU::isSameSlice(*currCtu, *prevCtu))
+    const Position    prevCtuPos( area.x - ctuSize, area.y );
+    const CodingUnit* prevCtu = cs.getCU( prevCtuPos, CHANNEL_TYPE_LUMA );
+    if( ( !pps->getLoopFilterAcrossSlicesEnabledFlag() && !CU::isSameSlice( *currCtu, *prevCtu ) )
+        || ( !pps->getLoopFilterAcrossTilesEnabledFlag() && !CU::isSameTile( *currCtu, *prevCtu ) )
 #if JVET_O1143_LPF_ACROSS_SUBPIC_BOUNDARY
-      || (!loopFilterAcrossSubPicEnabledFlag && !CU::isSameSubPic(*currCtu, *prevCtu))
+        || ( !loopFilterAcrossSubPicEnabledFlag && !CU::isSameSubPic( *currCtu, *prevCtu ) )
 #endif
-      )
+    )
     {
       clipLeft = true;
     }
   }
 
-  //right
+  // right
   if( area.x + ctuSize < cs.pcv->lumaWidth && clipRight == false )
   {
-    const Position nextCtuPos( area.x + ctuSize, area.y );
-    const CodingUnit *nextCtu = cs.getCU(nextCtuPos, CHANNEL_TYPE_LUMA);
-    if( (!pps->getLoopFilterAcrossBricksEnabledFlag() && !CU::isSameSlice(*currCtu, *nextCtu))
+    const Position    nextCtuPos( area.x + ctuSize, area.y );
+    const CodingUnit* nextCtu = cs.getCU( nextCtuPos, CHANNEL_TYPE_LUMA );
+    if ((!pps->getLoopFilterAcrossSlicesEnabledFlag() && !CU::isSameSlice(*currCtu, *nextCtu)) ||
+        (!pps->getLoopFilterAcrossTilesEnabledFlag()  && !CU::isSameTile(*currCtu,  *nextCtu))
 #if JVET_O1143_LPF_ACROSS_SUBPIC_BOUNDARY
-     || (!loopFilterAcrossSubPicEnabledFlag && !CU::isSameSubPic(*currCtu, *nextCtu))
+        || ( !loopFilterAcrossSubPicEnabledFlag && !CU::isSameSubPic( *currCtu, *nextCtu ) )
 #endif
-      )
+    )
     {
       clipRight = true;
     }
@@ -363,7 +365,7 @@ void AdaptiveLoopFilter::create( const PicHeader* picHeader, const SPS* sps, con
 
   CHECK( m_inputBitDepth[CHANNEL_TYPE_LUMA] > 10 || m_inputBitDepth[CHANNEL_TYPE_CHROMA] > 10, "m_alfClippingValues or m_alfClippVls needs to be enabled/adjusted" );
 
-  if( picHeader->getVirtualBoundariesPresentFlag() )
+  if( picHeader->getVirtualBoundariesPresentFlag() || !pps->getLoopFilterAcrossSlicesEnabledFlag() || !pps->getLoopFilterAcrossTilesEnabledFlag() )
   {
     m_tempBuf.resize( std::max( 1, numThreads ) );
     for( auto &buf: m_tempBuf )
