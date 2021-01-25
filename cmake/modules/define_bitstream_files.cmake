@@ -134,6 +134,7 @@ list( APPEND BITSTREAM_FILES
   "IBC_B_Tencent_2.zip"
   "IBC_C_Tencent_2.zip"
   "IBC_D_Tencent_2.zip"
+  "IP_A_Huawei_2.zip"
   "IP_B_Nokia_1.zip"
   "ISP_A_HHI_3.zip"
   "ISP_B_HHI_3.zip"
@@ -143,8 +144,8 @@ list( APPEND BITSTREAM_FILES
   "JCCR_D_HHI_3.zip"
   "JCCR_E_Nokia_1.zip"
   "JCCR_F_Nokia_1.zip"
-  "LFNST_A_LGE_3.zip"
-  "LFNST_B_LGE_3.zip"
+  "LFNST_A_LGE_4.zip"
+  "LFNST_B_LGE_4.zip"
   "LFNST_C_HHI_3.zip"
   "LFNST_D_HHI_3.zip"
   "LMCS_A_Dolby_3.zip"
@@ -168,11 +169,16 @@ list( APPEND BITSTREAM_FILES
   "MPM_A_LGE_3.zip"
   "MRLP_A_HHI_2.zip"
   "MRLP_B_HHI_2.zip"
-  "MTS_A_LGE_3.zip"
-  "MTS_B_LGE_3.zip"
-  "MTS_LFNST_A_LGE_3.zip"
-  "MTS_LFNST_B_LGE_3.zip"
+  "MTS_A_LGE_4.zip"
+  "MTS_B_LGE_4.zip"
+  "MTS_LFNST_A_LGE_4.zip"
+  "MTS_LFNST_B_LGE_4.zip"
   "MVCOMP_A_Sharp_2.zip"
+  #"OLS_A_Tencent_4.zip"                               # TODO ERROR: In function "parseVPS" in ../../source/Lib/DecoderLib/VLCReader.cpp:2053: needs to be adjusted, e.g. sublayer and independent layer stuff -> see VTM-9.0
+  #"OLS_B_Tencent_4.zip"                               # TODO ERROR: In function "parseVPS" in ../../source/Lib/DecoderLib/VLCReader.cpp:2053: needs to be adjusted, e.g. sublayer and independent layer stuff -> see VTM-9.0
+  #"OLS_C_Tencent_4.zip"                               # TODO ERROR: In function "parseVPS" in ../../source/Lib/DecoderLib/VLCReader.cpp:2053: needs to be adjusted, e.g. sublayer and independent layer stuff -> see VTM-9.0
+  #"OPI_A_Nokia_1.zip"                                 # TODO ERROR: In function "parseVPS" in ../../source/Lib/DecoderLib/VLCReader.cpp:2053: needs to be adjusted, e.g. sublayer and independent layer stuff -> see VTM-9.0
+  #"OPI_B_Nokia_1.zip"                                 # TODO ERROR: In function "parseVPS" in ../../source/Lib/DecoderLib/VLCReader.cpp:2053: needs to be adjusted, e.g. sublayer and independent layer stuff -> see VTM-9.0
   #"PALETTE_A_Alibaba_2.zip"                           # palette mode is not yet supported
   #"PALETTE_B_Alibaba_2.zip"                           # palette mode is not yet supported
   #"PALETTE_C_Alibaba_2.zip"                           # palette mode is not yet supported
@@ -182,6 +188,11 @@ list( APPEND BITSTREAM_FILES
   "PDPC_B_Qualcomm_3.zip"
   "PDPC_C_Qualcomm_2.zip"
   "PHSH_B_Sharp_1.zip"
+  #"PMERGE_A_MediaTek_1.zip"                           # TODO: mismatch. Why?
+  #"PMERGE_B_MediaTek_1.zip"                           # TODO: mismatch. Why?
+  #"PMERGE_C_MediaTek_1.zip"                           # TODO: mismatch. Why?
+  #"PMERGE_D_MediaTek_1.zip"                           # TODO: mismatch. Why?
+  #"PMERGE_E_MediaTek_1.zip"                           # TODO: mismatch. Why?
   "POC_A_Nokia_1.zip"
   "POUT_A_Sharplabs_2.zip"
   "PPS_A_Bytedance_1.zip"
@@ -224,7 +235,9 @@ list( APPEND BITSTREAM_FILES
   #"SUBPIC_A_HUAWEI_3.zip"                              # subpictures currently not supported
   #"SUBPIC_B_HUAWEI_3.zip"                              # subpictures currently not supported
   #"SUBPIC_C_ERICSSON_1.zip"                            # subpictures currently not supported
+  #"SUBPIC_C_MediaTek_1.zip"                            # subpictures currently not supported
   "TEMPSCAL_A_Panasonic_4.zip"
+  "TEMPSCAL_B_Panasonic_5.zip"
   "TEMPSCAL_C_Panasonic_3.zip"
   "TILE_A_Nokia_2.zip"
   "TILE_B_Nokia_2.zip"
