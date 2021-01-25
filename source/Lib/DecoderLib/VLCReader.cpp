@@ -2277,7 +2277,7 @@ void HLSyntaxReader::parseVPS( VPS* pcVPS )
 
       for( int j = ( pcVPS->m_sublayerDpbParamsPresentFlag ? 0 : pcVPS->m_dpbMaxTemporalId[i] ); j <= pcVPS->m_dpbMaxTemporalId[i]; j++ )
       {
-        READ_UVLC( uiCode, "dpb_max_dec_pic_buffering_minus1[i]" );        pcVPS->m_dpbParameters[i].m_maxDecPicBuffering[j] = uiCode;
+        READ_UVLC( uiCode, "dpb_max_dec_pic_buffering_minus1[i]" );        pcVPS->m_dpbParameters[i].m_maxDecPicBuffering[j] = uiCode + 1;
         READ_UVLC( uiCode, "dpb_max_num_reorder_pics[i]" );                pcVPS->m_dpbParameters[i].m_numReorderPics[j] = uiCode;
         READ_UVLC( uiCode, "dpb_max_latency_increase_plus1[i]" );          pcVPS->m_dpbParameters[i].m_maxLatencyIncreasePlus1[j] = uiCode;
       }
