@@ -117,7 +117,7 @@ list( APPEND BITSTREAM_FILES
   "TMVP_A_Chipsnmedia_3.zip" "TMVP_B_Chipsnmedia_3.zip" "TMVP_C_Chipsnmedia_3.zip" "TMVP_D_Chipsnmedia_3.zip"
   "TRANS_A_Chipsnmedia_2.zip" "TRANS_B_Chipsnmedia_2.zip" "TRANS_C_Chipsnmedia_2.zip" "TRANS_D_Chipsnmedia_2.zip"
   "TREE_A_HHI_3.zip" "TREE_B_HHI_3.zip" "TREE_C_HHI_3.zip"
-  #"VIRTUAL_A_MediaTek_3.zip" "VIRTUAL_B_MediaTek_3.zip" # TODO: mismatch
+  "VIRTUAL_A_MediaTek_3.zip" "VIRTUAL_B_MediaTek_3.zip"
   #"VPS_A_INTEL_3.zip"                                   # TODO ERROR: In function "parseVPS" in ../../source/Lib/DecoderLib/VLCReader.cpp:2053: needs to be adjusted, e.g. sublayer and independent layer stuff -> see VTM-9.0
   #"VPS_B_ERICSSON_1.zip" "VPS_C_ERICSSON_1.zip"         # TODO ERROR: In function "parseVPS" in ../../source/Lib/DecoderLib/VLCReader.cpp:2053: needs to be adjusted, e.g. sublayer and independent layer stuff -> see VTM-9.0
   "WP_A_InterDigital_3.zip" "WP_B_InterDigital_3.zip"
