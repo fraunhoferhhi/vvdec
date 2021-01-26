@@ -2279,7 +2279,7 @@ void HLSyntaxReader::parseVPS( VPS* pcVPS )
   ptls.resize( pcVPS->getNumPtls() );
   for( int i = 0; i < pcVPS->getNumPtls(); i++ )
   {
-    parseProfileTierLevel( &ptls[i], pcVPS->getPtPresentFlag( i ), pcVPS->getPtlMaxTemporalId( i ) - 1 );
+    parseProfileTierLevel( &ptls[i], pcVPS->getPtPresentFlag( i ), pcVPS->getPtlMaxTemporalId( i ) );
   }
   pcVPS->setProfileTierLevel( ptls );
   for( int i = 0; i < pcVPS->getTotalNumOLSs(); i++ )
