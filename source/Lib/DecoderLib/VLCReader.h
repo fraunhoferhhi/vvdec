@@ -142,15 +142,14 @@ public:
 class HLSyntaxReader : public VLCReader
 {
 public:
-  HLSyntaxReader();
-  virtual ~HLSyntaxReader();
+  HLSyntaxReader()          = default;
+  virtual ~HLSyntaxReader() = default;
 
 protected:
   void  copyRefPicList      ( SPS* pcSPS, ReferencePictureList* source_rpl, ReferencePictureList* dest_rpl );
   void  parseRefPicList     (const SPS* pcSPS, ReferencePictureList* rpl, int rplIdx );
 
 public:
-  void  setBitstream        ( InputBitstream* p )   { m_pcBitstream = p; }
   void  parseVPS            ( VPS* pcVPS );
   void  parseDCI            ( DCI* dci );
   void  parseSPS            ( SPS* pcSPS, ParameterSetManager *parameterSetManager );
