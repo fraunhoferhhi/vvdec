@@ -1158,8 +1158,8 @@ void HLSyntaxReader::parseOlsHrdParameters( GeneralHrdParams * generalHrd, OlsHr
           READ_UVLC( symbol, "cpb_size_value_minus1");             hrd->setCpbSizeValueMinus1( j, nalOrVcl, symbol );
           if( generalHrd->getGeneralDecodingUnitHrdParamsPresentFlag() )
           {
-            READ_UVLC( symbol, "bit_rate_du_value_minus1" );       hrd->setDuBitRateValueMinus1( j, nalOrVcl, symbol );
             READ_UVLC( symbol, "cpb_size_du_value_minus1" );       hrd->setDuCpbSizeValueMinus1( j, nalOrVcl, symbol );
+            READ_UVLC( symbol, "bit_rate_du_value_minus1" );       hrd->setDuBitRateValueMinus1( j, nalOrVcl, symbol );
           }
           READ_FLAG( symbol, "cbr_flag" );                         hrd->setCbrFlag( j, nalOrVcl, symbol == 1 ? true : false );
         }
