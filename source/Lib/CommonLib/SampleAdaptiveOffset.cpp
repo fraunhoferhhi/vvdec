@@ -779,7 +779,7 @@ void SampleAdaptiveOffset::deriveLoopFilterBoundaryAvailibility( CodingStructure
   }
 
   // check cross tile flags
-  const bool isLoopFilterAcrossTilePPS = cs.pps->getLoopFilterAcrossBricksEnabledFlag();
+  const bool isLoopFilterAcrossTilePPS = cs.pps->getLoopFilterAcrossTilesEnabledFlag();
   if (!isLoopFilterAcrossTilePPS)
   {
     isLeftAvail       = (!isLeftAvail)       ? false : CU::isSameTile(*cuCurr, *cuLeft);
@@ -800,7 +800,7 @@ void SampleAdaptiveOffset::deriveLoopFilterBoundaryAvailibility( CodingStructure
   if( sps.getSubPicInfoPresentFlag() )
   {
     const SubPic& curSubPic = cs.pps->getSubPicFromCU(*cuCurr);
-    if( !curSubPic.getloopFilterAcrossEnabledFlag() )
+    if( !curSubPic.getloopFilterAcrossSubPicEnabledFlag() )
     {
       isLeftAvail       = (!isLeftAvail)       ? false : CU::isSameSubPic(*cuCurr, *cuLeft);
       isAboveAvail      = (!isAboveAvail)      ? false : CU::isSameSubPic(*cuCurr, *cuAbove);

@@ -489,7 +489,7 @@ void DecLib::checkSeiInPictureUnit()
   // extract SEI messages from NAL units
   for( auto &sei : m_pictureSeiNalus )
   {
-    InputBitstream bs = sei->getBitstream();
+    InputBitstream bs = sei.getBitstream();
 
     do
     {
@@ -574,11 +574,7 @@ void DecLib::checkSeiInPictureUnit()
  */
 void DecLib::resetPictureSeiNalus()
 {
-  while( !m_pictureSeiNalus.empty() )
-  {
-    delete m_pictureSeiNalus.front();
-    m_pictureSeiNalus.pop_front();
-  }
+  m_pictureSeiNalus.clear();
 }
 
 void DecLib::checkAPSInPictureUnit()

@@ -53,6 +53,7 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #include "DecSlice.h"
 #include "VLCReader.h"
 #include "SEIread.h"
+#include "NALread.h"
 
 #include "CommonLib/ParameterSetManager.h"
 
@@ -96,7 +97,7 @@ private:
   Slice*   m_apcSlicePilot        = nullptr;
 
   DCI*     m_dci                  = nullptr;
-  std::list<InputNALUnit*> m_prefixSEINALUs;   /// Buffered up prefix SEI NAL Units.
+  std::list<InputNALUnit>  m_prefixSEINALUs;   /// Buffered up prefix SEI NAL Units.
 
 #if JVET_P0101_POC_MULTILAYER
   struct AccessUnitPicInfo
@@ -118,7 +119,7 @@ private:
   std::vector<NalUnitInfo>  m_nalUnitInfo[MAX_VPS_LAYERS];
   
   std::vector<NalUnitType>  m_pictureUnitNals;
-  std::list<InputNALUnit*>  m_pictureSeiNalus;
+  std::list<InputNALUnit>   m_pictureSeiNalus;
 
   std::ostream*             m_pDecodedSEIOutputStream = nullptr;
 
@@ -137,7 +138,7 @@ private:
   ParameterSetManager       m_parameterSetManager;   // storage for parameter sets
   PicListManager&           m_picListManager;
 
-  PicHeader*                m_picHeader = nullptr;            // picture header
+  std::shared_ptr<PicHeader> m_picHeader;            // picture header
 
   unsigned int              m_numDecThreads   = 0;
   unsigned int              m_parseFrameDelay = 0;

@@ -1482,7 +1482,7 @@ void HLSyntaxReader::parseSPS( SPS* pcSPS, ParameterSetManager *parameterSetMana
     }
   }
 
-  CHECK( pcSPS->getNumSubPics() > 1, "more than one sup picture not supported yet" );
+//  CHECK( pcSPS->getNumSubPics() > 1, "more than one sup picture not supported yet" );
   
   READ_UVLC( uiCode, "sps_bitdepth_minus8" );
   CHECK( uiCode > 8, "Invalid bit depth signalled" );
@@ -1938,12 +1938,12 @@ void HLSyntaxReader::parseSPS( SPS* pcSPS, ParameterSetManager *parameterSetMana
       READ_UVLC( uiCode, "sps_num_ver_virtual_boundaries" );                pcSPS->setNumVerVirtualBoundaries( uiCode );
       for( unsigned i = 0; i < pcSPS->getNumVerVirtualBoundaries(); i++ )
       {
-        READ_UVLC( uiCode, "sps_virtual_boundary_pos_x_minus1[i]" );        pcSPS->setVirtualBoundariesPosX( uiCode << 3, i );
+        READ_UVLC( uiCode, "sps_virtual_boundary_pos_x_minus1[i]" );        pcSPS->setVirtualBoundariesPosX( (uiCode + 1) << 3, i );
       }
       READ_UVLC( uiCode, "sps_num_hor_virtual_boundaries" );                pcSPS->setNumHorVirtualBoundaries( uiCode );
       for( unsigned i = 0; i < pcSPS->getNumHorVirtualBoundaries(); i++ )
       {
-        READ_UVLC( uiCode, "sps_virtual_boundary_pos_y_minus1[i]" );        pcSPS->setVirtualBoundariesPosY( uiCode << 3, i );
+        READ_UVLC( uiCode, "sps_virtual_boundary_pos_y_minus1[i]" );        pcSPS->setVirtualBoundariesPosY( (uiCode + 1) << 3, i );
       }
     }
     else
@@ -2644,7 +2644,7 @@ void HLSyntaxReader::parsePictureHeader( PicHeader* picHeader, ParameterSetManag
       }
       for( unsigned i = 0; i < picHeader->getNumVerVirtualBoundaries(); i++ )
       {
-        READ_UVLC( uiCode, "ph_virtual_boundary_pos_x_minus1[ i ]" );        picHeader->setVirtualBoundariesPosX( uiCode << 3, i );
+        READ_UVLC( uiCode, "ph_virtual_boundary_pos_x_minus1[ i ]" );        picHeader->setVirtualBoundariesPosX( (uiCode + 1) << 3, i );
       }
       READ_UVLC( uiCode, "ph_num_hor_virtual_boundaries" );               picHeader->setNumHorVirtualBoundaries( uiCode );
       if( pps->getPicHeightInLumaSamples() <= 8 )
@@ -2653,7 +2653,7 @@ void HLSyntaxReader::parsePictureHeader( PicHeader* picHeader, ParameterSetManag
       }
       for( unsigned i = 0; i < picHeader->getNumHorVirtualBoundaries(); i++ )
       {
-        READ_UVLC( uiCode, "ph_virtual_boundary_pos_y_minus1[ i ]" );        picHeader->setVirtualBoundariesPosY( uiCode << 3, i );
+        READ_UVLC( uiCode, "ph_virtual_boundary_pos_y_minus1[ i ]" );        picHeader->setVirtualBoundariesPosY( (uiCode + 1) << 3, i );
       }
     }
     else
@@ -3124,12 +3124,10 @@ void HLSyntaxReader::checkAlfNaluTidAndPicTid( Slice* pcSlice, PicHeader* picHea
   }
 }
 
-void HLSyntaxReader::parseSliceHeader( Slice* pcSlice, PicHeader* parsedPicHeader, ParameterSetManager *parameterSetManager, const int prevTid0POC, Picture* parsePic )
+void HLSyntaxReader::parseSliceHeader( Slice* pcSlice, PicHeader* picHeader, ParameterSetManager *parameterSetManager, const int prevTid0POC, Picture* parsePic )
 {
   uint32_t  uiCode;
   int   iCode;
-
-  PicHeader* picHeader = parsedPicHeader;
   
 #if ENABLE_TRACING
   xTraceSliceHeader();
@@ -3145,7 +3143,7 @@ void HLSyntaxReader::parseSliceHeader( Slice* pcSlice, PicHeader* parsedPicHeade
   }
   else if( !picHeader->isValid() && nullptr != parsePic )
   {
-    picHeader = parsePic->picHeader;
+    picHeader = parsePic->picHeader.get();
   }
   CHECK( picHeader==0, "Invalid Picture Header" );
   CHECK( picHeader->isValid() == false, "Invalid Picture Header" );

@@ -147,10 +147,9 @@ public:
   void stopProcessingTimer();
   void resetProcessingTime() { m_dProcessingTime = 0; }
   double getProcessingTime() const { return m_dProcessingTime; }
-  
-  std::chrono::time_point<std::chrono::steady_clock>
-                             m_processingStartTime;
-  double                     m_dProcessingTime               = 0;
+
+  std::chrono::time_point<std::chrono::steady_clock> m_processingStartTime;
+  double                                             m_dProcessingTime = 0;
 
   bool isBorderExtended               = false;
 #if JVET_Q0764_WRAP_AROUND_WITH_RPR
@@ -243,9 +242,8 @@ public:
                pps0->getScalingWindow().getWindowBottomOffset()  != pps->getScalingWindow().getWindowBottomOffset() ) );
   }
 
-  PicHeader   *picHeader = nullptr;
-  void         allocatePicHead() { picHeader = new PicHeader; }
-  PicHeader   *swapPicHead( PicHeader *ph );
+  std::shared_ptr<PicHeader> picHeader;
+  void                       setPicHead( const std::shared_ptr<PicHeader>& ph );
 
 #if JVET_Q0764_WRAP_AROUND_WITH_RPR
   bool         isWrapAroundEnabled( const PPS* pps ) const  { return  pps->getUseWrapAround() && !isRefScaled( pps ); }
