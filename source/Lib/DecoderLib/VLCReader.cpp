@@ -2761,7 +2761,7 @@ void HLSyntaxReader::parsePictureHeader( PicHeader* picHeader, ParameterSetManag
   }
 
   // picture output flag
-  if( pps->getOutputFlagPresentFlag() )
+  if( pps->getOutputFlagPresentFlag() && !picHeader->getNonReferencePictureFlag() )
   {
     READ_FLAG( uiCode, "ph_pic_output_flag" );                               picHeader->setPicOutputFlag( uiCode != 0 );
   }
@@ -3001,6 +3001,7 @@ void HLSyntaxReader::parsePictureHeader( PicHeader* picHeader, ParameterSetManag
   if( !sps->getSplitConsOverrideEnabledFlag() || !picHeader->getSplitConsOverrideFlag() )
   {
     picHeader->setMinQTSizes( sps->getMinQTSizes() );
+    picHeader->setMaxMTTHierarchyDepths( sps->getMaxBTSizes() );
     picHeader->setMaxBTSizes( sps->getMaxBTSizes() );
     picHeader->setMaxTTSizes( sps->getMaxTTSizes() );
   }
@@ -3516,7 +3517,7 @@ void HLSyntaxReader::parseSliceHeader( Slice* pcSlice, PicHeader* picHeader, Par
     else
     {
       pcSlice->setTileGroupCcAlfCbEnabledFlag( 0 );
-      pcSlice->setTileGroupCcAlfCbEnabledFlag( 0 );
+      pcSlice->setTileGroupCcAlfCrEnabledFlag( 0 );
       pcSlice->setTileGroupCcAlfCbApsId( -1 );
       pcSlice->setTileGroupCcAlfCrApsId( -1 );
     }
