@@ -1481,12 +1481,6 @@ void ChromaQpMappingTable::derivedChromaQPMappingTables()
 }
 
 
-
-PPS::~PPS()
-{
-  delete pcv;
-}
-
 void PPS::resetTileSliceInfo()
 {
   m_numExpTileCols = 0;
@@ -1837,7 +1831,7 @@ void PPS::initSubPic( const SPS &sps )
 #endif
     }
     m_subPics[i].setTreatedAsPicFlag(sps.getSubPicTreatedAsPicFlag(i));
-    m_subPics[i].setloopFilterAcrossEnabledFlag(sps.getLoopFilterAcrossSubpicEnabledFlag(i));
+    m_subPics[i].setloopFilterAcrossSubPicEnabledFlag(sps.getLoopFilterAcrossSubpicEnabledFlag(i));
   }
 }
 

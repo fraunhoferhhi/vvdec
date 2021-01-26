@@ -56,6 +56,7 @@ THE POSSIBILITY OF SUCH DAMAGE.
 //! \{
 
 #include <immintrin.h>
+#include "FixMissingIntrin.h"
 
 #ifdef USE_AVX512
 #define SIMDX86 AVX512

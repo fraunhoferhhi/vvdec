@@ -47,6 +47,14 @@ ifneq ($(install-prefix),)
 CONFIG_OPTIONS += -DCMAKE_INSTALL_PREFIX=$(install-prefix)
 endif
 
+ifneq ($(enable-arch),)
+CONFIG_OPTIONS += -DVVDEC_OPT_TARGET_ARCH=$(enable-arch)
+endif
+
+ifneq ($(disable-lto),)
+CONFIG_OPTIONS += -DVVDEC_ENABLE_LINK_TIME_OPT=OFF
+endif
+
 ifeq ($(j),)
 # Query cmake for the number of cores
 NUM_JOBS := $(shell cmake -P cmake/modules/vvdecNumCores.cmake)

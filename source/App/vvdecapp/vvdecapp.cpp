@@ -426,6 +426,12 @@ int main( int argc, char* argv[] )
       return iSEIHashErrCount;
     }
 
+    if( iComprPics && !uiFrames )
+    {
+      std::cout << "vvdecapp [error]: read some input pictures (" << iComprPics << "), but no output was generated." << std::endl;
+      return -1;
+    }
+
     // un-initialize the decoder
     iRet = cVVDec.uninit();
     if( 0 != iRet )  { std::cout << "vvdecapp [error]: cannot uninit decoder (" << iRet << ")" << std::endl;  return iRet;  }
