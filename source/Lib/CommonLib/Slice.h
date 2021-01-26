@@ -2147,7 +2147,6 @@ private:
   uint32_t         m_numTileRows                       = 0;                       //!< number of tile rows
   bool             m_TransquantBypassEnabledFlag       = false;   //!< Indicates presence of cu_transquant_bypass_flag in CUs.
   int             m_log2MaxTransformSkipBlockSize     = 2;
-  bool             m_loopFilterAcrossBricksEnabledFlag = true;
   bool             m_uniformSpacingFlag                = false;
   int              m_numTileColumnsMinus1              = 0;
   int              m_numTileRowsMinus1                 = 0;
@@ -2169,11 +2168,8 @@ private:
   std::vector<SubPic>           m_subPics;                   //!< list of subpictures in the picture
 #endif
   int                           m_numSlicesInPicMinus1      = 0;
-  std::vector<int> m_topLeftBrickIdx;
-  std::vector<int> m_bottomRightBrickIdx;
 
   int              m_numTilesInPic                       = 1;
-  int              m_numBricksInPic                      = 1;
   bool             m_signalledSliceIdFlag                = false;
   int              m_signalledSliceIdLengthMinus1        = 0;
   std::vector<int> m_sliceId;
@@ -2392,14 +2388,8 @@ public:
   uint32_t               getSliceTileIdx( int idx ) const                                 { CHECK( idx >= m_numSlicesInPic, "Slice index exceeds valid range" );    return  m_rectSlices[idx].getTileIdx( );                }
   int                    getNumSlicesInPicMinus1() const                                  { return m_numSlicesInPicMinus1;                }
   void                   setNumSlicesInPicMinus1(int val)                                 { m_numSlicesInPicMinus1 = val;                 }
-  int                    getTopLeftBrickIdx(uint32_t columnIdx) const                     { return  m_topLeftBrickIdx[columnIdx];         }
-  void                   setTopLeftBrickIdx(const std::vector<int>& val)                  { m_topLeftBrickIdx = val;                      }
-  int                    getBottomRightBrickIdx(uint32_t columnIdx) const                 { return  m_bottomRightBrickIdx[columnIdx];     }
-  void                   setBottomRightBrickIdx(const std::vector<int>& val)              { m_bottomRightBrickIdx = val;                  }
   int                    getNumTilesInPic() const                                         { return m_numTilesInPic;                       }
   void                   setNumTilesInPic(int val)                                        { m_numTilesInPic = val;                        }
-  int                    getNumBricksInPic() const                                        { return m_numBricksInPic;                      }
-  void                   setNumBricksInPic(int val)                                       { m_numBricksInPic = val;                       }
   bool                   getSignalledSliceIdFlag() const                                  { return m_signalledSliceIdFlag;                }
   void                   setSignalledSliceIdFlag(bool val)                                { m_signalledSliceIdFlag = val;                 }
   int                    getSignalledSliceIdLengthMinus1() const                          { return m_signalledSliceIdLengthMinus1;        }
@@ -2905,9 +2895,6 @@ private:
   uint32_t                   m_sliceBits                     = 0;
   bool                       m_nextSlice                     = false;
 
-  uint32_t                   m_sliceCurStartBrickIdx         = 0;
-  uint32_t                   m_sliceCurEndBrickIdx           = 0;
-  uint32_t                   m_sliceNumBricks                = 0;
   uint32_t                   m_sliceIdx                      = 0;
 
   bool                       m_bTestWeightPred               = false;
@@ -3119,12 +3106,6 @@ public:
   void                        copySliceInfo(Slice *pcSliceSrc, bool cpyAlmostAll = true);
   void                        setSliceBits( uint32_t uiVal )                         { m_sliceBits = uiVal;                                          }
   uint32_t                    getSliceBits() const                                   { return m_sliceBits;                                           }
-  void                        setSliceCurStartBrickIdx(uint32_t brickIdx)            { m_sliceCurStartBrickIdx = brickIdx;                           }
-  uint32_t                    getSliceCurStartBrickIdx() const                       { return m_sliceCurStartBrickIdx;                               }
-  void                        setSliceCurEndBrickIdx(uint32_t brickIdx)              { m_sliceCurEndBrickIdx = brickIdx;                             }
-  uint32_t                    getSliceCurEndBrickIdx() const                         { return m_sliceCurEndBrickIdx;                                 }
-  void                        setSliceNumBricks(uint32_t numBricks)                  { m_sliceNumBricks = numBricks;                                 }
-  uint32_t                    getSliceNumBricks() const                              { return m_sliceNumBricks;                                      }
   void                        setSliceIndex(uint32_t idx)                            { m_sliceIdx = idx;                                             }
   uint32_t                    getSliceIndex() const                                  { return m_sliceIdx;                                            }
   bool                        testWeightPred( ) const                                { return m_bTestWeightPred;                                     }

@@ -1067,8 +1067,8 @@ LFCUParam LoopFilter::xGetLoopfilterParam( const CodingUnit& cu ) const
   stLFCUParam.topEdge  = ( 0 < pos.y ) && isAvailable( cu, cuAbove, !pps.getLoopFilterAcrossSlicesEnabledFlag(), !pps.getLoopFilterAcrossTilesEnabledFlag(), !loopFilterAcrossSubPicEnabledFlag );
 #else
   LFCUParam stLFCUParam;   ///< status structure
-  stLFCUParam.leftEdge = ( 0 < pos.x ) && isAvailable( cu, *cu.left,  !pps.getLoopFilterAcrossSlicesEnabledFlag(), !pps.getLoopFilterAcrossBricksEnabledFlag() );
-  stLFCUParam.topEdge  = ( 0 < pos.y ) && isAvailable( cu, *cu.above, !pps.getLoopFilterAcrossSlicesEnabledFlag(), !pps.getLoopFilterAcrossBricksEnabledFlag() );
+  stLFCUParam.leftEdge = ( 0 < pos.x ) && isAvailable( cu, *cu.left,  !pps.getLoopFilterAcrossSlicesEnabledFlag(), !pps.getLoopFilterAcrossTilesEnabledFlag() );
+  stLFCUParam.topEdge  = ( 0 < pos.y ) && isAvailable( cu, *cu.above, !pps.getLoopFilterAcrossSlicesEnabledFlag(), !pps.getLoopFilterAcrossTilesEnabledFlag() );
 #endif
   return stLFCUParam;
 }
