@@ -215,6 +215,8 @@ Picture* DecLibParser::parse( InputNALUnit& nalu, int* pSkipFrame )
   {
     const auto ret = xDecodeSliceHead( nalu, pSkipFrame );
 
+    m_parseNewPicture = ( ret == NewPicture );
+
     if( ret == NewPicture && m_parseFrameList.size() > m_parseFrameDelay )
     {
       Picture* pic = getNextDecodablePicture();

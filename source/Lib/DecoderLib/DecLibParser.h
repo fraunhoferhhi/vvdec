@@ -84,6 +84,7 @@ private:
   bool m_bFirstSliceInPicture     = true;
   bool m_bFirstSliceInSequence[MAX_VPS_LAYERS] = { true };
   bool m_bFirstSliceInBitstream   = true;
+  bool m_parseNewPicture          = false;
 
   int  m_lastPOCNoOutputPriorPics = -1;
   bool m_isNoOutputPriorPics      = false;
@@ -167,6 +168,7 @@ public:
   void checkNoOutputPriorPics   ();
   void setNoOutputPriorPicsFlag (bool val)              { m_isNoOutputPriorPics = val; }
   bool getNoOutputPriorPicsFlag () const                { return m_isNoOutputPriorPics; }
+  bool getParseNewPicture       () const                { return m_parseNewPicture; }
 
   void setDecodedSEIMessageOutputStream( std::ostream* pOpStream ) { m_pDecodedSEIOutputStream = pOpStream; }
 
