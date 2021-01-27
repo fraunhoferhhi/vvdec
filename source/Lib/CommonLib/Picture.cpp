@@ -1,11 +1,11 @@
 /* -----------------------------------------------------------------------------
 The copyright in this software is being made available under the BSD
-License, included below. No patent rights, trademark rights and/or 
-other Intellectual Property Rights other than the copyrights concerning 
+License, included below. No patent rights, trademark rights and/or
+other Intellectual Property Rights other than the copyrights concerning
 the Software are granted under this license.
 
-For any license concerning other Intellectual Property rights than the software, 
-especially patent licenses, a separate Agreement needs to be closed. 
+For any license concerning other Intellectual Property rights than the software,
+especially patent licenses, a separate Agreement needs to be closed.
 For more information please contact:
 
 Fraunhofer Heinrich Hertz Institute
@@ -14,7 +14,7 @@ Einsteinufer 37
 www.hhi.fraunhofer.de/vvc
 vvc@hhi.fraunhofer.de
 
-Copyright (c) 2018-2020, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. 
+Copyright (c) 2018-2020, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V.
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -356,7 +356,7 @@ const TFilterCoeff DownsamplingFilterSRC[8][16][12] =
       {   0,   1,   4,    -10,  -3,  52,   73,  22,    -13,  -1,  4,  -1}, //12
       {   0,   1,   5,    -9,    -5,  48,   75,  25,    -13,  -2,  4,  -1}, //13
       //{   0,   1,   5,    -8,    -7,  44,   75,  28,    -12,  -3,  5,   0}, //14
-      {    0,   0,   5,    -8,   -7,  45,   75,  29,    -12,  -3,  5,  -1}  , //14 new coefficients in m24499  
+      {    0,   0,   5,    -8,   -7,  45,   75,  29,    -12,  -3,  5,  -1}  , //14 new coefficients in m24499
       {   0,   0,   5,    -7,    -9,  40,   76,  33,    -11,  -4,  5,   0}, //15
     },
     { // D = 2.5
@@ -365,7 +365,7 @@ const TFilterCoeff DownsamplingFilterSRC[8][16][12] =
       {   2,  -2,   -9,  2,   35,  58,   44,  9,   -8,  -4,    1,    0}, // 2
       {   1,  -2,   -9,  1,   34,  58,   46,  11,   -8,  -5,    1,    0}, // 3
       //{   1,  -1,   -8,  -1,   31,  57,   48,  13,   -8,  -5,    1,    0}, // 4
-      {   1,  -1,   -8,  -1,   31,  57,   47,  13,   -7,  -5,    1,    0},  // 4 new coefficients in m24499  
+      {   1,  -1,   -8,  -1,   31,  57,   47,  13,   -7,  -5,    1,    0},  // 4 new coefficients in m24499
       {   1,  -1,   -8,  -2,   29,  56,   49,  15,   -7,  -6,    1,    1}, // 5
       {   1,  0,   -8,  -3,   26,  55,   51,  17,   -7,  -6,    1,    1}, // 6
       {   1,  0,   -7,  -4,   24,  54,   52,  19,   -6,  -7,    1,    1}, // 7
@@ -374,7 +374,7 @@ const TFilterCoeff DownsamplingFilterSRC[8][16][12] =
       {   1,  1,   -6,  -7,   17,  51,   55,  26,   -3,  -8,    0,    1}, // 10
       {   1,  1,   -6,  -7,   15,  49,   56,  29,   -2,  -8,    -1,    1}, // 11
       //{   0,  1,   -5,  -8,   13,  48,   57,  31,   -1,  -8,    -1,    1}, // 12 new coefficients in m24499
-      {   0,  1,   -5,  -7,   13,  47,  57,  31,  -1,    -8,   -1,    1}, // 12   
+      {   0,  1,   -5,  -7,   13,  47,  57,  31,  -1,    -8,   -1,    1}, // 12
       {   0,  1,   -5,  -8,   11,  46,   58,  34,   1,    -9,    -2,    1}, // 13
       {   0,  1,   -4,  -8,   9,    44,   58,  35,   2,    -9,    -2,    2}, // 14
       {   0,  1,   -4,  -9,   7,    43,   58,  38,   4,    -9,    -3,    2}, // 15
@@ -752,8 +752,9 @@ void Picture::rescalePicture( const CPelUnitBuf& beforeScaling, const Window& co
 }
 
 #if JVET_O1143_MV_ACROSS_SUBPIC_BOUNDARY
-void Picture::saveSubPicBorder(int POC, int subPicX0, int subPicY0, int subPicWidth, int subPicHeight)
+void Picture::saveSubPicBorder( int subPicX0, int subPicY0, int subPicWidth, int subPicHeight )
 {
+  CHECK( m_isSubPicBorderSaved, "subpic border was saved already, this is probably an error." );
 
   // 1.1 set up margin for back up memory allocation
   int xMargin = margin >> getComponentScaleX(COMPONENT_Y, cs->area.chromaFormat);
@@ -770,8 +771,10 @@ void Picture::saveSubPicBorder(int POC, int subPicX0, int subPicY0, int subPicWi
   m_bufSubPicBelow.create(unitAreaAboveBelow);
   m_bufSubPicLeft.create(unitAreaLeftRight);
   m_bufSubPicRight.create(unitAreaLeftRight);
+  m_bufWrapSubPicAbove.create(unitAreaAboveBelow);
+  m_bufWrapSubPicBelow.create(unitAreaAboveBelow);
 
-  for (int comp = 0; comp < getNumberValidComponents(cs->area.chromaFormat); comp++) 
+  for (int comp = 0; comp < getNumberValidComponents(cs->area.chromaFormat); comp++)
   {
     ComponentID compID = ComponentID(comp);
 
@@ -804,7 +807,7 @@ void Picture::saveSubPicBorder(int POC, int subPicX0, int subPicY0, int subPicWi
     // 3.2.3 copy to recon picture to back up buffer
     Pel *srcLeft  = src - xmargin;
     Pel *srcRight = src + width;
-    for (int y = 0; y < height; y++) 
+    for (int y = 0; y < height; y++)
     {
       ::memcpy(dstLeft  + y *  dBufLeft.stride, srcLeft  + y * s.stride, sizeof(Pel) * xmargin);
       ::memcpy(dstRight + y * dBufRight.stride, srcRight + y * s.stride, sizeof(Pel) * xmargin);
@@ -821,18 +824,45 @@ void Picture::saveSubPicBorder(int POC, int subPicX0, int subPicY0, int subPicWi
     // 3.3.3 copy to recon picture to back up buffer
     Pel *srcTop    = src - xmargin - ymargin * s.stride;
     Pel *srcBottom = src - xmargin +  height * s.stride;
-    for (int y = 0; y < ymargin; y++) 
+    for (int y = 0; y < ymargin; y++)
     {
       ::memcpy(dstTop    + y *    dBufTop.stride, srcTop    + y * s.stride, sizeof(Pel) * (2 * xmargin + width));
       ::memcpy(dstBottom + y * dBufBottom.stride, srcBottom + y * s.stride, sizeof(Pel) * (2 * xmargin + width));
     }
+
+    // back up recon wrap buffer
+    if( cs->sps->getUseWrapAround() )
+    {
+      PelBuf sWrap = m_bufs[PIC_RECON_WRAP].get(compID);
+      Pel *srcWrap = sWrap.bufAt(left, top);
+
+      // 3.4.1 set back up buffer for above
+      PelBuf dBufTopWrap = m_bufWrapSubPicAbove.getBuf(compID);
+      Pel    *dstTopWrap = dBufTopWrap.bufAt(0, 0);
+
+      // 3.4.2 set back up buffer for below
+      PelBuf dBufBottomWrap = m_bufWrapSubPicBelow.getBuf(compID);
+      Pel    *dstBottomWrap = dBufBottomWrap.bufAt(0, 0);
+
+      // 3.4.3 copy recon wrap picture to back up buffer
+      Pel *srcTopWrap    = srcWrap - xmargin - ymargin * sWrap.stride;
+      Pel *srcBottomWrap = srcWrap - xmargin +  height * sWrap.stride;
+      for (int y = 0; y < ymargin; y++)
+      {
+        ::memcpy(dstTopWrap    + y *    dBufTopWrap.stride, srcTopWrap    + y * sWrap.stride, sizeof(Pel) * (2 * xmargin + width));
+        ::memcpy(dstBottomWrap + y * dBufBottomWrap.stride, srcBottomWrap + y * sWrap.stride, sizeof(Pel) * (2 * xmargin + width));
+      }
+    }
   }
+
+  m_isSubPicBorderSaved = true;
 }
 
-void Picture::extendSubPicBorder(int POC, int subPicX0, int subPicY0, int subPicWidth, int subPicHeight)
+void Picture::extendSubPicBorder( int subPicX0, int subPicY0, int subPicWidth, int subPicHeight )
 {
+  CHECK( !m_isSubPicBorderSaved, "subpic border should have been saved so we can restore it later" );
 
-  for (int comp = 0; comp < getNumberValidComponents(cs->area.chromaFormat); comp++) 
+  for (int comp = 0; comp < getNumberValidComponents(cs->area.chromaFormat); comp++)
   {
     ComponentID compID = ComponentID(comp);
 
@@ -859,9 +889,9 @@ void Picture::extendSubPicBorder(int POC, int subPicX0, int subPicY0, int subPic
       Pel *srcLeft  = src + 0;
       Pel *srcRight = src + width - 1;
 
-      for (int y = 0; y < height; y++) 
+      for (int y = 0; y < height; y++)
       {
-        for (int x = 0; x < xmargin; x++) 
+        for (int x = 0; x < xmargin; x++)
         {
           dstLeft[x]  = *srcLeft;
           dstRight[x] = *srcRight;
@@ -873,7 +903,7 @@ void Picture::extendSubPicBorder(int POC, int subPicX0, int subPicY0, int subPic
       }
     }
 
-    // 4.2 apply padding on bottom 
+    // 4.2 apply padding on bottom
     Pel *srcBottom = src + s.stride * (height - 1) - xmargin;
     Pel *dstBottom = srcBottom + s.stride;
     for (int y = 0; y < ymargin; y++)
@@ -892,12 +922,43 @@ void Picture::extendSubPicBorder(int POC, int subPicX0, int subPicY0, int subPic
       ::memcpy(dstTop, srcTop, sizeof(Pel)*(2 * xmargin + width));
       dstTop -= s.stride;
     }
-  } // end of for  
+
+    // Appy padding for recon wrap buffer
+    if (cs->sps->getUseWrapAround())
+    {
+      // set recon wrap picture
+      PelBuf sWrap = m_bufs[PIC_RECON_WRAP].get(compID);
+      Pel *srcWrap = sWrap.bufAt(left, top);
+
+      // apply padding on bottom
+      Pel *srcBottomWrap = srcWrap + sWrap.stride * (height - 1) - xmargin;
+      Pel *dstBottomWrap = srcBottomWrap + sWrap.stride;
+      for (int y = 0; y < ymargin; y++)
+      {
+        ::memcpy(dstBottomWrap, srcBottomWrap, sizeof(Pel)*(2 * xmargin + width));
+        dstBottomWrap += sWrap.stride;
+      }
+
+      // apply padding for top
+      // si is still (-marginX, SubpictureHeight-1)
+      Pel *srcTopWrap = srcWrap - xmargin;
+      Pel *dstTopWrap = srcTopWrap - sWrap.stride;
+      // si is now (-marginX, 0)
+      for (int y = 0; y < ymargin; y++)
+      {
+        ::memcpy(dstTopWrap, srcTopWrap, sizeof(Pel)*(2 * xmargin + width));
+        dstTopWrap -= sWrap.stride;
+      }
+    }
+  } // end of for
 }
 
-void Picture::restoreSubPicBorder(int POC, int subPicX0, int subPicY0, int subPicWidth, int subPicHeight)
+void Picture::restoreSubPicBorder( int subPicX0, int subPicY0, int subPicWidth, int subPicHeight )
 {
-  for (int comp = 0; comp < getNumberValidComponents(cs->area.chromaFormat); comp++) 
+  CHECK( !m_isSubPicBorderSaved, "subpic border was not saved." );
+  m_isSubPicBorderSaved = false;
+
+  for (int comp = 0; comp < getNumberValidComponents(cs->area.chromaFormat); comp++)
   {
     ComponentID compID = ComponentID(comp);
 
@@ -929,7 +990,7 @@ void Picture::restoreSubPicBorder(int POC, int subPicX0, int subPicY0, int subPi
     Pel *srcLeft  = src - xmargin;
     Pel *srcRight = src + width;
 
-    for (int y = 0; y < height; y++) 
+    for (int y = 0; y < height; y++)
     {
       // the destination and source position is reversed on purpose
       ::memcpy(srcLeft  + y * s.stride,  dstLeft + y *  dBufLeft.stride, sizeof(Pel) * xmargin);
@@ -949,10 +1010,36 @@ void Picture::restoreSubPicBorder(int POC, int subPicX0, int subPicY0, int subPi
     Pel *srcTop = src - xmargin - ymargin * s.stride;
     Pel *srcBottom = src - xmargin + height * s.stride;
 
-    for (int y = 0; y < ymargin; y++) 
+    for (int y = 0; y < ymargin; y++)
     {
       ::memcpy(srcTop    + y * s.stride, dstTop    + y *    dBufTop.stride, sizeof(Pel) * (2 * xmargin + width));
       ::memcpy(srcBottom + y * s.stride, dstBottom + y * dBufBottom.stride, sizeof(Pel) * (2 * xmargin + width));
+    }
+
+    // restore recon wrap buffer
+    if (cs->sps->getUseWrapAround())
+    {
+      // set recon wrap picture
+      PelBuf sWrap = m_bufs[PIC_RECON_WRAP].get(compID);
+      Pel *srcWrap = sWrap.bufAt(left, top);
+
+      // set back up buffer for above
+      PelBuf dBufTopWrap = m_bufWrapSubPicAbove.getBuf(compID);
+      Pel    *dstTopWrap = dBufTopWrap.bufAt(0, 0);
+
+      // set back up buffer for below
+      PelBuf dBufBottomWrap = m_bufWrapSubPicBelow.getBuf(compID);
+      Pel    *dstBottomWrap = dBufBottomWrap.bufAt(0, 0);
+
+      // copy to recon wrap picture from back up buffer
+      Pel *srcTopWrap = srcWrap - xmargin - ymargin * sWrap.stride;
+      Pel *srcBottomWrap = srcWrap - xmargin + height * sWrap.stride;
+
+      for (int y = 0; y < ymargin; y++)
+      {
+        ::memcpy(srcTopWrap    + y * sWrap.stride, dstTopWrap    + y *    dBufTopWrap.stride, sizeof(Pel) * (2 * xmargin + width));
+        ::memcpy(srcBottomWrap + y * sWrap.stride, dstBottomWrap + y * dBufBottomWrap.stride, sizeof(Pel) * (2 * xmargin + width));
+      }
     }
   }
 
@@ -961,6 +1048,8 @@ void Picture::restoreSubPicBorder(int POC, int subPicX0, int subPicY0, int subPi
   m_bufSubPicBelow.destroy();
   m_bufSubPicLeft.destroy();
   m_bufSubPicRight.destroy();
+  m_bufWrapSubPicAbove.destroy();
+  m_bufWrapSubPicBelow.destroy();
 }
 #endif
 
