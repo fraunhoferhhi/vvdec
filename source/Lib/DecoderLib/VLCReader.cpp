@@ -3230,7 +3230,12 @@ void HLSyntaxReader::checkAlfNaluTidAndPicTid( Slice* pcSlice, PicHeader* picHea
   }
 }
 
-void HLSyntaxReader::parseSliceHeader( Slice* pcSlice, PicHeader* picHeader, ParameterSetManager *parameterSetManager, const int prevTid0POC, Picture* parsePic )
+void HLSyntaxReader::parseSliceHeader( Slice*               pcSlice,
+                                       PicHeader*           picHeader,
+                                       ParameterSetManager* parameterSetManager,
+                                       const int            prevTid0POC,
+                                       Picture*             parsePic,
+                                       bool&                firstSliceInPic )
 {
   uint32_t uiCode = 0;
   int      iCode  = 0;
@@ -3417,7 +3422,14 @@ void HLSyntaxReader::parseSliceHeader( Slice* pcSlice, PicHeader* picHeader, Par
 
       pcSlice->addCtusToSlice( pps->getTileColumnBd( tileX ), pps->getTileColumnBd( tileX + 1 ),
                                pps->getTileRowBd( tileY ), pps->getTileRowBd( tileY + 1 ), pps->getPicWidthInCtu() );
-   }
+    }
+  }
+
+  if( firstSliceInPic != ( pcSlice->getCtuAddrInSlice( 0 ) == 0 ) )
+  {
+    // exit early, because we need to start again with some fields copied from previous slice
+    firstSliceInPic = false;
+    return;
   }
 
   if( picHeader->getPicInterSliceAllowedFlag() )
