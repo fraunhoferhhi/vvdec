@@ -80,20 +80,16 @@ class IntraPrediction
 {
 private:
 
-  Pel* m_piYuvExt[MAX_NUM_COMPONENT][NUM_PRED_BUF];
+  Pel    m_piYuvExt[NUM_PRED_BUF][(MAX_CU_SIZE * 2 + 1 + MAX_REF_LINE_IDX) * (MAX_CU_SIZE * 2 + 1 + MAX_REF_LINE_IDX)];
   PelBuf m_pelBufISPBase[2];
   PelBuf m_pelBufISP[2];
-  int  m_iYuvExtSize;
 
-  Pel* m_yuvExt2[MAX_NUM_COMPONENT][4];
-  int  m_yuvExtSize2;
-
+  Pel  m_yuvCiip[MAX_NUM_COMPONENT][MAX_CU_SIZE * MAX_CU_SIZE];
+  int  m_yuvCiipSize;
   static const uint8_t m_aucIntraFilter[MAX_NUM_CHANNEL_TYPE][MAX_INTRA_FILTER_DEPTHS];
 
   unsigned m_auShiftLM[32]; // Table for substituting division operation by multiplication
 
-  Pel* m_piTemp;
-  Pel* m_pMdlmTemp; // for MDLM mode
   MatrixIntraPrediction m_matrixIntraPred;
 
 protected:
@@ -133,7 +129,7 @@ public:
 
   // Angular Intra
   void predIntraAng               ( const ComponentID compId, PelBuf &piPred, const PredictionUnit &pu, const bool useFilteredPredSamples );
-  Pel*  getPredictorPtr           (const ComponentID compID, const bool bUseFilteredPredictions = false) { return m_piYuvExt[compID][bUseFilteredPredictions?PRED_BUF_FILTERED:PRED_BUF_UNFILTERED]; }
+  Pel*  getPredictorPtr           (const ComponentID compID, const bool bUseFilteredPredictions = false) { return m_piYuvExt[bUseFilteredPredictions?PRED_BUF_FILTERED:PRED_BUF_UNFILTERED]; }
   // Cross-component Chroma
   void predIntraChromaLM(const ComponentID compID, PelBuf &piPred, const PredictionUnit &pu, const CompArea& chromaArea, int intraDir);
   void xGetLumaRecPixels(const PredictionUnit &pu, CompArea chromaArea);
@@ -150,7 +146,7 @@ public:
   static bool useFilteredIntraRefSamples( const ComponentID &compID, const PredictionUnit &pu, const UnitArea &tuArea );
 
   void geneWeightedPred           (const ComponentID compId, PelBuf &pred, const PredictionUnit &pu, Pel *srcBuf);
-  Pel* getPredictorPtr2           (const ComponentID compID, uint32_t idx) { return m_yuvExt2[compID][idx]; }
+  Pel* getPredictorPtr2           (const ComponentID compID) { return m_yuvCiip[compID]; }
   void switchBuffer               (const PredictionUnit &pu, ComponentID compID, PelBuf srcBuff, Pel *dst);
   void geneIntrainterPred         (const CodingUnit &cu);
 
