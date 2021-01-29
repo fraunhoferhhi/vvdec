@@ -1943,32 +1943,6 @@ SliceMap::~SliceMap()
   m_numCtuInSlice = 0;
   m_ctuAddrInSlice.clear();
 }
-  
-#if JVET_O1143_SUBPIC_BOUNDARY
-SubPic::SubPic()
-//: m_subPicID              (0)
-//, m_numCTUsInSubPic       (0)
-//, m_subPicCtuTopLeftX     (0)
-//, m_subPicCtuTopLeftY     (0)
-//, m_subPicWidth           (0)
-//, m_subPicHeight          (0)
-//, m_firstCtuInSubPic      (0)
-//, m_lastCtuInSubPic       (0)
-//, m_subPicLeft            (0)
-//, m_subPicRight           (0)
-//, m_subPicTop             (0)
-//, m_subPicBottom          (0)
-//, m_treatedAsPicFlag                  (false)
-//, m_loopFilterAcrossSubPicEnabledFlag (false)
-{
-  m_ctuAddrInSubPic.clear();
-}
-
-SubPic::~SubPic()
-{
-  //m_ctuAddrInSubPic.clear();
-}
-#endif
 
 /** Sorts the deltaPOC and Used by current values in the RPS based on the deltaPOC values.
  *  deltaPOC values are sorted with -ve values before the +ve values.  -ve values are in decreasing order.

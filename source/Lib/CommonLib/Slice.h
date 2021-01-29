@@ -905,7 +905,6 @@ private:
   
 public:
   RectSlice() = default;
-//  virtual ~RectSlice();
   ~RectSlice() = default;
 
   void             setSliceWidthInTiles( uint32_t u )   { m_sliceWidthInTiles = u;      }
@@ -948,13 +947,8 @@ private:
 #endif
   
 public:
-//  SubPic() = default;
-////  virtual ~SubPic();
-//  ~SubPic() = default;
-
-  SubPic();
-  virtual ~SubPic();
-
+  SubPic() = default;
+  ~SubPic() = default;
   
   void             setSubPicID (uint32_t u)                {         m_subPicID = u;       }
   uint32_t         getSubPicID   ()                  const { return  m_subPicID;           }
@@ -1463,7 +1457,7 @@ private:
   bool              m_subPicIdMappingExplicitlySignalledFlag = false;
   bool              m_subPicIdMappingInSpsFlag           = false;
   uint32_t          m_subPicIdLen                        = 16;                       //!< sub-picture ID length in bits
-  uint8_t           m_subPicId[MAX_NUM_SUB_PICS];        //!< sub-picture ID for each sub-picture in the sequence
+  uint16_t          m_subPicId[MAX_NUM_SUB_PICS];        //!< sub-picture ID for each sub-picture in the sequence
   int               m_log2MinCodingBlockSize             = 0;
   unsigned          m_CTUSize                            = 0;
   unsigned          m_partitionOverrideEnalbed           = 0;            // enable partition constraints override function
@@ -1692,10 +1686,10 @@ public:
   bool                    getSubPicIdMappingExplicitlySignalledFlag() const                               { return m_subPicIdMappingExplicitlySignalledFlag; }
   void                    setSubPicIdMappingInSpsFlag( bool b )                                           { m_subPicIdMappingInSpsFlag = b;                  }
   bool                    getSubPicIdMappingInSpsFlag() const                                             { return  m_subPicIdMappingInSpsFlag;              }
-  void                    setSubPicIdLen( uint32_t u )                                                    { m_subPicIdLen = u;                       }
-  uint32_t                getSubPicIdLen() const                                                          { return  m_subPicIdLen;                   }
-  void                    setSubPicId( int i, uint8_t u )                                                 { CHECK( i >= MAX_NUM_SUB_PICS, "Sub-picture index exceeds valid range" ); m_subPicId[i] = u;     }
-  uint8_t                 getSubPicId( int i ) const                                                      { CHECK( i >= MAX_NUM_SUB_PICS, "Sub-picture index exceeds valid range" ); return  m_subPicId[i]; }
+  void                    setSubPicIdLen( uint32_t u )                                                    { CHECK( u > 16, "Sub-Picture id length exeeds valid range" ); m_subPicIdLen = u;                 }
+  uint32_t                getSubPicIdLen() const                                                          { return  m_subPicIdLen;                                                                          }
+  void                    setSubPicId( int i, uint16_t u )                                                { CHECK( i >= MAX_NUM_SUB_PICS, "Sub-picture index exceeds valid range" ); m_subPicId[i] = u;     }
+  uint16_t                getSubPicId( int i ) const                                                      { CHECK( i >= MAX_NUM_SUB_PICS, "Sub-picture index exceeds valid range" ); return  m_subPicId[i]; }
 
   uint32_t                getNumLongTermRefPicSPS() const                                                 { return m_numLongTermRefPicSPS;                                       }
   void                    setNumLongTermRefPicSPS(uint32_t val)                                           { m_numLongTermRefPicSPS = val;                                        }
@@ -2135,7 +2129,7 @@ private:
   uint8_t          m_numSubPics                        = 1;                        //!< number of sub-pictures used - must match SPS
   bool             m_subPicIdMappingInPpsFlag          = false;
   uint32_t         m_subPicIdLen                       = 0;                       //!< sub-picture ID length in bits
-  uint8_t          m_subPicId[MAX_NUM_SUB_PICS];        //!< sub-picture ID for each sub-picture in the sequence
+  uint16_t         m_subPicId[MAX_NUM_SUB_PICS];        //!< sub-picture ID for each sub-picture in the sequence
   bool             m_noPicPartitionFlag                = false;                //!< no picture partitioning flag - single slice, single tile
   uint8_t          m_log2CtuSize                       = 0;                       //!< log2 of the CTU size - required to match corresponding value in SPS
   uint8_t          m_ctuSize                           = 0;                           //!< CTU size
@@ -2313,10 +2307,10 @@ public:
   uint8_t                getNumSubPics( ) const                                           { return  m_numSubPics;                         }
   void                   setSubPicIdMappingInPpsFlag( bool b )                            { m_subPicIdMappingInPpsFlag = b;               }
   bool                   getSubPicIdMappingInPpsFlag() const                              { return m_subPicIdMappingInPpsFlag;            }
-  void                   setSubPicIdLen( uint32_t u )                                     { m_subPicIdLen = u;                            }
-  uint32_t               getSubPicIdLen() const                                           { return  m_subPicIdLen;                        }
-  void                   setSubPicId( int i, uint8_t u )                                  { CHECK( i >= MAX_NUM_SUB_PICS, "Sub-picture index exceeds valid range" ); m_subPicId[i] = u;     }
-  uint8_t                getSubPicId( int i ) const                                       { CHECK( i >= MAX_NUM_SUB_PICS, "Sub-picture index exceeds valid range" ); return  m_subPicId[i]; }
+  void                   setSubPicIdLen( uint32_t u )                                     { CHECK( u > 16, "Sub-picture id len exceeds valid range" ); m_subPicIdLen = u;                   }
+  uint32_t               getSubPicIdLen() const                                           { return  m_subPicIdLen;                                                                          }
+  void                   setSubPicId( int i, uint16_t u )                                 { CHECK( i >= MAX_NUM_SUB_PICS, "Sub-picture index exceeds valid range" ); m_subPicId[i] = u;     }
+  uint16_t               getSubPicId( int i ) const                                       { CHECK( i >= MAX_NUM_SUB_PICS, "Sub-picture index exceeds valid range" ); return  m_subPicId[i]; }
 #if JVET_Q0044_SLICE_IDX_WITH_SUBPICS
   uint32_t               getSubPicIdxFromSubPicId( uint32_t subPicId ) const;
 #endif
