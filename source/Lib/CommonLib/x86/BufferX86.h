@@ -77,8 +77,8 @@ void addAvg_SSE( const int16_t* src0, ptrdiff_t src0Stride, const int16_t* src1,
     {
       for( int col = 0; col < width; col += 16 )
       {
-        __m256i vsrc0 = _mm256_load_si256( ( const __m256i* )&src0[col] );
-        __m256i vsrc1 = _mm256_load_si256( ( const __m256i* )&src1[col] );
+        __m256i vsrc0 = _mm256_loadu_si256( ( const __m256i* )&src0[col] );
+        __m256i vsrc1 = _mm256_loadu_si256( ( const __m256i* )&src1[col] );
 
         __m256i vsumlo = _mm256_madd_epi16( _mm256_unpacklo_epi16( vsrc0, vsrc1 ), vone );
         __m256i vsumhi = _mm256_madd_epi16( _mm256_unpackhi_epi16( vsrc0, vsrc1 ), vone );
@@ -112,8 +112,8 @@ void addAvg_SSE( const int16_t* src0, ptrdiff_t src0Stride, const int16_t* src1,
     {
       for( int col = 0; col < width; col += 8 )
       {
-        __m128i vsrc0 = _mm_load_si128( ( const __m128i* )&src0[col] );
-        __m128i vsrc1 = _mm_load_si128( ( const __m128i* )&src1[col] );
+        __m128i vsrc0 = _mm_loadu_si128( ( const __m128i* )&src0[col] );
+        __m128i vsrc1 = _mm_loadu_si128( ( const __m128i* )&src1[col] );
 
         __m128i vsumlo = _mm_madd_epi16( _mm_unpacklo_epi16( vsrc0, vsrc1 ), vone );
         __m128i vsumhi = _mm_madd_epi16( _mm_unpackhi_epi16( vsrc0, vsrc1 ), vone );
@@ -460,8 +460,8 @@ void addWghtAvg_SSE( const int16_t* src0, ptrdiff_t src0Stride, const int16_t* s
       {
         for( int col = 0; col < width; col += 8 )
         {
-          __m128i vsrc0 = _mm_load_si128( ( const __m128i * )&src0[col] );
-          __m128i vsrc1 = _mm_load_si128( ( const __m128i * )&src1[col] );
+          __m128i vsrc0 = _mm_loadu_si128( ( const __m128i * )&src0[col] );
+          __m128i vsrc1 = _mm_loadu_si128( ( const __m128i * )&src1[col] );
 
           __m128i vtmp, vsum;
           vsum = _mm_madd_epi16       ( vw, _mm_unpacklo_epi16( vsrc0, vsrc1 ) );
@@ -735,9 +735,10 @@ void copyBuffer_SSE( const char *src, ptrdiff_t srcStride, char *dst, ptrdiff_t 
 template<X86_VEXT vext>
 void applyLut_SIMD( Pel* ptr, ptrdiff_t ptrStride, int width, int height, const Pel* lut )
 {
-  _mm_prefetch( ( const char* ) &lut[ptr[0]], _MM_HINT_T0 );
   _mm_prefetch( ( const char* ) &ptr[0 * ptrStride], _MM_HINT_T0 );
   _mm_prefetch( ( const char* ) &ptr[1 * ptrStride], _MM_HINT_T0 );
+  _mm_prefetch( ( const char* ) &ptr[0 * ptrStride + (width >> 1)], _MM_HINT_T0 );
+  _mm_prefetch( ( const char* ) &ptr[1 * ptrStride + (width >> 1)], _MM_HINT_T0 );
 
 #if USE_AVX2
   if( ( width & 15 ) == 0 && ( height & 1 ) == 0 )
@@ -746,40 +747,36 @@ void applyLut_SIMD( Pel* ptr, ptrdiff_t ptrStride, int width, int height, const 
 
     for( int y = 0; y < height; y += 2 )
     {
-      _mm_prefetch( ( const char* ) &ptr[1 * ptrStride], _MM_HINT_T0 );
       _mm_prefetch( ( const char* ) &ptr[2 * ptrStride], _MM_HINT_T0 );
+      _mm_prefetch( ( const char* ) &ptr[3 * ptrStride], _MM_HINT_T0 );
+      _mm_prefetch( ( const char* ) &ptr[2 * ptrStride + ( width >> 1 )], _MM_HINT_T0 );
+      _mm_prefetch( ( const char* ) &ptr[3 * ptrStride + ( width >> 1 )], _MM_HINT_T0 );
 
       for( int x = 0; x < width; x += 16 )
       {
         __m256i vin16    = _mm256_loadu_si256       ( ( const __m256i * ) &ptr[x] );
+        __m256i vin16x   = _mm256_loadu_si256       ( ( const __m256i * ) &ptr[x + ptrStride] );
                                                     
-        __m256i vin32_1  = _mm256_unpacklo_epi16    ( vin16, _mm256_setzero_si256() );
-        __m256i vin32_2  = _mm256_unpackhi_epi16    ( vin16, _mm256_setzero_si256() );
+        __m256i vin32_1  = _mm256_unpacklo_epi16    ( vin16,  _mm256_setzero_si256() );
+        __m256i vin32_2  = _mm256_unpackhi_epi16    ( vin16,  _mm256_setzero_si256() );
+        __m256i vin32_1x = _mm256_unpacklo_epi16    ( vin16x, _mm256_setzero_si256() );
+        __m256i vin32_2x = _mm256_unpackhi_epi16    ( vin16x, _mm256_setzero_si256() );
 
-        __m256i vout32_1 = _mm256_i32gather_epi32   ( ( const int * ) lut, vin32_1, 2 );
-        __m256i vout32_2 = _mm256_i32gather_epi32   ( ( const int * ) lut, vin32_2, 2 );
+        __m256i vout32_1 = _mm256_i32gather_epi32   ( ( const int * ) lut, vin32_1,  2 );
+        __m256i vout32_2 = _mm256_i32gather_epi32   ( ( const int * ) lut, vin32_2,  2 );
+        __m256i vout32_1x= _mm256_i32gather_epi32   ( ( const int * ) lut, vin32_1x, 2 );
+        __m256i vout32_2x= _mm256_i32gather_epi32   ( ( const int * ) lut, vin32_2x, 2 );
 
-        vout32_1         = _mm256_shuffle_epi8      ( vout32_1, vLutShuf );
-        vout32_2         = _mm256_shuffle_epi8      ( vout32_2, vLutShuf );
+        vout32_1         = _mm256_shuffle_epi8      ( vout32_1,  vLutShuf );
+        vout32_2         = _mm256_shuffle_epi8      ( vout32_2,  vLutShuf );
+        vout32_1x        = _mm256_shuffle_epi8      ( vout32_1x, vLutShuf );
+        vout32_2x        = _mm256_shuffle_epi8      ( vout32_2x, vLutShuf );
 
-        __m256i vout16   = _mm256_unpacklo_epi64    ( vout32_1, vout32_2 );
+        __m256i vout16   = _mm256_unpacklo_epi64    ( vout32_1,  vout32_2 );
+        __m256i vout16x  = _mm256_unpacklo_epi64    ( vout32_1x, vout32_2x );
 
-        _mm256_storeu_si256( ( __m256i * ) &ptr[x], vout16 );
-        
-        vin16            = _mm256_loadu_si256       ( ( const __m256i * ) &ptr[x + ptrStride] );
-                                                    
-        vin32_1          = _mm256_unpacklo_epi16    ( vin16, _mm256_setzero_si256() );
-        vin32_2          = _mm256_unpackhi_epi16    ( vin16, _mm256_setzero_si256() );
-                         
-        vout32_1         = _mm256_i32gather_epi32   ( ( const int * ) lut, vin32_1, 2 );
-        vout32_2         = _mm256_i32gather_epi32   ( ( const int * ) lut, vin32_2, 2 );
-
-        vout32_1         = _mm256_shuffle_epi8      ( vout32_1, vLutShuf );
-        vout32_2         = _mm256_shuffle_epi8      ( vout32_2, vLutShuf );
-
-        vout16           = _mm256_unpacklo_epi64    ( vout32_1, vout32_2 );
-
-        _mm256_storeu_si256( ( __m256i * ) &ptr[x + ptrStride], vout16 );
+        _mm256_storeu_si256( ( __m256i * ) &ptr[x],             vout16 );
+        _mm256_storeu_si256( ( __m256i * ) &ptr[x + ptrStride], vout16x );
       }
 
       ptr += ( ptrStride << 1 );

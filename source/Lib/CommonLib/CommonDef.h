@@ -331,7 +331,7 @@ static const int MAX_TU_LEVEL_CTX_CODED_BIN_CONSTRAINT_CHROMA =    28;
 
 static const int BIO_EXTEND_SIZE              =                     1;
 static const int BIO_ALIGN_SIZE               =                     8;
-static const int BIO_TEMP_BUFFER_SIZE         =                     (MAX_CU_SIZE + 2 * BIO_ALIGN_SIZE) * (MAX_CU_SIZE + 2 * BIO_ALIGN_SIZE);
+static const int BIO_TEMP_BUFFER_SIZE         =                     (MAX_BDOF_APPLICATION_REGION + 2 * BIO_ALIGN_SIZE) * (MAX_BDOF_APPLICATION_REGION + 2 * BIO_ALIGN_SIZE);
 
 static const int PROF_BORDER_EXT_W            =                     1;
 static const int PROF_BORDER_EXT_H            =                     1;

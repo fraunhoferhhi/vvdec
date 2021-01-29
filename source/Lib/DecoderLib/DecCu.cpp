@@ -420,16 +420,16 @@ void DecCu::predAndReco( CodingUnit& cu, bool doCiipIntra )
 
     if( cu.ciipFlag() && doCiipIntra )
     {
-      m_pcIntraPred->geneWeightedPred( COMPONENT_Y,    predBuf.Y(),  cu, m_pcIntraPred->getPredictorPtr2( COMPONENT_Y,  0 ) );
+      m_pcIntraPred->geneWeightedPred( COMPONENT_Y, predBuf.Y(), cu, m_pcIntraPred->getPredictorPtr2( COMPONENT_Y ) );
 
-#if JVET_Q0438_MONOCHROME_BUGFIXES
+#if JVET_Q0438_MONOCHROME_BUGFIXES                                                                                     
       if( isChromaEnabled( cu.chromaFormat ) && cu.chromaSize().width > 2 )
-#else
+#else                                                                                                                  
       if( cu.chromaSize().width > 2 )
-#endif
+#endif                                                                                                                 
       {
-        m_pcIntraPred->geneWeightedPred( COMPONENT_Cb, predBuf.Cb(), cu, m_pcIntraPred->getPredictorPtr2( COMPONENT_Cb, 0 ) );
-        m_pcIntraPred->geneWeightedPred( COMPONENT_Cr, predBuf.Cr(), cu, m_pcIntraPred->getPredictorPtr2( COMPONENT_Cr, 0 ) );
+        m_pcIntraPred->geneWeightedPred( COMPONENT_Cb, predBuf.Cb(), cu, m_pcIntraPred->getPredictorPtr2( COMPONENT_Cb ) );
+        m_pcIntraPred->geneWeightedPred( COMPONENT_Cr, predBuf.Cr(), cu, m_pcIntraPred->getPredictorPtr2( COMPONENT_Cr ) );
       }
     }
 

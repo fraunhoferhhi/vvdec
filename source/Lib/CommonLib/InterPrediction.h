@@ -78,43 +78,40 @@ class InterPrediction : public WeightPrediction
 protected:
   InterpolationFilter  m_if;
 
-  Pel*                 m_acYuvPred            [    NUM_REF_PIC_LIST_01][MAX_NUM_COMPONENT];
-  Pel*                 m_filteredBlockTmp     [2 * NUM_REF_PIC_LIST_01][MAX_NUM_COMPONENT];
+  Pel                  m_gradX0[BIO_TEMP_BUFFER_SIZE];
+  Pel                  m_gradY0[BIO_TEMP_BUFFER_SIZE];
+  Pel                  m_gradX1[BIO_TEMP_BUFFER_SIZE];
+  Pel                  m_gradY1[BIO_TEMP_BUFFER_SIZE];
+
+  Pel                  m_bdofBlock[NUM_REF_PIC_LIST_01][(MAX_CU_SIZE + (2 * BIO_ALIGN_SIZE + BIO_ALIGN_SIZE) + 16) * (MAX_CU_SIZE + (2 * BIO_EXTEND_SIZE + 2) + 2)];
+  Pel                  m_acYuvPred[MAX_NUM_COMPONENT][MAX_CU_SIZE * MAX_CU_SIZE];
+  Pel                  m_tmpBlock[MAX_CU_SIZE * (MAX_CU_SIZE + NTAPS_LUMA)];
+
+  /*buffers for padded data*/
+  Pel                  m_cRefSamplesDMVRL0[MAX_NUM_COMPONENT][(MAX_CU_SIZE + (2 * DMVR_NUM_ITERATION) + NTAPS_LUMA) * (MAX_CU_SIZE + (2 * DMVR_NUM_ITERATION) + NTAPS_LUMA)];
+  Pel                  m_cRefSamplesDMVRL1[MAX_NUM_COMPONENT][(MAX_CU_SIZE + (2 * DMVR_NUM_ITERATION) + NTAPS_LUMA) * (MAX_CU_SIZE + (2 * DMVR_NUM_ITERATION) + NTAPS_LUMA)];
+  /*buffers for bilinear Filter data for DMVR refinement*/
+  Pel                  m_cYuvPredTempDMVRL0[(MAX_CU_SIZE + (2 * DMVR_NUM_ITERATION)) * (MAX_CU_SIZE + (2 * DMVR_NUM_ITERATION))];
+  Pel                  m_cYuvPredTempDMVRL1[(MAX_CU_SIZE + (2 * DMVR_NUM_ITERATION)) * (MAX_CU_SIZE + (2 * DMVR_NUM_ITERATION))];
+  int                  m_biLinearBufStride;
+  const Mv m_pSearchOffset[25] = { Mv(-2,-2), Mv(-1,-2), Mv(0,-2), Mv(1,-2), Mv(2,-2),
+                                   Mv(-2,-1), Mv(-1,-1), Mv(0,-1), Mv(1,-1), Mv(2,-1),
+                                   Mv(-2, 0), Mv(-1, 0), Mv(0, 0), Mv(1, 0), Mv(2, 0),
+                                   Mv(-2, 1), Mv(-1, 1), Mv(0, 1), Mv(1, 1), Mv(2, 1),
+                                   Mv(-2, 2), Mv(-1, 2), Mv(0, 2), Mv(1, 2), Mv(2, 2) };
+  uint64_t             m_SADsArray[((2 * DMVR_NUM_ITERATION) + 1) * ((2 * DMVR_NUM_ITERATION) + 1)];
+
+  Pel                  m_geoPartBuf[MAX_NUM_COMPONENT][MAX_CU_SIZE * MAX_CU_SIZE];
 
   ChromaFormat         m_currChromaFormat = NUM_CHROMA_FORMAT;
 
   RdCost*              m_pcRdCost = nullptr;
 
   int                  m_iRefListIdx = -1;
-  PelStorage           m_geoPartBuf;
   Mv                   m_storedMv[( MAX_CU_SIZE * MAX_CU_SIZE ) >> ( MIN_CU_LOG2 << 1 )];
-
-  Pel*                 m_gradX0  = nullptr;
-  Pel*                 m_gradY0  = nullptr;
-  Pel*                 m_gradX1  = nullptr;
-  Pel*                 m_gradY1  = nullptr;
   bool                 m_subPuMC = false;
 
   UnitArea             m_currCuArea;
-
-  /*buffers for bilinear Filter data for DMVR refinement*/
-  Pel*                 m_cYuvPredTempDMVRL0 = nullptr;
-  Pel*                 m_cYuvPredTempDMVRL1 = nullptr;
-  int                  m_biLinearBufStride;
-  /*buffers for padded data*/
-  PelUnitBuf           m_cYuvRefBuffDMVRL0;
-  PelUnitBuf           m_cYuvRefBuffDMVRL1;
-  Pel*                 m_cRefSamplesDMVRL0[MAX_NUM_COMPONENT];
-  Pel*                 m_cRefSamplesDMVRL1[MAX_NUM_COMPONENT];
-  Mv m_pSearchOffset[25] = { Mv(-2,-2), Mv(-1,-2), Mv(0,-2), Mv(1,-2), Mv(2,-2),
-                             Mv(-2,-1), Mv(-1,-1), Mv(0,-1), Mv(1,-1), Mv(2,-1),
-                             Mv(-2, 0), Mv(-1, 0), Mv(0, 0), Mv(1, 0), Mv(2, 0),
-                             Mv(-2, 1), Mv(-1, 1), Mv(0, 1), Mv(1, 1), Mv(2, 1),
-                             Mv(-2, 2), Mv(-1, 2), Mv(0, 2), Mv(1, 2), Mv(2, 2) };
-  uint64_t             m_SADsArray[((2 * DMVR_NUM_ITERATION) + 1) * ((2 * DMVR_NUM_ITERATION) + 1)];
-
-  Pel                  m_gradBuf[2][(AFFINE_MIN_BLOCK_SIZE + 2) * (AFFINE_MIN_BLOCK_SIZE + 2)];
-  int                  m_dMvBuf[2][16 * 2];
   int                  m_IBCBufferWidth;
   PelStorage           m_IBCBuffer;
 
