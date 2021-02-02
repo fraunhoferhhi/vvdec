@@ -86,12 +86,15 @@ public:
       // work out changed flag
       updateParameterSetChangedFlag( mapData.parameterSet->m_changedFlag, &mapData.cNaluData, pNaluData );
 
-      if( !mapData.parameterSet->m_changedFlag )
-      {
-        // just keep the old one
-        delete ps;
-        return;
-      }
+      // Don't throw away identical parameter sets as VTM does:
+      //   The PPS can be identical to a previous one, but the SPS changed, so it needs to be interpreted differently.
+      //
+      // if( !mapData.parameterSet->m_changedFlag )
+      // {
+      //   // just keep the old one
+      //   delete ps;
+      //   return;
+      // }
 
       if( find( m_activePsId.begin(), m_activePsId.end(), psId ) != m_activePsId.end() )
       {
