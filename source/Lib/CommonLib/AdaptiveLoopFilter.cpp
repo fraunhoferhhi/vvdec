@@ -614,6 +614,10 @@ void AdaptiveLoopFilter::filterCTU( const CPelUnitBuf & srcBuf, const PelUnitBuf
                              , m_alfVBChmaPos
                              );
             }
+            else
+            {
+              dstBuf.get( compID ).copyFrom( m_tempBuf[tid].bufs[compID] );
+            }
             
             if( slice->getTileGroupCcAlfEnabledFlag( compIdx-1 ) )
             {
