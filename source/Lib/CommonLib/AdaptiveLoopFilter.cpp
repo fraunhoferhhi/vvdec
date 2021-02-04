@@ -443,6 +443,7 @@ void AdaptiveLoopFilter::processCTU( CodingStructure & cs, unsigned col, unsigne
 void AdaptiveLoopFilter::swapBufs(CodingStructure & cs)
 {
   cs.picture->m_bufs[PIC_RECONSTRUCTION].swap( cs.m_alfBuf );
+  cs.rebindPicBufs();   // ensure the recon buf in the coding structure points to the correct buffer
 }
 
 void AdaptiveLoopFilter::getCompatibleBuffer( const CodingStructure & cs, const CPelUnitBuf & srcBuf, PelStorage & destBuf )
@@ -506,7 +507,7 @@ void AdaptiveLoopFilter::filterCTU( const CPelUnitBuf & srcBuf, const PelUnitBuf
     CHECK( numHorVirBndry >= (int)( sizeof(verVirBndryPos) / sizeof(verVirBndryPos[0]) ), "Too many virtual boundaries" );
   }
 
-  const int width = ( ctuPos.x + pcv.maxCUWidth > pcv.lumaWidth ) ? ( pcv.lumaWidth - ctuPos.x ) : pcv.maxCUWidth;
+  const int width  = ( ctuPos.x + pcv.maxCUWidth  > pcv.lumaWidth  ) ? ( pcv.lumaWidth  - ctuPos.x ) : pcv.maxCUWidth;
   const int height = ( ctuPos.y + pcv.maxCUHeight > pcv.lumaHeight ) ? ( pcv.lumaHeight - ctuPos.y ) : pcv.maxCUHeight;
 
   AlfClassifier classifier[MAX_CU_SIZE * MAX_CU_SIZE >> ( 2 + 2 )];
@@ -527,19 +528,22 @@ void AdaptiveLoopFilter::filterCTU( const CPelUnitBuf & srcBuf, const PelUnitBuf
 
     if( isCrssByVBs )
     {
+      const int chromaScaleX = getComponentScaleX( compID, srcBuf.chromaFormat );
+      const int chromaScaleY = getComponentScaleY( compID, srcBuf.chromaFormat );
+
       int yStart = ctuPos.y;
       for( int i = 0; i <= numHorVirBndry; i++ )
       {
-        const int yEnd = i == numHorVirBndry ? ctuPos.y + srcBuf.Y().height : horVirBndryPos[i];
-        const int h = yEnd - yStart;
+        const int  yEnd  = i == numHorVirBndry ? ctuPos.y + srcBuf.Y().height : horVirBndryPos[i];
+        const int  h     = yEnd - yStart;
         const bool clipT = ( i == 0              && clipTop )    || ( i > 0 )              || ( yStart == 0 );
         const bool clipB = ( i == numHorVirBndry && clipBottom ) || ( i < numHorVirBndry ) || ( yEnd   == pcv.lumaHeight );
 
         int xStart = ctuPos.x;
         for( int j = 0; j <= numVerVirBndry; j++ )
         {
-          const int xEnd = j == numVerVirBndry ? ctuPos.x + srcBuf.Y().width : verVirBndryPos[j];
-          const int w = xEnd - xStart;
+          const int  xEnd  = j == numVerVirBndry ? ctuPos.x + srcBuf.Y().width : verVirBndryPos[j];
+          const int  w     = xEnd - xStart;
           const bool clipL = ( j == 0              && clipLeft )  || ( j > 0 )              || ( xStart == 0 );
           const bool clipR = ( j == numVerVirBndry && clipRight ) || ( j < numVerVirBndry ) || ( xEnd  == pcv.lumaWidth );
 
@@ -554,9 +558,9 @@ void AdaptiveLoopFilter::filterCTU( const CPelUnitBuf & srcBuf, const PelUnitBuf
           const Size     paddedSize( w + padL + padR, h + padT + padB );
           const Position posInSrc( xInSrc - padL, yInSrc - padT );
 
-          PelUnitBuf tmpSubBuf = m_tempBuf[tid].subBuf( Area( posInSrc, paddedSize ) );
+          PelBuf tmpSubBuf = m_tempBuf[tid].subBuf( Area( posInSrc, paddedSize ) ).bufs[compID];
 
-          tmpSubBuf.copyFrom( srcBuf.subBuf( Area( posInSrc, paddedSize ) ) );
+          tmpSubBuf.copyFrom( srcBuf.subBuf( Area( posInSrc, paddedSize ) ).bufs[compID] );
           tmpSubBuf.extendBorderPel( MAX_ALF_PADDING_SIZE );
 
           if( compID == COMPONENT_Y )
@@ -600,12 +604,9 @@ void AdaptiveLoopFilter::filterCTU( const CPelUnitBuf & srcBuf, const PelUnitBuf
               CHECK( curAPS == NULL, "invalid APS" );
               const AlfSliceParam& alfSliceParam = curAPS->getAlfAPSParam();
 
-              const int chromaScaleX = getComponentScaleX( compID, srcBuf.chromaFormat );
-              const int chromaScaleY = getComponentScaleY( compID, srcBuf.chromaFormat );
-
               const Area blk( xInSrc >> chromaScaleX, yInSrc >> chromaScaleY, w >> chromaScaleX, h >> chromaScaleY );
 
-              uint8_t altIdx = ctuAlternativeData[compID-1];
+              const uint8_t altIdx = ctuAlternativeData[compID - 1];
 
               m_filter5x5Blk( classifier, dstBuf, m_tempBuf[tid], blk, compID, alfSliceParam.chromaCoeff + altIdx * MAX_NUM_ALF_CHROMA_COEFF
                              , alfSliceParam.chrmClippFinal + altIdx * MAX_NUM_ALF_CHROMA_COEFF
@@ -614,23 +615,25 @@ void AdaptiveLoopFilter::filterCTU( const CPelUnitBuf & srcBuf, const PelUnitBuf
                              , m_alfVBChmaPos
                              );
             }
-            
-            if( slice->getTileGroupCcAlfEnabledFlag( compIdx-1 ) )
+            else
+            {
+              dstBuf.get( compID ).copyFrom( m_tempBuf[tid].bufs[compID] );
+            }
+
+            if( slice->getTileGroupCcAlfEnabledFlag( compIdx - 1 ) )
             {
               const int filterIdx = cs.picture->getccAlfFilterControl( compIdx - 1 )[ctuIdx];
 
               if( filterIdx != 0 )
               {
-                int apsIdx = compIdx == 1 ? slice->getTileGroupCcAlfCbApsId() : slice->getTileGroupCcAlfCrApsId();
-                const int16_t *filterCoeff = slice->getAlfAPSs()[apsIdx]->getCcAlfAPSParam().ccAlfCoeff[compIdx - 1][filterIdx - 1];
+                const int apsIdx = compIdx == 1 ? slice->getTileGroupCcAlfCbApsId()
+                                                : slice->getTileGroupCcAlfCrApsId();
+                const int16_t* filterCoeff = slice->getAlfAPSs()[apsIdx]->getCcAlfAPSParam().ccAlfCoeff[compIdx - 1][filterIdx - 1];
 
-                const int chromaScaleX = getComponentScaleX( compID, srcBuf.chromaFormat );
-                const int chromaScaleY = getComponentScaleY( compID, srcBuf.chromaFormat );
-                const Area blk( xInSrc >> chromaScaleX, yInSrc >> chromaScaleY, w >> chromaScaleX, h >> chromaScaleY );
+                const Area blkSrc( 0, 0, width, height );
+                const Area blkDst( xInSrc >> chromaScaleX, yInSrc >> chromaScaleY, w >> chromaScaleX, h >> chromaScaleY );
 
-                Area blkSrc( 0, 0, width, height );
-
-                m_filterCcAlf( dstBuf.get(compID), srcBuf, blk, blkSrc, compID, filterCoeff, clpRngs, cs,
+                m_filterCcAlf( dstBuf.get( compID ), m_tempBuf[tid], blkDst, blkSrc, compID, filterCoeff, clpRngs, cs,
                                m_alfVBLumaCTUHeight, m_alfVBLumaPos );
               }
             }
@@ -714,12 +717,13 @@ void AdaptiveLoopFilter::filterCTU( const CPelUnitBuf & srcBuf, const PelUnitBuf
 
           if( filterIdx != 0 )
           {
-            int apsIdx = compIdx == 1 ? slice->getTileGroupCcAlfCbApsId() : slice->getTileGroupCcAlfCrApsId();
-            const int16_t *filterCoeff = slice->getAlfAPSs()[apsIdx]->getCcAlfAPSParam().ccAlfCoeff[compIdx - 1][filterIdx - 1];
+            const int apsIdx = compIdx == 1 ? slice->getTileGroupCcAlfCbApsId()
+                                            : slice->getTileGroupCcAlfCrApsId();
+            const int16_t* filterCoeff = slice->getAlfAPSs()[apsIdx]->getCcAlfAPSParam().ccAlfCoeff[compIdx - 1][filterIdx - 1];
 
-            Area blkSrc( 0, 0, width, height );
+            const Area blkSrc( 0, 0, width, height );
 
-            m_filterCcAlf( dstBuf.get(compID), srcBuf, blk, blkSrc, compID, filterCoeff, clpRngs, cs,
+            m_filterCcAlf( dstBuf.get( compID ), srcBuf, blk, blkSrc, compID, filterCoeff, clpRngs, cs,
                            m_alfVBLumaCTUHeight, m_alfVBLumaPos );
           }
         }
@@ -1254,10 +1258,10 @@ void AdaptiveLoopFilter::filterBlkCcAlf(const PelBuf &dstBuf, const CPelUnitBuf 
   ChromaFormat nChromaFormat   = sps->getChromaFormatIdc();
   const int clsSizeY           = 4;
   const int clsSizeX           = 4;
-  const int      startHeight   = blkDst.y;
-  const int      endHeight     = blkDst.y + blkDst.height;
-  const int      startWidth    = blkDst.x;
-  const int      endWidth      = blkDst.x + blkDst.width;
+  const int startHeight        = blkDst.y;
+  const int endHeight          = blkDst.y + blkDst.height;
+  const int startWidth         = blkDst.x;
+  const int endWidth           = blkDst.x + blkDst.width;
   const int scaleX             = getComponentScaleX(compId, nChromaFormat);
   const int scaleY             = getComponentScaleY(compId, nChromaFormat);
 
