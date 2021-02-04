@@ -735,3 +735,21 @@ void UnitBuf<Pel>::colorSpaceConvert( const UnitBuf<Pel> &other, const ClpRng& c
   }
 
 }
+
+template void UnitBuf<Pel>::writeToFile( std::string filename ) const;
+
+template<typename T>
+void UnitBuf<T>::writeToFile( std::string filename ) const
+{
+  FILE* f = fopen( filename.c_str(), "w" );
+
+  for( auto& b: bufs )
+  {
+    for( unsigned y = 0; y < b.height; y++ )
+    {
+      fwrite( b.bufAt( 0, y ), sizeof( T ), b.width, f );
+    }
+  }
+
+  fclose( f );
+}

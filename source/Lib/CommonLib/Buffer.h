@@ -658,6 +658,8 @@ struct UnitBuf
         UnitBuf<      T> subBuf (const UnitArea& subArea);
   const UnitBuf<const T> subBuf (const UnitArea& subArea) const;
   void colorSpaceConvert    ( const UnitBuf<T> &other, const ClpRng& clpRng );
+
+  void writeToFile( std::string filename ) const;   // for debug purposes
 };
 
 typedef UnitBuf<      Pel>  PelUnitBuf;
