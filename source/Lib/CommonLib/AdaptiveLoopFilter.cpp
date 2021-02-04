@@ -443,6 +443,7 @@ void AdaptiveLoopFilter::processCTU( CodingStructure & cs, unsigned col, unsigne
 void AdaptiveLoopFilter::swapBufs(CodingStructure & cs)
 {
   cs.picture->m_bufs[PIC_RECONSTRUCTION].swap( cs.m_alfBuf );
+  cs.rebindPicBufs();   // ensure the recon buf in the coding structure points to the correct buffer
 }
 
 void AdaptiveLoopFilter::getCompatibleBuffer( const CodingStructure & cs, const CPelUnitBuf & srcBuf, PelStorage & destBuf )
@@ -530,16 +531,16 @@ void AdaptiveLoopFilter::filterCTU( const CPelUnitBuf & srcBuf, const PelUnitBuf
       int yStart = ctuPos.y;
       for( int i = 0; i <= numHorVirBndry; i++ )
       {
-        const int yEnd = i == numHorVirBndry ? ctuPos.y + srcBuf.Y().height : horVirBndryPos[i];
-        const int h = yEnd - yStart;
+        const int  yEnd  = i == numHorVirBndry ? ctuPos.y + srcBuf.Y().height : horVirBndryPos[i];
+        const int  h     = yEnd - yStart;
         const bool clipT = ( i == 0              && clipTop )    || ( i > 0 )              || ( yStart == 0 );
         const bool clipB = ( i == numHorVirBndry && clipBottom ) || ( i < numHorVirBndry ) || ( yEnd   == pcv.lumaHeight );
 
         int xStart = ctuPos.x;
         for( int j = 0; j <= numVerVirBndry; j++ )
         {
-          const int xEnd = j == numVerVirBndry ? ctuPos.x + srcBuf.Y().width : verVirBndryPos[j];
-          const int w = xEnd - xStart;
+          const int  xEnd  = j == numVerVirBndry ? ctuPos.x + srcBuf.Y().width : verVirBndryPos[j];
+          const int  w     = xEnd - xStart;
           const bool clipL = ( j == 0              && clipLeft )  || ( j > 0 )              || ( xStart == 0 );
           const bool clipR = ( j == numVerVirBndry && clipRight ) || ( j < numVerVirBndry ) || ( xEnd  == pcv.lumaWidth );
 
@@ -554,9 +555,9 @@ void AdaptiveLoopFilter::filterCTU( const CPelUnitBuf & srcBuf, const PelUnitBuf
           const Size     paddedSize( w + padL + padR, h + padT + padB );
           const Position posInSrc( xInSrc - padL, yInSrc - padT );
 
-          PelUnitBuf tmpSubBuf = m_tempBuf[tid].subBuf( Area( posInSrc, paddedSize ) );
+          PelBuf tmpSubBuf = m_tempBuf[tid].subBuf( Area( posInSrc, paddedSize ) ).bufs[compID];
 
-          tmpSubBuf.copyFrom( srcBuf.subBuf( Area( posInSrc, paddedSize ) ) );
+          tmpSubBuf.copyFrom( srcBuf.subBuf( Area( posInSrc, paddedSize ) ).bufs[compID] );
           tmpSubBuf.extendBorderPel( MAX_ALF_PADDING_SIZE );
 
           if( compID == COMPONENT_Y )
