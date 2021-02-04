@@ -243,6 +243,7 @@ endif()
 
 add_subdirectory( "source/Lib/vvdec" )
 add_subdirectory( "source/App/vvdecapp" )
+add_subdirectory( "source/App/libvvcdec" )
 
 # create a list of all test bitstreams in variable BITSTREAM_FILES
 # also defines BITSTREAM_URL_BASE
