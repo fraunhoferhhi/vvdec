@@ -46,22 +46,24 @@ THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "libvvcdec.h"
 
+#include "vvdec/vvdec.h"
+#include "vvdec/version.h"
+
 namespace
 {
 
 class vvcDecoderWrapper
 {
 public:
-  vvcDecoderWrapper()
+  vvcDecoderWrapper() = default;
+  ~vvcDecoderWrapper() = default;
+  int init()
   {
-
-  }
-  ~vvcDecoderWrapper()
-  {
-    
+    vvdec::VVDecParameter cVVDecParameter;
+    return this->cVVDec.init( cVVDecParameter );
   }
 private:
-
+  vvdec::VVDec cVVDec;
 };
 
 }
@@ -70,8 +72,7 @@ extern "C" {
 
   VVCDECAPI const char *libvvcdec_get_version(void)
   {
-    // TODO
-    return "";
+    return VVDEC_VERSION;
   }
 
   VVCDECAPI libvvcdec_context* libvvcdec_new_decoder(void)
@@ -79,6 +80,14 @@ extern "C" {
     auto decCtx = new vvcDecoderWrapper();
     if (!decCtx)
       return nullptr;
+
+    auto ret = decCtx->init();
+    if (ret != 0)
+    {
+      // Error initializing the decoder
+      delete decCtx;
+      return nullptr;
+    }
 
     return (libvvcdec_context*)decCtx;
   }
