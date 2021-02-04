@@ -55,16 +55,78 @@ namespace
 class vvcDecoderWrapper
 {
 public:
-  vvcDecoderWrapper() = default;
-  ~vvcDecoderWrapper() = default;
+  vvcDecoderWrapper()
+  {
+    this->cAccessUnit.m_pucBuffer = nullptr;
+    this->cAccessUnit.m_iBufSize = 0;
+    this->cAccessUnit.m_uiCts = 0;
+    this->cAccessUnit.m_bCtsValid = true;
+    this->cAccessUnit.m_uiDts = 0;
+    this->cAccessUnit.m_bDtsValid = true;
+  }
+  ~vvcDecoderWrapper()
+  {
+    if (this->cAccessUnit.m_pucBuffer != nullptr)
+    {
+      delete [] this->cAccessUnit.m_pucBuffer;
+    }
+  }
   int init()
   {
     vvdec::VVDecParameter cVVDecParameter;
     return this->cVVDec.init( cVVDecParameter );
   }
+  bool setAUData(const unsigned char* data8, int length)
+  {
+    if (length > this->cAccessUnit.m_iBufSize)
+    {
+      // Allocate a new big enough buffer
+      if (this->cAccessUnit.m_pucBuffer != nullptr)
+      {
+        delete[] this->cAccessUnit.m_pucBuffer;
+      }
+      this->cAccessUnit.m_pucBuffer = new unsigned char[length];
+      if (this->cAccessUnit.m_pucBuffer == nullptr)
+      {
+        this->cAccessUnit.m_iBufSize = 0;
+        return false;
+      }
+      this->cAccessUnit.m_iBufSize = length;
+    }
+    std::copy_n( data8 , length, this->cAccessUnit.m_pucBuffer);
+    this->cAccessUnit.m_iUsedSize = length;
+    return true;
+  }
+  int decode()
+  {
+    return this->cVVDec.decode( this->cAccessUnit, &pcFrame );
+  }
+  int flush()
+  {
+    return this->cVVDec.flush( &this->pcFrame );
+  }
+  bool gotFrame() const
+  {
+    return this->pcFrame != nullptr && this->pcFrame->m_bCtsValid;
+  }
+  vvdec::Frame* getFrame() const
+  {
+    return this->pcFrame;
+  }
 private:
   vvdec::VVDec cVVDec;
+  vvdec::AccessUnit cAccessUnit;
+  vvdec::Frame* pcFrame {nullptr};
 };
+
+unsigned getComponentIndex(libvvcdec_ColorComponent c)
+{
+  if (c == LIBVVCDEC_CHROMA_U)
+    return 1;
+  if (c == LIBVVCDEC_CHROMA_V)
+    return 2;
+  return 0;
+}
 
 }
 
@@ -102,103 +164,137 @@ extern "C" {
     return LIBVVCDEC_OK;
   }
 
-  VVCDECAPI libvvcdec_error libvvcdec_push_nal_unit(libvvcdec_context *decCtx, const void* data8, int length, bool eof, bool &bNewPicture, bool &checkOutputPictures)
+  VVCDECAPI libvvcdec_error libvvcdec_push_nal_unit(libvvcdec_context *decCtx, const unsigned char* data8, int length, bool eof, bool &bNewPicture, bool &checkOutputPictures)
   {
     auto d = (vvcDecoderWrapper*)decCtx;
     if (!d)
       return LIBVVCDEC_ERROR;
 
-    // TODO
-    (void)data8;
-    (void)length;
-    (void)eof;
+    if (eof)
+    {
+      auto iRet = d->flush();
+      if( iRet != vvdec::VVDEC_OK && iRet != vvdec::VVDEC_EOF )
+      {
+        return LIBVVCDEC_ERROR;
+      }
+    }
+    else
+    {
+      if (!d->setAUData(data8, length))
+      return LIBVVCDEC_ERROR;
+
+      auto iRet = d->decode();
+
+      if (iRet != vvdec::VVDEC_OK)
+      {
+        return LIBVVCDEC_ERROR;
+      }
+    }
+
+    checkOutputPictures = d->gotFrame();
+
+    // TODO: Do we still need this? I think we don't.
     (void)bNewPicture;
-    (void)checkOutputPictures;
 
     return LIBVVCDEC_OK;
   }
 
-  VVCDECAPI libvvcdec_picture *libvvcdec_get_picture(libvvcdec_context* decCtx)
+  VVCDECAPI uint64_t libHMDEC_get_picture_POC(libvvcdec_context *decCtx)
   {
     auto d = (vvcDecoderWrapper*)decCtx;
-    if (!d)
+    if (!d || !d->gotFrame())
+      return 0;
+    
+    return d->getFrame()->m_uiSequenceNumber;
+  }
+
+  VVCDECAPI uint32_t libHMDEC_get_picture_width(libvvcdec_context *decCtx, libvvcdec_ColorComponent c)
+  {
+    auto d = (vvcDecoderWrapper*)decCtx;
+    if (!d || !d->gotFrame())
+      return 0;
+    
+    auto f = d->getFrame();
+    auto idx = getComponentIndex(c);
+    if (idx >= f->m_uiNumComponents)
+      return 0;
+
+    return f->m_cComponent[idx].m_uiWidth;
+  }
+
+  VVCDECAPI uint32_t libHMDEC_get_picture_height(libvvcdec_context *decCtx, libvvcdec_ColorComponent c)
+  {
+    auto d = (vvcDecoderWrapper*)decCtx;
+    if (!d || !d->gotFrame())
+      return 0;
+    
+    auto f = d->getFrame();
+    auto idx = getComponentIndex(c);
+    if (idx >= f->m_uiNumComponents)
+      return 0;
+
+    return f->m_cComponent[idx].m_uiHeight;
+  }
+
+  VVCDECAPI int32_t libHMDEC_get_picture_stride(libvvcdec_context *decCtx, libvvcdec_ColorComponent c)
+  {
+    auto d = (vvcDecoderWrapper*)decCtx;
+    if (!d || !d->gotFrame())
+      return 0;
+    
+    auto f = d->getFrame();
+    auto idx = getComponentIndex(c);
+    if (idx >= f->m_uiNumComponents)
+      return 0;
+
+    return f->m_cComponent[idx].m_iStride;
+  }
+
+  VVCDECAPI unsigned char* libHMDEC_get_picture_plane(libvvcdec_context *decCtx, libvvcdec_ColorComponent c)
+  {
+    auto d = (vvcDecoderWrapper*)decCtx;
+    if (!d || !d->gotFrame())
+      return 0;
+    
+    auto f = d->getFrame();
+    auto idx = getComponentIndex(c);
+    if (idx >= f->m_uiNumComponents)
       return nullptr;
 
-    // TODO
-    return nullptr;
+    return f->m_cComponent[idx].m_pucBuffer;
   }
 
-  VVCDECAPI int libHMDEC_get_POC(libvvcdec_picture *pic)
+  VVCDECAPI libvvcdec_ChromaFormat libHMDEC_get_picture_chroma_format(libvvcdec_context *decCtx)
   {
-    if (pic == nullptr)
-      return -1;
-    
-    // TODO
-    return 0;
-  }
-
-  VVCDECAPI int libHMDEC_get_picture_width(libvvcdec_picture *pic, libvvcdec_ColorComponent c)
-  {
-    if (pic == nullptr)
-      return -1;
-    
-    // TODO
-    (void)c;
-
-    return -1;
-  }
-
-  VVCDECAPI int libHMDEC_get_picture_height(libvvcdec_picture *pic, libvvcdec_ColorComponent c)
-  {
-    if (pic == nullptr)
-      return -1;
-    
-    // TODO
-    (void)c;
-
-    return -1;
-  }
-
-  VVCDECAPI int libHMDEC_get_picture_stride(libvvcdec_picture *pic, libvvcdec_ColorComponent c)
-  {
-    if (pic == nullptr)
-      return -1;
-    
-    // TODO
-    (void)c;
-
-    return -1;
-  }
-
-  VVCDECAPI short* libHMDEC_get_image_plane(libvvcdec_picture *pic, libvvcdec_ColorComponent c)
-  {
-    if (pic == nullptr)
-      return nullptr;
-    
-    // TODO
-    (void)c;
-
-    return nullptr;
-  }
-
-  VVCDECAPI libvvcdec_ChromaFormat libHMDEC_get_chroma_format(libvvcdec_picture *pic)
-  {
-    if (pic == nullptr)
+    auto d = (vvcDecoderWrapper*)decCtx;
+    if (!d || !d->gotFrame())
       return LIBVVCDEC_CHROMA_UNKNOWN;
+
+    auto f = d->getFrame();
+    if (f->m_eColorFormat == vvdec::VVC_CF_YUV400_PLANAR)
+      return LIBVVCDEC_CHROMA_400;
+    if (f->m_eColorFormat == vvdec::VVC_CF_YUV420_PLANAR)
+      return LIBVVCDEC_CHROMA_420;
+    if (f->m_eColorFormat == vvdec::VVC_CF_YUV422_PLANAR)
+      return LIBVVCDEC_CHROMA_420;
+    if (f->m_eColorFormat == vvdec::VVC_CF_YUV444_PLANAR)
+      return LIBVVCDEC_CHROMA_444;
     
-    // TODO
     return LIBVVCDEC_CHROMA_UNKNOWN;
   }
 
-  VVCDECAPI int libHMDEC_get_internal_bit_depth(libvvcdec_picture *pic, libvvcdec_ColorComponent c)
+  VVCDECAPI uint32_t libHMDEC_get_picture_bit_depth(libvvcdec_context *decCtx, libvvcdec_ColorComponent c)
   {
-    if (pic == nullptr)
-      return -1;
+    auto d = (vvcDecoderWrapper*)decCtx;
+    if (!d || !d->gotFrame())
+      return 0;
+    
+    auto f = d->getFrame();
+    auto idx = getComponentIndex(c);
+    if (idx >= f->m_uiNumComponents)
+      return 0;
 
-    // TODO
-    (void)c;
-
-    return -1;
+    return f->m_cComponent[idx].m_uiBitDepth;
   }
 
 } // extern "C"
