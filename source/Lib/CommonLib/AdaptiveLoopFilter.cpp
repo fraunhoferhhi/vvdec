@@ -64,7 +64,7 @@ constexpr int AdaptiveLoopFilter::AlfNumClippingValues[];
 AdaptiveLoopFilter::AdaptiveLoopFilter()
 {
   m_deriveClassificationBlk = deriveClassificationBlk;
-  m_filterCcAlf             = filterBlkCcAlf<CC_ALF>;
+  m_filterCcAlf             = filterBlkCcAlf;
   m_filter5x5Blk            = filterBlk<ALF_FILTER_5>;
   m_filter7x7Blk            = filterBlk<ALF_FILTER_7>;
 
@@ -598,7 +598,7 @@ void AdaptiveLoopFilter::filterCTU( const CPelUnitBuf & srcBuf, const PelUnitBuf
             m_filter7x7Blk( classifier, dstBuf, m_tempBuf[tid], blk, COMPONENT_Y
                            , coeff
                            , clip
-                           , clpRngs, cs
+                           , clpRngs
                            , m_alfVBLumaCTUHeight
                            , m_alfVBLumaPos
                            );
@@ -618,7 +618,7 @@ void AdaptiveLoopFilter::filterCTU( const CPelUnitBuf & srcBuf, const PelUnitBuf
 
               m_filter5x5Blk( classifier, dstBuf, m_tempBuf[tid], blk, compID, alfSliceParam.chromaCoeff + altIdx * MAX_NUM_ALF_CHROMA_COEFF
                              , alfSliceParam.chrmClippFinal + altIdx * MAX_NUM_ALF_CHROMA_COEFF
-                             , clpRngs, cs
+                             , clpRngs
                              , m_alfVBChmaCTUHeight
                              , m_alfVBChmaPos
                              );
@@ -641,7 +641,7 @@ void AdaptiveLoopFilter::filterCTU( const CPelUnitBuf & srcBuf, const PelUnitBuf
                 const Area blkSrc( 0, 0, width, height );
                 const Area blkDst( xInSrc >> chromaScaleX, yInSrc >> chromaScaleY, w >> chromaScaleX, h >> chromaScaleY );
 
-                m_filterCcAlf( dstBuf.get( compID ), m_tempBuf[tid], blkDst, blkSrc, compID, filterCoeff, clpRngs, cs,
+                m_filterCcAlf( dstBuf.get( compID ), m_tempBuf[tid], blkDst, blkSrc, compID, filterCoeff, clpRngs,
                                m_alfVBLumaCTUHeight, m_alfVBLumaPos );
               }
             }
@@ -685,7 +685,6 @@ void AdaptiveLoopFilter::filterCTU( const CPelUnitBuf & srcBuf, const PelUnitBuf
                         coeff,
                         clip,
                         clpRngs,
-                        cs,
                         m_alfVBLumaCTUHeight,
                         m_alfVBLumaPos
                        );
@@ -709,7 +708,6 @@ void AdaptiveLoopFilter::filterCTU( const CPelUnitBuf & srcBuf, const PelUnitBuf
                           alfSliceParam.chromaCoeff + altIdx * MAX_NUM_ALF_CHROMA_COEFF,
                           alfSliceParam.chrmClippFinal + altIdx * MAX_NUM_ALF_CHROMA_COEFF,
                           clpRngs,
-                          cs,
                           m_alfVBChmaCTUHeight,
                           m_alfVBChmaPos
                          );
@@ -731,7 +729,7 @@ void AdaptiveLoopFilter::filterCTU( const CPelUnitBuf & srcBuf, const PelUnitBuf
 
             const Area blkSrc( 0, 0, width, height );
 
-            m_filterCcAlf( dstBuf.get( compID ), srcBuf, blk, blkSrc, compID, filterCoeff, clpRngs, cs,
+            m_filterCcAlf( dstBuf.get( compID ), srcBuf, blk, blkSrc, compID, filterCoeff, clpRngs,
                            m_alfVBLumaCTUHeight, m_alfVBLumaPos );
           }
         }
@@ -1085,17 +1083,16 @@ void AdaptiveLoopFilter::deriveClassificationBlk( AlfClassifier *classifier, con
 }
 
 template<AlfFilterType filtType>
-void AdaptiveLoopFilter::filterBlk( const AlfClassifier*   classifier,
-                                    const PelUnitBuf&      recDst,
-                                    const CPelUnitBuf&     recSrc,
-                                    const Area&            blk,
-                                    const ComponentID      compId,
-                                    const short*           filterSet,
-                                    const short*           fClipSet,
-                                    const ClpRng&          clpRng,
-                                    const CodingStructure& cs,
-                                    int                    vbCTUHeight,
-                                    int                    vbPos )
+void AdaptiveLoopFilter::filterBlk( const AlfClassifier* classifier,
+                                    const PelUnitBuf&    recDst,
+                                    const CPelUnitBuf&   recSrc,
+                                    const Area&          blk,
+                                    const ComponentID    compId,
+                                    const short*         filterSet,
+                                    const short*         fClipSet,
+                                    const ClpRng&        clpRng,
+                                    int                  vbCTUHeight,
+                                    int                  vbPos )
 {
   const bool bChroma = isChroma( compId );
 
@@ -1253,25 +1250,29 @@ void AdaptiveLoopFilter::filterBlk( const AlfClassifier*   classifier,
   }
 }
 
-template<AlfFilterType filtTypeCcAlf>
-void AdaptiveLoopFilter::filterBlkCcAlf(const PelBuf &dstBuf, const CPelUnitBuf &recSrc, const Area &blkDst,
-                                        const Area &blkSrc, const ComponentID compId, const int16_t *filterCoeff,
-                                        const ClpRngs &clpRngs, CodingStructure &cs, int vbCTUHeight, int vbPos)
+void AdaptiveLoopFilter::filterBlkCcAlf( const PelBuf&      dstBuf,
+                                         const CPelUnitBuf& recSrc,
+                                         const Area&        blkDst,
+                                         const Area&        blkSrc,
+                                         const ComponentID  compId,
+                                         const int16_t*     filterCoeff,
+                                         const ClpRngs&     clpRngs,
+                                         int                vbCTUHeight,
+                                         int                vbPos )
 {
   CHECK( 1 << getLog2(vbCTUHeight) != vbCTUHeight, "Not a power of 2");
 
   CHECK(!isChroma(compId), "Must be chroma");
 
-  const SPS*     sps           = cs.sps.get();
-  ChromaFormat nChromaFormat   = sps->getChromaFormatIdc();
-  const int clsSizeY           = 4;
-  const int clsSizeX           = 4;
-  const int startHeight        = blkDst.y;
-  const int endHeight          = blkDst.y + blkDst.height;
-  const int startWidth         = blkDst.x;
-  const int endWidth           = blkDst.x + blkDst.width;
-  const int scaleX             = getComponentScaleX(compId, nChromaFormat);
-  const int scaleY             = getComponentScaleY(compId, nChromaFormat);
+  const int  clsSizeY      = 4;
+  const int  clsSizeX      = 4;
+  const int  startHeight   = blkDst.y;
+  const int  endHeight     = blkDst.y + blkDst.height;
+  const int  startWidth    = blkDst.x;
+  const int  endWidth      = blkDst.x + blkDst.width;
+  const auto nChromaFormat = recSrc.chromaFormat;
+  const int  scaleX        = getComponentScaleX( compId, nChromaFormat );
+  const int  scaleY        = getComponentScaleY( compId, nChromaFormat );
 
   CHECK( startHeight % clsSizeY, "Wrong startHeight in filtering" );
   CHECK( startWidth % clsSizeX, "Wrong startWidth in filtering" );

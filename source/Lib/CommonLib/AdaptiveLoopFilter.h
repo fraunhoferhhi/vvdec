@@ -99,10 +99,9 @@ public:
   void create( const PicHeader* picHeader, const SPS* sps, const PPS* pps, int numThreads );
   void destroy();
 
-  template<AlfFilterType filtTypeCcAlf>
   static void filterBlkCcAlf(const PelBuf &dstBuf, const CPelUnitBuf &recSrc, const Area &blkDst, const Area &blkSrc,
                              const ComponentID compId, const int16_t *filterCoeff, const ClpRngs &clpRngs,
-                             CodingStructure &cs, int vbCTUHeight, int vbPos);
+                             int vbCTUHeight, int vbPos);
 
   static void preparePic    ( CodingStructure &cs );
   static void prepareCTU    ( CodingStructure &cs, unsigned col, unsigned line );
@@ -120,12 +119,12 @@ protected:
 
   void filterCTU                     ( const CPelUnitBuf & srcBuf, const PelUnitBuf & dstBuf, const uint8_t ctuEnableFlag[3], const uint8_t ctuAlternativeData[2], const ClpRngs & clpRngs, const ChannelType chType, CodingStructure & cs, int ctuIdx, Position ctuPos, int tid );
   template<AlfFilterType filtType>
-  static void filterBlk              ( const AlfClassifier *classifier, const PelUnitBuf &recDst, const CPelUnitBuf& recSrc, const Area& blk, const ComponentID compId, const short* filterSet, const short* fClipSet, const ClpRng& clpRng, const CodingStructure& cs, int vbCTUHeight, int vbPos );
+  static void filterBlk              ( const AlfClassifier *classifier, const PelUnitBuf &recDst, const CPelUnitBuf& recSrc, const Area& blk, const ComponentID compId, const short* filterSet, const short* fClipSet, const ClpRng& clpRng, int vbCTUHeight, int vbPos );
 
-  void (*m_filterCcAlf)              ( const PelBuf &dstBuf, const CPelUnitBuf &recSrc, const Area &blkDst, const Area &blkSrc, const ComponentID compId, const int16_t *filterCoeff, const ClpRngs &clpRngs,CodingStructure &cs, int vbCTUHeight, int vbPos );
+  void ( *m_filterCcAlf )            ( const PelBuf &dstBuf, const CPelUnitBuf &recSrc, const Area &blkDst, const Area &blkSrc, const ComponentID compId, const int16_t *filterCoeff, const ClpRngs &clpRngs, int vbCTUHeight, int vbPos );
 
-  void ( *m_filter5x5Blk )           ( const AlfClassifier *classifier, const PelUnitBuf &recDst, const CPelUnitBuf& recSrc, const Area& blk, const ComponentID compId, const short* filterSet, const short* fClipSet, const ClpRng& clpRng, const CodingStructure& cs, int vbCTUHeight, int vbPos );
-  void ( *m_filter7x7Blk )           ( const AlfClassifier *classifier, const PelUnitBuf &recDst, const CPelUnitBuf& recSrc, const Area& blk, const ComponentID compId, const short* filterSet, const short* fClipSet, const ClpRng& clpRng, const CodingStructure& cs, int vbCTUHeight, int vbPos );
+  void ( *m_filter5x5Blk )           ( const AlfClassifier *classifier, const PelUnitBuf &recDst, const CPelUnitBuf& recSrc, const Area& blk, const ComponentID compId, const short* filterSet, const short* fClipSet, const ClpRng& clpRng, int vbCTUHeight, int vbPos );
+  void ( *m_filter7x7Blk )           ( const AlfClassifier *classifier, const PelUnitBuf &recDst, const CPelUnitBuf& recSrc, const Area& blk, const ComponentID compId, const short* filterSet, const short* fClipSet, const ClpRng& clpRng, int vbCTUHeight, int vbPos );
 
 #ifdef TARGET_SIMD_X86
   void initAdaptiveLoopFilterX86();
