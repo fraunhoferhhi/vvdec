@@ -1057,14 +1057,19 @@ LFCUParam LoopFilter::xGetLoopfilterParam( const CodingUnit& cu ) const
 #if JVET_O1143_LPF_ACROSS_SUBPIC_BOUNDARY
   const SPS& sps                         = *cu.cs->sps;
 
-  const CodingUnit& cuLeft  = ( pos.x > 0 && cu.left == nullptr ) ? *cu.cs->getCU( pos.offset( -1, 0 ), cu.chType() ) : *cu.left;
+  const CodingUnit& cuLeft  = ( pos.x > 0 && cu.left  == nullptr ) ? *cu.cs->getCU( pos.offset( -1, 0 ), cu.chType() ) : *cu.left;
   const CodingUnit& cuAbove = ( pos.y > 0 && cu.above == nullptr ) ? *cu.cs->getCU( pos.offset( 0, -1 ), cu.chType() ) : *cu.above;
 
-  const bool loopFilterAcrossSubPicEnabledFlag = !sps.getSubPicInfoPresentFlag() || pps.getSubPicFromCU( cu ).getloopFilterAcrossSubPicEnabledFlag();
+  const bool loopFilterAcrossSubPicEnabledFlagLeft = !sps.getSubPicInfoPresentFlag() ||
+                                                     ( pps.getSubPicFromCU( cu ).getloopFilterAcrossSubPicEnabledFlag() &&
+                                                       pps.getSubPicFromCU( cuLeft ).getloopFilterAcrossSubPicEnabledFlag() );
+  const bool loopFilterAcrossSubPicEnabledFlagTop = !sps.getSubPicInfoPresentFlag() ||
+                                                    ( pps.getSubPicFromCU( cu ).getloopFilterAcrossSubPicEnabledFlag() &&
+                                                      pps.getSubPicFromCU( cuAbove ).getloopFilterAcrossSubPicEnabledFlag() );
 
   LFCUParam stLFCUParam;   ///< status structure
-  stLFCUParam.leftEdge = ( 0 < pos.x ) && isAvailable( cu, cuLeft,  !pps.getLoopFilterAcrossSlicesEnabledFlag(), !pps.getLoopFilterAcrossTilesEnabledFlag(), !loopFilterAcrossSubPicEnabledFlag );
-  stLFCUParam.topEdge  = ( 0 < pos.y ) && isAvailable( cu, cuAbove, !pps.getLoopFilterAcrossSlicesEnabledFlag(), !pps.getLoopFilterAcrossTilesEnabledFlag(), !loopFilterAcrossSubPicEnabledFlag );
+  stLFCUParam.leftEdge = ( 0 < pos.x ) && isAvailable( cu, cuLeft,  !pps.getLoopFilterAcrossSlicesEnabledFlag(), !pps.getLoopFilterAcrossTilesEnabledFlag(), !loopFilterAcrossSubPicEnabledFlagLeft );
+  stLFCUParam.topEdge  = ( 0 < pos.y ) && isAvailable( cu, cuAbove, !pps.getLoopFilterAcrossSlicesEnabledFlag(), !pps.getLoopFilterAcrossTilesEnabledFlag(), !loopFilterAcrossSubPicEnabledFlagTop );
 #else
   LFCUParam stLFCUParam;   ///< status structure
   stLFCUParam.leftEdge = ( 0 < pos.x ) && isAvailable( cu, *cu.left,  !pps.getLoopFilterAcrossSlicesEnabledFlag(), !pps.getLoopFilterAcrossTilesEnabledFlag() );
