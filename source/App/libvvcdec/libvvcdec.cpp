@@ -170,9 +170,10 @@ extern "C" {
     if (!d)
       return LIBVVCDEC_ERROR;
 
+    int iRet = 0;
     if (eof)
     {
-      auto iRet = d->flush();
+      iRet = d->flush();
       if( iRet != vvdec::VVDEC_OK && iRet != vvdec::VVDEC_EOF )
       {
         return LIBVVCDEC_ERROR;
@@ -181,17 +182,17 @@ extern "C" {
     else
     {
       if (!d->setAUData(data8, length))
-      return LIBVVCDEC_ERROR;
+        return LIBVVCDEC_ERROR;
 
-      auto iRet = d->decode();
+      iRet = d->decode();
 
-      if (iRet != vvdec::VVDEC_OK)
+      if (iRet != vvdec::VVDEC_OK && iRet != vvdec::VVDEC_TRY_AGAIN)
       {
         return LIBVVCDEC_ERROR;
       }
     }
 
-    checkOutputPictures = d->gotFrame();
+    checkOutputPictures = iRet != vvdec::VVDEC_TRY_AGAIN && d->gotFrame();
 
     // TODO: Do we still need this? I think we don't.
     (void)bNewPicture;
@@ -199,7 +200,7 @@ extern "C" {
     return LIBVVCDEC_OK;
   }
 
-  VVCDECAPI uint64_t libHMDEC_get_picture_POC(libvvcdec_context *decCtx)
+  VVCDECAPI uint64_t libvvcdec_get_picture_POC(libvvcdec_context *decCtx)
   {
     auto d = (vvcDecoderWrapper*)decCtx;
     if (!d || !d->gotFrame())
@@ -208,7 +209,7 @@ extern "C" {
     return d->getFrame()->m_uiSequenceNumber;
   }
 
-  VVCDECAPI uint32_t libHMDEC_get_picture_width(libvvcdec_context *decCtx, libvvcdec_ColorComponent c)
+  VVCDECAPI uint32_t libvvcdec_get_picture_width(libvvcdec_context *decCtx, libvvcdec_ColorComponent c)
   {
     auto d = (vvcDecoderWrapper*)decCtx;
     if (!d || !d->gotFrame())
@@ -222,7 +223,7 @@ extern "C" {
     return f->m_cComponent[idx].m_uiWidth;
   }
 
-  VVCDECAPI uint32_t libHMDEC_get_picture_height(libvvcdec_context *decCtx, libvvcdec_ColorComponent c)
+  VVCDECAPI uint32_t libvvcdec_get_picture_height(libvvcdec_context *decCtx, libvvcdec_ColorComponent c)
   {
     auto d = (vvcDecoderWrapper*)decCtx;
     if (!d || !d->gotFrame())
@@ -236,7 +237,7 @@ extern "C" {
     return f->m_cComponent[idx].m_uiHeight;
   }
 
-  VVCDECAPI int32_t libHMDEC_get_picture_stride(libvvcdec_context *decCtx, libvvcdec_ColorComponent c)
+  VVCDECAPI int32_t libvvcdec_get_picture_stride(libvvcdec_context *decCtx, libvvcdec_ColorComponent c)
   {
     auto d = (vvcDecoderWrapper*)decCtx;
     if (!d || !d->gotFrame())
@@ -250,7 +251,7 @@ extern "C" {
     return f->m_cComponent[idx].m_iStride;
   }
 
-  VVCDECAPI unsigned char* libHMDEC_get_picture_plane(libvvcdec_context *decCtx, libvvcdec_ColorComponent c)
+  VVCDECAPI unsigned char* libvvcdec_get_picture_plane(libvvcdec_context *decCtx, libvvcdec_ColorComponent c)
   {
     auto d = (vvcDecoderWrapper*)decCtx;
     if (!d || !d->gotFrame())
@@ -264,7 +265,7 @@ extern "C" {
     return f->m_cComponent[idx].m_pucBuffer;
   }
 
-  VVCDECAPI libvvcdec_ChromaFormat libHMDEC_get_picture_chroma_format(libvvcdec_context *decCtx)
+  VVCDECAPI libvvcdec_ChromaFormat libvvcdec_get_picture_chroma_format(libvvcdec_context *decCtx)
   {
     auto d = (vvcDecoderWrapper*)decCtx;
     if (!d || !d->gotFrame())
@@ -283,7 +284,7 @@ extern "C" {
     return LIBVVCDEC_CHROMA_UNKNOWN;
   }
 
-  VVCDECAPI uint32_t libHMDEC_get_picture_bit_depth(libvvcdec_context *decCtx, libvvcdec_ColorComponent c)
+  VVCDECAPI uint32_t libvvcdec_get_picture_bit_depth(libvvcdec_context *decCtx, libvvcdec_ColorComponent c)
   {
     auto d = (vvcDecoderWrapper*)decCtx;
     if (!d || !d->gotFrame())

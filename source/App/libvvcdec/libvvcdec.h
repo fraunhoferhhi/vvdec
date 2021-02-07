@@ -167,7 +167,7 @@ typedef enum
  * \param pic The libvvcdec_picture that was obtained using libvvcdec_get_picture
  * \return The picture order count (POC) of the picture.
  */
-VVCDECAPI uint64_t libHMDEC_get_picture_POC(libvvcdec_context *decCtx);
+VVCDECAPI uint64_t libvvcdec_get_picture_POC(libvvcdec_context *decCtx);
 
 /** Get the width/height in pixel of the given picture.
  * This is including internal padding and the conformance window.
@@ -175,11 +175,11 @@ VVCDECAPI uint64_t libHMDEC_get_picture_POC(libvvcdec_context *decCtx);
  * \param c The color component. Note: The width/height for the luma and chroma components can differ.
  * \return The width/height of the picture in pixel.
  */
-VVCDECAPI uint32_t libHMDEC_get_picture_width(libvvcdec_context *decCtx, libvvcdec_ColorComponent c);
+VVCDECAPI uint32_t libvvcdec_get_picture_width(libvvcdec_context *decCtx, libvvcdec_ColorComponent c);
 
 /** @copydoc libvvcdec_get_picture_width(libvvcdec_picture *,libvvcdec_ColorComponent)
  */
-VVCDECAPI uint32_t libHMDEC_get_picture_height(libvvcdec_context *decCtx, libvvcdec_ColorComponent c);
+VVCDECAPI uint32_t libvvcdec_get_picture_height(libvvcdec_context *decCtx, libvvcdec_ColorComponent c);
 
 /** Get the picture stride (the number of values to reach the next Y-line).
  * Do not confuse the stride and the width of the picture. Internally, the picture buffer may be wider than the output width.
@@ -187,7 +187,7 @@ VVCDECAPI uint32_t libHMDEC_get_picture_height(libvvcdec_context *decCtx, libvvc
  * \param c The color component. Note: The stride for the luma and chroma components can differ.
  * \return The picture stride
  */
-VVCDECAPI int32_t libHMDEC_get_picture_stride(libvvcdec_context *decCtx, libvvcdec_ColorComponent c);
+VVCDECAPI int32_t libvvcdec_get_picture_stride(libvvcdec_context *decCtx, libvvcdec_ColorComponent c);
 
 /** Get access to the raw image plane.
  * The pointer will point to the top left pixel position. You can read "width" pixels from it.
@@ -198,7 +198,7 @@ VVCDECAPI int32_t libHMDEC_get_picture_stride(libvvcdec_context *decCtx, libvvcd
  * \param c The color component to access. Note that the width and stride may be different for the chroma components.
  * \return A pointer to the values as short. For 8-bit output, the upper 8 bit are zero and can be ignored.
  */
-VVCDECAPI unsigned char *libHMDEC_get_picture_plane(libvvcdec_context *decCtx, libvvcdec_ColorComponent c);
+VVCDECAPI unsigned char *libvvcdec_get_picture_plane(libvvcdec_context *decCtx, libvvcdec_ColorComponent c);
 
 /** The YUV subsampling types
 */
@@ -215,14 +215,14 @@ typedef enum
  * \param pic The libvvcdec_picture that was obtained using libvvcdec_get_picture.
  * \return The pictures subsampling type
  */
-VVCDECAPI libvvcdec_ChromaFormat libHMDEC_get_picture_chroma_format(libvvcdec_context *decCtx);
+VVCDECAPI libvvcdec_ChromaFormat libvvcdec_get_picture_chroma_format(libvvcdec_context *decCtx);
 
 /** Get the bit depth which is used internally for the given color component and the given picture.
  * \param pic The picture to get the internal bit depth from
  * \param c The color component
  * \return The internal bit depth
  */
-VVCDECAPI uint32_t libHMDEC_get_picture_bit_depth(libvvcdec_context *decCtx, libvvcdec_ColorComponent c);
+VVCDECAPI uint32_t libvvcdec_get_picture_bit_depth(libvvcdec_context *decCtx, libvvcdec_ColorComponent c);
 
 #ifdef __cplusplus
 }
