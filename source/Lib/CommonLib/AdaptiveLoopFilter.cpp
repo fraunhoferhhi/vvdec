@@ -558,10 +558,18 @@ void AdaptiveLoopFilter::filterCTU( const CPelUnitBuf & srcBuf, const PelUnitBuf
           const Size     paddedSize( w + padL + padR, h + padT + padB );
           const Position posInSrc( xInSrc - padL, yInSrc - padT );
 
-          PelBuf tmpSubBuf = m_tempBuf[tid].subBuf( Area( posInSrc, paddedSize ) ).bufs[compID];
-
-          tmpSubBuf.copyFrom( srcBuf.subBuf( Area( posInSrc, paddedSize ) ).bufs[compID] );
-          tmpSubBuf.extendBorderPel( MAX_ALF_PADDING_SIZE );
+          if( compID == COMPONENT_Y  || !slice->getTileGroupCcAlfEnabledFlag( compIdx - 1 ) )
+          {
+            auto tmpSubBuf = m_tempBuf[tid].subBuf( Area( posInSrc, paddedSize ) ).bufs[compID];
+            tmpSubBuf.copyFrom( srcBuf.subBuf( Area( posInSrc, paddedSize ) ).bufs[compID] );
+            tmpSubBuf.extendBorderPel( MAX_ALF_PADDING_SIZE );
+          }
+          else
+          {
+            auto tmpSubBuf = m_tempBuf[tid].subBuf( Area( posInSrc, paddedSize ) );
+            tmpSubBuf.copyFrom( srcBuf.subBuf( Area( posInSrc, paddedSize ) ) );
+            tmpSubBuf.extendBorderPel( MAX_ALF_PADDING_SIZE );
+          }
 
           if( compID == COMPONENT_Y )
           {
