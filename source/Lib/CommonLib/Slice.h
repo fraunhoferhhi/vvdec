@@ -2506,7 +2506,8 @@ public:
         AlfSliceParam&   getAlfAPSParam()                                                 { return m_alfAPSParam;                         }
   const AlfSliceParam&   getAlfAPSParam() const                                           { return m_alfAPSParam;                         }
   void                   setCcAlfAPSParam(CcAlfFilterParam& ccAlfAPSParam)                { m_ccAlfAPSParam = ccAlfAPSParam;              }
-  CcAlfFilterParam&      getCcAlfAPSParam()  { return m_ccAlfAPSParam; }
+  CcAlfFilterParam&      getCcAlfAPSParam()                                               { return m_ccAlfAPSParam;                       }
+  const CcAlfFilterParam& getCcAlfAPSParam() const                                        { return m_ccAlfAPSParam;                       }
 
   void                   setTemporalId(int i)                                             { m_alfAPSParam.tLayer = i;                     }
   int                    getTemporalId()                                                  { return m_alfAPSParam.tLayer;                  }
@@ -2935,6 +2936,7 @@ public:
 
   void                        setAlfAPSs( std::shared_ptr<APS> apss[ALF_CTB_MAX_NUM_APS] ) { for( int i=0; i<ALF_CTB_MAX_NUM_APS; ++i ) { m_alfApss[i] = apss[i].get(); }  }
   APS**                       getAlfAPSs()                                           { return m_alfApss;                                             }
+  const APS* const*           getAlfAPSs() const                                     { return m_alfApss;                                             }
   void                        setSaoEnabledFlag(ChannelType chType, bool s)          { m_saoEnabledFlag[chType] = s;                                 }
   bool                        getSaoEnabledFlag(ChannelType chType) const            { return m_saoEnabledFlag[chType];                              }
   void                        clearRPL( RefPicList l )                               { m_RPL[l].clear();                                             }

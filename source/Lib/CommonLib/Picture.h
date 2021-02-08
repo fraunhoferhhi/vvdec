@@ -270,8 +270,9 @@ public:
 
 public:
   std::vector<uint8_t>  m_ccAlfFilterControl[2];
-  uint8_t*              getccAlfFilterControl( int compIdx ) { return m_ccAlfFilterControl[compIdx].data(); }
-  std::vector<uint8_t>* getccAlfFilterControl()              { return m_ccAlfFilterControl; }
+        uint8_t*        getccAlfFilterControl( int compIdx )       { return m_ccAlfFilterControl[compIdx].data(); }
+  const uint8_t*        getccAlfFilterControl( int compIdx ) const { return m_ccAlfFilterControl[compIdx].data(); }
+  std::vector<uint8_t>* getccAlfFilterControl()                    { return m_ccAlfFilterControl; }
   void                  resizeccAlfFilterControl( int numEntries )
   {
     for( int compIdx = 0; compIdx < 2; compIdx++ )
@@ -294,7 +295,8 @@ public:
   }
 
   std::vector<short>  m_alfCtbFilterIndex;
-  short *             getAlfCtbFilterIndex() { return m_alfCtbFilterIndex.data(); }
+        short*        getAlfCtbFilterIndex()       { return m_alfCtbFilterIndex.data(); }
+  const short*        getAlfCtbFilterIndex() const { return m_alfCtbFilterIndex.data(); }
   std::vector<short>& getAlfCtbFilterIndexVec() { return m_alfCtbFilterIndex; }
   void                resizeAlfCtbFilterIndex( int numEntries )
   {
