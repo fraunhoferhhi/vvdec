@@ -453,6 +453,172 @@ const TFilterCoeff DownsamplingFilterSRC[8][16][12] =
     }
 };
 
+#if RPR_FIX
+void Picture::sampleRateConv( const std::pair<int, int> scalingRatio, const std::pair<int, int> compScale,
+                             const CPelBuf& beforeScale, const int beforeScaleLeftOffset, const int beforeScaleTopOffset,
+                             const PelBuf& afterScale, const int afterScaleLeftOffset, const int afterScaleTopOffset,
+                             const int bitDepth, const bool useLumaFilter, const bool downsampling,
+                             const bool horCollocatedPositionFlag, const bool verCollocatedPositionFlag )
+{
+  const Pel* orgSrc = beforeScale.buf;
+  const int orgWidth = beforeScale.width;
+  const int orgHeight = beforeScale.height;
+  const int orgStride = beforeScale.stride;
+  
+  Pel* scaledSrc = afterScale.buf;
+  const int scaledWidth = afterScale.width;
+  const int scaledHeight = afterScale.height;
+  const int scaledStride = afterScale.stride;
+  
+  if( orgWidth == scaledWidth && orgHeight == scaledHeight && scalingRatio == SCALE_1X && !beforeScaleLeftOffset && !beforeScaleTopOffset && !afterScaleLeftOffset && !afterScaleTopOffset )
+  {
+    for( int j = 0; j < orgHeight; j++ )
+    {
+      memcpy( scaledSrc + j * scaledStride, orgSrc + j * orgStride, sizeof( Pel ) * orgWidth );
+    }
+    
+    return;
+  }
+  
+  const TFilterCoeff* filterHor = useLumaFilter ? &InterpolationFilter::m_lumaFilter[0][0] : &InterpolationFilter::m_chromaFilter[0][0];
+  const TFilterCoeff* filterVer = useLumaFilter ? &InterpolationFilter::m_lumaFilter[0][0] : &InterpolationFilter::m_chromaFilter[0][0];
+  const int numFracPositions = useLumaFilter ? 15 : 31;
+  const int numFracShift = useLumaFilter ? 4 : 5;
+  const int posShiftX = SCALE_RATIO_BITS - numFracShift + compScale.first;
+  const int posShiftY = SCALE_RATIO_BITS - numFracShift + compScale.second;
+  int addX = ( 1 << ( posShiftX - 1 ) ) + ( beforeScaleLeftOffset << SCALE_RATIO_BITS ) + ( ( int( 1 - horCollocatedPositionFlag ) * 8 * ( scalingRatio.first - SCALE_1X.first ) + ( 1 << ( 2 + compScale.first ) ) ) >> ( 3 + compScale.first ) );
+  int addY = ( 1 << ( posShiftY - 1 ) ) + ( beforeScaleTopOffset << SCALE_RATIO_BITS ) + ( ( int( 1 - verCollocatedPositionFlag ) * 8 * ( scalingRatio.second - SCALE_1X.second ) + ( 1 << ( 2 + compScale.second ) ) ) >> ( 3 + compScale.second ) );
+  
+  if( downsampling )
+  {
+    int verFilter = 0;
+    int horFilter = 0;
+    
+    if (scalingRatio.first > (15 << SCALE_RATIO_BITS) / 4)
+    {
+      horFilter = 7;
+    }
+    else if (scalingRatio.first > (20 << SCALE_RATIO_BITS) / 7)
+    {
+      horFilter = 6;
+    }
+    else if (scalingRatio.first > (5 << SCALE_RATIO_BITS) / 2)
+    {
+      horFilter = 5;
+    }
+    else if (scalingRatio.first > (2 << SCALE_RATIO_BITS))
+    {
+      horFilter = 4;
+    }
+    else if (scalingRatio.first > (5 << SCALE_RATIO_BITS) / 3)
+    {
+      horFilter = 3;
+    }
+    else if (scalingRatio.first > (5 << SCALE_RATIO_BITS) / 4)
+    {
+      horFilter = 2;
+    }
+    else if (scalingRatio.first > (20 << SCALE_RATIO_BITS) / 19)
+    {
+      horFilter = 1;
+    }
+    
+    if (scalingRatio.second > (15 << SCALE_RATIO_BITS) / 4)
+    {
+      verFilter = 7;
+    }
+    else if (scalingRatio.second > (20 << SCALE_RATIO_BITS) / 7)
+    {
+      verFilter = 6;
+    }
+    else if (scalingRatio.second > (5 << SCALE_RATIO_BITS) / 2)
+    {
+      verFilter = 5;
+    }
+    else if (scalingRatio.second > (2 << SCALE_RATIO_BITS))
+    {
+      verFilter = 4;
+    }
+    else if (scalingRatio.second > (5 << SCALE_RATIO_BITS) / 3)
+    {
+      verFilter = 3;
+    }
+    else if (scalingRatio.second > (5 << SCALE_RATIO_BITS) / 4)
+    {
+      verFilter = 2;
+    }
+    else if (scalingRatio.second > (20 << SCALE_RATIO_BITS) / 19)
+    {
+      verFilter = 1;
+    }
+    
+    filterHor = &DownsamplingFilterSRC[horFilter][0][0];
+    filterVer = &DownsamplingFilterSRC[verFilter][0][0];
+  }
+  
+  const int filterLength = downsampling ? 12 : ( useLumaFilter ? NTAPS_LUMA : NTAPS_CHROMA );
+  const int log2Norm = downsampling ? 14 : 12;
+  
+  int *buf = new int[orgHeight * scaledWidth];
+  int maxVal = ( 1 << bitDepth ) - 1;
+  
+  CHECK( bitDepth > 17, "Overflow may happen!" );
+  
+  for( int i = 0; i < scaledWidth; i++ )
+  {
+    const Pel* org = orgSrc;
+    int refPos = ( ( ( i << compScale.first ) - afterScaleLeftOffset ) * scalingRatio.first + addX ) >> posShiftX;
+    int integer = refPos >> numFracShift;
+    int frac = refPos & numFracPositions;
+    int* tmp = buf + i;
+    
+    for( int j = 0; j < orgHeight; j++ )
+    {
+      int sum = 0;
+      const TFilterCoeff* f = filterHor + frac * filterLength;
+      
+      for( int k = 0; k < filterLength; k++ )
+      {
+        int xInt = std::min<int>( std::max( 0, integer + k - filterLength / 2 + 1 ), orgWidth - 1 );
+        sum += f[k] * org[xInt]; // postpone horizontal filtering gain removal after vertical filtering
+      }
+      
+      *tmp = sum;
+      
+      tmp += scaledWidth;
+      org += orgStride;
+    }
+  }
+  
+  Pel* dst = scaledSrc;
+  
+  for( int j = 0; j < scaledHeight; j++ )
+  {
+    int refPos = ( ( ( j << compScale.second ) - afterScaleTopOffset ) * scalingRatio.second + addY ) >> posShiftY;
+    int integer = refPos >> numFracShift;
+    int frac = refPos & numFracPositions;
+    
+    for( int i = 0; i < scaledWidth; i++ )
+    {
+      int sum = 0;
+      int* tmp = buf + i;
+      const TFilterCoeff* f = filterVer + frac * filterLength;
+      
+      for( int k = 0; k < filterLength; k++ )
+      {
+        int yInt = std::min<int>( std::max( 0, integer + k - filterLength / 2 + 1 ), orgHeight - 1 );
+        sum += f[k] * tmp[yInt*scaledWidth];
+      }
+      
+      dst[i] = std::min<int>( std::max( 0, ( sum + ( 1 << ( log2Norm - 1 ) ) ) >> log2Norm ), maxVal );
+    }
+    
+    dst += scaledStride;
+  }
+  
+  delete[] buf;
+}
+#else
 void Picture::sampleRateConv( const Pel* orgSrc, SizeType orgWidth, SizeType orgHeight, ptrdiff_t orgStride, Pel* scaledSrc, SizeType scaledWidth, SizeType scaledHeight, SizeType paddedWidth, SizeType paddedHeight, ptrdiff_t scaledStride, const int bitDepth, const bool useLumaFilter, const bool downsampling )
 {
   if( orgWidth == scaledWidth && orgHeight == scaledHeight )
@@ -554,20 +720,34 @@ void Picture::sampleRateConv( const Pel* orgSrc, SizeType orgWidth, SizeType org
 
   delete[] buf;
 }
+#endif
 
+#if RPR_FIX
+void Picture::rescalePicture( const std::pair<int, int> scalingRatio, const CPelUnitBuf& beforeScaling, const Window& confBefore, const PelUnitBuf& afterScaling, const Window& confAfter, const ChromaFormat chromaFormatIDC, const BitDepths& bitDepths, const bool useLumaFilter, const bool downsampling, const bool horCollocatedChromaFlag, const bool verCollocatedChromaFlag )
+#else
 void Picture::rescalePicture( const CPelUnitBuf& beforeScaling, const Window& confBefore, const PelUnitBuf& afterScaling, const Window& confAfter, const ChromaFormat chromaFormatIDC, const BitDepths& bitDepths, const bool useLumaFilter, const bool downsampling )
+#endif
 {
   for( int comp = 0; comp < ::getNumberValidComponents( chromaFormatIDC ); comp++ )
   {
     ComponentID compID = ComponentID( comp );
     const CPelBuf& beforeScale = beforeScaling.get( compID );
     const PelBuf& afterScale = afterScaling.get( compID );
+
+#if RPR_FIX
+    sampleRateConv( scalingRatio, std::pair<int, int>( ::getComponentScaleX( compID, chromaFormatIDC ), ::getComponentScaleY( compID, chromaFormatIDC ) ),
+                    beforeScale, confBefore.getWindowLeftOffset() * SPS::getWinUnitX( chromaFormatIDC ), confBefore.getWindowTopOffset() * SPS::getWinUnitY( chromaFormatIDC ),
+                    afterScale, confAfter.getWindowLeftOffset() * SPS::getWinUnitX( chromaFormatIDC ), confAfter.getWindowTopOffset() * SPS::getWinUnitY( chromaFormatIDC ),
+                    bitDepths.recon[toChannelType(compID)], downsampling || useLumaFilter ? true : isLuma( compID ), downsampling,
+                    isLuma( compID ) ? 1 : horCollocatedChromaFlag, isLuma( compID ) ? 1 : verCollocatedChromaFlag );
+#else
     int widthBefore = beforeScale.width - (((confBefore.getWindowLeftOffset() + confBefore.getWindowRightOffset()) * SPS::getWinUnitX(chromaFormatIDC)) >> getChannelTypeScaleX((ChannelType)(comp > 0), chromaFormatIDC));
     int heightBefore = beforeScale.height - (((confBefore.getWindowTopOffset() + confBefore.getWindowBottomOffset()) * SPS::getWinUnitY(chromaFormatIDC)) >> getChannelTypeScaleY((ChannelType)(comp > 0), chromaFormatIDC));
     int widthAfter = afterScale.width - (((confAfter.getWindowLeftOffset() + confAfter.getWindowRightOffset()) * SPS::getWinUnitX(chromaFormatIDC)) >> getChannelTypeScaleX((ChannelType)(comp > 0), chromaFormatIDC));
     int heightAfter = afterScale.height - (((confAfter.getWindowTopOffset() + confAfter.getWindowBottomOffset()) * SPS::getWinUnitY(chromaFormatIDC)) >> getChannelTypeScaleY((ChannelType)(comp > 0), chromaFormatIDC));
 
-    Picture::sampleRateConv( beforeScale.buf,  widthBefore, heightBefore, beforeScale.stride, afterScale.buf, widthAfter, heightAfter, afterScale.width, afterScale.height, afterScale.stride, bitDepths.recon[comp], downsampling || useLumaFilter ? true : isLuma(compID), downsampling );
+    Picture::sampleRateConv( beforeScale.buf, widthBefore, heightBefore, beforeScale.stride, afterScale.buf, widthAfter, heightAfter, afterScale.width, afterScale.height, afterScale.stride, bitDepths.recon[toChannelType(compID)], downsampling || useLumaFilter ? true : isLuma(compID), downsampling );
+#endif
   }
 }
 

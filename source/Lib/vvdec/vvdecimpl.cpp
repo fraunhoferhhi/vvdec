@@ -83,7 +83,11 @@ int VVDecImpl::init( const VVDecParameter& rcVVDecParameter )
   initROM();
 
   // create decoder class
+#if RPR_YUV_OUTPUT
+  m_cDecLib.create( rcVVDecParameter.m_iThreads, rcVVDecParameter.m_iParseThreads, rcVVDecParameter.m_iUpscaledOutput );
+#else
   m_cDecLib.create( rcVVDecParameter.m_iThreads, rcVVDecParameter.m_iParseThreads );
+#endif
 
   g_verbosity = MsgLevel( rcVVDecParameter.m_eLogLevel );
 
@@ -808,6 +812,11 @@ int VVDecImpl::xAddPicture( Picture* pcPic )
   const uint32_t uiWidth  = areaY.width - confLeft - confRight;
   const uint32_t uiHeight = areaY.height -  confTop  - confBottom;
 
+#if RPR_YUV_OUTPUT
+  const uint32_t orgWidth  = pcPic->cs->sps->getMaxPicWidthInLumaSamples() - confLeft - confRight;
+  const uint32_t orgHeight = pcPic->cs->sps->getMaxPicHeightInLumaSamples() -  confTop  - confBottom;
+#endif
+
   const BitDepths &bitDepths= pcPic->cs->sps->getBitDepths(); // use bit depths of first reconstructed picture.
 
   if ((uiWidth == 0) || (uiHeight == 0))
@@ -823,35 +832,92 @@ int VVDecImpl::xAddPicture( Picture* pcPic )
     {
       uiBitDepth = std::max( (uint32_t)bitDepths.recon[c], uiBitDepth );
     }
-
+#if RPR_YUV_OUTPUT
+    m_uiBitDepth = uiBitDepth;
+#else
     m_bCreateNewPicBuf =  (uiBitDepth == 8) ? true : false; // for 8bit output we need to copy the lib picture from unsigned short into unsigned char buffer
+#endif
   }
 
   // create a brand new picture object
   Frame cFrame;
+#if RPR_YUV_OUTPUT
+  m_bCreateNewPicBuf = (m_uiBitDepth == 8);
+
+  if( m_cDecLib.getUpsaledOutput() && ( uiWidth != orgWidth || uiHeight != orgHeight ) )
+  {
+    m_bCreateNewPicBuf = true;
+    xCreateFrame ( cFrame, cPicBuf, orgWidth, orgHeight, bitDepths );
+  }
+  else
+  {
+    xCreateFrame ( cFrame, cPicBuf, uiWidth, uiHeight, bitDepths );
+  }
+#else
   xCreateFrame ( cFrame, cPicBuf, uiWidth, uiHeight, bitDepths );
+#endif
 
   const int maxComponent = getNumberValidComponents( cPicBuf.chromaFormat );
 
   if( m_bCreateNewPicBuf )
   {
-    // copy picture into target memory
-    for( uint32_t comp=0; comp < maxComponent; comp++ )
+#if RPR_YUV_OUTPUT
+    if( m_cDecLib.getUpsaledOutput() == 2 )
     {
-      const ComponentID compID      = ComponentID(comp);
-      const uint32_t    csx         = ::getComponentScaleX(compID, cPicBuf.chromaFormat);
-      const uint32_t    csy         = ::getComponentScaleY(compID, cPicBuf.chromaFormat);
-      const CPelBuf     area        = cPicBuf.get(compID);
-      unsigned int uiBytesPerSample = bitDepths.recon[0] > 8 ? 2 : 1;
+      PelStorage upscaledPic;
+      upscaledPic.create( cPicBuf.chromaFormat, Size( orgWidth, orgHeight ) );
+      
+#if RPR_FIX
+      int xScale = ( ( uiWidth << SCALE_RATIO_BITS ) + ( orgWidth >> 1 ) ) / orgWidth;
+      int yScale = ( ( uiHeight << SCALE_RATIO_BITS ) + ( orgHeight >> 1 ) ) / orgHeight;
 
-      const ptrdiff_t   planeOffset = (confLeft >> csx) + (confTop >> csy) * area.stride;
-      //const unsigned char* pucOrigin   = (const unsigned char*)area.bufAt (0, 0).ptr;
-      const unsigned char* pucOrigin   = (const unsigned char*)area.buf;
+      Picture::rescalePicture( std::pair<int, int>( xScale, yScale ), cPicBuf, conf, upscaledPic, defDisp, pcPic->cs->sps->getChromaFormatIdc(), bitDepths, false, false, pcPic->cs->sps->getHorCollocatedChromaFlag(), pcPic->cs->sps->getVerCollocatedChromaFlag() );
+#else
+      Picture::rescalePicture( cPicBuf, conf, upscaledPic, defDisp, pcPic->cs->sps->getChromaFormatIdc(), bitDepths, false );
+#endif
+      
+      // copy picture into target memory
+      for( uint32_t comp=0; comp < maxComponent; comp++ )
+      {
+        const ComponentID compID      = ComponentID(comp);
+        const uint32_t    csx         = ::getComponentScaleX(compID, cPicBuf.chromaFormat);
+        const uint32_t    csy         = ::getComponentScaleY(compID, cPicBuf.chromaFormat);
+        const CPelBuf     area        = upscaledPic.get(compID);
+        unsigned int uiBytesPerSample = bitDepths.recon[0] > 8 ? 2 : 1;
+        
+        const ptrdiff_t   planeOffset = (confLeft >> csx) + (confTop >> csy) * area.stride;
+        //const unsigned char* pucOrigin   = (const unsigned char*)area.bufAt (0, 0).ptr;
+        const unsigned char* pucOrigin   = (const unsigned char*)area.buf;
+        
+        copyComp(  pucOrigin + planeOffset,
+                 cFrame.m_cComponent[VVC_CT_Y].m_pucBuffer+cFrame.m_cComponent[comp].m_uiByteOffset,
+                 area.width, area.height,
+                 area.stride<<1, cFrame.m_cComponent[comp].m_iStride, uiBytesPerSample  );
+      }
 
-     copyComp(  pucOrigin + planeOffset,
-         cFrame.m_cComponent[VVC_CT_Y].m_pucBuffer+cFrame.m_cComponent[comp].m_uiByteOffset,
-         area.width, area.height,
-         area.stride<<1, cFrame.m_cComponent[comp].m_iStride, uiBytesPerSample  );
+      upscaledPic.destroy();
+    }
+    else
+#endif
+    {
+      // copy picture into target memory
+      for( uint32_t comp=0; comp < maxComponent; comp++ )
+      {
+        const ComponentID compID      = ComponentID(comp);
+        const uint32_t    csx         = ::getComponentScaleX(compID, cPicBuf.chromaFormat);
+        const uint32_t    csy         = ::getComponentScaleY(compID, cPicBuf.chromaFormat);
+        const CPelBuf     area        = cPicBuf.get(compID);
+        unsigned int uiBytesPerSample = bitDepths.recon[0] > 8 ? 2 : 1;
+  
+        const ptrdiff_t   planeOffset = (confLeft >> csx) + (confTop >> csy) * area.stride;
+        //const unsigned char* pucOrigin   = (const unsigned char*)area.bufAt (0, 0).ptr;
+        const unsigned char* pucOrigin   = (const unsigned char*)area.buf;
+  
+       copyComp(  pucOrigin + planeOffset,
+           cFrame.m_cComponent[VVC_CT_Y].m_pucBuffer+cFrame.m_cComponent[comp].m_uiByteOffset,
+           area.width, area.height,
+           area.stride<<1, cFrame.m_cComponent[comp].m_iStride, uiBytesPerSample  );
+      }
     }
   }
   else

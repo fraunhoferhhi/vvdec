@@ -75,6 +75,9 @@ public:
           "\t YUV output options\n"
           "\n"
           "\t\t [--output,-o  <str>        ] : yuv output file (default: not set)\n"
+#if 1 //RPR_YUV_OUTPUT
+          "\t\t [--UpscaledOutput,-uo  <int> ] : yuv output file (default: not set)\n"
+#endif
           "\n"
           "\t Decoder Options\n"
           "\n"
@@ -161,6 +164,16 @@ public:
           rcOutputFile = argv[i_arg++];
         }
       }
+#if 1 //RPR_YUV_OUTPUT
+      else if( (!strcmp( (const char*)argv[i_arg], "-uo" )) || !strcmp( (const char*)argv[i_arg], "--UpscaledOutput" ) ) /* Out: bitstream-file */
+      {
+        i_arg++;
+        int iUpscaledOutput = atoi( argv[i_arg++] );
+        if( rcParams.m_eLogLevel > vvdec::LL_VERBOSE )
+          fprintf( stdout, "[UpscaledOutput] : %d\n", iUpscaledOutput );
+        rcParams.m_iUpscaledOutput = iUpscaledOutput;
+      }
+#endif
       else if( (!strcmp( (const char*)argv[i_arg], "-f" )) || !strcmp( (const char*)argv[i_arg], "--frames" ) )
       {
         i_arg++;

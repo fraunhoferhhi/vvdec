@@ -122,10 +122,18 @@ struct Picture : public UnitArea
   void          setSpliceIdx(uint32_t idx, int poc) { m_spliceIdx[idx] = poc; }
   void          createSpliceIdx(int nums);
   bool          getSpliceFull();
+#if RPR_FIX
+  static void   sampleRateConv( const std::pair<int, int> scalingRatio, const std::pair<int, int> compScale,
+                                const CPelBuf& beforeScale, const int beforeScaleLeftOffset, const int beforeScaleTopOffset,
+                                const PelBuf& afterScale, const int afterScaleLeftOffset, const int afterScaleTopOffset,
+                                const int bitDepth, const bool useLumaFilter, const bool downsampling,
+                                const bool horCollocatedPositionFlag, const bool verCollocatedPositionFlag );
+  static void   rescalePicture( const std::pair<int, int> scalingRatio, const CPelUnitBuf& beforeScaling, const Window& confBefore, const PelUnitBuf& afterScaling, const Window& confAfter, const ChromaFormat chromaFormatIDC, const BitDepths& bitDepths, const bool useLumaFilter, const bool downsampling, const bool horCollocatedChromaFlag, const bool verCollocatedChromaFlag );
+#else
   static void   sampleRateConv( const Pel* orgSrc, SizeType orgWidth, SizeType orgHeight, ptrdiff_t orgStride, Pel* scaledSrc, SizeType scaledWidth, SizeType scaledHeight, SizeType paddedWidth, SizeType paddedHeight, ptrdiff_t scaledStride, const int bitDepth, const bool useLumaFilter, const bool downsampling = false );
 
   static void   rescalePicture(const CPelUnitBuf& beforeScaling, const Window& confBefore, const PelUnitBuf& afterScaling, const Window& confAfter, const ChromaFormat chromaFormatIDC, const BitDepths& bitDepths, const bool useLumaFilter, const bool downsampling = false);
-
+#endif
 public:
 #if JVET_O1143_MV_ACROSS_SUBPIC_BOUNDARY  
   bool m_isSubPicBorderSaved = false;

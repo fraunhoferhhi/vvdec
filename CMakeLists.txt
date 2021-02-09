@@ -35,10 +35,10 @@ if( NOT CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR )
 endif()
 
 # enable or disable bitstream download
-set( VVDEC_ENABLE_BITSTREAM_DOWNLOAD        OFF CACHE BOOL   "Enable or disable bitstream download" )
+set( VVDEC_ENABLE_BITSTREAM_DOWNLOAD        ON CACHE BOOL   "Enable or disable bitstream download" )
 
 # enable local bitstream download
-set( VVDEC_ENABLE_LOCAL_BITSTREAM_DOWNLOAD  OFF CACHE BOOL   "Enable or disable local bitstream download" )
+set( VVDEC_ENABLE_LOCAL_BITSTREAM_DOWNLOAD  ON CACHE BOOL   "Enable or disable local bitstream download" )
 
 # enable install target
 set( VVDEC_ENABLE_INSTALL                   ON  CACHE BOOL   "Enable or disable install target" )

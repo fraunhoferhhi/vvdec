@@ -109,7 +109,11 @@ DecLib::DecLib()
 #endif
 }
 
+#if RPR_YUV_OUTPUT
+void DecLib::create(int numDecThreads, int parserFrameDelay, int upscaledOutput)
+#else
 void DecLib::create(int numDecThreads, int parserFrameDelay)
+#endif
 {
   // run constructor again to ensure all variables, especially in DecLibParser have been reset
   this->~DecLib();
@@ -128,7 +132,9 @@ void DecLib::create(int numDecThreads, int parserFrameDelay)
     parserFrameDelay = numDecThreads;
   }
   m_parseFrameDelay = parserFrameDelay;
-
+#if RPR_YUV_OUTPUT
+  m_upscaledOutput = upscaledOutput;
+#endif
   m_picListManager.create( m_parseFrameDelay, ( int ) m_decLibRecon.size() );
   m_decLibParser.create  ( m_decodeThreadPool.get(), m_parseFrameDelay, ( int ) m_decLibRecon.size(), numDecThreads );
     
