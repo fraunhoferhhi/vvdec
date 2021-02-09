@@ -48,11 +48,7 @@ THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "vvdec/vvdecDecl.h"
 
-#include <string>
 #include <list>
-#include <vector>
-#include <cstring>
-
 #include "vvdec/seimsg.h"
 
 namespace vvdec {
@@ -435,7 +431,7 @@ public:
    /**
     This method returns decoder information
     \param      None
-    \retval     std::string decoder information
+    \retval     const char* decoder information
   */
    const char* getDecoderInfo();
 
@@ -443,28 +439,28 @@ public:
     /**
      This method returns the last occurred error as a string.
      \param      None
-     \retval     std::string empty string for no error assigned
+     \retval     const char* empty string for no error assigned
    */
    const char* getLastError() const;
 
    /**
     This method returns additional information about the last occurred error as a string (if availalbe).
     \param      None
-    \retval     std::string empty string for no error assigned
+    \retval     const char* empty string for no error assigned
   */
    const char* getLastAdditionalError() const;
 
    /**
      This method returns the decoder version number as a string.
      \param      None
-     \retval     std::string returns the version number
+     \retval     const char* returns the version number
    */
    static const char* getVersionNumber();
 
    /**
      This static function returns a string according to the passed parameter nRet.
      \param[in]  nRet return value code to translate
-     \retval[ ]  std::string empty string for no error
+     \retval[ ]  const char* empty string for no error
    */
    static const char* getErrorMsg( int nRet );
 

@@ -43,9 +43,6 @@ set( VVDEC_ENABLE_LOCAL_BITSTREAM_DOWNLOAD  OFF CACHE BOOL   "Enable or disable 
 # enable install target
 set( VVDEC_ENABLE_INSTALL                   ON  CACHE BOOL   "Enable or disable install target" )
 
-#enable Tracing
-set( VVDEC_ENABLE_TRACING OFF CACHE BOOL "Enable or disable tracing" )
-
 # enable postfix
 set( VVDEC_ENABLE_BUILD_TYPE_POSTFIX        OFF CACHE BOOL   "Enable or disable build type postfix for apps and libs" )
 
