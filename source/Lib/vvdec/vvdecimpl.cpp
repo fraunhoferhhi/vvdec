@@ -911,7 +911,7 @@ int VVDecImpl::xAddPicture( Picture* pcPic )
 
   if( 0 != xHandleSEIs ( cFrame, pcPic ) )
   {
-    ret = -1;
+    return -1;
   }
 
   m_rcFrameList.push_back( cFrame );

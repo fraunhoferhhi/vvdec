@@ -157,7 +157,7 @@ public:
   bool     m_omniViewportCancelFlag      = false;
   bool     m_omniViewportPersistenceFlag = false;
   uint8_t  m_omniViewportCnt             = 0;
-  std::vector<OmniViewport> m_omniViewportRegions;
+  std::vector<OmniViewport> m_omniViewportRegions = {};
 };
 
 class VVDEC_DECL seiRegionWisePacking : public seimsg
@@ -204,12 +204,12 @@ public:
   bool                 m_gcmpPersistenceFlag                = false;
   uint8_t              m_gcmpPackingType                    = 0;
   uint8_t              m_gcmpMappingFunctionType            = 0;
-  std::vector<uint8_t> m_gcmpFaceIndex;
-  std::vector<uint8_t> m_gcmpFaceRotation;
-  std::vector<uint8_t> m_gcmpFunctionCoeffU;
-  std::vector<bool>    m_gcmpFunctionUAffectedByVFlag;
-  std::vector<uint8_t> m_gcmpFunctionCoeffV;
-  std::vector<bool>    m_gcmpFunctionVAffectedByUFlag;
+  std::vector<uint8_t> m_gcmpFaceIndex = {};
+  std::vector<uint8_t> m_gcmpFaceRotation = {};
+  std::vector<uint8_t> m_gcmpFunctionCoeffU = {};
+  std::vector<bool>    m_gcmpFunctionUAffectedByVFlag = {};
+  std::vector<uint8_t> m_gcmpFunctionCoeffV  = {};
+  std::vector<bool>    m_gcmpFunctionVAffectedByUFlag = {};
   bool                 m_gcmpGuardBandFlag                 = false;
   uint8_t              m_gcmpGuardBandType                 = 0;
   bool                 m_gcmpGuardBandBoundaryExteriorFlag = false;
@@ -383,17 +383,17 @@ public:
   uint32_t              m_numDecodingUnitsMinus1      = 0;
   bool                  m_duCommonCpbRemovalDelayFlag = false;
   uint32_t              m_duCommonCpbRemovalDelayMinus1[7];
-  std::vector<uint32_t> m_numNalusInDuMinus1;
-  std::vector<uint32_t> m_duCpbRemovalDelayMinus1;
+  std::vector<uint32_t> m_numNalusInDuMinus1          = {};
+  std::vector<uint32_t> m_duCpbRemovalDelayMinus1     = {};
   bool                  m_cpbAltTimingInfoPresentFlag = false;
-  std::vector<std::vector<uint32_t>> m_nalCpbAltInitialRemovalDelayDelta;
-  std::vector<std::vector<uint32_t>> m_nalCpbAltInitialRemovalOffsetDelta;
-  std::vector<uint32_t>              m_nalCpbDelayOffset;
-  std::vector<uint32_t>              m_nalDpbDelayOffset;
-  std::vector<std::vector<uint32_t>> m_vclCpbAltInitialRemovalDelayDelta;
-  std::vector<std::vector<uint32_t>> m_vclCpbAltInitialRemovalOffsetDelta;
-  std::vector<uint32_t>              m_vclCpbDelayOffset;
-  std::vector<uint32_t>              m_vclDpbDelayOffset;
+  std::vector<std::vector<uint32_t>> m_nalCpbAltInitialRemovalDelayDelta  = {};
+  std::vector<std::vector<uint32_t>> m_nalCpbAltInitialRemovalOffsetDelta = {};
+  std::vector<uint32_t>              m_nalCpbDelayOffset = {};
+  std::vector<uint32_t>              m_nalDpbDelayOffset = {};
+  std::vector<std::vector<uint32_t>> m_vclCpbAltInitialRemovalDelayDelta = {};
+  std::vector<std::vector<uint32_t>> m_vclCpbAltInitialRemovalOffsetDelta = {};
+  std::vector<uint32_t>              m_vclCpbDelayOffset = {};
+  std::vector<uint32_t>              m_vclDpbDelayOffset = {};
   int                                m_ptDisplayElementalPeriodsMinus1 = 0;
 };
 
