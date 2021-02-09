@@ -240,8 +240,7 @@ enum ComponentType
 {
   VVC_CT_Y = 0,              ///< Y component
   VVC_CT_U = 1,              ///< U component
-  VVC_CT_V = 2,              ///< V component
-  VVC_CT_MAX_COMPONET = 3
+  VVC_CT_V = 2              ///< V component
 };
 
 typedef struct VVDEC_DECL Component
@@ -473,6 +472,7 @@ public:
 private:
    VVDecImpl*  m_pcVVDecImpl = NULL;
 };
+
 
 } // namespace
 
