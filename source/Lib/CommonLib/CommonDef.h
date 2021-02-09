@@ -83,23 +83,25 @@ inline int64_t abs (int64_t x) { return _abs64(x); };
 
 // macros to selectively disable some usually useful warnings
 #if defined __GNUC__ && !defined __clang__
-# define GCC_WARNING_DISABLE_sequence_point      _Pragma("GCC diagnostic push"); \
-                                                 _Pragma("GCC diagnostic ignored \"-Wsequence-point\"");
+# define GCC_WARNING_DISABLE_sequence_point      _Pragma("GCC diagnostic push"); _Pragma("GCC diagnostic ignored \"-Wsequence-point\"");
 # define GCC_WARNING_RESET                       _Pragma("GCC diagnostic pop");
+
+# define GCC_EXTRA_WARNING_switch_enum           _Pragma("GCC diagnostic push"); _Pragma("GCC diagnostic error \"-Wswitch-enum\"");
 #else
 # define GCC_WARNING_DISABLE_sequence_point
 # define GCC_WARNING_RESET
+
+# define GCC_EXTRA_WARNING_switch_enum
 #endif
 
 #if __GNUC__ >= 8
-# define GCC_WARNING_DISABLE_maybe_uninitialized _Pragma("GCC diagnostic push"); \
-                                                 _Pragma("GCC diagnostic ignored \"-Wmaybe-uninitialized\"");
-# define GCC_WARNING_DISABLE_class_memaccess     _Pragma("GCC diagnostic push"); \
-                                                 _Pragma("GCC diagnostic ignored \"-Wclass-memaccess\"");
+# define GCC_WARNING_DISABLE_maybe_uninitialized _Pragma("GCC diagnostic push"); _Pragma("GCC diagnostic ignored \"-Wmaybe-uninitialized\"");
+# define GCC_WARNING_DISABLE_class_memaccess     _Pragma("GCC diagnostic push"); _Pragma("GCC diagnostic ignored \"-Wclass-memaccess\"");
 #else
 # define GCC_WARNING_DISABLE_maybe_uninitialized
 # define GCC_WARNING_DISABLE_class_memaccess
 #endif
+
 
 //! \ingroup CommonLib
 //! \{
@@ -329,7 +331,7 @@ static const int MAX_TU_LEVEL_CTX_CODED_BIN_CONSTRAINT_CHROMA =    28;
 
 static const int BIO_EXTEND_SIZE              =                     1;
 static const int BIO_ALIGN_SIZE               =                     8;
-static const int BIO_TEMP_BUFFER_SIZE         =                     (MAX_CU_SIZE + 2 * BIO_ALIGN_SIZE) * (MAX_CU_SIZE + 2 * BIO_ALIGN_SIZE);
+static const int BIO_TEMP_BUFFER_SIZE         =                     (MAX_BDOF_APPLICATION_REGION + 2 * BIO_ALIGN_SIZE) * (MAX_BDOF_APPLICATION_REGION + 2 * BIO_ALIGN_SIZE);
 
 static const int PROF_BORDER_EXT_W            =                     1;
 static const int PROF_BORDER_EXT_H            =                     1;

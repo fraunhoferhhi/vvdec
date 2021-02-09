@@ -56,6 +56,7 @@ THE POSSIBILITY OF SUCH DAMAGE.
 //! \{
 
 #include <immintrin.h>
+#include "FixMissingIntrin.h"
 
 #ifdef USE_AVX512
 #define SIMDX86 AVX512
@@ -161,7 +162,7 @@ THE POSSIBILITY OF SUCH DAMAGE.
 
 #define ADDCLIP(dstptr, res, min, max)\
 {\
-  __m128i vdst = _mm_load_si128((__m128i*) dstptr);\
+  __m128i vdst = _mm_loadu_si128((__m128i*) dstptr);\
   vdst = _mm_add_epi16(vdst, res ); \
   vdst = _mm_min_epi16(max,_mm_max_epi16(min, vdst));\
   _mm_store_si128((__m128i*)dstptr, vdst);\

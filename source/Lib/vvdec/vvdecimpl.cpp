@@ -682,6 +682,7 @@ const char* VVDecImpl::getNalUnitTypeAsString( NalType t )
 {
   m_cNalType = "NAL_UNIT_INVALID";
 
+  GCC_EXTRA_WARNING_switch_enum
   switch ( t )
   {
   case VVC_NAL_UNIT_CODED_SLICE_TRAIL:           m_cNalType = "NAL_UNIT_CODED_SLICE_TRAIL"; break; // 0
@@ -724,8 +725,10 @@ const char* VVDecImpl::getNalUnitTypeAsString( NalType t )
   case VVC_NAL_UNIT_UNSPECIFIED_30:              m_cNalType = "NAL_UNIT_UNSPECIFIED_30"; break; // 30
   case VVC_NAL_UNIT_UNSPECIFIED_31:              m_cNalType = "NAL_UNIT_UNSPECIFIED_31"; break; // 31
 
+  case NAL_UNIT_INVALID:
   default:                                   m_cNalType = "NAL_UNIT_INVALID"; break;
   }
+  GCC_WARNING_RESET
 
   return m_cNalType.c_str();
 }
@@ -795,18 +798,19 @@ int VVDecImpl::copyComp( const unsigned char* pucSrc, unsigned char* pucDest, un
 
 int VVDecImpl::xAddPicture( Picture* pcPic )
 {
-  int ret = 0;
-  // copy internal picture to external
-  const Window &conf    = pcPic->cs->pps->getConformanceWindow();
+  // copy internal picture to external (Priority PPS > SPS)
+  const Window &conf    = pcPic->cs->pps->getConformanceWindowPresentFlag()
+                          ? pcPic->cs->pps->getConformanceWindow()
+                          : pcPic->cs->sps->getConformanceWindow();
 //          const Window  defDisp = (m_respectDefDispWindow && pcPic->cs->sps->getVuiParametersPresentFlag())
 //                                  ? pcPic->cs->sps->getVuiParameters()->getDefaultDisplayWindow()
 //                                  : Window();
   const Window  defDisp =  Window();
 
-  int confLeft   = conf.getWindowLeftOffset()   + defDisp.getWindowLeftOffset();
-  int confRight  = conf.getWindowRightOffset()  + defDisp.getWindowRightOffset();
-  int confTop    = conf.getWindowTopOffset()    + defDisp.getWindowTopOffset();
-  int confBottom = conf.getWindowBottomOffset() + defDisp.getWindowBottomOffset();
+  int confLeft   = conf.getWindowLeftOffset()   * SPS::getWinUnitY(pcPic->cs->sps->getChromaFormatIdc())  + defDisp.getWindowLeftOffset();
+  int confRight  = conf.getWindowRightOffset()  * SPS::getWinUnitY(pcPic->cs->sps->getChromaFormatIdc())  + defDisp.getWindowRightOffset();
+  int confTop    = conf.getWindowTopOffset()    * SPS::getWinUnitY(pcPic->cs->sps->getChromaFormatIdc())  + defDisp.getWindowTopOffset();
+  int confBottom = conf.getWindowBottomOffset() * SPS::getWinUnitY(pcPic->cs->sps->getChromaFormatIdc())  + defDisp.getWindowBottomOffset();
 
   const CPelUnitBuf& cPicBuf =  pcPic->getRecoBuf();
 
@@ -873,9 +877,9 @@ int VVDecImpl::xAddPicture( Picture* pcPic )
       const ptrdiff_t   planeOffset = (confLeft >> csx) + (confTop >> csy) * area.stride;
 
       //unsigned char* pucOrigin   = (unsigned char*)area.bufAt (0, 0).ptr;
-      unsigned char* pucOrigin   = (unsigned char*)area.buf;
+      Pel* pucOrigin   = (Pel*)area.buf;
 
-      cFrame.m_cComponent[comp].m_pucBuffer = pucOrigin + planeOffset;
+      cFrame.m_cComponent[comp].m_pucBuffer = (unsigned char*)(pucOrigin + planeOffset);
     }
     m_pcLibPictureList.push_back( pcPic );
   }
@@ -933,7 +937,7 @@ int VVDecImpl::xAddPicture( Picture* pcPic )
 
   m_uiSeqNumber++;
 
-  return ret;
+  return 0;
 }
 
 

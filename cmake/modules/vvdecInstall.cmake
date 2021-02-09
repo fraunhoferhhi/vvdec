@@ -75,3 +75,8 @@ endif()
 install( EXPORT vvdecTargets-release        NAMESPACE vvdec:: FILE vvdecTargets-${CONFIG_POSTFIX}.cmake CONFIGURATIONS Release        DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/vvdec )
 install( EXPORT vvdecTargets-debug          NAMESPACE vvdec:: FILE vvdecTargets-${CONFIG_POSTFIX}.cmake CONFIGURATIONS Debug          DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/vvdec )
 install( EXPORT vvdecTargets-relwithdebinfo NAMESPACE vvdec:: FILE vvdecTargets-${CONFIG_POSTFIX}.cmake CONFIGURATIONS RelWithDebInfo DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/vvdec )
+
+if( UNIX AND NOT APPLE )
+  configure_file( pkgconfig/libvvdec.pc.in ${CMAKE_CURRENT_BINARY_DIR}/pkgconfig/libvvdec.pc @ONLY )
+  install( FILES ${CMAKE_CURRENT_BINARY_DIR}/pkgconfig/libvvdec.pc DESTINATION ${CMAKE_INSTALL_LIBDIR}/pkgconfig )
+endif()

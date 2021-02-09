@@ -431,16 +431,15 @@ void IntraPredAngleCore_SIMD(int16_t* pDstBuf,const ptrdiff_t dstStride,int16_t*
   _mm256_zeroupper();
 #endif
 }
-#define _mm_storeu_si32(p, a) (void)(*(int*)(p) = _mm_cvtsi128_si32((a)))
 
 template< X86_VEXT vext, int W >
 void  IntraPredSampleFilter_SIMD(Pel *ptrSrc,const ptrdiff_t srcStride,PelBuf &piPred,const uint32_t uiDirMode,const ClpRng& clpRng)
 {
-  const int            iWidth       = piPred.width;
-  const int            iHeight      = piPred.height;
-  PelBuf dstBuf = piPred;
-  Pel *pDst=dstBuf.buf;
-  const ptrdiff_t  dstStride=dstBuf.stride;
+  const int       iWidth    = piPred.width;
+  const int       iHeight   = piPred.height;
+  PelBuf          dstBuf    = piPred;
+  Pel*            pDst      = dstBuf.buf;
+  const ptrdiff_t dstStride = dstBuf.stride;
 
   const int scale = ((getLog2(iWidth) - 2 + getLog2(iHeight) - 2 + 2) >> 2);
   CHECK(scale < 0 || scale > 31, "PDPC: scale < 0 || scale > 2");
@@ -736,48 +735,56 @@ void  IntraPredSampleFilter_SIMD(Pel *ptrSrc,const ptrdiff_t srcStride,PelBuf &p
         }
         else //wT =0
         {
-          for (int x = 0; x < std::min(iWidth,16); x+=8)
+          for( int x = 0; x < std::min( iWidth, 16 ); x += 8 )
           {
-            if (x==0)
-              wl8=wl8start;
-            else if (x==8)
-              wl8=wl8start2;
+            if( x == 0 )
+              wl8 = wl8start;
+            else if( x == 8 )
+              wl8 = wl8start2;
 
-            __m128i x8dst =  _mm_loadu_si128((const __m128i *) (pDst+y*dstStride+x)); // load dst
+            __m128i x8dst;
+            if( iWidth >= 8 )
+              x8dst = _mm_loadu_si128( (const __m128i*)( pDst + y * dstStride + x ) );   // load dst
+            else if( iWidth == 4 )
+              x8dst = _mm_loadu_si64( (const __m128i*)( pDst + y * dstStride + x ) );    // load dst
+            else if( iWidth == 2 )
+              x8dst = _mm_loadu_si32( (const __m128i*)( pDst + y * dstStride + x ) );    // load dst
+            else
+              CHECK( true, "wrong iWidth in IntraPredSampleFilter_SIMD, only implemented for >=8, ==4, ==2" );
 
-            tmplo8 = _mm_mullo_epi16(x8left,wl8);  //wL * left
-            tmphi8 = _mm_mulhi_epi16(x8left,wl8);  //wL * left
-            __m128i leftlo8 = _mm_unpacklo_epi16(tmplo8,tmphi8);
-            __m128i lefthi8 = _mm_unpackhi_epi16(tmplo8,tmphi8);
 
+            tmplo8          = _mm_mullo_epi16( x8left, wl8 );   // wL * left
+            tmphi8          = _mm_mulhi_epi16( x8left, wl8 );   // wL * left
+            __m128i leftlo8 = _mm_unpacklo_epi16( tmplo8, tmphi8 );
+            __m128i lefthi8 = _mm_unpackhi_epi16( tmplo8, tmphi8 );
 
-            __m128i wX = _mm_sub_epi16(w64_8,wl8);
-            tmplo8 = _mm_mullo_epi16(x8dst,wX);    // 64-wL-wT*dst
-            tmphi8 = _mm_mulhi_epi16(x8dst,wX);    // 64-wL-wT*dst
-            __m128i dstlo8 = _mm_unpacklo_epi16(tmplo8,tmphi8);
-            __m128i dsthi8 = _mm_unpackhi_epi16(tmplo8,tmphi8);
+            __m128i wX     = _mm_sub_epi16( w64_8, wl8 );
+            tmplo8         = _mm_mullo_epi16( x8dst, wX );   // 64-wL-wT*dst
+            tmphi8         = _mm_mulhi_epi16( x8dst, wX );   // 64-wL-wT*dst
+            __m128i dstlo8 = _mm_unpacklo_epi16( tmplo8, tmphi8 );
+            __m128i dsthi8 = _mm_unpackhi_epi16( tmplo8, tmphi8 );
 
-            dstlo8 = _mm_add_epi32(dstlo8,leftlo8);
-            dsthi8 = _mm_add_epi32(dsthi8,lefthi8);
-            dstlo8 = _mm_add_epi32(dstlo8,w32_8);
-            dsthi8 = _mm_add_epi32(dsthi8,w32_8);
+            dstlo8 = _mm_add_epi32( dstlo8, leftlo8 );
+            dsthi8 = _mm_add_epi32( dsthi8, lefthi8 );
+            dstlo8 = _mm_add_epi32( dstlo8, w32_8 );
+            dsthi8 = _mm_add_epi32( dsthi8, w32_8 );
 
-            dstlo8 =  _mm_srai_epi32(dstlo8,6);
-            dsthi8 =  _mm_srai_epi32(dsthi8,6);
+            dstlo8 = _mm_srai_epi32( dstlo8, 6 );
+            dsthi8 = _mm_srai_epi32( dsthi8, 6 );
 
-            dstlo8 =  _mm_max_epi32(vbdmin8,dstlo8);
-            dsthi8 =  _mm_max_epi32(vbdmin8,dsthi8);
-            dstlo8 =  _mm_min_epi32(vbdmax8,dstlo8);
-            dsthi8 =  _mm_min_epi32(vbdmax8,dsthi8);
+            dstlo8 = _mm_max_epi32( vbdmin8, dstlo8 );
+            dsthi8 = _mm_max_epi32( vbdmin8, dsthi8 );
+            dstlo8 = _mm_min_epi32( vbdmax8, dstlo8 );
+            dsthi8 = _mm_min_epi32( vbdmax8, dsthi8 );
 
-            dstlo8 =  _mm_packs_epi32(dstlo8,dsthi8);
+            dstlo8 = _mm_packs_epi32( dstlo8, dsthi8 );
 
-            if (iWidth>=8)
-              _mm_storeu_si128(( __m128i * )(pDst+y*dstStride+x), (dstlo8) );
-            else if (iWidth==4)
-              _mm_storel_epi64(( __m128i * )(pDst+y*dstStride+x), (dstlo8) );
-            else if (iWidth==2)
-              _mm_storeu_si32(( __m128i * )(pDst+y*dstStride+x),(dstlo8) );
+            if( iWidth >= 8 )
+              _mm_storeu_si128( (__m128i*)( pDst + y * dstStride + x ), dstlo8 );
+            else if( iWidth == 4 )
+              _mm_storel_epi64( (__m128i*)( pDst + y * dstStride + x ), ( dstlo8 ) );
+            else if( iWidth == 2 )
+              _mm_storeu_si32( (__m128i*)( pDst + y * dstStride + x ), dstlo8 );
           }
         }
       }

@@ -1053,25 +1053,22 @@ LFCUParam LoopFilter::xGetLoopfilterParam( const CodingUnit& cu ) const
 
   const Position pos = cu.blocks[cu.chType()].pos();
 
-  LFCUParam stLFCUParam;                   ///< status structure
-  const PPS&   pps   = *cu.cs->pps;
+  const PPS& pps = *cu.cs->pps;
 #if JVET_O1143_LPF_ACROSS_SUBPIC_BOUNDARY
-  bool loopFilterAcrossEnabledFlag=1;
-  const SPS             &sps    = *cu.cs->sps;
-  
-  const CodingUnit& cuLeft  = ( pos.x > 0 && cu.left  == nullptr ) ? *cu.cs->getCU( pos.offset(-1, 0), cu.chType() ) : *cu.left;
-  const CodingUnit& cuAbove = ( pos.y > 0 && cu.above == nullptr ) ? *cu.cs->getCU( pos.offset(0, -1), cu.chType() ) : *cu.above;
+  const SPS& sps                         = *cu.cs->sps;
 
-  if (sps.getSubPicInfoPresentFlag())  
-  {
-    loopFilterAcrossEnabledFlag=pps.getSubPicFromCU(cu).getloopFilterAcrossEnabledFlag();
-  }
-  
-  stLFCUParam.leftEdge     = ( 0 < pos.x ) && isAvailable ( cu, cuLeft , !pps.getLoopFilterAcrossSlicesEnabledFlag(), !pps.getLoopFilterAcrossBricksEnabledFlag(), !loopFilterAcrossEnabledFlag );
-  stLFCUParam.topEdge      = ( 0 < pos.y ) && isAvailable ( cu, cuAbove, !pps.getLoopFilterAcrossSlicesEnabledFlag(), !pps.getLoopFilterAcrossBricksEnabledFlag(), !loopFilterAcrossEnabledFlag );
+  const CodingUnit& cuLeft  = ( pos.x > 0 && cu.left == nullptr ) ? *cu.cs->getCU( pos.offset( -1, 0 ), cu.chType() ) : *cu.left;
+  const CodingUnit& cuAbove = ( pos.y > 0 && cu.above == nullptr ) ? *cu.cs->getCU( pos.offset( 0, -1 ), cu.chType() ) : *cu.above;
+
+  const bool loopFilterAcrossSubPicEnabledFlag = !sps.getSubPicInfoPresentFlag() || pps.getSubPicFromCU( cu ).getloopFilterAcrossSubPicEnabledFlag();
+
+  LFCUParam stLFCUParam;   ///< status structure
+  stLFCUParam.leftEdge = ( 0 < pos.x ) && isAvailable( cu, cuLeft,  !pps.getLoopFilterAcrossSlicesEnabledFlag(), !pps.getLoopFilterAcrossTilesEnabledFlag(), !loopFilterAcrossSubPicEnabledFlag );
+  stLFCUParam.topEdge  = ( 0 < pos.y ) && isAvailable( cu, cuAbove, !pps.getLoopFilterAcrossSlicesEnabledFlag(), !pps.getLoopFilterAcrossTilesEnabledFlag(), !loopFilterAcrossSubPicEnabledFlag );
 #else
-  stLFCUParam.leftEdge     = ( 0 < pos.x ) && isAvailable ( cu, *cu.left , !pps.getLoopFilterAcrossSlicesEnabledFlag(), !pps.getLoopFilterAcrossBricksEnabledFlag());
-  stLFCUParam.topEdge      = ( 0 < pos.y ) && isAvailable ( cu, *cu.above, !pps.getLoopFilterAcrossSlicesEnabledFlag(), !pps.getLoopFilterAcrossBricksEnabledFlag());
+  LFCUParam stLFCUParam;   ///< status structure
+  stLFCUParam.leftEdge = ( 0 < pos.x ) && isAvailable( cu, *cu.left,  !pps.getLoopFilterAcrossSlicesEnabledFlag(), !pps.getLoopFilterAcrossTilesEnabledFlag() );
+  stLFCUParam.topEdge  = ( 0 < pos.y ) && isAvailable( cu, *cu.above, !pps.getLoopFilterAcrossSlicesEnabledFlag(), !pps.getLoopFilterAcrossTilesEnabledFlag() );
 #endif
   return stLFCUParam;
 }

@@ -85,7 +85,7 @@ class DecLib
   bool m_checkMissingOutput = false;
 
   std::vector<NalUnitType> m_pictureUnitNals;
-  std::list<InputNALUnit*> m_pictureSeiNalus;
+  std::list<InputNALUnit>  m_pictureSeiNalus;
 
 public:
 #if JVET_Q0044_SLICE_IDX_WITH_SUBPICS

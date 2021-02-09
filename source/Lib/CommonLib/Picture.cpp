@@ -228,7 +228,7 @@ void Picture::finalInit( const SPS *sps, const PPS *pps, PicHeader* picHeader, A
     cs->lmcsAps = lmcsAps ? lmcsAps->getSharedPtr() : nullptr;
   }
 
-  cs->pcv     = pps->pcv;
+  cs->pcv     = pps->pcv.get();
 
   cs->rebindPicBufs();
 
@@ -268,7 +268,7 @@ void Picture::allocateNewSlice()
   }
 }
 
-Slice *Picture::swapSliceObject( Slice* s, uint32_t i )
+Slice* Picture::swapSliceObject( Slice* s, uint32_t i )
 {
   s->setSPS( cs->sps.get() );
   s->setPPS( cs->pps.get() );
@@ -285,12 +285,10 @@ Slice *Picture::swapSliceObject( Slice* s, uint32_t i )
   return pTmp;
 }
 
-PicHeader *Picture::swapPicHead( PicHeader *ph )
+void Picture::setPicHead( const std::shared_ptr<PicHeader>& ph )
 {
-  PicHeader * pTmp = picHeader;
-  picHeader        = ph;
-  cs->picHeader    = ph;
-  return pTmp;
+  cs->picHeader   = ph.get();
+  this->picHeader = ph;
 }
 
 void Picture::clearSliceBuffer()

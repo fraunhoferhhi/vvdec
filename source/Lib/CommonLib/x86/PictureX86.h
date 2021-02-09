@@ -60,13 +60,6 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #ifdef TARGET_SIMD_X86
 
 
-
-#define _mm_storeu_si32(p, a) (void)(*(int*)(p) = _mm_cvtsi128_si32((a)))
-#ifndef _mm_loadu_si32
-#define _mm_loadu_si32(p) _mm_cvtsi32_si128(*(unsigned int const *)(p))
-#endif
-
-
 template<X86_VEXT vext>
 void paddPicBorderLeftRightSIMD(Pel *pi, ptrdiff_t stride,int width,int xmargin,int height)
 {

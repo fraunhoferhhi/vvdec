@@ -169,7 +169,7 @@ void DecCu::TaskDeriveDMVRMotionInfo( CodingStructure& cs, const UnitArea& ctuAr
       const int dy = std::min<int>( pu.lumaSize().height, DMVR_SUBCU_HEIGHT );
       const int dx = std::min<int>( pu.lumaSize().width,  DMVR_SUBCU_WIDTH );
       
-      static constexpr unsigned scale = 4 * std::max<int>(1, 4 * AMVP_DECIMATION_FACTOR / 4);
+      static constexpr unsigned scale = 4 * AMVP_DECIMATION_FACTOR;
       static constexpr unsigned mask  = scale - 1;
 
       const Position puPos = pu.lumaPos();
@@ -420,16 +420,16 @@ void DecCu::predAndReco( CodingUnit& cu, bool doCiipIntra )
 
     if( cu.ciipFlag() && doCiipIntra )
     {
-      m_pcIntraPred->geneWeightedPred( COMPONENT_Y,    predBuf.Y(),  cu, m_pcIntraPred->getPredictorPtr2( COMPONENT_Y,  0 ) );
+      m_pcIntraPred->geneWeightedPred( COMPONENT_Y, predBuf.Y(), cu, m_pcIntraPred->getPredictorPtr2( COMPONENT_Y ) );
 
-#if JVET_Q0438_MONOCHROME_BUGFIXES
+#if JVET_Q0438_MONOCHROME_BUGFIXES                                                                                     
       if( isChromaEnabled( cu.chromaFormat ) && cu.chromaSize().width > 2 )
-#else
+#else                                                                                                                  
       if( cu.chromaSize().width > 2 )
-#endif
+#endif                                                                                                                 
       {
-        m_pcIntraPred->geneWeightedPred( COMPONENT_Cb, predBuf.Cb(), cu, m_pcIntraPred->getPredictorPtr2( COMPONENT_Cb, 0 ) );
-        m_pcIntraPred->geneWeightedPred( COMPONENT_Cr, predBuf.Cr(), cu, m_pcIntraPred->getPredictorPtr2( COMPONENT_Cr, 0 ) );
+        m_pcIntraPred->geneWeightedPred( COMPONENT_Cb, predBuf.Cb(), cu, m_pcIntraPred->getPredictorPtr2( COMPONENT_Cb ) );
+        m_pcIntraPred->geneWeightedPred( COMPONENT_Cr, predBuf.Cr(), cu, m_pcIntraPred->getPredictorPtr2( COMPONENT_Cr ) );
       }
     }
 

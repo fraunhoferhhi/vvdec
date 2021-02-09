@@ -727,6 +727,7 @@ void SEISubpicureLevelInfo::copyTo (vvdec::seiSubpicureLevelInfo& target) const
 // Static member
 const char *SEI::getSEIMessageString(SEI::PayloadType payloadType)
 {
+  GCC_EXTRA_WARNING_switch_enum
   switch (payloadType)
   {
     case SEI::BUFFERING_PERIOD:                     return "Buffering period";
@@ -738,23 +739,25 @@ const char *SEI::getSEIMessageString(SEI::PayloadType payloadType)
     case SEI::FRAME_PACKING:                        return "Frame packing arrangement";
     case SEI::PARAMETER_SETS_INCLUSION_INDICATION:  return "Parameter sets inclusion indication";
     case SEI::DECODING_UNIT_INFO:                   return "Decoding unit information";
-    case SEI::SCALABLE_NESTING:                     return "Scalable nesting";
     case SEI::DECODED_PICTURE_HASH:                 return "Decoded picture hash";
-    case SEI::DEPENDENT_RAP_INDICATION:             return "Dependent RAP indication";
+    case SEI::SCALABLE_NESTING:                     return "Scalable nesting";
     case SEI::MASTERING_DISPLAY_COLOUR_VOLUME:      return "Mastering display colour volume";
-#if U0033_ALTERNATIVE_TRANSFER_CHARACTERISTICS_SEI
-    case SEI::ALTERNATIVE_TRANSFER_CHARACTERISTICS: return "Alternative transfer characteristics";
-#endif
-    case SEI::CONTENT_LIGHT_LEVEL_INFO:             return "Content light level information";
-    case SEI::AMBIENT_VIEWING_ENVIRONMENT:          return "Ambient viewing environment";
-    case SEI::CONTENT_COLOUR_VOLUME:                return "Content colour volume";
+    case SEI::DEPENDENT_RAP_INDICATION:             return "Dependent RAP indication";
     case SEI::EQUIRECTANGULAR_PROJECTION:           return "Equirectangular projection";
     case SEI::SPHERE_ROTATION:                      return "Sphere rotation";
     case SEI::REGION_WISE_PACKING:                  return "Region wise packing information";
     case SEI::OMNI_VIEWPORT:                        return "Omni viewport";
     case SEI::GENERALIZED_CUBEMAP_PROJECTION:       return "Generalized cubemap projection";
-    case SEI::SAMPLE_ASPECT_RATIO_INFO:             return "Sample aspect ratio information";
+    case SEI::FRAME_FIELD_INFO:                     return "Frame field information";
     case SEI::SUBPICTURE_LEVEL_INFO:                return "Subpicture level information";
+    case SEI::SAMPLE_ASPECT_RATIO_INFO:             return "Sample aspect ratio information";
+    case SEI::CONTENT_LIGHT_LEVEL_INFO:             return "Content light level information";
+#if U0033_ALTERNATIVE_TRANSFER_CHARACTERISTICS_SEI
+    case SEI::ALTERNATIVE_TRANSFER_CHARACTERISTICS: return "Alternative transfer characteristics";
+#endif
+    case SEI::AMBIENT_VIEWING_ENVIRONMENT:          return "Ambient viewing environment";
+    case SEI::CONTENT_COLOUR_VOLUME:                return "Content colour volume";
     default:                                        return "Unknown";
   }
+  GCC_WARNING_RESET
 }

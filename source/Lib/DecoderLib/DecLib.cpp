@@ -197,11 +197,8 @@ Picture* DecLib::decode( InputNALUnit& nalu, int* pSkipFrame )
     this->decompressPicture( pcParsedPic );
   }
 
-  if(      pcParsedPic
-      ||   nalu.m_nalUnitType == NAL_UNIT_EOS
-      || ( nalu.m_nalUnitType >= NAL_UNIT_CODED_SLICE_TRAIL      && nalu.m_nalUnitType <= NAL_UNIT_RESERVED_IRAP_VCL_12 )
-      || ( nalu.m_nalUnitType >= NAL_UNIT_CODED_SLICE_IDR_W_RADL && nalu.m_nalUnitType <= NAL_UNIT_CODED_SLICE_GDR )
-    )
+  if( m_decLibParser.getParseNewPicture() &&
+      ( pcParsedPic || nalu.isSlice() || nalu.m_nalUnitType == NAL_UNIT_EOS ) )
   {
     Picture* outPic = getNextOutputPic( false );
     CHECK_WARN( m_checkMissingOutput && !outPic, "missing output picture" ); // we don't need this CHECK in flushPic(), because flushPic() is usually only called until the first nullptr is returned
@@ -492,7 +489,7 @@ void DecLib::checkSeiInPictureUnit()
   // extract SEI messages from NAL units
   for( auto &sei : m_pictureSeiNalus )
   {
-    InputBitstream bs = sei->getBitstream();
+    InputBitstream bs = sei.getBitstream();
 
     do
     {
@@ -577,11 +574,7 @@ void DecLib::checkSeiInPictureUnit()
  */
 void DecLib::resetPictureSeiNalus()
 {
-  while( !m_pictureSeiNalus.empty() )
-  {
-    delete m_pictureSeiNalus.front();
-    m_pictureSeiNalus.pop_front();
-  }
+  m_pictureSeiNalus.clear();
 }
 
 void DecLib::checkAPSInPictureUnit()

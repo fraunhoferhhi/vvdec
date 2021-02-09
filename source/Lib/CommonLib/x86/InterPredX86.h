@@ -698,7 +698,7 @@ void gradFilter_SSE( int16_t* src, ptrdiff_t _srcStride, int width, int height, 
       {
         __m128i mmPixTop    = _mm_srai_epi16( _mm_loadu_si128( ( __m128i* )( srcTmp + x - srcStride ) ), shift1 );
         __m128i mmPixBottom = _mm_srai_epi16( _mm_loadu_si128( ( __m128i* )( srcTmp + x + srcStride ) ), shift1 );
-        __m128i mmPixLeft   = _mm_srai_epi16( _mm_load_si128 ( ( __m128i* )( srcTmp + x - 1 ) ),         shift1 );
+        __m128i mmPixLeft   = _mm_srai_epi16( _mm_loadu_si128( ( __m128i* )( srcTmp + x - 1 ) ),         shift1 );
         __m128i mmPixRight  = _mm_srai_epi16( _mm_loadu_si128( ( __m128i* )( srcTmp + x + 1 ) ),         shift1 );
 
         __m128i mmGradVer = _mm_sub_epi16( mmPixBottom, mmPixTop );

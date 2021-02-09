@@ -70,6 +70,14 @@ To run the simple conformance test suite (if the bitstreams are downloaded and a
 
     make test
 
+# Contributing
+
+Feel free to contribute. To do so:
+
+* Fork the current-most state of the master branch
+* Apply the desired changes
+* Create a pull-request to the upstream repository
+
 # License
 
 Please see [LICENSE.txt](./LICENSE.txt) file for the terms of use of the contents of this repository.
