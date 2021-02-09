@@ -174,22 +174,22 @@ public:
   int                   m_projPictureHeight              = 0;
   int                   m_packedPictureWidth             = 0;
   int                   m_packedPictureHeight            = 0;
-  std::vector<uint8_t>  m_rwpTransformType;
-  std::vector<bool>     m_rwpGuardBandFlag;
-  std::vector<uint32_t> m_projRegionWidth;
-  std::vector<uint32_t> m_projRegionHeight;
-  std::vector<uint32_t> m_rwpProjRegionTop;
-  std::vector<uint32_t> m_projRegionLeft;
-  std::vector<uint16_t> m_packedRegionWidth;
-  std::vector<uint16_t> m_packedRegionHeight;
-  std::vector<uint16_t> m_packedRegionTop;
-  std::vector<uint16_t> m_packedRegionLeft;
-  std::vector<uint8_t>  m_rwpLeftGuardBandWidth;
-  std::vector<uint8_t>  m_rwpRightGuardBandWidth;
-  std::vector<uint8_t>  m_rwpTopGuardBandHeight;
-  std::vector<uint8_t>  m_rwpBottomGuardBandHeight;
-  std::vector<bool>     m_rwpGuardBandNotUsedForPredFlag;
-  std::vector<uint8_t>  m_rwpGuardBandType;
+  std::vector<uint8_t>  m_rwpTransformType               = {};
+  std::vector<bool>     m_rwpGuardBandFlag               = {};
+  std::vector<uint32_t> m_projRegionWidth                = {};
+  std::vector<uint32_t> m_projRegionHeight               = {};
+  std::vector<uint32_t> m_rwpProjRegionTop               = {};
+  std::vector<uint32_t> m_projRegionLeft                 = {};
+  std::vector<uint16_t> m_packedRegionWidth              = {};
+  std::vector<uint16_t> m_packedRegionHeight             = {};
+  std::vector<uint16_t> m_packedRegionTop                = {};
+  std::vector<uint16_t> m_packedRegionLeft               = {};
+  std::vector<uint8_t>  m_rwpLeftGuardBandWidth          = {};
+  std::vector<uint8_t>  m_rwpRightGuardBandWidth         = {};
+  std::vector<uint8_t>  m_rwpTopGuardBandHeight          = {};
+  std::vector<uint8_t>  m_rwpBottomGuardBandHeight       = {};
+  std::vector<bool>     m_rwpGuardBandNotUsedForPredFlag = {};
+  std::vector<uint8_t>  m_rwpGuardBandType               = {};
 };
 
 class VVDEC_DECL seiGeneralizedCubemapProjection : public seimsg
@@ -200,16 +200,16 @@ public:
   seiGeneralizedCubemapProjection()  {}
   virtual ~seiGeneralizedCubemapProjection() {}
 
-  bool                 m_gcmpCancelFlag                     = false;
-  bool                 m_gcmpPersistenceFlag                = false;
-  uint8_t              m_gcmpPackingType                    = 0;
-  uint8_t              m_gcmpMappingFunctionType            = 0;
-  std::vector<uint8_t> m_gcmpFaceIndex = {};
-  std::vector<uint8_t> m_gcmpFaceRotation = {};
-  std::vector<uint8_t> m_gcmpFunctionCoeffU = {};
-  std::vector<bool>    m_gcmpFunctionUAffectedByVFlag = {};
-  std::vector<uint8_t> m_gcmpFunctionCoeffV  = {};
-  std::vector<bool>    m_gcmpFunctionVAffectedByUFlag = {};
+  bool                 m_gcmpCancelFlag                    = false;
+  bool                 m_gcmpPersistenceFlag               = false;
+  uint8_t              m_gcmpPackingType                   = 0;
+  uint8_t              m_gcmpMappingFunctionType           = 0;
+  std::vector<uint8_t> m_gcmpFaceIndex                     = {};
+  std::vector<uint8_t> m_gcmpFaceRotation                  = {};
+  std::vector<uint8_t> m_gcmpFunctionCoeffU                = {};
+  std::vector<bool>    m_gcmpFunctionUAffectedByVFlag      = {};
+  std::vector<uint8_t> m_gcmpFunctionCoeffV                = {};
+  std::vector<bool>    m_gcmpFunctionVAffectedByUFlag      = {};
   bool                 m_gcmpGuardBandFlag                 = false;
   uint8_t              m_gcmpGuardBandType                 = 0;
   bool                 m_gcmpGuardBandBoundaryExteriorFlag = false;
@@ -255,7 +255,7 @@ public:
 
   struct PictureHash
   {
-    std::vector<uint8_t> hash;
+    std::vector<uint8_t> hash = {};
 
     bool operator==(const PictureHash &other) const
     {
@@ -390,7 +390,7 @@ public:
   std::vector<std::vector<uint32_t>> m_nalCpbAltInitialRemovalOffsetDelta = {};
   std::vector<uint32_t>              m_nalCpbDelayOffset = {};
   std::vector<uint32_t>              m_nalDpbDelayOffset = {};
-  std::vector<std::vector<uint32_t>> m_vclCpbAltInitialRemovalDelayDelta = {};
+  std::vector<std::vector<uint32_t>> m_vclCpbAltInitialRemovalDelayDelta  = {};
   std::vector<std::vector<uint32_t>> m_vclCpbAltInitialRemovalOffsetDelta = {};
   std::vector<uint32_t>              m_vclCpbDelayOffset = {};
   std::vector<uint32_t>              m_vclDpbDelayOffset = {};
@@ -518,7 +518,7 @@ public:
   uint8_t   m_snLayerId[64];              //value valid if m_nestingOlsFlag == 0 and m_nestingAllLayersFlag == 0. This can e.g. be a static array of 64 uint8_t values
   uint32_t  m_snNumSubpics      = 0;
   uint8_t   m_snSubpicIdLen     = 0;
-  std::vector<uint16_t> m_snSubpicId;
+  std::vector<uint16_t> m_snSubpicId = {};
   uint32_t  m_snNumSEIs         = 0;
 
   std::list<seimsg*> m_nestedSEIs;
@@ -547,7 +547,7 @@ public:
   virtual ~seiUserDataRegistered() {}
 
   uint16_t             m_ituCountryCode = 0;
-  std::vector<uint8_t> m_userData;
+  std::vector<uint8_t> m_userData       = {};
 };
 
 class VVDEC_DECL seiFilmGrainCharacteristics : public seimsg
@@ -574,14 +574,14 @@ public:
   {
     uint8_t intensityIntervalLowerBound = 0;
     uint8_t intensityIntervalUpperBound = 0;
-    std::vector<int> compModelValue;
+    std::vector<int> compModelValue     = {};
   };
 
   struct CompModel
   {
     bool    presentFlag;
     uint8_t numModelValues;
-    std::vector<CompModelIntensityValues> intensityValues;
+    std::vector<CompModelIntensityValues> intensityValues = {};
   };
 
   CompModel m_compModel[3];
@@ -672,9 +672,9 @@ public:
   int       m_numSubpics                  = 0;
   int       m_sliMaxSublayers             = 0;
   bool      m_sliSublayerInfoPresentFlag  = false;
-  std::vector<std::vector<int>>              m_nonSubpicLayersFraction;
-  std::vector<std::vector<VvcLevel>>         m_refLevelIdc;
-  std::vector<std::vector<std::vector<int>>> m_refLevelFraction;
+  std::vector<std::vector<int>>              m_nonSubpicLayersFraction = {};
+  std::vector<std::vector<VvcLevel>>         m_refLevelIdc             = {};
+  std::vector<std::vector<std::vector<int>>> m_refLevelFraction        = {};
 };
 
 } // namespace
