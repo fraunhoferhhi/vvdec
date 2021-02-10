@@ -173,21 +173,20 @@ bool AdaptiveLoopFilter::isCrossedByVirtualBoundaries( const CodingStructure& cs
   bool loopFilterAcrossSubPicEnabledFlag = 1;
   if( sps->getSubPicInfoPresentFlag() )
   {
-    const SubPic& curSubPic           = pps->getSubPicFromPos( currCtuPos );
-    loopFilterAcrossSubPicEnabledFlag = curSubPic.getloopFilterAcrossSubPicEnabledFlag();
+    loopFilterAcrossSubPicEnabledFlag = pps->getSubPicFromPos( currCtuPos ).getloopFilterAcrossSubPicEnabledFlag();
   }
 #endif
+
   // top
   if( area.y >= ctuSize && clipTop == false )
   {
     const Position    prevCtuPos( area.x, area.y - ctuSize );
     const CodingUnit* prevCtu = cs.getCU( prevCtuPos, CHANNEL_TYPE_LUMA );
-    if( ( !pps->getLoopFilterAcrossSlicesEnabledFlag() && !CU::isSameSlice( *currCtu, *prevCtu ) )
-        || ( !pps->getLoopFilterAcrossTilesEnabledFlag() && !CU::isSameTile( *currCtu, *prevCtu ) )
-#if JVET_O1143_LPF_ACROSS_SUBPIC_BOUNDARY
-        || ( !loopFilterAcrossSubPicEnabledFlag && !CU::isSameSubPic( *currCtu, *prevCtu ) )
-#endif
-    )
+    if( !CU::isAvailable( *currCtu,
+                          *prevCtu,
+                          !pps->getLoopFilterAcrossSlicesEnabledFlag(),
+                          !pps->getLoopFilterAcrossTilesEnabledFlag(),
+                          !loopFilterAcrossSubPicEnabledFlag ) )
     {
       clipTop = true;
     }
@@ -198,12 +197,11 @@ bool AdaptiveLoopFilter::isCrossedByVirtualBoundaries( const CodingStructure& cs
   {
     const Position    nextCtuPos( area.x, area.y + ctuSize );
     const CodingUnit* nextCtu = cs.getCU( nextCtuPos, CHANNEL_TYPE_LUMA );
-    if ((!pps->getLoopFilterAcrossSlicesEnabledFlag() && !CU::isSameSlice(*currCtu, *nextCtu)) ||
-        (!pps->getLoopFilterAcrossTilesEnabledFlag()  && !CU::isSameTile(*currCtu,  *nextCtu))
-#if JVET_O1143_LPF_ACROSS_SUBPIC_BOUNDARY
-        || ( !loopFilterAcrossSubPicEnabledFlag && !CU::isSameSubPic( *currCtu, *nextCtu ) )
-#endif
-    )
+    if( !CU::isAvailable( *currCtu,
+                          *nextCtu,
+                          !pps->getLoopFilterAcrossSlicesEnabledFlag(),
+                          !pps->getLoopFilterAcrossTilesEnabledFlag(),
+                          !loopFilterAcrossSubPicEnabledFlag ) )
     {
       clipBottom = true;
     }
@@ -214,12 +212,11 @@ bool AdaptiveLoopFilter::isCrossedByVirtualBoundaries( const CodingStructure& cs
   {
     const Position    prevCtuPos( area.x - ctuSize, area.y );
     const CodingUnit* prevCtu = cs.getCU( prevCtuPos, CHANNEL_TYPE_LUMA );
-    if( ( !pps->getLoopFilterAcrossSlicesEnabledFlag() && !CU::isSameSlice( *currCtu, *prevCtu ) )
-        || ( !pps->getLoopFilterAcrossTilesEnabledFlag() && !CU::isSameTile( *currCtu, *prevCtu ) )
-#if JVET_O1143_LPF_ACROSS_SUBPIC_BOUNDARY
-        || ( !loopFilterAcrossSubPicEnabledFlag && !CU::isSameSubPic( *currCtu, *prevCtu ) )
-#endif
-    )
+    if( !CU::isAvailable( *currCtu,
+                          *prevCtu,
+                          !pps->getLoopFilterAcrossSlicesEnabledFlag(),
+                          !pps->getLoopFilterAcrossTilesEnabledFlag(),
+                          !loopFilterAcrossSubPicEnabledFlag ) )
     {
       clipLeft = true;
     }
@@ -230,12 +227,12 @@ bool AdaptiveLoopFilter::isCrossedByVirtualBoundaries( const CodingStructure& cs
   {
     const Position    nextCtuPos( area.x + ctuSize, area.y );
     const CodingUnit* nextCtu = cs.getCU( nextCtuPos, CHANNEL_TYPE_LUMA );
-    if ((!pps->getLoopFilterAcrossSlicesEnabledFlag() && !CU::isSameSlice(*currCtu, *nextCtu)) ||
-        (!pps->getLoopFilterAcrossTilesEnabledFlag()  && !CU::isSameTile(*currCtu,  *nextCtu))
-#if JVET_O1143_LPF_ACROSS_SUBPIC_BOUNDARY
-        || ( !loopFilterAcrossSubPicEnabledFlag && !CU::isSameSubPic( *currCtu, *nextCtu ) )
-#endif
-    )
+
+    if( !CU::isAvailable( *currCtu,
+                          *nextCtu,
+                          !pps->getLoopFilterAcrossSlicesEnabledFlag(),
+                          !pps->getLoopFilterAcrossTilesEnabledFlag(),
+                          !loopFilterAcrossSubPicEnabledFlag ) )
     {
       clipRight = true;
     }

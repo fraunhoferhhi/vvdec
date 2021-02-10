@@ -106,7 +106,6 @@ private:
   template <X86_VEXT vext>
   void _initLoopFilterX86();
 #endif
-  inline bool isCrossedByVirtualBoundaries( const PicHeader* picHeader, const Area& area, int& numHorVirBndry, int& numVerVirBndry, int horVirBndryPos[], int verVirBndryPos[] ) const;
   inline void xDeriveEdgefilterParam( const Position pos, const int numVerVirBndry, const int numHorVirBndry, const int verVirBndryPos[], const int horVirBndryPos[], bool& verEdgeFilter, bool& horEdgeFilter ) const;
 
 public:

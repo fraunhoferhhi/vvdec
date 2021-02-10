@@ -266,6 +266,13 @@ bool CU::isSameCtu(const CodingUnit& cu, const CodingUnit& cu2)
   return pos1Ctu.x == pos2Ctu.x && pos1Ctu.y == pos2Ctu.y;
 }
 
+bool CU::isAvailable( const CodingUnit& cu, const CodingUnit& cu2, const bool bEnforceSliceRestriction, const bool bEnforceTileRestriction, const bool bEnforceSubPicRestriction )
+{
+  return ( !bEnforceSliceRestriction || CU::isSameSlice( cu, cu2 ) )
+         && ( !bEnforceTileRestriction || CU::isSameTile( cu, cu2 ) )
+         && ( !bEnforceSubPicRestriction || CU::isSameSubPic( cu, cu2 ) );
+}
+
 uint32_t CU::getCtuAddr( const CodingUnit &cu )
 {
   return getCtuAddr( cu.blocks[cu.chType()].lumaPos( cu.chromaFormat ), *cu.cs->pcv );
@@ -3952,4 +3959,36 @@ bool PU::isRefPicSameSize( const PredictionUnit& pu )
   }
 
   return samePicSize;
+}
+
+bool isCrossedByVirtualBoundaries( const PicHeader* picHeader,
+                                   const Area&      area,
+                                   int&             numHorVirBndry,
+                                   int&             numVerVirBndry,
+                                   int              horVirBndryPos[],
+                                   int              verVirBndryPos[] )
+{
+  numHorVirBndry = 0;
+  numVerVirBndry = 0;
+  if( !picHeader->getVirtualBoundariesPresentFlag() )
+  {
+    return false;
+  }
+
+  for( int i = 0; i < picHeader->getNumHorVirtualBoundaries(); i++ )
+  {
+    if( area.y <= picHeader->getVirtualBoundariesPosY( i ) && picHeader->getVirtualBoundariesPosY( i ) <= area.y + area.height )
+    {
+      horVirBndryPos[numHorVirBndry++] = picHeader->getVirtualBoundariesPosY( i );
+    }
+  }
+  for( int i = 0; i < picHeader->getNumVerVirtualBoundaries(); i++ )
+  {
+    if( area.x <= picHeader->getVirtualBoundariesPosX( i ) && picHeader->getVirtualBoundariesPosX( i ) <= area.x + area.width )
+    {
+      verVirBndryPos[numVerVirBndry++] = picHeader->getVirtualBoundariesPosX( i );
+    }
+  }
+
+  return numHorVirBndry > 0 || numVerVirBndry > 0;
 }
