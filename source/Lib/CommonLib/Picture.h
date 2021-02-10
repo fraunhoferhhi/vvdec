@@ -91,6 +91,11 @@ struct Picture : public UnitArea
          PelUnitBuf getRecoBuf(bool wrap=false);
   const CPelUnitBuf getRecoBuf(bool wrap=false) const;
 
+  const CPelBuf    getSubPicBuf      ( int subPicIdx, const ComponentID compID, bool wrap = false ) const { CHECK(wrap, "wraparound for subpics not supported yet"); return m_subPicBufs[subPicIdx].bufs[compID];        }
+  const  Pel*      getSubPicBufPtr   ( int subPicIdx, const ComponentID compID, bool wrap = false ) const { CHECK(wrap, "wraparound for subpics not supported yet"); return m_subPicBufs[subPicIdx].bufs[compID].buf;    }
+  const  ptrdiff_t getSubPicBufStride( int subPicIdx, const ComponentID compID, bool wrap = false ) const { CHECK(wrap, "wraparound for subpics not supported yet"); return m_subPicBufs[subPicIdx].bufs[compID].stride; }
+
+private:
          PelBuf     getBuf(const ComponentID compID, const PictureType &type)       { return m_bufs[type].bufs[ compID ]; }
   const CPelBuf     getBuf(const ComponentID compID, const PictureType &type) const { return m_bufs[type].bufs[ compID ]; }
          PelBuf     getBuf(const CompArea &blk,      const PictureType &type);
@@ -98,6 +103,7 @@ struct Picture : public UnitArea
          PelUnitBuf getBuf(const UnitArea &unit,     const PictureType &type);
   const CPelUnitBuf getBuf(const UnitArea &unit,     const PictureType &type) const;
 
+public:
   void extendPicBorder( bool top = true, bool bottom = true, bool leftrightT = true, bool leftrightB = true, ChannelType chType = MAX_NUM_CHANNEL_TYPE );
   void (*paddPicBorderBot) (Pel *pi, ptrdiff_t stride,int width,int xmargin,int ymargin);
   void (*paddPicBorderTop) (Pel *pi, ptrdiff_t stride,int width,int xmargin,int ymargin);
@@ -135,7 +141,9 @@ struct Picture : public UnitArea
   static void   rescalePicture(const CPelUnitBuf& beforeScaling, const Window& confBefore, const PelUnitBuf& afterScaling, const Window& confAfter, const ChromaFormat chromaFormatIDC, const BitDepths& bitDepths, const bool useLumaFilter, const bool downsampling = false);
 #endif
 public:
-#if JVET_O1143_MV_ACROSS_SUBPIC_BOUNDARY  
+#if JVET_O1143_MV_ACROSS_SUBPIC_BOUNDARY
+  std::vector<PelStorage> m_subPicBufs;
+
   bool m_isSubPicBorderSaved = false;
 
   PelStorage m_bufSubPicAbove;
@@ -147,6 +155,7 @@ public:
   PelStorage m_bufWrapSubPicBelow;
 
   void    saveSubPicBorder( int subPicX0, int subPicY0, int subPicWidth, int subPicHeight );
+  void  extendSubPicBorder( const PelStorage& subPicBuf, Area subPicArea );
   void  extendSubPicBorder( int subPicX0, int subPicY0, int subPicWidth, int subPicHeight );
   void restoreSubPicBorder( int subPicX0, int subPicY0, int subPicWidth, int subPicHeight );
 

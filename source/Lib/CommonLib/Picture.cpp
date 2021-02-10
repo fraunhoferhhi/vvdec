@@ -117,6 +117,8 @@ void Picture::resetForUse()
 {
   CHECK( lockedByApplication, "the picture can not be re-used, because it has not been unlocked by the application." );
 
+  m_subPicBufs.clear();
+
   isBorderExtended = false;
 #if JVET_Q0764_WRAP_AROUND_WITH_RPR
   wrapAroundValid  = false;
@@ -856,6 +858,100 @@ void Picture::saveSubPicBorder( int subPicX0, int subPicY0, int subPicWidth, int
   }
 
   m_isSubPicBorderSaved = true;
+}
+
+void Picture::extendSubPicBorder( const PelStorage& subPicBuf, Area subPicArea )
+{
+  for (int comp = 0; comp < getNumberValidComponents(cs->area.chromaFormat); comp++)
+  {
+    ComponentID compID = ComponentID(comp);
+
+    // 2.1 measure the margin for each component
+    int xmargin = margin >> getComponentScaleX(compID, cs->area.chromaFormat);
+    int ymargin = margin >> getComponentScaleY(compID, cs->area.chromaFormat);
+
+    // 2.2 calculate the origin of the Subpicture
+    int left = subPicArea.x >> getComponentScaleX(compID, cs->area.chromaFormat);
+    int top  = subPicArea.y >> getComponentScaleY( compID, cs->area.chromaFormat );
+
+    // 2.3 calculate the width/height of the Subpicture
+    int width  = subPicArea.width >> getComponentScaleX( compID, cs->area.chromaFormat );
+    int height = subPicArea.height >> getComponentScaleY( compID, cs->area.chromaFormat );
+
+    // 3.1 set reconstructed picture
+    PelBuf s = subPicBuf.get(compID);
+    Pel *src = s.bufAt(left, top);
+
+    // 4.1 apply padding for left and right
+    {
+      Pel *dstLeft  = src - xmargin;
+      Pel *dstRight = src + width;
+      Pel *srcLeft  = src + 0;
+      Pel *srcRight = src + width - 1;
+
+      for (int y = 0; y < height; y++)
+      {
+        for (int x = 0; x < xmargin; x++)
+        {
+          dstLeft[x]  = *srcLeft;
+          dstRight[x] = *srcRight;
+        }
+        dstLeft  += s.stride;
+        dstRight += s.stride;
+        srcLeft  += s.stride;
+        srcRight += s.stride;
+      }
+    }
+
+    // 4.2 apply padding on bottom
+    Pel *srcBottom = src + s.stride * (height - 1) - xmargin;
+    Pel *dstBottom = srcBottom + s.stride;
+    for (int y = 0; y < ymargin; y++)
+    {
+      ::memcpy(dstBottom, srcBottom, sizeof(Pel)*(2 * xmargin + width));
+      dstBottom += s.stride;
+    }
+
+    // 4.3 apply padding for top
+    // si is still (-marginX, SubpictureHeight-1)
+    Pel *srcTop = src - xmargin;
+    Pel *dstTop = srcTop - s.stride;
+    // si is now (-marginX, 0)
+    for (int y = 0; y < ymargin; y++)
+    {
+      ::memcpy(dstTop, srcTop, sizeof(Pel)*(2 * xmargin + width));
+      dstTop -= s.stride;
+    }
+
+    CHECK( cs->sps->getUseWrapAround(), "Wraparound + subpics not implemented" );
+//    // Appy padding for recon wrap buffer
+//    if (cs->sps->getUseWrapAround())
+//    {
+//      // set recon wrap picture
+//      PelBuf sWrap = m_bufs[PIC_RECON_WRAP].get(compID);
+//      Pel *srcWrap = sWrap.bufAt(left, top);
+
+//      // apply padding on bottom
+//      Pel *srcBottomWrap = srcWrap + sWrap.stride * (height - 1) - xmargin;
+//      Pel *dstBottomWrap = srcBottomWrap + sWrap.stride;
+//      for (int y = 0; y < ymargin; y++)
+//      {
+//        ::memcpy(dstBottomWrap, srcBottomWrap, sizeof(Pel)*(2 * xmargin + width));
+//        dstBottomWrap += sWrap.stride;
+//      }
+
+//      // apply padding for top
+//      // si is still (-marginX, SubpictureHeight-1)
+//      Pel *srcTopWrap = srcWrap - xmargin;
+//      Pel *dstTopWrap = srcTopWrap - sWrap.stride;
+//      // si is now (-marginX, 0)
+//      for (int y = 0; y < ymargin; y++)
+//      {
+//        ::memcpy(dstTopWrap, srcTopWrap, sizeof(Pel)*(2 * xmargin + width));
+//        dstTopWrap -= sWrap.stride;
+//      }
+//    }
+  } // end of for
 }
 
 void Picture::extendSubPicBorder( int subPicX0, int subPicY0, int subPicWidth, int subPicHeight )

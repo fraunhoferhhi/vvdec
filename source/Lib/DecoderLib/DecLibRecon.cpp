@@ -335,6 +335,47 @@ void DecLibRecon::decompressPicture( Picture* pcPic )
     }
   }
 
+  if( cs.pps->getNumSubPics() > 1 )
+  {
+    for( int iDir = REF_PIC_LIST_0; iDir < NUM_REF_PIC_LIST_01; ++iDir )
+    {
+      for( int iRefIdx = 0; iRefIdx < pcPic->slices[0]->getNumRefIdx( (RefPicList)iDir ); iRefIdx++ )
+      {
+        Picture* refPic = const_cast<Picture*>( pcPic->slices[0]->getRefPic( (RefPicList)iDir, iRefIdx ) );
+
+        const int numSubPic = cs.pps->getNumSubPics();
+        if( refPic->m_subPicBufs.size() == numSubPic )
+        {
+          continue;
+        }
+        CHECK( !refPic->m_subPicBufs.empty(), "wrong number of subpics already present in reference picture" );
+
+        refPic->done.wait();
+        refPic->m_borderExtTaskCounter.wait();
+
+        refPic->m_subPicBufs.resize( numSubPic );
+        for( int i = 0; i < numSubPic; ++i )
+        {
+          const SubPic& curSubPic = cs.pps->getSubPic( i );
+
+          refPic->m_subPicBufs[i].create( refPic->getRecoBuf().chromaFormat,
+                                          refPic->getRecoBuf().Y(),
+                                          cs.sps->getMaxCUWidth(),
+                                          refPic->margin,
+                                          MEMORY_ALIGN_DEF_SIZE );
+
+          Area subPicArea( curSubPic.getSubPicLeft(),
+                           curSubPic.getSubPicTop(),
+                           curSubPic.getSubPicWidthInLumaSample(),
+                           curSubPic.getSubPicHeightInLumaSample() );
+
+          refPic->m_subPicBufs[i].subBuf( subPicArea ).copyFrom( refPic->getRecoBuf().subBuf( subPicArea ) );
+          refPic->extendSubPicBorder( refPic->m_subPicBufs[i], subPicArea );
+        }
+      }
+    }
+  }
+
   if( m_decodeThreadPool->numThreads() == 0 && (
        std::any_of( picExtBarriers.cbegin(), picExtBarriers.cend(), []( const Barrier* b ) { return b->isBlocked(); } ) ||
        std::any_of( picBarriers   .cbegin(), picBarriers   .cend(), []( const Barrier* b ) { return b->isBlocked(); } ) ) )
@@ -344,14 +385,7 @@ void DecLibRecon::decompressPicture( Picture* pcPic )
 
   const bool isIntra = pcPic->slices[0]->isIntra();
 
-  int numColPerTask = std::max( std::min( widthInCtus, ( widthInCtus / std::max( m_numDecThreads * ( isIntra ? 2 : 1 ), 1 ) ) + ( isIntra ? 0 : 1 ) ), 1 );
-#if JVET_O1143_MV_ACROSS_SUBPIC_BOUNDARY
-  // TODO: (GH) remove this when we can properly handle multithreaded subpicture padding
-  if( cs.sps->getNumSubPics() > 1 )
-  {
-    numColPerTask = 1;
-  }
-#endif
+  const int numColPerTask = std::max( std::min( widthInCtus, ( widthInCtus / std::max( m_numDecThreads * ( isIntra ? 2 : 1 ), 1 ) ) + ( isIntra ? 0 : 1 ) ), 1 );
   const int numTasksPerLine = widthInCtus / numColPerTask + !!( widthInCtus % numColPerTask );
 
 #if ALLOW_MIDER_LF_DURING_PICEXT
@@ -583,41 +617,40 @@ bool DecLibRecon::ctuTask( int tid, CtuTaskParam* param )
     ITT_TASKSTART( itt_domain_dec, itt_handle_inter );
 
     Slice*         slice     = cs.getCtuData( ctuStart, line ).cuPtr[0][0]->slice;
-#if JVET_O1143_MV_ACROSS_SUBPIC_BOUNDARY
-    const SubPic&  curSubPic = cs.pps->getSubPicFromPos( getCtuArea( cs, ctuStart, line, true ).Y().pos() );
+//#if JVET_O1143_MV_ACROSS_SUBPIC_BOUNDARY
+//    const SubPic&  curSubPic = cs.pps->getSubPicFromPos( getCtuArea( cs, ctuStart, line, true ).Y().pos() );
 
-    bool needSubpicRestore = false;
-    // padding/restore at slice level
-    if( cs.pps->getNumSubPics() >= 2 && curSubPic.getTreatedAsPicFlag() && !slice->isIntra() )
-    {
-      const int subPicX      = (int)curSubPic.getSubPicLeft();
-      const int subPicY      = (int)curSubPic.getSubPicTop();
-      const int subPicWidth  = (int)curSubPic.getSubPicWidthInLumaSample();
-      const int subPicHeight = (int)curSubPic.getSubPicHeightInLumaSample();
-      for( int rlist = REF_PIC_LIST_0; rlist < NUM_REF_PIC_LIST_01; rlist++ )
-      {
-        int n = slice->getNumRefIdx( (RefPicList)rlist );
-        for( int idx = 0; idx < n; idx++ )
-        {
-          Picture* refPic = slice->getRefPic( (RefPicList)rlist, idx );
-#if JVET_R0058
-#  if JVET_S0258_SUBPIC_CONSTRAINTS
-          if( !refPic->getSubPicSaved() && refPic->subPictures.size() > 1 )
-#  else
-          if( !refPic->getSubPicSaved() && refPic->numSubpics > 1 )
-#  endif
-#else
-          if( !refPic->getSubPicSaved() )
-#endif
-          {
-            refPic->saveSubPicBorder( subPicX, subPicY, subPicWidth, subPicHeight );
-            refPic->extendSubPicBorder( subPicX, subPicY, subPicWidth, subPicHeight );
-            needSubpicRestore = true;
-          }
-        }
-      }
-    }
-#endif
+//    bool needSubpicRestore = false;
+//    // padding/restore at slice level
+//    if( cs.pps->getNumSubPics() >= 2 && curSubPic.getTreatedAsPicFlag() && !slice->isIntra() )
+//    {
+//      const int subPicX      = (int)curSubPic.getSubPicLeft();
+//      const int subPicY      = (int)curSubPic.getSubPicTop();
+//      const int subPicWidth  = (int)curSubPic.getSubPicWidthInLumaSample();
+//      const int subPicHeight = (int)curSubPic.getSubPicHeightInLumaSample();
+//      for( int rlist = REF_PIC_LIST_0; rlist < NUM_REF_PIC_LIST_01; rlist++ )
+//      {
+//        for( int idx = 0; idx < slice->getNumRefIdx( (RefPicList)rlist ); idx++ )
+//        {
+//          Picture* refPic = slice->getRefPic( (RefPicList)rlist, idx );
+//#if JVET_R0058
+//#  if JVET_S0258_SUBPIC_CONSTRAINTS
+//          if( !refPic->getSubPicSaved() && refPic->subPictures.size() > 1 )
+//#  else
+//          if( !refPic->getSubPicSaved() && refPic->numSubpics > 1 )
+//#  endif
+//#else
+//          if( !refPic->getSubPicSaved() )
+//#endif
+//          {
+//            refPic->saveSubPicBorder( subPicX, subPicY, subPicWidth, subPicHeight );
+//            refPic->extendSubPicBorder( subPicX, subPicY, subPicWidth, subPicHeight );
+//            needSubpicRestore = true;
+//          }
+//        }
+//      }
+//    }
+//#endif
 
     for( int ctu = ctuStart; ctu < ctuEnd; ctu++ )
     {
@@ -631,27 +664,27 @@ bool DecLibRecon::ctuTask( int tid, CtuTaskParam* param )
       }
     }
 
-#if JVET_O1143_MV_ACROSS_SUBPIC_BOUNDARY
-    if( needSubpicRestore )
-    {
-      int subPicX      = (int)curSubPic.getSubPicLeft();
-      int subPicY      = (int)curSubPic.getSubPicTop();
-      int subPicWidth  = (int)curSubPic.getSubPicWidthInLumaSample();
-      int subPicHeight = (int)curSubPic.getSubPicHeightInLumaSample();
-      for( int rlist = REF_PIC_LIST_0; rlist < NUM_REF_PIC_LIST_01; rlist++ )
-      {
-        int n = slice->getNumRefIdx( (RefPicList)rlist );
-        for( int idx = 0; idx < n; idx++ )
-        {
-          Picture* refPic = slice->getRefPic( (RefPicList)rlist, idx );
-          if( refPic->getSubPicSaved() )
-          {
-            refPic->restoreSubPicBorder( subPicX, subPicY, subPicWidth, subPicHeight );
-          }
-        }
-      }
-    }
-#endif
+//#if JVET_O1143_MV_ACROSS_SUBPIC_BOUNDARY
+//    if( needSubpicRestore )
+//    {
+//      int subPicX      = (int)curSubPic.getSubPicLeft();
+//      int subPicY      = (int)curSubPic.getSubPicTop();
+//      int subPicWidth  = (int)curSubPic.getSubPicWidthInLumaSample();
+//      int subPicHeight = (int)curSubPic.getSubPicHeightInLumaSample();
+//      for( int rlist = REF_PIC_LIST_0; rlist < NUM_REF_PIC_LIST_01; rlist++ )
+//      {
+//        int n = slice->getNumRefIdx( (RefPicList)rlist );
+//        for( int idx = 0; idx < n; idx++ )
+//        {
+//          Picture* refPic = slice->getRefPic( (RefPicList)rlist, idx );
+//          if( refPic->getSubPicSaved() )
+//          {
+//            refPic->restoreSubPicBorder( subPicX, subPicY, subPicWidth, subPicHeight );
+//          }
+//        }
+//      }
+//    }
+//#endif
 
     thisCtuState = ( TaskType )( INTER + 1 );
 
