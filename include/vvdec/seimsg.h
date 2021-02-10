@@ -484,7 +484,6 @@ public:
     }
     virtual ~seiMasteringDisplayColourVolume(){}
 
-    bool     colourVolumeSEIEnabled = false;
     uint32_t maxLuminance           = 0;
     uint32_t minLuminance           = 0;
     uint16_t primaries[3][2];

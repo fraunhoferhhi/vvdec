@@ -790,7 +790,6 @@ struct SEITimeSet
 
 struct SEIMasteringDisplay
 {
-  bool     colourVolumeSEIEnabled;
   uint32_t maxLuminance;
   uint32_t minLuminance;
   uint16_t primaries[3][2];

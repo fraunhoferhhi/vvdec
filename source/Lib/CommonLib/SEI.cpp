@@ -384,7 +384,6 @@ void SEIParameterSetsInclusionIndication::copyTo (vvdec::seiParameterSetsInclusi
 
 void SEIMasteringDisplayColourVolume::copyTo(vvdec::seiMasteringDisplayColourVolume& target) const
 {
-  target.colourVolumeSEIEnabled = values.colourVolumeSEIEnabled;
   target.maxLuminance = values.maxLuminance;
   target.minLuminance = values.minLuminance;
   ::memcpy(target.primaries, values.primaries, sizeof(values.primaries));
