@@ -143,24 +143,7 @@ public:
 public:
 #if JVET_O1143_MV_ACROSS_SUBPIC_BOUNDARY
   std::vector<PelStorage> m_subPicBufs;
-
-  bool m_isSubPicBorderSaved = false;
-
-  PelStorage m_bufSubPicAbove;
-  PelStorage m_bufSubPicBelow;
-  PelStorage m_bufSubPicLeft;
-  PelStorage m_bufSubPicRight;
-
-  PelStorage m_bufWrapSubPicAbove;
-  PelStorage m_bufWrapSubPicBelow;
-
-  void    saveSubPicBorder( int subPicX0, int subPicY0, int subPicWidth, int subPicHeight );
-  void  extendSubPicBorder( const PelStorage& subPicBuf, Area subPicArea );
-  void  extendSubPicBorder( int subPicX0, int subPicY0, int subPicWidth, int subPicHeight );
-  void restoreSubPicBorder( int subPicX0, int subPicY0, int subPicWidth, int subPicHeight );
-
-  bool getSubPicSaved()          { return m_isSubPicBorderSaved; }
-  void setSubPicSaved(bool bVal) { m_isSubPicBorderSaved = bVal; }
+  void extendSubPicBorder( const PelStorage& subPicBuf, Area subPicArea );
 #endif
 
   void startProcessingTimer();

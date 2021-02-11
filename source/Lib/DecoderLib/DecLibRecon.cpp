@@ -616,75 +616,18 @@ bool DecLibRecon::ctuTask( int tid, CtuTaskParam* param )
 
     ITT_TASKSTART( itt_domain_dec, itt_handle_inter );
 
-    Slice*         slice     = cs.getCtuData( ctuStart, line ).cuPtr[0][0]->slice;
-//#if JVET_O1143_MV_ACROSS_SUBPIC_BOUNDARY
-//    const SubPic&  curSubPic = cs.pps->getSubPicFromPos( getCtuArea( cs, ctuStart, line, true ).Y().pos() );
-
-//    bool needSubpicRestore = false;
-//    // padding/restore at slice level
-//    if( cs.pps->getNumSubPics() >= 2 && curSubPic.getTreatedAsPicFlag() && !slice->isIntra() )
-//    {
-//      const int subPicX      = (int)curSubPic.getSubPicLeft();
-//      const int subPicY      = (int)curSubPic.getSubPicTop();
-//      const int subPicWidth  = (int)curSubPic.getSubPicWidthInLumaSample();
-//      const int subPicHeight = (int)curSubPic.getSubPicHeightInLumaSample();
-//      for( int rlist = REF_PIC_LIST_0; rlist < NUM_REF_PIC_LIST_01; rlist++ )
-//      {
-//        for( int idx = 0; idx < slice->getNumRefIdx( (RefPicList)rlist ); idx++ )
-//        {
-//          Picture* refPic = slice->getRefPic( (RefPicList)rlist, idx );
-//#if JVET_R0058
-//#  if JVET_S0258_SUBPIC_CONSTRAINTS
-//          if( !refPic->getSubPicSaved() && refPic->subPictures.size() > 1 )
-//#  else
-//          if( !refPic->getSubPicSaved() && refPic->numSubpics > 1 )
-//#  endif
-//#else
-//          if( !refPic->getSubPicSaved() )
-//#endif
-//          {
-//            refPic->saveSubPicBorder( subPicX, subPicY, subPicWidth, subPicHeight );
-//            refPic->extendSubPicBorder( subPicX, subPicY, subPicWidth, subPicHeight );
-//            needSubpicRestore = true;
-//          }
-//        }
-//      }
-//    }
-//#endif
-
     for( int ctu = ctuStart; ctu < ctuEnd; ctu++ )
     {
+      const CtuData& ctuData = cs.getCtuData( ctuStart, line );
       const UnitArea ctuArea = getCtuArea( cs, ctu, line, true );
 
       decLib.m_cCuDecoder[tid].TaskTrafoCtu( cs, ctuArea );
 
-      if( !slice->isIntra() )
+      if( !ctuData.cuPtr[0][0]->slice->isIntra() )
       {
         decLib.m_cCuDecoder[tid].TaskInterCtu( cs, ctuArea );
       }
     }
-
-//#if JVET_O1143_MV_ACROSS_SUBPIC_BOUNDARY
-//    if( needSubpicRestore )
-//    {
-//      int subPicX      = (int)curSubPic.getSubPicLeft();
-//      int subPicY      = (int)curSubPic.getSubPicTop();
-//      int subPicWidth  = (int)curSubPic.getSubPicWidthInLumaSample();
-//      int subPicHeight = (int)curSubPic.getSubPicHeightInLumaSample();
-//      for( int rlist = REF_PIC_LIST_0; rlist < NUM_REF_PIC_LIST_01; rlist++ )
-//      {
-//        int n = slice->getNumRefIdx( (RefPicList)rlist );
-//        for( int idx = 0; idx < n; idx++ )
-//        {
-//          Picture* refPic = slice->getRefPic( (RefPicList)rlist, idx );
-//          if( refPic->getSubPicSaved() )
-//          {
-//            refPic->restoreSubPicBorder( subPicX, subPicY, subPicWidth, subPicHeight );
-//          }
-//        }
-//      }
-//    }
-//#endif
 
     thisCtuState = ( TaskType )( INTER + 1 );
 
