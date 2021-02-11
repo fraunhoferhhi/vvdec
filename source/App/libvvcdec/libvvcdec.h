@@ -112,6 +112,19 @@ typedef enum
   LIBVVCDEC_ERROR_READ_ERROR   ///< There was an error reading the provided data
 } libvvcdec_error;
 
+typedef enum
+{
+  LIBVVCDEC_LOGLEVEL_SILENT  = 0,
+  LIBVVCDEC_LOGLEVEL_ERROR   = 1,
+  LIBVVCDEC_LOGLEVEL_WARNING = 2,
+  LIBVVCDEC_LOGLEVEL_INFO    = 3,
+  LIBVVCDEC_LOGLEVEL_NOTICE  = 4,
+  LIBVVCDEC_LOGLEVEL_VERBOSE = 5,
+  LIBVVCDEC_LOGLEVEL_DETAILS = 6
+} libvvcdec_loglevel;
+
+typedef void (*libvvcdec_logging_callback)(void*, int, const char*);
+
 /** Get info about the decoder version (e.g. "2.0")
  */
 VVCDECAPI const char *libvvcdec_get_version(void);
@@ -126,6 +139,10 @@ typedef void libvvcdec_context;
   * \return Returns a pointer to the new decoder or NULL if an error occurred.
   */
 VVCDECAPI libvvcdec_context* libvvcdec_new_decoder(void);
+
+/** Set a logging callback.
+ */
+VVCDECAPI libvvcdec_error libvvcdec_set_logging_callback(libvvcdec_context* decCtx, libvvcdec_logging_callback callback, libvvcdec_loglevel loglevel);
 
 /** Destroy an existing decoder.
  * \param decCtx The decoder context to destroy that was created with libvvcdec_new_decoder

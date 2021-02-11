@@ -46,111 +46,11 @@ THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "libvvcdec.h"
 
-#include "vvdec/vvdec.h"
 #include "vvdec/version.h"
+#include "vvcDecoderWrapper.h"
 
 namespace
 {
-
-class vvcDecoderWrapper
-{
-public:
-  vvcDecoderWrapper()
-  {
-    this->cAccessUnit.m_pucBuffer = nullptr;
-    this->cAccessUnit.m_iBufSize = 0;
-    this->cAccessUnit.m_uiCts = 0;
-    this->cAccessUnit.m_bCtsValid = true;
-    this->cAccessUnit.m_uiDts = 0;
-    this->cAccessUnit.m_bDtsValid = true;
-  }
-  ~vvcDecoderWrapper()
-  {
-    this->closeDecoder();
-  }
-  int init()
-  {
-    vvdec::VVDecParameter cVVDecParameter;
-    return this->cVVDec.init( cVVDecParameter );
-  }
-  bool setAUData(const unsigned char* data8, int length)
-  {
-    if (length > this->cAccessUnit.m_iBufSize)
-    {
-      // Allocate a new big enough buffer
-      if (this->cAccessUnit.m_pucBuffer != nullptr)
-      {
-        delete[] this->cAccessUnit.m_pucBuffer;
-      }
-      this->cAccessUnit.m_pucBuffer = new unsigned char[length];
-      if (this->cAccessUnit.m_pucBuffer == nullptr)
-      {
-        this->cAccessUnit.m_iBufSize = 0;
-        return false;
-      }
-      this->cAccessUnit.m_iBufSize = length;
-    }
-    std::copy_n( data8 , length, this->cAccessUnit.m_pucBuffer);
-    this->cAccessUnit.m_iUsedSize = length;
-    return true;
-  }
-  int decode()
-  {
-    if (this->flushing)
-    {
-      return vvdec::VVDEC_ERR_UNSPECIFIED;
-    }
-    this->unrefCurrentFrame();
-    return this->cVVDec.decode( this->cAccessUnit, &pcFrame );
-  }
-  int flush()
-  {
-    this->unrefCurrentFrame();
-    this->flushing = true;
-    auto ret = this->cVVDec.flush( &this->pcFrame );
-    if (this->pcFrame == nullptr)
-    {
-      this->closeDecoder();
-    }
-    return ret;
-  }
-  bool gotFrame() const
-  {
-    return this->pcFrame != nullptr && this->pcFrame->m_bCtsValid;
-  }
-  vvdec::Frame* getFrame() const
-  {
-    return this->pcFrame;
-  }
-private:
-  void unrefCurrentFrame()
-  {
-    if (this->pcFrame != nullptr)
-    {
-      this->cVVDec.objectUnref( this->pcFrame );
-      this->pcFrame = nullptr;
-    }
-  }
-  void closeDecoder()
-  {
-    this->unrefCurrentFrame();
-    if (this->pcFrame != nullptr)
-    {
-      this->cVVDec.objectUnref( this->pcFrame );
-      this->pcFrame = nullptr;
-    }
-    if (this->cAccessUnit.m_pucBuffer != nullptr)
-    {
-      delete [] this->cAccessUnit.m_pucBuffer;
-    }
-    this->isEnd = true;
-  }
-  vvdec::VVDec cVVDec;
-  vvdec::AccessUnit cAccessUnit;
-  vvdec::Frame* pcFrame {nullptr};
-  bool flushing {false};
-  bool isEnd {false};
-};
 
 unsigned getComponentIndex(libvvcdec_ColorComponent c)
 {
@@ -168,7 +68,7 @@ extern "C" {
 
   VVCDECAPI libvvcdec_context* libvvcdec_new_decoder(void)
   {
-    auto decCtx = new vvcDecoderWrapper();
+    auto decCtx = new libvvcdec::vvcDecoderWrapper();
     if (!decCtx)
     {
       return nullptr;
@@ -185,22 +85,33 @@ extern "C" {
     return (libvvcdec_context*)decCtx;
   }
 
+  VVCDECAPI libvvcdec_error libvvcdec_set_logging_callback(libvvcdec_context* decCtx, libvvcdec_logging_callback callback, libvvcdec_loglevel loglevel)
+  {
+    auto d = (libvvcdec::vvcDecoderWrapper*)decCtx;
+    if (!d || !callback)
+    {
+      return LIBVVCDEC_ERROR;
+    }
+
+    d->setLogging(callback, loglevel);
+    return LIBVVCDEC_OK;
+  }
+
   VVCDECAPI libvvcdec_error libvvcdec_free_decoder(libvvcdec_context* decCtx)
   {
-    auto d = (vvcDecoderWrapper*)decCtx;
+    auto d = (libvvcdec::vvcDecoderWrapper*)decCtx;
     if (!d)
     {
       return LIBVVCDEC_ERROR;
     }
 
-    d->
     delete d;
     return LIBVVCDEC_OK;
   }
 
   VVCDECAPI libvvcdec_error libvvcdec_push_nal_unit(libvvcdec_context *decCtx, const unsigned char* data8, int length, bool &checkOutputPictures)
   {
-    auto d = (vvcDecoderWrapper*)decCtx;
+    auto d = (libvvcdec::vvcDecoderWrapper*)decCtx;
     if (!d)
     {
       return LIBVVCDEC_ERROR;
@@ -237,7 +148,7 @@ extern "C" {
 
   VVCDECAPI uint64_t libvvcdec_get_picture_POC(libvvcdec_context *decCtx)
   {
-    auto d = (vvcDecoderWrapper*)decCtx;
+    auto d = (libvvcdec::vvcDecoderWrapper*)decCtx;
     if (!d || !d->gotFrame())
     {
       return 0;
@@ -248,7 +159,7 @@ extern "C" {
 
   VVCDECAPI uint32_t libvvcdec_get_picture_width(libvvcdec_context *decCtx, libvvcdec_ColorComponent c)
   {
-    auto d = (vvcDecoderWrapper*)decCtx;
+    auto d = (libvvcdec::vvcDecoderWrapper*)decCtx;
     if (!d || !d->gotFrame())
     {
       return 0;
@@ -266,7 +177,7 @@ extern "C" {
 
   VVCDECAPI uint32_t libvvcdec_get_picture_height(libvvcdec_context *decCtx, libvvcdec_ColorComponent c)
   {
-    auto d = (vvcDecoderWrapper*)decCtx;
+    auto d = (libvvcdec::vvcDecoderWrapper*)decCtx;
     if (!d || !d->gotFrame())
     {
       return 0;
@@ -284,7 +195,7 @@ extern "C" {
 
   VVCDECAPI int32_t libvvcdec_get_picture_stride(libvvcdec_context *decCtx, libvvcdec_ColorComponent c)
   {
-    auto d = (vvcDecoderWrapper*)decCtx;
+    auto d = (libvvcdec::vvcDecoderWrapper*)decCtx;
     if (!d || !d->gotFrame())
     {
       return 0;
@@ -302,7 +213,7 @@ extern "C" {
 
   VVCDECAPI unsigned char* libvvcdec_get_picture_plane(libvvcdec_context *decCtx, libvvcdec_ColorComponent c)
   {
-    auto d = (vvcDecoderWrapper*)decCtx;
+    auto d = (libvvcdec::vvcDecoderWrapper*)decCtx;
     if (!d || !d->gotFrame())
     {
       return 0;
@@ -320,7 +231,7 @@ extern "C" {
 
   VVCDECAPI libvvcdec_ChromaFormat libvvcdec_get_picture_chroma_format(libvvcdec_context *decCtx)
   {
-    auto d = (vvcDecoderWrapper*)decCtx;
+    auto d = (libvvcdec::vvcDecoderWrapper*)decCtx;
     if (!d || !d->gotFrame())
     {
       return LIBVVCDEC_CHROMA_UNKNOWN;
@@ -344,7 +255,7 @@ extern "C" {
 
   VVCDECAPI uint32_t libvvcdec_get_picture_bit_depth(libvvcdec_context *decCtx, libvvcdec_ColorComponent c)
   {
-    auto d = (vvcDecoderWrapper*)decCtx;
+    auto d = (libvvcdec::vvcDecoderWrapper*)decCtx;
     if (!d || !d->gotFrame())
     {
       return 0;
