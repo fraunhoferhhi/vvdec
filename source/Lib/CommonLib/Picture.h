@@ -91,9 +91,23 @@ struct Picture : public UnitArea
          PelUnitBuf getRecoBuf(bool wrap=false);
   const CPelUnitBuf getRecoBuf(bool wrap=false) const;
 
-  const CPelBuf    getSubPicBuf      ( int subPicIdx, const ComponentID compID, bool wrap = false ) const { CHECK(wrap, "wraparound for subpics not supported yet"); return m_subPicBufs[subPicIdx].bufs[compID];        }
-  const  Pel*      getSubPicBufPtr   ( int subPicIdx, const ComponentID compID, bool wrap = false ) const { CHECK(wrap, "wraparound for subpics not supported yet"); return m_subPicBufs[subPicIdx].bufs[compID].buf;    }
-  const  ptrdiff_t getSubPicBufStride( int subPicIdx, const ComponentID compID, bool wrap = false ) const { CHECK(wrap, "wraparound for subpics not supported yet"); return m_subPicBufs[subPicIdx].bufs[compID].stride; }
+  // This returns a CPelBuf, with the origin at the picture origin (0,0), but the actual storage size of the sub picture.
+  // It can be used the same way as the full picture buffer, but you should only reference the data within the actual sub picture.
+  // Also, handle with care, because stride < width.
+  const CPelBuf getSubPicBuf( int subPicIdx, const ComponentID compID, bool wrap = false ) const
+  {
+    CHECK( wrap, "wraparound for subpics not supported yet" );
+
+    Position subPicPos( subPictures[subPicIdx].getSubPicLeft() >> getComponentScaleX( compID, m_subPicBufs[subPicIdx].chromaFormat ),
+                        subPictures[subPicIdx].getSubPicTop()  >> getComponentScaleY( compID, m_subPicBufs[subPicIdx].chromaFormat ) );
+
+    Size targetSize( m_bufs[PIC_RECONSTRUCTION].get( compID ) );
+
+    const auto& subPicComp = m_subPicBufs[subPicIdx].bufs[compID];
+    return CPelBuf( subPicComp.bufAt( -subPicPos.x, -subPicPos.y ), subPicComp.stride, targetSize );
+  }
+  const Pel*      getSubPicBufPtr   ( int subPicIdx, const ComponentID compID, bool wrap = false ) const { return getSubPicBuf( subPicIdx, compID, wrap ).buf;    }
+  const ptrdiff_t getSubPicBufStride( int subPicIdx, const ComponentID compID, bool wrap = false ) const { return getSubPicBuf( subPicIdx, compID, wrap ).stride; }
 
 private:
          PelBuf     getBuf(const ComponentID compID, const PictureType &type)       { return m_bufs[type].bufs[ compID ]; }

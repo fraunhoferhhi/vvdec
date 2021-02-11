@@ -364,13 +364,13 @@ void DecLibRecon::decompressPicture( Picture* pcPic )
                            curSubPic.getSubPicHeightInLumaSample() );
 
           refPic->m_subPicBufs[i].create( refPic->getRecoBuf().chromaFormat,
-                                          Size( subPicArea.x + subPicArea.width, subPicArea.y + subPicArea.height ),
+                                          Size( subPicArea.width, subPicArea.height ),
                                           cs.sps->getMaxCUWidth(),
                                           refPic->margin,
                                           MEMORY_ALIGN_DEF_SIZE );
 
-          refPic->m_subPicBufs[i].subBuf( subPicArea ).copyFrom( refPic->getRecoBuf().subBuf( subPicArea ) );
-          refPic->extendSubPicBorder( refPic->m_subPicBufs[i], subPicArea );
+          refPic->m_subPicBufs[i].copyFrom( refPic->getRecoBuf().subBuf( subPicArea ) );
+          refPic->extendSubPicBorder( refPic->m_subPicBufs[i], Area( { 0, 0 }, subPicArea.size() ) );
         }
       }
     }
