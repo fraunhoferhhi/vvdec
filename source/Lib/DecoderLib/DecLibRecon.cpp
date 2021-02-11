@@ -358,16 +358,16 @@ void DecLibRecon::decompressPicture( Picture* pcPic )
         {
           const SubPic& curSubPic = cs.pps->getSubPic( i );
 
-          refPic->m_subPicBufs[i].create( refPic->getRecoBuf().chromaFormat,
-                                          refPic->getRecoBuf().Y(),
-                                          cs.sps->getMaxCUWidth(),
-                                          refPic->margin,
-                                          MEMORY_ALIGN_DEF_SIZE );
-
           Area subPicArea( curSubPic.getSubPicLeft(),
                            curSubPic.getSubPicTop(),
                            curSubPic.getSubPicWidthInLumaSample(),
                            curSubPic.getSubPicHeightInLumaSample() );
+
+          refPic->m_subPicBufs[i].create( refPic->getRecoBuf().chromaFormat,
+                                          Size( subPicArea.x + subPicArea.width, subPicArea.y + subPicArea.height ),
+                                          cs.sps->getMaxCUWidth(),
+                                          refPic->margin,
+                                          MEMORY_ALIGN_DEF_SIZE );
 
           refPic->m_subPicBufs[i].subBuf( subPicArea ).copyFrom( refPic->getRecoBuf().subBuf( subPicArea ) );
           refPic->extendSubPicBorder( refPic->m_subPicBufs[i], subPicArea );
