@@ -85,7 +85,7 @@ extern "C" {
     return (libvvcdec_context*)decCtx;
   }
 
-  VVCDECAPI libvvcdec_error libvvcdec_set_logging_callback(libvvcdec_context* decCtx, libvvcdec_logging_callback callback, libvvcdec_loglevel loglevel)
+  VVCDECAPI libvvcdec_error libvvcdec_set_logging_callback(libvvcdec_context* decCtx, libvvcdec_logging_callback callback, void *userData, libvvcdec_loglevel loglevel)
   {
     auto d = (libvvcdec::vvcDecoderWrapper*)decCtx;
     if (!d || !callback)
@@ -93,7 +93,7 @@ extern "C" {
       return LIBVVCDEC_ERROR;
     }
 
-    d->setLogging(callback, loglevel);
+    d->setLogging(callback, userData, loglevel);
     return LIBVVCDEC_OK;
   }
 

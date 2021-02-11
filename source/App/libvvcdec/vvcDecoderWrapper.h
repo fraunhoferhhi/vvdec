@@ -67,12 +67,13 @@ public:
   bool gotFrame() const;
   vvdec::Frame* getFrame() const;
   
-  void setLogging(libvvcdec_logging_callback callback, libvvcdec_loglevel level);
+  void setLogging(libvvcdec_logging_callback callback, void *userData, libvvcdec_loglevel level);
 
 private:
   void unrefCurrentFrame();
   void closeDecoder();
-  
+  void logMessage(std::string msg, libvvcdec_loglevel level);
+
   vvdec::VVDec cVVDec;
   vvdec::AccessUnit cAccessUnit;
   vvdec::Frame* pcFrame {nullptr};
@@ -80,6 +81,7 @@ private:
   bool isEnd {false};
   libvvcdec_logging_callback loggingCallback {};
   libvvcdec_loglevel loglevel{LIBVVCDEC_LOGLEVEL_SILENT};
+  void *loggingUserData {};
 };
 
 }

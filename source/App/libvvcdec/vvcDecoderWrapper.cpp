@@ -72,9 +72,13 @@ int vvcDecoderWrapper::init()
 
 bool vvcDecoderWrapper::setAUData(const unsigned char* data8, int length)
 {
+  this->logMessage("Set AU data size " + std::to_string(length), LIBVVCDEC_LOGLEVEL_INFO);
   if (length > this->cAccessUnit.m_iBufSize)
   {
-    // Allocate a new big enough buffer
+    this->logMessage("Reallocate buffer. New size " + 
+                     std::to_string(length) + 
+                     " previous size " + 
+                     std::to_string(this->cAccessUnit.m_iBufSize), LIBVVCDEC_LOGLEVEL_VERBOSE);
     if (this->cAccessUnit.m_pucBuffer != nullptr)
     {
       delete[] this->cAccessUnit.m_pucBuffer;
@@ -94,16 +98,24 @@ bool vvcDecoderWrapper::setAUData(const unsigned char* data8, int length)
 
 int vvcDecoderWrapper::decode()
 {
+  this->logMessage("Decode AU size " + std::to_string(this->cAccessUnit.m_iUsedSize), LIBVVCDEC_LOGLEVEL_INFO);
   if (this->flushing)
   {
+    this->logMessage("Decoder is in flushing mode", LIBVVCDEC_LOGLEVEL_ERROR);
     return vvdec::VVDEC_ERR_UNSPECIFIED;
   }
   this->unrefCurrentFrame();
-  return this->cVVDec.decode( this->cAccessUnit, &pcFrame );
+  auto ret = this->cVVDec.decode( this->cAccessUnit, &pcFrame );
+  if (ret != vvdec::VVDEC_OK && ret != vvdec::VVDEC_TRY_AGAIN)
+  {
+    this->logMessage(this->cVVDec.getLastError(), LIBVVCDEC_LOGLEVEL_ERROR);
+  }
+  return ret;
 }
 
 int vvcDecoderWrapper::flush()
 {
+  this->logMessage("Start flushing", LIBVVCDEC_LOGLEVEL_INFO);
   this->unrefCurrentFrame();
   this->flushing = true;
   auto ret = this->cVVDec.flush( &this->pcFrame );
@@ -124,16 +136,20 @@ vvdec::Frame* vvcDecoderWrapper::getFrame() const
   return this->pcFrame;
 }
 
-void vvcDecoderWrapper::setLogging(libvvcdec_logging_callback callback, libvvcdec_loglevel level)
+void vvcDecoderWrapper::setLogging(libvvcdec_logging_callback callback, void *userData, libvvcdec_loglevel level)
 {
   this->loggingCallback = callback;
   this->loglevel = level;
+  this->loggingUserData = userData;
+
+  this->logMessage("Logging callback set", LIBVVCDEC_LOGLEVEL_INFO);
 }
 
 void vvcDecoderWrapper::unrefCurrentFrame()
 {
   if (this->pcFrame != nullptr)
   {
+    this->logMessage("Unref frame " + std::to_string(this->pcFrame->m_uiSequenceNumber), LIBVVCDEC_LOGLEVEL_VERBOSE);
     this->cVVDec.objectUnref( this->pcFrame );
     this->pcFrame = nullptr;
   }
@@ -141,17 +157,23 @@ void vvcDecoderWrapper::unrefCurrentFrame()
 
 void vvcDecoderWrapper::closeDecoder()
 {
+  this->logMessage("Closing deocder", LIBVVCDEC_LOGLEVEL_INFO);
   this->unrefCurrentFrame();
-  if (this->pcFrame != nullptr)
-  {
-    this->cVVDec.objectUnref( this->pcFrame );
-    this->pcFrame = nullptr;
-  }
   if (this->cAccessUnit.m_pucBuffer != nullptr)
   {
     delete [] this->cAccessUnit.m_pucBuffer;
   }
   this->isEnd = true;
+}
+
+void vvcDecoderWrapper::logMessage(std::string msg, libvvcdec_loglevel level)
+{
+  if (!this->loggingCallback)
+  {
+    return;
+  }
+
+  this->loggingCallback(this->loggingUserData, level, msg.c_str());
 }
 
 }

@@ -142,7 +142,7 @@ VVCDECAPI libvvcdec_context* libvvcdec_new_decoder(void);
 
 /** Set a logging callback.
  */
-VVCDECAPI libvvcdec_error libvvcdec_set_logging_callback(libvvcdec_context* decCtx, libvvcdec_logging_callback callback, libvvcdec_loglevel loglevel);
+VVCDECAPI libvvcdec_error libvvcdec_set_logging_callback(libvvcdec_context* decCtx, libvvcdec_logging_callback callback, void *userData, libvvcdec_loglevel loglevel);
 
 /** Destroy an existing decoder.
  * \param decCtx The decoder context to destroy that was created with libvvcdec_new_decoder
