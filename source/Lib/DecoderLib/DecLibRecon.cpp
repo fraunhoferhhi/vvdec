@@ -171,13 +171,27 @@ void DecLibRecon::destroy()
 
 void DecLibRecon::borderExtPic( Picture* pic )
 {
-  if( pic->cs->sps->getUseWrapAround() )
+  pic->borderExtStarted = true;
+
+  const bool wrapAround = pic->cs->sps->getUseWrapAround();
+  if( wrapAround )
   {
-    // TODO: make task? (GH)
-    pic->done.wait();
-    pic->getRecoBuf( true ).copyFrom( pic->getRecoBuf() );
+    // copy reconstruction buffer to wrapAround buffer. All other border-extension tasks depend on this task.
+    static auto copyTask = []( int, Picture* picture ) {
+      ITT_TASKSTART( itt_domain_dec, itt_handle_ext );
+      picture->getRecoBuf( true ).copyFrom( picture->getRecoBuf() );
+      ITT_TASKEND( itt_domain_dec, itt_handle_ext );
+      return true;
+    };
+    pic->m_copyWrapBufDone.lock();
+    m_decodeThreadPool->addBarrierTask<Picture>( copyTask,
+                                                 pic,
+                                                 nullptr,
+                                                 &pic->m_copyWrapBufDone,
+                                                 { &static_cast<const Barrier&>( pic->done ) } );
   }
 
+  // start actual border extension tasks
   {
     static auto task = []( int, Picture* picture ) {
       ITT_TASKSTART( itt_domain_dec, itt_handle_ext );
@@ -185,7 +199,11 @@ void DecLibRecon::borderExtPic( Picture* pic )
       ITT_TASKEND( itt_domain_dec, itt_handle_ext );
       return true;
     };
-    m_decodeThreadPool->addBarrierTask<Picture>( task, pic, &pic->m_borderExtTaskCounter, nullptr, { &static_cast<const Barrier&>(pic->done) } );
+    m_decodeThreadPool->addBarrierTask<Picture>( task,
+                                                 pic,
+                                                 &pic->m_borderExtTaskCounter,
+                                                 nullptr,
+                                                 { wrapAround ? &pic->m_copyWrapBufDone : &static_cast<const Barrier&>( pic->done ) } );
   }
 
   {
@@ -195,7 +213,11 @@ void DecLibRecon::borderExtPic( Picture* pic )
       ITT_TASKEND( itt_domain_dec, itt_handle_ext );
       return true;
     };
-    m_decodeThreadPool->addBarrierTask<Picture>( task, pic, &pic->m_borderExtTaskCounter, nullptr, { &static_cast<const Barrier&>(pic->done) } );
+    m_decodeThreadPool->addBarrierTask<Picture>( task,
+                                                 pic,
+                                                 &pic->m_borderExtTaskCounter,
+                                                 nullptr,
+                                                 { wrapAround ? &pic->m_copyWrapBufDone : &static_cast<const Barrier&>( pic->done ) } );
   }
 
   {
@@ -205,7 +227,11 @@ void DecLibRecon::borderExtPic( Picture* pic )
       ITT_TASKEND( itt_domain_dec, itt_handle_ext );
       return true;
     };
-    m_decodeThreadPool->addBarrierTask<Picture>( task, pic, &pic->m_borderExtTaskCounter, nullptr, { &static_cast<const Barrier&>(pic->done) } );
+    m_decodeThreadPool->addBarrierTask<Picture>( task,
+                                                 pic,
+                                                 &pic->m_borderExtTaskCounter,
+                                                 nullptr,
+                                                 { wrapAround ? &pic->m_copyWrapBufDone : &static_cast<const Barrier&>( pic->done ) } );
   }
   {
     static auto task = []( int, Picture* picture ) {
@@ -214,7 +240,11 @@ void DecLibRecon::borderExtPic( Picture* pic )
       ITT_TASKEND( itt_domain_dec, itt_handle_ext );
       return true;
     };
-    m_decodeThreadPool->addBarrierTask<Picture>( task, pic, &pic->m_borderExtTaskCounter, nullptr, { &static_cast<const Barrier&>(pic->done) } );
+    m_decodeThreadPool->addBarrierTask<Picture>( task,
+                                                 pic,
+                                                 &pic->m_borderExtTaskCounter,
+                                                 nullptr,
+                                                 { wrapAround ? &pic->m_copyWrapBufDone : &static_cast<const Barrier&>( pic->done ) } );
   }
 
   {
@@ -224,7 +254,11 @@ void DecLibRecon::borderExtPic( Picture* pic )
       ITT_TASKEND( itt_domain_dec, itt_handle_ext );
       return true;
     };
-    m_decodeThreadPool->addBarrierTask<Picture>( task, pic, &pic->m_borderExtTaskCounter, nullptr, { &static_cast<const Barrier&>(pic->done) } );
+    m_decodeThreadPool->addBarrierTask<Picture>( task,
+                                                 pic,
+                                                 &pic->m_borderExtTaskCounter,
+                                                 nullptr,
+                                                 { wrapAround ? &pic->m_copyWrapBufDone : &static_cast<const Barrier&>( pic->done ) } );
   }
   {
     static auto task = []( int, Picture* picture ) {
@@ -233,10 +267,12 @@ void DecLibRecon::borderExtPic( Picture* pic )
       ITT_TASKEND( itt_domain_dec, itt_handle_ext );
       return true;
     };
-    m_decodeThreadPool->addBarrierTask<Picture>( task, pic, &pic->m_borderExtTaskCounter, nullptr, { &static_cast<const Barrier&>(pic->done) } );
+    m_decodeThreadPool->addBarrierTask<Picture>( task,
+                                                 pic,
+                                                 &pic->m_borderExtTaskCounter,
+                                                 nullptr,
+                                                 { wrapAround ? &pic->m_copyWrapBufDone : &static_cast<const Barrier&>( pic->done ) } );
   }
-
-  pic->isBorderExtended = true;
 }
 
 void DecLibRecon::decompressPicture( Picture* pcPic )
@@ -314,46 +350,33 @@ void DecLibRecon::decompressPicture( Picture* pcPic )
   {
     for( int iRefIdx = 0; iRefIdx < pcPic->slices[0]->getNumRefIdx( (RefPicList)iDir ); iRefIdx++ )
     {
-      Picture* pic = const_cast<Picture*>( pcPic->slices[0]->getRefPic( (RefPicList)iDir, iRefIdx ) );
+      Picture* refPic = pcPic->slices[0]->getNoConstRefPic( (RefPicList)iDir, iRefIdx );
 
-      if( !pic->isBorderExtended )
+      if( !refPic->borderExtStarted )
       {
-        borderExtPic( pic );
+        // TODO: (GH) Can we bypass this border extension, when all subpics (>1) are treated as pics?
+        borderExtPic( refPic );
       }
 
-      if( pic->m_borderExtTaskCounter.isBlocked() &&
-          std::find( picExtBarriers.cbegin(), picExtBarriers.cend(), &pic->m_borderExtTaskCounter.done ) == picExtBarriers.cend() )
+      if( refPic->m_borderExtTaskCounter.isBlocked() &&
+          std::find( picExtBarriers.cbegin(), picExtBarriers.cend(), &refPic->m_borderExtTaskCounter.done ) == picExtBarriers.cend() )
       {
-        picExtBarriers.push_back( &pic->m_borderExtTaskCounter.done );
+        picExtBarriers.push_back( &refPic->m_borderExtTaskCounter.done );
       }
 
-      if( pic->m_dmvrTaskCounter.isBlocked() &&
-          std::find( picBarriers.cbegin(), picBarriers.cend(), &pic->m_dmvrTaskCounter.done ) == picBarriers.cend() )
+      if( refPic->m_dmvrTaskCounter.isBlocked() &&
+          std::find( picBarriers.cbegin(), picBarriers.cend(), &refPic->m_dmvrTaskCounter.done ) == picBarriers.cend() )
       {
-        picBarriers.push_back( &pic->m_dmvrTaskCounter.done );
+        picBarriers.push_back( &refPic->m_dmvrTaskCounter.done );
       }
-    }
-  }
 
-  if( cs.pps->getNumSubPics() > 1 )
-  {
-    for( int iDir = REF_PIC_LIST_0; iDir < NUM_REF_PIC_LIST_01; ++iDir )
-    {
-      for( int iRefIdx = 0; iRefIdx < pcPic->slices[0]->getNumRefIdx( (RefPicList)iDir ); iRefIdx++ )
+      const int numSubPic = cs.pps->getNumSubPics();
+      if( numSubPic > 1 && refPic->m_subPicRefBufs.size() != numSubPic )
       {
-        Picture* refPic = const_cast<Picture*>( pcPic->slices[0]->getRefPic( (RefPicList)iDir, iRefIdx ) );
+        CHECK( !refPic->m_subPicRefBufs.empty(), "Wrong number of subpics already present in reference picture" );
+        CHECK( cs.sps->getUseWrapAround(), "Wraparound + subpics not implemented" );
 
-        const int numSubPic = cs.pps->getNumSubPics();
-        if( refPic->m_subPicBufs.size() == numSubPic )
-        {
-          continue;
-        }
-        CHECK( !refPic->m_subPicBufs.empty(), "wrong number of subpics already present in reference picture" );
-
-        refPic->done.wait();
-        refPic->m_borderExtTaskCounter.wait();
-
-        refPic->createSubPicRefBufs();
+        refPic->createSubPicRefBufs( m_decodeThreadPool );
       }
     }
   }

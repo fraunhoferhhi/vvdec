@@ -98,12 +98,12 @@ struct Picture : public UnitArea
   {
     CHECK( wrap, "wraparound for subpics not supported yet" );
 
-    Position subPicPos( subPictures[subPicIdx].getSubPicLeft() >> getComponentScaleX( compID, m_subPicBufs[subPicIdx].chromaFormat ),
-                        subPictures[subPicIdx].getSubPicTop()  >> getComponentScaleY( compID, m_subPicBufs[subPicIdx].chromaFormat ) );
+    Position subPicPos( subPictures[subPicIdx].getSubPicLeft() >> getComponentScaleX( compID, m_subPicRefBufs[subPicIdx].chromaFormat ),
+                        subPictures[subPicIdx].getSubPicTop()  >> getComponentScaleY( compID, m_subPicRefBufs[subPicIdx].chromaFormat ) );
 
     Size targetSize( m_bufs[PIC_RECONSTRUCTION].get( compID ) );
 
-    const auto& subPicComp = m_subPicBufs[subPicIdx].bufs[compID];
+    const auto& subPicComp = m_subPicRefBufs[subPicIdx].bufs[compID];
     return CPelBuf( subPicComp.bufAt( -subPicPos.x, -subPicPos.y ), subPicComp.stride, targetSize );
   }
   const Pel*      getSubPicBufPtr   ( int subPicIdx, const ComponentID compID, bool wrap = false ) const { return getSubPicBuf( subPicIdx, compID, wrap ).buf;    }
@@ -134,7 +134,7 @@ public:
   uint64_t getNaluBits()                      const { return bits; }
   bool     getRap()                           const { return rap; }
 
-  void   setBorderExtension( bool bFlag)            { isBorderExtended = bFlag;}
+  void   setBorderExtension( bool bFlag )           { borderExtStarted = bFlag;}
   Pel*   getOrigin( const PictureType &type, const ComponentID compID ) const;
   PelBuf getOriginBuf( const PictureType &type, const ComponentID compID );
 
@@ -159,9 +159,17 @@ public:
 #endif
 public:
 #if JVET_O1143_MV_ACROSS_SUBPIC_BOUNDARY
-  std::vector<PelStorage> m_subPicBufs;
+  std::vector<PelStorage> m_subPicRefBufs;   // used as reference for subpictures, that are treated as pictures
 
-  void createSubPicRefBufs();
+  struct SubPicExtTask
+  {
+    Picture*    picture   = nullptr;
+    PelStorage* subPicBuf = nullptr;
+    Area        subPicArea;
+  };
+  std::vector<SubPicExtTask> m_subPicExtTasks;
+
+  void createSubPicRefBufs( NoMallocThreadPool* threadPool );
 #endif
 
   void startProcessingTimer();
@@ -172,7 +180,7 @@ public:
   std::chrono::time_point<std::chrono::steady_clock> m_processingStartTime;
   double                                             m_dProcessingTime = 0;
 
-  bool isBorderExtended               = false;
+  bool borderExtStarted               = false;
 #if JVET_Q0764_WRAP_AROUND_WITH_RPR
   bool wrapAroundValid                = false;
   unsigned wrapAroundOffset           = 0;
@@ -237,6 +245,7 @@ public:
   WaitCounter     m_ctuTaskCounter;
   WaitCounter     m_dmvrTaskCounter;
   WaitCounter     m_borderExtTaskCounter;
+  Barrier         m_copyWrapBufDone;
   BlockingBarrier done;
 #if RECO_WHILE_PARSE
   Barrier        *ctuParsedBarrier = nullptr;
