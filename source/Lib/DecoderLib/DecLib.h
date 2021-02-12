@@ -134,7 +134,7 @@ public:
   void resetPictureUnitNals() { m_pictureUnitNals.clear(); }
 
 #if RPR_YUV_OUTPUT
-  unsigned int getUpsaledOutput() { return m_upscaledOutput; }
+  unsigned int getUpscaledOutput() { return m_upscaledOutput; }
 #endif
 
 private:

@@ -79,6 +79,7 @@ THE POSSIBILITY OF SUCH DAMAGE.
 
 #define RPR_FIX                                           1
 #define RPR_YUV_OUTPUT                                    1
+#define RPR_OUTPUT_MSG                                    1
 
 #define TBD                                               1
 #define TBT                                               1

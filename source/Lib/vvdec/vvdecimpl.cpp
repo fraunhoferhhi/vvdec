@@ -844,7 +844,7 @@ int VVDecImpl::xAddPicture( Picture* pcPic )
 #if RPR_YUV_OUTPUT
   m_bCreateNewPicBuf = (m_uiBitDepth == 8);
 
-  if( m_cDecLib.getUpsaledOutput() && ( uiWidth != orgWidth || uiHeight != orgHeight ) )
+  if( m_cDecLib.getUpscaledOutput() && ( uiWidth != orgWidth || uiHeight != orgHeight ) )
   {
     m_bCreateNewPicBuf = true;
     xCreateFrame ( cFrame, cPicBuf, orgWidth, orgHeight, bitDepths );
@@ -862,7 +862,7 @@ int VVDecImpl::xAddPicture( Picture* pcPic )
   if( m_bCreateNewPicBuf )
   {
 #if RPR_YUV_OUTPUT
-    if( m_cDecLib.getUpsaledOutput() == 2 )
+    if( m_cDecLib.getUpscaledOutput() == 2 )
     {
       PelStorage upscaledPic;
       upscaledPic.create( cPicBuf.chromaFormat, Size( orgWidth, orgHeight ) );
