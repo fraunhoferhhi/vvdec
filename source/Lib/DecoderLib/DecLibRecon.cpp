@@ -353,25 +353,7 @@ void DecLibRecon::decompressPicture( Picture* pcPic )
         refPic->done.wait();
         refPic->m_borderExtTaskCounter.wait();
 
-        refPic->m_subPicBufs.resize( numSubPic );
-        for( int i = 0; i < numSubPic; ++i )
-        {
-          const SubPic& curSubPic = cs.pps->getSubPic( i );
-
-          Area subPicArea( curSubPic.getSubPicLeft(),
-                           curSubPic.getSubPicTop(),
-                           curSubPic.getSubPicWidthInLumaSample(),
-                           curSubPic.getSubPicHeightInLumaSample() );
-
-          refPic->m_subPicBufs[i].create( refPic->getRecoBuf().chromaFormat,
-                                          Size( subPicArea.width, subPicArea.height ),
-                                          cs.sps->getMaxCUWidth(),
-                                          refPic->margin,
-                                          MEMORY_ALIGN_DEF_SIZE );
-
-          refPic->m_subPicBufs[i].copyFrom( refPic->getRecoBuf().subBuf( subPicArea ) );
-          refPic->extendSubPicBorder( refPic->m_subPicBufs[i], Area( { 0, 0 }, subPicArea.size() ) );
-        }
+        refPic->createSubPicRefBufs();
       }
     }
   }

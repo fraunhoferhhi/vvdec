@@ -118,7 +118,10 @@ private:
   const CPelUnitBuf getBuf(const UnitArea &unit,     const PictureType &type) const;
 
 public:
-  void extendPicBorder( bool top = true, bool bottom = true, bool leftrightT = true, bool leftrightB = true, ChannelType chType = MAX_NUM_CHANNEL_TYPE );
+  void extendPicBorder    (                  bool top = true, bool bottom = true, bool leftrightT = true, bool leftrightB = true, ChannelType chType = MAX_NUM_CHANNEL_TYPE );
+  void extendPicBorderBuf ( PelStorage& buf, bool top = true, bool bottom = true, bool leftrightT = true, bool leftrightB = true, ChannelType chType = MAX_NUM_CHANNEL_TYPE );
+  void extendPicBorderWrap(                  bool top = true, bool bottom = true, bool leftrightT = true, bool leftrightB = true, ChannelType chType = MAX_NUM_CHANNEL_TYPE );
+
   void (*paddPicBorderBot) (Pel *pi, ptrdiff_t stride,int width,int xmargin,int ymargin);
   void (*paddPicBorderTop) (Pel *pi, ptrdiff_t stride,int width,int xmargin,int ymargin);
   void (*paddPicBorderLeftRight) (Pel *pi, ptrdiff_t stride,int width,int xmargin,int height);
@@ -157,7 +160,8 @@ public:
 public:
 #if JVET_O1143_MV_ACROSS_SUBPIC_BOUNDARY
   std::vector<PelStorage> m_subPicBufs;
-  void extendSubPicBorder( const PelStorage& subPicBuf, Area subPicArea );
+
+  void createSubPicRefBufs();
 #endif
 
   void startProcessingTimer();
