@@ -157,11 +157,12 @@ void vvcDecoderWrapper::unrefCurrentFrame()
 
 void vvcDecoderWrapper::closeDecoder()
 {
-  this->logMessage("Closing deocder", LIBVVCDEC_LOGLEVEL_INFO);
+  this->logMessage("Closing decoder", LIBVVCDEC_LOGLEVEL_INFO);
   this->unrefCurrentFrame();
   if (this->cAccessUnit.m_pucBuffer != nullptr)
   {
     delete [] this->cAccessUnit.m_pucBuffer;
+    this->cAccessUnit.m_pucBuffer = nullptr;
   }
   this->isEnd = true;
 }
