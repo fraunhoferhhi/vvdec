@@ -115,7 +115,7 @@ int vvcDecoderWrapper::decode()
 
 int vvcDecoderWrapper::flush()
 {
-  this->logMessage("Start flushing", LIBVVCDEC_LOGLEVEL_INFO);
+  this->logMessage("Flush decoder", LIBVVCDEC_LOGLEVEL_INFO);
   this->unrefCurrentFrame();
   this->flushing = true;
   auto ret = this->cVVDec.flush( &this->pcFrame );
