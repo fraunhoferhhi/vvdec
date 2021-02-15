@@ -65,29 +65,37 @@ THE POSSIBILITY OF SUCH DAMAGE.
  *     eof = is_this_the_last_nal_unit();
  *   }
  *
- *   bool new_picture, check_output;
+ *   bool check_output;
  *   if (libvvcdec_push_nal_unit(decCtx, data, length, check_output) != LIBVVCDEC_OK)
  *     handle_the_error();
- *   if (!new_picture)
- *   {
- *     // The NAL was consumed and the next NAL can be pushed in the next call to libvvcdec_push_nal_unit
- *     data = NULL;
- *     legth = -1;
- *   }
  *
  *   // Next, check the output
  *   if (check_output)
  *   {
- *     libvvcdec_picture *pic = libvvcdec_get_picture(decCtx);
- *     while(pic != NULL)
+ *     auto picData = libvvcdec_get_picture_plane(decCtx, LIBVVCDEC_LUMA);
+ *     if (!picData)
+ *       handle_error();
+ *     else
  *     {
- *       // Do something with the picture...
- *       int width = libvvcdec_get_picture_width(pic, LIBVVCDEC_LUMA);
- *       // Go to the next picture until no more pictures are present.
- *       pic = libvvcdec_get_picture(decCtx);
+ *       auto width = libvvcdec_get_picture_width(pic, LIBVVCDEC_LUMA);
+ *       auto height = libvvcdec_get_picture_height(pic, LIBVVCDEC_LUMA);
+ *       // ... Save the frame data
  *     }
  *   }
  * }
+ * // Flush
+ * if (libvvcdec_push_nal_unit(decCtx, nullptr, 0, check_output) != LIBVVCDEC_OK)
+ *   handle_the_error();
+ * while(true)
+ * {
+ *   auto picData = libvvcdec_get_picture_plane(decCtx, LIBVVCDEC_LUMA);
+ *   if (!picData)
+ *     break;
+ *   // As above get the frame and do something with it.
+ *   if (libvvcdec_push_nal_unit(decCtx, nullptr, 0, check_output) != LIBVVCDEC_OK)
+ *     handle_the_error();
+ * }
+ * 
  * libvvcdec_free_decoder(decCtx);
  * \endcode
  */
@@ -140,7 +148,7 @@ typedef void libvvcdec_context;
   */
 VVCDECAPI libvvcdec_context* libvvcdec_new_decoder(void);
 
-/** Set a logging callback.
+/** Set a logging callback with the given log level.
  */
 VVCDECAPI libvvcdec_error libvvcdec_set_logging_callback(libvvcdec_context* decCtx, libvvcdec_logging_callback callback, void *userData, libvvcdec_loglevel loglevel);
 
@@ -151,21 +159,15 @@ VVCDECAPI libvvcdec_error libvvcdec_set_logging_callback(libvvcdec_context* decC
 VVCDECAPI libvvcdec_error libvvcdec_free_decoder(libvvcdec_context* decCtx);
 
 /** Push a single NAL unit into the decoder (excluding the start code but including the NAL unit header).
- * This will perform decoding of the NAL unit. It must be exactly one NAL unit and the data array must
- * not be empty.
+ * This will perform decoding of the NAL unit. It can be multiple NAL units (e.g. a full AU). 
+ * If you want to swithc the decoder to flushing mode, push a nullptr as data8. Do this again to advance to the next picture in flushing mode.
  * \param decCtx The decoder context that was created with libvvcdec_new_decoder
  * \param data8 The raw byte data from the NAL unit starting with the first byte of the NAL unit header. Push nullptr to signal EOF.
  * \param length The length in number of bytes in the data
- * \param checkOutputPictures This bool is set by the function if pictures might be available (see libvvcdec_get_picture).
+ * \param checkOutputPictures This bool is set by the function if pictures are available (see libvvcdec_get_picture).
  * \return An error code or LIBVVCDEC_OK if no error occured
  */
 VVCDECAPI libvvcdec_error libvvcdec_push_nal_unit(libvvcdec_context *decCtx, const unsigned char* data8, int length, bool &checkOutputPictures);
-
-/** This private structure represents a picture.
- * You can save a pointer to it and use all the following functions to access it
- * but it is not further defined as part of the public API.
- */
-typedef void libvvcdec_picture;
 
 /** The YUV color components
  */
