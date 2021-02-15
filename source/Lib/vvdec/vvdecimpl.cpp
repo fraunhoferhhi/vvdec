@@ -172,7 +172,7 @@ int VVDecImpl::uninit()
 
      if( NULL != pic.m_pcPicExtendedAttributes )
      {
-       seimsg::deleteSEIs( pic.m_pcPicExtendedAttributes->m_cSeiMsgLst );
+       sei::deleteSEIs( pic.m_pcPicExtendedAttributes->m_cSeiMsgLst );
        delete pic.m_pcPicExtendedAttributes;
        pic.m_pcPicExtendedAttributes = NULL;
      }
@@ -507,7 +507,7 @@ int VVDecImpl::objectUnref( Frame* pcFrame )
 
       if( NULL != pic.m_pcPicExtendedAttributes )
       {
-         seimsg::deleteSEIs( pic.m_pcPicExtendedAttributes->m_cSeiMsgLst );
+         sei::deleteSEIs( pic.m_pcPicExtendedAttributes->m_cSeiMsgLst );
          delete pic.m_pcPicExtendedAttributes;
          pic.m_pcPicExtendedAttributes = NULL;
       }
@@ -1104,195 +1104,195 @@ int VVDecImpl::xHandleSEIs ( Frame& rcFrame, Picture* pcPic )
   {
     switch( sei->payloadType() )
     {
-      case SEI::BUFFERING_PERIOD                     :
+      case sei::BUFFERING_PERIOD                     :
         {
-          SEIBufferingPeriod* src = (SEIBufferingPeriod*)sei;
+          const seiBufferingPeriod* src = (seiBufferingPeriod*)sei;
           vvdec::seiBufferingPeriod* t = new vvdec::seiBufferingPeriod;
           src->copyTo(*t);
           rcFrame.m_pcPicExtendedAttributes->m_cSeiMsgLst.push_back(t);
         }
         break;
-      case SEI::PICTURE_TIMING                       :
+      case sei::PICTURE_TIMING                       :
         {
-          SEIPictureTiming* src = (SEIPictureTiming*)sei;
+          const seiPictureTiming* src = (seiPictureTiming*)sei;
           vvdec::seiPictureTiming* t = new vvdec::seiPictureTiming;
           src->copyTo(*t);
           rcFrame.m_pcPicExtendedAttributes->m_cSeiMsgLst.push_back(t);
         }
         break;
-      case SEI::FILLER_PAYLOAD                       :
+      case sei::FILLER_PAYLOAD                       :
         break;
-      case SEI::USER_DATA_REGISTERED_ITU_T_T35       :
+      case sei::USER_DATA_REGISTERED_ITU_T_T35       :
         {
-          SEIUserDataRegistered* src = (SEIUserDataRegistered*)sei;
+          const seiUserDataRegistered* src = (seiUserDataRegistered*)sei;
           vvdec::seiUserDataRegistered* t = new vvdec::seiUserDataRegistered;
-          src->copyTo(*t);
+          *t = *src;
           rcFrame.m_pcPicExtendedAttributes->m_cSeiMsgLst.push_back(t);
         }
         break;
-      case SEI::USER_DATA_UNREGISTERED               :
+      case sei::USER_DATA_UNREGISTERED               :
         {
-          SEIuserDataUnregistered* src = (SEIuserDataUnregistered*)sei;
+          const seiUserDataUnregistered* src = (seiUserDataUnregistered*)sei;
           vvdec::seiUserDataUnregistered* t = new vvdec::seiUserDataUnregistered;
-          src->copyTo(*t);
+          *t = *src;
           rcFrame.m_pcPicExtendedAttributes->m_cSeiMsgLst.push_back(t);
         }
         break;
-      case SEI::FILM_GRAIN_CHARACTERISTICS           :
+      case sei::FILM_GRAIN_CHARACTERISTICS           :
         {
-          SEIFilmGrainCharacteristics* src = (SEIFilmGrainCharacteristics*)sei;
+          const seiFilmGrainCharacteristics* src = (seiFilmGrainCharacteristics*)sei;
           vvdec::seiFilmGrainCharacteristics* t = new vvdec::seiFilmGrainCharacteristics;
-          src->copyTo(*t);
+          *t = *src;
           rcFrame.m_pcPicExtendedAttributes->m_cSeiMsgLst.push_back(t);
         }
         break;
 
-      case SEI::FRAME_PACKING                        :
+      case sei::FRAME_PACKING                        :
         {
-          SEIFramePacking* src = (SEIFramePacking*)sei;
+          const seiFramePacking* src = (seiFramePacking*)sei;
           vvdec::seiFramePacking* t = new vvdec::seiFramePacking;
-          src->copyTo(*t);
+          *t = *src;
           rcFrame.m_pcPicExtendedAttributes->m_cSeiMsgLst.push_back(t);
         }
         break;
-      case SEI::PARAMETER_SETS_INCLUSION_INDICATION  :
+      case sei::PARAMETER_SETS_INCLUSION_INDICATION  :
         {
-          SEIParameterSetsInclusionIndication* src = (SEIParameterSetsInclusionIndication*)sei;
+          const seiParameterSetsInclusionIndication* src = (seiParameterSetsInclusionIndication*)sei;
           vvdec::seiParameterSetsInclusionIndication* t = new vvdec::seiParameterSetsInclusionIndication;
-          src->copyTo(*t);
+          *t = *src;
           rcFrame.m_pcPicExtendedAttributes->m_cSeiMsgLst.push_back(t);
         }
         break;
-      case SEI::DECODING_UNIT_INFO                   :
+      case sei::DECODING_UNIT_INFO                   :
         {
-          SEIDecodingUnitInfo* src = (SEIDecodingUnitInfo*)sei;
+          const seiDecodingUnitInfo* src = (seiDecodingUnitInfo*)sei;
           vvdec::seiDecodingUnitInfo* t = new vvdec::seiDecodingUnitInfo;
-          src->copyTo(*t);
+          *t = *src;
           rcFrame.m_pcPicExtendedAttributes->m_cSeiMsgLst.push_back(t);
         }
         break;
-      case SEI::DECODED_PICTURE_HASH                 :
+      case sei::DECODED_PICTURE_HASH                 :
         {
-          SEIDecodedPictureHash* src = (SEIDecodedPictureHash*)sei;
+          const seiDecodedPictureHash* src = (seiDecodedPictureHash*)sei;
           vvdec::seiDecodedPictureHash* t = new vvdec::seiDecodedPictureHash;
-          src->copyTo(*t);
+          *t = *src;
           rcFrame.m_pcPicExtendedAttributes->m_cSeiMsgLst.push_back(t);
         }
         break;
-      case SEI::SCALABLE_NESTING                     :
+      case sei::SCALABLE_NESTING                     :
         {
-          SEIScalableNesting* src = (SEIScalableNesting*)sei;
+          const seiScalableNesting* src = (seiScalableNesting*)sei;
           vvdec::seiScalableNesting* t = new vvdec::seiScalableNesting;
-          src->copyTo(*t);
+          *t = *src;
           rcFrame.m_pcPicExtendedAttributes->m_cSeiMsgLst.push_back(t);
         }
         break;
-      case SEI::MASTERING_DISPLAY_COLOUR_VOLUME      :
+      case sei::MASTERING_DISPLAY_COLOUR_VOLUME      :
         {
-          SEIMasteringDisplayColourVolume* src = (SEIMasteringDisplayColourVolume*)sei;
+          const seiMasteringDisplayColourVolume* src = (seiMasteringDisplayColourVolume*)sei;
           vvdec::seiMasteringDisplayColourVolume* t = new vvdec::seiMasteringDisplayColourVolume;
-          src->copyTo(*t);
+          *t = *src;
           rcFrame.m_pcPicExtendedAttributes->m_cSeiMsgLst.push_back(t);
         }
         break;
 
-      case SEI::DEPENDENT_RAP_INDICATION             : /* not implemented yet in lib */
+      case sei::DEPENDENT_RAP_INDICATION             : /* not implemented yet in lib */
         break;
 
-      case SEI::EQUIRECTANGULAR_PROJECTION           :
+      case sei::EQUIRECTANGULAR_PROJECTION           :
         {
-          SEIEquirectangularProjection* src = (SEIEquirectangularProjection*)sei;
+          const seiEquirectangularProjection* src = (seiEquirectangularProjection*)sei;
           vvdec::seiEquirectangularProjection* t = new vvdec::seiEquirectangularProjection;
-          src->copyTo(*t);
+          *t = *src;
           rcFrame.m_pcPicExtendedAttributes->m_cSeiMsgLst.push_back(t);
         }
         break;
-      case SEI::SPHERE_ROTATION                      :
+      case sei::SPHERE_ROTATION                      :
         {
-          SEISphereRotation* src = (SEISphereRotation*)sei;
+          const seiSphereRotation* src = (seiSphereRotation*)sei;
           vvdec::seiSphereRotation* t = new vvdec::seiSphereRotation;
-          src->copyTo(*t);
+          *t = *src;
           rcFrame.m_pcPicExtendedAttributes->m_cSeiMsgLst.push_back(t);
         }
         break;
-      case SEI::REGION_WISE_PACKING                  :
+      case sei::REGION_WISE_PACKING                  :
         {
-          SEIRegionWisePacking* src = (SEIRegionWisePacking*)sei;
+          const seiRegionWisePacking* src = (seiRegionWisePacking*)sei;
           vvdec::seiRegionWisePacking* t = new vvdec::seiRegionWisePacking;
-          src->copyTo(*t);
+          *t = *src;
           rcFrame.m_pcPicExtendedAttributes->m_cSeiMsgLst.push_back(t);
         }
         break;
-      case SEI::OMNI_VIEWPORT                        :
+      case sei::OMNI_VIEWPORT                        :
         {
-          SEIOmniViewport* src = (SEIOmniViewport*)sei;
+          const seiOmniViewport* src = (seiOmniViewport*)sei;
           vvdec::seiOmniViewport* t = new vvdec::seiOmniViewport;
-          src->copyTo(*t);
+          *t = *src;
           rcFrame.m_pcPicExtendedAttributes->m_cSeiMsgLst.push_back(t);
         }
         break;
-      case SEI::GENERALIZED_CUBEMAP_PROJECTION       :
+      case sei::GENERALIZED_CUBEMAP_PROJECTION       :
         {
-          SEIGeneralizedCubemapProjection* src = (SEIGeneralizedCubemapProjection*)sei;
+          const seiGeneralizedCubemapProjection* src = (seiGeneralizedCubemapProjection*)sei;
           vvdec::seiGeneralizedCubemapProjection* t = new vvdec::seiGeneralizedCubemapProjection;
-          src->copyTo(*t);
+          *t = *src;
           rcFrame.m_pcPicExtendedAttributes->m_cSeiMsgLst.push_back(t);
         }
         break;
-      case SEI::FRAME_FIELD_INFO                     :
+      case sei::FRAME_FIELD_INFO                     :
         {
-          SEIFrameFieldInfo* src = (SEIFrameFieldInfo*)sei;
+          const seiFrameFieldInfo* src = (seiFrameFieldInfo*)sei;
           vvdec::seiFrameFieldInfo* t = new vvdec::seiFrameFieldInfo;
-          src->copyTo(*t);
+          *t = *src;
           rcFrame.m_pcPicExtendedAttributes->m_cSeiMsgLst.push_back(t);
         }
         break;
-      case SEI::SUBPICTURE_LEVEL_INFO                :
+      case sei::SUBPICTURE_LEVEL_INFO                :
         {
-          SEISubpicureLevelInfo* src = (SEISubpicureLevelInfo*)sei;
+          const seiSubpicureLevelInfo* src = (seiSubpicureLevelInfo*)sei;
           vvdec::seiSubpicureLevelInfo* t = new vvdec::seiSubpicureLevelInfo;
-          src->copyTo(*t);
+          *t = *src;
           rcFrame.m_pcPicExtendedAttributes->m_cSeiMsgLst.push_back(t);
         }
         break;
-      case SEI::SAMPLE_ASPECT_RATIO_INFO             :
+      case sei::SAMPLE_ASPECT_RATIO_INFO             :
         {
-          SEISampleAspectRatioInfo* src = (SEISampleAspectRatioInfo*)sei;
+          const seiSampleAspectRatioInfo* src = (seiSampleAspectRatioInfo*)sei;
           vvdec::seiSampleAspectRatioInfo* t = new vvdec::seiSampleAspectRatioInfo;
-          src->copyTo(*t);
+          *t = *src;
           rcFrame.m_pcPicExtendedAttributes->m_cSeiMsgLst.push_back(t);
         }
         break;
-      case SEI::CONTENT_LIGHT_LEVEL_INFO             :
+      case sei::CONTENT_LIGHT_LEVEL_INFO             :
         {
-          SEIContentLightLevelInfo* src = (SEIContentLightLevelInfo*)sei;
+          const seiContentLightLevelInfo* src = (seiContentLightLevelInfo*)sei;
           vvdec::seiContentLightLevelInfo* t = new vvdec::seiContentLightLevelInfo;
-          src->copyTo(*t);
+          *t = *src;
           rcFrame.m_pcPicExtendedAttributes->m_cSeiMsgLst.push_back(t);
         }
         break;
-      case SEI::ALTERNATIVE_TRANSFER_CHARACTERISTICS :
+      case sei::ALTERNATIVE_TRANSFER_CHARACTERISTICS :
         {
-          SEIAlternativeTransferCharacteristics* src = (SEIAlternativeTransferCharacteristics*)sei;
+          const seiAlternativeTransferCharacteristics* src = (seiAlternativeTransferCharacteristics*)sei;
           vvdec::seiAlternativeTransferCharacteristics* t = new vvdec::seiAlternativeTransferCharacteristics;
-          src->copyTo(*t);
+          *t = *src;
           rcFrame.m_pcPicExtendedAttributes->m_cSeiMsgLst.push_back(t);
         }
         break;
-      case SEI::AMBIENT_VIEWING_ENVIRONMENT          :
+      case sei::AMBIENT_VIEWING_ENVIRONMENT          :
         {
-          SEIAmbientViewingEnvironment* src = (SEIAmbientViewingEnvironment*)sei;
+          const seiAmbientViewingEnvironment* src = (seiAmbientViewingEnvironment*)sei;
           vvdec::seiAmbientViewingEnvironment* t = new vvdec::seiAmbientViewingEnvironment;
-          src->copyTo(*t);
+          *t = *src;
           rcFrame.m_pcPicExtendedAttributes->m_cSeiMsgLst.push_back(t);
         }
         break;
 
-      case SEI::CONTENT_COLOUR_VOLUME                :
+      case sei::CONTENT_COLOUR_VOLUME                :
         {
-          SEIContentColourVolume* src = (SEIContentColourVolume*)sei;
+          const seiContentColourVolume* src = (seiContentColourVolume*)sei;
           vvdec::seiContentColourVolume* t = new vvdec::seiContentColourVolume;
-          src->copyTo(*t);
+          *t = *src;
           rcFrame.m_pcPicExtendedAttributes->m_cSeiMsgLst.push_back(t);
         }
         break;

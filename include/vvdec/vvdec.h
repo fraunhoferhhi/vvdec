@@ -49,7 +49,7 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #include "vvdec/vvdecDecl.h"
 
 #include <list>
-#include "vvdec/seimsg.h"
+#include "vvdec/sei.h"
 
 namespace vvdec {
 
@@ -287,7 +287,7 @@ typedef struct VVDEC_DECL PicExtendedAttributes
   int            m_iMatrixCoefficients                 = 0;
   //boost::optional< dpl::ImagePacket::HdrMasteringDisplayColorVolume > m_cHdrMasteringDisplayColorVolume;
 
-  std::list<seimsg*> m_cSeiMsgLst;
+  std::list<sei*> m_cSeiMsgLst;
 
 } PicExtendedAttributes_t;
 
