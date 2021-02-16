@@ -83,7 +83,7 @@ public:
           "\n"
           "\t\t [--threads,-t  <int>       ] : number of threads (default: <= 0 auto detection )\n"
           "\t\t [--parsedelay,-p  <int>    ] : maximal number of frames to read before decoding (default: <= 0 auto detection )\n"
-          "\t\t [--simd <str>              ] : used simd extension (0: scalar, 1: sse41, 2: sse42, 3: avx, 4: avx2, 5: avx512) (default: <= 0 auto detection)\n"
+          "\t\t [--simd <int>              ] : used simd extension (0: scalar, 1: sse41, 2: sse42, 3: avx, 4: avx2, 5: avx512) (default: <= 0 auto detection)\n"
           "\n"
           "\t\t [--SEIDecodedPictureHash,-dph ] : enable handling of decoded picture hash SEI messages"
           "\n"
