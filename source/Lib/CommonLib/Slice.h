@@ -3184,8 +3184,7 @@ public:
   
 //  CcAlfFilterParam            m_ccAlfFilterParam;
 
-  void                        scaleRefPicList( PicHeader *picHeader, APS** apss, APS* lmcsAps, APS* scalingListAps, const bool isDecoder );
-  void                        freeScaledRefPicList( Picture *scaledRefPic[] );
+  void                        scaleRefPicList( PicHeader *picHeader, APS** apss, APS* lmcsAps, APS* scalingListAps );
   bool                        checkRPR();
   const std::pair<int, int>&  getScalingRatio( const RefPicList refPicList, const int refIdx )  const { return m_scalingRatio[refPicList][refIdx]; }
   void                        setNumEntryPoints( const SPS *sps, const PPS *pps );

@@ -2164,9 +2164,8 @@ bool ScalingList::isLumaScalingList( int scalingListId) const
   return (scalingListId % MAX_NUM_COMPONENT == SCALING_LIST_1D_START_4x4 || scalingListId == SCALING_LIST_1D_START_64x64 + 1);
 }
 
-void Slice::scaleRefPicList( PicHeader *picHeader, APS** apss, APS* lmcsAps, APS* scalingListAps, const bool isDecoder )
+void Slice::scaleRefPicList( PicHeader *picHeader, APS** apss, APS* lmcsAps, APS* scalingListAps )
 {
-  int i;
   const SPS* sps = getSPS();
   const PPS* pps = getPPS();
 
@@ -2179,8 +2178,6 @@ void Slice::scaleRefPicList( PicHeader *picHeader, APS** apss, APS* lmcsAps, APS
   {
     return;
   }
-  
-  Picture* scaledRefPic[MAX_NUM_REF] = {};
   
   for( int refList = 0; refList < NUM_REF_PIC_LIST_01; refList++ )
   {
@@ -2204,82 +2201,7 @@ void Slice::scaleRefPicList( PicHeader *picHeader, APS** apss, APS* lmcsAps, APS
         refPicIsSameRes = true;
       }
 
-      if( m_scalingRatio[refList][rIdx] == SCALE_1X || isDecoder )
-      {
-        m_scaledRefPicList[refList][rIdx] = m_apcRefPicList[refList][rIdx];
-      }
-      else
-      {
-        int poc = m_apcRefPicList[refList][rIdx]->getPOC();
-        // check whether the reference picture has already been scaled 
-        for( i = 0; i < MAX_NUM_REF; i++ )
-        {
-          if( scaledRefPic[i] != nullptr && scaledRefPic[i]->poc == poc )
-          {
-            break;
-          }
-        }
-
-        if( i == MAX_NUM_REF )
-        {
-          int j;
-          // search for unused Picture structure in scaledRefPic
-          for( j = 0; j < MAX_NUM_REF; j++ )
-          {
-            if( scaledRefPic[j] == nullptr )
-            {
-              break;
-            }
-          }
-
-          CHECK( j >= MAX_NUM_REF, "scaledRefPic can not hold all reference pictures!" );
-
-          if( j >= MAX_NUM_REF )
-          {
-            j = 0;
-          }
-
-          if( scaledRefPic[j] == nullptr )
-          {
-            scaledRefPic[j] = new Picture;
-
-            scaledRefPic[j]->setBorderExtension( false );
-            scaledRefPic[j]->reconstructed = false;
-            scaledRefPic[j]->referenced = true;
-            scaledRefPic[j]->finalInit( sps, pps, picHeader, apss, lmcsAps, scalingListAps );
-            scaledRefPic[j]->poc = -1;
-
-            scaledRefPic[j]->create( sps->getChromaFormatIdc(), Size( pps->getPicWidthInLumaSamples(), pps->getPicHeightInLumaSamples() ), sps->getMaxCUWidth(), sps->getMaxCUWidth() + 16, m_pcPic->layerId );
-          }
-
-          scaledRefPic[j]->poc = poc;
-          scaledRefPic[j]->longTerm = m_apcRefPicList[refList][rIdx]->longTerm;
-
-          // rescale the reference picture
-          const bool downsampling = m_apcRefPicList[refList][rIdx]->getRecoBuf().Y().width >= scaledRefPic[j]->getRecoBuf().Y().width && m_apcRefPicList[refList][rIdx]->getRecoBuf().Y().height >= scaledRefPic[j]->getRecoBuf().Y().height;
-          Picture::rescalePicture(
-#if RPR_FIX
-                                   m_scalingRatio[refList][rIdx],
-#endif
-                                   m_apcRefPicList[refList][rIdx]->getRecoBuf(), m_apcRefPicList[refList][rIdx]->slices[0]->getPPS()->getConformanceWindow(),
-                                   scaledRefPic[j]->getRecoBuf(), pps->getConformanceWindow(),
-                                   sps->getChromaFormatIdc(), sps->getBitDepths(), true, downsampling
-#if RPR_FIX
-                                   , sps->getHorCollocatedChromaFlag(), sps->getVerCollocatedChromaFlag()
-#endif
-                                  );
-#if JVET_Q0764_WRAP_AROUND_WITH_RPR
-          scaledRefPic[j]->unscaledPic = m_apcRefPicList[refList][rIdx];
-#endif
-          scaledRefPic[j]->extendPicBorder();
-
-          m_scaledRefPicList[refList][rIdx] = scaledRefPic[j];
-        }
-        else
-        {
-          m_scaledRefPicList[refList][rIdx] = scaledRefPic[i];
-        }
-      }
+      m_scaledRefPicList[refList][rIdx] = m_apcRefPicList[refList][rIdx];
     }
   }
 
@@ -2305,24 +2227,6 @@ void Slice::scaleRefPicList( PicHeader *picHeader, APS** apss, APS* lmcsAps, APS
   if(!refPicIsSameRes)
   {
     CHECK(getPicHeader()->getEnableTMVPFlag() != 0, "TMVP cannot be enabled in pictures that have no reference pictures with the same resolution")
-  }
-
-  freeScaledRefPicList( scaledRefPic );
-}
-
-void Slice::freeScaledRefPicList( Picture *scaledRefPic[] )
-{
-  if( m_eSliceType == I_SLICE )
-  {
-    return;
-  }
-  for( int i = 0; i < MAX_NUM_REF; i++ )
-  {
-    if( scaledRefPic[i] != nullptr )
-    {
-      scaledRefPic[i]->destroy();
-      scaledRefPic[i] = nullptr;
-    }
   }
 }
 
