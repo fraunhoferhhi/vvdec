@@ -322,6 +322,9 @@ typedef struct VVDEC_DECL VVDecParameter
   {}
   int m_iThreads                       = -1;             ///< thread count        ( default: -1 )
   int m_iParseThreads                  = -1;             ///< parser thread count ( default: -1 )
+#if 1 //RPR_YUV_OUTPUT
+  int m_iUpscaledOutput                =  0;
+#endif
   LogLevel m_eLogLevel                 =  LL_WARNING;    ///< verbosity level
   bool m_bDecodedPictureHashSEIEnabled = false;          ///<  Control handling of decoded picture hash SEI messages, true: check hash in SEI messages if available in the bitstream, false: ignore SEI message
   SIMD_Extension m_eSIMD_Extension     = SIMD_DEFAULT;   ///< set specific simd optimization (default: max. availalbe)

@@ -116,6 +116,9 @@ public:
 
    DecLib                                  m_cDecLib;
    bool                                    m_bCreateNewPicBuf    = false;
+#if RPR_YUV_OUTPUT
+   unsigned int                            m_uiBitDepth = 8;
+#endif
 
    std::list<Frame>                        m_rcFrameList;
    std::list<Frame>::iterator              m_pcFrameNext = m_rcFrameList.begin();

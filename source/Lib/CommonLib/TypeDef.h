@@ -77,6 +77,10 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #define DISABLE_CONFROMANCE_CHECK                         1
 #define DISABLE_CHECK_NO_OUTPUT_PRIOR_PICS_FLAG           0
 
+#define RPR_FIX                                           1
+#define RPR_YUV_OUTPUT                                    1
+#define RPR_OUTPUT_MSG                                    1
+
 #define TBD                                               1
 #define TBT                                               1
 #define TBC                                               0

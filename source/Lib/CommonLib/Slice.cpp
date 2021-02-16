@@ -2257,7 +2257,17 @@ void Slice::scaleRefPicList( PicHeader *picHeader, APS** apss, APS* lmcsAps, APS
 
           // rescale the reference picture
           const bool downsampling = m_apcRefPicList[refList][rIdx]->getRecoBuf().Y().width >= scaledRefPic[j]->getRecoBuf().Y().width && m_apcRefPicList[refList][rIdx]->getRecoBuf().Y().height >= scaledRefPic[j]->getRecoBuf().Y().height;
-          Picture::rescalePicture( m_apcRefPicList[refList][rIdx]->getRecoBuf(), m_apcRefPicList[refList][rIdx]->slices[0]->getPPS()->getConformanceWindow(), scaledRefPic[j]->getRecoBuf(), pps->getConformanceWindow(), sps->getChromaFormatIdc(), sps->getBitDepths(), true, downsampling );
+          Picture::rescalePicture(
+#if RPR_FIX
+                                   m_scalingRatio[refList][rIdx],
+#endif
+                                   m_apcRefPicList[refList][rIdx]->getRecoBuf(), m_apcRefPicList[refList][rIdx]->slices[0]->getPPS()->getConformanceWindow(),
+                                   scaledRefPic[j]->getRecoBuf(), pps->getConformanceWindow(),
+                                   sps->getChromaFormatIdc(), sps->getBitDepths(), true, downsampling
+#if RPR_FIX
+                                   , sps->getHorCollocatedChromaFlag(), sps->getVerCollocatedChromaFlag()
+#endif
+                                  );
 #if JVET_Q0764_WRAP_AROUND_WITH_RPR
           scaledRefPic[j]->unscaledPic = m_apcRefPicList[refList][rIdx];
 #endif
