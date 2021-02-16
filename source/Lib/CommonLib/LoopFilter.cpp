@@ -583,8 +583,14 @@ void LoopFilter::xDeblockCtuArea( CodingStructure& cs, const UnitArea& area, con
   }
 }
 
-void LoopFilter::calcFilterStrengths( const CodingUnit& cu )
+void LoopFilter::calcFilterStrengths( const CodingUnit& cu ) const
 {
+  // reenable this, if not checking in outer loop (currently calcFilterStrengthsCTU):
+  //  if( cu.slice->getDeblockingFilterDisable() )
+  //  {
+  //    return;
+  //  }
+
   const PreCalcValues& pcv = *cu.cs->pcv;
   const Area area          = cu.blocks[cu.chType()];
 
@@ -784,7 +790,7 @@ template<> inline SizeType parlSize<EDGE_VER>( const Size& size ) { return size.
 template<> inline SizeType perpSize<EDGE_VER>( const Size& size ) { return size.width; }
 
 template<DeblockEdgeDir edgeDir>
-void LoopFilter::xSetMaxFilterLengthPQForCodingSubBlocks( const CodingUnit& cu, CtuData& ctuData )
+void LoopFilter::xSetMaxFilterLengthPQForCodingSubBlocks( const CodingUnit& cu, CtuData& ctuData ) const
 {
   static constexpr
         int subBlockSize = 8;
@@ -857,7 +863,7 @@ static inline TransformUnit const* getTU( const CodingUnit& cu, const Position& 
 }
 
 template<DeblockEdgeDir edgeDir>
-void LoopFilter::xSetMaxFilterLengthPQFromTransformSizes( const CodingUnit& cu, const TransformUnit& currTU, const bool bValue, bool deriveBdStrngt, CtuData& ctuData, bool pqSameCtu )
+void LoopFilter::xSetMaxFilterLengthPQFromTransformSizes( const CodingUnit& cu, const TransformUnit& currTU, const bool bValue, bool deriveBdStrngt, CtuData& ctuData, bool pqSameCtu ) const
 {
   const PreCalcValues &pcv = *cu.cs->pcv;
 
@@ -982,7 +988,7 @@ void LoopFilter::xSetMaxFilterLengthPQFromTransformSizes( const CodingUnit& cu, 
 }
 
 template<DeblockEdgeDir edgeDir>
-void LoopFilter::xSetEdgeFilterInsidePu( const CodingUnit &cu, const Area &area, const bool bValue, CtuData& ctuData )
+void LoopFilter::xSetEdgeFilterInsidePu( const CodingUnit &cu, const Area &area, const bool bValue, CtuData& ctuData ) const
 {
   const PreCalcValues &  pcv       = *cu.cs->pcv;
   LoopFilterParam*       lfpPtr    =  ctuData.lfParam[edgeDir] + cu.cs->inCtuPos( area.pos(), cu.chType() );

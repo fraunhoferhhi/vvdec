@@ -75,16 +75,18 @@ private:
   // set / get functions
   LFCUParam xGetLoopfilterParam   ( const CodingUnit& cu ) const;
 
+  void calcFilterStrengths        ( const CodingUnit& cu ) const;
+
   // filtering functions
   template<DeblockEdgeDir edgeDir>
   void xGetBoundaryStrengthSingle ( LoopFilterParam& lfp, const CodingUnit& cu, const Position &localPos, const CodingUnit &cuP, CtuData& ctuData, bool pqSameCtu ) const;
   template<DeblockEdgeDir edgeDir>
-  void xSetEdgeFilterInsidePu     ( const CodingUnit &cu, const Area &area, const bool bValue, CtuData& ctuData );
+  void xSetEdgeFilterInsidePu     ( const CodingUnit &cu, const Area &area, const bool bValue, CtuData& ctuData ) const;
 
   template<DeblockEdgeDir edgeDir>
-  void xSetMaxFilterLengthPQFromTransformSizes( const CodingUnit& cu, const TransformUnit& currTU, const bool bValue, bool deriveBdStrngt, CtuData& ctuData, bool pqSameCtu );
+  void xSetMaxFilterLengthPQFromTransformSizes( const CodingUnit& cu, const TransformUnit& currTU, const bool bValue, bool deriveBdStrngt, CtuData& ctuData, bool pqSameCtu ) const;
   template<DeblockEdgeDir edgeDir>
-  void xSetMaxFilterLengthPQForCodingSubBlocks( const CodingUnit& cu, CtuData& ctuData );
+  void xSetMaxFilterLengthPQForCodingSubBlocks( const CodingUnit& cu, CtuData& ctuData ) const;
 
   template<DeblockEdgeDir edgeDir>
   void xEdgeFilterLuma            ( CodingStructure& cs, const Position& pos, const LoopFilterParam& lfp ) const;
@@ -118,14 +120,6 @@ public:
   void loopFilterPicLine          ( CodingStructure& cs, const ChannelType chType,                   const int ctuLine, const int offset = 0, DeblockEdgeDir edgeDir = NUM_EDGE_DIR ) const;
   void loopFilterCTU              ( CodingStructure & cs, const ChannelType chType, const int ctuCol, const int ctuLine, const int offset = 0, DeblockEdgeDir edgeDir = NUM_EDGE_DIR ) const;
   void calcFilterStrengthsCTU     ( CodingStructure & cs, const UnitArea& ctuArea );
-
-  void calcFilterStrengths        ( const CodingUnit& cu );
-
-  static int getBeta              ( const int qp )
-  {
-    const int indexB = Clip3( 0, MAX_QP, qp );
-    return sm_betaTable[ indexB ];
-  }
 };
 
 //! \}
