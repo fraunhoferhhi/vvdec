@@ -83,6 +83,7 @@ public:
           "\n"
           "\t\t [--threads,-t  <int>       ] : number of threads (default: <= 0 auto detection )\n"
           "\t\t [--parsedelay,-p  <int>    ] : maximal number of frames to read before decoding (default: <= 0 auto detection )\n"
+          "\t\t [--simd <str>              ] : used simd extension (0: scalar, 1: sse41, 2: sse42, 3: avx, 4: avx2, 5: avx512) (default: <= 0 auto detection)\n"
           "\n"
           "\t\t [--SEIDecodedPictureHash,-dph ] : enable handling of decoded picture hash SEI messages"
           "\n"
@@ -221,6 +222,28 @@ public:
       {
         // already processed
         i_arg++;
+      }
+      else if( !strcmp( ( const char* ) argv[i_arg], "--simd" ) )
+      {
+        i_arg++;
+        rcParams.m_eSIMD_Extension = vvdec::SIMD_Extension( std::max( -1, atoi( argv[i_arg++] ) ) + 1 );
+
+        if( rcParams.m_eLogLevel > vvdec::LL_VERBOSE )
+        {
+          std::string cll;
+          switch( rcParams.m_eSIMD_Extension )
+          {
+          case vvdec::SIMD_DEFAULT: cll = "DEFAULT"; break;
+          case vvdec::SIMD_SCALAR:  cll = "SCALAR"; break;
+          case vvdec::SIMD_SSE41:   cll = "SSE41"; break;
+          case vvdec::SIMD_SSE42:   cll = "SSE42"; break;
+          case vvdec::SIMD_AVX:     cll = "AVX"; break;
+          case vvdec::SIMD_AVX2:    cll = "AVX2"; break;
+          case vvdec::SIMD_AVX512:  cll = "AVX512"; break;
+          default: cll = "UNKNOWN"; break;
+          };
+          fprintf( stdout, "[simd] : %s\n", cll.c_str() );
+        }
       }
       else
       {
