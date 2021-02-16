@@ -257,6 +257,30 @@ typedef struct VVDEC_DECL Component
 
 } Component_t;
 
+typedef struct VVDEC_DECL Vui
+{
+  bool       m_aspectRatioInfoPresentFlag     = false;
+  bool       m_aspectRatioConstantFlag        = false;
+  bool       m_nonPackedFlag                  = false;
+  bool       m_nonProjectedFlag               = false;
+  int        m_aspectRatioIdc                 = 0;
+  int        m_sarWidth                       = 0;
+  int        m_sarHeight                      = 0;
+  bool       m_colourDescriptionPresentFlag   = false;
+  int        m_colourPrimaries                = 2;
+  int        m_transferCharacteristics        = 2;
+  int        m_matrixCoefficients             = 2;
+  bool       m_progressiveSourceFlag          = false;
+  bool       m_interlacedSourceFlag           = false;
+  bool       m_chromaLocInfoPresentFlag       = false;
+  int        m_chromaSampleLocTypeTopField    = 6;
+  int        m_chromaSampleLocTypeBottomField = 6;
+  int        m_chromaSampleLocType            = 6;
+  bool       m_overscanInfoPresentFlag        = false;
+  bool       m_overscanAppropriateFlag        = false;
+  bool       m_videoSignalTypePresentFlag     = false;
+  bool       m_videoFullRangeFlag             = false;
+}Vui_t;
 
 /**
   \ingroup VVDecExternalInterfaces
@@ -275,18 +299,7 @@ typedef struct VVDEC_DECL PicExtendedAttributes
 
   unsigned int   m_uiBits                               = 0;                  ///< bits of the compr. image packet
 
-  bool           m_bCbr                                = false;               ///< Cbr mode flag (true: cbr, false: vbr)
-  unsigned int   m_uiCpbRemovalDelay                   = 0;                   ///< Coded picture buffer removal delay
-  unsigned int   m_uiCpbRemovalOffset                  = 0;                   ///< Coded picture buffer removal offset
-  unsigned int   m_uiIndicatedBitrate                  = 0;                   ///< indicated bitrate for cbr
-  unsigned int   m_uiMaxProfileLevelBitrate            = 0;                   ///< max. possible bitrate for profile and leven
-
-  int            m_iAlternativeTransferCharacteristics = 0;
-  int            m_iColourPrimaries                    = 0;
-  int            m_iTransferCharacteristics            = 0;
-  int            m_iMatrixCoefficients                 = 0;
-  //boost::optional< dpl::ImagePacket::HdrMasteringDisplayColorVolume > m_cHdrMasteringDisplayColorVolume;
-
+  Vui            *m_pcVui                              = NULL;                ///< if available, pointer to VUI (Video Usability Information)
   std::list<sei*> m_cSeiMsgLst;
 
 } PicExtendedAttributes_t;

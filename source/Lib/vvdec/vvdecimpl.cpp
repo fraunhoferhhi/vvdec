@@ -173,6 +173,12 @@ int VVDecImpl::uninit()
      if( NULL != pic.m_pcPicExtendedAttributes )
      {
        sei::deleteSEIs( pic.m_pcPicExtendedAttributes->m_cSeiMsgLst );
+
+       if( NULL != pic.m_pcPicExtendedAttributes->m_pcVui )
+       {
+         delete pic.m_pcPicExtendedAttributes->m_pcVui;
+       }
+
        delete pic.m_pcPicExtendedAttributes;
        pic.m_pcPicExtendedAttributes = NULL;
      }
@@ -508,6 +514,12 @@ int VVDecImpl::objectUnref( Frame* pcFrame )
       if( NULL != pic.m_pcPicExtendedAttributes )
       {
          sei::deleteSEIs( pic.m_pcPicExtendedAttributes->m_cSeiMsgLst );
+
+         if( NULL != pic.m_pcPicExtendedAttributes->m_pcVui )
+         {
+           delete pic.m_pcPicExtendedAttributes->m_pcVui;
+         }
+
          delete pic.m_pcPicExtendedAttributes;
          pic.m_pcPicExtendedAttributes = NULL;
       }
@@ -907,7 +919,41 @@ int VVDecImpl::xAddPicture( Picture* pcPic )
       case B_SLICE: cFrame.m_pcPicExtendedAttributes->m_eSliceType = VVC_SLICETYPE_B; break;
       default:      cFrame.m_pcPicExtendedAttributes->m_eSliceType = VVC_SLICETYPE_UNKNOWN; break;
     }
+
+    if( pcPic->slices.front()->getSPS()->getVuiParametersPresentFlag() )
+    {
+      const VUI* vui = pcPic->slices.front()->getSPS()->getVuiParameters();
+      if( vui != NULL )
+      {
+        cFrame.m_pcPicExtendedAttributes->m_pcVui = new vvdec::Vui;
+
+        cFrame.m_pcPicExtendedAttributes->m_pcVui->m_aspectRatioInfoPresentFlag    = vui->getAspectRatioInfoPresentFlag();
+        cFrame.m_pcPicExtendedAttributes->m_pcVui->m_aspectRatioConstantFlag       = vui->getAspectRatioConstantFlag();
+        cFrame.m_pcPicExtendedAttributes->m_pcVui->m_nonPackedFlag                 = vui->getNonPackedFlag();
+        cFrame.m_pcPicExtendedAttributes->m_pcVui->m_nonProjectedFlag              = vui->getNonProjectedFlag();
+        cFrame.m_pcPicExtendedAttributes->m_pcVui->m_aspectRatioIdc                = vui->getAspectRatioIdc();
+        cFrame.m_pcPicExtendedAttributes->m_pcVui->m_sarWidth                      = vui->getSarWidth();
+        cFrame.m_pcPicExtendedAttributes->m_pcVui->m_sarHeight                     = vui->getSarHeight();
+        cFrame.m_pcPicExtendedAttributes->m_pcVui->m_colourDescriptionPresentFlag  = vui->getColourDescriptionPresentFlag();
+        cFrame.m_pcPicExtendedAttributes->m_pcVui->m_colourPrimaries               = vui->getColourPrimaries();
+        cFrame.m_pcPicExtendedAttributes->m_pcVui->m_transferCharacteristics       = vui->getTransferCharacteristics();
+        cFrame.m_pcPicExtendedAttributes->m_pcVui->m_matrixCoefficients            = vui->getMatrixCoefficients();
+        cFrame.m_pcPicExtendedAttributes->m_pcVui->m_progressiveSourceFlag         = vui->getProgressiveSourceFlag();
+        cFrame.m_pcPicExtendedAttributes->m_pcVui->m_interlacedSourceFlag          = vui->getInterlacedSourceFlag();
+        cFrame.m_pcPicExtendedAttributes->m_pcVui->m_chromaLocInfoPresentFlag      = vui->getChromaLocInfoPresentFlag();
+        cFrame.m_pcPicExtendedAttributes->m_pcVui->m_chromaSampleLocTypeTopField   = vui->getChromaSampleLocTypeTopField();
+        cFrame.m_pcPicExtendedAttributes->m_pcVui->m_chromaSampleLocTypeBottomField= vui->getChromaSampleLocTypeBottomField();
+        cFrame.m_pcPicExtendedAttributes->m_pcVui->m_chromaSampleLocType           = vui->getChromaSampleLocType();
+        cFrame.m_pcPicExtendedAttributes->m_pcVui->m_overscanInfoPresentFlag       = vui->getOverscanInfoPresentFlag();
+        cFrame.m_pcPicExtendedAttributes->m_pcVui->m_overscanAppropriateFlag       = vui->getOverscanAppropriateFlag();
+        cFrame.m_pcPicExtendedAttributes->m_pcVui->m_videoSignalTypePresentFlag    = vui->getVideoSignalTypePresentFlag();
+        cFrame.m_pcPicExtendedAttributes->m_pcVui->m_videoFullRangeFlag            = vui->getVideoFullRangeFlag();
+      }
+    }
+
   }
+
+
 
   if( 0 != xHandleSEIs ( cFrame, pcPic ) )
   {
