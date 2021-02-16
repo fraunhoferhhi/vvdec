@@ -517,11 +517,11 @@ void SEIReader::xParseSEIScalableNesting(seiScalableNesting& sei, const NalUnitT
     {
       if (i == 0)
       {
-        sei.m_snOlsIdx[i] = sei.m_snOlsIdxDelta[i]+1;
+        sei.m_snOlsIdx[i] = sei.m_snOlsIdxDelta[i]-1;
       }
       else
       {
-        sei.m_snOlsIdx[i] = sei.m_snOlsIdxDelta[i] + sei.m_snOlsIdxDelta[i - 1] + 1;
+        sei.m_snOlsIdx[i] = sei.m_snOlsIdxDelta[i]-1 + sei.m_snOlsIdxDelta[i - 1];
       }
     }
     if (vps && vps->getVPSId() != 0)
