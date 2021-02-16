@@ -160,16 +160,6 @@ public:
 public:
 #if JVET_O1143_MV_ACROSS_SUBPIC_BOUNDARY
   std::vector<PelStorage> m_subPicRefBufs;   // used as reference for subpictures, that are treated as pictures
-
-  struct SubPicExtTask
-  {
-    Picture*    picture   = nullptr;
-    PelStorage* subPicBuf = nullptr;
-    Area        subPicArea;
-  };
-  std::vector<SubPicExtTask> m_subPicExtTasks;
-
-  void createSubPicRefBufs( NoMallocThreadPool* threadPool );
 #endif
 
   void startProcessingTimer();

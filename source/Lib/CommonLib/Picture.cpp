@@ -753,35 +753,6 @@ void Picture::rescalePicture( const CPelUnitBuf& beforeScaling, const Window& co
   }
 }
 
-#if JVET_O1143_MV_ACROSS_SUBPIC_BOUNDARY
-void Picture::createSubPicRefBufs( NoMallocThreadPool* threadPool )
-{
-  const int numSubPic = cs->pps->getNumSubPics();
-
-  m_subPicRefBufs.resize( numSubPic );
-  m_subPicExtTasks.clear();
-  m_subPicExtTasks.resize( numSubPic, SubPicExtTask{ this, nullptr, Area{} } );
-  for( int i = 0; i < numSubPic; ++i )
-  {
-    const SubPic& currSubPic = cs->pps->getSubPic( i );
-    const Area    subPicArea( currSubPic.getSubPicLeft(),
-                              currSubPic.getSubPicTop(),
-                              currSubPic.getSubPicWidthInLumaSample(),
-                              currSubPic.getSubPicHeightInLumaSample() );
-    m_subPicRefBufs[i].create( getRecoBuf().chromaFormat, Size( subPicArea ), cs->sps->getMaxCUWidth(), margin, MEMORY_ALIGN_DEF_SIZE );
-
-    static auto task = []( int, SubPicExtTask* t ) {
-      t->subPicBuf->copyFrom( t->picture->getRecoBuf().subBuf( t->subPicArea ) );
-      t->picture->extendPicBorderBuf( *t->subPicBuf );
-      return true;
-    };
-    m_subPicExtTasks[i].subPicBuf  = &m_subPicRefBufs[i];
-    m_subPicExtTasks[i].subPicArea = subPicArea;
-    threadPool->addBarrierTask<SubPicExtTask>( task, &m_subPicExtTasks[i], &m_borderExtTaskCounter, nullptr, { &static_cast<const Barrier&>( this->done ) } );
-  }
-}
-#endif
-
 void Picture::extendPicBorder( bool top, bool bottom, bool leftrightT, bool leftrightB, ChannelType chType )
 {
 #if JVET_Q0764_WRAP_AROUND_WITH_RPR

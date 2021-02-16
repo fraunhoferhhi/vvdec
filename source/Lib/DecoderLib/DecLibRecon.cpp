@@ -275,6 +275,39 @@ void DecLibRecon::borderExtPic( Picture* pic )
   }
 }
 
+void DecLibRecon::createSubPicRefBufs( Picture* pic )
+{
+  const PPS* pps       = pic->cs->pps.get();
+  const SPS* sps       = pic->cs->sps.get();
+  const int  numSubPic = pps->getNumSubPics();
+
+  pic->m_subPicRefBufs.resize( numSubPic );
+  m_subPicExtTasks.clear();
+  m_subPicExtTasks.resize( numSubPic, SubPicExtTask{ pic, nullptr, Area{} } );
+  for( int i = 0; i < numSubPic; ++i )
+  {
+    const SubPic& currSubPic = pps->getSubPic( i );
+    const Area    subPicArea( currSubPic.getSubPicLeft(),
+                           currSubPic.getSubPicTop(),
+                           currSubPic.getSubPicWidthInLumaSample(),
+                           currSubPic.getSubPicHeightInLumaSample() );
+    pic->m_subPicRefBufs[i].create( pic->getRecoBuf().chromaFormat, Size( subPicArea ), sps->getMaxCUWidth(), pic->margin, MEMORY_ALIGN_DEF_SIZE );
+
+    static auto task = []( int, SubPicExtTask* t ) {
+      t->subPicBuf->copyFrom( t->picture->getRecoBuf().subBuf( t->subPicArea ) );
+      t->picture->extendPicBorderBuf( *t->subPicBuf );
+      return true;
+    };
+    m_subPicExtTasks[i].subPicBuf  = &pic->m_subPicRefBufs[i];
+    m_subPicExtTasks[i].subPicArea = subPicArea;
+    m_decodeThreadPool->addBarrierTask<SubPicExtTask>( task,
+                                                       &m_subPicExtTasks[i],
+                                                       &pic->m_borderExtTaskCounter,
+                                                       nullptr,
+                                                       { &static_cast<const Barrier&>( pic->done ) } );
+  }
+}
+
 void DecLibRecon::decompressPicture( Picture* pcPic )
 {
   CodingStructure& cs = *pcPic->cs;
@@ -376,7 +409,7 @@ void DecLibRecon::decompressPicture( Picture* pcPic )
         CHECK( !refPic->m_subPicRefBufs.empty(), "Wrong number of subpics already present in reference picture" );
         CHECK( cs.sps->getUseWrapAround(), "Wraparound + subpics not implemented" );
 
-        refPic->createSubPicRefBufs( m_decodeThreadPool );
+        createSubPicRefBufs( refPic );
       }
     }
   }
