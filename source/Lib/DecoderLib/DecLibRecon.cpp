@@ -1,11 +1,11 @@
 /* -----------------------------------------------------------------------------
 The copyright in this software is being made available under the BSD
-License, included below. No patent rights, trademark rights and/or 
-other Intellectual Property Rights other than the copyrights concerning 
+License, included below. No patent rights, trademark rights and/or
+other Intellectual Property Rights other than the copyrights concerning
 the Software are granted under this license.
 
-For any license concerning other Intellectual Property rights than the software, 
-especially patent licenses, a separate Agreement needs to be closed. 
+For any license concerning other Intellectual Property rights than the software,
+especially patent licenses, a separate Agreement needs to be closed.
 For more information please contact:
 
 Fraunhofer Heinrich Hertz Institute
@@ -14,7 +14,7 @@ Einsteinufer 37
 www.hhi.fraunhofer.de/vvc
 vvc@hhi.fraunhofer.de
 
-Copyright (c) 2018-2020, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. 
+Copyright (c) 2018-2020, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V.
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -282,15 +282,13 @@ void DecLibRecon::createSubPicRefBufs( Picture* pic )
   const int  numSubPic = pps->getNumSubPics();
 
   pic->m_subPicRefBufs.resize( numSubPic );
-  m_subPicExtTasks.clear();
-  m_subPicExtTasks.resize( numSubPic, SubPicExtTask{ pic, nullptr, Area{} } );
   for( int i = 0; i < numSubPic; ++i )
   {
     const SubPic& currSubPic = pps->getSubPic( i );
     const Area    subPicArea( currSubPic.getSubPicLeft(),
-                           currSubPic.getSubPicTop(),
-                           currSubPic.getSubPicWidthInLumaSample(),
-                           currSubPic.getSubPicHeightInLumaSample() );
+                              currSubPic.getSubPicTop(),
+                              currSubPic.getSubPicWidthInLumaSample(),
+                              currSubPic.getSubPicHeightInLumaSample() );
     pic->m_subPicRefBufs[i].create( pic->getRecoBuf().chromaFormat, Size( subPicArea ), sps->getMaxCUWidth(), pic->margin, MEMORY_ALIGN_DEF_SIZE );
 
     static auto task = []( int, SubPicExtTask* t ) {
@@ -298,10 +296,9 @@ void DecLibRecon::createSubPicRefBufs( Picture* pic )
       t->picture->extendPicBorderBuf( *t->subPicBuf );
       return true;
     };
-    m_subPicExtTasks[i].subPicBuf  = &pic->m_subPicRefBufs[i];
-    m_subPicExtTasks[i].subPicArea = subPicArea;
+    m_subPicExtTasks.emplace_back( SubPicExtTask{ pic, &pic->m_subPicRefBufs[i], subPicArea } );
     m_decodeThreadPool->addBarrierTask<SubPicExtTask>( task,
-                                                       &m_subPicExtTasks[i],
+                                                       &m_subPicExtTasks.back(),
                                                        &pic->m_borderExtTaskCounter,
                                                        nullptr,
                                                        { &static_cast<const Barrier&>( pic->done ) } );
@@ -352,7 +349,7 @@ void DecLibRecon::decompressPicture( Picture* pcPic )
                  log2SaoOffsetScaleLuma,
                  log2SaoOffsetScaleChroma
                );
-                
+
   if( sps->getUseALF() )
   {
     m_cALF.create( cs.picHeader, sps, pps, m_numDecThreads );
@@ -379,6 +376,12 @@ void DecLibRecon::decompressPicture( Picture* pcPic )
   CBarrierVec &picExtBarriers = picBarriers;
 #endif
 
+  const int numSubPic = cs.pps->getNumSubPics();
+  if( numSubPic > 1 )
+  {
+    m_subPicExtTasks.clear();
+    m_subPicExtTasks.reserve( MAX_NUM_REF_PICS * numSubPic );
+  }
   for( int iDir = REF_PIC_LIST_0; iDir < NUM_REF_PIC_LIST_01; ++iDir )
   {
     for( int iRefIdx = 0; iRefIdx < pcPic->slices[0]->getNumRefIdx( (RefPicList)iDir ); iRefIdx++ )
@@ -403,7 +406,6 @@ void DecLibRecon::decompressPicture( Picture* pcPic )
         picBarriers.push_back( &refPic->m_dmvrTaskCounter.done );
       }
 
-      const int numSubPic = cs.pps->getNumSubPics();
       if( numSubPic > 1 && refPic->m_subPicRefBufs.size() != numSubPic )
       {
         CHECK( !refPic->m_subPicRefBufs.empty(), "Wrong number of subpics already present in reference picture" );
@@ -789,7 +791,7 @@ bool DecLibRecon::ctuTask( int tid, CtuTaskParam* param )
         return true;
 
       ITT_TASKSTART( itt_domain_dec, itt_handle_presao );
-        
+
       if( cs.sps->getUseSAO() )
       {
         decLib.m_cSAO.SAOPrepareCTULine( cs, getLineArea( cs, line, true ) );
