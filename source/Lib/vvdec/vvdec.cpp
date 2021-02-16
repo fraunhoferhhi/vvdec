@@ -235,6 +235,5 @@ bool VVDec::isNalUnitSideData( NalType t )
   return VVDecImpl::isNalUnitSideData(t);
 }
 
-
 } // namespace
 

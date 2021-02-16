@@ -49,7 +49,6 @@ THE POSSIBILITY OF SUCH DAMAGE.
  */
 
 #include "Picture.h"
-#include "SEI.h"
 #include "ChromaFormat.h"
 
 // ---------------------------------------------------------------------------

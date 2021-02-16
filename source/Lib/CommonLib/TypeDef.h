@@ -730,33 +730,6 @@ struct LFCUParam
 };
 
 
-
-struct PictureHash
-{
-  std::vector<uint8_t> hash;
-
-  bool operator==(const PictureHash &other) const
-  {
-    if (other.hash.size() != hash.size())
-    {
-      return false;
-    }
-    for(uint32_t i=0; i<uint32_t(hash.size()); i++)
-    {
-      if (other.hash[i] != hash[i])
-      {
-        return false;
-      }
-    }
-    return true;
-  }
-
-  bool operator!=(const PictureHash &other) const
-  {
-    return !(*this == other);
-  }
-};
-
 struct SEITimeSet
 {
   SEITimeSet() : clockTimeStampFlag(false),
@@ -794,7 +767,6 @@ struct SEITimeSet
 
 struct SEIMasteringDisplay
 {
-  bool     colourVolumeSEIEnabled;
   uint32_t maxLuminance;
   uint32_t minLuminance;
   uint16_t primaries[3][2];

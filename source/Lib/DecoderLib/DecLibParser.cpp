@@ -1126,10 +1126,10 @@ Picture * DecLibParser::xActivateParameterSets( const int layerId )
     if( !m_SEIs.empty() )
     {
       // Currently only decoding Unit SEI message occurring between VCL NALUs copied
-      SEIMessages & picSEI            = pcPic->SEIs;
-      SEIMessages   decodingUnitInfos = extractSeisByType( picSEI, SEI::DECODING_UNIT_INFO );
+      vvdec::seiMessages & picSEI            = pcPic->SEIs;
+      vvdec::seiMessages   decodingUnitInfos = vvdec::sei::extractSeisByType( picSEI, vvdec::sei::DECODING_UNIT_INFO );
       picSEI.insert( picSEI.end(), decodingUnitInfos.begin(), decodingUnitInfos.end() );
-      deleteSEIs   ( m_SEIs );
+      vvdec::sei::deleteSEIs   ( m_SEIs );
     }
   }
 

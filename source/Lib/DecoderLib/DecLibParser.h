@@ -123,8 +123,8 @@ private:
 
   std::ostream*             m_pDecodedSEIOutputStream = nullptr;
 
-  SEIMessages m_SEIs;       ///< List of SEI messages that have been received before the first slice and between slices,
-                            ///< excluding prefix SEIs...
+  vvdec::seiMessages        m_SEIs;       ///< List of SEI messages that have been received before the first slice and between slices,
+                                          ///< excluding prefix SEIs...
   HRD                       m_HRD;
   
   NoMallocThreadPool*       m_threadPool = nullptr;

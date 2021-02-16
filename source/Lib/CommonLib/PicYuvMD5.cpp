@@ -45,8 +45,8 @@ THE POSSIBILITY OF SUCH DAMAGE.
 ------------------------------------------------------------------------------------------- */
 
 #include "Picture.h"
-#include "SEI.h"
 #include "libmd5/MD5.h"
+#include "vvdec/sei.h"
 
 //! \ingroup CommonLib
 //! \{
@@ -100,7 +100,7 @@ static void md5_plane( libmd5::MD5& md5, const Pel* plane, uint32_t width, uint3
 }
 
 
-uint32_t compCRC(int bitdepth, const Pel* plane, uint32_t width, uint32_t height, ptrdiff_t stride, PictureHash &digest)
+uint32_t compCRC(int bitdepth, const Pel* plane, uint32_t width, uint32_t height, ptrdiff_t stride, vvdec::PictureHash &digest)
 {
   uint32_t crcMsb;
   uint32_t bitVal;
@@ -140,7 +140,7 @@ uint32_t compCRC(int bitdepth, const Pel* plane, uint32_t width, uint32_t height
   return 2;
 }
 
-uint32_t calcCRC(const CPelUnitBuf& pic, PictureHash &digest, const BitDepths &bitDepths)
+uint32_t calcCRC(const CPelUnitBuf& pic, vvdec::PictureHash &digest, const BitDepths &bitDepths)
 {
   uint32_t digestLen=0;
   digest.hash.clear();
@@ -153,7 +153,7 @@ uint32_t calcCRC(const CPelUnitBuf& pic, PictureHash &digest, const BitDepths &b
   return digestLen;
 }
 
-uint32_t compChecksum(int bitdepth, const Pel* plane, uint32_t width, uint32_t height, ptrdiff_t stride, PictureHash &digest, const BitDepths &/*bitDepths*/)
+uint32_t compChecksum(int bitdepth, const Pel* plane, uint32_t width, uint32_t height, ptrdiff_t stride, vvdec::PictureHash &digest, const BitDepths &/*bitDepths*/)
 {
   uint32_t checksum = 0;
   uint8_t xor_mask;
@@ -179,7 +179,7 @@ uint32_t compChecksum(int bitdepth, const Pel* plane, uint32_t width, uint32_t h
   return 4;
 }
 
-uint32_t calcChecksum(const CPelUnitBuf& pic, PictureHash &digest, const BitDepths &bitDepths)
+uint32_t calcChecksum(const CPelUnitBuf& pic, vvdec::PictureHash &digest, const BitDepths &bitDepths)
 {
   uint32_t digestLen=0;
   digest.hash.clear();
@@ -198,7 +198,7 @@ uint32_t calcChecksum(const CPelUnitBuf& pic, PictureHash &digest, const BitDept
  * using sufficient bytes to represent the picture bitdepth.  Eg, 10bit data
  * uses little-endian two byte words; 8bit data uses single byte words.
  */
-uint32_t calcMD5(const CPelUnitBuf& pic, PictureHash &digest, const BitDepths &bitDepths)
+uint32_t calcMD5(const CPelUnitBuf& pic, vvdec::PictureHash &digest, const BitDepths &bitDepths)
 {
   /* choose an md5_plane packing function based on the system bitdepth */
   typedef void (*MD5PlaneFunc)(libmd5::MD5&, const Pel*, uint32_t, uint32_t, ptrdiff_t );
@@ -224,7 +224,7 @@ uint32_t calcMD5(const CPelUnitBuf& pic, PictureHash &digest, const BitDepths &b
   return 16;
 }
 
-std::string hashToString(const PictureHash &digest, int numChar)
+std::string hashToString(const vvdec::PictureHash &digest, int numChar)
 {
   static const char* hex = "0123456789abcdef";
   std::string result;
@@ -244,10 +244,10 @@ std::string hashToString(const PictureHash &digest, int numChar)
   return result;
 }
 
-int calcAndPrintHashStatus(const CPelUnitBuf& pic, const SEIDecodedPictureHash* pictureHashSEI, const BitDepths &bitDepths, const MsgLevel msgl)
+int calcAndPrintHashStatus(const CPelUnitBuf& pic, const vvdec::seiDecodedPictureHash* pictureHashSEI, const BitDepths &bitDepths, const MsgLevel msgl)
 {
   /* calculate MD5sum for entire reconstructed picture */
-  PictureHash recon_digest;
+  vvdec::PictureHash recon_digest;
   int numChar=0;
   const char* hashType = "\0";
 
@@ -255,19 +255,19 @@ int calcAndPrintHashStatus(const CPelUnitBuf& pic, const SEIDecodedPictureHash* 
   {
     switch (pictureHashSEI->method)
     {
-      case HASHTYPE_MD5:
+      case vvdec::seiDecodedPictureHash::HASHTYPE_MD5:
         {
           hashType = "MD5";
           numChar = calcMD5(pic, recon_digest, bitDepths);
           break;
         }
-      case HASHTYPE_CRC:
+      case vvdec::seiDecodedPictureHash::HASHTYPE_CRC:
         {
           hashType = "CRC";
           numChar = calcCRC(pic, recon_digest, bitDepths);
           break;
         }
-      case HASHTYPE_CHECKSUM:
+      case vvdec::seiDecodedPictureHash::HASHTYPE_CHECKSUM:
         {
           hashType = "Checksum";
           numChar = calcChecksum(pic, recon_digest, bitDepths);

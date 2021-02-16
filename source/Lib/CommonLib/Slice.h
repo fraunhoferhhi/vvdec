@@ -68,7 +68,8 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #include <chrono>
 #include <future>
 
-#include "SEI.h"
+#include "vvdec/sei.h"
+
 //! \ingroup CommonLib
 //! \{
 
@@ -748,19 +749,19 @@ public:
   const OlsHrdParams&    getOlsHrdParameters() const { return m_olsHrdParams[0]; }
 
 
-  void                       setBufferingPeriodSEI(const SEIBufferingPeriod* bp)  { bp->copyTo(m_bufferingPeriodSEI); m_bufferingPeriodInitialized = true; }
-  const SEIBufferingPeriod*  getBufferingPeriodSEI() const                        { return m_bufferingPeriodInitialized ? &m_bufferingPeriodSEI : nullptr; }
+  void                       setBufferingPeriodSEI(const vvdec::seiBufferingPeriod* bp)  { m_bufferingPeriodSEI = *bp; m_bufferingPeriodInitialized = true; }
+  const vvdec::seiBufferingPeriod*  getBufferingPeriodSEI() const                        { return m_bufferingPeriodInitialized ? &m_bufferingPeriodSEI : nullptr; }
 
-  void                       setPictureTimingSEI(const SEIPictureTiming* pt)  { pt->copyTo(m_pictureTimingSEI); m_pictureTimingAvailable = true; }
-  const SEIPictureTiming*    getPictureTimingSEI() const                      { return m_pictureTimingAvailable ? &m_pictureTimingSEI : nullptr; }
+  void                       setPictureTimingSEI(const vvdec::seiPictureTiming* pt)  { m_pictureTimingSEI = *pt; m_pictureTimingAvailable = true; }
+  const vvdec::seiPictureTiming*    getPictureTimingSEI() const                      { return m_pictureTimingAvailable ? &m_pictureTimingSEI : nullptr; }
 
 protected:
-  GeneralHrdParams    m_generalHrdParams;
-  OlsHrdParams        m_olsHrdParams[MAX_TLAYER];
-  bool                m_bufferingPeriodInitialized;
-  SEIBufferingPeriod  m_bufferingPeriodSEI;
-  bool                m_pictureTimingAvailable;
-  SEIPictureTiming    m_pictureTimingSEI;
+  GeneralHrdParams           m_generalHrdParams;
+  OlsHrdParams               m_olsHrdParams[MAX_TLAYER];
+  bool                       m_bufferingPeriodInitialized;
+  vvdec::seiBufferingPeriod  m_bufferingPeriodSEI;
+  bool                       m_pictureTimingAvailable;
+  vvdec::seiPictureTiming    m_pictureTimingSEI;
 };
 
 

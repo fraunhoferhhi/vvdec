@@ -46,9 +46,10 @@ THE POSSIBILITY OF SUCH DAMAGE.
 
 #pragma once
 
-#include <string>
-
 #include "vvdec/vvdecDecl.h"
+
+#include <list>
+#include "vvdec/sei.h"
 
 namespace vvdec {
 
@@ -209,6 +210,7 @@ enum NalType
 };
 
 
+
 /**
   \ingroup VVDecExternalInterfaces
   The struct AccessUnit contains attributes that are assigned to the compressed output of the decoder for a specific input picture.
@@ -238,7 +240,7 @@ enum ComponentType
 {
   VVC_CT_Y = 0,              ///< Y component
   VVC_CT_U = 1,              ///< U component
-  VVC_CT_V = 2,              ///< V component
+  VVC_CT_V = 2              ///< V component
 };
 
 typedef struct VVDEC_DECL Component
@@ -255,6 +257,30 @@ typedef struct VVDEC_DECL Component
 
 } Component_t;
 
+typedef struct VVDEC_DECL Vui
+{
+  bool       m_aspectRatioInfoPresentFlag     = false;
+  bool       m_aspectRatioConstantFlag        = false;
+  bool       m_nonPackedFlag                  = false;
+  bool       m_nonProjectedFlag               = false;
+  int        m_aspectRatioIdc                 = 0;
+  int        m_sarWidth                       = 0;
+  int        m_sarHeight                      = 0;
+  bool       m_colourDescriptionPresentFlag   = false;
+  int        m_colourPrimaries                = 2;
+  int        m_transferCharacteristics        = 2;
+  int        m_matrixCoefficients             = 2;
+  bool       m_progressiveSourceFlag          = false;
+  bool       m_interlacedSourceFlag           = false;
+  bool       m_chromaLocInfoPresentFlag       = false;
+  int        m_chromaSampleLocTypeTopField    = 6;
+  int        m_chromaSampleLocTypeBottomField = 6;
+  int        m_chromaSampleLocType            = 6;
+  bool       m_overscanInfoPresentFlag        = false;
+  bool       m_overscanAppropriateFlag        = false;
+  bool       m_videoSignalTypePresentFlag     = false;
+  bool       m_videoFullRangeFlag             = false;
+}Vui_t;
 
 /**
   \ingroup VVDecExternalInterfaces
@@ -273,17 +299,8 @@ typedef struct VVDEC_DECL PicExtendedAttributes
 
   unsigned int   m_uiBits                               = 0;                  ///< bits of the compr. image packet
 
-  bool           m_bCbr                                = false;               ///< Cbr mode flag (true: cbr, false: vbr)
-  unsigned int   m_uiCpbRemovalDelay                   = 0;                   ///< Coded picture buffer removal delay
-  unsigned int   m_uiCpbRemovalOffset                  = 0;                   ///< Coded picture buffer removal offset
-  unsigned int   m_uiIndicatedBitrate                  = 0;                   ///< indicated bitrate for cbr
-  unsigned int   m_uiMaxProfileLevelBitrate            = 0;                   ///< max. possible bitrate for profile and leven
-
-  int            m_iAlternativeTransferCharacteristics = 0;
-  int            m_iColourPrimaries                    = 0;
-  int            m_iTransferCharacteristics            = 0;
-  int            m_iMatrixCoefficients                 = 0;
-  //boost::optional< dpl::ImagePacket::HdrMasteringDisplayColorVolume > m_cHdrMasteringDisplayColorVolume;
+  Vui            *m_pcVui                              = NULL;                ///< if available, pointer to VUI (Video Usability Information)
+  std::list<sei*> m_cSeiMsgLst;
 
 } PicExtendedAttributes_t;
 
@@ -325,7 +342,7 @@ typedef struct VVDEC_DECL VVDecParameter
 #if 1 //RPR_YUV_OUTPUT
   int m_iUpscaledOutput                =  0;
 #endif
-  LogLevel m_eLogLevel                 =  LL_WARNING;    ///< verbosity level
+  LogLevel m_eLogLevel                 = LL_WARNING;     ///< verbosity level
   bool m_bDecodedPictureHashSEIEnabled = false;          ///<  Control handling of decoded picture hash SEI messages, true: check hash in SEI messages if available in the bitstream, false: ignore SEI message
   SIMD_Extension m_eSIMD_Extension     = SIMD_DEFAULT;   ///< set specific simd optimization (default: max. availalbe)
 } VVCDecoderParameter_t;
@@ -429,7 +446,7 @@ public:
    /**
     This method returns decoder information
     \param      None
-    \retval     std::string decoder information
+    \retval     const char* decoder information
   */
    const char* getDecoderInfo();
 
@@ -437,32 +454,32 @@ public:
     /**
      This method returns the last occurred error as a string.
      \param      None
-     \retval     std::string empty string for no error assigned
+     \retval     const char* empty string for no error assigned
    */
    const char* getLastError() const;
 
    /**
     This method returns additional information about the last occurred error as a string (if availalbe).
     \param      None
-    \retval     std::string empty string for no error assigned
+    \retval     const char* empty string for no error assigned
   */
    const char* getLastAdditionalError() const;
 
    /**
      This method returns the decoder version number as a string.
      \param      None
-     \retval     std::string returns the version number
+     \retval     const char* returns the version number
    */
    static const char* getVersionNumber();
 
    /**
      This static function returns a string according to the passed parameter nRet.
      \param[in]  nRet return value code to translate
-     \retval[ ]  std::string empty string for no error
+     \retval[ ]  const char* empty string for no error
    */
    static const char* getErrorMsg( int nRet );
 
-   static NalType getNalUnitType        ( AccessUnit& rcAccessUnit );
+   static NalType getNalUnitType            ( AccessUnit& rcAccessUnit );
    static const char* getNalUnitTypeAsString( NalType t );
    
    static bool isNalUnitSideData            ( NalType t );
