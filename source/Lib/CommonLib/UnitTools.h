@@ -74,9 +74,9 @@ namespace CU
   bool isSameCtu                      (const CodingUnit &cu, const CodingUnit &cu2);
   bool isSameSlice                    (const CodingUnit &cu, const CodingUnit &cu2);
   bool isSameTile                     (const CodingUnit &cu, const CodingUnit &cu2);
-#if JVET_O1143_SUBPIC_BOUNDARY
   bool isSameSubPic                   (const CodingUnit &cu, const CodingUnit &cu2);
-#endif
+  bool isAvailable                    (const CodingUnit &cu, const CodingUnit &cu2, const bool bEnforceSliceRestriction, const bool bEnforceTileRestriction, const bool bEnforceSubPicRestriction);
+
   uint32_t getCtuAddr                 (const CodingUnit &cu);
 
   int  predictQP                      (const CodingUnit& cu, const int prevQP );
@@ -194,4 +194,12 @@ UnitArea getLineArea       (const CodingStructure& cs, unsigned line, bool clipT
 int  getNumModesMip   (const Size& block);
 int getMipSizeId      (const Size& block);
 bool allowLfnstWithMip(const Size& block);
+
+bool isCrossedByVirtualBoundaries( const PicHeader* picHeader,
+                                   const Area&      area,
+                                   int&             numHorVirBndry,
+                                   int&             numVerVirBndry,
+                                   int              horVirBndryPos[],
+                                   int              verVirBndryPos[] );
+
 #endif

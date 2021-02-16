@@ -90,6 +90,25 @@ struct Picture : public UnitArea
          PelUnitBuf getRecoBuf(bool wrap=false);
   const CPelUnitBuf getRecoBuf(bool wrap=false) const;
 
+  // This returns a CPelBuf, with the origin at the picture origin (0,0), but the actual storage size of the sub picture.
+  // It can be used the same way as the full picture buffer, but you should only reference the data within the actual sub picture.
+  // Also, handle with care, because stride < width.
+  const CPelBuf getSubPicBuf( int subPicIdx, const ComponentID compID, bool wrap = false ) const
+  {
+    CHECK( wrap, "wraparound for subpics not supported yet" );
+
+    Position subPicPos( subPictures[subPicIdx].getSubPicLeft() >> getComponentScaleX( compID, m_subPicRefBufs[subPicIdx].chromaFormat ),
+                        subPictures[subPicIdx].getSubPicTop()  >> getComponentScaleY( compID, m_subPicRefBufs[subPicIdx].chromaFormat ) );
+
+    Size targetSize( m_bufs[PIC_RECONSTRUCTION].get( compID ) );
+
+    const auto& subPicComp = m_subPicRefBufs[subPicIdx].bufs[compID];
+    return CPelBuf( subPicComp.bufAt( -subPicPos.x, -subPicPos.y ), subPicComp.stride, targetSize );
+  }
+  const Pel*      getSubPicBufPtr   ( int subPicIdx, const ComponentID compID, bool wrap = false ) const { return getSubPicBuf( subPicIdx, compID, wrap ).buf;    }
+  const ptrdiff_t getSubPicBufStride( int subPicIdx, const ComponentID compID, bool wrap = false ) const { return getSubPicBuf( subPicIdx, compID, wrap ).stride; }
+
+private:
          PelBuf     getBuf(const ComponentID compID, const PictureType &type)       { return m_bufs[type].bufs[ compID ]; }
   const CPelBuf     getBuf(const ComponentID compID, const PictureType &type) const { return m_bufs[type].bufs[ compID ]; }
          PelBuf     getBuf(const CompArea &blk,      const PictureType &type);
@@ -97,7 +116,11 @@ struct Picture : public UnitArea
          PelUnitBuf getBuf(const UnitArea &unit,     const PictureType &type);
   const CPelUnitBuf getBuf(const UnitArea &unit,     const PictureType &type) const;
 
-  void extendPicBorder( bool top = true, bool bottom = true, bool leftrightT = true, bool leftrightB = true, ChannelType chType = MAX_NUM_CHANNEL_TYPE );
+public:
+  void extendPicBorder    (                  bool top = true, bool bottom = true, bool leftrightT = true, bool leftrightB = true, ChannelType chType = MAX_NUM_CHANNEL_TYPE );
+  void extendPicBorderBuf ( PelStorage& buf, bool top = true, bool bottom = true, bool leftrightT = true, bool leftrightB = true, ChannelType chType = MAX_NUM_CHANNEL_TYPE );
+  void extendPicBorderWrap(                  bool top = true, bool bottom = true, bool leftrightT = true, bool leftrightB = true, ChannelType chType = MAX_NUM_CHANNEL_TYPE );
+
   void (*paddPicBorderBot) (Pel *pi, ptrdiff_t stride,int width,int xmargin,int ymargin);
   void (*paddPicBorderTop) (Pel *pi, ptrdiff_t stride,int width,int xmargin,int ymargin);
   void (*paddPicBorderLeftRight) (Pel *pi, ptrdiff_t stride,int width,int xmargin,int height);
@@ -110,7 +133,7 @@ struct Picture : public UnitArea
   uint64_t getNaluBits()                      const { return bits; }
   bool     getRap()                           const { return rap; }
 
-  void   setBorderExtension( bool bFlag)            { isBorderExtended = bFlag;}
+  void   setBorderExtension( bool bFlag )           { borderExtStarted = bFlag;}
   Pel*   getOrigin( const PictureType &type, const ComponentID compID ) const;
   PelBuf getOriginBuf( const PictureType &type, const ComponentID compID );
 
@@ -134,20 +157,8 @@ struct Picture : public UnitArea
   static void   rescalePicture(const CPelUnitBuf& beforeScaling, const Window& confBefore, const PelUnitBuf& afterScaling, const Window& confAfter, const ChromaFormat chromaFormatIDC, const BitDepths& bitDepths, const bool useLumaFilter, const bool downsampling = false);
 #endif
 public:
-#if JVET_O1143_MV_ACROSS_SUBPIC_BOUNDARY  
-  bool m_isSubPicBorderSaved = false;
-
-  PelStorage m_bufSubPicAbove;
-  PelStorage m_bufSubPicBelow;
-  PelStorage m_bufSubPicLeft;
-  PelStorage m_bufSubPicRight;
-
-  void    saveSubPicBorder(int POC, int subPicX0, int subPicY0, int subPicWidth, int subPicHeight);
-  void  extendSubPicBorder(int POC, int subPicX0, int subPicY0, int subPicWidth, int subPicHeight);
-  void restoreSubPicBorder(int POC, int subPicX0, int subPicY0, int subPicWidth, int subPicHeight);
-
-  bool getSubPicSaved()          { return m_isSubPicBorderSaved; }
-  void setSubPicSaved(bool bVal) { m_isSubPicBorderSaved = bVal; }
+#if JVET_O1143_MV_ACROSS_SUBPIC_BOUNDARY
+  std::vector<PelStorage> m_subPicRefBufs;   // used as reference for subpictures, that are treated as pictures
 #endif
 
   void startProcessingTimer();
@@ -158,7 +169,7 @@ public:
   std::chrono::time_point<std::chrono::steady_clock> m_processingStartTime;
   double                                             m_dProcessingTime = 0;
 
-  bool isBorderExtended               = false;
+  bool borderExtStarted               = false;
 #if JVET_Q0764_WRAP_AROUND_WITH_RPR
   bool wrapAroundValid                = false;
   unsigned wrapAroundOffset           = 0;
@@ -223,6 +234,7 @@ public:
   WaitCounter     m_ctuTaskCounter;
   WaitCounter     m_dmvrTaskCounter;
   WaitCounter     m_borderExtTaskCounter;
+  Barrier         m_copyWrapBufDone;
   BlockingBarrier done;
 #if RECO_WHILE_PARSE
   Barrier        *ctuParsedBarrier = nullptr;
@@ -266,8 +278,9 @@ public:
 
 public:
   std::vector<uint8_t>  m_ccAlfFilterControl[2];
-  uint8_t*              getccAlfFilterControl( int compIdx ) { return m_ccAlfFilterControl[compIdx].data(); }
-  std::vector<uint8_t>* getccAlfFilterControl()              { return m_ccAlfFilterControl; }
+        uint8_t*        getccAlfFilterControl( int compIdx )       { return m_ccAlfFilterControl[compIdx].data(); }
+  const uint8_t*        getccAlfFilterControl( int compIdx ) const { return m_ccAlfFilterControl[compIdx].data(); }
+  std::vector<uint8_t>* getccAlfFilterControl()                    { return m_ccAlfFilterControl; }
   void                  resizeccAlfFilterControl( int numEntries )
   {
     for( int compIdx = 0; compIdx < 2; compIdx++ )
@@ -290,7 +303,8 @@ public:
   }
 
   std::vector<short>  m_alfCtbFilterIndex;
-  short *             getAlfCtbFilterIndex() { return m_alfCtbFilterIndex.data(); }
+        short*        getAlfCtbFilterIndex()       { return m_alfCtbFilterIndex.data(); }
+  const short*        getAlfCtbFilterIndex() const { return m_alfCtbFilterIndex.data(); }
   std::vector<short>& getAlfCtbFilterIndexVec() { return m_alfCtbFilterIndex; }
   void                resizeAlfCtbFilterIndex( int numEntries )
   {

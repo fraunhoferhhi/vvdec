@@ -376,7 +376,8 @@ DecLibParser::SliceHeadResult DecLibParser::xDecodeSliceHead( InputNALUnit& nalu
 
   m_HLSReader.setBitstream( &nalu.getBitstream() );
 
-  m_HLSReader.parseSliceHeader( m_apcSlicePilot, m_picHeader.get(), &m_parameterSetManager, m_prevTid0POC, m_pcParsePic );
+  m_bFirstSliceInPicture = true;
+  m_HLSReader.parseSliceHeader( m_apcSlicePilot, m_picHeader.get(), &m_parameterSetManager, m_prevTid0POC, m_pcParsePic, m_bFirstSliceInPicture );
 
   if( pSkipFrame && *pSkipFrame )
   {
@@ -386,7 +387,7 @@ DecLibParser::SliceHeadResult DecLibParser::xDecodeSliceHead( InputNALUnit& nalu
     return SkipPicture;
   }
 
-  m_bFirstSliceInPicture = m_apcSlicePilot->getCtuAddrInSlice( 0 ) == 0;
+  CHECK( m_bFirstSliceInPicture != ( m_apcSlicePilot->getCtuAddrInSlice( 0 ) == 0 ), "first slice in picture should start at CTU-addr 0" );
 
   if( m_bFirstSliceInPicture )
   {
@@ -395,6 +396,7 @@ DecLibParser::SliceHeadResult DecLibParser::xDecodeSliceHead( InputNALUnit& nalu
   }
   else // if it turns out, this was not the first slice in the picture, we need to parse the header again
   {
+    CHECK( m_uiSliceSegmentIdx == 0, "slice segment idx should only be zero for first slice in picture" );
     CHECK( nalu.m_nalUnitType != m_pcParsePic->slices[m_uiSliceSegmentIdx - 1]->getNalUnitType(), "The value of NAL unit type shall be the same for all coded slice NAL units of a picture" );
 
     m_apcSlicePilot->copySliceInfo  ( m_pcParsePic->slices[m_uiSliceSegmentIdx-1] );
@@ -407,7 +409,7 @@ DecLibParser::SliceHeadResult DecLibParser::xDecodeSliceHead( InputNALUnit& nalu
     nalu.readNalUnitHeader();
     m_HLSReader.setBitstream        ( &nalu.getBitstream() );
 
-    m_HLSReader.parseSliceHeader    ( m_apcSlicePilot, m_picHeader.get(), &m_parameterSetManager, m_prevTid0POC, m_pcParsePic );
+    m_HLSReader.parseSliceHeader( m_apcSlicePilot, m_picHeader.get(), &m_parameterSetManager, m_prevTid0POC, m_pcParsePic, m_bFirstSliceInPicture );
   }
 
   PPS *pps = m_parameterSetManager.getPPS( m_apcSlicePilot->getPicHeader()->getPPSId() );

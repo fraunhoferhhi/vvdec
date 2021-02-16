@@ -734,8 +734,19 @@ void InterPrediction::xPredInterBlk( const ComponentID&    compID,
   const int xFrac     = !isIBC ? mv.hor & ( ( 1 << shiftHor ) - 1 ) : 0;
   const int yFrac     = !isIBC ? mv.ver & ( ( 1 << shiftVer ) - 1 ) : 0;
 
-  const Pel*      refPtr    = altSrc ? srcPadBuf    : refPic->getRecoBufPtr   ( compID, wrapRef );
-  const ptrdiff_t refStride = altSrc ? srcPadStride : refPic->getRecoBufStride( compID, wrapRef );
+  const Pel* refPtr    = nullptr;
+  ptrdiff_t  refStride = 0;
+  if( pu.cs->pps->getNumSubPics() > 1 && pu.cs->pps->getSubPicFromCU( pu ).getTreatedAsPicFlag() )
+  {
+    const int subPicIdx = pu.cs->pps->getSubPicFromCU( pu ).getSubPicIdx();
+    refPtr              = altSrc ? srcPadBuf    : refPic->getSubPicBufPtr   ( subPicIdx, compID, wrapRef );
+    refStride           = altSrc ? srcPadStride : refPic->getSubPicBufStride( subPicIdx, compID, wrapRef );
+  }
+  else
+  {
+    refPtr    = altSrc ? srcPadBuf    : refPic->getRecoBufPtr   ( compID, wrapRef );
+    refStride = altSrc ? srcPadStride : refPic->getRecoBufStride( compID, wrapRef );
+  }
 
   if( !altSrc )
   {
@@ -1055,9 +1066,20 @@ void InterPrediction::xPredAffineBlk( const ComponentID&    compID,
     mv.clipToStorageBitDepth();
   }
 #endif
-  
-  const Pel*      refBuf[2]       = { refPic->getRecoBufPtr   ( compID, false ), refPic->getRecoBufPtr   ( compID, true ) };
-  const ptrdiff_t refBufStride[2] = { refPic->getRecoBufStride( compID, false ), refPic->getRecoBufStride( compID, true ) };
+
+  std::array<const Pel*, 2> refBuf{ nullptr, nullptr };
+  std::array<ptrdiff_t, 2>  refBufStride{ 0, 0 };
+  if( pu.cs->pps->getNumSubPics() > 1 && pu.cs->pps->getSubPicFromCU( pu ).getTreatedAsPicFlag() )
+  {
+    const int subPicIdx = pu.cs->pps->getSubPicFromCU( pu ).getSubPicIdx();
+    refBuf              = { refPic->getSubPicBufPtr   ( subPicIdx, compID, false ), 0 /*refPic->getSubPicBufPtr   ( subPicIdx, compID, true )*/ };
+    refBufStride        = { refPic->getSubPicBufStride( subPicIdx, compID, false ), 0 /*refPic->getSubPicBufStride( subPicIdx, compID, true )*/ };
+  }
+  else
+  {
+    refBuf       = { refPic->getRecoBufPtr   ( compID, false ), refPic->getRecoBufPtr   ( compID, true ) };
+    refBufStride = { refPic->getRecoBufStride( compID, false ), refPic->getRecoBufStride( compID, true ) };
+  }
 
   const int puPosX = pu.blocks[compID].x, puPosY = pu.blocks[compID].y;
 
@@ -1524,15 +1546,25 @@ void InterPrediction::xPrefetch( PredictionUnit& pu, PelUnitBuf &pcPad, RefPicLi
     }
     /* Pre-fetch similar to HEVC*/
     {
-      CPelBuf refBuf          = refPic->getRecoBuf( ComponentID( compID ), wrapRef );
-      Position Rec_offset     = pu.blocks[compID].pos().offset( cMv.getHor() >> mvshiftTempHor, cMv.getVer() >> mvshiftTempVer );
-      const Pel *refBufPtr    = refBuf.bufAt( Rec_offset );
+      CPelBuf refBuf;
+      if( pu.cs->pps->getNumSubPics() > 1 && pu.cs->pps->getSubPicFromCU( pu ).getTreatedAsPicFlag() )
+      {
+        refBuf = refPic->getSubPicBuf( pu.cs->pps->getSubPicFromCU( pu ).getSubPicIdx(), ComponentID( compID ), wrapRef );
+      }
+      else
+      {
+        refBuf = refPic->getRecoBuf( ComponentID( compID ), wrapRef );
+      }
+      Position   Rec_offset = pu.blocks[compID].pos().offset( cMv.getHor() >> mvshiftTempHor, cMv.getVer() >> mvshiftTempVer );
+      const Pel* refBufPtr  = refBuf.bufAt( Rec_offset );
 
-      PelBuf &dstBuf          = pcPad.bufs[compID];
-      g_pelBufOP.copyBuffer(   ( const char * ) refBufPtr,                             refBuf.stride * sizeof( Pel ),
-                             ( (       char * ) dstBuf.buf ) + offset * sizeof( Pel ), dstBuf.stride * sizeof( Pel ),
-                                width * sizeof( Pel ),
-                                height );
+      PelBuf& dstBuf = pcPad.bufs[compID];
+      g_pelBufOP.copyBuffer( (const char*)refBufPtr,
+                             refBuf.stride * sizeof( Pel ),
+                             ( (char*)dstBuf.buf ) + offset * sizeof( Pel ),
+                             dstBuf.stride * sizeof( Pel ),
+                             width * sizeof( Pel ),
+                             height );
     }
   }
 }

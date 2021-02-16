@@ -96,20 +96,8 @@ const uint8_t LoopFilter::sm_betaTable[MAX_QP + 1] =
 // utility functions
 // ====================================================================================================================
 
-#if JVET_O1143_LPF_ACROSS_SUBPIC_BOUNDARY
-static bool isAvailable( const CodingUnit& cu, const CodingUnit& cu2, const bool bEnforceSliceRestriction, const bool bEnforceTileRestriction, const bool bEnforceSubPicRestriction )
-{
-  return ( ( !bEnforceSliceRestriction || CU::isSameSlice( cu, cu2 ) ) && ( !bEnforceTileRestriction || CU::isSameTile( cu, cu2 ) ) && ( !bEnforceSubPicRestriction || CU::isSameSubPic( cu, cu2 ) ) );
-}
-#else
-static bool isAvailable( const CodingUnit& cu, const CodingUnit& cu2, const bool bEnforceSliceRestriction, const bool bEnforceTileRestriction )
-{
-  return ( ( !bEnforceSliceRestriction || CU::isSameSlice( cu, cu2 ) ) && ( !bEnforceTileRestriction || CU::isSameTile( cu, cu2 ) ) );
-}
-#endif
 
-
-#define BsSet( val, compIdx ) (   ( val ) << ( ( compIdx ) << 1 ) )     
+#define BsSet( val, compIdx ) (   ( val ) << ( ( compIdx ) << 1 ) )
 #define BsGet( val, compIdx ) ( ( ( val ) >> ( ( compIdx ) << 1 ) ) & 3 )
 
 static const int dbCoeffs7[7] = { 59, 50, 41, 32, 23, 14,  5 };
@@ -479,6 +467,11 @@ void LoopFilter::calcFilterStrengthsCTU( CodingStructure& cs, const UnitArea& ct
 
   for( auto &currCU : cs.traverseCUs( clipArea( ctuArea, *cs.picture ) ) )
   {
+    if( currCU.slice->getDeblockingFilterDisable() )
+    {
+      return;
+    }
+
     calcFilterStrengths( currCU );
   }
 }
@@ -590,12 +583,13 @@ void LoopFilter::xDeblockCtuArea( CodingStructure& cs, const UnitArea& area, con
   }
 }
 
-void LoopFilter::calcFilterStrengths( const CodingUnit& cu )
+void LoopFilter::calcFilterStrengths( const CodingUnit& cu ) const
 {
-  if( cu.slice->getDeblockingFilterDisable() )
-  {
-    return;
-  }
+  // reenable this, if not checking in outer loop (currently calcFilterStrengthsCTU):
+  //  if( cu.slice->getDeblockingFilterDisable() )
+  //  {
+  //    return;
+  //  }
 
   const PreCalcValues& pcv = *cu.cs->pcv;
   const Area area          = cu.blocks[cu.chType()];
@@ -758,33 +752,6 @@ void LoopFilter::calcFilterStrengths( const CodingUnit& cu )
   }
 }
 
-inline bool LoopFilter::isCrossedByVirtualBoundaries( const PicHeader* picHeader, const Area& area, int& numHorVirBndry, int& numVerVirBndry, int horVirBndryPos[], int verVirBndryPos[] ) const
-{
-  numHorVirBndry = 0;
-  numVerVirBndry = 0;
-  if( !picHeader->getVirtualBoundariesPresentFlag() )
-  {
-    return false;
-  }
-
-  for( int i = 0; i < picHeader->getNumHorVirtualBoundaries(); i++ )
-  {
-    if( area.y <= picHeader->getVirtualBoundariesPosY( i ) && picHeader->getVirtualBoundariesPosY( i ) < area.y + area.height )
-    {
-      horVirBndryPos[numHorVirBndry++] = picHeader->getVirtualBoundariesPosY( i );
-    }
-  }
-  for( int i = 0; i < picHeader->getNumVerVirtualBoundaries(); i++ )
-  {
-    if( area.x <= picHeader->getVirtualBoundariesPosX( i ) && picHeader->getVirtualBoundariesPosX( i ) < area.x + area.width )
-    {
-      verVirBndryPos[numVerVirBndry++] = picHeader->getVirtualBoundariesPosX( i );
-    }
-  }
-
-  return numHorVirBndry > 0 || numVerVirBndry > 0;
-}
-
 inline void LoopFilter::xDeriveEdgefilterParam( const Position pos, const int numVerVirBndry, const int numHorVirBndry, const int verVirBndryPos[], const int horVirBndryPos[], bool &verEdgeFilter, bool &horEdgeFilter ) const
 {
   for (int i = 0; i < numVerVirBndry; i++)
@@ -823,7 +790,7 @@ template<> inline SizeType parlSize<EDGE_VER>( const Size& size ) { return size.
 template<> inline SizeType perpSize<EDGE_VER>( const Size& size ) { return size.width; }
 
 template<DeblockEdgeDir edgeDir>
-void LoopFilter::xSetMaxFilterLengthPQForCodingSubBlocks( const CodingUnit& cu, CtuData& ctuData )
+void LoopFilter::xSetMaxFilterLengthPQForCodingSubBlocks( const CodingUnit& cu, CtuData& ctuData ) const
 {
   static constexpr
         int subBlockSize = 8;
@@ -896,7 +863,7 @@ static inline TransformUnit const* getTU( const CodingUnit& cu, const Position& 
 }
 
 template<DeblockEdgeDir edgeDir>
-void LoopFilter::xSetMaxFilterLengthPQFromTransformSizes( const CodingUnit& cu, const TransformUnit& currTU, const bool bValue, bool deriveBdStrngt, CtuData& ctuData, bool pqSameCtu )
+void LoopFilter::xSetMaxFilterLengthPQFromTransformSizes( const CodingUnit& cu, const TransformUnit& currTU, const bool bValue, bool deriveBdStrngt, CtuData& ctuData, bool pqSameCtu ) const
 {
   const PreCalcValues &pcv = *cu.cs->pcv;
 
@@ -1021,7 +988,7 @@ void LoopFilter::xSetMaxFilterLengthPQFromTransformSizes( const CodingUnit& cu, 
 }
 
 template<DeblockEdgeDir edgeDir>
-void LoopFilter::xSetEdgeFilterInsidePu( const CodingUnit &cu, const Area &area, const bool bValue, CtuData& ctuData )
+void LoopFilter::xSetEdgeFilterInsidePu( const CodingUnit &cu, const Area &area, const bool bValue, CtuData& ctuData ) const
 {
   const PreCalcValues &  pcv       = *cu.cs->pcv;
   LoopFilterParam*       lfpPtr    =  ctuData.lfParam[edgeDir] + cu.cs->inCtuPos( area.pos(), cu.chType() );
@@ -1057,14 +1024,19 @@ LFCUParam LoopFilter::xGetLoopfilterParam( const CodingUnit& cu ) const
 #if JVET_O1143_LPF_ACROSS_SUBPIC_BOUNDARY
   const SPS& sps                         = *cu.cs->sps;
 
-  const CodingUnit& cuLeft  = ( pos.x > 0 && cu.left == nullptr ) ? *cu.cs->getCU( pos.offset( -1, 0 ), cu.chType() ) : *cu.left;
+  const CodingUnit& cuLeft  = ( pos.x > 0 && cu.left  == nullptr ) ? *cu.cs->getCU( pos.offset( -1, 0 ), cu.chType() ) : *cu.left;
   const CodingUnit& cuAbove = ( pos.y > 0 && cu.above == nullptr ) ? *cu.cs->getCU( pos.offset( 0, -1 ), cu.chType() ) : *cu.above;
 
-  const bool loopFilterAcrossSubPicEnabledFlag = !sps.getSubPicInfoPresentFlag() || pps.getSubPicFromCU( cu ).getloopFilterAcrossSubPicEnabledFlag();
+  const bool loopFilterAcrossSubPicEnabledFlagLeft = !sps.getSubPicInfoPresentFlag() ||
+                                                     ( pps.getSubPicFromCU( cu ).getloopFilterAcrossSubPicEnabledFlag() &&
+                                                       pps.getSubPicFromCU( cuLeft ).getloopFilterAcrossSubPicEnabledFlag() );
+  const bool loopFilterAcrossSubPicEnabledFlagTop = !sps.getSubPicInfoPresentFlag() ||
+                                                    ( pps.getSubPicFromCU( cu ).getloopFilterAcrossSubPicEnabledFlag() &&
+                                                      pps.getSubPicFromCU( cuAbove ).getloopFilterAcrossSubPicEnabledFlag() );
 
   LFCUParam stLFCUParam;   ///< status structure
-  stLFCUParam.leftEdge = ( 0 < pos.x ) && isAvailable( cu, cuLeft,  !pps.getLoopFilterAcrossSlicesEnabledFlag(), !pps.getLoopFilterAcrossTilesEnabledFlag(), !loopFilterAcrossSubPicEnabledFlag );
-  stLFCUParam.topEdge  = ( 0 < pos.y ) && isAvailable( cu, cuAbove, !pps.getLoopFilterAcrossSlicesEnabledFlag(), !pps.getLoopFilterAcrossTilesEnabledFlag(), !loopFilterAcrossSubPicEnabledFlag );
+  stLFCUParam.leftEdge = ( pos.x > 0 ) && CU::isAvailable( cu, cuLeft,  !pps.getLoopFilterAcrossSlicesEnabledFlag(), !pps.getLoopFilterAcrossTilesEnabledFlag(), !loopFilterAcrossSubPicEnabledFlagLeft );
+  stLFCUParam.topEdge  = ( pos.y > 0 ) && CU::isAvailable( cu, cuAbove, !pps.getLoopFilterAcrossSlicesEnabledFlag(), !pps.getLoopFilterAcrossTilesEnabledFlag(), !loopFilterAcrossSubPicEnabledFlagTop );
 #else
   LFCUParam stLFCUParam;   ///< status structure
   stLFCUParam.leftEdge = ( 0 < pos.x ) && isAvailable( cu, *cu.left,  !pps.getLoopFilterAcrossSlicesEnabledFlag(), !pps.getLoopFilterAcrossTilesEnabledFlag() );

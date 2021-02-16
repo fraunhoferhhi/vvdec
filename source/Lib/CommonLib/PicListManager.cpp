@@ -306,6 +306,7 @@ void PicListManager::applyDoneReferencePictureMarking()
       itPic->referenced = false;
       itPic->longTerm   = false;
       itPic->wasLost    = false;
+      itPic->m_subPicRefBufs.clear();
     }
   }
 }

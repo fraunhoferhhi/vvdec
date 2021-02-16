@@ -95,6 +95,13 @@ struct CommonTaskParam
   void reset( CodingStructure& cs, TaskType ctuStartState, int tasksPerLine, bool doALF );
 };
 
+struct SubPicExtTask
+{
+  Picture*    picture   = nullptr;
+  PelStorage* subPicBuf = nullptr;
+  Area        subPicArea;
+};
+
 struct LineTaskParam
 {
   CommonTaskParam& common;
@@ -134,6 +141,7 @@ private:
 #endif
 
   CommonTaskParam            commonTaskParam{ this };
+  std::vector<SubPicExtTask> m_subPicExtTasks;
   std::vector<LineTaskParam> tasksDMVR;
   std::vector<CtuTaskParam>  tasksCtu;
   CBarrierVec                picBarriers;
@@ -154,6 +162,9 @@ public:
 
 private:
   void borderExtPic ( Picture* pic );
+#if JVET_O1143_MV_ACROSS_SUBPIC_BOUNDARY
+  void createSubPicRefBufs( Picture* pic );
+#endif
 
   template<bool checkReadyState=false>
   static bool ctuTask( int tid, CtuTaskParam* param );

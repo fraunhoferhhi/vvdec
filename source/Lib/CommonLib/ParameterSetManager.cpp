@@ -59,11 +59,13 @@ void updateParameterSetChangedFlag( bool&                       bChanged,
   {
     // pointers equal
     bChanged = false;
+    return;
   }
   else if( pOldData == nullptr || pNewData == nullptr )
   {
     // either one is null, but not both
     bChanged = true;
+    return;
   }
 
   // compare the contents
