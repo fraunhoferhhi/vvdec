@@ -1154,7 +1154,7 @@ int VVDecImpl::xHandleSEIs ( Frame& rcFrame, Picture* pcPic )
         {
           const seiBufferingPeriod* src = (seiBufferingPeriod*)sei;
           vvdec::seiBufferingPeriod* t = new vvdec::seiBufferingPeriod;
-          src->copyTo(*t);
+          *t = *src;
           rcFrame.m_pcPicExtendedAttributes->m_cSeiMsgLst.push_back(t);
         }
         break;
@@ -1162,7 +1162,7 @@ int VVDecImpl::xHandleSEIs ( Frame& rcFrame, Picture* pcPic )
         {
           const seiPictureTiming* src = (seiPictureTiming*)sei;
           vvdec::seiPictureTiming* t = new vvdec::seiPictureTiming;
-          src->copyTo(*t);
+          *t = *src;
           rcFrame.m_pcPicExtendedAttributes->m_cSeiMsgLst.push_back(t);
         }
         break;

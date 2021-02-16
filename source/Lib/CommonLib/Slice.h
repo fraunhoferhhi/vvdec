@@ -749,10 +749,10 @@ public:
   const OlsHrdParams&    getOlsHrdParameters() const { return m_olsHrdParams[0]; }
 
 
-  void                       setBufferingPeriodSEI(const vvdec::seiBufferingPeriod* bp)  { bp->copyTo(m_bufferingPeriodSEI); m_bufferingPeriodInitialized = true; }
+  void                       setBufferingPeriodSEI(const vvdec::seiBufferingPeriod* bp)  { m_bufferingPeriodSEI = *bp; m_bufferingPeriodInitialized = true; }
   const vvdec::seiBufferingPeriod*  getBufferingPeriodSEI() const                        { return m_bufferingPeriodInitialized ? &m_bufferingPeriodSEI : nullptr; }
 
-  void                       setPictureTimingSEI(const vvdec::seiPictureTiming* pt)  { pt->copyTo(m_pictureTimingSEI); m_pictureTimingAvailable = true; }
+  void                       setPictureTimingSEI(const vvdec::seiPictureTiming* pt)  { m_pictureTimingSEI = *pt; m_pictureTimingAvailable = true; }
   const vvdec::seiPictureTiming*    getPictureTimingSEI() const                      { return m_pictureTimingAvailable ? &m_pictureTimingSEI : nullptr; }
 
 protected:

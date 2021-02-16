@@ -1035,11 +1035,11 @@ void SEIReader::xParseSEIPictureTiming(seiPictureTiming& sei, uint32_t payloadSi
   if( bp.m_bpDecodingUnitHrdParamsPresentFlag && bp.m_decodingUnitCpbParamsInPicTimingSeiFlag )
   {
     sei_read_uvlc( pDecodedMessageOutputStream, symbol, "num_decoding_units_minus1" );
-    sei.m_numDecodingUnitsMinus1 = symbol;
-    sei.m_numNalusInDuMinus1.resize(sei.m_numDecodingUnitsMinus1 + 1 );
-    sei.m_duCpbRemovalDelayMinus1.resize( (sei.m_numDecodingUnitsMinus1 + 1) * bp.m_bpMaxSubLayers );
+    sei.m_numDecodingUnits = symbol+1;
+    sei.m_numNalusInDu.resize(sei.m_numDecodingUnits );
+    sei.m_duCpbRemovalDelay.resize( (sei.m_numDecodingUnits) * bp.m_bpMaxSubLayers );
 
-    if (sei.m_numDecodingUnitsMinus1 > 0)
+    if (sei.m_numDecodingUnits > 1)
     {
     sei_read_flag( pDecodedMessageOutputStream, symbol, "du_common_cpb_removal_delay_flag" );
     sei.m_duCommonCpbRemovalDelayFlag = symbol;
@@ -1050,22 +1050,22 @@ void SEIReader::xParseSEIPictureTiming(seiPictureTiming& sei, uint32_t payloadSi
         if( sei.m_ptSubLayerDelaysPresentFlag[i] )
         {
           sei_read_code( pDecodedMessageOutputStream, bp.getDuCpbRemovalDelayIncrementLength(), symbol, "du_common_cpb_removal_delay_increment_minus1[i]" );
-          sei.m_duCommonCpbRemovalDelayMinus1[i] = symbol;
+          sei.m_duCommonCpbRemovalDelay[i] = symbol+1;
         }
       }
     }
-    for( int i = 0; i <= sei.m_numDecodingUnitsMinus1; i ++ )
+    for( uint32_t i = 0; i < sei.m_numDecodingUnits; i ++ )
     {
       sei_read_uvlc( pDecodedMessageOutputStream, symbol, "num_nalus_in_du_minus1[i]" );
-      sei.m_numNalusInDuMinus1[i] = symbol;
-      if( !sei.m_duCommonCpbRemovalDelayFlag && i < sei.m_numDecodingUnitsMinus1 )
+      sei.m_numNalusInDu[i] = symbol+1;
+      if( !sei.m_duCommonCpbRemovalDelayFlag && i < (sei.m_numDecodingUnits-1) )
       {
         for( int j = temporalId; j < bp.m_bpMaxSubLayers - 1; j ++ )
         {
           if( sei.m_ptSubLayerDelaysPresentFlag[j] )
           {
             sei_read_code( pDecodedMessageOutputStream, bp.getDuCpbRemovalDelayIncrementLength(), symbol, "du_cpb_removal_delay_increment_minus1[i][j]" );
-            sei.m_duCpbRemovalDelayMinus1[i * bp.m_bpMaxSubLayers + j] = symbol;
+            sei.m_duCpbRemovalDelay[i * bp.m_bpMaxSubLayers + j] = symbol+1;
           }
         }
       }
@@ -1078,7 +1078,7 @@ void SEIReader::xParseSEIPictureTiming(seiPictureTiming& sei, uint32_t payloadSi
   }
 #if JVET_Q0818_PT_SEI
   sei_read_code( pDecodedMessageOutputStream, 8, symbol, "pt_display_elemental_periods_minus1" );
-  sei.m_ptDisplayElementalPeriodsMinus1 = symbol;
+  sei.m_ptDisplayElementalPeriods = symbol+1;
 #endif
 }
 
@@ -1112,7 +1112,7 @@ void SEIReader::xParseSEIFrameFieldinfo(seiFrameFieldInfo& sei, const seiPicture
     }
     sei_read_code( pDecodedMessageOutputStream, 8, symbol, "ffi_display_elemental_periods_minus1" );
     sei.m_displayElementalPeriods = symbol+1;
-    if( pt.m_ptDisplayElementalPeriodsMinus1 != sei.m_displayElementalPeriods+1 )
+    if( pt.m_ptDisplayElementalPeriods != sei.m_displayElementalPeriods )
       msg( WARNING, "Warning: display_elemental_periods_minus1 is different in picture timing and frame field information SEI messages!");
   }
   sei_read_code( pDecodedMessageOutputStream, 2, symbol,   "source_scan_type" );

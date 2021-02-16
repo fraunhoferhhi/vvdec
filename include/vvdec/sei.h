@@ -314,7 +314,6 @@ class VVDEC_DECL seiBufferingPeriod : public sei
 {
 public:
   PayloadType payloadType() const { return BUFFERING_PERIOD; }
-  void copyTo (seiBufferingPeriod& target) const;
 
   seiBufferingPeriod()
   {
@@ -362,15 +361,14 @@ class VVDEC_DECL seiPictureTiming : public sei
 {
 public:
   PayloadType payloadType() const { return PICTURE_TIMING; }
-  void copyTo (seiPictureTiming& target) const;
 
   seiPictureTiming()
   {
-    ::memset(m_ptSubLayerDelaysPresentFlag, 0, sizeof(m_ptSubLayerDelaysPresentFlag));
-    ::memset(m_duCommonCpbRemovalDelayMinus1, 0, sizeof(m_duCommonCpbRemovalDelayMinus1));
+    ::memset(m_ptSubLayerDelaysPresentFlag,     0, sizeof(m_ptSubLayerDelaysPresentFlag));
+    ::memset(m_duCommonCpbRemovalDelay,         0, sizeof(m_duCommonCpbRemovalDelay));
     ::memset(m_cpbRemovalDelayDeltaEnabledFlag, 0, sizeof(m_cpbRemovalDelayDeltaEnabledFlag));
-    ::memset(m_cpbRemovalDelayDeltaIdx, 0, sizeof(m_cpbRemovalDelayDeltaIdx));
-    ::memset(m_auCpbRemovalDelay, 0, sizeof(m_auCpbRemovalDelay));
+    ::memset(m_cpbRemovalDelayDeltaIdx,         0, sizeof(m_cpbRemovalDelayDeltaIdx));
+    ::memset(m_auCpbRemovalDelay,               0, sizeof(m_auCpbRemovalDelay));
   }
   virtual ~seiPictureTiming()
   {
@@ -382,11 +380,11 @@ public:
   uint32_t              m_auCpbRemovalDelay[7];
   uint32_t              m_picDpbOutputDelay           = 0;
   uint32_t              m_picDpbOutputDuDelay         = 0;
-  uint32_t              m_numDecodingUnitsMinus1      = 0;
+  uint32_t              m_numDecodingUnits            = 0;
   bool                  m_duCommonCpbRemovalDelayFlag = false;
-  uint32_t              m_duCommonCpbRemovalDelayMinus1[7];
-  std::vector<uint32_t> m_numNalusInDuMinus1          = {};
-  std::vector<uint32_t> m_duCpbRemovalDelayMinus1     = {};
+  uint32_t              m_duCommonCpbRemovalDelay[7];
+  std::vector<uint32_t> m_numNalusInDu                = {};
+  std::vector<uint32_t> m_duCpbRemovalDelay           = {};
   bool                  m_cpbAltTimingInfoPresentFlag = false;
   std::vector<std::vector<uint32_t>> m_nalCpbAltInitialRemovalDelayDelta  = {};
   std::vector<std::vector<uint32_t>> m_nalCpbAltInitialRemovalOffsetDelta = {};
@@ -396,18 +394,17 @@ public:
   std::vector<std::vector<uint32_t>> m_vclCpbAltInitialRemovalOffsetDelta = {};
   std::vector<uint32_t>              m_vclCpbDelayOffset = {};
   std::vector<uint32_t>              m_vclDpbDelayOffset = {};
-  int                                m_ptDisplayElementalPeriodsMinus1 = 0;
+  int                                m_ptDisplayElementalPeriods = 0;
 };
 
 class VVDEC_DECL seiDecodingUnitInfo : public sei
 {
 public:
   PayloadType payloadType() const { return DECODING_UNIT_INFO; }
-  void copyTo (seiDecodingUnitInfo& target) const;
 
   seiDecodingUnitInfo()
   {
-    ::memset(m_duiSubLayerDelaysPresentFlag, 0, sizeof(m_duiSubLayerDelaysPresentFlag));
+    ::memset(m_duiSubLayerDelaysPresentFlag,  0, sizeof(m_duiSubLayerDelaysPresentFlag));
     ::memset(m_duSptCpbRemovalDelayIncrement, 0, sizeof(m_duSptCpbRemovalDelayIncrement));
   }
   virtual ~seiDecodingUnitInfo() {}
@@ -415,7 +412,7 @@ public:
   bool m_duiSubLayerDelaysPresentFlag[7];
   int  m_duSptCpbRemovalDelayIncrement[7];
   bool m_dpbOutputDuDelayPresentFlag = false;
-  int  m_picSptDpbOutputDuDelay = 0;
+  int  m_picSptDpbOutputDuDelay      = 0;
 };
 
 class VVDEC_DECL seiFrameFieldInfo : public sei
