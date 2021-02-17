@@ -75,7 +75,7 @@ list( APPEND BITSTREAM_FILES
   "CodingToolsSets_B_Tencent_2.zip"
   "CodingToolsSets_C_Tencent_2.zip"
   "CodingToolsSets_D_Tencent_2.zip"
-  "CodingToolsSets_E_Tencent_1.zip"                    # fails because of sub-pictures
+  "CodingToolsSets_E_Tencent_1.zip"
   "CROP_A_Panasonic_3.zip"
   "CROP_B_Panasonic_4.zip"
   "CST_A_MediaTek_4.zip"
@@ -119,6 +119,7 @@ list( APPEND BITSTREAM_FILES
   "ENTROPY_B_Sharp_2.zip"
   "ERP_A_MediaTek_3.zip"
   "FIELD_A_Panasonic_3.zip"
+  "FIELD_B_Panasonic_1.zip"
   "FILLER_A_Bytedance_1.zip"
   #"GDR_A_ERICSSON_2.zip"                              # GDR currently not supported
   #"GDR_A_NOKIA_1.zip"                                 # GDR currently not supported
@@ -149,7 +150,8 @@ list( APPEND BITSTREAM_FILES
   "LFNST_C_HHI_3.zip"
   "LFNST_D_HHI_3.zip"
   "LMCS_A_Dolby_3.zip"
-  "LMCS_B_Dolby_2.zip"                                 # fails because of sub-pictures
+  "LMCS_B_Dolby_2.zip"
+  "LMCS_C_Dolby_1.zip"
   "LOSSLESS_A_HHI_3.zip"
   "LOSSLESS_B_HHI_3.zip"
   "LTRP_A_ERICSSON_3.zip"
@@ -188,11 +190,11 @@ list( APPEND BITSTREAM_FILES
   "PDPC_B_Qualcomm_3.zip"
   "PDPC_C_Qualcomm_2.zip"
   "PHSH_B_Sharp_1.zip"
-  #"PMERGE_A_MediaTek_1.zip"                           # TODO: mismatch. Why?
-  #"PMERGE_B_MediaTek_1.zip"                           # TODO: mismatch. Why?
-  #"PMERGE_C_MediaTek_1.zip"                           # TODO: mismatch. Why?
-  #"PMERGE_D_MediaTek_1.zip"                           # TODO: mismatch. Why?
-  #"PMERGE_E_MediaTek_1.zip"                           # TODO: mismatch. Why?
+  "PMERGE_A_MediaTek_1.zip"
+  "PMERGE_B_MediaTek_1.zip"
+  "PMERGE_C_MediaTek_1.zip"
+  "PMERGE_D_MediaTek_1.zip"
+  "PMERGE_E_MediaTek_1.zip"
   "POC_A_Nokia_1.zip"
   "POUT_A_Sharplabs_2.zip"
   "PPS_A_Bytedance_1.zip"
@@ -232,10 +234,11 @@ list( APPEND BITSTREAM_FILES
   "SPS_A_Bytedance_1.zip"
   "SPS_B_Bytedance_1.zip"
   "SPS_C_Bytedance_1.zip"
-  "SUBPIC_A_HUAWEI_3.zip"                              # subpictures currently not supported
-  "SUBPIC_B_HUAWEI_3.zip"                              # subpictures currently not supported
-  "SUBPIC_C_ERICSSON_1.zip"                            # subpictures currently not supported
-  "SUBPIC_C_MediaTek_1.zip"                            # subpictures currently not supported
+  "SUBPIC_A_HUAWEI_3.zip"
+  "SUBPIC_B_HUAWEI_3.zip"
+  "SUBPIC_C_ERICSSON_1.zip"
+  "SUBPIC_C_MediaTek_1.zip"
+  "SUBPIC_D_MediaTek_1.zip"
   "TEMPSCAL_A_Panasonic_4.zip"
   "TEMPSCAL_B_Panasonic_5.zip"
   "TEMPSCAL_C_Panasonic_3.zip"
