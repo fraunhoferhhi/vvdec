@@ -116,7 +116,7 @@ public:
 
    bool                                    m_bInitialized = false;
 
-   DecLib                                  m_cDecLib;
+   DecLib*                                 m_cDecLib;
    bool                                    m_bCreateNewPicBuf    = false;
 #if RPR_YUV_OUTPUT
    unsigned int                            m_uiBitDepth = 8;

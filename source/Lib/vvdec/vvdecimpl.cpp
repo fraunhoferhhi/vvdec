@@ -80,26 +80,7 @@ VVDecImpl::~VVDecImpl()
 int VVDecImpl::init( const VVDecParameter& rcVVDecParameter )
 {
   if( m_bInitialized ){ return VVDEC_ERR_INITIALIZE; }
-
-  initROM();
-
-  // create decoder class
-#if RPR_YUV_OUTPUT
-  m_cDecLib.create( rcVVDecParameter.m_iThreads, rcVVDecParameter.m_iParseThreads, rcVVDecParameter.m_iUpscaledOutput );
-#else
-  m_cDecLib.create( rcVVDecParameter.m_iThreads, rcVVDecParameter.m_iParseThreads );
-#endif
-
-  g_verbosity = MsgLevel( rcVVDecParameter.m_eLogLevel );
-
-  // initialize decoder class
-  m_cDecLib.setDecodedPictureHashSEIEnabled( (int) rcVVDecParameter.m_bDecodedPictureHashSEIEnabled );
-//  if (!m_outputDecodedSEIMessagesFilename.empty())
-//  {
-//    std::ostream &os=m_seiMessageFileStream.is_open() ? m_seiMessageFileStream : std::cout;
-//    m_cDecLib.setDecodedSEIMessageOutputStream(&os);
-//  }
-
+  
 #ifdef TARGET_SIMD_X86
   switch( rcVVDecParameter.m_eSIMD_Extension )
   {
@@ -115,7 +96,28 @@ int VVDecImpl::init( const VVDecParameter& rcVVDecParameter )
   }
 #endif
 
-  m_sDecoderCapabilities = m_cDecLib.getDecoderCapabilities();
+  m_cDecLib = new DecLib();
+
+  initROM();
+
+  // create decoder class
+#if RPR_YUV_OUTPUT
+  m_cDecLib->create( rcVVDecParameter.m_iThreads, rcVVDecParameter.m_iParseThreads, rcVVDecParameter.m_iUpscaledOutput );
+#else
+  m_cDecLib->create( rcVVDecParameter.m_iThreads, rcVVDecParameter.m_iParseThreads );
+#endif
+
+  g_verbosity = MsgLevel( rcVVDecParameter.m_eLogLevel );
+
+  // initialize decoder class
+  m_cDecLib->setDecodedPictureHashSEIEnabled( (int) rcVVDecParameter.m_bDecodedPictureHashSEIEnabled );
+//  if (!m_outputDecodedSEIMessagesFilename.empty())
+//  {
+//    std::ostream &os=m_seiMessageFileStream.is_open() ? m_seiMessageFileStream : std::cout;
+//    m_cDecLib.setDecodedSEIMessageOutputStream(&os);
+//  }
+
+  m_sDecoderCapabilities = m_cDecLib->getDecoderCapabilities();
 
   m_uiSeqNumber    = 0;
   m_uiSeqNumOutput = 0;
@@ -151,12 +153,14 @@ int VVDecImpl::uninit()
 
   for( auto& pic : m_pcLibPictureList )
   {
-    m_cDecLib.releasePicture( pic );
+    m_cDecLib->releasePicture( pic );
   }
   m_pcLibPictureList.clear();
 
   // destroy internal classes
-  m_cDecLib.destroy();
+  m_cDecLib->destroy();
+
+  delete m_cDecLib;
 
   destroyROM();
 
@@ -306,7 +310,7 @@ int VVDecImpl::decode( AccessUnit& rcAccessUnit, Frame** ppcFrame )
           nalu.m_rap = rcAccessUnit.m_bRAP;
           nalu.m_bits = uiNaluBytes*8;
 
-          pcPic = m_cDecLib.decode( nalu );
+          pcPic = m_cDecLib->decode( nalu );
           if( 0 != xHandleOutput( pcPic ))
           {
             iRet = VVDEC_ERR_UNSPECIFIED;
@@ -331,7 +335,7 @@ int VVDecImpl::decode( AccessUnit& rcAccessUnit, Frame** ppcFrame )
       nalu.m_nalUnitType = NAL_UNIT_INVALID;
 
       // Flush decoder
-      pcPic = m_cDecLib.flushPic();
+      pcPic = m_cDecLib->flushPic();
       xHandleOutput( pcPic );
 
       iRet = VVDEC_EOF;
@@ -402,7 +406,7 @@ int VVDecImpl::flush( Frame** ppcFrame )
     bool bContinue = true;
     while( bContinue )
     {
-      pcPic = m_cDecLib.flushPic();
+      pcPic = m_cDecLib->flushPic();
       if( 0 != xHandleOutput( pcPic ))
       {
         iRet = VVDEC_ERR_UNSPECIFIED;
@@ -497,7 +501,7 @@ int VVDecImpl::objectUnref( Frame* pcFrame )
         {
           if( (*itLibPic)->cts == pic.m_uiCts )
           {
-            m_cDecLib.releasePicture( *itLibPic );
+            m_cDecLib->releasePicture( *itLibPic );
             m_pcLibPictureList.erase( itLibPic );
             break;
           }
@@ -566,7 +570,7 @@ int VVDecImpl::getNumberOfErrorsPictureHashSEI()
 {
   if( !m_bInitialized ){ return VVDEC_ERR_INITIALIZE; }
 
-  uint32_t iErrors = m_cDecLib.getNumberOfChecksumErrorsDetected();
+  uint32_t iErrors = m_cDecLib->getNumberOfChecksumErrorsDetected();
   return iErrors;
 }
 
@@ -866,7 +870,7 @@ int VVDecImpl::xAddPicture( Picture* pcPic )
 #if RPR_YUV_OUTPUT
   m_bCreateNewPicBuf = (m_uiBitDepth == 8);
 
-  if( m_cDecLib.getUpscaledOutput() && ( uiWidth != orgWidth || uiHeight != orgHeight ) )
+  if( m_cDecLib->getUpscaledOutput() && ( uiWidth != orgWidth || uiHeight != orgHeight ) )
   {
     m_bCreateNewPicBuf = true;
     xCreateFrame ( cFrame, cPicBuf, orgWidth, orgHeight, bitDepths );
@@ -884,7 +888,7 @@ int VVDecImpl::xAddPicture( Picture* pcPic )
   if( m_bCreateNewPicBuf )
   {
 #if RPR_YUV_OUTPUT
-    if( m_cDecLib.getUpscaledOutput() == 2 )
+    if( m_cDecLib->getUpscaledOutput() == 2 )
     {
       PelStorage upscaledPic;
       upscaledPic.create( cPicBuf.chromaFormat, Size( orgWidth, orgHeight ) );
@@ -1570,7 +1574,7 @@ int VVDecImpl::xHandleOutput( Picture* pcPic )
 
     if ( m_bCreateNewPicBuf )
     {
-      m_cDecLib.releasePicture( pcPic );
+      m_cDecLib->releasePicture( pcPic );
     }
   }
 
