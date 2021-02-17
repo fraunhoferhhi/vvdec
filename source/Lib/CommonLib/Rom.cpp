@@ -77,7 +77,7 @@ TimeProfiler2D *g_timeProfiler = nullptr;
 //! \ingroup CommonLib
 //! \{
 
-std::atomic<int> romInitialized = 0;
+std::atomic<int> romInitialized(0);
 
 MsgLevel g_verbosity = VERBOSE;
 

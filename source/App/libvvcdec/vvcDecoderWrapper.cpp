@@ -46,6 +46,8 @@ THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "vvcDecoderWrapper.h"
 
+#include <algorithm>
+
 namespace libvvcdec
 {
 
