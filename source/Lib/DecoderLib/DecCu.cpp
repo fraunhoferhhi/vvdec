@@ -887,8 +887,17 @@ void DecCu::xDeriveCUMV( CodingUnit &cu, MotionHist& hist )
   bool isIbcSmallBlk = CU::isIBC( cu ) && ( cu.lwidth() * cu.lheight() <= 16 );
   if( !pu.affineFlag() && !pu.geoFlag() && !isIbcSmallBlk )
   {
-    HPMVInfo mi( pu.getMotionInfo(), pu.interDir() == 3 ? pu.BcwIdx() : BCW_DEFAULT, pu.imv() == IMV_HPEL );
-    MotionHist::addMiToLut( CU::isIBC( cu ) ? hist.motionLutIbc : hist.motionLut, mi );
+    const unsigned log2ParallelMergeLevel = (pu.cs->sps->getLog2ParallelMergeLevelMinus2() + 2);
+    const unsigned xBr = pu.Y().width  + pu.Y().x;
+    const unsigned yBr = pu.Y().height + pu.Y().y;
+    bool enableHmvp      = ((xBr >> log2ParallelMergeLevel) > (pu.Y().x >> log2ParallelMergeLevel)) && ((yBr >> log2ParallelMergeLevel) > (pu.Y().y >> log2ParallelMergeLevel));
+    bool enableInsertion = CU::isIBC( cu ) || enableHmvp;
+
+    if( enableInsertion )
+    {
+      HPMVInfo mi( pu.getMotionInfo(), pu.interDir() == 3 ? pu.BcwIdx() : BCW_DEFAULT, pu.imv() == IMV_HPEL );
+      MotionHist::addMiToLut( CU::isIBC( cu ) ? hist.motionLutIbc : hist.motionLut, mi );
+    }
   }
 }
 //! \}
