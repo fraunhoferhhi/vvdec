@@ -213,38 +213,6 @@ static bool findInRefPicList( Picture* checkRefPic, const ReferencePictureList* 
   return false;
 }
 
-void PicListManager::applyReferencePictureListBasedMarking( const Picture* currPic, const ReferencePictureList* rpl0, const ReferencePictureList* rpl1 )
-{
-  const bool noNeedToCheck = currPic->eNalUnitType == NAL_UNIT_CODED_SLICE_IDR_N_LP ||
-                             currPic->eNalUnitType == NAL_UNIT_CODED_SLICE_IDR_W_RADL;
-
-  // loop through all pictures in the reference picture buffer
-  for( auto& itPic: m_cPicList )
-  {
-    if( !itPic->referenced )
-      continue;
-
-    bool isReference = 0;
-    if( !noNeedToCheck )
-    {
-      isReference = findInRefPicList( itPic, rpl0, currPic->getPOC() );
-      if( !isReference )
-      {
-        isReference = findInRefPicList( itPic, rpl1, currPic->getPOC());
-      }
-    }
-
-    // mark the picture as "unused for reference" if it is not in
-    // the Reference Picture List
-    if( itPic->reconstructed && itPic->poc != currPic->getPOC() && !isReference )
-    {
-      itPic->referenced = false;
-      itPic->longTerm   = false;
-      itPic->wasLost    = false;
-    }
-  }
-}
-
 void PicListManager::applyDoneReferencePictureMarking()
 {
   Picture* lastDonePic = nullptr;

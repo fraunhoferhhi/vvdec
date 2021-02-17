@@ -99,7 +99,6 @@ public:
   Picture*       getNewPicBuffer( const SPS& sps,const PPS& pps, const uint32_t temporalLayer, const int layerId );
 #endif
   void           deleteBuffers();
-  void           applyReferencePictureListBasedMarking( const Picture * currPic, const ReferencePictureList * rpl0, const ReferencePictureList * rpl1 );
   void           applyDoneReferencePictureMarking();
   Picture*       findClosestPic( int iLostPoc );
   Picture*       getNextOutputPic( uint32_t numReorderPicsHighestTid, uint32_t maxDecPicBufferingHighestTid, bool bFlush );
