@@ -1,5 +1,5 @@
 # executable
-set( DLL_NAME libvvcdec )
+set( DLL_NAME vvcdec )
 
 # get source files
 file( GLOB SRC_FILES "*.cpp" )
