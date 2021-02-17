@@ -57,17 +57,13 @@ THE POSSIBILITY OF SUCH DAMAGE.
 # define IF_DEBUG_PIC_ORDER(...)
 #endif
 
-
-static bool isIRAP( NalUnitType type )
+static bool isIDR( NalUnitType type )
 {
   return type == NAL_UNIT_CODED_SLICE_IDR_W_RADL || type == NAL_UNIT_CODED_SLICE_IDR_N_LP;
-  // TODO: shouldn't this include CRAs? But then AI decoding is broken
-//  return type >= NAL_UNIT_CODED_SLICE_BLA_W_LP && type <= NAL_UNIT_RESERVED_IRAP_VCL23;
 }
-
-static bool isIRAP( const Picture * pic )
+static bool isIDR( const Picture* pic )
 {
-  return isIRAP( pic->eNalUnitType );
+  return isIDR( pic->eNalUnitType );
 }
 
 void PicListManager::deleteBuffers()
@@ -98,7 +94,7 @@ PicListRange PicListManager::getPicListRange( const Picture* pic ) const
   auto seqStart = m_cPicList.cbegin();
   for( auto itPic = m_cPicList.cbegin(); itPic != m_cPicList.cend(); ++itPic )
   {
-    if( isIRAP( *itPic ) )
+    if( isIDR( *itPic ) )
     {
       seqStart = itPic;
     }
@@ -252,48 +248,46 @@ void PicListManager::applyReferencePictureListBasedMarking( const Picture* currP
 void PicListManager::applyDoneReferencePictureMarking()
 {
   Picture* lastDonePic = nullptr;
-
-  PicList::iterator firstNotDonePic = std::find_if( m_cPicList.begin(), m_cPicList.end(), []( Picture* p ) { return p->done.isBlocked(); } );
-
-  if( firstNotDonePic == m_cPicList.begin() )
+  for( auto& p: m_cPicList )
   {
-    // nothing done, yet
+    if( p->done.isBlocked() )
+    {
+      break;
+    }
+    lastDonePic = p;
+  }
+  if( !lastDonePic )
+  {
     return;
   }
-  if( firstNotDonePic == m_cPicList.end() )
-  {
-    // all done
-    lastDonePic = m_cPicList.back();
-  }
-  else
-  {
-    --firstNotDonePic;
-    lastDonePic = *firstNotDonePic;
-  }
 
-  const bool noNeedToCheck = lastDonePic->eNalUnitType == NAL_UNIT_CODED_SLICE_IDR_N_LP ||
-                             lastDonePic->eNalUnitType == NAL_UNIT_CODED_SLICE_IDR_W_RADL;
+  const Picture* picRangeStart = *begin( getPicListRange( lastDonePic ) );
+  bool           inPicRange    = false;
 
   for( auto& itPic: m_cPicList )
   {
     if( !itPic->referenced )
     {
+      // already marked as not references
       continue;
     }
     if( itPic == lastDonePic )
     {
+      // only check up to the last finished picture
       return;
     }
 
+    inPicRange |= ( itPic == picRangeStart );   // all pictures before the current valid picture-range can also be marked as not needed for referenece
+
     bool isReference = false;
-    if( !noNeedToCheck )
+    if( !isIDR( lastDonePic ) || !inPicRange )
     {
       for( auto& slice: lastDonePic->slices )
       {
-        isReference = findInRefPicList( itPic, slice->getRPL0(), lastDonePic->getPOC() );
-        if( !isReference )
+        if( findInRefPicList( itPic, slice->getRPL0(), lastDonePic->getPOC() ) || findInRefPicList( itPic, slice->getRPL1(), lastDonePic->getPOC() ) )
         {
-          isReference = findInRefPicList( itPic, slice->getRPL1(), lastDonePic->getPOC() );
+          isReference = true;
+          break;
         }
       }
     }
@@ -301,7 +295,7 @@ void PicListManager::applyDoneReferencePictureMarking()
     // mark the picture as "unused for reference" if it is not in
     // the Reference Picture List
     CHECK( !itPic->reconstructed, "all pictures, for which we apply reference pic marking should have been reconstructed" )
-    if( itPic->poc != lastDonePic->getPOC() && !isReference )
+    if( !isReference )
     {
       itPic->referenced = false;
       itPic->longTerm   = false;
@@ -351,7 +345,7 @@ Picture* PicListManager::getNextOutputPic( uint32_t numReorderPicsHighestTid,
       break;
     }
 
-    if( isIRAP( *itPic ) )
+    if( isIDR( *itPic ) )
     {
       if( !foundOutputPic ) // if there was no picture needed for output before the first RAP,
       {                     // we begin the range at the RAP...
@@ -389,6 +383,11 @@ Picture* PicListManager::getNextOutputPic( uint32_t numReorderPicsHighestTid,
     else if( p->inProgress )                        stateC = 'x';
     else if( !p->slices[0]->parseDone.isBlocked() ) stateC = '.';
 
+    if( stateC == 'o' )
+    {
+      if( p->referenced )          stateC = 'R';
+      if( p->lockedByApplication ) stateC = 'L';
+    }
     std::cout << p->poc << stateC << ' ';
   }
 //  std::cout << std::endl;
@@ -408,8 +407,8 @@ Picture* PicListManager::getNextOutputPic( uint32_t numReorderPicsHighestTid,
     return nullptr;
   }
 
-  // when there is an IRAP picture coming up, we can flush all pictures before that
-  if( seqEnd != m_cPicList.cend() && isIRAP( *seqEnd ) )
+  // when there is an IDR picture coming up, we can flush all pictures before that
+  if( seqEnd != m_cPicList.cend() && isIDR( *seqEnd ) )
   {
     bFlush = true;
     IF_DEBUG_PIC_ORDER( std::cout << " flush" );
@@ -455,9 +454,9 @@ Picture* PicListManager::getNextOutputPic( uint32_t numReorderPicsHighestTid,
 
   if( lowestPOCPic )
   {
-    m_firstOutputPic = false;
+    m_firstOutputPic                  = false;
     lowestPOCPic->lockedByApplication = true;
-    lowestPOCPic->neededForOutput = false;
+    lowestPOCPic->neededForOutput     = false;
 
     IF_DEBUG_PIC_ORDER( std::cout << " ==> " << lowestPOCPic->poc );
   }
