@@ -54,6 +54,7 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #include "CommonDef.h"
 #include "Common.h"
 
+#include <atomic>
 #include <stdio.h>
 #include <iostream>
 
@@ -67,6 +68,8 @@ THE POSSIBILITY OF SUCH DAMAGE.
 
 void         initROM();
 void         destroyROM();
+
+extern std::atomic<int> romInitialized;
 
 // ====================================================================================================================
 // Data structure related table & variable
