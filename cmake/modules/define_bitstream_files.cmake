@@ -237,7 +237,6 @@ list( APPEND BITSTREAM_FILES
   "SUBPIC_A_HUAWEI_3.zip"
   "SUBPIC_B_HUAWEI_3.zip"
   "SUBPIC_C_ERICSSON_1.zip"
-  "SUBPIC_C_MediaTek_1.zip"
   "SUBPIC_D_MediaTek_1.zip"
   "TEMPSCAL_A_Panasonic_4.zip"
   "TEMPSCAL_B_Panasonic_5.zip"
