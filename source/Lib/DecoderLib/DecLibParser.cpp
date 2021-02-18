@@ -478,7 +478,12 @@ DecLibParser::SliceHeadResult DecLibParser::xDecodeSliceHead( InputNALUnit& nalu
   m_apcSlicePilot->setAssociatedIRAPPOC ( m_pocCRA );
   m_apcSlicePilot->setAssociatedIRAPType( m_associatedIRAPType );
 
-  //For inference of NoOutputOfPriorPicsFlag
+  // For inference of NoOutputOfPriorPicsFlag
+  //
+  // TODO: (GH) Currently setting NoOutputBeforeRecoveryFlag is more or less disabled as a workaround for missing
+  //       output pictures du to parallel parsing. See: https://github.com/fraunhoferhhi/vvdec/issues/17
+  //       This should be implemented properly, so we can correctly detect the start of a new CLVS.
+  //
   if( /*m_apcSlicePilot->getRapPicFlag() ||*/ m_apcSlicePilot->getNalUnitType() == NAL_UNIT_CODED_SLICE_GDR )
   {
     if( !pps->getMixedNaluTypesInPicFlag() )
