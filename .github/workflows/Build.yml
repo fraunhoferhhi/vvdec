@@ -19,13 +19,19 @@ jobs:
     steps:
     - uses: actions/checkout@v2
     - run: git fetch --prune --unshallow
-    # - name: Install Linux packages
-    #   run: |
-    #     sudo apt-get update
-    #     sudo apt-get install 
-    - name: Build
+    - name: Build Linux / mac
       run: |
         mkdir build
         cd build
         cmake .. -DCMAKE_BUILD_TYPE=Release
         make -j 2
+      if: matrix.os != 'windows-2019'
+    - name: Build Windows
+      run: |
+        mkdir build
+        cd build
+        call "C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\VC\Auxiliary\Build\vcvars64.bat"
+        cmake .. -DCMAKE_BUILD_TYPE=Release
+        msbuild vvdec.sln
+      shell: cmd
+      if: matrix.os == 'windows-2019'
