@@ -186,10 +186,13 @@ void Partitioner::initCtu( const UnitArea& ctuArea, const ChannelType _chType, c
   setNeighborCu( m_partStack.back(), *this, cs );
 
   const SPS& sps = *cs.sps;
-
+#if GDR_ADJ
+  isDualITree = slice.isIntra() && slice.getSPS()->getUseDualITree();
+  const int valIdx = slice.isIntra() ? ( !isDualITree? 0 : ( _chType << 1 ) ) : 1;
+#else
   isDualITree = slice.isIRAP() && slice.getSPS()->getUseDualITree();
-
   const int valIdx = slice.isIRAP() ? ( _chType << 1 ) : 1;
+#endif
 
   const unsigned minBtSizeArr[] = { 1u << sps.getLog2MinCodingBlockSize(), 1u << sps.getLog2MinCodingBlockSize(), 1u << sps.getLog2MinCodingBlockSize() };
   const unsigned minTtSizeArr[] = { 1u << sps.getLog2MinCodingBlockSize(), 1u << sps.getLog2MinCodingBlockSize(), 1u << sps.getLog2MinCodingBlockSize() };
