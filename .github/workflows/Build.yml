@@ -7,7 +7,7 @@ on:
       - created
 
 jobs:
-  build-unix-native:
+  build:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -25,7 +25,7 @@ jobs:
         mkdir build
         cd build
         cmake .. -DCMAKE_BUILD_TYPE=Release
-        make -j 2
+        make -j$(nproc)
       if: matrix.os != 'windows-2019'
     - name: Build Windows
       run: |
