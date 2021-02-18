@@ -77,6 +77,8 @@ TimeProfiler2D *g_timeProfiler = nullptr;
 //! \ingroup CommonLib
 //! \{
 
+std::atomic<int> romInitialized(0);
+
 MsgLevel g_verbosity = VERBOSE;
 
 const char* nalUnitTypeToString(NalUnitType type)
@@ -254,6 +256,21 @@ void initROM()
   }
 
 #endif
+
+  // This is the hack for having global variables in a shared library. Having global
+  // variables in a shared library is a very bad idea in general. The clean solution
+  // would be:
+  //  A: Have a struct that contains all the global variables and pass a const reference
+  //     to them into each class/function that needs them.
+  //  B: For really const values just precalculate them all and put them intot a header
+  //     to include everywhere where needed.
+  if (romInitialized > 0)
+  {
+    romInitialized++;
+    return;
+  }
+  romInitialized++;
+
   const SizeIndexInfoLog2 &sizeInfo = g_sizeIdxInfo;
 
   {
@@ -376,6 +393,12 @@ void initROM()
 
 void destroyROM()
 {
+  romInitialized--;
+  if (romInitialized > 0)
+  {
+    return;
+  }
+
   const SizeIndexInfoLog2 &sizeInfo = g_sizeIdxInfo;
   // initialize CoefTopLeftDiagScan8x8 for LFNST
   for( uint32_t blockWidthIdx = 0; blockWidthIdx < sizeInfo.numAllWidths(); blockWidthIdx++ )
