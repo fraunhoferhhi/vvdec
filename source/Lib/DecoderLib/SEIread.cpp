@@ -418,17 +418,17 @@ void SEIReader::xReadSEImessage(seiMessages& seis, const NalUnitType nalUnitType
 
 void SEIReader::xParseSEIuserDataUnregistered(seiUserDataUnregistered &sei, uint32_t payloadSize, std::ostream *pDecodedMessageOutputStream)
 {
-  CHECK(payloadSize < vvdec::ISO_IEC_11578_LEN, "Payload too small");
+  CHECK(payloadSize < 16, "Payload too small");
   uint32_t val;
   output_sei_message_header(sei, pDecodedMessageOutputStream, payloadSize);
 
-  for (uint32_t i = 0; i < vvdec::ISO_IEC_11578_LEN; i++)
+  for (uint32_t i = 0; i < 16; i++)
   {
     sei_read_code( pDecodedMessageOutputStream, 8, val, "uuid_iso_iec_11578");
     sei.uuid_iso_iec_11578[i] = val;
   }
 
-  sei.userDataLength = payloadSize - vvdec::ISO_IEC_11578_LEN;
+  sei.userDataLength = payloadSize - 16;
   if (!sei.userDataLength)
   {
     sei.userData = 0;

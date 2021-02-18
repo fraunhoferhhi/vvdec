@@ -282,6 +282,22 @@ typedef struct VVDEC_DECL Vui
   bool       m_videoFullRangeFlag             = false;
 }Vui_t;
 
+
+typedef struct VVDEC_DECL Hrd
+{
+  uint32_t m_numUnitsInTick                          = 0;
+  uint32_t m_timeScale                               = 0;
+  bool     m_generalNalHrdParamsPresentFlag          = 0;
+  bool     m_generalVclHrdParamsPresentFlag          = 0;
+  bool     m_generalSamePicTimingInAllOlsFlag        = false;
+  uint32_t m_tickDivisor                             = 0;
+  bool     m_generalDecodingUnitHrdParamsPresentFlag = false;
+  uint32_t m_bitRateScale                            = 0;
+  uint32_t m_cpbSizeScale                            = 0;
+  uint32_t m_cpbSizeDuScale                          = 0;
+  uint32_t m_hrdCpbCnt                               = 0;
+}Hrd_t;
+
 /**
   \ingroup VVDecExternalInterfaces
   The struct PicAttributes - contains decoder side information
@@ -299,7 +315,8 @@ typedef struct VVDEC_DECL PicExtendedAttributes
 
   unsigned int   m_uiBits                               = 0;                  ///< bits of the compr. image packet
 
-  Vui            *m_pcVui                              = NULL;                ///< if available, pointer to VUI (Video Usability Information)
+  Vui            *m_pcVui                               = NULL;                ///< if available, pointer to VUI (Video Usability Information)
+  Hrd            *m_pcHrd                               = NULL;                ///< if available, pointer to HRD (Hypothetical Reference Decoder)
   std::list<sei*> m_cSeiMsgLst;
 
 } PicExtendedAttributes_t;

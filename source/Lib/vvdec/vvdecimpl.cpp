@@ -187,6 +187,11 @@ int VVDecImpl::uninit()
          delete pic.m_pcPicExtendedAttributes->m_pcVui;
        }
 
+       if( NULL != pic.m_pcPicExtendedAttributes->m_pcHrd )
+       {
+         delete pic.m_pcPicExtendedAttributes->m_pcHrd;
+       }
+
        delete pic.m_pcPicExtendedAttributes;
        pic.m_pcPicExtendedAttributes = NULL;
      }
@@ -526,6 +531,11 @@ int VVDecImpl::objectUnref( Frame* pcFrame )
          if( NULL != pic.m_pcPicExtendedAttributes->m_pcVui )
          {
            delete pic.m_pcPicExtendedAttributes->m_pcVui;
+         }
+
+         if( NULL != pic.m_pcPicExtendedAttributes->m_pcHrd )
+         {
+           delete pic.m_pcPicExtendedAttributes->m_pcHrd;
          }
 
          delete pic.m_pcPicExtendedAttributes;
@@ -1021,9 +1031,27 @@ int VVDecImpl::xAddPicture( Picture* pcPic )
       }
     }
 
+    if( pcPic->slices.front()->getSPS()->getGeneralHrdParameters() )
+    {
+      const GeneralHrdParams* hrd = pcPic->slices.front()->getSPS()->getGeneralHrdParameters();
+      if( hrd != NULL )
+      {
+        cFrame.m_pcPicExtendedAttributes->m_pcHrd = new vvdec::Hrd;
+
+        cFrame.m_pcPicExtendedAttributes->m_pcHrd->m_numUnitsInTick                   = hrd->getNumUnitsInTick();
+        cFrame.m_pcPicExtendedAttributes->m_pcHrd->m_timeScale                        = hrd->getTimeScale();
+        cFrame.m_pcPicExtendedAttributes->m_pcHrd->m_generalNalHrdParamsPresentFlag   = hrd->getGeneralNalHrdParametersPresentFlag();
+        cFrame.m_pcPicExtendedAttributes->m_pcHrd->m_generalVclHrdParamsPresentFlag   = hrd->getGeneralVclHrdParametersPresentFlag();
+        cFrame.m_pcPicExtendedAttributes->m_pcHrd->m_generalSamePicTimingInAllOlsFlag = hrd->getGeneralSamePicTimingInAllOlsFlag();
+        cFrame.m_pcPicExtendedAttributes->m_pcHrd->m_tickDivisor                      = hrd->getTickDivisorMinus2()+2;
+        cFrame.m_pcPicExtendedAttributes->m_pcHrd->m_generalDecodingUnitHrdParamsPresentFlag = hrd->getGeneralDecodingUnitHrdParamsPresentFlag();
+        cFrame.m_pcPicExtendedAttributes->m_pcHrd->m_bitRateScale                     = hrd->getBitRateScale();
+        cFrame.m_pcPicExtendedAttributes->m_pcHrd->m_cpbSizeScale                     = hrd->getCpbSizeScale();
+        cFrame.m_pcPicExtendedAttributes->m_pcHrd->m_cpbSizeDuScale                   = hrd->getCpbSizeDuScale();
+        cFrame.m_pcPicExtendedAttributes->m_pcHrd->m_hrdCpbCnt                        = hrd->getHrdCpbCntMinus1()+1;
+      }
+    }
   }
-
-
 
   if( 0 != xHandleSEIs ( cFrame, pcPic ) )
   {
