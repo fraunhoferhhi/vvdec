@@ -1,0 +1,28 @@
+name: CI build
+
+on:
+  push:
+  release:
+    types:
+      - created
+
+jobs:
+  build-unix-native:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-18.04
+    steps:
+    - uses: actions/checkout@v2
+    - run: git fetch --prune --unshallow
+    # - name: Install Linux packages
+    #   run: |
+    #     sudo apt-get update
+    #     sudo apt-get install 
+    - name: Build
+      run: |
+        mkdir build
+        cd build
+        cmake .. -DCMAKE_BUILD_TYPE=Release
+        make -j 2
