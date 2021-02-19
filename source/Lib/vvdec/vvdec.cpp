@@ -97,7 +97,6 @@ VVDEC_DECL vvdec_decoder_t* vvdec_decoder_open( vvdec_Params *params)
   if (ret != 0)
   {
     // Error initializing the decoder
-    throw( Exception( "\nERROR: In function \"" ) << __FUNCTION__ << "\" in " << __FILE__ << ":" << __LINE__ << ": cannot init VVDecimpl" );
     delete decCtx;
     return nullptr;
   }
