@@ -126,7 +126,7 @@ VVDEC_DECL ErrorCodes vvdec_set_logging_callback(vvdec_decoder_t* dec, vvdec_log
     return VVDEC_ERR_UNSPECIFIED;
   }
 
-  d->setLogging(callback, userData, loglevel);
+  d->set_logging_callback(callback, userData, loglevel);
   return VVDEC_OK;
 }
 
