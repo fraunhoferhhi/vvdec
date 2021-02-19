@@ -61,13 +61,21 @@ THE POSSIBILITY OF SUCH DAMAGE.
 
 static bool isDualITree( const Slice &slice )
 {
+#if GDR_ADJ
+  return slice.isIntra() && slice.getSPS()->getUseDualITree();
+#else
   return slice.isIRAP() && slice.getSPS()->getUseDualITree();
+#endif
 }
 
 
 bool CU::isDualITree( const CodingUnit &cu )
 {
+#if GDR_ADJ
+  return cu.slice->isIntra() && cu.slice->getSPS()->getUseDualITree();
+#else
   return cu.slice->isIRAP() && cu.slice->getSPS()->getUseDualITree();
+#endif
 }
 
 UnitArea getArea( const Slice &slice, const UnitArea &area, const ChannelType chType, const TreeType treeType )
