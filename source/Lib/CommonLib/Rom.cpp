@@ -57,6 +57,8 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #include <math.h>
 #include <iomanip>
 
+#include "vvdec/vvdec.h"
+
 // ====================================================================================================================
 // Initialize / destroy functions
 // ====================================================================================================================
@@ -80,6 +82,8 @@ TimeProfiler2D *g_timeProfiler = nullptr;
 std::atomic<int> romInitialized(0);
 
 MsgLevel g_verbosity = VERBOSE;
+std::function<void( void*, int, const char*, va_list )> g_msgFnc = nullptr;
+
 
 const char* nalUnitTypeToString(NalUnitType type)
 {

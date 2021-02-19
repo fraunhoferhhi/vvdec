@@ -65,7 +65,7 @@ public:
   /// Destructor
   virtual ~CmdLineParser() {}
 
-  static void print_usage( std::string cApp, vvdec::VVDecParameter& rcParams )
+  static void print_usage( std::string cApp, vvdec_Params& rcParams )
   {
       printf( "\n Usage:  %s  [param1] [pararm2] [...] \n", cApp.c_str() );
       std::cout << "\n"
@@ -98,7 +98,7 @@ public:
   }
 
 
-  static int parse_command_line( int argc, char* argv[] , vvdec::VVDecParameter& rcParams, std::string& rcBitstreamFile, std::string& rcOutputFile,
+  static int parse_command_line( int argc, char* argv[] , vvdec_Params& rcParams, std::string& rcBitstreamFile, std::string& rcOutputFile,
                                  int& riFrames, int& riLoops )
   {
     int iRet = 0;
@@ -113,21 +113,21 @@ public:
         i_arg++;
         int iLogLevel = atoi( argv[i_arg++] );
         if( iLogLevel < 0 ) iLogLevel = 0;
-        if( iLogLevel > (int)vvdec::LogLevel::LL_DETAILS ) iLogLevel = (int)vvdec::LogLevel::LL_DETAILS ;
-        rcParams.m_eLogLevel = (vvdec::LogLevel)iLogLevel;
+        if( iLogLevel > (int)LogLevel::VVDEC_DETAILS ) iLogLevel = (int)LogLevel::VVDEC_DETAILS ;
+        rcParams.m_eLogLevel = (LogLevel)iLogLevel;
 
-        if( rcParams.m_eLogLevel > vvdec::LL_VERBOSE )
+        if( rcParams.m_eLogLevel > VVDEC_VERBOSE )
         {
           std::string cll;
           switch (rcParams.m_eLogLevel)
           {
-            case vvdec::LL_SILENT : cll = "SILENT"; break;
-            case vvdec::LL_ERROR  : cll = "ERROR"; break;
-            case vvdec::LL_WARNING: cll = "WARNING"; break;
-            case vvdec::LL_INFO   : cll = "INFO"; break;
-            case vvdec::LL_NOTICE : cll = "NOTICE"; break;
-            case vvdec::LL_VERBOSE: cll = "VERBOSE"; break;
-            case vvdec::LL_DETAILS: cll = "DETAILS"; break;
+            case VVDEC_SILENT : cll = "SILENT"; break;
+            case VVDEC_ERROR  : cll = "ERROR"; break;
+            case VVDEC_WARNING: cll = "WARNING"; break;
+            case VVDEC_INFO   : cll = "INFO"; break;
+            case VVDEC_NOTICE : cll = "NOTICE"; break;
+            case VVDEC_VERBOSE: cll = "VERBOSE"; break;
+            case VVDEC_DETAILS: cll = "DETAILS"; break;
             default: cll = "UNKNOWN"; break;
           };
           fprintf( stdout, "[verbosity] : %d - %s\n", (int)rcParams.m_eLogLevel, cll.c_str() );
@@ -152,7 +152,7 @@ public:
       if( (!strcmp( (const char*)argv[i_arg], "-b" )) || !strcmp( (const char*)argv[i_arg], "--bitstream" ) ) /* In: input-file */
       {
         i_arg++;
-        if( rcParams.m_eLogLevel > vvdec::LL_VERBOSE )
+        if( rcParams.m_eLogLevel > VVDEC_VERBOSE )
           fprintf( stdout, "[bitstream] input-file:    %s\n", argv[i_arg] );
         rcBitstreamFile = argv[i_arg++];
       }
@@ -161,7 +161,7 @@ public:
         i_arg++;
         if( i_arg < argc && strlen( argv[i_arg] ) > 0 )
         {
-          if( rcParams.m_eLogLevel > vvdec::LL_VERBOSE )
+          if( rcParams.m_eLogLevel > VVDEC_VERBOSE )
             fprintf( stdout, "[output] yuv-file:    %s\n", argv[i_arg] );
           rcOutputFile = argv[i_arg++];
         }
@@ -171,7 +171,7 @@ public:
       {
         i_arg++;
         int iUpscaledOutput = atoi( argv[i_arg++] );
-        if( rcParams.m_eLogLevel > vvdec::LL_VERBOSE )
+        if( rcParams.m_eLogLevel > VVDEC_VERBOSE )
           fprintf( stdout, "[UpscaledOutput] : %d\n", iUpscaledOutput );
         rcParams.m_iUpscaledOutput = iUpscaledOutput;
       }
@@ -180,14 +180,14 @@ public:
       {
         i_arg++;
         riFrames = atoi( argv[i_arg++] );
-        if( rcParams.m_eLogLevel > vvdec::LL_VERBOSE )
+        if( rcParams.m_eLogLevel > VVDEC_VERBOSE )
           fprintf( stdout, "[frames] : %d\n", riFrames );
       }
       else if( (!strcmp( (const char*)argv[i_arg], "-t" )) || !strcmp( (const char*)argv[i_arg], "--threads" ) )
       {
         i_arg++;
         int iThreads = atoi( argv[i_arg++] );
-        if( rcParams.m_eLogLevel > vvdec::LL_VERBOSE )
+        if( rcParams.m_eLogLevel > VVDEC_VERBOSE )
           fprintf( stdout, "[threads] : %d\n", iThreads );
         rcParams.m_iThreads = iThreads;
       }
@@ -195,14 +195,14 @@ public:
       {
         i_arg++;
         int iThreads = atoi( argv[i_arg++] );
-        if( rcParams.m_eLogLevel > vvdec::LL_VERBOSE )
+        if( rcParams.m_eLogLevel > VVDEC_VERBOSE )
           fprintf( stdout, "[parsedelay] : %d\n", iThreads );
         rcParams.m_iParseThreads = iThreads;
       }
       else if( (!strcmp( (const char*)argv[i_arg], "-dph" )) || !strcmp( (const char*)argv[i_arg], "--SEIDecodedPictureHash" ) )
       {
         i_arg++;
-        if( rcParams.m_eLogLevel > vvdec::LL_VERBOSE )
+        if( rcParams.m_eLogLevel > VVDEC_VERBOSE )
           fprintf( stdout, "[SEIDecodedPictureHash] : true\n" );
         rcParams.m_bDecodedPictureHashSEIEnabled = true;
       }
@@ -210,7 +210,7 @@ public:
       {
         i_arg++;
         riLoops = atoi( argv[i_arg++] );
-        if( rcParams.m_eLogLevel > vvdec::LL_VERBOSE )
+        if( rcParams.m_eLogLevel > VVDEC_VERBOSE )
           fprintf( stdout, "[loops] : %d\n", riLoops );
       }
       else if( (!strcmp( (const char*)argv[i_arg], "-v" )) || !strcmp( (const char*)argv[i_arg], "--verbosity" ) )
@@ -227,20 +227,20 @@ public:
       else if( !strcmp( ( const char* ) argv[i_arg], "--simd" ) )
       {
         i_arg++;
-        rcParams.m_eSIMD_Extension = vvdec::SIMD_Extension( std::max( -1, atoi( argv[i_arg++] ) ) + 1 );
+        rcParams.m_eSIMD_Extension = SIMD_Extension( std::max( -1, atoi( argv[i_arg++] ) ) + 1 );
 
-        if( rcParams.m_eLogLevel > vvdec::LL_VERBOSE )
+        if( rcParams.m_eLogLevel > VVDEC_VERBOSE )
         {
           std::string cll;
           switch( rcParams.m_eSIMD_Extension )
           {
-          case vvdec::SIMD_DEFAULT: cll = "DEFAULT"; break;
-          case vvdec::SIMD_SCALAR:  cll = "SCALAR"; break;
-          case vvdec::SIMD_SSE41:   cll = "SSE41"; break;
-          case vvdec::SIMD_SSE42:   cll = "SSE42"; break;
-          case vvdec::SIMD_AVX:     cll = "AVX"; break;
-          case vvdec::SIMD_AVX2:    cll = "AVX2"; break;
-          case vvdec::SIMD_AVX512:  cll = "AVX512"; break;
+          case VVDEC_SIMD_DEFAULT: cll = "DEFAULT"; break;
+          case VVDEC_SIMD_SCALAR:  cll = "SCALAR"; break;
+          case VVDEC_SIMD_SSE41:   cll = "SSE41"; break;
+          case VVDEC_SIMD_SSE42:   cll = "SSE42"; break;
+          case VVDEC_SIMD_AVX:     cll = "AVX"; break;
+          case VVDEC_SIMD_AVX2:    cll = "AVX2"; break;
+          case VVDEC_SIMD_AVX512:  cll = "AVX512"; break;
           default: cll = "UNKNOWN"; break;
           };
           fprintf( stdout, "[simd] : %s\n", cll.c_str() );
@@ -248,7 +248,8 @@ public:
       }
       else
       {
-        fprintf( stderr, " - IGNORED: %s \n", argv[i_arg++] );
+        fprintf( stderr, " - unknown argument: %s \n", argv[i_arg++] );
+        iRet = -1;
       }
     }
 

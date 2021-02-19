@@ -69,20 +69,18 @@ public:
 
 public:
 
-   int init( const VVDecParameter& rcVVDecParameter );
+   int init( const vvdec_Params& rcVVDecParameter );
    int uninit();
 
-   int decode( AccessUnit& rcAccessUnit, Frame** ppcFrame );
+   void set_logging_callback(vvdec_logging_callback callback, void *userData, LogLevel level);
 
-   int flush( Frame** ppcFrame );
+   int decode( vvdec_AccessUnit& rcAccessUnit, vvdec_Frame** ppcFrame );
 
-   int objectUnref( Frame* pcFrame );
+   int flush( vvdec_Frame** ppcFrame );
+
+   int objectUnref( vvdec_Frame* pcFrame );
 
    int getNumberOfErrorsPictureHashSEI( );
-
-   void clockStartTime();
-   void clockEndTime();
-   double clockGetTimeDiffMs();
 
    int setAndRetErrorMsg( int Ret );
 
@@ -92,7 +90,7 @@ public:
    static const char* getErrorMsg( int nRet );
    static const char* getVersionNumber();
 
-   static NalType getNalUnitType        ( AccessUnit& rcAccessUnit );
+   static NalType getNalUnitType            ( vvdec_AccessUnit& rcAccessUnit );
    static const char* getNalUnitTypeAsString( NalType t );
 
    static bool isNalUnitSlice               ( NalType t );
@@ -101,8 +99,8 @@ public:
 private:
 
    int xAddPicture                  ( Picture* pcPic );
-   int xCreateFrame                 ( Frame& rcFrame, const CPelUnitBuf& rcPicBuf, uint32_t uiWidth, uint32_t uiHeight, const BitDepths& rcBitDepths );
-   int xHandleSEIs                  ( Frame& rcFrame, Picture* pcPic );
+   int xCreateFrame                 ( vvdec_Frame& rcFrame, const CPelUnitBuf& rcPicBuf, uint32_t uiWidth, uint32_t uiHeight, const BitDepths& rcBitDepths );
+   int xHandleSEIs                  ( vvdec_Frame& rcFrame, Picture* pcPic );
 
    static int xRetrieveNalStartCode ( unsigned char *pB, int iZerosInStartcode );
    static int xConvertPayloadToRBSP ( std::vector<uint8_t>& nalUnitBuf, InputBitstream *bitstream, bool isVclNalUnit);
@@ -122,8 +120,8 @@ public:
    unsigned int                            m_uiBitDepth = 8;
 #endif
 
-   std::list<Frame>                        m_rcFrameList;
-   std::list<Frame>::iterator              m_pcFrameNext = m_rcFrameList.begin();
+   std::list<vvdec_Frame>                  m_rcFrameList;
+   std::list<vvdec_Frame>::iterator        m_pcFrameNext = m_rcFrameList.begin();
 
    std::list<Picture*>                     m_pcLibPictureList; // internal picture list
 
@@ -140,8 +138,8 @@ public:
   static std::string                       m_cTmpErrorString;
   static std::string                       m_cNalType;
 
-  std::chrono::steady_clock::time_point    m_cTPStart;
-  std::chrono::steady_clock::time_point    m_cTPEnd;
+  vvdec_logging_callback loggingCallback {};
+  void *loggingUserData {};
 };
 
 
