@@ -6,10 +6,10 @@ stages:
    interruptible: true
    script:
       - make disable-lto=1 all
-   only:
-      - web
-      - schedules
-      - merge_requests
+   rules:
+    - if: '$CI_PIPELINE_SOURCE == "web"'  
+    - if: '$CI_PIPELINE_SOURCE == "schedule"'  
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'  
 
 .build_test_template:
    stage: build
@@ -25,16 +25,18 @@ stages:
    script:
       - make enable-bitstream-download=1 enable-local-bitstream-download=1 disable-lto=1 all
       - make test
-   only:
-      - web
-      - schedules
-      - merge_requests
+   rules:
+    - if: '$CI_PIPELINE_SOURCE == "web"'  
+    - if: '$CI_PIPELINE_SOURCE == "schedule"'  
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'  
 
 build_gcc5_ubuntu1804:
    extends: .build_only_template
    variables:
      CC: gcc-5
      CXX: g++-5
+   rules:
+      - if: '$FULL_BUILD == "1"'
    tags:
       - ubuntu1804
 
@@ -43,6 +45,8 @@ build_gcc6_ubuntu1804:
    variables:
      CC: gcc-6
      CXX: g++-6
+   rules:
+      - if: '$FULL_BUILD == "1"'
    tags:
       - ubuntu1804
 
@@ -51,6 +55,8 @@ build_gcc7_ubuntu2004:
    variables:
      CC: gcc-7
      CXX: g++-7
+   rules:
+      - if: '$FULL_BUILD == "1"'
    tags:
       - ubuntu2004
 
@@ -59,6 +65,8 @@ build_gcc8_ubuntu2004:
    variables:
      CC: gcc-8
      CXX: g++-8
+   rules:
+      - if: '$FULL_BUILD == "1"'
    tags:
       - ubuntu2004
 
@@ -67,6 +75,8 @@ build_gcc9_ubuntu2004:
    variables:
      CC: gcc-9
      CXX: g++-9
+   rules:
+      - if: '$FULL_BUILD == "1"'
    tags:
       - ubuntu2004
 
@@ -75,6 +85,8 @@ build_gcc10_ubuntu2004:
    variables:
      CC: gcc-10
      CXX: g++-10
+   rules:
+      - if: '$FULL_BUILD == "1"'
    tags:
       - ubuntu2004
 
@@ -83,6 +95,8 @@ build_clang7_ubuntu2004:
    variables:
      CC: clang-7
      CXX: clang++-7
+   rules:
+      - if: '$FULL_BUILD == "1"'
    tags:
       - ubuntu2004
 
@@ -91,6 +105,8 @@ build_clang8_ubuntu2004:
    variables:
      CC: clang-8
      CXX: clang++-8
+   rules:
+      - if: '$FULL_BUILD == "1"'
    tags:
       - ubuntu2004
 
@@ -99,6 +115,8 @@ build_clang9_ubuntu2004:
    variables:
      CC: clang-9
      CXX: clang++-9
+   rules:
+      - if: '$FULL_BUILD == "1"'
    tags:
       - ubuntu2004
 
@@ -107,6 +125,8 @@ build_clang10_ubuntu2004:
    variables:
      CC: clang-10
      CXX: clang++-10
+   rules:
+      - if: '$FULL_BUILD == "1"'
    tags:
       - ubuntu2004
 
