@@ -237,7 +237,7 @@ Quant::Quant()
   xInitScalingList( nullptr );
   DeQuant= DeQuantCore;
   DeQuantPCM = DeQuantPCMCore;
-#if   ENABLE_SIMD_OPT_QUANT
+#if   ENABLE_SIMD_OPT_QUANT && defined( TARGET_SIMD_X86 )
   initQuantX86();
 #endif
 

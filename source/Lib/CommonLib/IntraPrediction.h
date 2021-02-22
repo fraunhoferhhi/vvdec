@@ -162,7 +162,7 @@ public:
 
   void ( *GetLumaRecPixel420)  (const int width,const int height, const Pel* pRecSrc0,const ptrdiff_t iRecStride,Pel* pDst0,const ptrdiff_t iDstStride);
 
-#if ENABLE_SIMD_OPT_INTRAPRED
+#if ENABLE_SIMD_OPT_INTRAPRED && defined( TARGET_SIMD_X86 )
   void initIntraPredictionX86();
   template <X86_VEXT vext>
   void _initIntraPredictionX86();

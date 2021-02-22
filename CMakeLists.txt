@@ -136,6 +136,9 @@ if( UNIX OR MINGW )
   add_compile_options( "-msse4.1" )
 endif()
 
+set( CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DTARGET_SIMD_X86" )
+set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DTARGET_SIMD_X86" )
+
 # set _WIN32_WINNT
 if( WIN32 )
   # set _WIN32_WINT version global
@@ -208,14 +211,6 @@ if( VVDEC_ENABLE_ITT )
     message( WARNING "ITT_PATH ${ITT_PATH} not found, ignoring option VVCLib_ENABLE_ITT" )
   endif()
 endif()
-
-#if( SET_ENABLE_TRACING )
-#  if( ENABLE_TRACING )
-#    add_compile_definitions( ENABLE_TRACING=1 )
-#  else()
-#    add_compile_definitions( ENABLE_TRACING=0 )
-#  endif()
-#endif()
 
 # handle rpath correctly
 if( VVDEC_ENABLE_INSTALL )

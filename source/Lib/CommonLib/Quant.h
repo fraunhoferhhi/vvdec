@@ -146,7 +146,7 @@ private:
   void ( *DeQuantPCM) (const int maxX,const int restX,const int maxY,const int scale,TCoeff   *const piQCoef,const size_t piQCfStride,TCoeff   *const piCoef,const int rightShift,const int inputMaximum,const TCoeff transformMaximum);
 
 
-#if ENABLE_SIMD_OPT_QUANT
+#if ENABLE_SIMD_OPT_QUANT && defined( TARGET_SIMD_X86 )
   void initQuantX86();
   template <X86_VEXT vext>
   void _initQuantX86();

@@ -148,8 +148,12 @@ void DecLib::create(int numDecThreads, int parserFrameDelay)
   cssCap << "THREADS="     << numDecThreads << "; "
          << "PARSE_DELAY=" << parserFrameDelay << "; ";
 #if ENABLE_SIMD_OPT
+#if defined( TARGET_SIMD_X86 )
   std::string cSIMD;
   cssCap << "SIMD=" << read_x86_extension( cSIMD );
+#else
+  cssCap << "SIMD=SCALAR";
+#endif
 #else
   cssCap << "SIMD=NONE";
 #endif
