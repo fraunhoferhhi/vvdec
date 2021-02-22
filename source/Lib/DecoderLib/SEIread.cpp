@@ -62,6 +62,18 @@ THE POSSIBILITY OF SUCH DAMAGE.
 //! \ingroup DecoderLib
 //! \{
 
+#if ENABLE_TRACING
+void  xTraceSEIHeader()
+{
+  DTRACE( g_trace_ctx, D_HEADER, "=========== SEI message ===========\n");
+}
+
+void  xTraceSEIMessageType(SEIPayloadType payloadType)
+{
+  DTRACE( g_trace_ctx, D_HEADER, "=========== %s SEI message ===========\n", SEI_internal::getSEIMessageString( payloadType ) );
+}
+#endif
+
 void SEIReader::sei_read_scode(std::ostream *pOS, uint32_t length, int& code, const char *pSymbolName)
 {
   READ_SCODE(length, code, pSymbolName);
