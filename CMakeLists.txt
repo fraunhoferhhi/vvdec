@@ -131,9 +131,20 @@ message( STATUS "CMAKE_MODULE_PATH: updating module path to: ${CMAKE_MODULE_PATH
 # Enable multithreading
 find_package( Threads REQUIRED )
 
+set( VVDEC_ENABLE_X86_SIMD TRUE )
+if( APPLE )
+  if( DEFINED CMAKE_OSX_ARCHITECTURES )
+    if( CMAKE_OSX_ARCHITECTURES STREQUAL "arm64" )
+      set( VVDEC_ENABLE_X86_SIMD FALSE )
+    endif()
+  endif()
+endif()
+
 # enable sse4.1 build for all source files for gcc and clang
-if( UNIX OR MINGW )
-  add_compile_options( "-msse4.1" )
+if( VVDEC_ENABLE_X86_SIMD )
+  if( UNIX OR MINGW )
+    add_compile_options( "-msse4.1" )
+  endif()
 endif()
 
 # set _WIN32_WINNT
