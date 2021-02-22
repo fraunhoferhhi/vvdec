@@ -63,11 +63,6 @@ ifneq ($(force-mac-x86-64),)
 CONFIG_OPTIONS += -DCMAKE_OSX_ARCHITECTURES=x86_64
 endif
 
-UNAME_MAC := $(shell uname -s)
-ifeq ($(UNAME_MAC),Darwin)
-#CONFIG_OPTIONS += -DCMAKE_OSX_ARCHITECTURES=x86_64
-endif
-
 ifeq ($(j),)
 # Query cmake for the number of cores
 NUM_JOBS := $(shell cmake -P cmake/modules/vvdecNumCores.cmake)
