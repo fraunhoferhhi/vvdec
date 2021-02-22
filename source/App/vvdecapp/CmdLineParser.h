@@ -110,6 +110,7 @@ public:
     {
       if( (!strcmp( (const char*)argv[i_arg], "-v" )) || !strcmp( (const char*)argv[i_arg], "--verbosity" ) )
       {
+        if( i_arg == argc-1 ){ fprintf( stderr, " - missing argument for: %s \n", argv[i_arg] ); return -1; }
         i_arg++;
         int iLogLevel = atoi( argv[i_arg++] );
         if( iLogLevel < 0 ) iLogLevel = 0;
@@ -151,6 +152,7 @@ public:
     {
       if( (!strcmp( (const char*)argv[i_arg], "-b" )) || !strcmp( (const char*)argv[i_arg], "--bitstream" ) ) /* In: input-file */
       {
+        if( i_arg == argc-1 ){ fprintf( stderr, " - missing argument for: %s \n", argv[i_arg] ); return -1; }
         i_arg++;
         if( rcParams.m_eLogLevel > VVDEC_VERBOSE )
           fprintf( stdout, "[bitstream] input-file:    %s\n", argv[i_arg] );
@@ -158,6 +160,7 @@ public:
       }
       else if( (!strcmp( (const char*)argv[i_arg], "-o" )) || !strcmp( (const char*)argv[i_arg], "--output" ) ) /* Out: bitstream-file */
       {
+        if( i_arg == argc-1 ){ fprintf( stderr, " - missing argument for: %s \n", argv[i_arg] ); return -1; }
         i_arg++;
         if( i_arg < argc && strlen( argv[i_arg] ) > 0 )
         {
@@ -169,6 +172,7 @@ public:
 #if 1 //RPR_YUV_OUTPUT
       else if( (!strcmp( (const char*)argv[i_arg], "-uo" )) || !strcmp( (const char*)argv[i_arg], "--UpscaledOutput" ) ) /* Out: bitstream-file */
       {
+        if( i_arg == argc-1 ){ fprintf( stderr, " - missing argument for: %s \n", argv[i_arg] ); return -1; }
         i_arg++;
         int iUpscaledOutput = atoi( argv[i_arg++] );
         if( rcParams.m_eLogLevel > VVDEC_VERBOSE )
@@ -178,6 +182,7 @@ public:
 #endif
       else if( (!strcmp( (const char*)argv[i_arg], "-f" )) || !strcmp( (const char*)argv[i_arg], "--frames" ) )
       {
+        if( i_arg == argc-1 ){ fprintf( stderr, " - missing argument for: %s \n", argv[i_arg] ); return -1; }
         i_arg++;
         riFrames = atoi( argv[i_arg++] );
         if( rcParams.m_eLogLevel > VVDEC_VERBOSE )
@@ -185,6 +190,7 @@ public:
       }
       else if( (!strcmp( (const char*)argv[i_arg], "-t" )) || !strcmp( (const char*)argv[i_arg], "--threads" ) )
       {
+        if( i_arg == argc-1 ){ fprintf( stderr, " - missing argument for: %s \n", argv[i_arg] ); return -1; }
         i_arg++;
         int iThreads = atoi( argv[i_arg++] );
         if( rcParams.m_eLogLevel > VVDEC_VERBOSE )
@@ -193,6 +199,7 @@ public:
       }
       else if( (!strcmp( (const char*)argv[i_arg], "-p" )) || !strcmp( (const char*)argv[i_arg], "--parsedelay" ) )
       {
+        if( i_arg == argc-1 ){ fprintf( stderr, " - missing argument for: %s \n", argv[i_arg] ); return -1; }
         i_arg++;
         int iThreads = atoi( argv[i_arg++] );
         if( rcParams.m_eLogLevel > VVDEC_VERBOSE )
@@ -202,12 +209,21 @@ public:
       else if( (!strcmp( (const char*)argv[i_arg], "-dph" )) || !strcmp( (const char*)argv[i_arg], "--SEIDecodedPictureHash" ) )
       {
         i_arg++;
+        if( i_arg < argc )
+        {
+          if( std::isdigit(argv[i_arg][0]))
+          {
+            i_arg++;
+          }
+        }
+
         if( rcParams.m_eLogLevel > VVDEC_VERBOSE )
           fprintf( stdout, "[SEIDecodedPictureHash] : true\n" );
         rcParams.m_bDecodedPictureHashSEIEnabled = true;
       }
       else if( (!strcmp( (const char*)argv[i_arg], "-L" )) || !strcmp( (const char*)argv[i_arg], "--loops" ) )
       {
+        if( i_arg == argc-1 ){ fprintf( stderr, " - missing argument for: %s \n", argv[i_arg] ); return -1; }
         i_arg++;
         riLoops = atoi( argv[i_arg++] );
         if( rcParams.m_eLogLevel > VVDEC_VERBOSE )
@@ -226,6 +242,7 @@ public:
       }
       else if( !strcmp( ( const char* ) argv[i_arg], "--simd" ) )
       {
+        if( i_arg == argc-1 ){ fprintf( stderr, " - missing argument for: %s \n", argv[i_arg] ); return -1; }
         i_arg++;
         rcParams.m_eSIMD_Extension = SIMD_Extension( std::max( -1, atoi( argv[i_arg++] ) ) + 1 );
 
