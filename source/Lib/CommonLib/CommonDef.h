@@ -431,6 +431,11 @@ template <typename T> constexpr inline T Clip3  ( const T minVal, const T maxVal
 template <typename T> constexpr inline T ClipBD ( const T x, const int bitDepth )            { return Clip3( T( 0 ), T( ( 1 << bitDepth ) - 1 ), x ); }
 template <typename T> constexpr inline T ClipPel( const T a, const ClpRng& clpRng )          { return ClipBD( a, clpRng.bd ); }  ///< clip reconstruction
 
+static void default_msgFnc( void *, int level, const char* fmt, va_list args )
+{
+  vfprintf(stderr, fmt, args);
+}
+
 extern MsgLevel g_verbosity;
 
 extern std::function<void( void*, int, const char*, va_list )> g_msgFnc;
