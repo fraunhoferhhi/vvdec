@@ -12,23 +12,38 @@ endif()
 # project name
 project( vvdec VERSION 0.2.1.0 )
 
-if( NOT CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR )
-  # enable sse4.1 build for all source files for gcc and clang
+set( VVDEC_ENABLE_X86_SIMD TRUE )
+set( VVDEC_ENABLE_ARM_SIMD FALSE )
+
+if( APPLE )
+  if( DEFINED CMAKE_OSX_ARCHITECTURES )
+    if( CMAKE_OSX_ARCHITECTURES STREQUAL "arm64" )
+      set( VVDEC_ENABLE_X86_SIMD FALSE )
+      set( VVDEC_ENABLE_ARM_SIMD TRUE )
+    endif()
+  endif()
+endif()
+
+# enable sse4.1 build for all source files for gcc and clang
+if( VVDEC_ENABLE_X86_SIMD )
   if( UNIX OR MINGW )
     add_compile_options( "-msse4.1" )
   endif()
 
+  set( CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DTARGET_SIMD_X86" )
+  set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DTARGET_SIMD_X86" )
+endif()
+
+if( VVDEC_ENABLE_ARM_SIMD )
+  set( CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DTARGET_SIMD_ARM" )
+  set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DTARGET_SIMD_ARM" )
+endif()
+
+if( NOT CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR )
   # set exception handling
   if( MSVC )
     add_compile_options( "/EHsc" )
   endif()
-  
-  # TODO: add proper ARM/X86 differentiation logic
-  set( VVDEC_ENABLE_X86_SIMD TRUE )
-  set( VVDEC_ENABLE_ARM_SIMD FALSE )
-  
-  set( CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DTARGET_SIMD_X86" )
-  set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DTARGET_SIMD_X86" )
 
   # vvdec embedded by superproject, always include source/Lib/vvdec  as first component
   list( PREPEND ${PROJECT_NAME}_ADD_SUBDIRECTORIES "source/Lib/vvdec" )
@@ -137,33 +152,6 @@ message( STATUS "CMAKE_MODULE_PATH: updating module path to: ${CMAKE_MODULE_PATH
 
 # Enable multithreading
 find_package( Threads REQUIRED )
-
-set( VVDEC_ENABLE_X86_SIMD TRUE )
-set( VVDEC_ENABLE_ARM_SIMD FALSE )
-
-if( APPLE )
-  if( DEFINED CMAKE_OSX_ARCHITECTURES )
-    if( CMAKE_OSX_ARCHITECTURES STREQUAL "arm64" )
-      set( VVDEC_ENABLE_X86_SIMD FALSE )
-      set( VVDEC_ENABLE_ARM_SIMD TRUE )
-    endif()
-  endif()
-endif()
-
-# enable sse4.1 build for all source files for gcc and clang
-if( VVDEC_ENABLE_X86_SIMD )
-  if( UNIX OR MINGW )
-    add_compile_options( "-msse4.1" )
-  endif()
-
-  set( CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DTARGET_SIMD_X86" )
-  set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DTARGET_SIMD_X86" )
-endif()
-
-if( VVDEC_ENABLE_ARM_SIMD )
-  set( CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DTARGET_SIMD_ARM" )
-  set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DTARGET_SIMD_ARM" )
-endif()
 
 # set _WIN32_WINNT
 if( WIN32 )
