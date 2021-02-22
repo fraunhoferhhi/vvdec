@@ -23,6 +23,10 @@ if( NOT CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR )
     add_compile_options( "/EHsc" )
   endif()
   
+  # TODO: add proper ARM/X86 differentiation logic
+  set( VVDEC_ENABLE_X86_SIMD TRUE )
+  set( VVDEC_ENABLE_ARM_SIMD FALSE )
+  
   set( CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DTARGET_SIMD_X86" )
   set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DTARGET_SIMD_X86" )
 
