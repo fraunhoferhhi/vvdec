@@ -470,6 +470,14 @@ int VVDecImpl::flush( vvdec_Frame** ppcFrame )
   return iRet;
 }
 
+sei_message_t* VVDecImpl::findFrameSei( SEIPayloadType payloadType, vvdec_Frame_t *frame )
+{
+  if( !m_bInitialized ){ return nullptr; }
+
+  return nullptr;
+}
+
+
 int VVDecImpl::objectUnref( vvdec_Frame* pcFrame )
 {
   if( !m_bInitialized ){ return VVDEC_ERR_INITIALIZE; }

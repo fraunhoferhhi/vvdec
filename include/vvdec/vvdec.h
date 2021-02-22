@@ -52,8 +52,7 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #include <stdio.h>
 #include <stdint.h>
 
-//#include <list>
-//#include "vvdec/sei.h"
+#include "vvdec/sei.h"
 
 #define VVDEC_NAMESPACE_BEGIN
 #define VVDEC_NAMESPACE_END
@@ -282,7 +281,7 @@ typedef struct vvdec_Vui
   bool       m_videoFullRangeFlag             = false;
 }vvdec_Vui_t;
 
-typedef struct VVDEC_DECL vvdec_Hrd
+typedef struct vvdec_Hrd
 {
   uint32_t m_numUnitsInTick                          = 0;
   uint32_t m_timeScale                               = 0;
@@ -322,7 +321,7 @@ typedef struct vvdec_PicExtendedAttributes
   \ingroup VVDecExternalInterfaces
   The struct InputPicture combines the struct PicBuffer and the optional PicAttributes class.
 */
-typedef struct VVDEC_DECL vvdec_Frame
+typedef struct vvdec_Frame
 {
   vvdec_Component   m_cComponent[3];                      ///< component plane for yuv
   uint32_t          m_uiNumComponents  = 0;               ///< number of color components
@@ -344,7 +343,7 @@ typedef struct VVDEC_DECL vvdec_Frame
   as well as for reconfiguration of an already initialized decoder. The struct is equipped with an default constructor that initializes all parameters
   to default values for ease of use and best performance. However, some of the parameters has to be set by the caller, which can not be guessed by the decoder.
 */
-typedef struct VVDEC_DECL vvdec_Params
+typedef struct vvdec_Params
 {
   int m_iThreads                       = -1;             ///< thread count        ( default: -1 )
   int m_iParseThreads                  = -1;             ///< parser thread count ( default: -1 )
@@ -424,10 +423,19 @@ VVDEC_DECL int vvdec_decode( vvdec_decoder_t *, vvdec_AccessUnit_t *accessUnit, 
 VVDEC_DECL int vvdec_flush( vvdec_decoder_t *, vvdec_Frame_t **frame );
 
 /**
+  This method finds SEI message for given picture
+  \param[in]  vvdec_decoder_t pointer of decoder handler
+  \param[out] sei_message_t pointer to found sei message, NULL if not found
+  \retval     int if non-zero an error occurred, otherwise the retval indicates success VVDEC_OK
+  \pre        The decoder has to be initialized successfully.
+*/
+VVDEC_DECL sei_message_t* vvdec_find_frame_sei( vvdec_decoder_t *, SEIPayloadType seiPayloadType, vvdec_Frame_t *frame );
+
+/**
   This method unreference an picture and frees the memory.
   This call is used to free the memory of an picture which is not used anymore.
   \param[in]  vvdec_decoder_t pointer of decoder handler
-  \param[out] vvdec_Frame_t reference to frame
+  \param[out] vvdec_Frame_t pointer of frame
   \retval     int if non-zero an error occurred, otherwise the retval indicates success VVDEC_OK
   \pre        The decoder has to be initialized successfully.
 */

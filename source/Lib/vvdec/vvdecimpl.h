@@ -103,6 +103,8 @@ public:
 
    int flush( vvdec_Frame** ppcFrame );
 
+   sei_message_t* findFrameSei( SEIPayloadType payloadType, vvdec_Frame_t *frame );
+
    int objectUnref( vvdec_Frame* pcFrame );
 
    int getNumberOfErrorsPictureHashSEI( );

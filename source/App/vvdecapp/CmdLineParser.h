@@ -51,6 +51,7 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #include <stdio.h>
 #include <string.h>
 #include <algorithm>
+#include <cctype>
 
 #include "vvdec/vvdec.h"
 

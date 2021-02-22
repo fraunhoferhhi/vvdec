@@ -63,10 +63,7 @@ THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "InterpolationFilter.h"
 
-namespace vvdec{
-class sei;
-}
-typedef std::list<vvdec::sei*> seiMessages;
+typedef std::list<SEI_internal*> seiMessages;
 
 struct Picture : public UnitArea
 {
@@ -246,7 +243,7 @@ public:
 
   CodingStructure*   cs    = nullptr;
   std::vector<Slice*> slices;
-  vvdec::seiMessages  SEIs;
+  seiMessages  SEIs;
 
   bool               isRefScaled( const PPS* pps ) const
   {
@@ -331,7 +328,7 @@ public:
 #endif
 };
 
-int calcAndPrintHashStatus(const CPelUnitBuf& pic, const class vvdec::seiDecodedPictureHash* pictureHashSEI, const BitDepths &bitDepths, const MsgLevel msgl);
+int calcAndPrintHashStatus(const CPelUnitBuf& pic, const class seiDecodedPictureHash* pictureHashSEI, const BitDepths &bitDepths, const MsgLevel msgl);
 
 
 #endif

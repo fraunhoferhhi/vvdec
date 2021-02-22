@@ -162,6 +162,17 @@ VVDEC_DECL int vvdec_flush( vvdec_decoder_t *dec, vvdec_Frame_t **frame )
   return d->setAndRetErrorMsg( d->flush( frame ) );
 }
 
+VVDEC_DECL sei_message_t* vvdec_find_frame_sei( vvdec_decoder_t *dec, SEIPayloadType seiPayloadType, vvdec_Frame_t *frame )
+{
+  auto d = (vvdec::VVDecImpl*)dec;
+  if (!d)
+  {
+    return nullptr;
+  }
+
+  return  d->findFrameSei( seiPayloadType, frame );
+}
+
 VVDEC_DECL int vvdec_frame_unref( vvdec_decoder_t *dec, vvdec_Frame_t *frame )
 {
   auto d = (vvdec::VVDecImpl*)dec;

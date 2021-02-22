@@ -55,6 +55,7 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #include "dtrace_next.h"
 
 #include "UnitTools.h"
+#include "vvdec/sei.h"
 
 //! \ingroup CommonLib
 //! \{
@@ -2439,7 +2440,7 @@ static const LevelTierFeatures mainLevelTierInfo[] =
     { Level::LEVEL6_1, 35651584, {   120000,   480000 },      600,      440,       20, 2139095040ULL, {  120000,   480000 }, { 8, 4} },
     { Level::LEVEL6_2, 35651584, {   180000,   800000 },      600,      440,       20, 4278190080ULL, {  240000,   800000 }, { 8, 4} },
     { Level::LEVEL15_5, MAX_UINT,{ MAX_UINT, MAX_UINT }, MAX_UINT, MAX_UINT, MAX_UINT, MAX_CNFUINT64, {MAX_UINT, MAX_UINT }, { 0, 0} },
-    { Level::NONE    }
+    { Level::LEVEL_NONE    }
 };
 
 static const ProfileFeatures validProfiles[] = {
@@ -2497,10 +2498,10 @@ ProfileLevelTierFeatures::extractPTLInformation(const SPS &sps)
   {
     // Now identify the level:
     const LevelTierFeatures *pLTF = m_pProfile->pLevelTiersListInfo;
-    const Level::Name spsLevelName = spsPtl.getLevelIdc();
+    const Level spsLevelName      = spsPtl.getLevelIdc();
     if (spsLevelName!=Level::LEVEL15_5 || m_pProfile->canUseLevel15p5)
     {
-      for(int i=0; pLTF[i].level!=Level::NONE; i++)
+      for(int i=0; pLTF[i].level!=Level::LEVEL_NONE; i++)
       {
         if (pLTF[i].level == spsLevelName)
         {
