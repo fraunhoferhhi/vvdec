@@ -64,10 +64,7 @@ int writeYUVToFile( std::ostream *f, vvdec_Frame *frame );
 
 void msgFnc( void *, int level, const char* fmt, va_list args )
 {
-  //if ( g_verbosity >= level )
-  {
-    vfprintf( level == 1 ? stderr : stdout, fmt, args );
-  }
+  vfprintf( level == 1 ? stderr : stdout, fmt, args );
 }
 
 int main( int argc, char* argv[] )
@@ -150,7 +147,7 @@ int main( int argc, char* argv[] )
     return -1;
   }
 
-  vvdec_decoder_t *dec;
+  vvdec_decoder_t *dec = nullptr;
 
   //> decoding loop
   vvdec_AccessUnit cAccessUnit;
@@ -186,8 +183,7 @@ int main( int argc, char* argv[] )
     dec = vvdec_decoder_open( &cVVDecParameter );
     if( nullptr == dec )
     {
-      std::cout << "cannot init decoder ";
-      std::cout << std::endl;
+      std::cout << "cannot init decoder" << std::endl;
       return -1;
     }
 
@@ -347,8 +343,8 @@ int main( int argc, char* argv[] )
             }
           }
 
-          // freevvdecmemory
-          vvdec_objectUnref( dec, pcFrame );
+          // free picture memory
+          vvdec_frame_unref( dec, pcFrame );
         }
 
         if( uiFrames && cVVDecParameter.m_eLogLevel >= VVDEC_INFO )
@@ -395,7 +391,7 @@ int main( int argc, char* argv[] )
         }
 
         // free picture memory
-        vvdec_objectUnref( dec, pcFrame );
+        vvdec_frame_unref( dec, pcFrame );
 
         if( cVVDecParameter.m_eLogLevel >= VVDEC_INFO )
         {
@@ -428,7 +424,7 @@ int main( int argc, char* argv[] )
     if( cVVDecParameter.m_eLogLevel >= VVDEC_INFO )
       std::cout << "vvdecapp [info]: " << getTimePointAsString() << ": " << uiFrames << " frames decoded @ " << dFps << " fps (" << dTimeSec << " sec)\n" << std::endl;
 
-    iSEIHashErrCount = vvdec_getNumberOfErrorsPictureHashSEI(dec);
+    iSEIHashErrCount = vvdec_get_number_of_errors_PicHashSEI(dec);
     if (iSEIHashErrCount )
     {
       std::cout << "vvdecapp [error]: MD5 checksum error ( " << iSEIHashErrCount << " errors )" << std::endl;

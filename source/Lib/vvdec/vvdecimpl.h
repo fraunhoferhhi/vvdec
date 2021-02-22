@@ -51,6 +51,31 @@ THE POSSIBILITY OF SUCH DAMAGE.
 
 namespace vvdec {
 
+
+static const char * const vvdecNalTypeNames[] = { "NAL_UNIT_CODED_SLICE_TRAIL", "NAL_UNIT_CODED_SLICE_STSA", "NAL_UNIT_CODED_SLICE_RADL", "NAL_UNIT_CODED_SLICE_RASL",
+                                                  "NAL_UNIT_RESERVED_VCL_4", "NAL_UNIT_RESERVED_VCL_5", "NAL_UNIT_RESERVED_VCL_6",
+                                                  "NAL_UNIT_CODED_SLICE_IDR_W_RADL","NAL_UNIT_CODED_SLICE_IDR_N_LP","NAL_UNIT_CODED_SLICE_CRA","NAL_UNIT_CODED_SLICE_GDR",
+                                                  "NAL_UNIT_RESERVED_IRAP_VCL_11","NAL_UNIT_RESERVED_IRAP_VCL_12",
+                                                  "NAL_UNIT_DCI","NAL_UNIT_VPS","NAL_UNIT_SPS","NAL_UNIT_PPS",
+                                                  "NAL_UNIT_PREFIX_APS","NAL_UNIT_SUFFIX_APS","NAL_UNIT_PH","NAL_UNIT_ACCESS_UNIT_DELIMITER",
+                                                  "NAL_UNIT_EOS","NAL_UNIT_EOB","NAL_UNIT_PREFIX_SEI","NAL_UNIT_SUFFIX_SEI","NAL_UNIT_FD",
+                                                  "NAL_UNIT_RESERVED_NVCL_26","NAL_UNIT_RESERVED_NVCL_27",
+                                                  "NAL_UNIT_UNSPECIFIED_28","NAL_UNIT_UNSPECIFIED_29","NAL_UNIT_UNSPECIFIED_30","NAL_UNIT_UNSPECIFIED_31",
+                                                  "NAL_UNIT_INVALID", 0 };
+
+static const char * const vvdecErrorMsg[] = { "expected behavior",
+                                              "unspecified malfunction",
+                                              "decoder not initialized or tried to initialize multiple times",
+                                              "internal allocation error",
+                                              "allocated memory to small to receive decoded data",
+                                              "inconsistent or invalid parameters",
+                                              "unsupported request",
+                                              "decoder requires restart",
+                                              "unsupported CPU - SSE 4.1 needed",
+                                              "more bitstream data needed. try again",
+                                              "end of stream",
+                                              "unknown error code", 0 };
+
 /**
   \ingroup hhivvcdeclibExternalInterfaces
   The class HhiVvcDec provides the decoder user interface. The simplest way to use the decoder is to call init() to initialize an decoder instance with the
@@ -72,7 +97,7 @@ public:
    int init( const vvdec_Params& rcVVDecParameter );
    int uninit();
 
-   void set_logging_callback(vvdec_logging_callback callback, void *userData, LogLevel level);
+   void setLoggingCallback(vvdec_loggingCallback callback, void *userData, LogLevel level);
 
    int decode( vvdec_AccessUnit& rcAccessUnit, vvdec_Frame** ppcFrame );
 
@@ -94,7 +119,6 @@ public:
    static const char* getNalUnitTypeAsString( NalType t );
 
    static bool isNalUnitSlice               ( NalType t );
-   static bool isNalUnitSideData            ( NalType t );
 
 private:
 
@@ -135,11 +159,8 @@ public:
    uint64_t                                m_uiSeqNumOutput    = 0;
    uint64_t                                m_uiPicCount        = 0;
 
-  static std::string                       m_cTmpErrorString;
-  static std::string                       m_cNalType;
-
-  vvdec_logging_callback loggingCallback {};
-  void *loggingUserData {};
+  vvdec_loggingCallback                    loggingCallback {};
+  void                                     *loggingUserData {};
 };
 
 

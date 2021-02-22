@@ -356,19 +356,24 @@ typedef struct VVDEC_DECL vvdec_Params
   SIMD_Extension m_eSIMD_Extension     = VVDEC_SIMD_DEFAULT;   ///< set specific simd optimization (default: max. availalbe)
 } vvdec_Params_t;
 
-typedef void (*vvdec_logging_callback)(void*, int, const char*, va_list);
+typedef void (*vvdec_loggingCallback)(void*, int, const char*, va_list);
 
+/**
+  This method returns the the decoder version as string.
+  \param[in]  none
+  \retval[ ]  const char* version number as string
+*/
 VVDEC_DECL const char* vvdec_get_version();
 
 /**
   This method initializes the decoder instance.
   This method is used to initially set up the decoder with the assigned decoder parameter struct.
-  The method fails if the decoder is already initialized or if the assigned parameter struct
-  does not pass the consistency check. Other possibilities for an unsuccessful call are missing decoder license, or an machine with
+  The method fails if the assigned parameter struct does not pass the consistency check.
+  Other possibilities for an unsuccessful memory initialization, or an machine with
   insufficient CPU-capabilities.
-  \param[in]  rcVVDecParameter const reference of VVDecParameter struct that holds initial decoder parameters.
-  \retval     int  if non-zero an error occurred (see ErrorCodes), otherwise the return value indicates success VVDEC_OK
-  \pre        The decoder must not be initialized.
+  \param[in]  vvdec_Params_t pointer of vvdec_Params struct that holds initial decoder parameters.
+  \retval     vvdec_Params_t pointer of the decoder handler if successful, otherwise NULL
+  \pre        The decoder must not be initialized (pointer of decoder handler must be null).
 */
 VVDEC_DECL vvdec_decoder_t* vvdec_decoder_open( vvdec_Params_t *);
 
@@ -376,23 +381,30 @@ VVDEC_DECL vvdec_decoder_t* vvdec_decoder_open( vvdec_Params_t *);
  This method resets the decoder instance.
  This method clears the decoder and releases all internally allocated memory.
  Calling uninit cancels all pending decoding calls. In order to finish pending pictures use the flush method.
- \param[in]  None
+ \param[in]  vvdec_decoder_t pointer of decoder handler
  \retval     int if non-zero an error occurred (see ErrorCodes), otherwise VVDEC_OK indicates success.
- \pre        None
+ \pre        The decoder has to be initialized successfully.
 */
 VVDEC_DECL int vvdec_decoder_close(vvdec_decoder_t *);
 
 /**
  *  Set a logging callback with the given log level.
+  \param[in]   vvdec_decoder_t pointer of decoder handler
+  \param[in]   vvdec_loggingCallback implementation of the callback that is called when logging messages are written
+  \param[in]   userData
+  \param[in]   LogLevel logging message level (only logs of level >= given level are written
+  \retval      int if non-zero an error occurred (see ErrorCodes), otherwise VVDEC_OK indicates success.
+  \pre         The decoder has to be initialized successfully.
  */
-VVDEC_DECL ErrorCodes vvdec_set_logging_callback(vvdec_decoder_t* , vvdec_logging_callback callback, void *userData, LogLevel logLevel);
+VVDEC_DECL int vvdec_set_logging_callback(vvdec_decoder_t* , vvdec_loggingCallback callback, void *userData, LogLevel logLevel);
 
 /**
   This method decodes a compressed image packet (bitstream).
   Compressed image packet are passed to the decoder in decoder order. A picture is returned by filling the assigned Picture struct.
   A picture is valid if the decoder call returns success and the Picture is not null.
   If the AccessUnit  m_iBufSize = 0, the decoder just returns a pending pictures chunk if available.
-  \param[in]   rcAccessUnit reference to AccessUnit that retrieves compressed access units and side information, data are valid if UsedSize attribute is non-zero and the call was successful.
+  \param[in]   vvdec_decoder_t pointer of decoder handler
+  \param[in]   vvdec_AccessUnit_t pointer of AccessUnit that retrieves compressed access units and side information, data are valid if UsedSize attribute is non-zero and the call was successful.
   \param[out]  ppcPicture pointer to pointer of Picture structure containing a uncompressed picture and meta information.
   \retval      int if non-zero an error occurred or more data is needed, otherwise the retval indicates success VVDEC_OK
   \pre         The decoder has to be initialized successfully.
@@ -404,64 +416,85 @@ VVDEC_DECL int vvdec_decode( vvdec_decoder_t *, vvdec_AccessUnit_t *accessUnit, 
   This call is used to get outstanding pictures after all compressed packets have been passed over into the decoder using the decode call.
   Using the flush method the decoder is signaled that there are no further compressed packets to decode.
   The caller should repeat the flush call until all pending pictures has been delivered to the caller, which is when the the function returns VVDEC_EOF or no picture.
+  \param[in]  vvdec_decoder_t pointer to decoder handler
   \param[out]  ppcPicture pointer to pointer of Picture structure containing a uncompressed picture and meta information.
   \retval     int if non-zero an error occurred, otherwise the retval indicates success VVDEC_OK
-  \pre        The decoder has to be initialized.
+  \pre        The decoder has to be initialized successfully.
 */
 VVDEC_DECL int vvdec_flush( vvdec_decoder_t *, vvdec_Frame_t **frame );
 
 /**
   This method unreference an picture and frees the memory.
   This call is used to free the memory of an picture which is not used anymore.
-  \param[out] rcAccessUnit reference to AccessUnit
+  \param[in]  vvdec_decoder_t pointer of decoder handler
+  \param[out] vvdec_Frame_t reference to frame
   \retval     int if non-zero an error occurred, otherwise the retval indicates success VVDEC_OK
-  \pre        The decoder has to be initialized.
+  \pre        The decoder has to be initialized successfully.
 */
-VVDEC_DECL int vvdec_objectUnref( vvdec_decoder_t *, vvdec_Frame_t *frame );
+VVDEC_DECL int vvdec_frame_unref( vvdec_decoder_t *, vvdec_Frame_t *frame );
 
 /**
  This method returns the number of found errors if PictureHashSEI is enabled.
- \param[in]  None
+ \param[in]  vvdec_decoder_t pointer of decoder handler
  \retval     int if non-zero an error occurred, otherwise 0 indicates success.
- \pre        None
+ \pre        The decoder has to be initialized successfully.
 */
-VVDEC_DECL int vvdec_getNumberOfErrorsPictureHashSEI( vvdec_decoder_t * );
+VVDEC_DECL int vvdec_get_number_of_errors_PicHashSEI( vvdec_decoder_t * );
 
 
 /**
  This method returns decoder information
- \param      None
+ \param[in]  vvdec_decoder_t pointer of decoder handler
  \retval     const char* decoder information
+ \pre        The decoder has to be initialized successfully.
 */
 VVDEC_DECL const char* vvdec_getDecoderInfo( vvdec_decoder_t * );
 
 
 /**
  This method returns the last occurred error as a string.
- \param      None
+ \param[in]  vvdec_decoder_t pointer of decoder handler
  \retval     const char* empty string for no error assigned
+ \pre        The decoder has to be initialized successfully.
 */
 VVDEC_DECL const char* vvdec_getLastError( vvdec_decoder_t * );
 
 /**
-This method returns additional information about the last occurred error as a string (if availalbe).
-\param      None
-\retval     const char* empty string for no error assigned
+ This method returns additional information about the last occurred error as a string (if availalbe).
+ \param[in]  vvdec_decoder_t pointer of decoder handler
+ \retval     const char* empty string for no error assigned
+ \pre        The decoder has to be initialized successfully.
 */
 VVDEC_DECL const char* vvdec_getLastAdditionalError( vvdec_decoder_t * );
 
 /**
-  This static function returns a string according to the passed parameter nRet.
-  \param[in]  nRet return value code to translate
-  \retval[ ]  const char* empty string for no error
+ This function returns a string according to the passed parameter nRet.
+ \param[in]  nRet return value code (see ErrorCodes) to translate
+ \retval[ ]  const char* empty string for no error
 */
-const char* vvdec_getErrorMsg( int nRet );
+VVDEC_DECL const char* vvdec_getErrorMsg( int nRet );
 
-NalType vvdec_getNalUnitType            ( vvdec_AccessUnit *rcAccessUnit );
-const char* vvdec_getNalUnitTypeAsString( NalType t );
+/**
+ This function returns the NalType of a given AccessUnit.
+ \param[in]  vvdec_AccessUnit_t pointer of AccessUnit that retrieves compressed access units and side information, data are valid if UsedSize attribute is non-zero and the call was successful.
+ \retval[ ]  NalType found Nal Unit type
+*/
+VVDEC_DECL NalType vvdec_getNalUnitType ( vvdec_AccessUnit *rcAccessUnit );
 
-bool vvdec_isNalUnitSideData            ( NalType t );
-bool vvdec_isNalUnitSlice               ( NalType t );
+/**
+ This function returns the name of a given NalType
+ \param[in]  NalType value of enum NalType
+ \retval[ ]  const char* NalType as string
+*/
+VVDEC_DECL const char* vvdec_getNalUnitTypeAsString( NalType t );
+
+/**
+ This function returns true if a given NalType is of type picture or slice
+ \param[in]  NalType value of enum NalType
+ \retval[ ]  bool true if slice/picture, else false
+*/
+VVDEC_DECL bool vvdec_isNalUnitSlice ( NalType t );
+
 
 #ifdef __cplusplus
 }

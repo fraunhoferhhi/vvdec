@@ -62,11 +62,6 @@ THE POSSIBILITY OF SUCH DAMAGE.
 
 
 namespace vvdec {
-  
-
-std::string VVDecImpl::m_cTmpErrorString;
-std::string VVDecImpl::m_cNalType;
-
 
 VVDecImpl::VVDecImpl()
 {
@@ -209,7 +204,7 @@ int VVDecImpl::uninit()
   return VVDEC_OK;
 }
 
-void VVDecImpl::set_logging_callback(vvdec_logging_callback callback, void *userData, LogLevel level)
+void VVDecImpl::setLoggingCallback(vvdec_loggingCallback callback, void *userData, LogLevel level)
 {
   this->loggingCallback = callback;
   g_verbosity           = (MsgLevel)level;
@@ -597,20 +592,20 @@ const char* VVDecImpl::getErrorMsg( int nRet )
 {
   switch( nRet )
   {
-  case VVDEC_OK :                  m_cTmpErrorString = "expected behavior"; break;
-  case VVDEC_ERR_UNSPECIFIED:      m_cTmpErrorString = "unspecified malfunction"; break;
-  case VVDEC_ERR_INITIALIZE:       m_cTmpErrorString = "decoder not initialized or tried to initialize multiple times"; break;
-  case VVDEC_ERR_ALLOCATE:         m_cTmpErrorString = "internal allocation error"; break;
-  case VVDEC_NOT_ENOUGH_MEM:       m_cTmpErrorString = "allocated memory to small to receive decoded data"; break;
-  case VVDEC_ERR_PARAMETER:        m_cTmpErrorString = "inconsistent or invalid parameters"; break;
-  case VVDEC_ERR_NOT_SUPPORTED:    m_cTmpErrorString = "unsupported request"; break;
-  case VVDEC_ERR_RESTART_REQUIRED: m_cTmpErrorString = "decoder requires restart"; break;
-  case VVDEC_ERR_CPU:              m_cTmpErrorString = "unsupported CPU - SSE 4.1 needed!"; break;
-  case VVDEC_TRY_AGAIN:            m_cTmpErrorString = "more bitstream data needed. try again"; break;
-  case VVDEC_EOF:                  m_cTmpErrorString = "end of stream"; break;
-  default:                         m_cTmpErrorString = "unknown ret code"; break;
+  case VVDEC_OK :                  return vvdecErrorMsg[0]; break;
+  case VVDEC_ERR_UNSPECIFIED:      return vvdecErrorMsg[1]; break;
+  case VVDEC_ERR_INITIALIZE:       return vvdecErrorMsg[2]; break;
+  case VVDEC_ERR_ALLOCATE:         return vvdecErrorMsg[3]; break;
+  case VVDEC_NOT_ENOUGH_MEM:       return vvdecErrorMsg[4]; break;
+  case VVDEC_ERR_PARAMETER:        return vvdecErrorMsg[5]; break;
+  case VVDEC_ERR_NOT_SUPPORTED:    return vvdecErrorMsg[6]; break;
+  case VVDEC_ERR_RESTART_REQUIRED: return vvdecErrorMsg[7]; break;
+  case VVDEC_ERR_CPU:              return vvdecErrorMsg[8]; break;
+  case VVDEC_TRY_AGAIN:            return vvdecErrorMsg[9]; break;
+  case VVDEC_EOF:                  return vvdecErrorMsg[10]; break;
+  default:                         return vvdecErrorMsg[11]; break;
   }
-  return m_cTmpErrorString.c_str();
+  return vvdecErrorMsg[11];
 }
 
 int VVDecImpl::setAndRetErrorMsg( int iRet )
@@ -704,57 +699,12 @@ NalType VVDecImpl::getNalUnitType ( vvdec_AccessUnit& rcAccessUnit )
 
 const char* VVDecImpl::getNalUnitTypeAsString( NalType t )
 {
-  m_cNalType = "NAL_UNIT_INVALID";
-
-  GCC_EXTRA_WARNING_switch_enum
-  switch ( t )
+  if( (int) t >= (int)NAL_UNIT_INVALID || (int)t < 0)
   {
-  case VVC_NAL_UNIT_CODED_SLICE_TRAIL:           m_cNalType = "NAL_UNIT_CODED_SLICE_TRAIL"; break; // 0
-  case VVC_NAL_UNIT_CODED_SLICE_STSA:            m_cNalType = "NAL_UNIT_CODED_SLICE_STSA"; break; // 1
-  case VVC_NAL_UNIT_CODED_SLICE_RADL:            m_cNalType = "NAL_UNIT_CODED_SLICE_RADL"; break; // 2
-  case VVC_NAL_UNIT_CODED_SLICE_RASL:            m_cNalType = "NAL_UNIT_CODED_SLICE_RASL"; break; // 3
-
-  case VVC_NAL_UNIT_RESERVED_VCL_4:              m_cNalType = "NAL_UNIT_RESERVED_VCL_4"; break; // 4
-  case VVC_NAL_UNIT_RESERVED_VCL_5:              m_cNalType = "NAL_UNIT_RESERVED_VCL_5"; break; // 5
-  case VVC_NAL_UNIT_RESERVED_VCL_6:              m_cNalType = "NAL_UNIT_RESERVED_VCL_6"; break; // 6
-
-  case VVC_NAL_UNIT_CODED_SLICE_IDR_W_RADL:      m_cNalType = "NAL_UNIT_CODED_SLICE_IDR_W_RADL"; break; // 7
-  case VVC_NAL_UNIT_CODED_SLICE_IDR_N_LP:        m_cNalType = "NAL_UNIT_CODED_SLICE_IDR_N_LP"; break; // 8
-  case VVC_NAL_UNIT_CODED_SLICE_CRA:             m_cNalType = "NAL_UNIT_CODED_SLICE_CRA"; break; // 9
-  case VVC_NAL_UNIT_CODED_SLICE_GDR:             m_cNalType = "NAL_UNIT_CODED_SLICE_GDR"; break; // 10
-
-  case VVC_NAL_UNIT_RESERVED_IRAP_VCL_11:        m_cNalType = "NAL_UNIT_RESERVED_IRAP_VCL_11"; break; // 11
-  case VVC_NAL_UNIT_RESERVED_IRAP_VCL_12:        m_cNalType = "NAL_UNIT_RESERVED_IRAP_VCL_12"; break; // 12
-
-  case VVC_NAL_UNIT_DCI:                         m_cNalType = "NAL_UNIT_DCI"; break; // 13
-  case VVC_NAL_UNIT_VPS:                         m_cNalType = "NAL_UNIT_VPS"; break; // 14
-  case VVC_NAL_UNIT_SPS:                         m_cNalType = "NAL_UNIT_SPS"; break; // 15
-  case VVC_NAL_UNIT_PPS:                         m_cNalType = "NAL_UNIT_PPS"; break; // 16
-  case VVC_NAL_UNIT_PREFIX_APS:                  m_cNalType = "NAL_UNIT_PREFIX_APS"; break; // 17
-  case VVC_NAL_UNIT_SUFFIX_APS:                  m_cNalType = "NAL_UNIT_SUFFIX_APS"; break; // 18
-  case VVC_NAL_UNIT_PH:                          m_cNalType = "NAL_UNIT_PH"; break; // 19
-  case VVC_NAL_UNIT_ACCESS_UNIT_DELIMITER:       m_cNalType = "NAL_UNIT_ACCESS_UNIT_DELIMITER"; break; // 20
-  case VVC_NAL_UNIT_EOS:                         m_cNalType = "NAL_UNIT_EOS"; break; // 21
-  case VVC_NAL_UNIT_EOB:                         m_cNalType = "NAL_UNIT_EOB"; break; // 22
-  case VVC_NAL_UNIT_PREFIX_SEI:                  m_cNalType = "NAL_UNIT_PREFIX_SEI"; break; // 23
-  case VVC_NAL_UNIT_SUFFIX_SEI:                  m_cNalType = "NAL_UNIT_SUFFIX_SEI"; break; // 24
-  case VVC_NAL_UNIT_FD:                          m_cNalType = "NAL_UNIT_FD"; break; // 25
-
-
-  case VVC_NAL_UNIT_RESERVED_NVCL_26:            m_cNalType = "NAL_UNIT_RESERVED_NVCL_26"; break; // 26
-  case VVC_NAL_UNIT_RESERVED_NVCL_27:            m_cNalType = "NAL_UNIT_RESERVED_NVCL_27"; break; // 27
-
-  case VVC_NAL_UNIT_UNSPECIFIED_28:              m_cNalType = "NAL_UNIT_UNSPECIFIED_28"; break; // 28
-  case VVC_NAL_UNIT_UNSPECIFIED_29:              m_cNalType = "NAL_UNIT_UNSPECIFIED_29"; break; // 29
-  case VVC_NAL_UNIT_UNSPECIFIED_30:              m_cNalType = "NAL_UNIT_UNSPECIFIED_30"; break; // 30
-  case VVC_NAL_UNIT_UNSPECIFIED_31:              m_cNalType = "NAL_UNIT_UNSPECIFIED_31"; break; // 31
-
-  case NAL_UNIT_INVALID:
-  default:                                   m_cNalType = "NAL_UNIT_INVALID"; break;
+    return vvdecNalTypeNames[NAL_UNIT_INVALID];
   }
-  GCC_WARNING_RESET
 
-  return m_cNalType.c_str();
+  return vvdecNalTypeNames[t];
 }
 
 
@@ -769,13 +719,6 @@ bool VVDecImpl::isNalUnitSlice( NalType t )
       || t == VVC_NAL_UNIT_CODED_SLICE_CRA
       || t == VVC_NAL_UNIT_CODED_SLICE_GDR;
 }
-
-
-bool VVDecImpl::isNalUnitSideData( NalType t )
-{
-  return ! isNalUnitSlice(t);
-}
-
 
 int VVDecImpl::copyComp( const unsigned char* pucSrc, unsigned char* pucDest, unsigned int uiWidth, unsigned int uiHeight, int iStrideSrc, int iStrideDest, int iBytesPerSample  )
 {

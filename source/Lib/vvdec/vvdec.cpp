@@ -63,7 +63,6 @@ VVDEC_DECL const char* vvdec_get_version()
 
 VVDEC_DECL vvdec_decoder_t* vvdec_decoder_open( vvdec_Params_t *params)
 {
-
 #if ENABLE_TRACING
   if( !g_trace_ctx )
   {
@@ -79,17 +78,20 @@ VVDEC_DECL vvdec_decoder_t* vvdec_decoder_open( vvdec_Params_t *params)
 
   if (nullptr == params)
   {
+    msg( ERROR, "vvdec_Params_t is null\n" );
     return nullptr;
   }
 
   if( params->m_iThreads > 64 )
   {
+    msg( ERROR, "m_iThreads must be <= 64\n" );
     return nullptr;
   }
 
   vvdec::VVDecImpl* decCtx = new vvdec::VVDecImpl();
   if (!decCtx)
   {
+    msg( ERROR, "cannot allocate memory for VVdeC decoder\n" );
     return nullptr;
   }
 
@@ -98,6 +100,8 @@ VVDEC_DECL vvdec_decoder_t* vvdec_decoder_open( vvdec_Params_t *params)
   {
     // Error initializing the decoder
     delete decCtx;
+
+    msg( ERROR, "cannot init the VVdeC decoder\n" );
     return nullptr;
   }
 
@@ -117,7 +121,7 @@ VVDEC_DECL int vvdec_decoder_close(vvdec_decoder_t *dec)
   return VVDEC_OK;
 }
 
-VVDEC_DECL ErrorCodes vvdec_set_logging_callback(vvdec_decoder_t* dec, vvdec_logging_callback callback, void *userData, LogLevel loglevel )
+VVDEC_DECL int vvdec_set_logging_callback(vvdec_decoder_t* dec, vvdec_loggingCallback callback, void *userData, LogLevel loglevel )
 {
   auto d = (vvdec::VVDecImpl*)dec;
   if (!d || !callback)
@@ -125,7 +129,7 @@ VVDEC_DECL ErrorCodes vvdec_set_logging_callback(vvdec_decoder_t* dec, vvdec_log
     return VVDEC_ERR_UNSPECIFIED;
   }
 
-  d->set_logging_callback(callback, userData, loglevel);
+  d->setLoggingCallback(callback, userData, loglevel);
   return VVDEC_OK;
 }
 
@@ -158,7 +162,7 @@ VVDEC_DECL int vvdec_flush( vvdec_decoder_t *dec, vvdec_Frame_t **frame )
   return d->setAndRetErrorMsg( d->flush( frame ) );
 }
 
-VVDEC_DECL int vvdec_objectUnref( vvdec_decoder_t *dec, vvdec_Frame_t *frame )
+VVDEC_DECL int vvdec_frame_unref( vvdec_decoder_t *dec, vvdec_Frame_t *frame )
 {
   auto d = (vvdec::VVDecImpl*)dec;
   if (!d)
@@ -169,7 +173,7 @@ VVDEC_DECL int vvdec_objectUnref( vvdec_decoder_t *dec, vvdec_Frame_t *frame )
   return d->setAndRetErrorMsg( d->objectUnref( frame ) );
 }
 
-VVDEC_DECL int vvdec_getNumberOfErrorsPictureHashSEI( vvdec_decoder_t *dec )
+VVDEC_DECL int vvdec_get_number_of_errors_PicHashSEI( vvdec_decoder_t *dec )
 {
   auto d = (vvdec::VVDecImpl*)dec;
   if (!d)
@@ -231,11 +235,6 @@ NalType vvdec_getNalUnitType ( vvdec_AccessUnit *accessUnit )
 const char* vvdec_getNalUnitTypeAsString( NalType t )
 {
   return vvdec::VVDecImpl::getNalUnitTypeAsString(t);
-}
-
-bool vvdec_isNalUnitSideData            ( NalType t )
-{
-  return vvdec::VVDecImpl::isNalUnitSideData(t);
 }
 
 bool vvdec_isNalUnitSlice               ( NalType t )
