@@ -196,6 +196,10 @@ Picture* DecLibParser::parse( InputNALUnit& nalu, int* pSkipFrame )
       if( m_parseFrameDelay == 0 )  // else it has to be done in finishPicture()
       {
         // if parallel parsing is disabled, wait for the picture to finish
+        if( m_threadPool->numThreads() == 0 )
+        {
+          m_threadPool->processTasksOnMainThread();
+        }
         m_pcParsePic->done.wait();
         m_decLib.checkPictureHashSEI( m_pcParsePic );
       }

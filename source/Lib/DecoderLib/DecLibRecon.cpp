@@ -551,6 +551,10 @@ Picture* DecLibRecon::waitForPrevDecompressedPic()
     return nullptr;
 
   ITT_TASKSTART( itt_domain_dec, itt_handle_waitTasks );
+  if( m_decodeThreadPool->numThreads() == 0 )
+  {
+    m_decodeThreadPool->processTasksOnMainThread();
+  }
   m_currDecompPic->m_dmvrTaskCounter.wait();
   m_currDecompPic->done.wait();
   ITT_TASKEND( itt_domain_dec, itt_handle_waitTasks );
