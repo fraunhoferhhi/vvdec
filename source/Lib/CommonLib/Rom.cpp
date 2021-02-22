@@ -474,7 +474,7 @@ const uint8_t g_chroma422IntraAngleMappingTable[NUM_INTRA_MODE] =
 // Misc.
 // ====================================================================================================================
 const SizeIndexInfoLog2   g_sizeIdxInfo;
-#if !ENABLE_SIMD_LOG2
+#if !( ENABLE_SIMD_LOG2 && defined( TARGET_SIMD_X86 ) )
 int8_t                    g_aucLog2    [MAX_CU_SIZE + 1];
 int8_t                    g_aucNextLog2[MAX_CU_SIZE + 1];
 int8_t                    g_aucPrevLog2[MAX_CU_SIZE + 1];

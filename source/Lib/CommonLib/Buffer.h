@@ -65,17 +65,16 @@ THE POSSIBILITY OF SUCH DAMAGE.
 // AreaBuf struct
 // ---------------------------------------------------------------------------
 
+#if ENABLE_SIMD_OPT_BUFFER
 struct PelBufferOps
 {
   PelBufferOps();
 
-#if ENABLE_SIMD_OPT_BUFFER
 #ifdef TARGET_SIMD_X86
   void initPelBufOpsX86();
   template<X86_VEXT vext>
   void _initPelBufOpsX86();
 
-#endif
 #endif
   void ( *addAvg4 )       ( const Pel* src0, ptrdiff_t src0Stride, const Pel* src1, ptrdiff_t src1Stride, Pel *dst, ptrdiff_t dstStride, int width, int height,            int shift, int offset,      const ClpRng& clpRng );
   void ( *addAvg8 )       ( const Pel* src0, ptrdiff_t src0Stride, const Pel* src1, ptrdiff_t src1Stride, Pel *dst, ptrdiff_t dstStride, int width, int height,            int shift, int offset,      const ClpRng& clpRng );
@@ -94,6 +93,7 @@ struct PelBufferOps
   void ( *applyLut )      (       Pel* ptr,  ptrdiff_t ptrStride, int width, int height, const Pel* lut );
   void ( *fillN_CU )      (       CodingUnit** ptr, ptrdiff_t ptrStride, int width, int height, CodingUnit* cuPtr );
 };
+#endif
 
 extern PelBufferOps g_pelBufOP;
 
@@ -367,7 +367,7 @@ void AreaBuf<T>::memset( const int val )
   GCC_WARNING_RESET
 }
 
-#if ENABLE_SIMD_OPT_BUFFER && defined( TARGET_SIMD_X86 )
+#if ENABLE_SIMD_OPT_BUFFER
 template<typename T>
 void AreaBuf<T>::copyFrom( const AreaBuf<const T> &other ) const
 {
