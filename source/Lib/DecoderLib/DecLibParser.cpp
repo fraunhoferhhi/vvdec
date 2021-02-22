@@ -196,6 +196,10 @@ Picture* DecLibParser::parse( InputNALUnit& nalu, int* pSkipFrame )
       if( m_parseFrameDelay == 0 )  // else it has to be done in finishPicture()
       {
         // if parallel parsing is disabled, wait for the picture to finish
+        if( m_threadPool->numThreads() == 0 )
+        {
+          m_threadPool->processTasksOnMainThread();
+        }
         m_pcParsePic->done.wait();
         m_decLib.checkPictureHashSEI( m_pcParsePic );
       }
@@ -287,6 +291,14 @@ Picture* DecLibParser::getNextDecodablePicture()
   if( m_parseFrameList.empty() )
   {
     return nullptr;
+  }
+
+  if( m_threadPool->numThreads() == 0 || m_parseFrameDelay == 0 )
+  {
+    // adhere to strict decoding order if running singlethreaded
+    Picture * pic = m_parseFrameList.front();
+    m_parseFrameList.pop_front();
+    return pic;
   }
 
   // try to find next picture, that is parsed and has all reference pictures decoded
