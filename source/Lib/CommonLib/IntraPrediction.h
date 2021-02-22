@@ -85,7 +85,6 @@ private:
   PelBuf m_pelBufISP[2];
 
   Pel  m_yuvCiip[MAX_NUM_COMPONENT][MAX_CU_SIZE * MAX_CU_SIZE];
-  int  m_yuvCiipSize;
   static const uint8_t m_aucIntraFilter[MAX_NUM_CHANNEL_TYPE][MAX_INTRA_FILTER_DEPTHS];
 
   unsigned m_auShiftLM[32]; // Table for substituting division operation by multiplication
