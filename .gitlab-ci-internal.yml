@@ -36,24 +36,14 @@ stages:
       - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'  
 
 .build_only_macos_arm64_template:
-   stage: build
-   interruptible: true
+   extends: .build_only_template
    script:
-      - make force-mac-arm64=1 disable-lto=1 all
-   rules:
-      - if: '$CI_PIPELINE_SOURCE == "web"'  
-      - if: '$CI_PIPELINE_SOURCE == "schedule"'  
-      - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'  
+      - make osx-arch=arm64 disable-lto=1 all
 
 .build_only_macos_x86_64_template:
-   stage: build
-   interruptible: true
+   extends: .build_only_template
    script:
-      - make force-mac-x86-64=1 disable-lto=1 all
-   rules:
-      - if: '$CI_PIPELINE_SOURCE == "web"'  
-      - if: '$CI_PIPELINE_SOURCE == "schedule"'  
-      - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'  
+      - make osx-arch=x86_64 disable-lto=1 all
 
 build_gcc5_ubuntu1804:
    extends: .build_only_template_full

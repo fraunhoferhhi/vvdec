@@ -55,12 +55,8 @@ ifneq ($(disable-lto),)
 CONFIG_OPTIONS += -DVVDEC_ENABLE_LINK_TIME_OPT=OFF
 endif
 
-ifneq ($(force-mac-arm64),)
-CONFIG_OPTIONS += -DCMAKE_OSX_ARCHITECTURES=arm64
-endif
-
-ifneq ($(force-mac-x86-64),)
-CONFIG_OPTIONS += -DCMAKE_OSX_ARCHITECTURES=x86_64
+ifneq ($(osx-arch),)
+CONFIG_OPTIONS += -DCMAKE_OSX_ARCHITECTURES=$(osx-arch)
 endif
 
 ifeq ($(j),)
