@@ -61,7 +61,7 @@ VVDEC_DECL const char* vvdec_get_version()
   return VVDEC_VERSION;
 }
 
-VVDEC_DECL vvdec_decoder_t* vvdec_decoder_open( vvdec_Params *params)
+VVDEC_DECL vvdec_decoder_t* vvdec_decoder_open( vvdec_Params_t *params)
 {
 
 #if ENABLE_TRACING
@@ -130,7 +130,7 @@ VVDEC_DECL ErrorCodes vvdec_set_logging_callback(vvdec_decoder_t* dec, vvdec_log
 }
 
 
-VVDEC_DECL int vvdec_decode( vvdec_decoder_t *dec, vvdec_AccessUnit* accessUnit, vvdec_Frame** frame )
+VVDEC_DECL int vvdec_decode( vvdec_decoder_t *dec, vvdec_AccessUnit_t* accessUnit, vvdec_Frame_t** frame )
 {
   auto d = (vvdec::VVDecImpl*)dec;
   if (!d)
@@ -147,7 +147,7 @@ VVDEC_DECL int vvdec_decode( vvdec_decoder_t *dec, vvdec_AccessUnit* accessUnit,
 }
 
 
-VVDEC_DECL int vvdec_flush( vvdec_decoder_t *dec, vvdec_Frame **frame )
+VVDEC_DECL int vvdec_flush( vvdec_decoder_t *dec, vvdec_Frame_t **frame )
 {
   auto d = (vvdec::VVDecImpl*)dec;
   if (!d)
@@ -158,7 +158,7 @@ VVDEC_DECL int vvdec_flush( vvdec_decoder_t *dec, vvdec_Frame **frame )
   return d->setAndRetErrorMsg( d->flush( frame ) );
 }
 
-VVDEC_DECL int vvdec_objectUnref( vvdec_decoder_t *dec, vvdec_Frame *frame )
+VVDEC_DECL int vvdec_objectUnref( vvdec_decoder_t *dec, vvdec_Frame_t *frame )
 {
   auto d = (vvdec::VVDecImpl*)dec;
   if (!d)

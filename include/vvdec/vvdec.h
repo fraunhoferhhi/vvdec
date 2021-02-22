@@ -66,7 +66,7 @@ VVDEC_NAMESPACE_BEGIN
 
 
 /* vvdec_decoder:
- *      opaque handler for encoder */
+ *      opaque handler for the decoder */
 typedef struct vvdec_decoder vvdec_decoder_t;
 
 
@@ -370,7 +370,7 @@ VVDEC_DECL const char* vvdec_get_version();
   \retval     int  if non-zero an error occurred (see ErrorCodes), otherwise the return value indicates success VVDEC_OK
   \pre        The decoder must not be initialized.
 */
-VVDEC_DECL vvdec_decoder_t* vvdec_decoder_open( vvdec_Params *);
+VVDEC_DECL vvdec_decoder_t* vvdec_decoder_open( vvdec_Params_t *);
 
 /**
  This method resets the decoder instance.
@@ -397,7 +397,7 @@ VVDEC_DECL ErrorCodes vvdec_set_logging_callback(vvdec_decoder_t* , vvdec_loggin
   \retval      int if non-zero an error occurred or more data is needed, otherwise the retval indicates success VVDEC_OK
   \pre         The decoder has to be initialized successfully.
 */
-VVDEC_DECL int vvdec_decode( vvdec_decoder_t *, vvdec_AccessUnit *accessUnit, vvdec_Frame **frame );
+VVDEC_DECL int vvdec_decode( vvdec_decoder_t *, vvdec_AccessUnit_t *accessUnit, vvdec_Frame_t **frame );
 
 /**
   This method flushes the decoder.
@@ -408,7 +408,7 @@ VVDEC_DECL int vvdec_decode( vvdec_decoder_t *, vvdec_AccessUnit *accessUnit, vv
   \retval     int if non-zero an error occurred, otherwise the retval indicates success VVDEC_OK
   \pre        The decoder has to be initialized.
 */
-VVDEC_DECL int vvdec_flush( vvdec_decoder_t *, vvdec_Frame **frame );
+VVDEC_DECL int vvdec_flush( vvdec_decoder_t *, vvdec_Frame_t **frame );
 
 /**
   This method unreference an picture and frees the memory.
@@ -417,7 +417,7 @@ VVDEC_DECL int vvdec_flush( vvdec_decoder_t *, vvdec_Frame **frame );
   \retval     int if non-zero an error occurred, otherwise the retval indicates success VVDEC_OK
   \pre        The decoder has to be initialized.
 */
-VVDEC_DECL int vvdec_objectUnref( vvdec_decoder_t *, vvdec_Frame *frame );
+VVDEC_DECL int vvdec_objectUnref( vvdec_decoder_t *, vvdec_Frame_t *frame );
 
 /**
  This method returns the number of found errors if PictureHashSEI is enabled.
