@@ -277,7 +277,7 @@ foreach( BITSTREAM IN LISTS BITSTREAM_FILES )
   set( BITSTREAM_FILE "${BITSTREAM_INSTALL_DIR_BASE}/${BITSTREAM_SHORT}/${BITSTREAM_SHORT}.bit" )
 
   if( EXISTS ${BITSTREAM_FILE} )
-    add_test( NAME Test:${BITSTREAM_SHORT}.bit COMMAND vvdecapp -b ${BITSTREAM_FILE} -dph -t 0 -p 0 )
+    add_test( NAME Test:${BITSTREAM_SHORT}.bit COMMAND vvdecapp -b ${BITSTREAM_FILE} -dph )
     set_tests_properties( Test:${BITSTREAM_SHORT}.bit PROPERTIES TIMEOUT 120 )
   else()
     add_test( NAME MISSING:${BITSTREAM_SHORT}.bit COMMAND vvdecapp -b ${BITSTREAM_FILE} -dph )
