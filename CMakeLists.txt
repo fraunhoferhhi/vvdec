@@ -134,9 +134,20 @@ message( STATUS "CMAKE_MODULE_PATH: updating module path to: ${CMAKE_MODULE_PATH
 # Enable multithreading
 find_package( Threads REQUIRED )
 
+set( VVDEC_ENABLE_X86_SIMD TRUE )
+if( APPLE )
+  if( DEFINED CMAKE_OSX_ARCHITECTURES )
+    if( CMAKE_OSX_ARCHITECTURES STREQUAL "arm64" )
+      set( VVDEC_ENABLE_X86_SIMD FALSE )
+    endif()
+  endif()
+endif()
+
 # enable sse4.1 build for all source files for gcc and clang
-if( UNIX OR MINGW )
-  add_compile_options( "-msse4.1" )
+if( VVDEC_ENABLE_X86_SIMD )
+  if( UNIX OR MINGW )
+    add_compile_options( "-msse4.1" )
+  endif()
 endif()
 
 set( CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DTARGET_SIMD_X86" )
@@ -162,9 +173,11 @@ if( VVDEC_USE_ADDRESS_SANITIZER )
   add_link_options( "-fsanitize=address" )
 endif()
 
-if( ( UNIX OR MINGW ) AND NOT VVDEC_OPT_TARGET_ARCH STREQUAL "" )
-  set( CMAKE_C_FLAGS   "${CMAKE_C_FLAGS} -march=${VVDEC_OPT_TARGET_ARCH} -mtune=${VVDEC_OPT_TARGET_ARCH}" )
-  set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -march=${VVDEC_OPT_TARGET_ARCH} -mtune=${VVDEC_OPT_TARGET_ARCH}" )
+if( VVDEC_ENABLE_X86_SIMD )
+  if( ( UNIX OR MINGW ) AND NOT VVDEC_OPT_TARGET_ARCH STREQUAL "" )
+    set( CMAKE_C_FLAGS   "${CMAKE_C_FLAGS} -march=${VVDEC_OPT_TARGET_ARCH} -mtune=${VVDEC_OPT_TARGET_ARCH}" )
+    set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -march=${VVDEC_OPT_TARGET_ARCH} -mtune=${VVDEC_OPT_TARGET_ARCH}" )
+  endif()
 endif()
 
 if( VVDEC_ENABLE_LINK_TIME_OPT )
