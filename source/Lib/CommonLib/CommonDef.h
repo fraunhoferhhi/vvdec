@@ -505,7 +505,7 @@ T* aligned_malloc(size_t len, size_t alignement) {
 
 #if ENABLE_SIMD_OPT
 
-#if TARGET_SIMD_X86
+#ifdef TARGET_SIMD_X86
 typedef enum{
   SCALAR = 0,
   SSE41,
