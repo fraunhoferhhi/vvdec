@@ -293,6 +293,14 @@ Picture* DecLibParser::getNextDecodablePicture()
     return nullptr;
   }
 
+  if( m_threadPool->numThreads() == 0 || m_parseFrameDelay == 0 )
+  {
+    // adhere to strict decoding order if running singlethreaded
+    Picture * pic = m_parseFrameList.front();
+    m_parseFrameList.pop_front();
+    return pic;
+  }
+
   // try to find next picture, that is parsed and has all reference pictures decoded
   for( auto picIt = m_parseFrameList.begin(); picIt != m_parseFrameList.end(); ++picIt )
   {
