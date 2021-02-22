@@ -161,11 +161,13 @@ void addWeightedAvgCore( const T* src1, ptrdiff_t src1Stride, const T* src2, ptr
 
 void copyBufferCore( const char *src, ptrdiff_t srcStride, char *dst, ptrdiff_t dstStride, int width, int height )
 {
+#if ENABLE_SIMD_OPT_BUFFER && defined( TARGET_SIMD_X86 )
   _mm_prefetch( (const char *) ( src ),             _MM_HINT_T0 );
   _mm_prefetch( (const char *) ( src + srcStride ), _MM_HINT_T0 );
   _mm_prefetch( (const char *) ( dst ),             _MM_HINT_T0 );
   _mm_prefetch( (const char *) ( dst + dstStride ), _MM_HINT_T0 );
 
+#endif
   if( width == srcStride && width == dstStride )
   {
     memcpy( dst, src, width * height );
@@ -173,9 +175,11 @@ void copyBufferCore( const char *src, ptrdiff_t srcStride, char *dst, ptrdiff_t 
 
   for( int i = 0; i < height; i++ )
   {
+#if ENABLE_SIMD_OPT_BUFFER && defined( TARGET_SIMD_X86 )
     _mm_prefetch( (const char *) ( src + srcStride ), _MM_HINT_T0 );
     _mm_prefetch( (const char *) ( dst + dstStride ), _MM_HINT_T0 );
 
+#endif
     memcpy( dst, src, width );
 
     src += srcStride;
