@@ -196,8 +196,8 @@ typedef struct
 
 typedef struct
 {
-  uint8_t intensityIntervalLowerBound = 0;
-  uint8_t intensityIntervalUpperBound = 0;
+  uint8_t intensityIntervalLowerBound;
+  uint8_t intensityIntervalUpperBound;
   int compModelValue[6];
 }CompModelIntensityValues_t;
 
@@ -255,7 +255,7 @@ typedef struct
 
 typedef struct
 {
-  int  m_decodingUnitIdx= 0;
+  int  m_decodingUnitIdx;
   bool m_duiSubLayerDelaysPresentFlag[7];
   int  m_duSptCpbRemovalDelayIncrement[7];
   bool m_dpbOutputDuDelayPresentFlag;
@@ -299,12 +299,12 @@ typedef struct
 
 typedef struct
 {
-  bool    m_erpCancelFlag          = false;
-  bool    m_erpPersistenceFlag     = false;
-  bool    m_erpGuardBandFlag       = false;
-  uint8_t m_erpGuardBandType       = 0;
-  uint8_t m_erpLeftGuardBandWidth  = 0;
-  uint8_t m_erpRightGuardBandWidth = 0;
+  bool    m_erpCancelFlag;
+  bool    m_erpPersistenceFlag;
+  bool    m_erpGuardBandFlag;
+  uint8_t m_erpGuardBandType;
+  uint8_t m_erpLeftGuardBandWidth;
+  uint8_t m_erpRightGuardBandWidth;
 }sei_equirectangular_projection_t;
 
 typedef struct
