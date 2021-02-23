@@ -421,15 +421,15 @@ void DecLibRecon::decompressPicture( Picture* pcPic )
     }
 
     if( refPic->m_borderExtTaskCounter.isBlocked() &&
-        std::find( picExtBarriers.cbegin(), picExtBarriers.cend(), &refPic->m_borderExtTaskCounter.done ) == picExtBarriers.cend() )
+        std::find( picExtBarriers.cbegin(), picExtBarriers.cend(), refPic->m_borderExtTaskCounter.donePtr() ) == picExtBarriers.cend() )
     {
-      picExtBarriers.push_back( &refPic->m_borderExtTaskCounter.done );
+      picExtBarriers.push_back( refPic->m_borderExtTaskCounter.donePtr() );
     }
 
     if( refPic->m_dmvrTaskCounter.isBlocked() &&
-        std::find( picBarriers.cbegin(), picBarriers.cend(), &refPic->m_dmvrTaskCounter.done ) == picBarriers.cend() )
+        std::find( picBarriers.cbegin(), picBarriers.cend(), refPic->m_dmvrTaskCounter.donePtr() ) == picBarriers.cend() )
     {
-      picBarriers.push_back( &refPic->m_dmvrTaskCounter.done );
+      picBarriers.push_back( refPic->m_dmvrTaskCounter.donePtr() );
     }
   }
 
@@ -522,7 +522,7 @@ void DecLibRecon::decompressPicture( Picture* pcPic )
 
       return true;
     };
-    m_decodeThreadPool->addBarrierTask<Picture>( doneTask, pcPic, nullptr, nullptr, { &pcPic->m_ctuTaskCounter.done } );
+    m_decodeThreadPool->addBarrierTask<Picture>( doneTask, pcPic, nullptr, nullptr, { pcPic->m_ctuTaskCounter.donePtr() } );
   }
 
   if( pcPic->referenced )

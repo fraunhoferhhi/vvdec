@@ -157,7 +157,7 @@ struct WaitCounter
   int operator++()
   {
     std::unique_lock<std::mutex> l( m_lock );
-    done.lock();
+    m_done.lock();
     return ++m_count;
   }
 
@@ -165,10 +165,10 @@ struct WaitCounter
   {
     std::unique_lock<std::mutex> l( m_lock );
     const unsigned int new_count = --m_count;
-      if( new_count == 0 )
+    if( new_count == 0 )
     {
+      m_done.unlock();
       m_cond.notify_all();
-      done.unlock();
     }
     l.unlock(); // unlock mutex after done-barrier to prevent race between barrier and counter
     return new_count;
@@ -176,6 +176,7 @@ struct WaitCounter
 
   bool isBlocked() const
   {
+    std::unique_lock<std::mutex> l( const_cast<std::mutex&>( m_lock ) );
     return 0 != m_count;
   }
 
@@ -196,12 +197,13 @@ struct WaitCounter
   WaitCounter &operator=( const WaitCounter & ) = delete;
   WaitCounter &operator=( WaitCounter && )      = delete;
 
-  Barrier done{ false };
+  const Barrier* donePtr() const { return &m_done; }
 
 private:
   std::condition_variable m_cond;
   std::mutex              m_lock;
   unsigned int            m_count = 0;
+  Barrier                 m_done{ false };
 };
 
 
