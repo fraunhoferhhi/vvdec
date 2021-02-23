@@ -1,11 +1,11 @@
 /* -----------------------------------------------------------------------------
 The copyright in this software is being made available under the BSD
-License, included below. No patent rights, trademark rights and/or 
-other Intellectual Property Rights other than the copyrights concerning 
+License, included below. No patent rights, trademark rights and/or
+other Intellectual Property Rights other than the copyrights concerning
 the Software are granted under this license.
 
-For any license concerning other Intellectual Property rights than the software, 
-especially patent licenses, a separate Agreement needs to be closed. 
+For any license concerning other Intellectual Property rights than the software,
+especially patent licenses, a separate Agreement needs to be closed.
 For more information please contact:
 
 Fraunhofer Heinrich Hertz Institute
@@ -14,7 +14,7 @@ Einsteinufer 37
 www.hhi.fraunhofer.de/vvc
 vvc@hhi.fraunhofer.de
 
-Copyright (c) 2018-2021, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. 
+Copyright (c) 2018-2021, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V.
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -51,7 +51,6 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #include <mutex>
 #include <condition_variable>
 #include <atomic>
-#include <chrono>
 #include <iostream>
 #include <array>
 
@@ -64,17 +63,8 @@ static __itt_string_handle* itt_handle_TPspinWait = __itt_string_handle_create( 
 static __itt_string_handle* itt_handle_TPblocked  = __itt_string_handle_create( "Blocked" );
 static __itt_string_handle* itt_handle_TPaddTask  = __itt_string_handle_create( "Add_Task" );
 
-//static long itt_TP_blocked = 1;
-
-#endif //TRACE_ENABLE_ITT
-
-// block threads after busy-waiting this long
-const static auto BUSY_WAIT_TIME = [] {
-  const char *env = getenv( "BUSY_WAIT_TIME" );
-  if( env )
-    return std::chrono::milliseconds( atoi( env ) );
-  return std::chrono::milliseconds( 1 );
-}();
+// static long itt_TP_blocked = 1;
+#endif   // TRACE_ENABLE_ITT
 
 
 // enable this if tasks need to be added from mutliple threads
@@ -122,10 +112,7 @@ struct BlockingBarrier
   {
     std::unique_lock<std::mutex> l( m_lock );
     m_intBarrier.unlock();
-    if( !m_intBarrier.isBlocked() )
-    {
-      m_cond.notify_all();
-    }
+    m_cond.notify_all();
   }
 
   void lock()
@@ -181,8 +168,8 @@ struct WaitCounter
       if( new_count == 0 )
     {
       m_cond.notify_all();
-        done.unlock();
-      }
+      done.unlock();
+    }
     l.unlock(); // unlock mutex after done-barrier to prevent race between barrier and counter
     return new_count;
   }
@@ -274,54 +261,10 @@ class NoMallocThreadPool
       Iterator() = default;
       Iterator( Slot* slot, Chunk* chunk ) : m_slot( slot ), m_chunk( chunk ) {}
 
-      Iterator& operator++()
-      {
-        CHECKD( m_slot == nullptr, "incrementing invalid iterator" );
-        CHECKD( m_chunk == nullptr, "incrementing invalid iterator" );
-
-        if( m_slot != &m_chunk->m_slots.back() )
-        {
-          ++m_slot;
-        }
-        else
-        {
-          m_chunk = m_chunk->m_next;
-          if( m_chunk )
-          {
-            m_slot  = &m_chunk->m_slots.front();
-          }
-          else
-          {
-            m_slot  = nullptr;
-          }
-        }
-        return *this;
-      }
+      Iterator& operator++();
 
       // increment iterator and wrap around, if end is reached
-      Iterator& incWrap()
-      {
-        CHECKD( m_slot == nullptr, "incrementing invalid iterator" );
-        CHECKD( m_chunk == nullptr, "incrementing invalid iterator" );
-
-        if( m_slot != &m_chunk->m_slots.back() )
-        {
-          ++m_slot;
-        }
-        else
-        {
-          if( m_chunk->m_next )
-          {
-            m_chunk = m_chunk->m_next;
-          }
-          else
-          {
-            m_chunk = &m_chunk->m_firstChunk;
-          }
-          m_slot = &m_chunk->m_slots.front();
-        }
-        return *this;
-      }
+      Iterator& incWrap();
 
       bool operator==( const Iterator& rhs ) const { return m_slot == rhs.m_slot; } // don't need to compare m_chunk, because m_slot is a pointer
       bool operator!=( const Iterator& rhs ) const { return m_slot != rhs.m_slot; } // don't need to compare m_chunk, because m_slot is a pointer
@@ -332,31 +275,13 @@ class NoMallocThreadPool
     };
 
     ChunkedTaskQueue() = default;
-    ~ChunkedTaskQueue()
-    {
-      Chunk* next = m_firstChunk.m_next;
-      while( next )
-      {
-        Chunk* curr = next;
-        next = curr->m_next;
-        delete curr;
-      }
-    }
+    ~ChunkedTaskQueue();
 
     ChunkedTaskQueue( const ChunkedTaskQueue& ) = delete;
     ChunkedTaskQueue( ChunkedTaskQueue&& )      = delete;
 
     // grow the queue by adding a chunk and return an iterator to the first new task-slot
-    Iterator grow()
-    {
-      std::unique_lock<std::mutex> l( m_resizeMutex );  // prevent concurrent growth of the queue. Read access while growing is no problem
-//      std::cerr << __PRETTY_FUNCTION__ << std::endl;
-
-      m_lastChunk->m_next = new Chunk( &m_firstChunk );
-      m_lastChunk         = m_lastChunk->m_next;
-
-      return Iterator{ &m_lastChunk->m_slots.front(), m_lastChunk };
-    }
+    Iterator grow();
 
     Iterator begin() { return Iterator{ &m_firstChunk.m_slots.front(), &m_firstChunk }; }
     Iterator end()   { return Iterator{ nullptr, nullptr }; }

@@ -1,11 +1,11 @@
 /* -----------------------------------------------------------------------------
 The copyright in this software is being made available under the BSD
-License, included below. No patent rights, trademark rights and/or 
-other Intellectual Property Rights other than the copyrights concerning 
+License, included below. No patent rights, trademark rights and/or
+other Intellectual Property Rights other than the copyrights concerning
 the Software are granted under this license.
 
-For any license concerning other Intellectual Property rights than the software, 
-especially patent licenses, a separate Agreement needs to be closed. 
+For any license concerning other Intellectual Property rights than the software,
+especially patent licenses, a separate Agreement needs to be closed.
 For more information please contact:
 
 Fraunhofer Heinrich Hertz Institute
@@ -14,7 +14,7 @@ Einsteinufer 37
 www.hhi.fraunhofer.de/vvc
 vvc@hhi.fraunhofer.de
 
-Copyright (c) 2018-2021, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. 
+Copyright (c) 2018-2021, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V.
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -46,12 +46,25 @@ THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "NoMallocThreadPool.h"
 
+#include <chrono>
 
 #if __linux
 # include <pthread.h>
 #endif
 
-NoMallocThreadPool::NoMallocThreadPool( int numThreads, const char * threadPoolName )
+// block threads after busy-waiting this long
+const static auto BUSY_WAIT_TIME = [] {
+  const char* env = getenv( "BUSY_WAIT_TIME" );
+  if( env )
+    return std::chrono::milliseconds( atoi( env ) );
+  return std::chrono::milliseconds( 1 );
+}();
+
+// ---------------------------------------------------------------------------
+// Thread Pool
+// ---------------------------------------------------------------------------
+
+NoMallocThreadPool::NoMallocThreadPool( int numThreads, const char* threadPoolName )
   : m_poolName( threadPoolName )
   , m_threads ( numThreads < 0 ? std::thread::hardware_concurrency() : numThreads )
 {
@@ -160,9 +173,9 @@ void NoMallocThreadPool::threadProc( int threadId )
             && ( BUSY_WAIT_TIME.count() == 0 || std::chrono::steady_clock::now() - startWait > BUSY_WAIT_TIME )
             && !m_exitThreads )
         {
-          ITT_TASKSTART(itt_domain_thrd, itt_handle_TPblocked);
+          ITT_TASKSTART( itt_domain_thrd, itt_handle_TPblocked );
           l.lock();
-          ITT_TASKEND(itt_domain_thrd, itt_handle_TPblocked);
+          ITT_TASKEND( itt_domain_thrd, itt_handle_TPblocked );
         }
         else
         {
@@ -195,24 +208,24 @@ NoMallocThreadPool::TaskIterator NoMallocThreadPool::findNextTask( int threadId,
   {
     first = false;
 
-    Slot& t = *it;
+    Slot& task = *it;
     auto expected = WAITING;
-    if( t.state == expected && t.state.compare_exchange_strong( expected, RUNNING ) )
+    if( task.state == expected && task.state.compare_exchange_strong( expected, RUNNING ) )
     {
-      if( !t.barriers.empty() )
+      if( !task.barriers.empty() )
       {
-        if( std::any_of( t.barriers.cbegin(), t.barriers.cend(), []( const Barrier* b ) { return b && b->isBlocked(); } ) )
+        if( std::any_of( task.barriers.cbegin(), task.barriers.cend(), []( const Barrier* b ) { return b && b->isBlocked(); } ) )
         {
           // reschedule
-          t.state = WAITING;
+          task.state = WAITING;
           continue;
         }
-        t.barriers.clear();   // clear barriers, so we don't need to check them on the next try (we assume they won't get locked again)
+        task.barriers.clear();   // clear barriers, so we don't need to check them on the next try (we assume they won't get locked again)
       }
-      if( t.readyCheck && t.readyCheck( threadId, t.param ) == false )
+      if( task.readyCheck && task.readyCheck( threadId, task.param ) == false )
       {
         // reschedule
-        t.state = WAITING;
+        task.state = WAITING;
         continue;
       }
 
@@ -243,4 +256,77 @@ bool NoMallocThreadPool::processTask( int threadId, NoMallocThreadPool::Slot& ta
   task.state = FREE;
 
   return true;
+}
+
+// ---------------------------------------------------------------------------
+// Chunked Task Queue
+// ---------------------------------------------------------------------------
+
+NoMallocThreadPool::ChunkedTaskQueue::~ChunkedTaskQueue()
+{
+  Chunk* next = m_firstChunk.m_next;
+  while( next )
+  {
+    Chunk* curr = next;
+    next = curr->m_next;
+    delete curr;
+  }
+}
+
+NoMallocThreadPool::ChunkedTaskQueue::Iterator NoMallocThreadPool::ChunkedTaskQueue::grow()
+{
+  std::unique_lock<std::mutex> l( m_resizeMutex );   // prevent concurrent growth of the queue. Read access while growing is no problem
+
+  m_lastChunk->m_next = new Chunk( &m_firstChunk );
+  m_lastChunk         = m_lastChunk->m_next;
+
+  return Iterator{ &m_lastChunk->m_slots.front(), m_lastChunk };
+}
+
+NoMallocThreadPool::ChunkedTaskQueue::Iterator& NoMallocThreadPool::ChunkedTaskQueue::Iterator::operator++()
+{
+  CHECKD( m_slot == nullptr, "incrementing invalid iterator" );
+  CHECKD( m_chunk == nullptr, "incrementing invalid iterator" );
+
+  if( m_slot != &m_chunk->m_slots.back() )
+  {
+    ++m_slot;
+  }
+  else
+  {
+    m_chunk = m_chunk->m_next;
+    if( m_chunk )
+    {
+      m_slot = &m_chunk->m_slots.front();
+    }
+    else
+    {
+      m_slot = nullptr;
+    }
+  }
+  return *this;
+}
+
+NoMallocThreadPool::ChunkedTaskQueue::Iterator& NoMallocThreadPool::ChunkedTaskQueue::Iterator::incWrap()
+{
+  CHECKD( m_slot == nullptr, "incrementing invalid iterator" );
+  CHECKD( m_chunk == nullptr, "incrementing invalid iterator" );
+
+  if( m_slot != &m_chunk->m_slots.back() )
+  {
+    ++m_slot;
+  }
+  else
+  {
+    if( m_chunk->m_next )
+    {
+      m_chunk = m_chunk->m_next;
+    }
+    else
+    {
+      m_chunk = &m_chunk->m_firstChunk;
+    }
+    m_slot = &m_chunk->m_slots.front();
+  }
+  return *this;
 }
