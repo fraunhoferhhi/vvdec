@@ -63,7 +63,7 @@ THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "InterpolationFilter.h"
 
-typedef std::list<SEI_internal*> seiMessages;
+#include "vvdec/sei.h"
 
 struct Picture : public UnitArea
 {
@@ -243,7 +243,9 @@ public:
 
   CodingStructure*   cs    = nullptr;
   std::vector<Slice*> slices;
-  seiMessages  SEIs;
+
+  seiMessages                     SEIs;
+  std::list<vvdec_sei_message_t*> seiMessageList;
 
   bool               isRefScaled( const PPS* pps ) const
   {

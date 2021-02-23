@@ -52,78 +52,77 @@ THE POSSIBILITY OF SUCH DAMAGE.
 
 enum SEIPayloadType
 {
-  BUFFERING_PERIOD                     = 0,
-  PICTURE_TIMING                       = 1,
-  FILLER_PAYLOAD                       = 3,
-  USER_DATA_REGISTERED_ITU_T_T35       = 4,
-  USER_DATA_UNREGISTERED               = 5,
-  FILM_GRAIN_CHARACTERISTICS           = 19,
-  FRAME_PACKING                        = 45,
-  PARAMETER_SETS_INCLUSION_INDICATION  = 129,
-  DECODING_UNIT_INFO                   = 130,
-  DECODED_PICTURE_HASH                 = 132,
-  SCALABLE_NESTING                     = 133,
-  MASTERING_DISPLAY_COLOUR_VOLUME      = 137,
-  DEPENDENT_RAP_INDICATION             = 145,
-  EQUIRECTANGULAR_PROJECTION           = 150,
-  SPHERE_ROTATION                      = 154,
-  REGION_WISE_PACKING                  = 155,
-  OMNI_VIEWPORT                        = 156,
-  GENERALIZED_CUBEMAP_PROJECTION       = 153,
-  FRAME_FIELD_INFO                     = 168,
-  SUBPICTURE_LEVEL_INFO                = 203,
-  SAMPLE_ASPECT_RATIO_INFO             = 204,
-  CONTENT_LIGHT_LEVEL_INFO             = 144,
-  ALTERNATIVE_TRANSFER_CHARACTERISTICS = 147,
-  AMBIENT_VIEWING_ENVIRONMENT          = 148,
-  CONTENT_COLOUR_VOLUME                = 149
+  VVDEC_BUFFERING_PERIOD                     = 0,
+  VVDEC_PICTURE_TIMING                       = 1,
+  VVDEC_FILLER_PAYLOAD                       = 3,
+  VVDEC_USER_DATA_REGISTERED_ITU_T_T35       = 4,
+  VVDEC_USER_DATA_UNREGISTERED               = 5,
+  VVDEC_FILM_GRAIN_CHARACTERISTICS           = 19,
+  VVDEC_FRAME_PACKING                        = 45,
+  VVDEC_PARAMETER_SETS_INCLUSION_INDICATION  = 129,
+  VVDEC_DECODING_UNIT_INFO                   = 130,
+  VVDEC_DECODED_PICTURE_HASH                 = 132,
+  VVDEC_SCALABLE_NESTING                     = 133,
+  VVDEC_MASTERING_DISPLAY_COLOUR_VOLUME      = 137,
+  VVDEC_DEPENDENT_RAP_INDICATION             = 145,
+  VVDEC_EQUIRECTANGULAR_PROJECTION           = 150,
+  VVDEC_SPHERE_ROTATION                      = 154,
+  VVDEC_REGION_WISE_PACKING                  = 155,
+  VVDEC_OMNI_VIEWPORT                        = 156,
+  VVDEC_GENERALIZED_CUBEMAP_PROJECTION       = 153,
+  VVDEC_FRAME_FIELD_INFO                     = 168,
+  VVDEC_SUBPICTURE_LEVEL_INFO                = 203,
+  VVDEC_SAMPLE_ASPECT_RATIO_INFO             = 204,
+  VVDEC_CONTENT_LIGHT_LEVEL_INFO             = 144,
+  VVDEC_ALTERNATIVE_TRANSFER_CHARACTERISTICS = 147,
+  VVDEC_AMBIENT_VIEWING_ENVIRONMENT          = 148,
+  VVDEC_CONTENT_COLOUR_VOLUME                = 149,
+  VVDEC_SEI_UNKNOWN                          = -1,
 };
 typedef enum SEIPayloadType SEIPayloadType;
 
 enum Level
 {
-  LEVEL_NONE = 0,
-  LEVEL1   = 16,
-  LEVEL2   = 32,
-  LEVEL2_1 = 35,
-  LEVEL3   = 48,
-  LEVEL3_1 = 51,
-  LEVEL4   = 64,
-  LEVEL4_1 = 67,
-  LEVEL5   = 80,
-  LEVEL5_1 = 83,
-  LEVEL5_2 = 86,
-  LEVEL6   = 96,
-  LEVEL6_1 = 99,
-  LEVEL6_2 = 102,
-  LEVEL15_5 = 255,
+  VVDEC_LEVEL_NONE = 0,
+  VVDEC_LEVEL1   = 16,
+  VVDEC_LEVEL2   = 32,
+  VVDEC_LEVEL2_1 = 35,
+  VVDEC_LEVEL3   = 48,
+  VVDEC_LEVEL3_1 = 51,
+  VVDEC_LEVEL4   = 64,
+  VVDEC_LEVEL4_1 = 67,
+  VVDEC_LEVEL5   = 80,
+  VVDEC_LEVEL5_1 = 83,
+  VVDEC_LEVEL5_2 = 86,
+  VVDEC_LEVEL6   = 96,
+  VVDEC_LEVEL6_1 = 99,
+  VVDEC_LEVEL6_2 = 102,
+  VVDEC_LEVEL15_5 = 255,
 };
 typedef enum Level Level;
 
 
 enum HashType
 {
-  HASHTYPE_MD5             = 0,
-  HASHTYPE_CRC             = 1,
-  HASHTYPE_CHECKSUM        = 2,
-  HASHTYPE_NONE            = 3,
-  NUMBER_OF_HASHTYPES      = 4
+  VVDEC_HASHTYPE_MD5             = 0,
+  VVDEC_HASHTYPE_CRC             = 1,
+  VVDEC_HASHTYPE_CHECKSUM        = 2,
+  VVDEC_HASHTYPE_NONE            = 3,
+  VVDEC_NUMBER_OF_HASHTYPES      = 4
 };
 typedef enum HashType HashType;
 
 
-typedef struct sei_message
+typedef struct vvdec_sei_message
 {
-    struct sei_message* next_sei;        /*!< next SEI in AU */
-    unsigned int  i_payload_type;        /*!< payload type as defined in sei.h */
-    unsigned int  i_payload_size;        /*!< size of payload in bytes */
-    void          *payload;              /*!< payload structure as defined in sei.h */
-    unsigned char *raw;
-}sei_message_t;
+    struct vvdec_sei_message* next_sei;        /*!< next SEI in AU */
+    SEIPayloadType            payloadType;     /*!< payload type as defined in sei.h */
+    unsigned int              size;            /*!< size of payload in bytes */
+    void                     *payload;         /*!< payload structure as defined in sei.h */
+}vvdec_sei_message_t;
 
 typedef struct
 {
-public:
   bool     m_bpNalCpbParamsPresentFlag;
   bool     m_bpVclCpbParamsPresentFlag;
   uint32_t m_initialCpbRemovalDelayLength;
@@ -148,9 +147,9 @@ public:
   uint32_t m_maxInitialRemovalDelayForConcatenation;
   bool     m_sublayerDpbOutputOffsetsPresentFlag;
   uint32_t m_dpbOutputTidOffset[7];
-  bool     m_altCpbParamsPresentFlagv;
+  bool     m_altCpbParamsPresentFlag;
   bool     m_useAltCpbParamsFlag;
-} sei_buffering_period_t;
+} vvdec_sei_buffering_period_t;
 
 
 typedef struct
@@ -176,37 +175,37 @@ typedef struct
   uint32_t m_vclCpbDelayOffset[666];
   uint32_t m_vclDpbDelayOffset[666];
   int      m_ptDisplayElementalPeriods;
-}sei_picture_timing_t;
+} vvdec_sei_picture_timing_t;
 
 
 typedef struct
 {
-  uint16_t  m_ituCountryCode;
-  uint32_t  m_userDataLength;
-  uint8_t  *m_userData;
-}sei_user_data_registered_t;
+  uint16_t  ituCountryCode;
+  uint32_t  userDataLength;
+  uint8_t  *userData;
+} vvdec_sei_user_data_registered_t;
 
 typedef struct
 {
   uint8_t   uuid_iso_iec_11578[16];
-  uint32_t  m_userDataLength;
-  uint8_t  *m_userData;
-}sei_user_data_unregistered_t;
+  uint32_t  userDataLength;
+  uint8_t  *userData;
+} vvdec_sei_user_data_unregistered_t;
 
 
 typedef struct
 {
   uint8_t intensityIntervalLowerBound;
   uint8_t intensityIntervalUpperBound;
-  int compModelValue[6];
-}CompModelIntensityValues_t;
+  int     compModelValue[6];
+}vvdec_CompModelIntensityValues_t;
 
 typedef struct
 {
-  bool    presentFlag;
-  uint8_t numModelValues;
-  CompModelIntensityValues_t intensityValues[265];
-}CompModel_t;
+  bool                             presentFlag;
+  uint8_t                          numModelValues;
+  vvdec_CompModelIntensityValues_t intensityValues[265];
+}vvdec_CompModel_t;
 
 typedef struct
 {
@@ -222,9 +221,9 @@ typedef struct
   uint8_t     m_blendingModeId;
   uint8_t     m_log2ScaleFactor;
 
-  CompModel_t m_compModel[3];
+  vvdec_CompModel_t m_compModel[3];
   bool        m_filmGrainCharacteristicsPersistenceFlag;
-} sei_film_grain_characteristics_t;
+}vvdec_sei_film_grain_characteristics_t;
 
 typedef struct
 {
@@ -246,12 +245,12 @@ typedef struct
   int  m_arrangementReservedByte;
   bool m_arrangementPersistenceFlag;
   bool m_upsampledAspectRatio;
-}sei_frame_packing_t;
+}vvdec_sei_frame_packing_t;
 
 typedef struct
 {
   int m_selfContainedClvsFlag;
-}sei_parameter_sets_inclusion_indication_t;
+}vvdec_sei_parameter_sets_inclusion_indication_t;
 
 typedef struct
 {
@@ -260,7 +259,7 @@ typedef struct
   int  m_duSptCpbRemovalDelayIncrement[7];
   bool m_dpbOutputDuDelayPresentFlag;
   int  m_picSptDpbOutputDuDelay;
-}sei_decoding_unit_info_t;
+}vvdec_sei_decoding_unit_info_t;
 
 
 typedef struct
@@ -268,7 +267,7 @@ typedef struct
   HashType      method;
   bool          singleCompFlag;
   unsigned char digest[3][16];
-}sei_decoded_picture_hash_t;
+}vvdec_sei_decoded_picture_hash_t;
 
 
 typedef struct
@@ -286,8 +285,8 @@ typedef struct
   uint16_t  m_snSubpicId[600];
   uint32_t  m_snNumSEIs;
 
-  sei_message m_nestedSEIs[64];
-}sei_scalable_nesting_t;
+  vvdec_sei_message m_nestedSEIs[64];
+}vvdec_sei_scalable_nesting_t;
 
 typedef struct
 {
@@ -295,7 +294,11 @@ typedef struct
     uint32_t minLuminance;
     uint16_t primaries[3][2];
     uint16_t whitePoint[2];
-} sei_mastering_display_colour_volume_t;
+}vvdec_sei_mastering_display_colour_volume_t;
+
+typedef struct
+{
+} vvdec_sei_dependent_rap_indication_t;
 
 typedef struct
 {
@@ -305,7 +308,7 @@ typedef struct
   uint8_t m_erpGuardBandType;
   uint8_t m_erpLeftGuardBandWidth;
   uint8_t m_erpRightGuardBandWidth;
-}sei_equirectangular_projection_t;
+}vvdec_sei_equirectangular_projection_t;
 
 typedef struct
 {
@@ -314,7 +317,7 @@ typedef struct
   int   m_sphereRotationYaw;
   int   m_sphereRotationPitch;
   int   m_sphereRotationRoll;
-}sei_sphere_rotation_t;
+}vvdec_sei_sphere_rotation_t;
 
 typedef struct
 {
@@ -326,23 +329,23 @@ typedef struct
   int      m_projPictureHeight;
   int      m_packedPictureWidth;
   int      m_packedPictureHeight;
-  uint8_t  m_rwpTransformType[8];
-  bool     m_rwpGuardBandFlag[8];
-  uint32_t m_projRegionWidth[8];
-  uint32_t m_projRegionHeight[8];
-  uint32_t m_rwpProjRegionTop[8];
-  uint32_t m_projRegionLeft[8];
-  uint16_t m_packedRegionWidth[8];
-  uint16_t m_packedRegionHeight[8];
-  uint16_t m_packedRegionTop[8];
-  uint16_t m_packedRegionLeft[8];
-  uint8_t  m_rwpLeftGuardBandWidth[8];
-  uint8_t  m_rwpRightGuardBandWidth[8];
-  uint8_t  m_rwpTopGuardBandHeight[8];
-  uint8_t  m_rwpBottomGuardBandHeight[8];
-  bool     m_rwpGuardBandNotUsedForPredFlag[8];
-  uint8_t  m_rwpGuardBandType[8];
-}sei_region_wise_packing_t;
+  uint8_t  m_rwpTransformType[265];
+  bool     m_rwpGuardBandFlag[265];
+  uint32_t m_projRegionWidth[265];
+  uint32_t m_projRegionHeight[265];
+  uint32_t m_rwpProjRegionTop[265];
+  uint32_t m_projRegionLeft[265];
+  uint16_t m_packedRegionWidth[265];
+  uint16_t m_packedRegionHeight[265];
+  uint16_t m_packedRegionTop[265];
+  uint16_t m_packedRegionLeft[265];
+  uint8_t  m_rwpLeftGuardBandWidth[265];
+  uint8_t  m_rwpRightGuardBandWidth[265];
+  uint8_t  m_rwpTopGuardBandHeight[265];
+  uint8_t  m_rwpBottomGuardBandHeight[265];
+  bool     m_rwpGuardBandNotUsedForPredFlag[265];
+  uint8_t  m_rwpGuardBandType[4*265];
+}vvdec_sei_region_wise_packing_t;
 
 typedef struct
 {
@@ -351,16 +354,16 @@ typedef struct
   int      tiltCentre;
   uint32_t horRange;
   uint32_t verRange;
-}OmniViewport;
+}vvdec_OmniViewport;
 
 typedef struct
 {
-  uint32_t         m_omniViewportId;
-  bool             m_omniViewportCancelFlag;
-  bool             m_omniViewportPersistenceFlag;
-  uint8_t          m_omniViewportCnt;
-  OmniViewport     m_omniViewportRegions[16];
-}sei_omni_viewport_t;
+  uint32_t           m_omniViewportId;
+  bool               m_omniViewportCancelFlag;
+  bool               m_omniViewportPersistenceFlag;
+  uint8_t            m_omniViewportCnt;
+  vvdec_OmniViewport m_omniViewportRegions[16];
+}vvdec_sei_omni_viewport_t;
 
 
 typedef struct
@@ -369,18 +372,17 @@ typedef struct
   bool    m_gcmpPersistenceFlag;
   uint8_t m_gcmpPackingType;
   uint8_t m_gcmpMappingFunctionType;
-  uint8_t m_gcmpFaceIndex[8];
-  uint8_t m_gcmpFaceRotation[8];
-  uint8_t m_gcmpFunctionCoeffU[8];
-  bool    m_gcmpFunctionUAffectedByVFlag[8];
-  uint8_t m_gcmpFunctionCoeffV[8];
-  bool    m_gcmpFunctionVAffectedByUFlag[8];
+  uint8_t m_gcmpFaceIndex[6];
+  uint8_t m_gcmpFaceRotation[6];
+  uint8_t m_gcmpFunctionCoeffU[6];
+  bool    m_gcmpFunctionUAffectedByVFlag[6];
+  uint8_t m_gcmpFunctionCoeffV[6];
+  bool    m_gcmpFunctionVAffectedByUFlag[6];
   bool    m_gcmpGuardBandFlag;
   uint8_t m_gcmpGuardBandType;
   bool    m_gcmpGuardBandBoundaryExteriorFlag;
   uint8_t m_gcmpGuardBandSamples;
-}sei_generalized_cubemap_projection_t;
-
+}vvdec_sei_generalized_cubemap_projection_t;
 
 typedef struct
 {
@@ -393,7 +395,7 @@ typedef struct
   int  m_displayElementalPeriods;
   int  m_sourceScanType;
   bool m_duplicateFlag;
-}sei_frame_field_info_t;
+}vvdec_sei_frame_field_info_t;
 
 typedef struct
 {
@@ -406,7 +408,7 @@ typedef struct
   int       m_nonSubpicLayersFraction[6][6];
   Level     m_refLevelIdc[6][6];
   Level     m_refLevelFraction[6][600][6];
-} sei_subpicture_level_info_t;
+}vvdec_sei_subpicture_level_info_t;
 
 typedef struct
 {
@@ -415,26 +417,26 @@ typedef struct
   int     m_sariAspectRatioIdc;
   int     m_sariSarWidth;
   int     m_sariSarHeight;
-}sei_sample_aspect_ratio_info_t;
+}vvdec_sei_sample_aspect_ratio_info_t;
 
 
 typedef struct
 {
-    uint16_t max_content_light_level;
-    uint16_t max_pic_average_light_level;
-} sei_content_light_level_info_t;
+  uint16_t m_maxContentLightLevel;
+  uint16_t m_maxPicAverageLightLevel;
+}vvdec_sei_content_light_level_info_t;
 
 typedef struct
 {
-    uint8_t preferred_transfer_characteristics;
-} alternative_transfer_characteristics_t;
+  uint8_t preferred_transfer_characteristics;
+}vvdec_sei_alternative_transfer_characteristics_t;
 
 typedef struct
 {
   uint32_t m_ambientIlluminance;
   uint16_t m_ambientLightX;
   uint16_t m_ambientLightY;
-} sei_ambient_viewing_environment_t;
+}vvdec_sei_ambient_viewing_environment_t;
 
 
 typedef struct
@@ -450,6 +452,6 @@ typedef struct
   uint32_t  m_ccvMinLuminanceValue;
   uint32_t  m_ccvMaxLuminanceValue;
   uint32_t  m_ccvAvgLuminanceValue;
-} sei_content_colour_volume_t;
+}vvdec_sei_content_colour_volume_t;
 
 #endif /*_VVDEC_SEI_H_*/

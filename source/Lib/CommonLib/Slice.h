@@ -444,7 +444,7 @@ class ProfileTierLevel
   Profile::Name     m_profileIdc    = Profile::NONE;
   uint8_t           m_numSubProfile = 0;
   std::vector<uint32_t> m_subProfileIdc;
-  Level             m_levelIdc      = Level::LEVEL_NONE;
+  Level             m_levelIdc      = Level::VVDEC_LEVEL_NONE;
 #if JVET_S0138_GCI_PTL
   bool              m_frameOnlyConstraintFlag = true;
   bool              m_multiLayerEnabledFlag   = false;
@@ -456,7 +456,7 @@ public:
   ProfileTierLevel()
   {
     ::memset(m_subLayerLevelPresentFlag,   0, sizeof(m_subLayerLevelPresentFlag  ));
-    ::memset(m_subLayerLevelIdc, Level::LEVEL_NONE, sizeof(m_subLayerLevelIdc    ));
+    ::memset(m_subLayerLevelIdc, Level::VVDEC_LEVEL_NONE, sizeof(m_subLayerLevelIdc    ));
   }
 
   Tier          getTierFlag() const                         { return m_tierFlag;                    }

@@ -51,30 +51,30 @@ const char *SEI_internal::getSEIMessageString(SEIPayloadType payloadType)
 {
   switch (payloadType)
   {
-    case BUFFERING_PERIOD:                     return "Buffering period";
-    case PICTURE_TIMING:                       return "Picture timing";
-    case FILLER_PAYLOAD:                       return "Filler payload";                       // not currently decoded
-    case USER_DATA_REGISTERED_ITU_T_T35:       return "User data registered";                 // not currently decoded
-    case USER_DATA_UNREGISTERED:               return "User data unregistered";
-    case FILM_GRAIN_CHARACTERISTICS:           return "Film grain characteristics";           // not currently decoded
-    case FRAME_PACKING:                        return "Frame packing arrangement";
-    case PARAMETER_SETS_INCLUSION_INDICATION:  return "Parameter sets inclusion indication";
-    case DECODING_UNIT_INFO:                   return "Decoding unit information";
-    case SCALABLE_NESTING:                     return "Scalable nesting";
-    case DECODED_PICTURE_HASH:                 return "Decoded picture hash";
-    case DEPENDENT_RAP_INDICATION:             return "Dependent RAP indication";
-    case MASTERING_DISPLAY_COLOUR_VOLUME:      return "Mastering display colour volume";
-    case ALTERNATIVE_TRANSFER_CHARACTERISTICS: return "Alternative transfer characteristics";
-    case CONTENT_LIGHT_LEVEL_INFO:             return "Content light level information";
-    case AMBIENT_VIEWING_ENVIRONMENT:          return "Ambient viewing environment";
-    case CONTENT_COLOUR_VOLUME:                return "Content colour volume";
-    case EQUIRECTANGULAR_PROJECTION:           return "Equirectangular projection";
-    case SPHERE_ROTATION:                      return "Sphere rotation";
-    case REGION_WISE_PACKING:                  return "Region wise packing information";
-    case OMNI_VIEWPORT:                        return "Omni viewport";
-    case GENERALIZED_CUBEMAP_PROJECTION:       return "Generalized cubemap projection";
-    case SAMPLE_ASPECT_RATIO_INFO:             return "Sample aspect ratio information";
-    case SUBPICTURE_LEVEL_INFO:                return "Subpicture level information";
+    case VVDEC_BUFFERING_PERIOD:                     return "Buffering period";
+    case VVDEC_PICTURE_TIMING:                       return "Picture timing";
+    case VVDEC_FILLER_PAYLOAD:                       return "Filler payload";                       // not currently decoded
+    case VVDEC_USER_DATA_REGISTERED_ITU_T_T35:       return "User data registered";                 // not currently decoded
+    case VVDEC_USER_DATA_UNREGISTERED:               return "User data unregistered";
+    case VVDEC_FILM_GRAIN_CHARACTERISTICS:           return "Film grain characteristics";           // not currently decoded
+    case VVDEC_FRAME_PACKING:                        return "Frame packing arrangement";
+    case VVDEC_PARAMETER_SETS_INCLUSION_INDICATION:  return "Parameter sets inclusion indication";
+    case VVDEC_DECODING_UNIT_INFO:                   return "Decoding unit information";
+    case VVDEC_SCALABLE_NESTING:                     return "Scalable nesting";
+    case VVDEC_DECODED_PICTURE_HASH:                 return "Decoded picture hash";
+    case VVDEC_DEPENDENT_RAP_INDICATION:             return "Dependent RAP indication";
+    case VVDEC_MASTERING_DISPLAY_COLOUR_VOLUME:      return "Mastering display colour volume";
+    case VVDEC_ALTERNATIVE_TRANSFER_CHARACTERISTICS: return "Alternative transfer characteristics";
+    case VVDEC_CONTENT_LIGHT_LEVEL_INFO:             return "Content light level information";
+    case VVDEC_AMBIENT_VIEWING_ENVIRONMENT:          return "Ambient viewing environment";
+    case VVDEC_CONTENT_COLOUR_VOLUME:                return "Content colour volume";
+    case VVDEC_EQUIRECTANGULAR_PROJECTION:           return "Equirectangular projection";
+    case VVDEC_SPHERE_ROTATION:                      return "Sphere rotation";
+    case VVDEC_REGION_WISE_PACKING:                  return "Region wise packing information";
+    case VVDEC_OMNI_VIEWPORT:                        return "Omni viewport";
+    case VVDEC_GENERALIZED_CUBEMAP_PROJECTION:       return "Generalized cubemap projection";
+    case VVDEC_SAMPLE_ASPECT_RATIO_INFO:             return "Sample aspect ratio information";
+    case VVDEC_SUBPICTURE_LEVEL_INFO:                return "Subpicture level information";
     default:                                        return "Unknown";
   }
 }
@@ -121,6 +121,5 @@ void SEI_internal::deleteSEIs (std::list<SEI_internal*> &seiList)
   }
   seiList.clear();
 }
-
 
 

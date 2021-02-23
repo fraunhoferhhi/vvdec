@@ -103,7 +103,7 @@ public:
 
    int flush( vvdec_Frame** ppcFrame );
 
-   sei_message_t* findFrameSei( SEIPayloadType payloadType, vvdec_Frame_t *frame );
+   vvdec_sei_message_t* findFrameSei( SEIPayloadType payloadType, vvdec_Frame_t *frame );
 
    int objectUnref( vvdec_Frame* pcFrame );
 
@@ -126,7 +126,6 @@ private:
 
    int xAddPicture                  ( Picture* pcPic );
    int xCreateFrame                 ( vvdec_Frame& rcFrame, const CPelUnitBuf& rcPicBuf, uint32_t uiWidth, uint32_t uiHeight, const BitDepths& rcBitDepths );
-   int xHandleSEIs                  ( vvdec_Frame& rcFrame, Picture* pcPic );
 
    static int xRetrieveNalStartCode ( unsigned char *pB, int iZerosInStartcode );
    static int xConvertPayloadToRBSP ( std::vector<uint8_t>& nalUnitBuf, InputBitstream *bitstream, bool isVclNalUnit);
@@ -136,6 +135,7 @@ private:
 
    static int copyComp( const unsigned char* pucSrc, unsigned char* pucDest, unsigned int uiWidth, unsigned int uiHeight, int iStrideSrc, int iStrideDest, int iBytesPerSample );
 
+   static int getSizeOfSei( SEIPayloadType payloadType );
 public:
 
    bool                                    m_bInitialized = false;

@@ -75,12 +75,13 @@ public:
   virtual SEIPayloadType payloadType() const = 0;
 };
 
+
 typedef std::list<SEI_internal*> seiMessages;
 
 class seiEquirectangularProjection : public SEI_internal
 {
 public:
-  SEIPayloadType payloadType() const { return EQUIRECTANGULAR_PROJECTION; }
+  SEIPayloadType payloadType() const { return VVDEC_EQUIRECTANGULAR_PROJECTION; }
 
   seiEquirectangularProjection()  {}
   virtual ~seiEquirectangularProjection() {}
@@ -96,7 +97,7 @@ public:
 class seiSphereRotation : public SEI_internal
 {
 public:
-  SEIPayloadType payloadType() const { return SPHERE_ROTATION; }
+  SEIPayloadType payloadType() const { return VVDEC_SPHERE_ROTATION; }
 
   seiSphereRotation()  {}
   virtual ~seiSphereRotation() {}
@@ -111,7 +112,7 @@ public:
 class seiOmniViewport : public SEI_internal
 {
 public:
-  SEIPayloadType payloadType() const { return OMNI_VIEWPORT; }
+  SEIPayloadType payloadType() const { return VVDEC_OMNI_VIEWPORT; }
 
   seiOmniViewport() {}
   virtual ~seiOmniViewport() {}
@@ -135,9 +136,10 @@ public:
 class seiRegionWisePacking : public SEI_internal
 {
 public:
-  SEIPayloadType payloadType() const { return REGION_WISE_PACKING; }
+  SEIPayloadType payloadType() const { return VVDEC_REGION_WISE_PACKING; }
   seiRegionWisePacking() {}
   virtual ~seiRegionWisePacking() {}
+
   bool                  m_rwpCancelFlag                  = false;
   bool                  m_rwpPersistenceFlag             = false;
   bool                  m_constituentPictureMatchingFlag = false;
@@ -167,7 +169,7 @@ public:
 class seiGeneralizedCubemapProjection : public SEI_internal
 {
 public:
-  SEIPayloadType payloadType() const { return GENERALIZED_CUBEMAP_PROJECTION; }
+  SEIPayloadType payloadType() const { return VVDEC_GENERALIZED_CUBEMAP_PROJECTION; }
 
   seiGeneralizedCubemapProjection()  {}
   virtual ~seiGeneralizedCubemapProjection() {}
@@ -191,9 +193,10 @@ public:
 class seiSampleAspectRatioInfo : public SEI_internal
 {
 public:
-  SEIPayloadType payloadType() const { return SAMPLE_ASPECT_RATIO_INFO; }
+  SEIPayloadType payloadType() const { return VVDEC_SAMPLE_ASPECT_RATIO_INFO; }
   seiSampleAspectRatioInfo() {}
   virtual ~seiSampleAspectRatioInfo() {}
+
   bool                  m_sariCancelFlag      = false;
   bool                  m_sariPersistenceFlag = false;
   int                   m_sariAspectRatioIdc  = 0;
@@ -204,7 +207,7 @@ public:
 class seiUserDataUnregistered : public SEI_internal
 {
 public:
-  SEIPayloadType payloadType() const { return USER_DATA_UNREGISTERED; }
+  SEIPayloadType payloadType() const { return VVDEC_USER_DATA_UNREGISTERED; }
 
   seiUserDataUnregistered()
     {}
@@ -248,12 +251,12 @@ struct PictureHash
 class seiDecodedPictureHash : public SEI_internal
 {
 public:
-  SEIPayloadType payloadType() const { return DECODED_PICTURE_HASH; }
+  SEIPayloadType payloadType() const { return VVDEC_DECODED_PICTURE_HASH; }
 
   seiDecodedPictureHash() {}
   virtual ~seiDecodedPictureHash() {}
 
-  HashType    method         = HASHTYPE_MD5;
+  HashType    method         = VVDEC_HASHTYPE_MD5;
   bool        singleCompFlag = false;
   PictureHash m_pictureHash;
 };
@@ -261,7 +264,7 @@ public:
 class seiDependentRAPIndication : public SEI_internal
 {
 public:
-  SEIPayloadType payloadType() const { return DEPENDENT_RAP_INDICATION; }
+  SEIPayloadType payloadType() const { return VVDEC_DEPENDENT_RAP_INDICATION; }
   seiDependentRAPIndication() { }
 
   virtual ~seiDependentRAPIndication() { }
@@ -270,7 +273,7 @@ public:
 class seiBufferingPeriod : public SEI_internal
 {
 public:
-  SEIPayloadType payloadType() const { return BUFFERING_PERIOD; }
+  SEIPayloadType payloadType() const { return VVDEC_BUFFERING_PERIOD; }
 
   seiBufferingPeriod()
   {
@@ -317,7 +320,7 @@ public:
 class seiPictureTiming : public SEI_internal
 {
 public:
-  SEIPayloadType payloadType() const { return PICTURE_TIMING; }
+  SEIPayloadType payloadType() const { return VVDEC_PICTURE_TIMING; }
 
   seiPictureTiming()
   {
@@ -357,7 +360,7 @@ public:
 class seiDecodingUnitInfo : public SEI_internal
 {
 public:
-  SEIPayloadType payloadType() const { return DECODING_UNIT_INFO; }
+  SEIPayloadType payloadType() const { return VVDEC_DECODING_UNIT_INFO; }
 
   seiDecodingUnitInfo()
   {
@@ -365,6 +368,7 @@ public:
     ::memset(m_duSptCpbRemovalDelayIncrement, 0, sizeof(m_duSptCpbRemovalDelayIncrement));
   }
   virtual ~seiDecodingUnitInfo() {}
+
   int  m_decodingUnitIdx = 0;
   bool m_duiSubLayerDelaysPresentFlag[7];
   int  m_duSptCpbRemovalDelayIncrement[7];
@@ -375,7 +379,7 @@ public:
 class seiFrameFieldInfo : public SEI_internal
 {
 public:
-  SEIPayloadType payloadType() const { return FRAME_FIELD_INFO; }
+  SEIPayloadType payloadType() const { return VVDEC_FRAME_FIELD_INFO; }
 
   seiFrameFieldInfo()
   {}
@@ -395,7 +399,7 @@ public:
 class seiFramePacking : public SEI_internal
 {
 public:
-  SEIPayloadType payloadType() const { return FRAME_PACKING; }
+  SEIPayloadType payloadType() const { return VVDEC_FRAME_PACKING; }
 
   seiFramePacking() {}
   virtual ~seiFramePacking() {}
@@ -423,7 +427,7 @@ public:
 class seiParameterSetsInclusionIndication : public SEI_internal
 {
 public:
-  SEIPayloadType payloadType() const { return PARAMETER_SETS_INCLUSION_INDICATION; }
+  SEIPayloadType payloadType() const { return VVDEC_PARAMETER_SETS_INCLUSION_INDICATION; }
   seiParameterSetsInclusionIndication() {}
   virtual ~seiParameterSetsInclusionIndication() {}
 
@@ -433,7 +437,7 @@ public:
 class seiMasteringDisplayColourVolume : public SEI_internal
 {
 public:
-    SEIPayloadType payloadType() const { return MASTERING_DISPLAY_COLOUR_VOLUME; }
+    SEIPayloadType payloadType() const { return VVDEC_MASTERING_DISPLAY_COLOUR_VOLUME; }
     seiMasteringDisplayColourVolume()
     {
       ::memset(primaries  , 0, sizeof(primaries));
@@ -450,7 +454,7 @@ public:
 class seiScalableNesting : public SEI_internal
 {
 public:
-  SEIPayloadType payloadType() const { return SCALABLE_NESTING; }
+  SEIPayloadType payloadType() const { return VVDEC_SCALABLE_NESTING; }
 
   seiScalableNesting()
   {
@@ -484,10 +488,9 @@ public:
 class seiAlternativeTransferCharacteristics : public SEI_internal
 {
 public:
-  SEIPayloadType payloadType() const { return ALTERNATIVE_TRANSFER_CHARACTERISTICS; }
+  SEIPayloadType payloadType() const { return VVDEC_ALTERNATIVE_TRANSFER_CHARACTERISTICS; }
 
-  seiAlternativeTransferCharacteristics() : m_preferredTransferCharacteristics(18)
-  { }
+  seiAlternativeTransferCharacteristics() : m_preferredTransferCharacteristics(18) {}
 
   virtual ~seiAlternativeTransferCharacteristics() {}
 
@@ -497,7 +500,7 @@ public:
 class seiUserDataRegistered : public SEI_internal
 {
 public:
-  SEIPayloadType payloadType() const { return USER_DATA_REGISTERED_ITU_T_T35; }
+  SEIPayloadType payloadType() const { return VVDEC_USER_DATA_REGISTERED_ITU_T_T35; }
 
   seiUserDataRegistered() {}
   virtual ~seiUserDataRegistered() {}
@@ -509,7 +512,7 @@ public:
 class seiFilmGrainCharacteristics : public SEI_internal
 {
 public:
-  SEIPayloadType payloadType() const { return FILM_GRAIN_CHARACTERISTICS; }
+  SEIPayloadType payloadType() const { return VVDEC_FILM_GRAIN_CHARACTERISTICS; }
 
   seiFilmGrainCharacteristics() {}
   virtual ~seiFilmGrainCharacteristics() {}
@@ -547,7 +550,7 @@ public:
 class seiContentLightLevelInfo : public SEI_internal
 {
 public:
-  SEIPayloadType payloadType() const { return CONTENT_LIGHT_LEVEL_INFO; }
+  SEIPayloadType payloadType() const { return VVDEC_CONTENT_LIGHT_LEVEL_INFO; }
   seiContentLightLevelInfo() { }
 
   virtual ~seiContentLightLevelInfo() { }
@@ -559,7 +562,7 @@ public:
 class seiAmbientViewingEnvironment : public SEI_internal
 {
 public:
-  SEIPayloadType payloadType() const { return AMBIENT_VIEWING_ENVIRONMENT; }
+  SEIPayloadType payloadType() const { return VVDEC_AMBIENT_VIEWING_ENVIRONMENT; }
   seiAmbientViewingEnvironment() { }
 
   virtual ~seiAmbientViewingEnvironment() { }
@@ -572,7 +575,7 @@ public:
 class seiContentColourVolume : public SEI_internal
 {
 public:
-  SEIPayloadType payloadType() const { return CONTENT_COLOUR_VOLUME; }
+  SEIPayloadType payloadType() const { return VVDEC_CONTENT_COLOUR_VOLUME; }
   seiContentColourVolume()
   {
     ::memset(m_ccvPrimariesX , 0, sizeof(m_ccvPrimariesX));
@@ -597,7 +600,7 @@ public:
 class seiSubpicureLevelInfo : public SEI_internal
 {
 public:
-  SEIPayloadType payloadType() const { return SUBPICTURE_LEVEL_INFO; }
+  SEIPayloadType payloadType() const { return VVDEC_SUBPICTURE_LEVEL_INFO; }
   seiSubpicureLevelInfo()
   {}
   virtual ~seiSubpicureLevelInfo() {}

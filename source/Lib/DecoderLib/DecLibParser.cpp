@@ -191,7 +191,7 @@ Picture* DecLibParser::parse( InputNALUnit& nalu, int* pSkipFrame )
       m_pictureSeiNalus.emplace_back( nalu );
       const SPS *sps = m_parameterSetManager.getActiveSPS();
       const VPS *vps = m_parameterSetManager.getVPS( sps->getVPSId() );
-      m_seiReader.parseSEImessage( &( nalu.getBitstream() ), m_pcParsePic->SEIs, nalu.m_nalUnitType, nalu.m_nuhLayerId, nalu.m_temporalId, vps, sps, m_HRD, m_pDecodedSEIOutputStream );
+      m_seiReader.parseSEImessage( &( nalu.getBitstream() ), m_pcParsePic->SEIs, m_pcParsePic->seiMessageList, nalu.m_nalUnitType, nalu.m_nuhLayerId, nalu.m_temporalId, vps, sps, m_HRD, m_pDecodedSEIOutputStream );
 
       if( m_parseFrameDelay == 0 )  // else it has to be done in finishPicture()
       {
@@ -1075,7 +1075,9 @@ Picture * DecLibParser::xActivateParameterSets( const int layerId )
     pcPic->topField = false;
     // transfer any SEI messages that have been received to the picture
     pcPic->SEIs = m_SEIs;
+    pcPic->seiMessageList = m_seiMessageList;
     m_SEIs.clear();
+    m_seiMessageList.clear();
   }
   else
   {
@@ -1136,7 +1138,7 @@ Picture * DecLibParser::xActivateParameterSets( const int layerId )
     {
       // Currently only decoding Unit SEI message occurring between VCL NALUs copied
       seiMessages & picSEI            = pcPic->SEIs;
-      seiMessages   decodingUnitInfos = SEI_internal::extractSeisByType( picSEI, DECODING_UNIT_INFO );
+      seiMessages   decodingUnitInfos = SEI_internal::extractSeisByType( picSEI, VVDEC_DECODING_UNIT_INFO );
       picSEI.insert( picSEI.end(), decodingUnitInfos.begin(), decodingUnitInfos.end() );
       SEI_internal::deleteSEIs   ( m_SEIs );
     }
@@ -1421,7 +1423,7 @@ void DecLibParser::xParsePrefixSEImessages()
     InputNALUnit& nalu = m_prefixSEINALUs.front();
     const SPS *sps = m_parameterSetManager.getActiveSPS();
     const VPS *vps = m_parameterSetManager.getVPS(sps->getVPSId());
-    m_seiReader.parseSEImessage( &(nalu.getBitstream()), m_SEIs, nalu.m_nalUnitType, nalu.m_nuhLayerId, nalu.m_temporalId, vps, sps, m_HRD, m_pDecodedSEIOutputStream );
+    m_seiReader.parseSEImessage( &(nalu.getBitstream()), m_SEIs, m_seiMessageList, nalu.m_nalUnitType, nalu.m_nuhLayerId, nalu.m_temporalId, vps, sps, m_HRD, m_pDecodedSEIOutputStream );
     m_prefixSEINALUs.pop_front();
   }
 }

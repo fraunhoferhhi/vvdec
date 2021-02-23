@@ -377,7 +377,7 @@ void DecLib::checkPictureHashSEI( Picture* pcPic )
 
   CHECK( !pcPic->reconstructed, "picture not reconstructed" );
 
-  seiMessages           pictureHashes = SEI_internal::getSeisByType( pcPic->SEIs, DECODED_PICTURE_HASH );
+  seiMessages           pictureHashes = SEI_internal::getSeisByType( pcPic->SEIs, VVDEC_DECODED_PICTURE_HASH );
   const seiDecodedPictureHash* hash   = pictureHashes.size() > 0 ? (seiDecodedPictureHash*)pictureHashes.front() : nullptr;
   if( pictureHashes.empty() )
   {

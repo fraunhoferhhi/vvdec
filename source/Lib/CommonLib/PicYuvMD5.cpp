@@ -255,19 +255,19 @@ int calcAndPrintHashStatus(const CPelUnitBuf& pic, const seiDecodedPictureHash* 
   {
     switch (pictureHashSEI->method)
     {
-      case HashType::HASHTYPE_MD5:
+      case HashType::VVDEC_HASHTYPE_MD5:
         {
           hashType = "MD5";
           numChar = calcMD5(pic, recon_digest, bitDepths);
           break;
         }
-      case HashType::HASHTYPE_CRC:
+      case HashType::VVDEC_HASHTYPE_CRC:
         {
           hashType = "CRC";
           numChar = calcCRC(pic, recon_digest, bitDepths);
           break;
         }
-      case HashType::HASHTYPE_CHECKSUM:
+      case HashType::VVDEC_HASHTYPE_CHECKSUM:
         {
           hashType = "Checksum";
           numChar = calcChecksum(pic, recon_digest, bitDepths);

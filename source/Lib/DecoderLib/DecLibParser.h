@@ -125,6 +125,8 @@ private:
 
   seiMessages               m_SEIs;       ///< List of SEI messages that have been received before the first slice and between slices,
                                           ///< excluding prefix SEIs...
+  std::list<vvdec_sei_message_t*> m_seiMessageList;
+
   HRD                       m_HRD;
   
   NoMallocThreadPool*       m_threadPool = nullptr;
