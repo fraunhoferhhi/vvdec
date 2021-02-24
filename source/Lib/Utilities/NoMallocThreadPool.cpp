@@ -60,6 +60,18 @@ const static auto BUSY_WAIT_TIME = [] {
   return std::chrono::milliseconds( 1 );
 }();
 
+class ScopeIncDecCounter
+{
+  std::atomic_uint& m_cntr;
+
+public:
+  explicit ScopeIncDecCounter( std::atomic_uint& counter ): m_cntr( counter ) { m_cntr.fetch_add( 1, std::memory_order_relaxed ); }
+  ~ScopeIncDecCounter()                                                       { m_cntr.fetch_sub( 1, std::memory_order_relaxed ); }
+
+  ScopeIncDecCounter( const ScopeIncDecCounter& ) = delete;
+  ScopeIncDecCounter( ScopeIncDecCounter&& )      = delete;
+};
+
 // ---------------------------------------------------------------------------
 // Thread Pool
 // ---------------------------------------------------------------------------
@@ -158,7 +170,8 @@ void NoMallocThreadPool::threadProc( int threadId )
       std::unique_lock<std::mutex> l( m_idleMutex, std::defer_lock );
 
       ITT_TASKSTART( itt_domain_thrd, itt_handle_TPspinWait );
-      m_waitingThreads.fetch_add( 1, std::memory_order_relaxed );
+      ScopeIncDecCounter cntr( m_waitingThreads );
+
       const auto startWait = std::chrono::steady_clock::now();
       while( !m_exitThreads )
       {
@@ -182,7 +195,7 @@ void NoMallocThreadPool::threadProc( int threadId )
           std::this_thread::yield();
         }
       }
-      m_waitingThreads.fetch_sub( 1, std::memory_order_relaxed );
+
       ITT_TASKEND( itt_domain_thrd, itt_handle_TPspinWait );
     }
     if( m_exitThreads )
