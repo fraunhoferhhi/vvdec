@@ -438,6 +438,11 @@ public:
           t.barriers   = std::move( barriers );
           t.state      = WAITING;
 
+          {
+            std::unique_lock<std::mutex> lock(m_workMutex);
+            m_threadCV.notify_all();
+          }
+
 #if ADD_TASK_THREAD_SAFE
           l.lock();
 #endif
@@ -474,8 +479,9 @@ private:
 #if ADD_TASK_THREAD_SAFE
   std::mutex               m_nextFillSlotMutex;
 #endif
-  std::mutex               m_idleMutex;
-  std::atomic_uint         m_waitingThreads{ 0 };
+
+  std::mutex               m_workMutex;
+  std::condition_variable  m_threadCV;
 
   // internal functions
   void         threadProc  ( int threadId );

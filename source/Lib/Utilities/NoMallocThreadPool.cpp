@@ -67,9 +67,7 @@ NoMallocThreadPool::NoMallocThreadPool( int numThreads, const char * threadPoolN
 
 NoMallocThreadPool::~NoMallocThreadPool()
 {
-  m_exitThreads = true;
-
-  waitForThreads();
+  shutdown(true);
 }
 
 bool NoMallocThreadPool::processTasksOnMainThread()
@@ -114,6 +112,10 @@ bool NoMallocThreadPool::processTasksOnMainThread()
 void NoMallocThreadPool::shutdown( bool block )
 {
   m_exitThreads = true;
+  {
+    std::unique_lock<std::mutex> lock(m_workMutex);
+    m_threadCV.notify_all();
+  }
   if( block )
   {
     waitForThreads();
@@ -139,52 +141,31 @@ void NoMallocThreadPool::threadProc( int threadId )
   }
 #endif
 
+  std::unique_lock<std::mutex> lock(m_workMutex);
   auto nextTaskIt = m_tasks.begin();
-  while( !m_exitThreads )
+  while ( !m_exitThreads)
   {
-    auto taskIt = findNextTask( threadId, nextTaskIt );
-    if( !taskIt.isValid() )
-    {
-      std::unique_lock<std::mutex> l( m_idleMutex, std::defer_lock );
+    m_threadCV.wait(lock);
 
-      ITT_TASKSTART( itt_domain_thrd, itt_handle_TPspinWait );
-      m_waitingThreads.fetch_add( 1, std::memory_order_relaxed );
-      const auto startWait = std::chrono::steady_clock::now();
-      while( !m_exitThreads )
-      {
-        taskIt = findNextTask( threadId, nextTaskIt );
-        if( taskIt.isValid() || m_exitThreads )
-        {
-          break;
-        }
-
-        if( !l.owns_lock()
-            && m_waitingThreads.load( std::memory_order_relaxed ) > 1
-            && ( BUSY_WAIT_TIME.count() == 0 || std::chrono::steady_clock::now() - startWait > BUSY_WAIT_TIME )
-            && !m_exitThreads )
-        {
-          ITT_TASKSTART(itt_domain_thrd, itt_handle_TPblocked);
-          l.lock();
-          ITT_TASKEND(itt_domain_thrd, itt_handle_TPblocked);
-        }
-        else
-        {
-          std::this_thread::yield();
-        }
-      }
-      m_waitingThreads.fetch_sub( 1, std::memory_order_relaxed );
-      ITT_TASKEND( itt_domain_thrd, itt_handle_TPspinWait );
-    }
-    if( m_exitThreads )
+    if (m_exitThreads)
     {
       return;
     }
 
-    processTask( threadId, *taskIt );
-
-    nextTaskIt = taskIt;
-    nextTaskIt.incWrap();
+    auto taskIt = findNextTask( threadId, nextTaskIt );
+    while ( taskIt.isValid() && !m_exitThreads )
+    {
+      lock.unlock();
+      processTask( threadId, *taskIt );
+      lock.lock();
+      nextTaskIt = taskIt;
+      nextTaskIt.incWrap();
+      taskIt = findNextTask( threadId, nextTaskIt );
+      m_threadCV.notify_all();
+    }
   }
+
+  return;
 }
 
 NoMallocThreadPool::TaskIterator NoMallocThreadPool::findNextTask( int threadId, TaskIterator startSearch )
