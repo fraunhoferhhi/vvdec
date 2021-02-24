@@ -1162,7 +1162,7 @@ void SEIReader::xParseSEIMasteringDisplayColourVolume( vvdec_sei_message_t* s, u
   
   CHECK ( !s->size, "vvdec_sei_mastering_display_colour_volume_t no payload" );
   vvdec_sei_mastering_display_colour_volume_t* sei =(vvdec_sei_mastering_display_colour_volume_t*)s->payload;
-  ::memset(s, 0, sizeof(vvdec_sei_mastering_display_colour_volume_t));
+  ::memset(sei, 0, sizeof(vvdec_sei_mastering_display_colour_volume_t));
 
   sei_read_code( pDecodedMessageOutputStream, 16, code, "display_primaries_x[0]" ); sei->primaries[0][0] = code;
   sei_read_code( pDecodedMessageOutputStream, 16, code, "display_primaries_y[0]" ); sei->primaries[0][1] = code;

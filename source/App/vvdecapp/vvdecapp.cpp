@@ -334,6 +334,15 @@ int main( int argc, char* argv[] )
             uiBitrate += pcFrame->m_pcPicExtendedAttributes->m_uiBits;
           }
 
+#if 0
+          vvdec_sei_message_t *sei = vvdec_find_frame_sei( dec, VVDEC_CONTENT_LIGHT_LEVEL_INFO, pcFrame );
+          if( sei )
+          {
+            vvdec_sei_content_light_level_info_t* p = reinterpret_cast<vvdec_sei_content_light_level_info_t *>(sei->payload);
+            std::cout << "vvdecapp [info]: CONTENT_LIGHT_LEVEL_INFO: " << p->m_maxContentLightLevel << "," << p->m_maxPicAverageLightLevel << std::endl;
+          }
+#endif
+
           if( cRecFile.is_open() )
           {
             if( 0 != writeYUVToFile( outStream, pcFrame ) )
@@ -417,7 +426,7 @@ int main( int argc, char* argv[] )
     }
 
     cTPEndRun = std::chrono::steady_clock::now();
-    double dTimeSec = std::chrono::duration_cast<std::chrono::seconds>((cTPEndRun)-(cTPStartRun)).count();
+    double dTimeSec = std::chrono::duration_cast<std::chrono::milliseconds>((cTPEndRun)-(cTPStartRun)).count() / 1000.0;
 
     double dFps = dTimeSec ? ((double)uiFrames / dTimeSec) : uiFrames;
     dFpsPerLoopVec.push_back( dFps );
