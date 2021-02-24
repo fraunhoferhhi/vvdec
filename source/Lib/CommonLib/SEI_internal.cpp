@@ -81,23 +81,9 @@ const char *SEI_internal::getSEIMessageString(SEIPayloadType payloadType)
   }
 }
 
-std::list<SEI_internal*> SEI_internal::getSeisByType(const std::list<SEI_internal*> &seiList, SEIPayloadType seiType)
+seiMessages SEI_internal::getSeisByType(const seiMessages &seiList, SEIPayloadType seiType)
 {
-  std::list<SEI_internal*> result;
-
-  for (std::list<SEI_internal*>::const_iterator it=seiList.begin(); it!=seiList.end(); it++)
-  {
-    if ((*it)->payloadType() == seiType)
-    {
-      result.push_back(*it);
-    }
-  }
-  return result;
-}
-
-std::list<vvdec_sei_message*> SEI_internal::getSeisByType(const std::list<vvdec_sei_message*> &seiList, SEIPayloadType seiType)
-{
-  std::list<vvdec_sei_message*> result;
+  seiMessages result;
 
   for( auto& s : seiList )
   {
@@ -109,29 +95,10 @@ std::list<vvdec_sei_message*> SEI_internal::getSeisByType(const std::list<vvdec_
   return result;
 }
 
-std::list<SEI_internal*> SEI_internal::extractSeisByType(std::list<SEI_internal*> &seiList, SEIPayloadType seiType)
+seiMessages SEI_internal::extractSeisByType(seiMessages &seiList, SEIPayloadType seiType)
 {
-  std::list<SEI_internal*> result;
-  std::list<SEI_internal*>::iterator it=seiList.begin();
-  while ( it!=seiList.end() )
-  {
-    if ((*it)->payloadType() == seiType)
-    {
-      result.push_back(*it);
-      it = seiList.erase(it);
-    }
-    else
-    {
-      it++;
-    }
-  }
-  return result;
-}
-
-std::list<vvdec_sei_message*> SEI_internal::extractSeisByType(std::list<vvdec_sei_message*> &seiList, SEIPayloadType seiType)
-{
-  std::list<vvdec_sei_message*> result;
-  std::list<vvdec_sei_message*>::iterator it=seiList.begin();
+  seiMessages result;
+  seiMessages::iterator it=seiList.begin();
   while ( it!=seiList.end() )
   {
     if ((*it)->payloadType == seiType)
@@ -147,17 +114,7 @@ std::list<vvdec_sei_message*> SEI_internal::extractSeisByType(std::list<vvdec_se
   return result;
 }
 
-
-void SEI_internal::deleteSEIs (std::list<SEI_internal*> &seiList)
-{
-  for (std::list<SEI_internal*>::iterator it=seiList.begin(); it!=seiList.end(); it++)
-  {
-    delete (*it);
-  }
-  seiList.clear();
-}
-
-void SEI_internal::deleteSEIs (std::list<vvdec_sei_message*> &seiList)
+void SEI_internal::deleteSEIs ( seiMessages &seiList)
 {
   for( auto &sei : seiList )
   {
@@ -165,7 +122,7 @@ void SEI_internal::deleteSEIs (std::list<vvdec_sei_message*> &seiList)
     {
       if( sei->payload )
           free( sei->payload );
-      free( sei );
+      delete sei ;
     }
   }
   seiList.clear();
@@ -173,7 +130,8 @@ void SEI_internal::deleteSEIs (std::list<vvdec_sei_message*> &seiList)
 
 vvdec_sei_message_t* SEI_internal::allocSEI( SEIPayloadType payloadType )
 {
-  vvdec_sei_message_t* sei = (vvdec_sei_message_t*) malloc(sizeof(vvdec_sei_message_t));
+  vvdec_sei_message_t* sei = new vvdec_sei_message_t;
+
   if( sei )
   {
     sei->payload     = NULL;

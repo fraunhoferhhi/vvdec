@@ -123,9 +123,8 @@ private:
 
   std::ostream*             m_pDecodedSEIOutputStream = nullptr;
 
-  seiMessages               m_SEIs;       ///< List of SEI messages that have been received before the first slice and between slices,
-                                          ///< excluding prefix SEIs...
-  std::list<vvdec_sei_message_t*> m_seiMessageList;
+  seiMessages               m_seiMessageList;       ///< List of SEI messages that have been received before the first slice and between slices,
+                                                    ///< excluding prefix SEIs...
 
   HRD                       m_HRD;
   

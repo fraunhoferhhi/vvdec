@@ -71,12 +71,12 @@ class SEIReader: public VLCReader
 public:
   SEIReader() {};
   virtual ~SEIReader() {};
-  void parseSEImessage(InputBitstream* bs, seiMessages& seis, std::list<vvdec_sei_message_t*>& seiList,
+  void parseSEImessage(InputBitstream* bs, seiMessages& seiList,
                        const NalUnitType nalUnitType, const uint32_t nuh_layer_id, const uint32_t temporalId,
                        const VPS *vps, const SPS *sps, HRD &hrd, std::ostream *pDecodedMessageOutputStream);
 
 protected:
-  void xReadSEImessage                        (seiMessages& seis, std::list<vvdec_sei_message_t*>& seiList, const NalUnitType nalUnitType, const uint32_t nuh_layer_id, const uint32_t temporalId, const VPS *vps, const SPS *sps, HRD &hrd, std::ostream *pDecodedMessageOutputStream);
+  void xReadSEImessage                        (seiMessages& seiList, const NalUnitType nalUnitType, const uint32_t nuh_layer_id, const uint32_t temporalId, const VPS *vps, const SPS *sps, HRD &hrd, std::ostream *pDecodedMessageOutputStream);
   void xParseSEIuserDataUnregistered          (vvdec_sei_message_t* s,    uint32_t payloadSize,                     std::ostream *pDecodedMessageOutputStream);
   void xParseSEIDecodingUnitInfo              (vvdec_sei_message_t* s,    uint32_t payloadSize, const vvdec_sei_buffering_period_t& bp, const uint32_t temporalId, std::ostream *pDecodedMessageOutputStream);
   void xParseSEIDecodedPictureHash            (vvdec_sei_message_t* s,    uint32_t payloadSize,                     std::ostream *pDecodedMessageOutputStream);
@@ -84,7 +84,7 @@ protected:
   void xParseSEIPictureTiming                 (vvdec_sei_message_t* s,    uint32_t payloadSize, const uint32_t temporalId, const vvdec_sei_buffering_period_t& bp, std::ostream *pDecodedMessageOutputStream);
   void xParseSEIScalableNesting               (vvdec_sei_message_t* s, const NalUnitType nalUnitType, const uint32_t nuhLayerId, uint32_t payloadSize, const VPS *vps, const SPS *sps, std::ostream *decodedMessageOutputStream);
   void xCheckScalableNestingConstraints       (const vvdec_sei_scalable_nesting_t* sei, const NalUnitType nalUnitType, const VPS* vps);
-  void xParseSEIFrameFieldinfo                (vvdec_sei_message_t* s, const seiPictureTiming& pt, uint32_t payloadSize, std::ostream *pDecodedMessageOutputStream);
+  void xParseSEIFrameFieldinfo                (vvdec_sei_message_t* s, const vvdec_sei_picture_timing_t& pt, uint32_t payloadSize, std::ostream *pDecodedMessageOutputStream);
   void xParseSEIDependentRAPIndication        (vvdec_sei_message_t* s,    uint32_t payLoadSize,                     std::ostream *pDecodedMessageOutputStream);
   void xParseSEIFramePacking                  (vvdec_sei_message_t* s,    uint32_t payloadSize,                     std::ostream *pDecodedMessageOutputStream);
   void xParseSEIParameterSetsInclusionIndication(vvdec_sei_message_t* s,  uint32_t payloadSize,                     std::ostream* pDecodedMessageOutputStream);

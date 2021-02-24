@@ -121,15 +121,6 @@ void SEIReader::sei_read_flag(std::ostream *pOS, uint32_t& ruiCode, const char *
   }
 }
 
-static inline void output_sei_message_header(SEI_internal &sei, std::ostream *pDecodedMessageOutputStream, uint32_t payloadSize)
-{
-  if (pDecodedMessageOutputStream)
-  {
-    std::string seiMessageHdr(SEI_internal::getSEIMessageString(sei.payloadType())); seiMessageHdr+=" SEI message";
-    (*pDecodedMessageOutputStream) << std::setfill('-') << std::setw(seiMessageHdr.size()) << "-" << std::setfill(' ') << "\n" << seiMessageHdr << " (" << payloadSize << " bytes)"<< "\n";
-  }
-}
-
 static inline void output_sei_message_header(vvdec_sei_message_t* sei, std::ostream *pDecodedMessageOutputStream, uint32_t payloadSize)
 {
   if (pDecodedMessageOutputStream)
@@ -149,23 +140,21 @@ static inline void output_sei_message_header(vvdec_sei_message_t* sei, std::ostr
 /**
  * unmarshal a single SEI message from bitstream bs
  */
-void SEIReader::parseSEImessage(InputBitstream* bs, seiMessages& seis, std::list<vvdec_sei_message_t*>& seiList,
+void SEIReader::parseSEImessage(InputBitstream* bs, seiMessages& seiList,
                                 const NalUnitType nalUnitType, const uint32_t nuh_layer_id, const uint32_t temporalId,
                                 const VPS *vps, const SPS *sps, HRD &hrd, std::ostream *pDecodedMessageOutputStream )
 {
 #if JVET_S0178_GENERAL_SEI_CHECK
-  seiMessages   seiListInCurNalu;
-  std::list<vvdec_sei_message_t*> seiListInCurNalu2;
+  seiMessages seiListInCurNalu;
 #endif
   setBitstream(bs);
   CHECK(m_pcBitstream->getNumBitsUntilByteAligned(), "Bitstream not aligned");
 
   do
   {
-    xReadSEImessage(seis, seiList, nalUnitType, nuh_layer_id, temporalId, vps, sps, hrd, pDecodedMessageOutputStream);
+    xReadSEImessage( seiList, nalUnitType, nuh_layer_id, temporalId, vps, sps, hrd, pDecodedMessageOutputStream);
 #if JVET_S0178_GENERAL_SEI_CHECK
-    if( !seis.empty() ){  seiListInCurNalu.push_back(seis.back()); }
-    if( !seiList.empty() ){  seiListInCurNalu2.push_back(seiList.back()); }
+    if( !seiList.empty() ){  seiListInCurNalu.push_back(seiList.back()); }
 #endif
     /* SEI messages are an integer number of bytes, something has failed
     * in the parsing if bitstream not byte-aligned */
@@ -181,7 +170,7 @@ void SEIReader::parseSEImessage(InputBitstream* bs, seiMessages& seis, std::list
   xReadRbspTrailingBits();
 }
 
-void SEIReader::xReadSEImessage(seiMessages& seis, std::list<vvdec_sei_message_t*>& seiList, const NalUnitType nalUnitType, const uint32_t nuh_layer_id,
+void SEIReader::xReadSEImessage( seiMessages& seiList, const NalUnitType nalUnitType, const uint32_t nuh_layer_id,
                                 const uint32_t temporalId, const VPS *vps, const SPS *sps, HRD &hrd, std::ostream *pDecodedMessageOutputStream)
 {
 #if ENABLE_TRACING
@@ -216,9 +205,8 @@ void SEIReader::xReadSEImessage(seiMessages& seis, std::list<vvdec_sei_message_t
   InputBitstream *bs = getBitstream();
   setBitstream(bs->extractSubstream(payloadSize * 8));
 
-  SEI_internal  *sei = NULL;
   const vvdec_sei_buffering_period_t *bp = NULL;
-  const seiPictureTiming *pt = NULL;
+  const vvdec_sei_picture_timing_t   *pt = NULL;
 
   vvdec_sei_message_t *s =   SEI_internal::allocSEI( (SEIPayloadType)payloadType );
 
@@ -398,11 +386,6 @@ void SEIReader::xReadSEImessage(seiMessages& seis, std::list<vvdec_sei_message_t
     }
   }
 
-  if (sei != NULL)
-  {
-    seis.push_back(sei);
-  }
-
   if( s != NULL && s->size )
   {
     seiList.push_back(s);
@@ -512,7 +495,6 @@ void SEIReader::xParseSEIDecodedPictureHash(vvdec_sei_message_t* s, uint32_t pay
 void SEIReader::xParseSEIScalableNesting(vvdec_sei_message_t* s, const NalUnitType nalUnitType, const uint32_t nuhLayerId, uint32_t payloadSize, const VPS *vps, const SPS *sps, std::ostream *decodedMessageOutputStream)
 {
   uint32_t symbol;
-  seiMessages seis;
   output_sei_message_header(s, decodedMessageOutputStream, payloadSize);
 
   CHECK ( !s->size, "vvdec_sei_scalable_nesting_t no payload" );
@@ -590,17 +572,15 @@ void SEIReader::xParseSEIScalableNesting(vvdec_sei_message_t* s, const NalUnitTy
   // read nested SEI messages
   for (uint32_t i=0; i<sei->m_snNumSEIs; i++)
   {
-    seiMessages tmpSEIs;
-    std::list<vvdec_sei_message_t*> tmpSeiList;
-    xReadSEImessage(tmpSEIs, tmpSeiList, nalUnitType, nuhLayerId, 0, vps, sps, m_nestedHrd, decodedMessageOutputStream);
+    seiMessages tmpSeiList;
+    xReadSEImessage(tmpSeiList, nalUnitType, nuhLayerId, 0, vps, sps, m_nestedHrd, decodedMessageOutputStream);
 
     if (tmpSeiList.front()->payloadType == VVDEC_BUFFERING_PERIOD)
     {
-      vvdec_sei_buffering_period_t *bp = (vvdec_sei_buffering_period_t*) tmpSEIs.front();
+      vvdec_sei_buffering_period_t *bp = (vvdec_sei_buffering_period_t*) tmpSeiList.front();
       m_nestedHrd.setBufferingPeriodSEI(bp);
     }
     sei->m_nestedSEIs[i] = tmpSeiList.front();
-    tmpSEIs.clear();
     tmpSeiList.clear();
   }
 
@@ -636,7 +616,7 @@ void SEIReader::xCheckScalableNestingConstraints(const vvdec_sei_scalable_nestin
     CHECK(vps->getGeneralHrdParameters()->getGeneralSamePicTimingInAllOlsFlag() && nestedsei->payloadType == VVDEC_PICTURE_TIMING, "When general_same_pic_timing_in_all_ols_flag is equal to 1, there shall be no SEI NAL unit that contain a scalable-nested SEI message with payloadType equal to PT");
 #endif
 
-    for (int i = 0; i < vclAssociatedSeiList.size(); i++)
+    for (int i = 0; i < (int)vclAssociatedSeiList.size(); i++)
     {
       CHECK(nestedsei->payloadType == vclAssociatedSeiList[i] && sei->m_snOlsFlag, "When the scalable nesting SEI message contains an SEI message that has payloadType equal to a value in vclAssociatedSeiList, the value of sn_ols_flag shall be equal to 0");
     }
@@ -1072,7 +1052,7 @@ void SEIReader::xParseSEIPictureTiming(vvdec_sei_message_t* s, uint32_t payloadS
 #endif
 }
 
-void SEIReader::xParseSEIFrameFieldinfo(vvdec_sei_message_t* s, const seiPictureTiming& pt, uint32_t payloadSize, std::ostream *pDecodedMessageOutputStream)
+void SEIReader::xParseSEIFrameFieldinfo(vvdec_sei_message_t* s, const vvdec_sei_picture_timing_t& pt, uint32_t payloadSize, std::ostream *pDecodedMessageOutputStream)
 {
   uint32_t symbol;
   output_sei_message_header(s, pDecodedMessageOutputStream, payloadSize);

@@ -244,8 +244,7 @@ public:
   CodingStructure*   cs    = nullptr;
   std::vector<Slice*> slices;
 
-  seiMessages                     SEIs;
-  std::list<vvdec_sei_message_t*> seiMessageList;
+  seiMessages        seiMessageList;
 
   bool               isRefScaled( const PPS* pps ) const
   {
