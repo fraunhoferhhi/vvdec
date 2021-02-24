@@ -176,8 +176,6 @@ int VVDecImpl::uninit()
 
      if( NULL != pic.m_pcPicExtendedAttributes )
      {
-       //sei::deleteSEIs( pic.m_pcPicExtendedAttributes->m_cSeiMsgLst );
-
        if( NULL != pic.m_pcPicExtendedAttributes->m_pcVui )
        {
          delete pic.m_pcPicExtendedAttributes->m_pcVui;
@@ -580,8 +578,6 @@ int VVDecImpl::objectUnref( vvdec_Frame* pcFrame )
 
       if( NULL != pic.m_pcPicExtendedAttributes )
       {
-         //sei::deleteSEIs( pic.m_pcPicExtendedAttributes->m_cSeiMsgLst );
-
          if( NULL != pic.m_pcPicExtendedAttributes->m_pcVui )
          {
            delete pic.m_pcPicExtendedAttributes->m_pcVui;

@@ -748,19 +748,20 @@ public:
   const OlsHrdParams&    getOlsHrdParameters() const { return m_olsHrdParams[0]; }
 
 
-  void                       setBufferingPeriodSEI(const seiBufferingPeriod* bp)  { m_bufferingPeriodSEI = *bp; m_bufferingPeriodInitialized = true; }
-  const seiBufferingPeriod*  getBufferingPeriodSEI() const                        { return m_bufferingPeriodInitialized ? &m_bufferingPeriodSEI : nullptr; }
+  void                                setBufferingPeriodSEI(const vvdec_sei_buffering_period_t* bp)  { m_bufferingPeriodSEI = *bp; m_bufferingPeriodInitialized = true; }
+  const vvdec_sei_buffering_period_t* getBufferingPeriodSEI() const                        { return m_bufferingPeriodInitialized ? &m_bufferingPeriodSEI : nullptr; }
 
-  void                       setPictureTimingSEI(const seiPictureTiming* pt)  { m_pictureTimingSEI = *pt; m_pictureTimingAvailable = true; }
-  const seiPictureTiming*    getPictureTimingSEI() const                      { return m_pictureTimingAvailable ? &m_pictureTimingSEI : nullptr; }
+  void                                setPictureTimingSEI(const vvdec_sei_picture_timing_t* pt)  { m_pictureTimingSEI = *pt; m_pictureTimingAvailable = true; }
+  const vvdec_sei_picture_timing_t*   getPictureTimingSEI() const                      { return m_pictureTimingAvailable ? &m_pictureTimingSEI : nullptr; }
 
 protected:
-  GeneralHrdParams           m_generalHrdParams;
-  OlsHrdParams               m_olsHrdParams[MAX_TLAYER];
-  bool                       m_bufferingPeriodInitialized;
-  seiBufferingPeriod         m_bufferingPeriodSEI;
-  bool                       m_pictureTimingAvailable;
-  seiPictureTiming           m_pictureTimingSEI;
+  GeneralHrdParams             m_generalHrdParams;
+  OlsHrdParams                 m_olsHrdParams[MAX_TLAYER];
+  bool                         m_bufferingPeriodInitialized;
+  vvdec_sei_buffering_period_t m_bufferingPeriodSEI;
+  bool                         m_pictureTimingAvailable;
+  vvdec_sei_picture_timing_t   m_pictureTimingSEI;
+
 };
 
 

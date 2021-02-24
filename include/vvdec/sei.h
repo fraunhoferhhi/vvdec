@@ -115,7 +115,6 @@ typedef enum HashType HashType;
 
 typedef struct vvdec_sei_message
 {
-    struct vvdec_sei_message* next_sei;        /*!< next SEI in AU */
     SEIPayloadType            payloadType;     /*!< payload type as defined in sei.h */
     unsigned int              size;            /*!< size of payload in bytes */
     void                     *payload;         /*!< payload structure as defined in sei.h */
@@ -266,7 +265,8 @@ typedef struct
 {
   HashType      method;
   bool          singleCompFlag;
-  unsigned char digest[3][16];
+  int           digist_length;
+  unsigned char digest[16*3];
 }vvdec_sei_decoded_picture_hash_t;
 
 
@@ -285,7 +285,7 @@ typedef struct
   uint16_t  m_snSubpicId[600];
   uint32_t  m_snNumSEIs;
 
-  vvdec_sei_message m_nestedSEIs[64];
+  vvdec_sei_message* m_nestedSEIs[64];
 }vvdec_sei_scalable_nesting_t;
 
 typedef struct
@@ -407,7 +407,7 @@ typedef struct
   bool      m_sliSublayerInfoPresentFlag;
   int       m_nonSubpicLayersFraction[6][6];
   Level     m_refLevelIdc[6][6];
-  Level     m_refLevelFraction[6][600][6];
+  int       m_refLevelFraction[6][600][6];
 }vvdec_sei_subpicture_level_info_t;
 
 typedef struct

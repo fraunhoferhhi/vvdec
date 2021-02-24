@@ -330,7 +330,7 @@ public:
 #endif
 };
 
-int calcAndPrintHashStatus(const CPelUnitBuf& pic, const class seiDecodedPictureHash* pictureHashSEI, const BitDepths &bitDepths, const MsgLevel msgl);
+int calcAndPrintHashStatus(const CPelUnitBuf& pic, const vvdec_sei_decoded_picture_hash_t* pictureHashSEI, const BitDepths &bitDepths, const MsgLevel msgl);
 
 
 #endif

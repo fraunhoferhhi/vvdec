@@ -65,12 +65,20 @@ public:
 
   /// output a selection of SEI messages by payload type. Ownership stays in original message list.
   static std::list<SEI_internal*> getSeisByType(const std::list<SEI_internal*> &seiList, SEIPayloadType seiType);
+  static std::list<vvdec_sei_message*> getSeisByType(const std::list<vvdec_sei_message*> &seiList, SEIPayloadType seiType);
 
   /// remove a selection of SEI messages by payload type from the original list and return them in a new list.
   static std::list<SEI_internal*> extractSeisByType(std::list<SEI_internal*> &seiList, SEIPayloadType seiType);
+  static std::list<vvdec_sei_message*> extractSeisByType(std::list<vvdec_sei_message*> &seiList, SEIPayloadType seiType);
 
   /// delete list of SEI messages (freeing the referenced objects)
   static void deleteSEIs (std::list<SEI_internal*> &seiList);
+  static void deleteSEIs (std::list<vvdec_sei_message*> &seiList);
+
+  static vvdec_sei_message_t* allocSEI( SEIPayloadType payloadType );
+  static int allocSEIPayload( vvdec_sei_message_t* sei, int userDefSize = -1 );
+  static int getPayloadSize(SEIPayloadType payloadType);
+
 
   virtual SEIPayloadType payloadType() const = 0;
 };
@@ -245,6 +253,22 @@ struct PictureHash
   bool operator!=(const PictureHash &other) const
   {
     return !(*this == other);
+  }
+
+  bool equal( vvdec_sei_decoded_picture_hash_t digest ) const
+  {
+    if ((size_t)digest.digist_length != hash.size())
+    {
+      return false;
+    }
+    for(uint32_t i=0; i<uint32_t(hash.size()); i++)
+    {
+      if (digest.digest[i] != hash[i])
+      {
+        return false;
+      }
+    }
+    return true;
   }
 };
 

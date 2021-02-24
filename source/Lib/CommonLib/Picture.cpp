@@ -167,18 +167,7 @@ void Picture::destroy()
   }
   SEIs.clear();
 
-  for( auto &sei : seiMessageList )
-  {
-    while( sei )
-    {
-        vvdec_sei_message_t *next_sei = sei->next_sei;
-        if( sei->payload )
-            free( sei->payload );
-        free( sei );
-        sei = next_sei;
-    }
-    delete sei;
-  }
+  SEI_internal::deleteSEIs( seiMessageList );
   seiMessageList.clear();
 
 
@@ -205,18 +194,7 @@ void Picture::finalInit( const SPS *sps, const PPS *pps, PicHeader* picHeader, A
     delete sei;
   }
 
-  for( auto &sei : seiMessageList )
-  {
-    while( sei )
-    {
-        vvdec_sei_message_t *next_sei = sei->next_sei;
-        if( sei->payload )
-            free( sei->payload );
-        free( sei );
-        sei = next_sei;
-    }
-    delete sei;
-  }
+  SEI_internal::deleteSEIs( seiMessageList );
   seiMessageList.clear();
 
   SEIs.clear();

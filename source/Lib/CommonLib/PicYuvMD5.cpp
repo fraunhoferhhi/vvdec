@@ -244,7 +244,27 @@ std::string hashToString(const PictureHash &digest, int numChar)
   return result;
 }
 
-int calcAndPrintHashStatus(const CPelUnitBuf& pic, const seiDecodedPictureHash* pictureHashSEI, const BitDepths &bitDepths, const MsgLevel msgl)
+std::string hashToString(const vvdec_sei_decoded_picture_hash_t* digest, int numChar)
+{
+  static const char* hex = "0123456789abcdef";
+  std::string result;
+
+  CHECK(numChar<=0, "numChar needs to be >0");
+
+  for(int pos=0; pos<int(digest->digist_length); pos++)
+  {
+    if ((pos % numChar) == 0 && pos!=0 )
+    {
+      result += ',';
+    }
+    result += hex[digest->digest[pos] >> 4];
+    result += hex[digest->digest[pos] & 0xf];
+  }
+
+  return result;
+}
+
+int calcAndPrintHashStatus(const CPelUnitBuf& pic, const vvdec_sei_decoded_picture_hash_t* pictureHashSEI, const BitDepths &bitDepths, const MsgLevel msgl)
 {
   /* calculate MD5sum for entire reconstructed picture */
   PictureHash recon_digest;
@@ -288,7 +308,8 @@ int calcAndPrintHashStatus(const CPelUnitBuf& pic, const seiDecodedPictureHash* 
   if (pictureHashSEI)
   {
     ok = "(OK)";
-    if (recon_digest != pictureHashSEI->m_pictureHash)
+
+    if ( !recon_digest.equal( *pictureHashSEI ))
     {
       ok = "(***ERROR***)";
       mismatch = true;
@@ -299,7 +320,7 @@ int calcAndPrintHashStatus(const CPelUnitBuf& pic, const seiDecodedPictureHash* 
 
   if (mismatch)
   {
-    msg( msgl, "[rx%s:%s] ", hashType, hashToString(pictureHashSEI->m_pictureHash, numChar).c_str());
+    msg( msgl, "[rx%s:%s] ", hashType, hashToString(pictureHashSEI, numChar).c_str());
   }
   return mismatch;
 }

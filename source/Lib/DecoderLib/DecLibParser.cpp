@@ -1154,6 +1154,15 @@ Picture * DecLibParser::xActivateParameterSets( const int layerId )
       picSEI.insert( picSEI.end(), decodingUnitInfos.begin(), decodingUnitInfos.end() );
       SEI_internal::deleteSEIs   ( m_SEIs );
     }
+
+    if( !m_seiMessageList.empty() )
+    {
+      // Currently only decoding Unit SEI message occurring between VCL NALUs copied
+      std::list<vvdec_sei_message_t*>& picSEI = pcPic->seiMessageList;
+      std::list<vvdec_sei_message_t*> decodingUnitInfos = SEI_internal::extractSeisByType( picSEI, VVDEC_DECODING_UNIT_INFO );
+      picSEI.insert( picSEI.end(), decodingUnitInfos.begin(), decodingUnitInfos.end() );
+      SEI_internal::deleteSEIs   ( m_seiMessageList );
+    }
   }
 
   CHECK( !sps->getGDREnabledFlag() && m_picHeader->getGdrPicFlag(),
