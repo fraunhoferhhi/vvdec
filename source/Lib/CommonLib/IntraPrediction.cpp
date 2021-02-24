@@ -402,7 +402,7 @@ void IntraPrediction::init(ChromaFormat chromaFormatIDC, const unsigned bitDepth
     m_auShiftLM[i - 32] = ((1 << shift) + i / 2) / i;
   }
 
-#if   ENABLE_SIMD_OPT_INTRAPRED
+#if ENABLE_SIMD_OPT_INTRAPRED && defined( TARGET_SIMD_X86 )
   initIntraPredictionX86();
 #endif
 }

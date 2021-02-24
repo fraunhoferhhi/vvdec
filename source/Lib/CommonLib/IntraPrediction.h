@@ -85,7 +85,6 @@ private:
   PelBuf m_pelBufISP[2];
 
   Pel  m_yuvCiip[MAX_NUM_COMPONENT][MAX_CU_SIZE * MAX_CU_SIZE];
-  int  m_yuvCiipSize;
   static const uint8_t m_aucIntraFilter[MAX_NUM_CHANNEL_TYPE][MAX_INTRA_FILTER_DEPTHS];
 
   unsigned m_auShiftLM[32]; // Table for substituting division operation by multiplication
@@ -162,7 +161,7 @@ public:
 
   void ( *GetLumaRecPixel420)  (const int width,const int height, const Pel* pRecSrc0,const ptrdiff_t iRecStride,Pel* pDst0,const ptrdiff_t iDstStride);
 
-#if ENABLE_SIMD_OPT_INTRAPRED
+#if ENABLE_SIMD_OPT_INTRAPRED && defined( TARGET_SIMD_X86 )
   void initIntraPredictionX86();
   template <X86_VEXT vext>
   void _initIntraPredictionX86();

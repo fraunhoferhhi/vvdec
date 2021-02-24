@@ -51,9 +51,6 @@ THE POSSIBILITY OF SUCH DAMAGE.
 # include <pthread.h>
 #endif
 
-#include <emmintrin.h>
-
-
 NoMallocThreadPool::NoMallocThreadPool( int numThreads, const char * threadPoolName )
   : m_poolName( threadPoolName )
   , m_threads ( numThreads < 0 ? std::thread::hardware_concurrency() : numThreads )

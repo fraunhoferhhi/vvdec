@@ -1814,8 +1814,7 @@ public:
   void                    setEntropyCodingSyncEntryPointsPresentFlag(bool val)                            { m_entropyCodingSyncEntryPointPresentFlag = val;                      }
 #endif
   
-  //int                     getMaxLog2TrDynamicRange(ChannelType channelType) const                         { return getSpsRangeExtension().getExtendedPrecisionProcessingFlag() ? std::max<int>(15, int(m_bitDepths.recon[channelType] + 6)) : 15; }
-  constexpr int           getMaxLog2TrDynamicRange(ChannelType channelType) const                         { return 15; }
+  static constexpr int    getMaxLog2TrDynamicRange(ChannelType channelType) 			          { return 15; }
 
   int                     getDifferentialLumaChromaBitDepth() const                                       { return int(m_bitDepths.recon[CHANNEL_TYPE_LUMA]) - int(m_bitDepths.recon[CHANNEL_TYPE_CHROMA]); }
   int                     getQpBDOffset(ChannelType type) const                                           { return m_qpBDOffset[type];                                           }
@@ -3006,7 +3005,11 @@ public:
   bool                        getRapPicFlag() const;
   bool                        getIdrPicFlag() const                                  { return getNalUnitType() == NAL_UNIT_CODED_SLICE_IDR_W_RADL   || getNalUnitType() == NAL_UNIT_CODED_SLICE_IDR_N_LP;   }
   bool                        isIRAP() const                                         { return (getNalUnitType() >= NAL_UNIT_CODED_SLICE_IDR_W_RADL) && (getNalUnitType() <= NAL_UNIT_CODED_SLICE_CRA);      }
+#if GDR_ADJ
+  bool                        isClvssPu() const                                      { return m_eNalUnitType >= NAL_UNIT_CODED_SLICE_IDR_W_RADL && m_eNalUnitType <= NAL_UNIT_CODED_SLICE_GDR && !m_pcPPS->getMixedNaluTypesInPicFlag() && m_pcPicHeader->getNoOutputBeforeRecoveryFlag(); }
+#else
   bool                        isClvssPu() const                                      { return m_eNalUnitType >= NAL_UNIT_CODED_SLICE_IDR_W_RADL && m_eNalUnitType <= NAL_UNIT_CODED_SLICE_GDR && !m_pcPPS->getMixedNaluTypesInPicFlag(); }
+#endif
   bool                        isIDRorBLA() const                                     { return (getNalUnitType() == NAL_UNIT_CODED_SLICE_IDR_W_RADL) || (getNalUnitType() == NAL_UNIT_CODED_SLICE_IDR_N_LP); }
   void                        checkCRA( int& pocCRA, NalUnitType& associatedIRAPType, const PicListRange& rcListPic );
   void                        checkSTSA( const PicListRange& rcListPic );

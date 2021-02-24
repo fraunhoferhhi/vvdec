@@ -183,7 +183,7 @@ void LoopFilter::initLoopFilterX86()
 #endif
 
 #if ENABLE_SIMD_TCOEFF_OPS
-void TCoeffOps::initTCoeffOps()
+void TCoeffOps::initTCoeffOpsX86()
 {
   auto vext = read_x86_extension_flags();
 
@@ -191,14 +191,14 @@ void TCoeffOps::initTCoeffOps()
   {
   case AVX512:
   case AVX2:
-    _initTCoeffOps<AVX2>();
+    _initTCoeffOpsX86<AVX2>();
     break;
   case AVX:
-    _initTCoeffOps<AVX>();
+    _initTCoeffOpsX86<AVX>();
     break;
   case SSE42:
   case SSE41:
-    _initTCoeffOps<SSE41>();
+    _initTCoeffOpsX86<SSE41>();
     break;
   default:
   break;

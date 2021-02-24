@@ -1171,7 +1171,7 @@ void simdFilter7x7Blk<AVX2>( const AlfClassifier* classifier,
                              int                  vbCTUHeight,
                              int                  vbPos )
 {
-  if( blk.width & 16 )
+  if( blk.width & 15 )
   {
     simdFilter7x7Blk<SSE42>( classifier, recDst, recSrc, blk, compId, filterSet, fClipSet, clpRng, vbCTUHeight, vbPos );
     return;

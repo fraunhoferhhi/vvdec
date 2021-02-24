@@ -548,7 +548,11 @@ void AdaptiveLoopFilter::filterAreaChroma( const CPelUnitBuf& srcBuf,
   }
   else
   {
+#if ALF_FIX
+    dstBuf.get( compID ).subBuf( blkChroma ).copyFrom( srcBuf.get( compID ).subBuf( blkChroma ) );
+#else
     dstBuf.get( compID ).copyFrom( srcBuf.get( compID ) );
+#endif
   }
 
   if( slice->getTileGroupCcAlfEnabledFlag( compID - 1 ) )
@@ -609,8 +613,11 @@ void AdaptiveLoopFilter::filterCTU( const CPelUnitBuf&     srcBuf,
 
     if( chType < MAX_NUM_CHANNEL_TYPE && toChannelType( compID ) != chType )
       continue;
-
+#if ALF_FIX
+    if( !ctuEnableFlag[compIdx] && !slice->getTileGroupCcAlfEnabledFlag( compIdx-1 ) )
+#else
     if( !ctuEnableFlag[compIdx] )
+#endif
     {
       // unfiltered blocks just need to be copied to the destination
       dstBuf.get( compID ).copyFrom( srcBuf.get( compID ) );

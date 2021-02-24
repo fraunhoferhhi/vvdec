@@ -196,6 +196,10 @@ Picture* DecLibParser::parse( InputNALUnit& nalu, int* pSkipFrame )
       if( m_parseFrameDelay == 0 )  // else it has to be done in finishPicture()
       {
         // if parallel parsing is disabled, wait for the picture to finish
+        if( m_threadPool->numThreads() == 0 )
+        {
+          m_threadPool->processTasksOnMainThread();
+        }
         m_pcParsePic->done.wait();
         m_decLib.checkPictureHashSEI( m_pcParsePic );
       }
@@ -287,6 +291,14 @@ Picture* DecLibParser::getNextDecodablePicture()
   if( m_parseFrameList.empty() )
   {
     return nullptr;
+  }
+
+  if( m_threadPool->numThreads() == 0 || m_parseFrameDelay == 0 )
+  {
+    // adhere to strict decoding order if running singlethreaded
+    Picture * pic = m_parseFrameList.front();
+    m_parseFrameList.pop_front();
+    return pic;
   }
 
   // try to find next picture, that is parsed and has all reference pictures decoded
@@ -1557,7 +1569,11 @@ bool DecLibParser::isRandomAccessSkipPicture()
 {
   if (m_pocRandomAccess == MAX_INT) // start of random access point, m_pocRandomAccess has not been set yet.
   {
+#if GDR_ADJ
+    if (m_apcSlicePilot->getNalUnitType() == NAL_UNIT_CODED_SLICE_CRA || ( m_apcSlicePilot->getNalUnitType() == NAL_UNIT_CODED_SLICE_GDR && m_apcSlicePilot->getPicHeader()->getRecoveryPocCnt() == 0 ) )
+#else
     if (m_apcSlicePilot->getNalUnitType() == NAL_UNIT_CODED_SLICE_CRA )
+#endif
     {
       // set the POC random access since we need to skip the reordered pictures in the case of CRA/CRANT/BLA/BLANT.
       m_pocRandomAccess = m_apcSlicePilot->getPOC();

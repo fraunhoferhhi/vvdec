@@ -81,6 +81,9 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #define RPR_YUV_OUTPUT                                    1
 #define RPR_OUTPUT_MSG                                    1
 
+#define GDR_ADJ                                           1
+#define ALF_FIX                                           1
+
 #define TBD                                               1
 #define TBT                                               1
 #define TBC                                               0
@@ -196,7 +199,7 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #define ENABLE_SIMD_OPT_MCIF                            ( 1 && ENABLE_SIMD_OPT )                            ///< SIMD optimization for the interpolation filter, no impact on RD performance
 #define ENABLE_SIMD_OPT_BUFFER                          ( 1 && ENABLE_SIMD_OPT )                            ///< SIMD optimization for the buffer operations, no impact on RD performance
 #define ENABLE_SIMD_OPT_DIST                            ( 1 && ENABLE_SIMD_OPT )                            ///< SIMD optimization for the distortion calculations(SAD,SSE,HADAMARD), no impact on RD performance
-#define ENABLE_SIMD_OPT_ALF                             ( 1 && ENABLE_SIMD_OPT )                            ///< SIMD optimization for ALF
+#define ENABLE_SIMD_OPT_ALF                             ( 1 && ENABLE_SIMD_OPT /*&& !ALF_FIX*/ )                            ///< SIMD optimization for ALF
 #define ENABLE_SIMD_OPT_INTRAPRED                       ( 1 && ENABLE_SIMD_OPT )                            ///< SIMD optimization for Intra Prediction
 #define ENABLE_SIMD_OPT_QUANT                           ( 1 && ENABLE_SIMD_OPT )                            ///< SIMD optimization for Quant/Dequant
 #if ENABLE_SIMD_OPT_BUFFER

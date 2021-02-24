@@ -12,12 +12,44 @@ endif()
 # project name
 project( vvdec VERSION 0.2.1.0 )
 
-if( NOT CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR )
-  # enable sse4.1 build for all source files for gcc and clang
+set( VVDEC_ENABLE_X86_SIMD TRUE )
+set( VVDEC_ENABLE_ARM_SIMD FALSE )
+
+if( APPLE )
+  if( DEFINED CMAKE_OSX_ARCHITECTURES )
+    if( CMAKE_OSX_ARCHITECTURES STREQUAL "" )
+      if( CMAKE_HOST_SYSTEM_PROCESSOR STREQUAL "arm64" )
+        set( VVDEC_ENABLE_X86_SIMD FALSE )
+        set( VVDEC_ENABLE_ARM_SIMD TRUE )
+      endif()
+    elseif( CMAKE_OSX_ARCHITECTURES STREQUAL "arm64" )
+      set( VVDEC_ENABLE_X86_SIMD FALSE )
+      set( VVDEC_ENABLE_ARM_SIMD TRUE )
+    endif()
+  else()
+    if( CMAKE_HOST_SYSTEM_PROCESSOR STREQUAL "arm64" )
+      set( VVDEC_ENABLE_X86_SIMD FALSE )
+      set( VVDEC_ENABLE_ARM_SIMD TRUE )
+    endif()
+  endif()
+endif()
+
+# enable sse4.1 build for all source files for gcc and clang
+if( VVDEC_ENABLE_X86_SIMD )
   if( UNIX OR MINGW )
     add_compile_options( "-msse4.1" )
   endif()
 
+  set( CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DTARGET_SIMD_X86" )
+  set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DTARGET_SIMD_X86" )
+endif()
+
+if( VVDEC_ENABLE_ARM_SIMD )
+  set( CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DTARGET_SIMD_ARM" )
+  set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DTARGET_SIMD_ARM" )
+endif()
+
+if( NOT CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR )
   # set exception handling
   if( MSVC )
     add_compile_options( "/EHsc" )
@@ -131,11 +163,6 @@ message( STATUS "CMAKE_MODULE_PATH: updating module path to: ${CMAKE_MODULE_PATH
 # Enable multithreading
 find_package( Threads REQUIRED )
 
-# enable sse4.1 build for all source files for gcc and clang
-if( UNIX OR MINGW )
-  add_compile_options( "-msse4.1" )
-endif()
-
 # set _WIN32_WINNT
 if( WIN32 )
   # set _WIN32_WINT version global
@@ -156,9 +183,11 @@ if( VVDEC_USE_ADDRESS_SANITIZER )
   add_link_options( "-fsanitize=address" )
 endif()
 
-if( ( UNIX OR MINGW ) AND NOT VVDEC_OPT_TARGET_ARCH STREQUAL "" )
-  set( CMAKE_C_FLAGS   "${CMAKE_C_FLAGS} -march=${VVDEC_OPT_TARGET_ARCH} -mtune=${VVDEC_OPT_TARGET_ARCH}" )
-  set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -march=${VVDEC_OPT_TARGET_ARCH} -mtune=${VVDEC_OPT_TARGET_ARCH}" )
+if( VVDEC_ENABLE_X86_SIMD )
+  if( ( UNIX OR MINGW ) AND NOT VVDEC_OPT_TARGET_ARCH STREQUAL "" )
+    set( CMAKE_C_FLAGS   "${CMAKE_C_FLAGS} -march=${VVDEC_OPT_TARGET_ARCH} -mtune=${VVDEC_OPT_TARGET_ARCH}" )
+    set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -march=${VVDEC_OPT_TARGET_ARCH} -mtune=${VVDEC_OPT_TARGET_ARCH}" )
+  endif()
 endif()
 
 if( VVDEC_ENABLE_LINK_TIME_OPT )
@@ -208,14 +237,6 @@ if( VVDEC_ENABLE_ITT )
     message( WARNING "ITT_PATH ${ITT_PATH} not found, ignoring option VVCLib_ENABLE_ITT" )
   endif()
 endif()
-
-#if( SET_ENABLE_TRACING )
-#  if( ENABLE_TRACING )
-#    add_compile_definitions( ENABLE_TRACING=1 )
-#  else()
-#    add_compile_definitions( ENABLE_TRACING=0 )
-#  endif()
-#endif()
 
 # handle rpath correctly
 if( VVDEC_ENABLE_INSTALL )

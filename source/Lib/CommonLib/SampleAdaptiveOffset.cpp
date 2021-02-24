@@ -351,7 +351,7 @@ SampleAdaptiveOffset::~SampleAdaptiveOffset()
 void SampleAdaptiveOffset::create( int picWidth, int picHeight, ChromaFormat format, uint32_t maxCUWidth, uint32_t maxCUHeight, uint32_t maxCUDepth, uint32_t lumaBitShift, uint32_t chromaBitShift )
 {
   offsetBlock = offsetBlock_core;
-#if ENABLE_SIMD_OPT_SAO
+#if ENABLE_SIMD_OPT_SAO && defined( TARGET_SIMD_X86 )
   initSampleAdaptiveOffsetX86();
 #endif
 

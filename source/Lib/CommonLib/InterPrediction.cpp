@@ -340,7 +340,7 @@ void InterPrediction::init( RdCost* pcRdCost, ChromaFormat chromaFormatIDC, cons
     applyPROF[0] = applyPROFCore<0>;
     applyPROF[1] = applyPROFCore<1>;
     PaddBIO=PaddBIOCore;
-#if ENABLE_SIMD_OPT_BIO
+#if ENABLE_SIMD_OPT_BIO && defined( TARGET_SIMD_X86 )
     initInterPredictionX86();
 #endif
   }

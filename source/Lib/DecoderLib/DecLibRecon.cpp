@@ -120,11 +120,11 @@ void CommonTaskParam::reset( CodingStructure& cs, TaskType ctuStartState, int ta
 
 DecLibRecon::DecLibRecon()
 {
-#if ENABLE_SIMD_OPT_BUFFER
+#if ENABLE_SIMD_OPT_BUFFER && defined( TARGET_SIMD_X86 )
   g_pelBufOP.initPelBufOpsX86();
 #endif
-#if ENABLE_SIMD_TCOEFF_OPS
-  g_tCoeffOps.initTCoeffOps();
+#if ENABLE_SIMD_TCOEFF_OPS && defined( TARGET_SIMD_X86 )
+  g_tCoeffOps.initTCoeffOpsX86();
 #endif
 
 }
@@ -551,6 +551,10 @@ Picture* DecLibRecon::waitForPrevDecompressedPic()
     return nullptr;
 
   ITT_TASKSTART( itt_domain_dec, itt_handle_waitTasks );
+  if( m_decodeThreadPool->numThreads() == 0 )
+  {
+    m_decodeThreadPool->processTasksOnMainThread();
+  }
   m_currDecompPic->m_dmvrTaskCounter.wait();
   m_currDecompPic->done.wait();
   ITT_TASKEND( itt_domain_dec, itt_handle_waitTasks );

@@ -15,23 +15,25 @@ file( GLOB BASE_SRC_FILES "*.cpp"  "../CommonLib/*.cpp"  "../Utilities/*.cpp" ".
 # get include files
 file( GLOB BASE_INC_FILES "*.h" "../CommonLib/*.h"  "../Utilities/*.h" "../DecoderLib/*.h" )
 
-# get x86 source files
-file( GLOB X86_SRC_FILES "../CommonLib/x86/*.cpp" )
-
-# get x86 include files
-file( GLOB X86_INC_FILES "../CommonLib/x86/*.h" )
-
-# get avx source files
-file( GLOB AVX_SRC_FILES "../CommonLib/x86/avx/*.cpp" )
-
-# get avx2 source files
-file( GLOB AVX2_SRC_FILES "../CommonLib/x86/avx2/*.cpp" )
-
-# get sse4.1 source files
-file( GLOB SSE41_SRC_FILES "../CommonLib/x86/sse41/*.cpp" )
-
-# get sse4.2 source files
-file( GLOB SSE42_SRC_FILES "../CommonLib/x86/sse42/*.cpp" )
+if( VVDEC_ENABLE_X86_SIMD )
+  # get x86 source files
+  file( GLOB X86_SRC_FILES "../CommonLib/x86/*.cpp" )
+  
+  # get x86 include files
+  file( GLOB X86_INC_FILES "../CommonLib/x86/*.h" )
+  
+  # get avx source files
+  file( GLOB AVX_SRC_FILES "../CommonLib/x86/avx/*.cpp" )
+  
+  # get avx2 source files
+  file( GLOB AVX2_SRC_FILES "../CommonLib/x86/avx2/*.cpp" )
+  
+  # get sse4.1 source files
+  file( GLOB SSE41_SRC_FILES "../CommonLib/x86/sse41/*.cpp" )
+  
+  # get sse4.2 source files
+  file( GLOB SSE42_SRC_FILES "../CommonLib/x86/sse42/*.cpp" )
+endif()
 
 # get libmd5 source files
 file( GLOB MD5_SRC_FILES "../libmd5/*.cpp" )
@@ -61,20 +63,22 @@ endif()
 source_group( "Header Files"          FILES ${PUBLIC_INC_FILES} )
 source_group( "Header Files\\private" FILES ${PRIVATE_INC_FILES} )
 
-# set needed compile definitions
-set_property( SOURCE ${SSE41_SRC_FILES} APPEND PROPERTY COMPILE_DEFINITIONS USE_SSE41 )
-set_property( SOURCE ${SSE42_SRC_FILES} APPEND PROPERTY COMPILE_DEFINITIONS USE_SSE42 )
-set_property( SOURCE ${AVX_SRC_FILES}   APPEND PROPERTY COMPILE_DEFINITIONS USE_AVX )
-set_property( SOURCE ${AVX2_SRC_FILES}  APPEND PROPERTY COMPILE_DEFINITIONS USE_AVX2 )
-# set needed compile flags
-if( MSVC )
-  set_property( SOURCE ${AVX_SRC_FILES}   APPEND PROPERTY COMPILE_FLAGS "/arch:AVX" )
-  set_property( SOURCE ${AVX2_SRC_FILES}  APPEND PROPERTY COMPILE_FLAGS "/arch:AVX2" )
-elseif( UNIX OR MINGW )
-  set_property( SOURCE ${SSE41_SRC_FILES} APPEND PROPERTY COMPILE_FLAGS "-msse4.1" )
-  set_property( SOURCE ${SSE42_SRC_FILES} APPEND PROPERTY COMPILE_FLAGS "-msse4.2" )
-  set_property( SOURCE ${AVX_SRC_FILES}   APPEND PROPERTY COMPILE_FLAGS "-mavx" )
-  set_property( SOURCE ${AVX2_SRC_FILES}  APPEND PROPERTY COMPILE_FLAGS "-mavx2" )
+if( VVDEC_ENABLE_X86_SIMD )
+  # set needed compile definitions
+  set_property( SOURCE ${SSE41_SRC_FILES} APPEND PROPERTY COMPILE_DEFINITIONS USE_SSE41 )
+  set_property( SOURCE ${SSE42_SRC_FILES} APPEND PROPERTY COMPILE_DEFINITIONS USE_SSE42 )
+  set_property( SOURCE ${AVX_SRC_FILES}   APPEND PROPERTY COMPILE_DEFINITIONS USE_AVX )
+  set_property( SOURCE ${AVX2_SRC_FILES}  APPEND PROPERTY COMPILE_DEFINITIONS USE_AVX2 )
+  # set needed compile flags
+  if( MSVC )
+    set_property( SOURCE ${AVX_SRC_FILES}   APPEND PROPERTY COMPILE_FLAGS "/arch:AVX" )
+    set_property( SOURCE ${AVX2_SRC_FILES}  APPEND PROPERTY COMPILE_FLAGS "/arch:AVX2" )
+  elseif( UNIX OR MINGW )
+    set_property( SOURCE ${SSE41_SRC_FILES} APPEND PROPERTY COMPILE_FLAGS "-msse4.1" )
+    set_property( SOURCE ${SSE42_SRC_FILES} APPEND PROPERTY COMPILE_FLAGS "-msse4.2" )
+    set_property( SOURCE ${AVX_SRC_FILES}   APPEND PROPERTY COMPILE_FLAGS "-mavx" )
+    set_property( SOURCE ${AVX2_SRC_FILES}  APPEND PROPERTY COMPILE_FLAGS "-mavx2" )
+  endif()
 endif()
 
 # set resource file for MSVC compilers

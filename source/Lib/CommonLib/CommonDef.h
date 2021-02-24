@@ -518,8 +518,7 @@ T* aligned_malloc(size_t len, size_t alignement) {
 
 #if ENABLE_SIMD_OPT
 
-#if defined(__i386__) || defined(i386) || defined(__x86_64__) || defined(_M_X64) || defined (_WIN32) || defined (_MSC_VER)
-#define TARGET_SIMD_X86
+#ifdef TARGET_SIMD_X86
 typedef enum{
   SCALAR = 0,
   SSE41,
@@ -528,10 +527,6 @@ typedef enum{
   AVX2,
   AVX512
 } X86_VEXT;
-#elif defined (__ARM_NEON__)
-#define TARGET_SIMD_ARM 1
-#else
-#error no simd target
 #endif
 
 #ifdef TARGET_SIMD_X86

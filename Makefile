@@ -55,6 +55,10 @@ ifneq ($(disable-lto),)
 CONFIG_OPTIONS += -DVVDEC_ENABLE_LINK_TIME_OPT=OFF
 endif
 
+ifneq ($(osx-arch),)
+CONFIG_OPTIONS += -DCMAKE_OSX_ARCHITECTURES=$(osx-arch)
+endif
+
 ifeq ($(j),)
 # Query cmake for the number of cores
 NUM_JOBS := $(shell cmake -P cmake/modules/vvdecNumCores.cmake)

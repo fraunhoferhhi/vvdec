@@ -323,7 +323,7 @@ public:
     }
   }
 
-#if  ENABLE_SIMD_OPT_PICTURE
+#if  ENABLE_SIMD_OPT_PICTURE && defined( TARGET_SIMD_X86 )
   void initPictureX86();
   template <X86_VEXT vext>
   void _initPictureX86();
