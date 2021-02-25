@@ -46,7 +46,7 @@ THE POSSIBILITY OF SUCH DAMAGE.
 
 #pragma once
 
-#include "../../../include/vvdec/vvdec.h"
+#include "vvdec/vvdec.h"
 #include "DecoderLib/DecLib.h"             // internal decoder
 
 namespace vvdec {
@@ -94,18 +94,18 @@ public:
 
 public:
 
-   int init( const vvdec_Params& rcVVDecParameter );
+   int init( const vvdec_params& params );
    int uninit();
 
    void setLoggingCallback(vvdec_loggingCallback callback, void *userData, LogLevel level);
 
-   int decode( vvdec_AccessUnit& rcAccessUnit, vvdec_Frame** ppcFrame );
+   int decode( vvdec_accessUnit& accessUnit, vvdec_frame** ppframe );
 
-   int flush( vvdec_Frame** ppcFrame );
+   int flush( vvdec_frame** ppcFrame );
 
-   vvdec_sei_message_t* findFrameSei( SEIPayloadType payloadType, vvdec_Frame_t *frame );
+   vvdec_sei_message_t* findFrameSei( SEIPayloadType payloadType, vvdec_frame_t *frame );
 
-   int objectUnref( vvdec_Frame* pcFrame );
+   int objectUnref( vvdec_frame* pframe );
 
    int getNumberOfErrorsPictureHashSEI( );
 
@@ -117,7 +117,7 @@ public:
    static const char* getErrorMsg( int nRet );
    static const char* getVersionNumber();
 
-   static NalType getNalUnitType            ( vvdec_AccessUnit& rcAccessUnit );
+   static NalType getNalUnitType            ( vvdec_accessUnit& accessUnit );
    static const char* getNalUnitTypeAsString( NalType t );
 
    static bool isNalUnitSlice               ( NalType t );
@@ -125,7 +125,7 @@ public:
 private:
 
    int xAddPicture                  ( Picture* pcPic );
-   int xCreateFrame                 ( vvdec_Frame& rcFrame, const CPelUnitBuf& rcPicBuf, uint32_t uiWidth, uint32_t uiHeight, const BitDepths& rcBitDepths );
+   int xCreateFrame                 ( vvdec_frame& frame, const CPelUnitBuf& rcPicBuf, uint32_t uiWidth, uint32_t uiHeight, const BitDepths& rcBitDepths );
 
    static int xRetrieveNalStartCode ( unsigned char *pB, int iZerosInStartcode );
    static int xConvertPayloadToRBSP ( std::vector<uint8_t>& nalUnitBuf, InputBitstream *bitstream, bool isVclNalUnit);
@@ -136,6 +136,13 @@ private:
    static int copyComp( const unsigned char* pucSrc, unsigned char* pucDest, unsigned int uiWidth, unsigned int uiHeight, int iStrideSrc, int iStrideDest, int iBytesPerSample );
 
    static int getSizeOfSei( SEIPayloadType payloadType );
+
+   void vvdec_picAttributes_default(vvdec_picAttributes *attributes);
+   void vvdec_frame_default(vvdec_frame *frame);
+   void vvdec_plane_default(vvdec_plane *plane);
+
+   void vvdec_frame_reset(vvdec_frame *frame );
+
 public:
 
    bool                                    m_bInitialized = false;
@@ -146,8 +153,8 @@ public:
    unsigned int                            m_uiBitDepth = 8;
 #endif
 
-   std::list<vvdec_Frame>                  m_rcFrameList;
-   std::list<vvdec_Frame>::iterator        m_pcFrameNext = m_rcFrameList.begin();
+   std::list<vvdec_frame>                  m_rcFrameList;
+   std::list<vvdec_frame>::iterator        m_pcFrameNext = m_rcFrameList.begin();
 
    std::list<Picture*>                     m_pcLibPictureList; // internal picture list
 

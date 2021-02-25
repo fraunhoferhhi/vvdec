@@ -115,9 +115,9 @@ typedef enum HashType HashType;
 
 typedef struct vvdec_sei_message
 {
-    SEIPayloadType            payloadType;     /*!< payload type as defined in sei.h */
-    unsigned int              size;            /*!< size of payload in bytes */
-    void                     *payload;         /*!< payload structure as defined in sei.h */
+    SEIPayloadType            payloadType;     /* payload type as defined in sei.h */
+    unsigned int              size;            /* size of payload in bytes */
+    void                     *payload;         /* payload structure as defined in sei.h */
 }vvdec_sei_message_t;
 
 typedef struct

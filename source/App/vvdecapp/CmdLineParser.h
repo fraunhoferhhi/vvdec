@@ -66,7 +66,7 @@ public:
   /// Destructor
   virtual ~CmdLineParser() {}
 
-  static void print_usage( std::string cApp, vvdec_Params& rcParams )
+  static void print_usage( std::string cApp, vvdec_params& rcParams )
   {
       printf( "\n Usage:  %s  [param1] [pararm2] [...] \n", cApp.c_str() );
       std::cout << "\n"
@@ -92,14 +92,14 @@ public:
           "\t General Options\n"
           "\n"
           "\t\t [--loops,-L  <int>         ] : number of decoder loops (default: 0, -1 endless)\n"
-          "\t\t [--verbosity,-v  <int>     ] : verbosity level (0: silent, 1: error, 2: warning, 3: info, 4: notice: 5, verbose, 6: debug) (default: " << (int)rcParams.m_eLogLevel << ")\n"
+          "\t\t [--verbosity,-v  <int>     ] : verbosity level (0: silent, 1: error, 2: warning, 3: info, 4: notice: 5, verbose, 6: debug) (default: " << (int)rcParams.logLevel << ")\n"
           "\t\t [--help,-h                 ] : show help\n"
           "\n" ;
       std::cout << std::endl;
   }
 
 
-  static int parse_command_line( int argc, char* argv[] , vvdec_Params& rcParams, std::string& rcBitstreamFile, std::string& rcOutputFile,
+  static int parse_command_line( int argc, char* argv[] , vvdec_params& rcParams, std::string& rcBitstreamFile, std::string& rcOutputFile,
                                  int& riFrames, int& riLoops )
   {
     int iRet = 0;
@@ -116,12 +116,12 @@ public:
         int iLogLevel = atoi( argv[i_arg++] );
         if( iLogLevel < 0 ) iLogLevel = 0;
         if( iLogLevel > (int)LogLevel::VVDEC_DETAILS ) iLogLevel = (int)LogLevel::VVDEC_DETAILS ;
-        rcParams.m_eLogLevel = (LogLevel)iLogLevel;
+        rcParams.logLevel = (LogLevel)iLogLevel;
 
-        if( rcParams.m_eLogLevel > VVDEC_VERBOSE )
+        if( rcParams.logLevel > VVDEC_VERBOSE )
         {
           std::string cll;
-          switch (rcParams.m_eLogLevel)
+          switch (rcParams.logLevel)
           {
             case VVDEC_SILENT : cll = "SILENT"; break;
             case VVDEC_ERROR  : cll = "ERROR"; break;
@@ -132,7 +132,7 @@ public:
             case VVDEC_DETAILS: cll = "DETAILS"; break;
             default: cll = "UNKNOWN"; break;
           };
-          fprintf( stdout, "[verbosity] : %d - %s\n", (int)rcParams.m_eLogLevel, cll.c_str() );
+          fprintf( stdout, "[verbosity] : %d - %s\n", (int)rcParams.logLevel, cll.c_str() );
         }
       }
       else if( (!strcmp( (const char*)argv[i_arg], "-h" )) || !strcmp( (const char*)argv[i_arg], "--help" ) )
@@ -155,7 +155,7 @@ public:
       {
         if( i_arg == argc-1 ){ fprintf( stderr, " - missing argument for: %s \n", argv[i_arg] ); return -1; }
         i_arg++;
-        if( rcParams.m_eLogLevel > VVDEC_VERBOSE )
+        if( rcParams.logLevel > VVDEC_VERBOSE )
           fprintf( stdout, "[bitstream] input-file:    %s\n", argv[i_arg] );
         rcBitstreamFile = argv[i_arg++];
       }
@@ -165,7 +165,7 @@ public:
         i_arg++;
         if( i_arg < argc && strlen( argv[i_arg] ) > 0 )
         {
-          if( rcParams.m_eLogLevel > VVDEC_VERBOSE )
+          if( rcParams.logLevel > VVDEC_VERBOSE )
             fprintf( stdout, "[output] yuv-file:    %s\n", argv[i_arg] );
           rcOutputFile = argv[i_arg++];
         }
@@ -176,9 +176,9 @@ public:
         if( i_arg == argc-1 ){ fprintf( stderr, " - missing argument for: %s \n", argv[i_arg] ); return -1; }
         i_arg++;
         int iUpscaledOutput = atoi( argv[i_arg++] );
-        if( rcParams.m_eLogLevel > VVDEC_VERBOSE )
+        if( rcParams.logLevel > VVDEC_VERBOSE )
           fprintf( stdout, "[UpscaledOutput] : %d\n", iUpscaledOutput );
-        rcParams.m_iUpscaledOutput = iUpscaledOutput;
+        rcParams.upscaleOutput = iUpscaledOutput;
       }
 #endif
       else if( (!strcmp( (const char*)argv[i_arg], "-f" )) || !strcmp( (const char*)argv[i_arg], "--frames" ) )
@@ -186,7 +186,7 @@ public:
         if( i_arg == argc-1 ){ fprintf( stderr, " - missing argument for: %s \n", argv[i_arg] ); return -1; }
         i_arg++;
         riFrames = atoi( argv[i_arg++] );
-        if( rcParams.m_eLogLevel > VVDEC_VERBOSE )
+        if( rcParams.logLevel > VVDEC_VERBOSE )
           fprintf( stdout, "[frames] : %d\n", riFrames );
       }
       else if( (!strcmp( (const char*)argv[i_arg], "-t" )) || !strcmp( (const char*)argv[i_arg], "--threads" ) )
@@ -194,18 +194,18 @@ public:
         if( i_arg == argc-1 ){ fprintf( stderr, " - missing argument for: %s \n", argv[i_arg] ); return -1; }
         i_arg++;
         int iThreads = atoi( argv[i_arg++] );
-        if( rcParams.m_eLogLevel > VVDEC_VERBOSE )
+        if( rcParams.logLevel > VVDEC_VERBOSE )
           fprintf( stdout, "[threads] : %d\n", iThreads );
-        rcParams.m_iThreads = iThreads;
+        rcParams.threads = iThreads;
       }
       else if( (!strcmp( (const char*)argv[i_arg], "-p" )) || !strcmp( (const char*)argv[i_arg], "--parsedelay" ) )
       {
         if( i_arg == argc-1 ){ fprintf( stderr, " - missing argument for: %s \n", argv[i_arg] ); return -1; }
         i_arg++;
         int iThreads = atoi( argv[i_arg++] );
-        if( rcParams.m_eLogLevel > VVDEC_VERBOSE )
+        if( rcParams.logLevel > VVDEC_VERBOSE )
           fprintf( stdout, "[parsedelay] : %d\n", iThreads );
-        rcParams.m_iParseThreads = iThreads;
+        rcParams.parseThreads = iThreads;
       }
       else if( (!strcmp( (const char*)argv[i_arg], "-dph" )) || !strcmp( (const char*)argv[i_arg], "--SEIDecodedPictureHash" ) )
       {
@@ -218,16 +218,16 @@ public:
           }
         }
 
-        if( rcParams.m_eLogLevel > VVDEC_VERBOSE )
+        if( rcParams.logLevel > VVDEC_VERBOSE )
           fprintf( stdout, "[SEIDecodedPictureHash] : true\n" );
-        rcParams.m_bDecodedPictureHashSEIEnabled = true;
+        rcParams.decodedPictureHashSEIEnabled = true;
       }
       else if( (!strcmp( (const char*)argv[i_arg], "-L" )) || !strcmp( (const char*)argv[i_arg], "--loops" ) )
       {
         if( i_arg == argc-1 ){ fprintf( stderr, " - missing argument for: %s \n", argv[i_arg] ); return -1; }
         i_arg++;
         riLoops = atoi( argv[i_arg++] );
-        if( rcParams.m_eLogLevel > VVDEC_VERBOSE )
+        if( rcParams.logLevel > VVDEC_VERBOSE )
           fprintf( stdout, "[loops] : %d\n", riLoops );
       }
       else if( (!strcmp( (const char*)argv[i_arg], "-v" )) || !strcmp( (const char*)argv[i_arg], "--verbosity" ) )
@@ -245,12 +245,12 @@ public:
       {
         if( i_arg == argc-1 ){ fprintf( stderr, " - missing argument for: %s \n", argv[i_arg] ); return -1; }
         i_arg++;
-        rcParams.m_eSIMD_Extension = SIMD_Extension( std::max( -1, atoi( argv[i_arg++] ) ) + 1 );
+        rcParams.simd = SIMD_Extension( std::max( -1, atoi( argv[i_arg++] ) ) + 1 );
 
-        if( rcParams.m_eLogLevel > VVDEC_VERBOSE )
+        if( rcParams.logLevel > VVDEC_VERBOSE )
         {
           std::string cll;
-          switch( rcParams.m_eSIMD_Extension )
+          switch( rcParams.simd )
           {
           case VVDEC_SIMD_DEFAULT: cll = "DEFAULT"; break;
           case VVDEC_SIMD_SCALAR:  cll = "SCALAR"; break;

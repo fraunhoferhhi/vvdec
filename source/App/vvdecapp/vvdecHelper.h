@@ -62,16 +62,16 @@ THE POSSIBILITY OF SUCH DAMAGE.
 
 #define MAX_CODED_PICTURE_SIZE  800000
 
-static int _writeComponentToFile( std::ostream *f, vvdec_Component *comp, uint32_t uiBytesPerSample, int8_t iScale = 0 )
+static int _writeComponentToFile( std::ostream *f, vvdec_plane *plane, uint32_t uiBytesPerSample, int8_t iScale = 0 )
 {
-  uint32_t uiWidth  = comp->m_uiWidth;
-  uint32_t uiHeight = comp->m_uiHeight;
+  uint32_t uiWidth  = plane->width;
+  uint32_t uiHeight = plane->height;
 
   assert( f != NULL );
 
-  if( comp->m_uiBytesPerSample == 2 )
+  if( plane->bytesPerSample == 2 )
   {
-     unsigned short* p  = reinterpret_cast<unsigned short*>( comp->m_pucBuffer );
+     unsigned short* p  = reinterpret_cast<unsigned short*>( plane->ptr );
      if( uiBytesPerSample == 1 )  // cut to 8bit output
      {
        // 8bit > 16bit conversion
@@ -85,22 +85,22 @@ static int _writeComponentToFile( std::ostream *f, vvdec_Component *comp, uint32
            tmp[x] = (unsigned char)(p[x]>>2);
          }
          f->write( (char*)&tmp[0], sizeof(std::vector<unsigned char>::value_type)*tmp.size());
-         p += comp->m_iStride;
+         p += plane->stride;
        }
      }
      else
      {
-       unsigned char *p = comp->m_pucBuffer;
+       unsigned char *p = plane->ptr;
        for( uint32_t y = 0; y < uiHeight; y++ )
        {
          f->write( (char*)p, uiWidth*uiBytesPerSample );
-         p += comp->m_iStride;
+         p += plane->stride;
        }
      }
   }
   else
   {
-   uint8_t *p = comp->m_pucBuffer;
+   uint8_t *p = plane->ptr;
    if( uiBytesPerSample == 2 )
    {
      // 8bit > 16bit conversion
@@ -115,7 +115,7 @@ static int _writeComponentToFile( std::ostream *f, vvdec_Component *comp, uint32
        }
 
        f->write( (char*)&tmp[0], sizeof(std::vector<short>::value_type)*tmp.size());
-       p += comp->m_iStride;
+       p += plane->stride;
      }
    }
    else
@@ -123,7 +123,7 @@ static int _writeComponentToFile( std::ostream *f, vvdec_Component *comp, uint32
      for( uint32_t y = 0; y < uiHeight; y++ )
      {
        f->write( (char*)p, uiBytesPerSample*uiWidth );
-       p += comp->m_iStride;
+       p += plane->stride;
      }
    }
   }
@@ -159,7 +159,7 @@ static inline int retrieveNalStartCode( unsigned char *pB, int iZerosInStartcode
 /**
  * \brief Reading of one Annex B NAL unit from file stream
  */
-static int readBitstreamFromFile( std::ifstream *f, vvdec_AccessUnit* pcAccessUnit, bool bLoop )
+static int readBitstreamFromFile( std::ifstream *f, vvdec_accessUnit* pcAccessUnit, bool bLoop )
 {
   int info2=0;
   int info3=0;
@@ -168,8 +168,8 @@ static int readBitstreamFromFile( std::ifstream *f, vvdec_AccessUnit* pcAccessUn
   int iStartCodeFound =0;
   int iRewind=0;
   uint32_t len;
-  unsigned char* pBuf = pcAccessUnit->m_pucBuffer;
-  pcAccessUnit->m_iUsedSize = 0;
+  unsigned char* pBuf = pcAccessUnit->payload;
+  pcAccessUnit->payloadUsedSize = 0;
 
   int curfilpos = f->tellg();
   if( curfilpos < 0 )
@@ -228,7 +228,7 @@ static int readBitstreamFromFile( std::ifstream *f, vvdec_AccessUnit* pcAccessUn
       if( pos > 5 )
       {
         len = pos - 1;
-        pcAccessUnit->m_iUsedSize=len;
+        pcAccessUnit->payloadUsedSize=len;
         return len;
       }
       else if( bLoop )
@@ -242,21 +242,21 @@ static int readBitstreamFromFile( std::ifstream *f, vvdec_AccessUnit* pcAccessUn
       }
     }
 
-    if( pos >= pcAccessUnit->m_iBufSize )
+    if( pos >= pcAccessUnit->payloadSize )
     {
-      int iNewSize = pcAccessUnit->m_iBufSize*2;
+      int iNewSize = pcAccessUnit->payloadSize*2;
       unsigned char* newbuf = new unsigned char[iNewSize];
       if( newbuf == NULL )
       {
         fprintf( stderr, "ERR: readBitstreamFromFile: memory re-allocation failed!\n" );
         return -1;
       }
-      std::copy_n( pcAccessUnit->m_pucBuffer, std::min( pcAccessUnit->m_iBufSize , iNewSize), newbuf);
-      pcAccessUnit->m_iBufSize = iNewSize;
-      delete[] pcAccessUnit->m_pucBuffer;
+      std::copy_n( pcAccessUnit->payload, std::min( pcAccessUnit->payloadSize , iNewSize), newbuf);
+      pcAccessUnit->payloadSize = iNewSize;
+      delete[] pcAccessUnit->payload;
 
-      pcAccessUnit->m_pucBuffer = newbuf;
-      pBuf = pcAccessUnit->m_pucBuffer;
+      pcAccessUnit->payload = newbuf;
+      pBuf = pcAccessUnit->payload;
     }
     unsigned char* p= pBuf + pos;
     f->read( (char*)p, 1 );
@@ -293,7 +293,7 @@ static int readBitstreamFromFile( std::ifstream *f, vvdec_AccessUnit* pcAccessUn
   // start code, and (pos+rewind)-startcodeprefix_len is the size of the NALU
 
   len = (pos+iRewind);
-  pcAccessUnit->m_iUsedSize=len;
+  pcAccessUnit->payloadUsedSize=len;
   return len;
 }
 
@@ -305,26 +305,23 @@ static int readBitstreamFromFile( std::ifstream *f, vvdec_AccessUnit* pcAccessUn
    \retval     int  if non-zero an error occurred (see ErrorCodes), otherwise the return value indicates success VVC_DEC_OK
    \pre        The decoder must not be initialized.
  */
-static int writeYUVToFile( std::ostream *f, vvdec_Frame *frame )
+static int writeYUVToFile( std::ostream *f, vvdec_frame *frame )
 {
   int ret;
   uint32_t c = 0;
 
   uint32_t uiBytesPerSample = 1;
-  uint32_t uiBitDepth       = frame->m_uiBitDepth;
 
   assert( f != NULL );
 
-  for( c = 0; c < frame->m_uiNumComponents; c++ )
+  for( c = 0; c < frame->numPlanes; c++ )
   {
-    uiBytesPerSample = std::max( (uint32_t)frame->m_cComponent[c].m_uiBytesPerSample, uiBytesPerSample );
+    uiBytesPerSample = std::max( (uint32_t)frame->planes[c].bytesPerSample, uiBytesPerSample );
   }
 
-  for( c = 0; c < frame->m_uiNumComponents; c++ )
+  for( c = 0; c < frame->numPlanes; c++ )
   {
-    uint32_t iScale = uiBitDepth - frame->m_cComponent[c].m_uiBitDepth;
-
-    if( ( ret = _writeComponentToFile( f, &frame->m_cComponent[c], uiBytesPerSample, iScale ) ) != 0 )
+    if( ( ret = _writeComponentToFile( f, &frame->planes[c], uiBytesPerSample ) ) != 0 )
     {
       return ret;
     }

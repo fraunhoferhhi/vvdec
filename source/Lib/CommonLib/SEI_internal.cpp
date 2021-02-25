@@ -45,8 +45,9 @@ THE POSSIBILITY OF SUCH DAMAGE.
 ------------------------------------------------------------------------------------------- */
 #include "SEI_internal.h"
 #include "vvdec/sei.h"
-
 #include <stdlib.h>
+#include "CommonDef.h"
+
 
 const char *SEI_internal::getSEIMessageString(SEIPayloadType payloadType)
 {
@@ -140,6 +141,14 @@ vvdec_sei_message_t* SEI_internal::allocSEI( SEIPayloadType payloadType )
   }
   else
   {
+    CHECK( !sei, "sei memory allocation error" );
+    return nullptr;
+  }
+
+  if( 0 != allocSEIPayload( sei ))
+  {
+    CHECK( !sei, "sei payload allocation error" );
+    delete sei ;
     return nullptr;
   }
 
