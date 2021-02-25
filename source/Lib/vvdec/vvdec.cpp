@@ -191,6 +191,8 @@ VVDEC_DECL int vvdec_decoder_close(vvdec_decoder_t *dec)
     return VVDEC_ERR_INITIALIZE;
   }
 
+  d->uninit();
+
   delete d;
 
   return VVDEC_OK;
