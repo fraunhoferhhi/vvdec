@@ -162,17 +162,17 @@ typedef struct
   uint32_t m_numDecodingUnits;
   bool     m_duCommonCpbRemovalDelayFlag;
   uint32_t m_duCommonCpbRemovalDelay[7];
-  uint32_t m_numNalusInDu[666];
-  uint32_t m_duCpbRemovalDelay[666];
+  uint32_t m_numNalusInDu[32];
+  uint32_t m_duCpbRemovalDelay[32*7+7];
   bool     m_cpbAltTimingInfoPresentFlag;
-  uint32_t m_nalCpbAltInitialRemovalDelayDelta[666][666];
-  uint32_t m_nalCpbAltInitialRemovalOffsetDelta[666][666];
-  uint32_t m_nalCpbDelayOffset[666];
-  uint32_t m_nalDpbDelayOffset[666];
-  uint32_t m_vclCpbAltInitialRemovalDelayDelta[666][666];
-  uint32_t m_vclCpbAltInitialRemovalOffsetDelta[666][666];
-  uint32_t m_vclCpbDelayOffset[666];
-  uint32_t m_vclDpbDelayOffset[666];
+  uint32_t m_nalCpbAltInitialRemovalDelayDelta[7][32];
+  uint32_t m_nalCpbAltInitialRemovalOffsetDelta[7][32];
+  uint32_t m_nalCpbDelayOffset[7];
+  uint32_t m_nalDpbDelayOffset[7];
+  uint32_t m_vclCpbAltInitialRemovalDelayDelta[7][32];
+  uint32_t m_vclCpbAltInitialRemovalOffsetDelta[7][32];
+  uint32_t m_vclCpbDelayOffset[7];
+  uint32_t m_vclDpbDelayOffset[7];
   int      m_ptDisplayElementalPeriods;
 } vvdec_sei_picture_timing_t;
 
@@ -282,7 +282,7 @@ typedef struct
   uint8_t   m_snLayerId[64];
   uint32_t  m_snNumSubpics;
   uint8_t   m_snSubpicIdLen;
-  uint16_t  m_snSubpicId[600];
+  uint16_t  m_snSubpicId[64];
   uint32_t  m_snNumSEIs;
 
   vvdec_sei_message* m_nestedSEIs[64];
@@ -407,7 +407,7 @@ typedef struct
   bool      m_sliSublayerInfoPresentFlag;
   int       m_nonSubpicLayersFraction[6][6];
   Level     m_refLevelIdc[6][6];
-  int       m_refLevelFraction[6][600][6];
+  int       m_refLevelFraction[6][64][6];
 }vvdec_sei_subpicture_level_info_t;
 
 typedef struct
