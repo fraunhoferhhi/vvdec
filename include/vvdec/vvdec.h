@@ -69,6 +69,10 @@ VVDEC_NAMESPACE_BEGIN
  *      opaque handler for the decoder */
 typedef struct vvdec_decoder vvdec_decoder_t;
 
+/* vvdec_loggingCallback:
+   callback function to receive messages of the decoder library
+*/
+typedef void (*vvdec_loggingCallback)(void*, int, const char*, va_list);
 
 /*
   \enum ErrorCodes
@@ -370,7 +374,7 @@ typedef struct vvdec_params
 /* vvdec_params_default:
   Initialize vvdec_params structure to default values
 */
-void vvdec_params_default(vvdec_params *param);
+VVDEC_DECL void vvdec_params_default(vvdec_params *param);
 
 /* vvdec_params_alloc:
    Allocates an vvdec_params_alloc instance.
@@ -382,11 +386,6 @@ VVDEC_DECL vvdec_params* vvdec_params_alloc();
    release storage of an vvdec_params instance.
 */
 VVDEC_DECL void vvdec_params_free(vvdec_params *params );
-
-/* vvdec_loggingCallback:
-   callback function to receive messages of the decoder library
-*/
-typedef void (*vvdec_loggingCallback)(void*, int, const char*, va_list);
 
 /* vvdec_get_version
   This method returns the the decoder version as string.

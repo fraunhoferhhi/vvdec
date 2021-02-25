@@ -386,7 +386,7 @@ void SEIReader::xReadSEImessage( seiMessages& seiList, const NalUnitType nalUnit
     }
   }
 
-  if( s != NULL && s->size )
+  if( s )
   {
     seiList.push_back(s);
   }
