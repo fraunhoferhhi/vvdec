@@ -301,12 +301,12 @@ public:
   ~NoMallocThreadPool();
 
   template<class TParam>
-  bool addBarrierTask( bool             ( *func )( int, TParam* ),
-                       TParam*             param,
-                       WaitCounter*        counter                      = nullptr,
-                       Barrier*            done                         = nullptr,
-                       const CBarrierVec&& barriers                     = {},
-                       bool             ( *readyCheck )( int, TParam* ) = nullptr )
+  bool addBarrierTask( bool       ( *func )( int, TParam* ),
+                       TParam*       param,
+                       WaitCounter*  counter                      = nullptr,
+                       Barrier*      done                         = nullptr,
+                       CBarrierVec&& barriers                     = {},
+                       bool       ( *readyCheck )( int, TParam* ) = nullptr )
   {
     if( m_threads.empty() )
     {
