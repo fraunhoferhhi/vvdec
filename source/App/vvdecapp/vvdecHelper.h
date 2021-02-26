@@ -62,7 +62,7 @@ THE POSSIBILITY OF SUCH DAMAGE.
 
 #define MAX_CODED_PICTURE_SIZE  800000
 
-static int _writeComponentToFile( std::ostream *f, vvdecPlane *plane, uint32_t uiBytesPerSample, int8_t iScale = 0 )
+static int _writeComponentToFile( std::ostream *f, vvdecPlane *plane, vvdecPlane *planeField2, uint32_t uiBytesPerSample )
 {
   uint32_t uiWidth  = plane->width;
   uint32_t uiHeight = plane->height;
@@ -72,11 +72,18 @@ static int _writeComponentToFile( std::ostream *f, vvdecPlane *plane, uint32_t u
   if( plane->bytesPerSample == 2 )
   {
      unsigned short* p  = reinterpret_cast<unsigned short*>( plane->ptr );
+     unsigned short* p2  = planeField2 ? reinterpret_cast<unsigned short*>( planeField2->ptr ) : nullptr;
+
      if( uiBytesPerSample == 1 )  // cut to 8bit output
      {
        // 8bit > 16bit conversion
        std::vector<unsigned char> tmp;
+       std::vector<unsigned char> tmp2;
        tmp.resize(uiWidth);
+       if( planeField2 )
+       {
+         tmp2.resize(uiWidth);
+       }
 
        for( uint32_t y = 0; y < uiHeight; y++ )
        {
@@ -86,36 +93,73 @@ static int _writeComponentToFile( std::ostream *f, vvdecPlane *plane, uint32_t u
          }
          f->write( (char*)&tmp[0], sizeof(std::vector<unsigned char>::value_type)*tmp.size());
          p += plane->stride;
+
+         if( p2 )
+         {
+           for( uint32_t x = 0; x < uiWidth; x++ )
+           {
+             tmp2[x] = (unsigned char)(p2[x]>>2);
+           }
+           f->write( (char*)&tmp2[0], sizeof(std::vector<unsigned char>::value_type)*tmp2.size());
+           p2 += planeField2->stride;
+         }
        }
      }
      else
      {
-       unsigned char *p = plane->ptr;
+       uint8_t *p = plane->ptr;
+       uint8_t *p2 = planeField2 ? planeField2->ptr : nullptr;
+
        for( uint32_t y = 0; y < uiHeight; y++ )
        {
          f->write( (char*)p, uiWidth*uiBytesPerSample );
-         p += plane->stride;
+         p  += plane->stride;
+
+         if( p2 )
+         {
+           f->write( (char*)p2, uiWidth*uiBytesPerSample );
+           p2 += planeField2->stride;
+         }
        }
      }
   }
   else
   {
    uint8_t *p = plane->ptr;
+   uint8_t *p2 = planeField2 ? planeField2->ptr : nullptr;
+
    if( uiBytesPerSample == 2 )
    {
      // 8bit > 16bit conversion
      std::vector<short> tmp;
+     std::vector<short> tmp2;
      tmp.resize(uiWidth);
+
+     if( p2 )
+     {
+       tmp2.resize(uiWidth);
+     }
 
      for( uint32_t y = 0; y < uiHeight; y++ )
      {
        for( uint32_t x = 0; x < uiWidth; x++ )
        {
-         tmp[x] = p[x] << iScale;
+         tmp[x] = p[x];
        }
 
        f->write( (char*)&tmp[0], sizeof(std::vector<short>::value_type)*tmp.size());
        p += plane->stride;
+
+       if( p2 )
+       {
+         for( uint32_t x = 0; x < uiWidth; x++ )
+         {
+           tmp2[x] = p2[x];
+         }
+
+         f->write( (char*)&tmp2[0], sizeof(std::vector<short>::value_type)*tmp2.size());
+         p2 += planeField2->stride;
+       }
      }
    }
    else
@@ -124,6 +168,12 @@ static int _writeComponentToFile( std::ostream *f, vvdecPlane *plane, uint32_t u
      {
        f->write( (char*)p, uiBytesPerSample*uiWidth );
        p += plane->stride;
+
+       if( p2 )
+       {
+         f->write( (char*)p2, uiBytesPerSample*uiWidth );
+         p2 += planeField2->stride;
+       }
      }
    }
   }
@@ -305,7 +355,7 @@ static int readBitstreamFromFile( std::ifstream *f, vvdecAccessUnit* pcAccessUni
    \retval     int  if non-zero an error occurred (see ErrorCodes), otherwise the return value indicates success VVC_DEC_OK
    \pre        The decoder must not be initialized.
  */
-static int writeYUVToFile( std::ostream *f, vvdecFrame *frame )
+static int writeYUVToFile( std::ostream *f, vvdecFrame *frame, vvdecFrame *prevField )
 {
   int ret;
   uint32_t c = 0;
@@ -319,13 +369,29 @@ static int writeYUVToFile( std::ostream *f, vvdecFrame *frame )
     uiBytesPerSample = std::max( (uint32_t)frame->planes[c].bytesPerSample, uiBytesPerSample );
   }
 
-  for( c = 0; c < frame->numPlanes; c++ )
+  if( prevField )
   {
-    if( ( ret = _writeComponentToFile( f, &frame->planes[c], uiBytesPerSample ) ) != 0 )
+    // interlaced
+    for( c = 0; c < frame->numPlanes; c++ )
     {
-      return ret;
+      if( ( ret = _writeComponentToFile( f, &prevField->planes[c], &frame->planes[c], uiBytesPerSample ) ) != 0 )
+      {
+        return ret;
+      }
     }
   }
+  else
+  {
+    for( c = 0; c < frame->numPlanes; c++ )
+    {
+      if( ( ret = _writeComponentToFile( f, &frame->planes[c], nullptr, uiBytesPerSample ) ) != 0 )
+      {
+        return ret;
+      }
+    }
+  }
+
+
   return 0;
 }
 

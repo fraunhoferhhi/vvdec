@@ -58,7 +58,7 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #include "vvdecHelper.h"
 
 /*! Prototypes */
-int writeYUVToFile( std::ostream *f, vvdecFrame *frame );
+int writeYUVToFile( std::ostream *f, vvdecFrame *frame, vvdecFrame *prevField = nullptr );
 
 //LogLevel g_verbosity = VVDEC_VERBOSE;
 
@@ -170,7 +170,8 @@ int main( int argc, char* argv[] )
   bool bContinue = true;
   while ( bContinue )
   {
-    vvdecFrame* pcFrame = NULL;
+    vvdecFrame* pcFrame     = NULL;
+    vvdecFrame* pcPrevField = NULL;
 
     if( iLoopCount > 1 )
     {
@@ -347,16 +348,47 @@ int main( int argc, char* argv[] )
 
           if( cRecFile.is_open() )
           {
-            if( 0 != writeYUVToFile( outStream, pcFrame ) )
+            if( pcFrame->frameFormat == VVDEC_FF_PROGRESSIVE)
             {
-              std::cout << "vvdecapp [error]: write of rec. yuv failed for picture seq. " <<  pcFrame->sequenceNumber << std::endl;
+              if( 0 != writeYUVToFile( outStream, pcFrame ) )
+              {
+                std::cout << "vvdecapp [error]: write of rec. yuv failed for picture seq. " <<  pcFrame->sequenceNumber << std::endl;
+                vvdec_accessUnit_free( accessUnit );
+                return iRet;
+              }
+            }
+            else if( pcFrame->frameFormat == VVDEC_FF_TOP_FIELD ||
+                     pcFrame->frameFormat == VVDEC_FF_BOT_FIELD )
+            {
+              if( !pcPrevField )
+              {
+                pcPrevField = pcFrame;
+              }
+              else
+              {
+                if( 0 != writeYUVToFile( outStream, pcFrame, pcPrevField ) )
+                {
+                  std::cout << "vvdecapp [error]: write of rec. yuv failed for picture seq. " <<  pcFrame->sequenceNumber << std::endl;
+                  vvdec_accessUnit_free( accessUnit );
+                  return iRet;
+                }
+                vvdec_frame_unref( dec, pcPrevField );
+                pcPrevField = nullptr;
+              }
+            }
+            else
+            {
+              std::cout << "vvdecapp [error]: unsupported FrameFormat " << pcFrame->frameFormat << " for picture seq. " <<  pcFrame->sequenceNumber << std::endl;
               vvdec_accessUnit_free( accessUnit );
-              return iRet;
+              return -1;
             }
           }
 
           // free picture memory
-          vvdec_frame_unref( dec, pcFrame );
+          if( !pcPrevField || pcPrevField != pcFrame)
+          {
+            vvdec_frame_unref( dec, pcFrame );
+          }
         }
 
         if( uiFrames && params.logLevel >= VVDEC_INFO )
@@ -395,16 +427,47 @@ int main( int argc, char* argv[] )
 
         if( cRecFile.is_open() )
         {
-          if( 0 != writeYUVToFile( outStream, pcFrame ) )
+          if( pcFrame->frameFormat == VVDEC_FF_PROGRESSIVE)
           {
-            std::cout << "vvdecapp [error]: write of rec. yuv failed for picture seq. " <<  pcFrame->sequenceNumber << std::endl;
+            if( 0 != writeYUVToFile( outStream, pcFrame ) )
+            {
+              std::cout << "vvdecapp [error]: write of rec. yuv failed for picture seq. " <<  pcFrame->sequenceNumber << std::endl;
+              vvdec_accessUnit_free( accessUnit );
+              return iRet;
+            }
+          }
+          else if( pcFrame->frameFormat == VVDEC_FF_TOP_FIELD ||
+                   pcFrame->frameFormat == VVDEC_FF_BOT_FIELD )
+          {
+            if( !pcPrevField )
+            {
+              pcPrevField = pcFrame;
+            }
+            else
+            {
+              if( 0 != writeYUVToFile( outStream, pcFrame, pcPrevField ) )
+              {
+                std::cout << "vvdecapp [error]: write of rec. yuv failed for picture seq. " <<  pcFrame->sequenceNumber << std::endl;
+                vvdec_accessUnit_free( accessUnit );
+                return iRet;
+              }
+              vvdec_frame_unref( dec, pcPrevField );
+              pcPrevField = nullptr;
+            }
+          }
+          else
+          {
+            std::cout << "vvdecapp [error]: unsupported FrameFormat " << pcFrame->frameFormat << " for picture seq. " <<  pcFrame->sequenceNumber << std::endl;
             vvdec_accessUnit_free( accessUnit );
-            return iRet;
+            return -1;
           }
         }
 
         // free picture memory
-        vvdec_frame_unref( dec, pcFrame );
+        if( !pcPrevField || pcPrevField != pcFrame)
+        {
+          vvdec_frame_unref( dec, pcFrame );
+        }
 
         if( params.logLevel >= VVDEC_INFO )
         {
