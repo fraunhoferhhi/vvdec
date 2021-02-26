@@ -210,6 +210,22 @@ void NoMallocThreadPool::threadProc( int threadId )
   }
 }
 
+bool NoMallocThreadPool::checkTaskReady( int threadId, CBarrierVec& barriers, NoMallocThreadPool::TaskFunc readyCheck, void* taskParam )
+{
+  if( !barriers.empty() && std::any_of( barriers.cbegin(), barriers.cend(), []( const Barrier* b ) { return b && b->isBlocked(); } ) )
+  {
+    return false;
+  }
+  barriers.clear();   // clear barriers, so we don't need to check them on the next try (we assume they won't get locked again)
+
+  if( readyCheck && readyCheck( threadId, taskParam ) == false )
+  {
+    return false;
+  }
+
+  return true;
+}
+
 NoMallocThreadPool::TaskIterator NoMallocThreadPool::findNextTask( int threadId, TaskIterator startSearch )
 {
   if( !startSearch.isValid() )
@@ -225,24 +241,13 @@ NoMallocThreadPool::TaskIterator NoMallocThreadPool::findNextTask( int threadId,
     auto expected = WAITING;
     if( task.state == expected && task.state.compare_exchange_strong( expected, RUNNING ) )
     {
-      if( !task.barriers.empty() )
+      if( checkTaskReady( threadId, task.barriers, task.readyCheck, task.param ) )
       {
-        if( std::any_of( task.barriers.cbegin(), task.barriers.cend(), []( const Barrier* b ) { return b && b->isBlocked(); } ) )
-        {
-          // reschedule
-          task.state = WAITING;
-          continue;
-        }
-        task.barriers.clear();   // clear barriers, so we don't need to check them on the next try (we assume they won't get locked again)
-      }
-      if( task.readyCheck && task.readyCheck( threadId, task.param ) == false )
-      {
-        // reschedule
-        task.state = WAITING;
-        continue;
+        return it;
       }
 
-      return it;
+      // reschedule
+      task.state = WAITING;
     }
   }
   return {};

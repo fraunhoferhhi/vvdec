@@ -311,20 +311,28 @@ public:
     if( m_threads.empty() )
     {
       // if singlethreaded, execute all pending tasks
-      if( m_nextFillSlot != m_tasks.begin() )
+
+      bool waiting_tasks = m_nextFillSlot != m_tasks.begin();
+      bool is_ready      = checkTaskReady( 0, barriers, (TaskFunc)readyCheck, param );
+      if( !is_ready && waiting_tasks )
       {
-        processTasksOnMainThread();
+        waiting_tasks = processTasksOnMainThread();
+        is_ready      = checkTaskReady( 0, barriers, (TaskFunc)readyCheck, param );
       }
 
       // when no barriers block this task, execute it directly
-      if( std::none_of( barriers.begin(), barriers.end(), []( const Barrier* b ) { return b && b->isBlocked(); } )
-          && ( !readyCheck || readyCheck( 0, param ) ) )
+      if( is_ready )
       {
         if( func( 0, param ) )
         {
           if( done != nullptr )
           {
             done->unlock();
+          }
+
+          if( waiting_tasks )
+          {
+            processTasksOnMainThread();
           }
           return true;
         }
@@ -405,9 +413,10 @@ private:
   std::atomic_uint         m_waitingThreads{ 0 };
 
   // internal functions
-  void         threadProc  ( int threadId );
-  TaskIterator findNextTask( int threadId, TaskIterator startSearch );
-  bool         processTask ( int threadId, Slot& task );
+  void         threadProc    ( int threadId );
+  static bool  checkTaskReady( int threadId, CBarrierVec& barriers, TaskFunc readyCheck, void* taskParam );
+  TaskIterator findNextTask  ( int threadId, TaskIterator startSearch );
+  bool         processTask   ( int threadId, Slot& task );
 };
 
 #endif   // NOMALLOCTHREADPOOL_H
