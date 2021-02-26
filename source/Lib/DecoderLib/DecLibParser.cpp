@@ -1083,8 +1083,22 @@ Picture * DecLibParser::xActivateParameterSets( const int layerId )
     pcPic->finalInit( sps, pps, m_picHeader.get(), alfApss, lmcsAPS, scalingListAPS );
 
     // Set Field/Frame coding mode
-    pcPic->fieldPic = false;
-    pcPic->topField = false;
+    bool isField    = false;
+    bool isTopField = false;
+    if(!m_seiMessageList.empty())
+    {
+      // Check if any new Frame Field Info SEI has arrived
+      seiMessages frameFieldSEIs = SEI_internal::getSeisByType( m_seiMessageList, VVDEC_FRAME_FIELD_INFO );
+      if(!frameFieldSEIs.empty())
+      {
+        const vvdecSEIFrameFieldInfo* ff = (vvdecSEIFrameFieldInfo*) frameFieldSEIs.front()->payload;
+        isField    = ff->m_fieldPicFlag;
+        isTopField = isField && (!ff->m_bottomFieldFlag);
+      }
+    }
+    pcPic->fieldPic = isField;
+    pcPic->topField = isTopField;
+
     // transfer any SEI messages that have been received to the picture
     pcPic->seiMessageList = m_seiMessageList;
     m_seiMessageList.clear();

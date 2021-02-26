@@ -921,6 +921,11 @@ int VVDecImpl::xAddPicture( Picture* pcPic )
 
   cFrame.picAttributes->isRefPic = pcPic->referenced;
 
+  if( pcPic->fieldPic )
+  {
+    cFrame.frameFormat = pcPic->topField ? VVDEC_FF_TOP_FIELD : VVDEC_FF_BOT_FIELD;
+  }
+
   if ( !pcPic->slices.empty() )
   {
     switch( pcPic->slices.front()->getSliceType() )
