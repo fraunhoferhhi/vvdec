@@ -323,8 +323,8 @@ foreach( BITSTREAM IN LISTS BITSTREAM_FAULTY_FILES )
   endif()
 endforeach()
 
-add_custom_target( test-ok  COMMAND ${CMAKE_CTEST_COMMAND} -C $<CONFIG> -R "^Test" )
-add_custom_target( test-all COMMAND ${CMAKE_CTEST_COMMAND} -C $<CONFIG> -R "\"^(Test)|(Faulty)\"" )
+add_custom_target( test-ok  COMMAND ${CMAKE_CTEST_COMMAND} -C $<CONFIG> -R "\"^(Test|MISSING)\"" )
+add_custom_target( test-all COMMAND ${CMAKE_CTEST_COMMAND} -C $<CONFIG> -R "\"^(Test|MISSING|Faulty)\"" )
 
 if( MISSING_BITSTREAM_FILES )
   message( STATUS "Some bitstream files are missing." )
