@@ -252,6 +252,41 @@ bool NoMallocThreadPool::processTask( int threadId, NoMallocThreadPool::Slot& ta
   return true;
 }
 
+bool NoMallocThreadPool::bypassTaskQueue( TaskFunc func, void* param, WaitCounter* counter, Barrier* done, CBarrierVec& barriers, TaskFunc readyCheck )
+{
+  CHECKD( numThreads() > 0, "the task queue should only be bypassed, when running single-threaded." );
+
+  // if singlethreaded, execute all pending
+  bool waiting_tasks = m_nextFillSlot != m_tasks.begin();
+  bool is_ready      = checkTaskReady( 0, barriers, (TaskFunc)readyCheck, param );
+  if( !is_ready && waiting_tasks )
+  {
+    waiting_tasks = processTasksOnMainThread();
+    is_ready      = checkTaskReady( 0, barriers, (TaskFunc)readyCheck, param );
+  }
+
+  // when no barriers block this task, execute it directly
+  if( is_ready )
+  {
+    if( func( 0, param ) )
+    {
+      if( done != nullptr )
+      {
+        done->unlock();
+      }
+
+      if( waiting_tasks )
+      {
+        processTasksOnMainThread();
+      }
+      return true;
+    }
+  }
+
+  // direct execution of the task failed
+  return false;
+}
+
 // ---------------------------------------------------------------------------
 // Chunked Task Queue
 // ---------------------------------------------------------------------------
