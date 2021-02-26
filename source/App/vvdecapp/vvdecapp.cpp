@@ -58,7 +58,7 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #include "vvdecHelper.h"
 
 /*! Prototypes */
-int writeYUVToFile( std::ostream *f, vvdec_frame *frame );
+int writeYUVToFile( std::ostream *f, vvdecFrame *frame );
 
 //LogLevel g_verbosity = VVDEC_VERBOSE;
 
@@ -90,7 +90,7 @@ int main( int argc, char* argv[] )
   std::string cOutputFile = "";
   int iMaxFrames=-1;
   int iLoopCount=1;
-  vvdec_params params;
+  vvdecParams params;
   vvdec_params_default(&params);
 
   params.logLevel = VVDEC_INFO;
@@ -148,10 +148,10 @@ int main( int argc, char* argv[] )
     return -1;
   }
 
-  vvdec_decoder_t *dec = nullptr;
+  vvdecDecoder *dec = nullptr;
 
   //> decoding loop
-  vvdec_accessUnit* accessUnit = vvdec_accessUnit_alloc();
+  vvdecAccessUnit* accessUnit = vvdec_accessUnit_alloc();
   vvdec_accessUnit_alloc_payload( accessUnit, MAX_CODED_PICTURE_SIZE );
 
   bool bOutputInfoWritten = false;
@@ -170,7 +170,7 @@ int main( int argc, char* argv[] )
   bool bContinue = true;
   while ( bContinue )
   {
-    vvdec_frame* pcFrame = NULL;
+    vvdecFrame* pcFrame = NULL;
 
     if( iLoopCount > 1 )
     {
@@ -380,7 +380,7 @@ int main( int argc, char* argv[] )
     bFlushDecoder = true;
     while( bFlushDecoder)
     {
-      vvdec_frame* pcFrame = NULL;
+      vvdecFrame* pcFrame = NULL;
 
       // flush the decoder
       iRet = vvdec_flush( dec, &pcFrame );

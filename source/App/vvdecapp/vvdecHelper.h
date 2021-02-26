@@ -62,7 +62,7 @@ THE POSSIBILITY OF SUCH DAMAGE.
 
 #define MAX_CODED_PICTURE_SIZE  800000
 
-static int _writeComponentToFile( std::ostream *f, vvdec_plane *plane, uint32_t uiBytesPerSample, int8_t iScale = 0 )
+static int _writeComponentToFile( std::ostream *f, vvdecPlane *plane, uint32_t uiBytesPerSample, int8_t iScale = 0 )
 {
   uint32_t uiWidth  = plane->width;
   uint32_t uiHeight = plane->height;
@@ -159,7 +159,7 @@ static inline int retrieveNalStartCode( unsigned char *pB, int iZerosInStartcode
 /**
  * \brief Reading of one Annex B NAL unit from file stream
  */
-static int readBitstreamFromFile( std::ifstream *f, vvdec_accessUnit* pcAccessUnit, bool bLoop )
+static int readBitstreamFromFile( std::ifstream *f, vvdecAccessUnit* pcAccessUnit, bool bLoop )
 {
   int info2=0;
   int info3=0;
@@ -305,7 +305,7 @@ static int readBitstreamFromFile( std::ifstream *f, vvdec_accessUnit* pcAccessUn
    \retval     int  if non-zero an error occurred (see ErrorCodes), otherwise the return value indicates success VVC_DEC_OK
    \pre        The decoder must not be initialized.
  */
-static int writeYUVToFile( std::ostream *f, vvdec_frame *frame )
+static int writeYUVToFile( std::ostream *f, vvdecFrame *frame )
 {
   int ret;
   uint32_t c = 0;

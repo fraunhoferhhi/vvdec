@@ -394,7 +394,7 @@ void DecLib::checkPictureHashSEI( Picture* pcPic )
     msg( WARNING, "Warning: Got multiple decoded picture hash SEI messages. Using first." );
   }
 
-  const vvdec_sei_decoded_picture_hash_t* hash = (vvdec_sei_decoded_picture_hash_t*) pictureHashes.front()->payload;
+  const vvdecSEIDecodedPictureHash* hash = (vvdecSEIDecodedPictureHash*) pictureHashes.front()->payload;
 
   msg( INFO, "         " );
   m_numberOfChecksumErrorsDetected += calcAndPrintHashStatus( pcPic->getRecoBuf(), hash, pcPic->cs->sps->getBitDepths(), INFO );

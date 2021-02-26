@@ -121,7 +121,7 @@ void SEIReader::sei_read_flag(std::ostream *pOS, uint32_t& ruiCode, const char *
   }
 }
 
-static inline void output_sei_message_header(vvdec_sei_message_t* sei, std::ostream *pDecodedMessageOutputStream, uint32_t payloadSize)
+static inline void output_sei_message_header(vvdecSEI* sei, std::ostream *pDecodedMessageOutputStream, uint32_t payloadSize)
 {
   if (pDecodedMessageOutputStream)
   {
@@ -205,10 +205,10 @@ void SEIReader::xReadSEImessage( seiMessages& seiList, const NalUnitType nalUnit
   InputBitstream *bs = getBitstream();
   setBitstream(bs->extractSubstream(payloadSize * 8));
 
-  const vvdec_sei_buffering_period_t *bp = NULL;
-  const vvdec_sei_picture_timing_t   *pt = NULL;
+  const vvdecSEIBufferingPeriod *bp = NULL;
+  const vvdecSEIPictureTiming   *pt = NULL;
 
-  vvdec_sei_message_t *s = NULL;
+  vvdecSEI *s = NULL;
   SEIPayloadType type = (SEIPayloadType)payloadType;
 
   if(nalUnitType == NAL_UNIT_PREFIX_SEI)
@@ -240,7 +240,7 @@ void SEIReader::xReadSEImessage( seiMessages& seiList, const NalUnitType nalUnit
         xParseSEIBufferingPeriod(s, payloadSize, pDecodedMessageOutputStream);
         if( s )
         {
-          vvdec_sei_buffering_period_t* bufferingPeriod = reinterpret_cast<vvdec_sei_buffering_period_t *>(s->payload);
+          vvdecSEIBufferingPeriod* bufferingPeriod = reinterpret_cast<vvdecSEIBufferingPeriod *>(s->payload);
           hrd.setBufferingPeriodSEI(bufferingPeriod);
         }
       break;
@@ -258,7 +258,7 @@ void SEIReader::xReadSEImessage( seiMessages& seiList, const NalUnitType nalUnit
 #if JVET_Q0818_PT_SEI
           if( s )
           {
-            vvdec_sei_picture_timing_t* picTiming= reinterpret_cast<vvdec_sei_picture_timing_t *>(s->payload);
+            vvdecSEIPictureTiming* picTiming= reinterpret_cast<vvdecSEIPictureTiming *>(s->payload);
             hrd.setPictureTimingSEI( picTiming );
           }
 #endif
@@ -441,15 +441,15 @@ void SEIReader::xReadSEImessage( seiMessages& seiList, const NalUnitType nalUnit
  * parse bitstream bs and unpack a decoded picture hash SEI message
  * of payloadSize bytes into sei.
  */
-void SEIReader::xParseSEIDecodedPictureHash(vvdec_sei_message_t* s, uint32_t payloadSize, std::ostream *pDecodedMessageOutputStream)
+void SEIReader::xParseSEIDecodedPictureHash(vvdecSEI* s, uint32_t payloadSize, std::ostream *pDecodedMessageOutputStream)
 {
   uint32_t bytesRead = 0;
   output_sei_message_header(s, pDecodedMessageOutputStream, payloadSize);
 
-  CHECK( !s || s->payload == NULL, "allocation error in vvdec_sei_decoded_picture_hash_t" );
+  CHECK( !s || s->payload == NULL, "allocation error in vvdecSEIDecodedPictureHash" );
 
-  vvdec_sei_decoded_picture_hash_t* sei =(vvdec_sei_decoded_picture_hash_t*)s->payload;
-  ::memset(sei, 0, sizeof(vvdec_sei_decoded_picture_hash_t));
+  vvdecSEIDecodedPictureHash* sei =(vvdecSEIDecodedPictureHash*)s->payload;
+  ::memset(sei, 0, sizeof(vvdecSEIDecodedPictureHash));
 
   uint32_t val;
   sei_read_code( pDecodedMessageOutputStream, 8, val, "dph_sei_hash_type" );
@@ -493,14 +493,14 @@ void SEIReader::xParseSEIDecodedPictureHash(vvdec_sei_message_t* s, uint32_t pay
   }
 }
 
-void SEIReader::xParseSEIScalableNesting(vvdec_sei_message_t* s, const NalUnitType nalUnitType, const uint32_t nuhLayerId, uint32_t payloadSize, const VPS *vps, const SPS *sps, std::ostream *decodedMessageOutputStream)
+void SEIReader::xParseSEIScalableNesting(vvdecSEI* s, const NalUnitType nalUnitType, const uint32_t nuhLayerId, uint32_t payloadSize, const VPS *vps, const SPS *sps, std::ostream *decodedMessageOutputStream)
 {
   uint32_t symbol;
   output_sei_message_header(s, decodedMessageOutputStream, payloadSize);
 
-  CHECK( !s || s->payload == NULL, "allocation error in vvdec_sei_scalable_nesting_t" );
-  vvdec_sei_scalable_nesting_t* sei =(vvdec_sei_scalable_nesting_t*)s->payload;
-  ::memset(sei, 0, sizeof(vvdec_sei_scalable_nesting_t));
+  CHECK( !s || s->payload == NULL, "allocation error in vvdecSEIScalableNesting" );
+  vvdecSEIScalableNesting* sei =(vvdecSEIScalableNesting*)s->payload;
+  ::memset(sei, 0, sizeof(vvdecSEIScalableNesting));
 
   sei_read_flag(decodedMessageOutputStream, symbol, "sn_ols_flag"); sei->m_snOlsFlag = symbol;
   sei_read_flag(decodedMessageOutputStream, symbol, "sn_subpic_flag"); sei->m_snSubpicFlag = symbol;
@@ -578,7 +578,7 @@ void SEIReader::xParseSEIScalableNesting(vvdec_sei_message_t* s, const NalUnitTy
 
     if (tmpSeiList.front()->payloadType == VVDEC_BUFFERING_PERIOD)
     {
-      vvdec_sei_buffering_period_t *bp = (vvdec_sei_buffering_period_t*) tmpSeiList.front();
+      vvdecSEIBufferingPeriod *bp = (vvdecSEIBufferingPeriod*) tmpSeiList.front();
       m_nestedHrd.setBufferingPeriodSEI(bp);
     }
     sei->m_nestedSEIs[i] = tmpSeiList.front();
@@ -593,7 +593,7 @@ void SEIReader::xParseSEIScalableNesting(vvdec_sei_message_t* s, const NalUnitTy
   }
 }
 
-void SEIReader::xCheckScalableNestingConstraints(const vvdec_sei_scalable_nesting_t* sei, const NalUnitType nalUnitType, const VPS* vps)
+void SEIReader::xCheckScalableNestingConstraints(const vvdecSEIScalableNesting* sei, const NalUnitType nalUnitType, const VPS* vps)
 {
 #if JVET_S0177_SCALABLE_NESTING_SEI
   const std::vector<int> vclAssociatedSeiList { 3, 19, 45, 129, 137, 144, 145, 147, 148, 149, 150, 153, 154, 155, 156, 168, 204 };
@@ -654,14 +654,14 @@ void SEIReader::xCheckScalableNestingConstraints(const vvdec_sei_scalable_nestin
 #endif
 }
 
-void SEIReader::xParseSEIDecodingUnitInfo(vvdec_sei_message_t* s, uint32_t payloadSize, const vvdec_sei_buffering_period_t& bp, const uint32_t temporalId, std::ostream *pDecodedMessageOutputStream)
+void SEIReader::xParseSEIDecodingUnitInfo(vvdecSEI* s, uint32_t payloadSize, const vvdecSEIBufferingPeriod& bp, const uint32_t temporalId, std::ostream *pDecodedMessageOutputStream)
 {
   uint32_t val;
 
   output_sei_message_header(s, pDecodedMessageOutputStream, payloadSize);
-  CHECK( !s || s->payload == NULL, "allocation error in vvdec_sei_decoding_unit_info_t" );
-  vvdec_sei_decoding_unit_info_t* sei =(vvdec_sei_decoding_unit_info_t*)s->payload;
-  ::memset(sei, 0, sizeof(vvdec_sei_decoding_unit_info_t));
+  CHECK( !s || s->payload == NULL, "allocation error in vvdecSEIDecodingUnitInfo" );
+  vvdecSEIDecodingUnitInfo* sei =(vvdecSEIDecodingUnitInfo*)s->payload;
+  ::memset(sei, 0, sizeof(vvdecSEIDecodingUnitInfo));
 
   sei_read_uvlc( pDecodedMessageOutputStream, val, "decoding_unit_idx");
   sei->m_decodingUnitIdx = val;
@@ -712,15 +712,15 @@ void SEIReader::xParseSEIDecodingUnitInfo(vvdec_sei_message_t* s, uint32_t paylo
   }
 }
 
-void SEIReader::xParseSEIBufferingPeriod(vvdec_sei_message_t* s, uint32_t payloadSize, std::ostream *pDecodedMessageOutputStream)
+void SEIReader::xParseSEIBufferingPeriod(vvdecSEI* s, uint32_t payloadSize, std::ostream *pDecodedMessageOutputStream)
 {
   int i, nalOrVcl;
   uint32_t code;
 
   output_sei_message_header(s, pDecodedMessageOutputStream, payloadSize);
-  CHECK( !s || s->payload == NULL, "allocation error in vvdec_sei_buffering_period_t" );
-  vvdec_sei_buffering_period_t* sei =(vvdec_sei_buffering_period_t*)s->payload;
-  ::memset(sei, 0, sizeof(vvdec_sei_buffering_period_t));
+  CHECK( !s || s->payload == NULL, "allocation error in vvdecSEIBufferingPeriod" );
+  vvdecSEIBufferingPeriod* sei =(vvdecSEIBufferingPeriod*)s->payload;
+  ::memset(sei, 0, sizeof(vvdecSEIBufferingPeriod));
 
   sei_read_flag( pDecodedMessageOutputStream, code, "bp_nal_hrd_parameters_present_flag" );               sei->m_bpNalCpbParamsPresentFlag = code;
   sei_read_flag( pDecodedMessageOutputStream, code, "bp_vcl_hrd_parameters_present_flag" );               sei->m_bpVclCpbParamsPresentFlag = code;
@@ -855,14 +855,14 @@ void SEIReader::xParseSEIBufferingPeriod(vvdec_sei_message_t* s, uint32_t payloa
 
 }
 
-void SEIReader::xParseSEIPictureTiming(vvdec_sei_message_t* s, uint32_t payloadSize, const uint32_t temporalId, const vvdec_sei_buffering_period_t& bp, std::ostream *pDecodedMessageOutputStream)
+void SEIReader::xParseSEIPictureTiming(vvdecSEI* s, uint32_t payloadSize, const uint32_t temporalId, const vvdecSEIBufferingPeriod& bp, std::ostream *pDecodedMessageOutputStream)
 {
-  CHECK( !s || s->payload == NULL, "allocation error in vvdec_sei_picture_timing_t" );
+  CHECK( !s || s->payload == NULL, "allocation error in vvdecSEIPictureTiming" );
 
   output_sei_message_header(s, pDecodedMessageOutputStream, payloadSize);
 
-  vvdec_sei_picture_timing_t* sei =(vvdec_sei_picture_timing_t*)s->payload;
-  ::memset(sei, 0, sizeof(vvdec_sei_picture_timing_t));
+  vvdecSEIPictureTiming* sei =(vvdecSEIPictureTiming*)s->payload;
+  ::memset(sei, 0, sizeof(vvdecSEIPictureTiming));
 
   uint32_t symbol;
 #if JVET_S0185_PROPOSAl1_PICTURE_TIMING_CLEANUP
@@ -1052,15 +1052,15 @@ void SEIReader::xParseSEIPictureTiming(vvdec_sei_message_t* s, uint32_t payloadS
 #endif
 }
 
-void SEIReader::xParseSEIFrameFieldinfo(vvdec_sei_message_t* s, const vvdec_sei_picture_timing_t& pt, uint32_t payloadSize, std::ostream *pDecodedMessageOutputStream)
+void SEIReader::xParseSEIFrameFieldinfo(vvdecSEI* s, const vvdecSEIPictureTiming& pt, uint32_t payloadSize, std::ostream *pDecodedMessageOutputStream)
 {
-  CHECK( !s || s->payload == NULL, "allocation error in vvdec_sei_frame_field_info_t" );
+  CHECK( !s || s->payload == NULL, "allocation error in vvdecSEIFrameFieldInfo" );
 
   uint32_t symbol;
   output_sei_message_header(s, pDecodedMessageOutputStream, payloadSize);
 
-  vvdec_sei_frame_field_info_t* sei =(vvdec_sei_frame_field_info_t*)s->payload;
-  ::memset(sei, 0, sizeof(vvdec_sei_frame_field_info_t));
+  vvdecSEIFrameFieldInfo* sei =(vvdecSEIFrameFieldInfo*)s->payload;
+  ::memset(sei, 0, sizeof(vvdecSEIFrameFieldInfo));
 
   sei_read_flag( pDecodedMessageOutputStream, symbol,      "field_pic_flag" );
   sei->m_fieldPicFlag= symbol;
@@ -1096,22 +1096,22 @@ void SEIReader::xParseSEIFrameFieldinfo(vvdec_sei_message_t* s, const vvdec_sei_
   sei->m_duplicateFlag = symbol;
 }
 
-void SEIReader::xParseSEIDependentRAPIndication( vvdec_sei_message_t* s, uint32_t payloadSize, std::ostream *pDecodedMessageOutputStream )
+void SEIReader::xParseSEIDependentRAPIndication( vvdecSEI* s, uint32_t payloadSize, std::ostream *pDecodedMessageOutputStream )
 {
-  CHECK( !s || s->payload == NULL, "allocation error in vvdec_sei_dependent_rap_indication_t" );
+  CHECK( !s || s->payload == NULL, "allocation error in vvdecSeidependent_rap_indication_t" );
 
   output_sei_message_header(s, pDecodedMessageOutputStream, payloadSize);
 }
 
-void SEIReader::xParseSEIFramePacking(vvdec_sei_message_t* s, uint32_t payloadSize, std::ostream *pDecodedMessageOutputStream)
+void SEIReader::xParseSEIFramePacking(vvdecSEI* s, uint32_t payloadSize, std::ostream *pDecodedMessageOutputStream)
 {
   uint32_t val;
-  CHECK( !s || s->payload == NULL, "allocation error in vvdec_sei_frame_packing_t" );
+  CHECK( !s || s->payload == NULL, "allocation error in vvdecSEIFramePacking" );
 
   output_sei_message_header(s, pDecodedMessageOutputStream, payloadSize);
 
-  vvdec_sei_frame_packing_t* sei =(vvdec_sei_frame_packing_t*)s->payload;
-  ::memset(sei, 0, sizeof(vvdec_sei_frame_packing_t));
+  vvdecSEIFramePacking* sei =(vvdecSEIFramePacking*)s->payload;
+  ::memset(sei, 0, sizeof(vvdecSEIFramePacking));
 
   sei_read_uvlc( pDecodedMessageOutputStream, val, "frame_packing_arrangement_id" );                 sei->m_arrangementId = val;
   sei_read_flag( pDecodedMessageOutputStream, val, "frame_packing_arrangement_cancel_flag" );        sei->m_arrangementCancelFlag = val;
@@ -1145,27 +1145,27 @@ void SEIReader::xParseSEIFramePacking(vvdec_sei_message_t* s, uint32_t payloadSi
   sei_read_flag( pDecodedMessageOutputStream, val, "upsampled_aspect_ratio_flag" );                  sei->m_upsampledAspectRatio = val;
 }
 
-void SEIReader::xParseSEIParameterSetsInclusionIndication(vvdec_sei_message_t* s, uint32_t payloadSize, std::ostream* pDecodedMessageOutputStream)
+void SEIReader::xParseSEIParameterSetsInclusionIndication(vvdecSEI* s, uint32_t payloadSize, std::ostream* pDecodedMessageOutputStream)
 {
   uint32_t val;
-  CHECK( !s || s->payload == NULL, "allocation error in vvdec_sei_parameter_sets_inclusion_indication_t" );
+  CHECK( !s || s->payload == NULL, "allocation error in vvdecSEIParameterSetsInclusionIndication" );
 
   output_sei_message_header(s, pDecodedMessageOutputStream, payloadSize);
 
-  vvdec_sei_parameter_sets_inclusion_indication_t* sei =(vvdec_sei_parameter_sets_inclusion_indication_t*)s->payload;
+  vvdecSEIParameterSetsInclusionIndication* sei =(vvdecSEIParameterSetsInclusionIndication*)s->payload;
 
   sei_read_flag( pDecodedMessageOutputStream, val, "self_contained_clvs_flag" ); sei->m_selfContainedClvsFlag = val;
 }
 
-void SEIReader::xParseSEIMasteringDisplayColourVolume( vvdec_sei_message_t* s, uint32_t payloadSize, std::ostream *pDecodedMessageOutputStream)
+void SEIReader::xParseSEIMasteringDisplayColourVolume( vvdecSEI* s, uint32_t payloadSize, std::ostream *pDecodedMessageOutputStream)
 {
   uint32_t code;
-  CHECK( !s || s->payload == NULL, "allocation error in vvdec_sei_mastering_display_colour_volume_t" );
+  CHECK( !s || s->payload == NULL, "allocation error in vvdecSEIMasteringDisplayColourVolume" );
 
   output_sei_message_header(s, pDecodedMessageOutputStream, payloadSize);
   
-  vvdec_sei_mastering_display_colour_volume_t* sei =(vvdec_sei_mastering_display_colour_volume_t*)s->payload;
-  ::memset(sei, 0, sizeof(vvdec_sei_mastering_display_colour_volume_t));
+  vvdecSEIMasteringDisplayColourVolume* sei =(vvdecSEIMasteringDisplayColourVolume*)s->payload;
+  ::memset(sei, 0, sizeof(vvdecSEIMasteringDisplayColourVolume));
 
   sei_read_code( pDecodedMessageOutputStream, 16, code, "display_primaries_x[0]" ); sei->primaries[0][0] = code;
   sei_read_code( pDecodedMessageOutputStream, 16, code, "display_primaries_y[0]" ); sei->primaries[0][1] = code;
@@ -1184,26 +1184,26 @@ void SEIReader::xParseSEIMasteringDisplayColourVolume( vvdec_sei_message_t* s, u
 }
 
 #if U0033_ALTERNATIVE_TRANSFER_CHARACTERISTICS_SEI
-void SEIReader::xParseSEIAlternativeTransferCharacteristics(vvdec_sei_message_t* s, uint32_t payloadSize, std::ostream* pDecodedMessageOutputStream)
+void SEIReader::xParseSEIAlternativeTransferCharacteristics(vvdecSEI* s, uint32_t payloadSize, std::ostream* pDecodedMessageOutputStream)
 {
   uint32_t code;
-  CHECK( !s || s->payload == NULL, "allocation error in vvdec_sei_alternative_transfer_characteristics_t" );
+  CHECK( !s || s->payload == NULL, "allocation error in vvdecSEIAlternativeTransferCharacteristics" );
 
   output_sei_message_header(s, pDecodedMessageOutputStream, payloadSize);
   
-  vvdec_sei_alternative_transfer_characteristics_t* sei =(vvdec_sei_alternative_transfer_characteristics_t*)s->payload;
+  vvdecSEIAlternativeTransferCharacteristics* sei =(vvdecSEIAlternativeTransferCharacteristics*)s->payload;
 
   sei_read_code(pDecodedMessageOutputStream, 8, code, "preferred_transfer_characteristics"); sei->preferred_transfer_characteristics = code;
 }
 #endif
-void SEIReader::xParseSEIUserDataRegistered(vvdec_sei_message_t* sei, uint32_t payloadSize, std::ostream *pDecodedMessageOutputStream)
+void SEIReader::xParseSEIUserDataRegistered(vvdecSEI* sei, uint32_t payloadSize, std::ostream *pDecodedMessageOutputStream)
 {
   uint32_t code;
-  CHECK( !sei || sei->payload == NULL, "allocation error in vvdec_sei_user_data_registered_t" );
+  CHECK( !sei || sei->payload == NULL, "allocation error in vvdecSEIUserDataRegistered" );
 
   output_sei_message_header(sei, pDecodedMessageOutputStream, payloadSize);
 
-  vvdec_sei_user_data_registered_t t;
+  vvdecSEIUserDataRegistered t;
 
   CHECK(payloadSize == 0, "wrong" );
   sei_read_code(pDecodedMessageOutputStream, 8, code, "itu_t_t35_country_code"); payloadSize--;
@@ -1219,20 +1219,20 @@ void SEIReader::xParseSEIUserDataRegistered(vvdec_sei_message_t* sei, uint32_t p
   if( !payloadSize )
   {
     t.userData = 0;
-    ::memcpy(sei->payload, &t, sizeof(vvdec_sei_user_data_registered_t));
+    ::memcpy(sei->payload, &t, sizeof(vvdecSEIUserDataRegistered));
     return;
   }
 
   if( sei->payload )
       free( sei->payload );
 
-  SEI_internal::allocSEIPayload( sei, sizeof( vvdec_sei_user_data_registered_t ) + sizeof( uint8_t )*(t.userDataLength + 1) );
-  CHECK( sei->payload == NULL, "allocation error in vvdec_sei_user_data_registered_t" );
+  SEI_internal::allocSEIPayload( sei, sizeof( vvdecSEIUserDataRegistered ) + sizeof( uint8_t )*(t.userDataLength + 1) );
+  CHECK( sei->payload == NULL, "allocation error in vvdecSEIUserDataRegistered" );
 
-  vvdec_sei_user_data_registered_t* target = (vvdec_sei_user_data_registered_t*)sei->payload;
+  vvdecSEIUserDataRegistered* target = (vvdecSEIUserDataRegistered*)sei->payload;
   target->ituCountryCode = t.ituCountryCode;
   target->userDataLength = t.userDataLength;
-  target->userData = (uint8_t*)((uint8_t*)sei->payload + sizeof( vvdec_sei_user_data_registered_t ));
+  target->userData = (uint8_t*)((uint8_t*)sei->payload + sizeof( vvdecSEIUserDataRegistered ));
 
   for (uint32_t i = 0; i < target->userDataLength; i++)
   {
@@ -1250,16 +1250,16 @@ void SEIReader::xParseSEIUserDataRegistered(vvdec_sei_message_t* sei, uint32_t p
  * parse bitstream bs and unpack a user_data_unregistered SEI message
  * of payloasSize bytes into sei.
  */
-void SEIReader::xParseSEIuserDataUnregistered(vvdec_sei_message_t* sei, uint32_t payloadSize, std::ostream *pDecodedMessageOutputStream)
+void SEIReader::xParseSEIuserDataUnregistered(vvdecSEI* sei, uint32_t payloadSize, std::ostream *pDecodedMessageOutputStream)
 {
   CHECK(payloadSize < 16, "Payload too small");
-  CHECK( !sei || sei->payload == NULL, "allocation error in vvdec_sei_user_data_unregistered_t" );
+  CHECK( !sei || sei->payload == NULL, "allocation error in vvdecSEIUserDataUnregistered" );
 
   uint32_t val;
 
   output_sei_message_header(sei, pDecodedMessageOutputStream, payloadSize);
 
-  vvdec_sei_user_data_unregistered_t t;
+  vvdecSEIUserDataUnregistered t;
 
   for (uint32_t i = 0; i < 16; i++)
   {
@@ -1270,19 +1270,19 @@ void SEIReader::xParseSEIuserDataUnregistered(vvdec_sei_message_t* sei, uint32_t
   if (!t.userDataLength)
   {
     t.userData = 0;
-    ::memcpy(sei->payload, &t, sizeof(vvdec_sei_user_data_unregistered_t));
+    ::memcpy(sei->payload, &t, sizeof(vvdecSEIUserDataUnregistered));
     return;
   }
 
   if( sei->payload )
       free( sei->payload );
 
-  SEI_internal::allocSEIPayload( sei,  sizeof( vvdec_sei_user_data_unregistered_t ) + sizeof( uint8_t )*(t.userDataLength + 1) );
-  CHECK( sei->payload == NULL, "allocation error in vvdec_sei_user_data_unregistered_t" );
+  SEI_internal::allocSEIPayload( sei,  sizeof( vvdecSEIUserDataUnregistered ) + sizeof( uint8_t )*(t.userDataLength + 1) );
+  CHECK( sei->payload == NULL, "allocation error in vvdecSEIUserDataUnregistered" );
 
-  vvdec_sei_user_data_unregistered_t* target = (vvdec_sei_user_data_unregistered_t*)sei->payload;
+  vvdecSEIUserDataUnregistered* target = (vvdecSEIUserDataUnregistered*)sei->payload;
   target->userDataLength = t.userDataLength;
-  target->userData = (uint8_t*)((uint8_t*)sei->payload + sizeof( vvdec_sei_user_data_unregistered_t ));
+  target->userData = (uint8_t*)((uint8_t*)sei->payload + sizeof( vvdecSEIUserDataUnregistered ));
 
   for (uint32_t i = 0; i < target->userDataLength; i++)
   {
@@ -1296,15 +1296,15 @@ void SEIReader::xParseSEIuserDataUnregistered(vvdec_sei_message_t* sei, uint32_t
   }
 }
 
-void SEIReader::xParseSEIFilmGrainCharacteristics(vvdec_sei_message_t* s, uint32_t payloadSize, std::ostream *pDecodedMessageOutputStream)
+void SEIReader::xParseSEIFilmGrainCharacteristics(vvdecSEI* s, uint32_t payloadSize, std::ostream *pDecodedMessageOutputStream)
 {
   uint32_t code;
-  CHECK( !s || s->payload == NULL, "allocation error in vvdec_sei_film_grain_characteristics_t" );
+  CHECK( !s || s->payload == NULL, "allocation error in vvdecSEIFilmGrainCharacteristics" );
 
   output_sei_message_header(s, pDecodedMessageOutputStream, payloadSize);
 
-  vvdec_sei_film_grain_characteristics_t* sei =(vvdec_sei_film_grain_characteristics_t*)s->payload;
-  ::memset(sei, 0, sizeof(vvdec_sei_film_grain_characteristics_t));
+  vvdecSEIFilmGrainCharacteristics* sei =(vvdecSEIFilmGrainCharacteristics*)s->payload;
+  ::memset(sei, 0, sizeof(vvdecSEIFilmGrainCharacteristics));
 
   sei_read_flag(pDecodedMessageOutputStream, code, "film_grain_characteristics_cancel_flag");     sei->m_filmGrainCharacteristicsCancelFlag = code != 0;
   if (!sei->m_filmGrainCharacteristicsCancelFlag)
@@ -1328,7 +1328,7 @@ void SEIReader::xParseSEIFilmGrainCharacteristics(vvdec_sei_message_t* s, uint32
     }
     for (int c = 0; c<3; c++)
     {
-      vvdec_CompModel_t &cm = sei->m_compModel[c];
+      vvdecCompModel &cm = sei->m_compModel[c];
       if (cm.presentFlag)
       {
         uint32_t numIntensityIntervals;
@@ -1340,7 +1340,7 @@ void SEIReader::xParseSEIFilmGrainCharacteristics(vvdec_sei_message_t* s, uint32
 
         for (uint32_t interval = 0; interval < numIntensityIntervals; interval++)
         {
-          vvdec_CompModelIntensityValues_t &cmiv = cm.intensityValues[interval];
+          vvdecCompModelIntensityValues &cmiv = cm.intensityValues[interval];
           sei_read_code(pDecodedMessageOutputStream, 8, code, "intensity_interval_lower_bound[c][i]"); cmiv.intensityIntervalLowerBound = code;
           sei_read_code(pDecodedMessageOutputStream, 8, code, "intensity_interval_upper_bound[c][i]"); cmiv.intensityIntervalUpperBound = code;
           for (uint32_t j = 0; j<cm.numModelValues; j++)
@@ -1354,45 +1354,45 @@ void SEIReader::xParseSEIFilmGrainCharacteristics(vvdec_sei_message_t* s, uint32
   } // cancel flag
 }
 
-void SEIReader::xParseSEIContentLightLevelInfo(vvdec_sei_message_t* s, uint32_t payloadSize, std::ostream *pDecodedMessageOutputStream)
+void SEIReader::xParseSEIContentLightLevelInfo(vvdecSEI* s, uint32_t payloadSize, std::ostream *pDecodedMessageOutputStream)
 {
   uint32_t code;
-  CHECK( !s || s->payload == NULL, "allocation error in vvdec_sei_content_light_level_info_t" );
+  CHECK( !s || s->payload == NULL, "allocation error in vvdecSEIContentLightLevelInfo" );
 
   output_sei_message_header(s, pDecodedMessageOutputStream, payloadSize);
 
-  vvdec_sei_content_light_level_info_t* sei =(vvdec_sei_content_light_level_info_t*)s->payload;
-  ::memset(sei, 0, sizeof(vvdec_sei_content_light_level_info_t));
+  vvdecSEIContentLightLevelInfo* sei =(vvdecSEIContentLightLevelInfo*)s->payload;
+  ::memset(sei, 0, sizeof(vvdecSEIContentLightLevelInfo));
 
   sei_read_code(pDecodedMessageOutputStream, 16, code, "max_content_light_level");     sei->m_maxContentLightLevel    = code;
   sei_read_code(pDecodedMessageOutputStream, 16, code, "max_pic_average_light_level"); sei->m_maxPicAverageLightLevel = code;
 }
 
-void SEIReader::xParseSEIAmbientViewingEnvironment(vvdec_sei_message_t* s, uint32_t payloadSize, std::ostream *pDecodedMessageOutputStream)
+void SEIReader::xParseSEIAmbientViewingEnvironment(vvdecSEI* s, uint32_t payloadSize, std::ostream *pDecodedMessageOutputStream)
 {
   uint32_t code;
-  CHECK( !s || s->payload == NULL, "allocation error in vvdec_sei_ambient_viewing_environment_t" );
+  CHECK( !s || s->payload == NULL, "allocation error in vvdecSEIAmbientViewingEnvironment" );
 
   output_sei_message_header(s, pDecodedMessageOutputStream, payloadSize);
 
-  vvdec_sei_ambient_viewing_environment_t* sei =(vvdec_sei_ambient_viewing_environment_t*)s->payload;
-  ::memset(sei, 0, sizeof(vvdec_sei_ambient_viewing_environment_t));
+  vvdecSEIAmbientViewingEnvironment* sei =(vvdecSEIAmbientViewingEnvironment*)s->payload;
+  ::memset(sei, 0, sizeof(vvdecSEIAmbientViewingEnvironment));
 
   sei_read_code(pDecodedMessageOutputStream, 32, code, "ambient_illuminance"); sei->m_ambientIlluminance = code;
   sei_read_code(pDecodedMessageOutputStream, 16, code, "ambient_light_x");     sei->m_ambientLightX = (uint16_t)code;
   sei_read_code(pDecodedMessageOutputStream, 16, code, "ambient_light_y");     sei->m_ambientLightY = (uint16_t)code;
 }
 
-void SEIReader::xParseSEIContentColourVolume(vvdec_sei_message_t* s, uint32_t payloadSize, std::ostream *pDecodedMessageOutputStream)
+void SEIReader::xParseSEIContentColourVolume(vvdecSEI* s, uint32_t payloadSize, std::ostream *pDecodedMessageOutputStream)
   {
   int i;
   uint32_t val;
-  CHECK( !s || s->payload == NULL, "allocation error in vvdec_sei_content_colour_volume_t" );
+  CHECK( !s || s->payload == NULL, "allocation error in vvdecSEIContentColourVolume" );
 
   output_sei_message_header(s, pDecodedMessageOutputStream, payloadSize);
 
-  vvdec_sei_content_colour_volume_t* sei =(vvdec_sei_content_colour_volume_t*)s->payload;
-  ::memset(sei, 0, sizeof(vvdec_sei_content_colour_volume_t));
+  vvdecSEIContentColourVolume* sei =(vvdecSEIContentColourVolume*)s->payload;
+  ::memset(sei, 0, sizeof(vvdecSEIContentColourVolume));
 
   sei_read_flag(pDecodedMessageOutputStream, val, "ccv_cancel_flag");          sei->m_ccvCancelFlag = val;
   if (!sei->m_ccvCancelFlag)
@@ -1426,15 +1426,15 @@ void SEIReader::xParseSEIContentColourVolume(vvdec_sei_message_t* s, uint32_t pa
     }
   }
 }
-void SEIReader::xParseSEIEquirectangularProjection(vvdec_sei_message_t* s, uint32_t payloadSize, std::ostream *pDecodedMessageOutputStream)
+void SEIReader::xParseSEIEquirectangularProjection(vvdecSEI* s, uint32_t payloadSize, std::ostream *pDecodedMessageOutputStream)
 {
   uint32_t val;
-  CHECK( !s || s->payload == NULL, "allocation error in vvdec_sei_equirectangular_projection_t" );
+  CHECK( !s || s->payload == NULL, "allocation error in vvdecSEIEquirectangularProjection" );
 
   output_sei_message_header(s, pDecodedMessageOutputStream, payloadSize);
 
-  vvdec_sei_equirectangular_projection_t* sei =(vvdec_sei_equirectangular_projection_t*)s->payload;
-  ::memset(sei, 0, sizeof(vvdec_sei_equirectangular_projection_t));
+  vvdecSEIEquirectangularProjection* sei =(vvdecSEIEquirectangularProjection*)s->payload;
+  ::memset(sei, 0, sizeof(vvdecSEIEquirectangularProjection));
 
   sei_read_flag( pDecodedMessageOutputStream, val,       "erp_cancel_flag" );              sei->m_erpCancelFlag = val;
   if( !sei->m_erpCancelFlag )
@@ -1451,15 +1451,15 @@ void SEIReader::xParseSEIEquirectangularProjection(vvdec_sei_message_t* s, uint3
   }
 }
 
-void SEIReader::xParseSEISphereRotation(vvdec_sei_message_t* s, uint32_t payloadSize, std::ostream *pDecodedMessageOutputStream)
+void SEIReader::xParseSEISphereRotation(vvdecSEI* s, uint32_t payloadSize, std::ostream *pDecodedMessageOutputStream)
 {
   uint32_t val;
   int  sval;
-  CHECK( !s || s->payload == NULL, "allocation error in vvdec_sei_sphere_rotation_t" );
+  CHECK( !s || s->payload == NULL, "allocation error in vvdecSEISphereRotation" );
   output_sei_message_header(s, pDecodedMessageOutputStream, payloadSize);
 
-  vvdec_sei_sphere_rotation_t* sei =(vvdec_sei_sphere_rotation_t*)s->payload;
-  ::memset(sei, 0, sizeof(vvdec_sei_sphere_rotation_t));
+  vvdecSEISphereRotation* sei =(vvdecSEISphereRotation*)s->payload;
+  ::memset(sei, 0, sizeof(vvdecSEISphereRotation));
 
   sei_read_flag( pDecodedMessageOutputStream, val,       "sphere_rotation_cancel_flag" );              sei->m_sphereRotationCancelFlag = val;
   if( !sei->m_sphereRotationCancelFlag )
@@ -1472,15 +1472,15 @@ void SEIReader::xParseSEISphereRotation(vvdec_sei_message_t* s, uint32_t payload
   }
 }
 
-void SEIReader::xParseSEIOmniViewport(vvdec_sei_message_t* s, uint32_t payloadSize, std::ostream *pDecodedMessageOutputStream)
+void SEIReader::xParseSEIOmniViewport(vvdecSEI* s, uint32_t payloadSize, std::ostream *pDecodedMessageOutputStream)
 {
   uint32_t code;
   int  scode;
-  CHECK( !s || s->payload == NULL, "allocation error in vvdec_sei_omni_viewport_t" );
+  CHECK( !s || s->payload == NULL, "allocation error in vvdecSEIOmniViewport" );
   output_sei_message_header(s, pDecodedMessageOutputStream, payloadSize);
 
-  vvdec_sei_omni_viewport_t* sei =(vvdec_sei_omni_viewport_t*)s->payload;
-  ::memset(sei, 0, sizeof(vvdec_sei_omni_viewport_t));
+  vvdecSEIOmniViewport* sei =(vvdecSEIOmniViewport*)s->payload;
+  ::memset(sei, 0, sizeof(vvdecSEIOmniViewport));
 
   sei_read_code( pDecodedMessageOutputStream, 10, code, "omni_viewport_id"          ); sei->m_omniViewportId         = code;
   sei_read_flag( pDecodedMessageOutputStream,     code, "omni_viewport_cancel_flag" ); sei->m_omniViewportCancelFlag = code;
@@ -1492,7 +1492,7 @@ void SEIReader::xParseSEIOmniViewport(vvdec_sei_message_t* s, uint32_t payloadSi
     sei_read_code( pDecodedMessageOutputStream, 4, numRegions, "omni_viewport_cnt_minus1"       ); numRegions++;
     for(uint32_t region=0; region<numRegions; region++)
     {
-      vvdec_OmniViewport &viewport = sei->m_omniViewportRegions[region];
+      vvdecOmniViewportRegion &viewport = sei->m_omniViewportRegions[region];
       sei_read_scode( pDecodedMessageOutputStream, 32, scode, "omni_viewport_azimuth_centre"   );   viewport.azimuthCentre   = scode;
       sei_read_scode( pDecodedMessageOutputStream, 32, scode, "omni_viewport_elevation_centre" );   viewport.elevationCentre = scode;
       sei_read_scode( pDecodedMessageOutputStream, 32, scode, "omni_viewport_tilt_centre"      );   viewport.tiltCentre      = code;
@@ -1506,14 +1506,14 @@ void SEIReader::xParseSEIOmniViewport(vvdec_sei_message_t* s, uint32_t payloadSi
   }
 }
 
-void SEIReader::xParseSEIRegionWisePacking(vvdec_sei_message_t* s, uint32_t payloadSize, std::ostream *pDecodedMessageOutputStream)
+void SEIReader::xParseSEIRegionWisePacking(vvdecSEI* s, uint32_t payloadSize, std::ostream *pDecodedMessageOutputStream)
 {
   uint32_t val;
-  CHECK( !s || s->payload == NULL, "allocation error in vvdec_sei_region_wise_packing_t" );
+  CHECK( !s || s->payload == NULL, "allocation error in vvdecSEIRegionWisePacking" );
   output_sei_message_header(s, pDecodedMessageOutputStream, payloadSize);
 
-  vvdec_sei_region_wise_packing_t* sei =(vvdec_sei_region_wise_packing_t*)s->payload;
-  ::memset(sei, 0, sizeof(vvdec_sei_region_wise_packing_t));
+  vvdecSEIRegionWisePacking* sei =(vvdecSEIRegionWisePacking*)s->payload;
+  ::memset(sei, 0, sizeof(vvdecSEIRegionWisePacking));
 
   if (!sei->m_rwpCancelFlag)
     {
@@ -1556,15 +1556,15 @@ void SEIReader::xParseSEIRegionWisePacking(vvdec_sei_message_t* s, uint32_t payl
   }
 }
 
-void SEIReader::xParseSEIGeneralizedCubemapProjection(vvdec_sei_message_t* s, uint32_t payloadSize, std::ostream *pDecodedMessageOutputStream)
+void SEIReader::xParseSEIGeneralizedCubemapProjection(vvdecSEI* s, uint32_t payloadSize, std::ostream *pDecodedMessageOutputStream)
 {
   uint32_t val;
 
-  CHECK( !s || s->payload == NULL, "allocation error in vvdec_sei_generalized_cubemap_projection_t" );
+  CHECK( !s || s->payload == NULL, "allocation error in vvdecSEIGeneralizedCubemapProjection" );
   output_sei_message_header(s, pDecodedMessageOutputStream, payloadSize);
   
-  vvdec_sei_generalized_cubemap_projection_t* sei =(vvdec_sei_generalized_cubemap_projection_t*)s->payload;
-  ::memset(sei, 0, sizeof(vvdec_sei_generalized_cubemap_projection_t));
+  vvdecSEIGeneralizedCubemapProjection* sei =(vvdecSEIGeneralizedCubemapProjection*)s->payload;
+  ::memset(sei, 0, sizeof(vvdecSEIGeneralizedCubemapProjection));
 
   sei_read_flag( pDecodedMessageOutputStream,          val,    "gcmp_cancel_flag" );                      sei->m_gcmpCancelFlag = val;
   if (!sei->m_gcmpCancelFlag)
@@ -1597,12 +1597,12 @@ void SEIReader::xParseSEIGeneralizedCubemapProjection(vvdec_sei_message_t* s, ui
 }
 }
 
-void SEIReader::xParseSEISubpictureLevelInfo(vvdec_sei_message_t* s, uint32_t payloadSize, std::ostream *pDecodedMessageOutputStream)
+void SEIReader::xParseSEISubpictureLevelInfo(vvdecSEI* s, uint32_t payloadSize, std::ostream *pDecodedMessageOutputStream)
 {
-  CHECK( !s || s->payload == NULL, "allocation error in vvdec_sei_subpicture_level_info_t" );
+  CHECK( !s || s->payload == NULL, "allocation error in vvdecSEISubpictureLevelInfo" );
   output_sei_message_header(s, pDecodedMessageOutputStream, payloadSize);
-  vvdec_sei_subpicture_level_info_t* sei =(vvdec_sei_subpicture_level_info_t*)s->payload;
-  ::memset(sei, 0, sizeof(vvdec_sei_subpicture_level_info_t));
+  vvdecSEISubpictureLevelInfo* sei =(vvdecSEISubpictureLevelInfo*)s->payload;
+  ::memset(sei, 0, sizeof(vvdecSEISubpictureLevelInfo));
 
   uint32_t val;
   sei_read_code( pDecodedMessageOutputStream,   3,  val,    "sli_num_ref_levels_minus1" );            sei->m_numRefLevels  = val + 1;
@@ -1704,14 +1704,14 @@ void SEIReader::xParseSEISubpictureLevelInfo(vvdec_sei_message_t* s, uint32_t pa
 #endif
 }
 
-void SEIReader::xParseSEISampleAspectRatioInfo(vvdec_sei_message_t* s, uint32_t payloadSize, std::ostream *pDecodedMessageOutputStream)
+void SEIReader::xParseSEISampleAspectRatioInfo(vvdecSEI* s, uint32_t payloadSize, std::ostream *pDecodedMessageOutputStream)
 {
   uint32_t val;
-  CHECK( !s || s->payload == NULL, "allocation error in vvdec_sei_sample_aspect_ratio_info_t" );
+  CHECK( !s || s->payload == NULL, "allocation error in vvdecSEISampleAspectRatioInfo" );
   output_sei_message_header(s, pDecodedMessageOutputStream, payloadSize);
 
-  vvdec_sei_sample_aspect_ratio_info_t* sei =(vvdec_sei_sample_aspect_ratio_info_t*)s->payload;
-  ::memset(sei, 0, sizeof(vvdec_sei_sample_aspect_ratio_info_t));
+  vvdecSEISampleAspectRatioInfo* sei =(vvdecSEISampleAspectRatioInfo*)s->payload;
+  ::memset(sei, 0, sizeof(vvdecSEISampleAspectRatioInfo));
 
   sei_read_flag( pDecodedMessageOutputStream,           val,    "sari_cancel_flag" );                      sei->m_sariCancelFlag = val;
   if (!sei->m_sariCancelFlag)

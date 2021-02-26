@@ -94,18 +94,18 @@ public:
 
 public:
 
-   int init( const vvdec_params& params );
+   int init( const vvdecParams& params );
    int uninit();
 
-   void setLoggingCallback(vvdec_loggingCallback callback, void *userData, LogLevel level);
+   void setLoggingCallback(vvdecLoggingCallback callback, void *userData, LogLevel level);
 
-   int decode( vvdec_accessUnit& accessUnit, vvdec_frame** ppframe );
+   int decode( vvdecAccessUnit& accessUnit, vvdecFrame** ppframe );
 
-   int flush( vvdec_frame** ppcFrame );
+   int flush( vvdecFrame** ppcFrame );
 
-   vvdec_sei_message_t* findFrameSei( SEIPayloadType payloadType, vvdec_frame_t *frame );
+   vvdecSEI* findFrameSei( SEIPayloadType payloadType, vvdecFrame *frame );
 
-   int objectUnref( vvdec_frame* pframe );
+   int objectUnref( vvdecFrame* pframe );
 
    int getNumberOfErrorsPictureHashSEI( );
 
@@ -117,7 +117,7 @@ public:
    static const char* getErrorMsg( int nRet );
    static const char* getVersionNumber();
 
-   static NalType getNalUnitType            ( vvdec_accessUnit& accessUnit );
+   static NalType getNalUnitType            ( vvdecAccessUnit& accessUnit );
    static const char* getNalUnitTypeAsString( NalType t );
 
    static bool isNalUnitSlice               ( NalType t );
@@ -125,7 +125,7 @@ public:
 private:
 
    int xAddPicture                  ( Picture* pcPic );
-   int xCreateFrame                 ( vvdec_frame& frame, const CPelUnitBuf& rcPicBuf, uint32_t uiWidth, uint32_t uiHeight, const BitDepths& rcBitDepths );
+   int xCreateFrame                 ( vvdecFrame& frame, const CPelUnitBuf& rcPicBuf, uint32_t uiWidth, uint32_t uiHeight, const BitDepths& rcBitDepths );
 
    static int xRetrieveNalStartCode ( unsigned char *pB, int iZerosInStartcode );
    static int xConvertPayloadToRBSP ( std::vector<uint8_t>& nalUnitBuf, InputBitstream *bitstream, bool isVclNalUnit);
@@ -137,11 +137,10 @@ private:
 
    static int getSizeOfSei( SEIPayloadType payloadType );
 
-   void vvdec_picAttributes_default(vvdec_picAttributes *attributes);
-   void vvdec_frame_default(vvdec_frame *frame);
-   void vvdec_plane_default(vvdec_plane *plane);
-
-   void vvdec_frame_reset(vvdec_frame *frame );
+   void vvdec_picAttributes_default(vvdecPicAttributes *attributes);
+   void vvdec_frame_default(vvdecFrame *frame);
+   void vvdec_plane_default(vvdecPlane *plane);
+   void vvdec_frame_reset(vvdecFrame *frame );
 
 public:
 
@@ -153,8 +152,8 @@ public:
    unsigned int                            m_uiBitDepth = 8;
 #endif
 
-   std::list<vvdec_frame>                  m_rcFrameList;
-   std::list<vvdec_frame>::iterator        m_pcFrameNext = m_rcFrameList.begin();
+   std::list<vvdecFrame>                   m_rcFrameList;
+   std::list<vvdecFrame>::iterator         m_pcFrameNext = m_rcFrameList.begin();
 
    std::list<Picture*>                     m_pcLibPictureList; // internal picture list
 
@@ -168,7 +167,7 @@ public:
    uint64_t                                m_uiSeqNumOutput    = 0;
    uint64_t                                m_uiPicCount        = 0;
 
-  vvdec_loggingCallback                    loggingCallback {};
+  vvdecLoggingCallback                     loggingCallback {};
   void                                     *loggingUserData {};
 };
 

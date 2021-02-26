@@ -738,29 +738,29 @@ public:
 
   virtual ~HRD()
   {};
-  void                 setGeneralHrdParameters(GeneralHrdParams &generalHrdParam) { m_generalHrdParams = generalHrdParam; }
+  void                    setGeneralHrdParameters(GeneralHrdParams &generalHrdParam) { m_generalHrdParams = generalHrdParam; }
   GeneralHrdParams        getGeneralHrdParameters() const { return m_generalHrdParams; }
   const GeneralHrdParams& getGeneralHrdParameters() { return m_generalHrdParams; }
 
-  void                 setOlsHrdParameters(int tLayter, OlsHrdParams &olsHrdParam) { m_olsHrdParams[tLayter] = olsHrdParam; }
-  OlsHrdParams          getOlsHrdParameters() { return m_olsHrdParams[0]; }
-  OlsHrdParams*          getOlsHrdParametersAddr() { return &m_olsHrdParams[0]; }
-  const OlsHrdParams&    getOlsHrdParameters() const { return m_olsHrdParams[0]; }
+  void                setOlsHrdParameters(int tLayter, OlsHrdParams &olsHrdParam) { m_olsHrdParams[tLayter] = olsHrdParam; }
+  OlsHrdParams        getOlsHrdParameters() { return m_olsHrdParams[0]; }
+  OlsHrdParams*       getOlsHrdParametersAddr() { return &m_olsHrdParams[0]; }
+  const OlsHrdParams& getOlsHrdParameters() const { return m_olsHrdParams[0]; }
 
 
-  void                                setBufferingPeriodSEI(const vvdec_sei_buffering_period_t* bp)  { m_bufferingPeriodSEI = *bp; m_bufferingPeriodInitialized = true; }
-  const vvdec_sei_buffering_period_t* getBufferingPeriodSEI() const                        { return m_bufferingPeriodInitialized ? &m_bufferingPeriodSEI : nullptr; }
+  void                           setBufferingPeriodSEI(const vvdecSEIBufferingPeriod* bp)  { m_bufferingPeriodSEI = *bp; m_bufferingPeriodInitialized = true; }
+  const vvdecSEIBufferingPeriod* getBufferingPeriodSEI() const                        { return m_bufferingPeriodInitialized ? &m_bufferingPeriodSEI : nullptr; }
 
-  void                                setPictureTimingSEI(const vvdec_sei_picture_timing_t* pt)  { m_pictureTimingSEI = *pt; m_pictureTimingAvailable = true; }
-  const vvdec_sei_picture_timing_t*   getPictureTimingSEI() const                      { return m_pictureTimingAvailable ? &m_pictureTimingSEI : nullptr; }
+  void                           setPictureTimingSEI(const vvdecSEIPictureTiming* pt)  { m_pictureTimingSEI = *pt; m_pictureTimingAvailable = true; }
+  const vvdecSEIPictureTiming*   getPictureTimingSEI() const                      { return m_pictureTimingAvailable ? &m_pictureTimingSEI : nullptr; }
 
 protected:
   GeneralHrdParams             m_generalHrdParams;
   OlsHrdParams                 m_olsHrdParams[MAX_TLAYER];
   bool                         m_bufferingPeriodInitialized;
-  vvdec_sei_buffering_period_t m_bufferingPeriodSEI;
+  vvdecSEIBufferingPeriod      m_bufferingPeriodSEI;
   bool                         m_pictureTimingAvailable;
-  vvdec_sei_picture_timing_t   m_pictureTimingSEI;
+  vvdecSEIPictureTiming        m_pictureTimingSEI;
 
 };
 

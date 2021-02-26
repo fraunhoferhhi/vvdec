@@ -244,7 +244,7 @@ std::string hashToString(const PictureHash &digest, int numChar)
   return result;
 }
 
-std::string hashToString(const vvdec_sei_decoded_picture_hash_t* digest, int numChar)
+std::string hashToString(const vvdecSEIDecodedPictureHash* digest, int numChar)
 {
   static const char* hex = "0123456789abcdef";
   std::string result;
@@ -264,7 +264,7 @@ std::string hashToString(const vvdec_sei_decoded_picture_hash_t* digest, int num
   return result;
 }
 
-int calcAndPrintHashStatus(const CPelUnitBuf& pic, const vvdec_sei_decoded_picture_hash_t* pictureHashSEI, const BitDepths &bitDepths, const MsgLevel msgl)
+int calcAndPrintHashStatus(const CPelUnitBuf& pic, const vvdecSEIDecodedPictureHash* pictureHashSEI, const BitDepths &bitDepths, const MsgLevel msgl)
 {
   /* calculate MD5sum for entire reconstructed picture */
   PictureHash recon_digest;

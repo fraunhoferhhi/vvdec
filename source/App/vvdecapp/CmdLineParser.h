@@ -66,7 +66,7 @@ public:
   /// Destructor
   virtual ~CmdLineParser() {}
 
-  static void print_usage( std::string cApp, vvdec_params& rcParams )
+  static void print_usage( std::string cApp, vvdecParams& rcParams )
   {
       printf( "\n Usage:  %s  [param1] [pararm2] [...] \n", cApp.c_str() );
       std::cout << "\n"
@@ -99,7 +99,7 @@ public:
   }
 
 
-  static int parse_command_line( int argc, char* argv[] , vvdec_params& rcParams, std::string& rcBitstreamFile, std::string& rcOutputFile,
+  static int parse_command_line( int argc, char* argv[] , vvdecParams& rcParams, std::string& rcBitstreamFile, std::string& rcOutputFile,
                                  int& riFrames, int& riLoops )
   {
     int iRet = 0;
@@ -220,7 +220,7 @@ public:
 
         if( rcParams.logLevel > VVDEC_VERBOSE )
           fprintf( stdout, "[SEIDecodedPictureHash] : true\n" );
-        rcParams.decodedPictureHashSEIEnabled = true;
+        rcParams.verifyPictureHash = true;
       }
       else if( (!strcmp( (const char*)argv[i_arg], "-L" )) || !strcmp( (const char*)argv[i_arg], "--loops" ) )
       {

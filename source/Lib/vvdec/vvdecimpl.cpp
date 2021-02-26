@@ -72,9 +72,22 @@ VVDecImpl::~VVDecImpl()
 
 }
 
-int VVDecImpl::init( const vvdec_params& params )
+int VVDecImpl::init( const vvdecParams& params )
 {
   if( m_bInitialized ){ return VVDEC_ERR_INITIALIZE; }
+
+#if ENABLE_TRACING
+  if( !g_trace_ctx )
+  {
+    g_trace_ctx = tracing_init( sTracingFile, sTracingRule );
+  }
+  if( bTracingChannelsList && g_trace_ctx )
+  {
+    std::string sChannelsList;
+    g_trace_ctx->getChannelsList( sChannelsList );
+    msg( INFO, "\nAvailable tracing channels:\n\n%s\n", sChannelsList.c_str() );
+  }
+#endif
   
 #ifdef TARGET_SIMD_X86
   switch( params.simd )
@@ -105,7 +118,7 @@ int VVDecImpl::init( const vvdec_params& params )
   g_verbosity = MsgLevel( params.logLevel );
 
   // initialize decoder class
-  m_cDecLib->setDecodedPictureHashSEIEnabled( (int) params.decodedPictureHashSEIEnabled );
+  m_cDecLib->setDecodedPictureHashSEIEnabled( (int) params.verifyPictureHash );
 //  if (!m_outputDecodedSEIMessagesFilename.empty())
 //  {
 //    std::ostream &os=m_seiMessageFileStream.is_open() ? m_seiMessageFileStream : std::cout;
@@ -128,13 +141,13 @@ int VVDecImpl::uninit()
   bool bFlushDecoder = true;
   while( bFlushDecoder)
   {
-    vvdec_frame* frame= NULL;
+    vvdecFrame* frame= NULL;
 
     // flush the decoder
     int iRet = flush( &frame );
     if( iRet != 0 )  {  bFlushDecoder = false; }
 
-    if( NULL != frame  )
+    if( frame  )
     {
       // free picture memory
       objectUnref( frame );
@@ -174,7 +187,7 @@ int VVDecImpl::uninit()
   return VVDEC_OK;
 }
 
-void VVDecImpl::setLoggingCallback(vvdec_loggingCallback callback, void *userData, LogLevel level)
+void VVDecImpl::setLoggingCallback(vvdecLoggingCallback callback, void *userData, LogLevel level)
 {
   this->loggingCallback = callback;
   g_verbosity           = (MsgLevel)level;
@@ -183,7 +196,7 @@ void VVDecImpl::setLoggingCallback(vvdec_loggingCallback callback, void *userDat
   msg(VERBOSE, "Logging callback set to loglevel %d\n", level);
 }
 
-int VVDecImpl::decode( vvdec_accessUnit& rcAccessUnit, vvdec_frame** ppcFrame )
+int VVDecImpl::decode( vvdecAccessUnit& rcAccessUnit, vvdecFrame** ppcFrame )
 {
   if( !m_bInitialized ){ return VVDEC_ERR_INITIALIZE; }
 
@@ -372,7 +385,7 @@ int VVDecImpl::decode( vvdec_accessUnit& rcAccessUnit, vvdec_frame** ppcFrame )
   return iRet;
 }
 
-int VVDecImpl::flush( vvdec_frame** ppframe )
+int VVDecImpl::flush( vvdecFrame** ppframe )
 {
   if( !m_bInitialized ){ return VVDEC_ERR_INITIALIZE; }
   int iRet= VVDEC_OK;
@@ -440,7 +453,7 @@ int VVDecImpl::flush( vvdec_frame** ppframe )
   return iRet;
 }
 
-vvdec_sei_message_t* VVDecImpl::findFrameSei( SEIPayloadType payloadType, vvdec_frame_t *frame )
+vvdecSEI* VVDecImpl::findFrameSei( SEIPayloadType payloadType, vvdecFrame *frame )
 {
   if( !m_bInitialized ){ return nullptr; }
 
@@ -477,7 +490,7 @@ vvdec_sei_message_t* VVDecImpl::findFrameSei( SEIPayloadType payloadType, vvdec_
     return nullptr;
   }
 
-  vvdec_sei_message_t *sei = nullptr;
+  vvdecSEI *sei = nullptr;
   for( auto& s : picture->seiMessageList )
   {
     if( s->payloadType == payloadType )
@@ -490,7 +503,7 @@ vvdec_sei_message_t* VVDecImpl::findFrameSei( SEIPayloadType payloadType, vvdec_
 }
 
 
-int VVDecImpl::objectUnref( vvdec_frame* pcFrame )
+int VVDecImpl::objectUnref( vvdecFrame* pcFrame )
 {
   if( !m_bInitialized ){ return VVDEC_ERR_INITIALIZE; }
 
@@ -530,8 +543,8 @@ int VVDecImpl::objectUnref( vvdec_frame* pcFrame )
   if( bPicFound )
   {
     // remove picture from picture list
-    std::list<vvdec_frame>::iterator itFrame = m_rcFrameList.end();
-    for( std::list<vvdec_frame>::iterator it = m_rcFrameList.begin(); it != m_rcFrameList.end(); it++ )
+    std::list<vvdecFrame>::iterator itFrame = m_rcFrameList.end();
+    for( std::list<vvdecFrame>::iterator it = m_rcFrameList.begin(); it != m_rcFrameList.end(); it++ )
     {
        if( &*it == pcFrame )
        {
@@ -610,7 +623,7 @@ const char* VVDecImpl::getDecoderInfo()
     return m_sDecoderInfo.c_str();
 }
 
-NalType VVDecImpl::getNalUnitType ( vvdec_accessUnit& rcAccessUnit )
+NalType VVDecImpl::getNalUnitType ( vvdecAccessUnit& rcAccessUnit )
 {
   NalType eNalType = VVC_NAL_UNIT_INVALID;
 
@@ -792,12 +805,11 @@ int VVDecImpl::xAddPicture( Picture* pcPic )
   }
 
   // create a brand new picture object
-  vvdec_frame cFrame;
+  vvdecFrame cFrame;
   vvdec_frame_default( &cFrame );
 
 #if RPR_YUV_OUTPUT
   m_bCreateNewPicBuf = (m_uiBitDepth == 8);
-
   if( m_cDecLib->getUpscaledOutput() && ( uiWidth != orgWidth || uiHeight != orgHeight ) )
   {
     m_bCreateNewPicBuf = true;
@@ -899,7 +911,7 @@ int VVDecImpl::xAddPicture( Picture* pcPic )
   cFrame.cts      = pcPic->getCts();
   cFrame.ctsValid = true;
 
-  cFrame.picAttributes = new vvdec_picAttributes();
+  cFrame.picAttributes = new vvdecPicAttributes();
   vvdec_picAttributes_default( cFrame.picAttributes );
   cFrame.picAttributes->poc           = pcPic->poc;
   cFrame.picAttributes->temporalLayer = pcPic->getTLayer();
@@ -924,7 +936,7 @@ int VVDecImpl::xAddPicture( Picture* pcPic )
       const VUI* vui = pcPic->slices.front()->getSPS()->getVuiParameters();
       if( vui != NULL )
       {
-        cFrame.picAttributes->vui = new vvdec_vui;
+        cFrame.picAttributes->vui = new vvdecVui;
         cFrame.picAttributes->vui->aspectRatioInfoPresentFlag    = vui->getAspectRatioInfoPresentFlag();
         cFrame.picAttributes->vui->aspectRatioConstantFlag       = vui->getAspectRatioConstantFlag();
         cFrame.picAttributes->vui->nonPackedFlag                 = vui->getNonPackedFlag();
@@ -954,7 +966,7 @@ int VVDecImpl::xAddPicture( Picture* pcPic )
       const GeneralHrdParams* hrd = pcPic->slices.front()->getSPS()->getGeneralHrdParameters();
       if( hrd != NULL )
       {
-        cFrame.picAttributes->hrd = new vvdec_hrd;
+        cFrame.picAttributes->hrd = new vvdecHrd;
         cFrame.picAttributes->hrd->numUnitsInTick                   = hrd->getNumUnitsInTick();
         cFrame.picAttributes->hrd->timeScale                        = hrd->getTimeScale();
         cFrame.picAttributes->hrd->generalNalHrdParamsPresentFlag   = hrd->getGeneralNalHrdParametersPresentFlag();
@@ -980,7 +992,7 @@ int VVDecImpl::xAddPicture( Picture* pcPic )
     }
     else
     {
-      for( std::list<vvdec_frame>::iterator it = m_rcFrameList.begin(); it != m_rcFrameList.end(); it++ )
+      for( std::list<vvdecFrame>::iterator it = m_rcFrameList.begin(); it != m_rcFrameList.end(); it++ )
       {
         if(  (*it).sequenceNumber > m_uiSeqNumOutput )
         {
@@ -998,7 +1010,7 @@ int VVDecImpl::xAddPicture( Picture* pcPic )
 
 
 
-int VVDecImpl::xCreateFrame( vvdec_frame& rcFrame, const CPelUnitBuf& rcPicBuf, uint32_t uiWidth, uint32_t uiHeight, const BitDepths& rcBitDepths )
+int VVDecImpl::xCreateFrame( vvdecFrame& rcFrame, const CPelUnitBuf& rcPicBuf, uint32_t uiWidth, uint32_t uiHeight, const BitDepths& rcBitDepths )
 {
   rcFrame.width      = uiWidth;
   rcFrame.height     = uiHeight;
@@ -1283,7 +1295,7 @@ int VVDecImpl::xHandleOutput( Picture* pcPic )
   return ret;
 }
 
-void VVDecImpl::vvdec_picAttributes_default(vvdec_picAttributes *attributes)
+void VVDecImpl::vvdec_picAttributes_default(vvdecPicAttributes *attributes)
 {
   attributes->nalType         = VVC_NAL_UNIT_INVALID;     ///< nal unit type
   attributes->sliceType       = VVDEC_SLICETYPE_UNKNOWN;  ///< slice type (I/P/B) */
@@ -1295,7 +1307,7 @@ void VVDecImpl::vvdec_picAttributes_default(vvdec_picAttributes *attributes)
   attributes->hrd             = NULL;                     ///< if available, pointer to HRD (Hypothetical Reference Decoder)
 }
 
-void VVDecImpl::vvdec_frame_default(vvdec_frame *frame)
+void VVDecImpl::vvdec_frame_default(vvdecFrame *frame)
 {
   for( auto & p : frame->planes )
   {
@@ -1313,7 +1325,7 @@ void VVDecImpl::vvdec_frame_default(vvdec_frame *frame)
   frame->picAttributes   = NULL;              ///< pointer to PicAttribute that might be NULL, containing decoder side information
 }
 
-void VVDecImpl::vvdec_plane_default(vvdec_plane *plane)
+void VVDecImpl::vvdec_plane_default(vvdecPlane *plane)
 {
   plane->ptr     = nullptr;      ///< pointer to plane buffer
   plane->width   = 0;            ///< width of the plane
@@ -1322,7 +1334,7 @@ void VVDecImpl::vvdec_plane_default(vvdec_plane *plane)
   plane->bytesPerSample = 1;     ///< offset to first sample in bytes
 }
 
-void VVDecImpl::vvdec_frame_reset(vvdec_frame *frame )
+void VVDecImpl::vvdec_frame_reset(vvdecFrame *frame )
 {
   if( m_bCreateNewPicBuf )
   {

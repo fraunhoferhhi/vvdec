@@ -77,33 +77,33 @@ public:
 
 protected:
   void xReadSEImessage                        (seiMessages& seiList, const NalUnitType nalUnitType, const uint32_t nuh_layer_id, const uint32_t temporalId, const VPS *vps, const SPS *sps, HRD &hrd, std::ostream *pDecodedMessageOutputStream);
-  void xParseSEIuserDataUnregistered          (vvdec_sei_message_t* s,    uint32_t payloadSize,                     std::ostream *pDecodedMessageOutputStream);
-  void xParseSEIDecodingUnitInfo              (vvdec_sei_message_t* s,    uint32_t payloadSize, const vvdec_sei_buffering_period_t& bp, const uint32_t temporalId, std::ostream *pDecodedMessageOutputStream);
-  void xParseSEIDecodedPictureHash            (vvdec_sei_message_t* s,    uint32_t payloadSize,                     std::ostream *pDecodedMessageOutputStream);
-  void xParseSEIBufferingPeriod               (vvdec_sei_message_t* s,    uint32_t payloadSize, std::ostream *pDecodedMessageOutputStream);
-  void xParseSEIPictureTiming                 (vvdec_sei_message_t* s,    uint32_t payloadSize, const uint32_t temporalId, const vvdec_sei_buffering_period_t& bp, std::ostream *pDecodedMessageOutputStream);
-  void xParseSEIScalableNesting               (vvdec_sei_message_t* s, const NalUnitType nalUnitType, const uint32_t nuhLayerId, uint32_t payloadSize, const VPS *vps, const SPS *sps, std::ostream *decodedMessageOutputStream);
-  void xCheckScalableNestingConstraints       (const vvdec_sei_scalable_nesting_t* sei, const NalUnitType nalUnitType, const VPS* vps);
-  void xParseSEIFrameFieldinfo                (vvdec_sei_message_t* s, const vvdec_sei_picture_timing_t& pt, uint32_t payloadSize, std::ostream *pDecodedMessageOutputStream);
-  void xParseSEIDependentRAPIndication        (vvdec_sei_message_t* s,    uint32_t payLoadSize,                     std::ostream *pDecodedMessageOutputStream);
-  void xParseSEIFramePacking                  (vvdec_sei_message_t* s,    uint32_t payloadSize,                     std::ostream *pDecodedMessageOutputStream);
-  void xParseSEIParameterSetsInclusionIndication(vvdec_sei_message_t* s,  uint32_t payloadSize,                     std::ostream* pDecodedMessageOutputStream);
-  void xParseSEIMasteringDisplayColourVolume  ( vvdec_sei_message_t* s,   uint32_t payloadSize,                     std::ostream *pDecodedMessageOutputStream);
+  void xParseSEIuserDataUnregistered          (vvdecSEI* s,    uint32_t payloadSize,                     std::ostream *pDecodedMessageOutputStream);
+  void xParseSEIDecodingUnitInfo              (vvdecSEI* s,    uint32_t payloadSize, const vvdecSEIBufferingPeriod& bp, const uint32_t temporalId, std::ostream *pDecodedMessageOutputStream);
+  void xParseSEIDecodedPictureHash            (vvdecSEI* s,    uint32_t payloadSize,                     std::ostream *pDecodedMessageOutputStream);
+  void xParseSEIBufferingPeriod               (vvdecSEI* s,    uint32_t payloadSize, std::ostream *pDecodedMessageOutputStream);
+  void xParseSEIPictureTiming                 (vvdecSEI* s,    uint32_t payloadSize, const uint32_t temporalId, const vvdecSEIBufferingPeriod& bp, std::ostream *pDecodedMessageOutputStream);
+  void xParseSEIScalableNesting               (vvdecSEI* s, const NalUnitType nalUnitType, const uint32_t nuhLayerId, uint32_t payloadSize, const VPS *vps, const SPS *sps, std::ostream *decodedMessageOutputStream);
+  void xCheckScalableNestingConstraints       (const vvdecSEIScalableNesting* sei, const NalUnitType nalUnitType, const VPS* vps);
+  void xParseSEIFrameFieldinfo                (vvdecSEI* s, const vvdecSEIPictureTiming& pt, uint32_t payloadSize, std::ostream *pDecodedMessageOutputStream);
+  void xParseSEIDependentRAPIndication        (vvdecSEI* s,    uint32_t payLoadSize,                     std::ostream *pDecodedMessageOutputStream);
+  void xParseSEIFramePacking                  (vvdecSEI* s,    uint32_t payloadSize,                     std::ostream *pDecodedMessageOutputStream);
+  void xParseSEIParameterSetsInclusionIndication(vvdecSEI* s,  uint32_t payloadSize,                     std::ostream* pDecodedMessageOutputStream);
+  void xParseSEIMasteringDisplayColourVolume  ( vvdecSEI* s,   uint32_t payloadSize,                     std::ostream *pDecodedMessageOutputStream);
 #if U0033_ALTERNATIVE_TRANSFER_CHARACTERISTICS_SEI
-  void xParseSEIAlternativeTransferCharacteristics(vvdec_sei_message_t* s, uint32_t payLoadSize,                     std::ostream *pDecodedMessageOutputStream);
+  void xParseSEIAlternativeTransferCharacteristics(vvdecSEI* s, uint32_t payLoadSize,                     std::ostream *pDecodedMessageOutputStream);
 #endif
-  void xParseSEIEquirectangularProjection     (vvdec_sei_message_t *s,    uint32_t payloadSize,                     std::ostream *pDecodedMessageOutputStream);
-  void xParseSEISphereRotation                (vvdec_sei_message_t *s,    uint32_t payloadSize,                     std::ostream *pDecodedMessageOutputStream);
-  void xParseSEIOmniViewport                  (vvdec_sei_message_t* s,    uint32_t payloadSize,                     std::ostream *pDecodedMessageOutputStream);
-  void xParseSEIRegionWisePacking             (vvdec_sei_message_t* s,    uint32_t payloadSize,                     std::ostream *pDecodedMessageOutputStream);
-  void xParseSEIGeneralizedCubemapProjection  (vvdec_sei_message_t* s,    uint32_t payloadSize,                     std::ostream *pDecodedMessageOutputStream);
-  void xParseSEISubpictureLevelInfo           (vvdec_sei_message_t* s,    uint32_t payloadSize,                     std::ostream *pDecodedMessageOutputStream);
-  void xParseSEISampleAspectRatioInfo         (vvdec_sei_message_t* s,    uint32_t payloadSize,                     std::ostream *pDecodedMessageOutputStream);
-  void xParseSEIUserDataRegistered            (vvdec_sei_message_t* s,    uint32_t payloadSize,                     std::ostream *pDecodedMessageOutputStream);
-  void xParseSEIFilmGrainCharacteristics      (vvdec_sei_message_t* s,    uint32_t payloadSize,                     std::ostream *pDecodedMessageOutputStream);
-  void xParseSEIContentLightLevelInfo         (vvdec_sei_message_t* s,    uint32_t payloadSize,                     std::ostream *pDecodedMessageOutputStream);
-  void xParseSEIAmbientViewingEnvironment     (vvdec_sei_message_t* s,    uint32_t payloadSize,                     std::ostream *pDecodedMessageOutputStream);
-  void xParseSEIContentColourVolume           (vvdec_sei_message_t* s,    uint32_t payloadSize,                     std::ostream *pDecodedMessageOutputStream);
+  void xParseSEIEquirectangularProjection     (vvdecSEI *s,    uint32_t payloadSize,                     std::ostream *pDecodedMessageOutputStream);
+  void xParseSEISphereRotation                (vvdecSEI *s,    uint32_t payloadSize,                     std::ostream *pDecodedMessageOutputStream);
+  void xParseSEIOmniViewport                  (vvdecSEI* s,    uint32_t payloadSize,                     std::ostream *pDecodedMessageOutputStream);
+  void xParseSEIRegionWisePacking             (vvdecSEI* s,    uint32_t payloadSize,                     std::ostream *pDecodedMessageOutputStream);
+  void xParseSEIGeneralizedCubemapProjection  (vvdecSEI* s,    uint32_t payloadSize,                     std::ostream *pDecodedMessageOutputStream);
+  void xParseSEISubpictureLevelInfo           (vvdecSEI* s,    uint32_t payloadSize,                     std::ostream *pDecodedMessageOutputStream);
+  void xParseSEISampleAspectRatioInfo         (vvdecSEI* s,    uint32_t payloadSize,                     std::ostream *pDecodedMessageOutputStream);
+  void xParseSEIUserDataRegistered            (vvdecSEI* s,    uint32_t payloadSize,                     std::ostream *pDecodedMessageOutputStream);
+  void xParseSEIFilmGrainCharacteristics      (vvdecSEI* s,    uint32_t payloadSize,                     std::ostream *pDecodedMessageOutputStream);
+  void xParseSEIContentLightLevelInfo         (vvdecSEI* s,    uint32_t payloadSize,                     std::ostream *pDecodedMessageOutputStream);
+  void xParseSEIAmbientViewingEnvironment     (vvdecSEI* s,    uint32_t payloadSize,                     std::ostream *pDecodedMessageOutputStream);
+  void xParseSEIContentColourVolume           (vvdecSEI* s,    uint32_t payloadSize,                     std::ostream *pDecodedMessageOutputStream);
 
   void sei_read_scode(std::ostream *pOS, uint32_t length,   int& code,         const char *pSymbolName);
   void sei_read_code (std::ostream *pOS, uint32_t uiLength, uint32_t& ruiCode, const char *pSymbolName);

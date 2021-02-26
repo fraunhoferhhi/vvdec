@@ -53,7 +53,7 @@ THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "vvdec/sei.h"
 
-typedef std::list<vvdec_sei_message*> seiMessages;
+typedef std::list<vvdecSEI*> seiMessages;
 
 class SEI_internal
 {
@@ -73,8 +73,8 @@ public:
   /// delete list of SEI messages (freeing the referenced objects)
   static void deleteSEIs (seiMessages &seiList);
 
-  static vvdec_sei_message_t* allocSEI( SEIPayloadType payloadType );
-  static int allocSEIPayload( vvdec_sei_message_t* sei, int userDefSize = -1 );
+  static vvdecSEI* allocSEI( SEIPayloadType payloadType );
+  static int allocSEIPayload( vvdecSEI* sei, int userDefSize = -1 );
   static int getPayloadSize(SEIPayloadType payloadType);
 };
 
@@ -105,7 +105,7 @@ struct PictureHash
     return !(*this == other);
   }
 
-  bool equal( vvdec_sei_decoded_picture_hash_t digest ) const
+  bool equal( vvdecSEIDecodedPictureHash digest ) const
   {
     if ((size_t)digest.digist_length != hash.size())
     {
