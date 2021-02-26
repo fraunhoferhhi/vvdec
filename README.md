@@ -69,6 +69,10 @@ To generate a solution for the default builder on your system simply call:
 To run the simple conformance test suite (if the bitstreams are downloaded and available) call:
 
     make test
+    
+The above call only tests the sequences that are know to work. To run a test over all conformance sequences with supported profile call:
+
+    make test-all
 
 # Contributing
 

@@ -6,6 +6,7 @@ else()
   set( BITSTREAM_URL_BASE "https://www.itu.int/wftp3/av-arch/jvet-site/bitstream_exchange/VVC/under_test/VTM-11.0" )
 endif()
 
+# put bitstreams from the conformance set that are should be decodable and are working
 list( APPEND BITSTREAM_FILES
   "10b400_A_Bytedance_2.zip"
   "10b400_B_Bytedance_2.zip"
@@ -235,11 +236,13 @@ list( APPEND BITSTREAM_FILES
   "WRAP_D_InterDigital_4.zip"
 )
 
+# put bitstreams from the conformance set that should be decodable but aren't
 list( APPEND BITSTREAM_FAULTY_FILES
   "GDR_A_NOKIA_2.zip"
   "GDR_B_NOKIA_2.zip"
 )
 
+# put bitstreams from the conformance set that are not supported (wrong profile/level etc)
 list( APPEND BITSTREAM_NOT_MAIN10_FILES
   "10b422_A_Sony_4.zip"                               # MAIN_10_444 and MAIN_10_444_STILL_PICTURE is still experimental.
   "10b422_C_Sony_4.zip"                               # MAIN_10_444 and MAIN_10_444_STILL_PICTURE is still experimental.
