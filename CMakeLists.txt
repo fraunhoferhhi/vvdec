@@ -308,6 +308,24 @@ foreach( BITSTREAM IN LISTS BITSTREAM_FILES )
   endif()
 endforeach()
 
+foreach( BITSTREAM IN LISTS BITSTREAM_FAULTY_FILES )
+  string( REGEX REPLACE "(.*).zip" "\\1" BITSTREAM_SHORT "${BITSTREAM}" )
+  set( BITSTREAM_FILE "${BITSTREAM_INSTALL_DIR_BASE}/${BITSTREAM_SHORT}/${BITSTREAM_SHORT}.bit" )
+
+  if( EXISTS ${BITSTREAM_FILE} )
+    add_test( NAME Faulty:${BITSTREAM_SHORT}.bit COMMAND vvdecapp -b ${BITSTREAM_FILE} -dph )
+    set_tests_properties( Faulty:${BITSTREAM_SHORT}.bit PROPERTIES TIMEOUT 120 )
+  else()
+    add_test( NAME MISSING:${BITSTREAM_SHORT}.bit COMMAND vvdecapp -b ${BITSTREAM_FILE} -dph )
+    set_tests_properties( MISSING:${BITSTREAM_SHORT}.bit PROPERTIES TIMEOUT 120 )
+
+    set( MISSING_BITSTREAM_FILES TRUE )
+  endif()
+endforeach()
+
+add_custom_target( test-ok  COMMAND ${CMAKE_CTEST_COMMAND} -C $<CONFIG> -R "^Test" )
+add_custom_target( test-all COMMAND ${CMAKE_CTEST_COMMAND} -C $<CONFIG> -R "\"^(Test)|(Faulty)\"" )
+
 if( MISSING_BITSTREAM_FILES )
   message( STATUS "Some bitstream files are missing." )
   message( STATUS "  If you want to run tests, reconfigure with -DVVDEC_ENABLE_BITSTREAM_DOWNLOAD=ON" )
