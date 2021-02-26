@@ -98,35 +98,11 @@ bool NoMallocThreadPool::processTasksOnMainThread()
 {
   CHECK( m_threads.size() != 0, "should not be used with multiple threads" );
 
-  bool         progress      = false;
-  TaskIterator firstFailedIt = m_tasks.end();
-  for( auto taskIt = findNextTask( 0, m_tasks.begin() ); taskIt.isValid(); taskIt = findNextTask( 0, taskIt ) )
+  auto taskIt = findNextTask( 0, m_tasks.begin() );
+  while( taskIt.isValid() )
   {
-    const bool success = processTask( 0, *taskIt );
-    progress |= success;
-
-    if( taskIt == firstFailedIt )
-    {
-      if( success )
-      {
-        // first failed was successful -> reset
-        firstFailedIt = m_tasks.end();
-      }
-      else if( progress )
-      {
-        // reset progress, try another round
-        progress = false;
-      }
-      else
-      {
-        // no progress -> exit
-        break;
-      }
-    }
-    else if( !success && !firstFailedIt.isValid() )
-    {
-      firstFailedIt = taskIt;
-    }
+    processTask( 0, *taskIt );
+    taskIt = findNextTask( 0, taskIt );
   }
 
   // return true if all done (-> false if some tasks blocked due to barriers)
