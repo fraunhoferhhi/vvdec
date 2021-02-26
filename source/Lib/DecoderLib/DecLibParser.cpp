@@ -1092,8 +1092,8 @@ Picture * DecLibParser::xActivateParameterSets( const int layerId )
       if(!frameFieldSEIs.empty())
       {
         const vvdecSEIFrameFieldInfo* ff = (vvdecSEIFrameFieldInfo*) frameFieldSEIs.front()->payload;
-        isField    = ff->m_fieldPicFlag;
-        isTopField = isField && (!ff->m_bottomFieldFlag);
+        isField    = ff->fieldPicFlag;
+        isTopField = isField && (!ff->bottomFieldFlag);
       }
     }
     pcPic->fieldPic = isField;

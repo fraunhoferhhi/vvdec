@@ -112,91 +112,96 @@ enum HashType
 };
 typedef enum HashType HashType;
 
-
+/* vvdecSEI
+  The struct vvdecSEI contains the payload of a SEI message.
+  To get the data from the payload the SEI has to be type casted into target type
+  e.g.
+  vvdecSEIBufferingPeriod* s = reinterpret_cast<vvdecSEIBufferingPeriod *>(sei->payload);
+*/
 typedef struct vvdecSEI
 {
-    SEIPayloadType            payloadType;     /* payload type as defined in sei.h */
-    unsigned int              size;            /* size of payload in bytes */
-    void                     *payload;         /* payload structure as defined in sei.h */
+  SEIPayloadType  payloadType;     /* payload type as defined in sei.h */
+  unsigned int    size;            /* size of payload in bytes */
+  void           *payload;         /* payload structure as defined in sei.h */
 }vvdecSEI;
 
 typedef struct vvdecSEIBufferingPeriod
 {
-  bool     m_bpNalCpbParamsPresentFlag;
-  bool     m_bpVclCpbParamsPresentFlag;
-  uint32_t m_initialCpbRemovalDelayLength;
-  uint32_t m_cpbRemovalDelayLength;
-  uint32_t m_dpbOutputDelayLength;
-  int      m_bpCpbCnt;
-  uint32_t m_duCpbRemovalDelayIncrementLength;
-  uint32_t m_dpbOutputDelayDuLength;
-  uint32_t m_initialCpbRemovalDelay [7][32][2];
-  uint32_t m_initialCpbRemovalOffset[7][32][2];
-  bool     m_concatenationFlag;
-  uint32_t m_auCpbRemovalDelayDelta;
-  bool     m_cpbRemovalDelayDeltasPresentFlag;
-  int      m_numCpbRemovalDelayDeltas;
-  int      m_bpMaxSubLayers;
-  uint32_t m_cpbRemovalDelayDelta[15];
-  bool     m_bpDecodingUnitHrdParamsPresentFlag;
-  bool     m_decodingUnitCpbParamsInPicTimingSeiFlag;
-  bool     m_decodingUnitDpbDuParamsInPicTimingSeiFlag;
-  bool     m_sublayerInitialCpbRemovalDelayPresentFlag;
-  bool     m_additionalConcatenationInfoPresentFlag;
-  uint32_t m_maxInitialRemovalDelayForConcatenation;
-  bool     m_sublayerDpbOutputOffsetsPresentFlag;
-  uint32_t m_dpbOutputTidOffset[7];
-  bool     m_altCpbParamsPresentFlag;
-  bool     m_useAltCpbParamsFlag;
+  bool        bpNalCpbParamsPresentFlag;
+  bool        bpVclCpbParamsPresentFlag;
+  uint32_t    initialCpbRemovalDelayLength;
+  uint32_t    cpbRemovalDelayLength;
+  uint32_t    dpbOutputDelayLength;
+  int         bpCpbCnt;
+  uint32_t    duCpbRemovalDelayIncrementLength;
+  uint32_t    dpbOutputDelayDuLength;
+  uint32_t    initialCpbRemovalDelay [7][32][2];
+  uint32_t    initialCpbRemovalOffset[7][32][2];
+  bool        concatenationFlag;
+  uint32_t    auCpbRemovalDelayDelta;
+  bool        cpbRemovalDelayDeltasPresentFlag;
+  int         numCpbRemovalDelayDeltas;
+  int         bpMaxSubLayers;
+  uint32_t    cpbRemovalDelayDelta[15];
+  bool        bpDecodingUnitHrdParamsPresentFlag;
+  bool        decodingUnitCpbParamsInPicTimingSeiFlag;
+  bool        decodingUnitDpbDuParamsInPicTimingSeiFlag;
+  bool        sublayerInitialCpbRemovalDelayPresentFlag;
+  bool        additionalConcatenationInfoPresentFlag;
+  uint32_t    maxInitialRemovalDelayForConcatenation;
+  bool        sublayerDpbOutputOffsetsPresentFlag;
+  uint32_t    dpbOutputTidOffset[7];
+  bool        altCpbParamsPresentFlag;
+  bool        useAltCpbParamsFlag;
 } vvdecSEIBufferingPeriod;
 
 
 typedef struct vvdecSEIPictureTiming
 {
-  bool     m_ptSubLayerDelaysPresentFlag[7];
-  bool     m_cpbRemovalDelayDeltaEnabledFlag[7];
-  uint32_t m_cpbRemovalDelayDeltaIdx[7];
-  uint32_t m_auCpbRemovalDelay[7];
-  uint32_t m_picDpbOutputDelay;
-  uint32_t m_picDpbOutputDuDelay;
-  uint32_t m_numDecodingUnits;
-  bool     m_duCommonCpbRemovalDelayFlag;
-  uint32_t m_duCommonCpbRemovalDelay[7];
-  uint32_t m_numNalusInDu[32];
-  uint32_t m_duCpbRemovalDelay[32*7+7];
-  bool     m_cpbAltTimingInfoPresentFlag;
-  uint32_t m_nalCpbAltInitialRemovalDelayDelta[7][32];
-  uint32_t m_nalCpbAltInitialRemovalOffsetDelta[7][32];
-  uint32_t m_nalCpbDelayOffset[7];
-  uint32_t m_nalDpbDelayOffset[7];
-  uint32_t m_vclCpbAltInitialRemovalDelayDelta[7][32];
-  uint32_t m_vclCpbAltInitialRemovalOffsetDelta[7][32];
-  uint32_t m_vclCpbDelayOffset[7];
-  uint32_t m_vclDpbDelayOffset[7];
-  int      m_ptDisplayElementalPeriods;
+  bool        ptSubLayerDelaysPresentFlag[7];
+  bool        cpbRemovalDelayDeltaEnabledFlag[7];
+  uint32_t    cpbRemovalDelayDeltaIdx[7];
+  uint32_t    auCpbRemovalDelay[7];
+  uint32_t    picDpbOutputDelay;
+  uint32_t    picDpbOutputDuDelay;
+  uint32_t    numDecodingUnits;
+  bool        duCommonCpbRemovalDelayFlag;
+  uint32_t    duCommonCpbRemovalDelay[7];
+  uint32_t    numNalusInDu[32];
+  uint32_t    duCpbRemovalDelay[32*7+7];
+  bool        cpbAltTimingInfoPresentFlag;
+  uint32_t    nalCpbAltInitialRemovalDelayDelta[7][32];
+  uint32_t    nalCpbAltInitialRemovalOffsetDelta[7][32];
+  uint32_t    nalCpbDelayOffset[7];
+  uint32_t    nalDpbDelayOffset[7];
+  uint32_t    vclCpbAltInitialRemovalDelayDelta[7][32];
+  uint32_t    vclCpbAltInitialRemovalOffsetDelta[7][32];
+  uint32_t    vclCpbDelayOffset[7];
+  uint32_t    vclDpbDelayOffset[7];
+  int         ptDisplayElementalPeriods;
 } vvdecSEIPictureTiming;
 
 
 typedef struct vvdecSEIUserDataRegistered
 {
-  uint16_t  ituCountryCode;
-  uint32_t  userDataLength;
-  uint8_t  *userData;
+  uint16_t    ituCountryCode;
+  uint32_t    userDataLength;
+  uint8_t    *userData;
 } vvdecSEIUserDataRegistered;
 
 typedef struct vvdecSEIUserDataUnregistered
 {
-  uint8_t   uuid_iso_iec_11578[16];
-  uint32_t  userDataLength;
-  uint8_t  *userData;
+  uint8_t     uuid_iso_iec_11578[16];
+  uint32_t    userDataLength;
+  uint8_t    *userData;
 } vvdecSEIUserDataUnregistered;
 
 
 typedef struct vvdecCompModelIntensityValues
 {
-  uint8_t intensityIntervalLowerBound;
-  uint8_t intensityIntervalUpperBound;
-  int     compModelValue[6];
+  uint8_t     intensityIntervalLowerBound;
+  uint8_t     intensityIntervalUpperBound;
+  int         compModelValue[6];
 }vvdecCompModelIntensityValues;
 
 typedef struct vvdecCompModel
@@ -208,55 +213,55 @@ typedef struct vvdecCompModel
 
 typedef struct vvdecSEIFilmGrainCharacteristics
 {
-  bool             m_filmGrainCharacteristicsCancelFlag;
-  uint8_t          m_filmGrainModelId;
-  bool             m_separateColourDescriptionPresentFlag;
-  uint8_t          m_filmGrainBitDepthLuma;
-  uint8_t          m_filmGrainBitDepthChroma;
-  bool             m_filmGrainFullRangeFlag;
-  uint8_t          m_filmGrainColourPrimaries;
-  uint8_t          m_filmGrainTransferCharacteristics;
-  uint8_t          m_filmGrainMatrixCoeffs;
-  uint8_t          m_blendingModeId;
-  uint8_t          m_log2ScaleFactor;
-  vvdecCompModel   m_compModel[3];
-  bool             m_filmGrainCharacteristicsPersistenceFlag;
+  bool             filmGrainCharacteristicsCancelFlag;
+  uint8_t          filmGrainModelId;
+  bool             separateColourDescriptionPresentFlag;
+  uint8_t          filmGrainBitDepthLuma;
+  uint8_t          filmGrainBitDepthChroma;
+  bool             filmGrainFullRangeFlag;
+  uint8_t          filmGrainColourPrimaries;
+  uint8_t          filmGrainTransferCharacteristics;
+  uint8_t          filmGrainMatrixCoeffs;
+  uint8_t          blendingModeId;
+  uint8_t          log2ScaleFactor;
+  vvdecCompModel   compModel[3];
+  bool             filmGrainCharacteristicsPersistenceFlag;
 }vvdecSEIFilmGrainCharacteristics;
 
 typedef struct vvdecSEIFramePacking
 {
-  int  m_arrangementId;
-  bool m_arrangementCancelFlag;
-  int  m_arrangementType;
-  bool m_quincunxSamplingFlag;
-  int  m_contentInterpretationType;
-  bool m_spatialFlippingFlag;
-  bool m_frame0FlippedFlag;
-  bool m_fieldViewsFlag;
-  bool m_currentFrameIsFrame0Flag;
-  bool m_frame0SelfContainedFlag;
-  bool m_frame1SelfContainedFlag;
-  int  m_frame0GridPositionX;
-  int  m_frame0GridPositionY;
-  int  m_frame1GridPositionX;
-  int  m_frame1GridPositionY;
-  int  m_arrangementReservedByte;
-  bool m_arrangementPersistenceFlag;
-  bool m_upsampledAspectRatio;
+  int         arrangementId;
+  bool        arrangementCancelFlag;
+  int         arrangementType;
+  bool        quincunxSamplingFlag;
+  int         contentInterpretationType;
+  bool        spatialFlippingFlag;
+  bool        frame0FlippedFlag;
+  bool        fieldViewsFlag;
+  bool        currentFrameIsFrame0Flag;
+  bool        frame0SelfContainedFlag;
+  bool        frame1SelfContainedFlag;
+  int         frame0GridPositionX;
+  int         frame0GridPositionY;
+  int         frame1GridPositionX;
+  int         frame1GridPositionY;
+  int         arrangementReservedByte;
+  bool        arrangementPersistenceFlag;
+  bool        upsampledAspectRatio;
 }vvdecSEIFramePacking;
 
 typedef struct vvdecSEIParameterSetsInclusionIndication
 {
-  int m_selfContainedClvsFlag;
+  int         selfContainedClvsFlag;
 }vvdecSEIParameterSetsInclusionIndication;
 
 typedef struct vvdecSEIDecodingUnitInfo
 {
-  int  m_decodingUnitIdx;
-  bool m_duiSubLayerDelaysPresentFlag[7];
-  int  m_duSptCpbRemovalDelayIncrement[7];
-  bool m_dpbOutputDuDelayPresentFlag;
-  int  m_picSptDpbOutputDuDelay;
+  int         decodingUnitIdx;
+  bool        duiSubLayerDelaysPresentFlag[7];
+  int         duSptCpbRemovalDelayIncrement[7];
+  bool        dpbOutputDuDelayPresentFlag;
+  int         picSptDpbOutputDuDelay;
 }vvdecSEIDecodingUnitInfo;
 
 
@@ -271,28 +276,28 @@ typedef struct vvdecSEIDecodedPictureHash
 
 typedef struct vvdecSEIScalableNesting
 {
-  bool      m_snOlsFlag;
-  bool      m_snSubpicFlag;
-  uint32_t  m_snNumOlss;
-  uint32_t  m_snOlsIdxDelta[64];
-  uint32_t  m_snOlsIdx[64];
-  bool      m_snAllLayersFlag;
-  uint32_t  m_snNumLayers;
-  uint8_t   m_snLayerId[64];
-  uint32_t  m_snNumSubpics;
-  uint8_t   m_snSubpicIdLen;
-  uint16_t  m_snSubpicId[64];
-  uint32_t  m_snNumSEIs;
+  bool        snOlsFlag;
+  bool        snSubpicFlag;
+  uint32_t    snNumOlss;
+  uint32_t    snOlsIdxDelta[64];
+  uint32_t    snOlsIdx[64];
+  bool        snAllLayersFlag;
+  uint32_t    snNumLayers;
+  uint8_t     snLayerId[64];
+  uint32_t    snNumSubpics;
+  uint8_t     snSubpicIdLen;
+  uint16_t    snSubpicId[64];
+  uint32_t    snNumSEIs;
 
-  vvdecSEI* m_nestedSEIs[64];
+  vvdecSEI* nestedSEIs[64];
 }vvdecSEIScalableNesting;
 
 typedef struct vvdecSEIMasteringDisplayColourVolume
 {
-    uint32_t maxLuminance;
-    uint32_t minLuminance;
-    uint16_t primaries[3][2];
-    uint16_t whitePoint[2];
+  uint32_t    maxLuminance;
+  uint32_t    minLuminance;
+  uint16_t    primaries[3][2];
+  uint16_t    whitePoint[2];
 }vvdecSEIMasteringDisplayColourVolume;
 
 typedef struct vvdecSEIDependentRapIndication
@@ -301,154 +306,154 @@ typedef struct vvdecSEIDependentRapIndication
 
 typedef struct vvdecSEIEquirectangularProjection
 {
-  bool    m_erpCancelFlag;
-  bool    m_erpPersistenceFlag;
-  bool    m_erpGuardBandFlag;
-  uint8_t m_erpGuardBandType;
-  uint8_t m_erpLeftGuardBandWidth;
-  uint8_t m_erpRightGuardBandWidth;
+  bool        erpCancelFlag;
+  bool        erpPersistenceFlag;
+  bool        erpGuardBandFlag;
+  uint8_t     erpGuardBandType;
+  uint8_t     erpLeftGuardBandWidth;
+  uint8_t     erpRightGuardBandWidth;
 }vvdecSEIEquirectangularProjection;
 
 typedef struct vvdecSEISphereRotation
 {
-  bool  m_sphereRotationCancelFlag;
-  bool  m_sphereRotationPersistenceFlag;
-  int   m_sphereRotationYaw;
-  int   m_sphereRotationPitch;
-  int   m_sphereRotationRoll;
+  bool        sphereRotationCancelFlag;
+  bool        sphereRotationPersistenceFlag;
+  int         sphereRotationYaw;
+  int         sphereRotationPitch;
+  int         sphereRotationRoll;
 }vvdecSEISphereRotation;
 
 typedef struct vvdecSEIRegionWisePacking
 {
-  bool     m_rwpCancelFlag;
-  bool     m_rwpPersistenceFlag;
-  bool     m_constituentPictureMatchingFlag;
-  int      m_numPackedRegions;
-  int      m_projPictureWidth;
-  int      m_projPictureHeight;
-  int      m_packedPictureWidth;
-  int      m_packedPictureHeight;
-  uint8_t  m_rwpTransformType[265];
-  bool     m_rwpGuardBandFlag[265];
-  uint32_t m_projRegionWidth[265];
-  uint32_t m_projRegionHeight[265];
-  uint32_t m_rwpProjRegionTop[265];
-  uint32_t m_projRegionLeft[265];
-  uint16_t m_packedRegionWidth[265];
-  uint16_t m_packedRegionHeight[265];
-  uint16_t m_packedRegionTop[265];
-  uint16_t m_packedRegionLeft[265];
-  uint8_t  m_rwpLeftGuardBandWidth[265];
-  uint8_t  m_rwpRightGuardBandWidth[265];
-  uint8_t  m_rwpTopGuardBandHeight[265];
-  uint8_t  m_rwpBottomGuardBandHeight[265];
-  bool     m_rwpGuardBandNotUsedForPredFlag[265];
-  uint8_t  m_rwpGuardBandType[4*265];
+  bool        rwpCancelFlag;
+  bool        rwpPersistenceFlag;
+  bool        constituentPictureMatchingFlag;
+  int         numPackedRegions;
+  int         projPictureWidth;
+  int         projPictureHeight;
+  int         packedPictureWidth;
+  int         packedPictureHeight;
+  uint8_t     rwpTransformType[265];
+  bool        rwpGuardBandFlag[265];
+  uint32_t    projRegionWidth[265];
+  uint32_t    projRegionHeight[265];
+  uint32_t    rwpProjRegionTop[265];
+  uint32_t    projRegionLeft[265];
+  uint16_t    packedRegionWidth[265];
+  uint16_t    packedRegionHeight[265];
+  uint16_t    packedRegionTop[265];
+  uint16_t    packedRegionLeft[265];
+  uint8_t     rwpLeftGuardBandWidth[265];
+  uint8_t     rwpRightGuardBandWidth[265];
+  uint8_t     rwpTopGuardBandHeight[265];
+  uint8_t     rwpBottomGuardBandHeight[265];
+  bool        rwpGuardBandNotUsedForPredFlag[265];
+  uint8_t     rwpGuardBandType[4*265];
 }vvdecSEIRegionWisePacking;
 
 typedef struct vvdecOmniViewportRegion
 {
-  int      azimuthCentre;
-  int      elevationCentre;
-  int      tiltCentre;
-  uint32_t horRange;
-  uint32_t verRange;
+  int         azimuthCentre;
+  int         elevationCentre;
+  int         tiltCentre;
+  uint32_t    horRange;
+  uint32_t    verRange;
 }vvdecOmniViewportRegion;
 
 typedef struct vvdecSEIOmniViewport
 {
-  uint32_t                m_omniViewportId;
-  bool                    m_omniViewportCancelFlag;
-  bool                    m_omniViewportPersistenceFlag;
-  uint8_t                 m_omniViewportCnt;
-  vvdecOmniViewportRegion m_omniViewportRegions[16];
+  uint32_t                omniViewportId;
+  bool                    omniViewportCancelFlag;
+  bool                    omniViewportPersistenceFlag;
+  uint8_t                 omniViewportCnt;
+  vvdecOmniViewportRegion omniViewportRegions[16];
 }vvdecSEIOmniViewport;
 
 
 typedef struct vvdecSEIGeneralizedCubemapProjection
 {
-  bool    m_gcmpCancelFlag;
-  bool    m_gcmpPersistenceFlag;
-  uint8_t m_gcmpPackingType;
-  uint8_t m_gcmpMappingFunctionType;
-  uint8_t m_gcmpFaceIndex[6];
-  uint8_t m_gcmpFaceRotation[6];
-  uint8_t m_gcmpFunctionCoeffU[6];
-  bool    m_gcmpFunctionUAffectedByVFlag[6];
-  uint8_t m_gcmpFunctionCoeffV[6];
-  bool    m_gcmpFunctionVAffectedByUFlag[6];
-  bool    m_gcmpGuardBandFlag;
-  uint8_t m_gcmpGuardBandType;
-  bool    m_gcmpGuardBandBoundaryExteriorFlag;
-  uint8_t m_gcmpGuardBandSamples;
+  bool        gcmpCancelFlag;
+  bool        gcmpPersistenceFlag;
+  uint8_t     gcmpPackingType;
+  uint8_t     gcmpMappingFunctionType;
+  uint8_t     gcmpFaceIndex[6];
+  uint8_t     gcmpFaceRotation[6];
+  uint8_t     gcmpFunctionCoeffU[6];
+  bool        gcmpFunctionUAffectedByVFlag[6];
+  uint8_t     gcmpFunctionCoeffV[6];
+  bool        gcmpFunctionVAffectedByUFlag[6];
+  bool        gcmpGuardBandFlag;
+  uint8_t     gcmpGuardBandType;
+  bool        gcmpGuardBandBoundaryExteriorFlag;
+  uint8_t     gcmpGuardBandSamples;
 }vvdecSEIGeneralizedCubemapProjection;
 
 typedef struct vvdecSEIFrameFieldInfo
 {
-  bool m_fieldPicFlag;
-  bool m_bottomFieldFlag;
-  bool m_pairingIndicatedFlag;
-  bool m_pairedWithNextFieldFlag;
-  bool m_displayFieldsFromFrameFlag;
-  bool m_topFieldFirstFlag;
-  int  m_displayElementalPeriods;
-  int  m_sourceScanType;
-  bool m_duplicateFlag;
+  bool        fieldPicFlag;
+  bool        bottomFieldFlag;
+  bool        pairingIndicatedFlag;
+  bool        pairedWithNextFieldFlag;
+  bool        displayFieldsFromFrameFlag;
+  bool        topFieldFirstFlag;
+  int         displayElementalPeriods;
+  int         sourceScanType;
+  bool        duplicateFlag;
 }vvdecSEIFrameFieldInfo;
 
 typedef struct vvdecSEISubpictureLevelInfo
 {
-  int       m_numRefLevels;
-  bool      m_explicitFractionPresentFlag;
-  bool      m_cbrConstraintFlag;
-  int       m_numSubpics;
-  int       m_sliMaxSublayers;
-  bool      m_sliSublayerInfoPresentFlag;
-  int       m_nonSubpicLayersFraction[6][6];
-  Level     m_refLevelIdc[6][6];
-  int       m_refLevelFraction[6][64][6];
+  int         numRefLevels;
+  bool        explicitFractionPresentFlag;
+  bool        cbrConstraintFlag;
+  int         numSubpics;
+  int         sliMaxSublayers;
+  bool        sliSublayerInfoPresentFlag;
+  int         nonSubpicLayersFraction[6][6];
+  Level       refLevelIdc[6][6];
+  int         refLevelFraction[6][64][6];
 }vvdecSEISubpictureLevelInfo;
 
 typedef struct vvdecSEISampleAspectRatioInfo
 {
-  bool    m_sariCancelFlag;
-  bool    m_sariPersistenceFlag;
-  int     m_sariAspectRatioIdc;
-  int     m_sariSarWidth;
-  int     m_sariSarHeight;
+  bool        sariCancelFlag;
+  bool        sariPersistenceFlag;
+  int         sariAspectRatioIdc;
+  int         sariSarWidth;
+  int         sariSarHeight;
 }vvdecSEISampleAspectRatioInfo;
 
 typedef struct vvdecSEIContentLightLevelInfo
 {
-  uint16_t m_maxContentLightLevel;
-  uint16_t m_maxPicAverageLightLevel;
+  uint16_t    maxContentLightLevel;
+  uint16_t    maxPicAverageLightLevel;
 }vvdecSEIContentLightLevelInfo;
 
 typedef struct vvdecSEIAlternativeTransferCharacteristics
 {
-  uint8_t preferred_transfer_characteristics;
+  uint8_t     preferred_transfer_characteristics;
 }vvdecSEIAlternativeTransferCharacteristics;
 
 typedef struct vvdecSEIAmbientViewingEnvironment
 {
-  uint32_t m_ambientIlluminance;
-  uint16_t m_ambientLightX;
-  uint16_t m_ambientLightY;
+  uint32_t    ambientIlluminance;
+  uint16_t    ambientLightX;
+  uint16_t    ambientLightY;
 }vvdecSEIAmbientViewingEnvironment;
 
 typedef struct vvdecSEIContentColourVolume
 {
-  bool      m_ccvCancelFlag;
-  bool      m_ccvPersistenceFlag;
-  bool      m_ccvPrimariesPresentFlag;
-  bool      m_ccvMinLuminanceValuePresentFlag;
-  bool      m_ccvMaxLuminanceValuePresentFlag;
-  bool      m_ccvAvgLuminanceValuePresentFlag;
-  int       m_ccvPrimariesX[3];
-  int       m_ccvPrimariesY[3];
-  uint32_t  m_ccvMinLuminanceValue;
-  uint32_t  m_ccvMaxLuminanceValue;
-  uint32_t  m_ccvAvgLuminanceValue;
+  bool        ccvCancelFlag;
+  bool        ccvPersistenceFlag;
+  bool        ccvPrimariesPresentFlag;
+  bool        ccvMinLuminanceValuePresentFlag;
+  bool        ccvMaxLuminanceValuePresentFlag;
+  bool        ccvAvgLuminanceValuePresentFlag;
+  int         ccvPrimariesX[3];
+  int         ccvPrimariesY[3];
+  uint32_t    ccvMinLuminanceValue;
+  uint32_t    ccvMaxLuminanceValue;
+  uint32_t    ccvAvgLuminanceValue;
 }vvdecSEIContentColourVolume;
 
 #endif /*_VVDEC_SEI_H_*/

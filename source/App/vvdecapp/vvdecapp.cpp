@@ -337,11 +337,11 @@ int main( int argc, char* argv[] )
           }
 
 #if 0
-          vvdec_sei_message_t *sei = vvdec_find_frame_sei( dec, VVDEC_CONTENT_LIGHT_LEVEL_INFO, pcFrame );
+          vvdecSEI *sei = vvdec_find_frame_sei( dec, VVDEC_CONTENT_LIGHT_LEVEL_INFO, pcFrame );
           if( sei )
           {
-            vvdec_sei_content_light_level_info_t* p = reinterpret_cast<vvdec_sei_content_light_level_info_t *>(sei->payload);
-            std::cout << "vvdecapp [info]: CONTENT_LIGHT_LEVEL_INFO: " << p->m_maxContentLightLevel << "," << p->m_maxPicAverageLightLevel << std::endl;
+            vvdecSEIContentLightLevelInfo* p = reinterpret_cast<vvdecSEIContentLightLevelInfo *>(sei->payload);
+            std::cout << "vvdecapp [info]: CONTENT_LIGHT_LEVEL_INFO: " << p->maxContentLightLevel << "," << p->maxPicAverageLightLevel << std::endl;
           }
 #endif
 
