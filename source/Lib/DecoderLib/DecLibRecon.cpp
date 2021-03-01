@@ -188,7 +188,7 @@ void DecLibRecon::borderExtPic( Picture* pic )
                                                  pic,
                                                  nullptr,
                                                  &pic->m_copyWrapBufDone,
-                                                 { &static_cast<const Barrier&>( pic->done ) } );
+                                                 { &pic->done} );
   }
 
   // start actual border extension tasks
@@ -203,7 +203,7 @@ void DecLibRecon::borderExtPic( Picture* pic )
                                                  pic,
                                                  &pic->m_borderExtTaskCounter,
                                                  nullptr,
-                                                 { wrapAround ? &pic->m_copyWrapBufDone : &static_cast<const Barrier&>( pic->done ) } );
+                                                 { wrapAround ? &pic->m_copyWrapBufDone : &pic->done} );
   }
 
   {
@@ -217,7 +217,7 @@ void DecLibRecon::borderExtPic( Picture* pic )
                                                  pic,
                                                  &pic->m_borderExtTaskCounter,
                                                  nullptr,
-                                                 { wrapAround ? &pic->m_copyWrapBufDone : &static_cast<const Barrier&>( pic->done ) } );
+                                                 { wrapAround ? &pic->m_copyWrapBufDone : &pic->done} );
   }
 
   {
@@ -231,7 +231,7 @@ void DecLibRecon::borderExtPic( Picture* pic )
                                                  pic,
                                                  &pic->m_borderExtTaskCounter,
                                                  nullptr,
-                                                 { wrapAround ? &pic->m_copyWrapBufDone : &static_cast<const Barrier&>( pic->done ) } );
+                                                 { wrapAround ? &pic->m_copyWrapBufDone : &pic->done} );
   }
   {
     static auto task = []( int, Picture* picture ) {
@@ -244,7 +244,7 @@ void DecLibRecon::borderExtPic( Picture* pic )
                                                  pic,
                                                  &pic->m_borderExtTaskCounter,
                                                  nullptr,
-                                                 { wrapAround ? &pic->m_copyWrapBufDone : &static_cast<const Barrier&>( pic->done ) } );
+                                                 { wrapAround ? &pic->m_copyWrapBufDone : &pic->done} );
   }
 
   {
@@ -258,7 +258,7 @@ void DecLibRecon::borderExtPic( Picture* pic )
                                                  pic,
                                                  &pic->m_borderExtTaskCounter,
                                                  nullptr,
-                                                 { wrapAround ? &pic->m_copyWrapBufDone : &static_cast<const Barrier&>( pic->done ) } );
+                                                 { wrapAround ? &pic->m_copyWrapBufDone : &pic->done} );
   }
   {
     static auto task = []( int, Picture* picture ) {
@@ -271,7 +271,7 @@ void DecLibRecon::borderExtPic( Picture* pic )
                                                  pic,
                                                  &pic->m_borderExtTaskCounter,
                                                  nullptr,
-                                                 { wrapAround ? &pic->m_copyWrapBufDone : &static_cast<const Barrier&>( pic->done ) } );
+                                                 { wrapAround ? &pic->m_copyWrapBufDone : &pic->done} );
   }
 }
 
@@ -300,11 +300,7 @@ void DecLibRecon::createSubPicRefBufs( Picture* pic )
       return true;
     };
     m_subPicExtTasks.emplace_back( SubPicExtTask{ pic, &pic->m_subPicRefBufs[i], subPicArea } );
-    m_decodeThreadPool->addBarrierTask<SubPicExtTask>( task,
-                                                       &m_subPicExtTasks.back(),
-                                                       &pic->m_borderExtTaskCounter,
-                                                       nullptr,
-                                                       { &static_cast<const Barrier&>( pic->done ) } );
+    m_decodeThreadPool->addBarrierTask<SubPicExtTask>( task, &m_subPicExtTasks.back(), &pic->m_borderExtTaskCounter, nullptr, { &pic->done } );
   }
 }
 
@@ -516,13 +512,11 @@ void DecLibRecon::decompressPicture( Picture* pcPic )
       // mark end of frame
       __itt_frame_end_v3( picture->m_itt_decLibInst, nullptr );
 #endif
-      picture->done.unlock();
-
       picture->stopProcessingTimer();
 
       return true;
     };
-    m_decodeThreadPool->addBarrierTask<Picture>( doneTask, pcPic, nullptr, nullptr, { pcPic->m_ctuTaskCounter.donePtr() } );
+    m_decodeThreadPool->addBarrierTask<Picture>( doneTask, pcPic, nullptr, &pcPic->done, { pcPic->m_ctuTaskCounter.donePtr() } );
   }
 
   if( pcPic->referenced )

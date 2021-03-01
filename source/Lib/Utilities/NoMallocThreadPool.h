@@ -77,12 +77,12 @@ static __itt_string_handle* itt_handle_TPaddTask  = __itt_string_handle_create( 
 
 struct Barrier
 {
-  void unlock()
+  virtual void unlock()
   {
     m_lockState.store( false );
   }
 
-  void lock()
+  virtual void lock()
   {
     m_lockState.store( true );
   }
@@ -93,7 +93,7 @@ struct Barrier
   }
 
   Barrier()  = default;
-  ~Barrier() = default;
+  virtual ~Barrier() = default;
   explicit Barrier( bool locked ) : m_lockState( locked ) {}
 
   Barrier( const Barrier & ) = delete;
@@ -106,32 +106,25 @@ private:
   std::atomic_bool m_lockState{ true };
 };
 
-struct BlockingBarrier
+struct BlockingBarrier: public Barrier
 {
-  void unlock()
+  void unlock() override
   {
     std::unique_lock<std::mutex> l( m_lock );
-    m_intBarrier.unlock();
+    Barrier::unlock();
     m_cond.notify_all();
   }
 
-  void lock()
+  void lock() override
   {
     std::unique_lock<std::mutex> l( m_lock );
-    m_intBarrier.lock();
-  }
-
-  bool isBlocked() const
-  {
-    return m_intBarrier.isBlocked();
+    Barrier::lock();
   }
 
   void wait() const
   {
-    BlockingBarrier* nonconst = const_cast<BlockingBarrier*>(this);
-
-    std::unique_lock<std::mutex> l( nonconst->m_lock );
-    nonconst->m_cond.wait( l, [=] { return !m_intBarrier.isBlocked(); } );
+    std::unique_lock<std::mutex> l( m_lock );
+    m_cond.wait( l, [=] { return !Barrier::isBlocked(); } );
   }
 
   BlockingBarrier()  = default;
@@ -143,13 +136,9 @@ struct BlockingBarrier
   BlockingBarrier& operator=( const BlockingBarrier& ) = delete;
   BlockingBarrier& operator=( BlockingBarrier&& ) = delete;
 
-  // cast to const ref Barrier, so we can use it for thread pool tasks:
-  operator const Barrier&() const { return m_intBarrier; }
-
 private:
-  Barrier                 m_intBarrier;
-  std::condition_variable m_cond;
-  std::mutex              m_lock;
+  mutable std::condition_variable m_cond;
+  mutable std::mutex              m_lock;
 };
 
 struct WaitCounter
@@ -182,10 +171,8 @@ struct WaitCounter
 
   void wait() const
   {
-    WaitCounter* nonconst = const_cast<WaitCounter*>(this);
-
-    std::unique_lock<std::mutex> l( nonconst->m_lock );
-    nonconst->m_cond.wait( l, [=] { return m_count == 0; } );
+    std::unique_lock<std::mutex> l( m_lock );
+    m_cond.wait( l, [=] { return m_count == 0; } );
   }
 
   WaitCounter() = default;
@@ -200,10 +187,10 @@ struct WaitCounter
   const Barrier* donePtr() const { return &m_done; }
 
 private:
-  std::condition_variable m_cond;
-  std::mutex              m_lock;
-  unsigned int            m_count = 0;
-  Barrier                 m_done{ false };
+  mutable std::condition_variable m_cond;
+  mutable std::mutex              m_lock;
+  unsigned int                    m_count = 0;
+  Barrier                         m_done{ false };
 };
 
 
