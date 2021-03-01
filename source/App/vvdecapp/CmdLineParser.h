@@ -77,9 +77,7 @@ public:
           "\t YUV output options\n"
           "\n"
           "\t\t [--output,-o  <str>        ] : yuv output file (default: not set)\n"
-#if 1 //RPR_YUV_OUTPUT
-          "\t\t [--UpscaledOutput,-uo  <int> ] : yuv output file (default: not set)\n"
-#endif
+          "\t\t [--upscale,-uo             ] : set upscaling mode for RPR pictures(default: 0: off, 1: copy without rescaling, 2: rescale to target resolution)\n"
           "\n"
           "\t Decoder Options\n"
           "\n"
@@ -170,17 +168,25 @@ public:
           rcOutputFile = argv[i_arg++];
         }
       }
-#if 1 //RPR_YUV_OUTPUT
-      else if( (!strcmp( (const char*)argv[i_arg], "-uo" )) || !strcmp( (const char*)argv[i_arg], "--UpscaledOutput" ) ) /* Out: bitstream-file */
+      else if( (!strcmp( (const char*)argv[i_arg], "-uo" )) || !strcmp( (const char*)argv[i_arg], "--upscale" ) ) /* In: upscale */
       {
-        if( i_arg == argc-1 ){ fprintf( stderr, " - missing argument for: %s \n", argv[i_arg] ); return -1; }
         i_arg++;
-        int iUpscaledOutput = atoi( argv[i_arg++] );
+
+        rcParams.upscaleOutput = (vvdecRPRUpscaling) atoi( argv[i_arg++]);
+
         if( rcParams.logLevel > VVDEC_VERBOSE )
-          fprintf( stdout, "[UpscaledOutput] : %d\n", iUpscaledOutput );
-        rcParams.upscaleOutput = iUpscaledOutput;
+        {
+          std::string scale;
+          switch( rcParams.upscaleOutput )
+          {
+          case VVDEC_UPSCALING_OFF      : scale = "OFF"; break;
+          case VVDEC_UPSCALING_COPY_ONLY: scale = "COPY_ONLY"; break;
+          case VVDEC_UPSCALING_RESCALE  : scale = "RESCALE"; break;
+          default: scale = "UNKNOWN"; break;
+          };
+          fprintf( stdout, "[upscale] : %s\n", scale.c_str() );
+        }
       }
-#endif
       else if( (!strcmp( (const char*)argv[i_arg], "-f" )) || !strcmp( (const char*)argv[i_arg], "--frames" ) )
       {
         if( i_arg == argc-1 ){ fprintf( stderr, " - missing argument for: %s \n", argv[i_arg] ); return -1; }

@@ -58,7 +58,7 @@ VVDEC_DECL void vvdec_params_default(vvdecParams *params)
 {
   params->threads                      = -1;                   // thread count        ( default: -1 )
   params->parseThreads                 = -1;                   // parser thread count ( default: -1 )
-  params->upscaleOutput                =  0;                   // do internal upscaling of rpl pictures to dest. resolution ( default: 0 )
+  params->upscaleOutput                = VVDEC_UPSCALING_OFF;  // do internal upscaling of rpr pictures to dest. resolution ( default: off )
   params->logLevel                     = VVDEC_WARNING;        // verbosity level
   params->verifyPictureHash            = false;                // verify picture, if digest is available, true: check hash in SEI messages if available, false: ignore SEI message
   params->simd                         = VVDEC_SIMD_DEFAULT;   // set specific simd optimization (default: max. availalbe)

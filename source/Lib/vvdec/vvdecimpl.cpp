@@ -811,7 +811,7 @@ int VVDecImpl::xAddPicture( Picture* pcPic )
   if( bCreateStorage )
   {
 #if RPR_YUV_OUTPUT
-    if( m_cDecLib->getUpscaledOutput() == 2 )
+    if( m_cDecLib->getUpscaledOutput() == (int)VVDEC_UPSCALING_RESCALE )
     {
       PelStorage upscaledPic;
       upscaledPic.create( cPicBuf.chromaFormat, Size( orgWidth, orgHeight ) );
@@ -848,6 +848,12 @@ int VVDecImpl::xAddPicture( Picture* pcPic )
     else
 #endif
     {
+      // init memory
+      for( int comp=0; comp < maxComponent; comp++ )
+      {
+        ::memset( cFrame.planes[comp].ptr,0, cFrame.planes[comp].width*cFrame.planes[comp].height*cFrame.planes[comp].bytesPerSample);
+      }
+
       // copy picture into target memory
       for( int comp=0; comp < maxComponent; comp++ )
       {

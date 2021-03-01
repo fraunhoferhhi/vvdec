@@ -123,6 +123,16 @@ typedef enum
   VVDEC_SIMD_AVX512   = 6
 }vvdecSIMD_Extension;
 
+/*
+  \enum vvdecRPRUpscaling
+  The enum vvdecRPRUpscaling enumerates supported RPR upscaling handling
+*/
+typedef enum
+{
+  VVDEC_UPSCALING_OFF       = 0,     // no RPR scaling
+  VVDEC_UPSCALING_COPY_ONLY = 1,     // copy picture into target resolution only
+  VVDEC_UPSCALING_RESCALE   = 2      // auto rescale RPR pictures into target resolution
+}vvdecRPRUpscaling;
 
 /*
   \enum ColorFormat
@@ -375,7 +385,7 @@ typedef struct vvdecParams
 {
   int                 threads;           // thread count        ( default: -1 )
   int                 parseThreads;      // parser thread count ( default: -1 )
-  bool                upscaleOutput;     // do internal upscaling of rpl pictures to dest. resolution ( default: 0 )
+  vvdecRPRUpscaling   upscaleOutput;     // do internal upscaling of rpl pictures to dest. resolution ( default: 0 )
   vvdecLogLevel       logLevel;          // verbosity level
   bool                verifyPictureHash; // verify picture, if digest is available, true: check hash in SEI messages if available, false: ignore SEI message
   vvdecSIMD_Extension simd;              // set specific simd optimization (default: max. availalbe)
