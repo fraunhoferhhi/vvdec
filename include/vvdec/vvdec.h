@@ -91,7 +91,7 @@ typedef enum
   VVDEC_ERR_CPU               = -30,   // unsupported CPU SSE 4.1 needed
   VVDEC_TRY_AGAIN             = -40,   // decoder needs more input and cannot return a picture
   VVDEC_EOF                   = -50    // end of file
-}ErrorCodes;
+}vvdecErrorCodes;
 
 /*
   \enum LogLevel
@@ -106,7 +106,7 @@ typedef enum
   VVDEC_NOTICE  = 4,
   VVDEC_VERBOSE = 5,
   VVDEC_DETAILS = 6
-}LogLevel;
+}vvdecLogLevel;
 
 /*
   \enum LogLevel
@@ -121,7 +121,7 @@ typedef enum
   VVDEC_SIMD_AVX      = 4,
   VVDEC_SIMD_AVX2     = 5,
   VVDEC_SIMD_AVX512   = 6
-}SIMD_Extension;
+}vvdecSIMD_Extension;
 
 
 /*
@@ -135,7 +135,7 @@ typedef enum
   VVDEC_CF_YUV420_PLANAR =  1,         // YUV420 planar color format
   VVDEC_CF_YUV422_PLANAR =  2,         // YUV422 planar color format
   VVDEC_CF_YUV444_PLANAR =  3          // YUV444 planar color format
-}ColorFormat;
+}vvdecColorFormat;
 
 /*
   The class InterlaceFormat enumerates several supported picture formats.
@@ -157,7 +157,7 @@ typedef enum
   VVDEC_FF_BOT_PW_PREV = 10,           // bottom field (is paired with previous top field)
   VVDEC_FF_TOP_PW_NEXT = 11,           // top field    (is paired with next bottom field)
   VVDEC_FF_BOT_PW_NEXT = 12,           // bottom field (is paired with next top field)
-}FrameFormat;
+}vvdecFrameFormat;
 
 /*
   The class SliceType enumerates several supported slice types.
@@ -168,7 +168,7 @@ typedef enum
   VVDEC_SLICETYPE_P,
   VVDEC_SLICETYPE_B,
   VVDEC_SLICETYPE_UNKNOWN
-}VVDEC_SliceType;
+}vvdecSliceType;
 
 typedef enum
 {
@@ -211,7 +211,7 @@ typedef enum
   VVC_NAL_UNIT_UNSPECIFIED_30,
   VVC_NAL_UNIT_UNSPECIFIED_31,
   VVC_NAL_UNIT_INVALID
-}NalType;
+}vvdecNalType;
 
 
 typedef enum
@@ -219,7 +219,7 @@ typedef enum
   VVDEC_CT_Y = 0,                      // Y component
   VVDEC_CT_U = 1,                      // U component
   VVDEC_CT_V = 2                       // V component
-}ComponentType;
+}vvdecComponentType;
 
 
 /* vvdecAccessUnit
@@ -325,8 +325,8 @@ typedef struct vvdecHrd
 */
 typedef struct vvdecPicAttributes
 {
-  NalType         nalType;             // nal unit type
-  VVDEC_SliceType sliceType;           // slice type (I/P/B) */
+  vvdecNalType    nalType;             // nal unit type
+  vvdecSliceType  sliceType;           // slice type (I/P/B) */
   bool            isRefPic;            // reference picture
   uint32_t        temporalLayer;       // temporal layer
   uint64_t        poc;                 // picture order count
@@ -359,8 +359,8 @@ typedef struct vvdecFrame
   uint32_t            width;           // width of the luminance plane
   uint32_t            height;          // height of the luminance plane
   uint32_t            bitDepth;        // bit depth of input signal (8: depth 8 bit, 10: depth 10 bit  )
-  FrameFormat         frameFormat;     // frame format (progressive/interlaced)
-  ColorFormat         colorFormat;     // color format
+  vvdecFrameFormat    frameFormat;     // frame format (progressive/interlaced)
+  vvdecColorFormat    colorFormat;     // color format
   uint64_t            sequenceNumber;  // sequence number of the picture
   uint64_t            cts;             // composition time stamp in TicksPerSecond
   bool                ctsValid;        // composition time stamp valid flag (true: valid, false: CTS not set)
@@ -373,12 +373,12 @@ typedef struct vvdecFrame
 */
 typedef struct vvdecParams
 {
-  int             threads;             // thread count        ( default: -1 )
-  int             parseThreads;        // parser thread count ( default: -1 )
-  bool            upscaleOutput;       // do internal upscaling of rpl pictures to dest. resolution ( default: 0 )
-  LogLevel        logLevel;            // verbosity level
-  bool            verifyPictureHash;   // verify picture, if digest is available, true: check hash in SEI messages if available, false: ignore SEI message
-  SIMD_Extension  simd;                // set specific simd optimization (default: max. availalbe)
+  int                 threads;           // thread count        ( default: -1 )
+  int                 parseThreads;      // parser thread count ( default: -1 )
+  bool                upscaleOutput;     // do internal upscaling of rpl pictures to dest. resolution ( default: 0 )
+  vvdecLogLevel       logLevel;          // verbosity level
+  bool                verifyPictureHash; // verify picture, if digest is available, true: check hash in SEI messages if available, false: ignore SEI message
+  vvdecSIMD_Extension simd;              // set specific simd optimization (default: max. availalbe)
 } vvdecParams;
 
 /* vvdec_params_default:
@@ -435,7 +435,7 @@ VVDEC_DECL int vvdec_decoder_close(vvdecDecoder *);
   \retval      int if non-zero an error occurred (see ErrorCodes), otherwise VVDEC_OK indicates success.
   \pre         The decoder has to be initialized successfully.
  */
-VVDEC_DECL int vvdec_set_logging_callback(vvdecDecoder* , vvdecLoggingCallback callback, void *userData, LogLevel logLevel);
+VVDEC_DECL int vvdec_set_logging_callback(vvdecDecoder* , vvdecLoggingCallback callback, void *userData, vvdecLogLevel logLevel);
 
 /* vvdec_decode
   This method decodes a compressed image packet (bitstream).
@@ -531,21 +531,21 @@ VVDEC_DECL const char* vvdec_get_error_msg( int nRet );
              side information, data are valid if UsedSize attribute is non-zero and the call was successful.
  \retval[ ]  NalType found Nal Unit type
 */
-VVDEC_DECL NalType vvdec_get_nal_unit_type ( vvdecAccessUnit *accessUnit );
+VVDEC_DECL vvdecNalType vvdec_get_nal_unit_type ( vvdecAccessUnit *accessUnit );
 
 /* vvdec_get_nal_unit_type_name
  This function returns the name of a given NalType
  \param[in]  NalType value of enum NalType
  \retval[ ]  const char* NalType as string
 */
-VVDEC_DECL const char* vvdec_get_nal_unit_type_name( NalType t );
+VVDEC_DECL const char* vvdec_get_nal_unit_type_name( vvdecNalType t );
 
 /* vvdec_is_nal_unit_slice
  This function returns true if a given NalType is of type picture or slice
  \param[in]  NalType value of enum NalType
  \retval[ ]  bool true if slice/picture, else false
 */
-VVDEC_DECL bool vvdec_is_nal_unit_slice ( NalType t );
+VVDEC_DECL bool vvdec_is_nal_unit_slice ( vvdecNalType t );
 
 
 #ifdef __cplusplus

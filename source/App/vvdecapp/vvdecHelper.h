@@ -472,7 +472,7 @@ static inline std::string getTimePointAsString( )
 }
 
 
-static inline std::string getNalUnitTypeAsString( NalType eNalType )
+static inline std::string getNalUnitTypeAsString( vvdecNalType eNalType )
 {
   std::string cNalType = "VVC_NAL_UNIT_UNIT_INVALID";
 

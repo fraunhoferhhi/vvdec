@@ -92,12 +92,50 @@ public:
   /// Destructor
   virtual ~VVDecImpl();
 
+  class FrameStorage
+  {
+  public:
+    FrameStorage()  = default;
+    ~FrameStorage() = default;
+
+    int allocateStorage( size_t size )
+    {
+      if( size == 0 ){ return VVDEC_ERR_ALLOCATE; }
+      m_ptr = new unsigned char [ size ];
+      m_size = size;
+      m_isAllocated = true;
+      return 0;
+    }
+
+    int freeStorage()
+    {
+      if( !m_isAllocated) { return VVDEC_ERR_ALLOCATE; }
+      delete [] m_ptr;
+      m_size = 0;
+      m_isAllocated = false;
+      return 0;
+    }
+
+    unsigned char * getStorage()
+    {
+      if( !m_isAllocated) { return nullptr; }
+      return m_ptr;
+    }
+
+    bool isAllocated(){ return m_isAllocated; }
+
+  private:
+    bool           m_isAllocated = false;
+    unsigned char *m_ptr         = nullptr;     // pointer to plane buffer
+    size_t         m_size        = 0;
+  };
+
 public:
 
    int init( const vvdecParams& params );
    int uninit();
 
-   void setLoggingCallback(vvdecLoggingCallback callback, void *userData, LogLevel level);
+   void setLoggingCallback(vvdecLoggingCallback callback, void *userData, vvdecLogLevel level);
 
    int decode( vvdecAccessUnit& accessUnit, vvdecFrame** ppframe );
 
@@ -117,21 +155,21 @@ public:
    static const char* getErrorMsg( int nRet );
    static const char* getVersionNumber();
 
-   static NalType getNalUnitType            ( vvdecAccessUnit& accessUnit );
-   static const char* getNalUnitTypeAsString( NalType t );
-
-   static bool isNalUnitSlice               ( NalType t );
+   static vvdecNalType getNalUnitType       ( vvdecAccessUnit& accessUnit );
+   static const char* getNalUnitTypeAsString( vvdecNalType t );
+   static bool isNalUnitSlice               ( vvdecNalType t );
 
 private:
 
    int xAddPicture                  ( Picture* pcPic );
-   int xCreateFrame                 ( vvdecFrame& frame, const CPelUnitBuf& rcPicBuf, uint32_t uiWidth, uint32_t uiHeight, const BitDepths& rcBitDepths );
+   int xCreateFrame                 ( vvdecFrame& frame, const CPelUnitBuf& rcPicBuf, uint32_t uiWidth, uint32_t uiHeight, const BitDepths& rcBitDepths, bool bCreateStorage );
 
    static int xRetrieveNalStartCode ( unsigned char *pB, int iZerosInStartcode );
    static int xConvertPayloadToRBSP ( std::vector<uint8_t>& nalUnitBuf, InputBitstream *bitstream, bool isVclNalUnit);
    static int xReadNalUnitHeader    ( InputNALUnit& nalu );
 
    int xHandleOutput( Picture* pcPic );
+   bool isFrameConverted( vvdecFrame* frame );
 
    static int copyComp( const unsigned char* pucSrc, unsigned char* pucDest, unsigned int uiWidth, unsigned int uiHeight, int iStrideSrc, int iStrideDest, int iBytesPerSample );
 
@@ -142,20 +180,19 @@ private:
    void vvdec_plane_default(vvdecPlane *plane);
    void vvdec_frame_reset(vvdecFrame *frame );
 
+private:
+  typedef std::map<uint64_t,FrameStorage>    frameStorageMap;
+  typedef frameStorageMap::value_type        frameStorageMapType;
 public:
-
    bool                                    m_bInitialized = false;
 
    DecLib*                                 m_cDecLib;
-   bool                                    m_bCreateNewPicBuf    = false;
-#if RPR_YUV_OUTPUT
-   unsigned int                            m_uiBitDepth = 8;
-#endif
 
    std::list<vvdecFrame>                   m_rcFrameList;
    std::list<vvdecFrame>::iterator         m_pcFrameNext = m_rcFrameList.begin();
 
-   std::list<Picture*>                     m_pcLibPictureList; // internal picture list
+   std::list<Picture*>                     m_pcLibPictureList;  // internal picture list
+   frameStorageMap                         m_cFrameStorageMap;  // map of frame storage class( converted frames)
 
    std::string                             m_sDecoderInfo;
    std::string                             m_sDecoderCapabilities;

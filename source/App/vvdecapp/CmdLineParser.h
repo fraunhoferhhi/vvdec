@@ -115,8 +115,8 @@ public:
         i_arg++;
         int iLogLevel = atoi( argv[i_arg++] );
         if( iLogLevel < 0 ) iLogLevel = 0;
-        if( iLogLevel > (int)LogLevel::VVDEC_DETAILS ) iLogLevel = (int)LogLevel::VVDEC_DETAILS ;
-        rcParams.logLevel = (LogLevel)iLogLevel;
+        if( iLogLevel > (int)vvdecLogLevel::VVDEC_DETAILS ) iLogLevel = (int)vvdecLogLevel::VVDEC_DETAILS ;
+        rcParams.logLevel = (vvdecLogLevel)iLogLevel;
 
         if( rcParams.logLevel > VVDEC_VERBOSE )
         {
@@ -245,7 +245,7 @@ public:
       {
         if( i_arg == argc-1 ){ fprintf( stderr, " - missing argument for: %s \n", argv[i_arg] ); return -1; }
         i_arg++;
-        rcParams.simd = SIMD_Extension( std::max( -1, atoi( argv[i_arg++] ) ) + 1 );
+        rcParams.simd = vvdecSIMD_Extension( std::max( -1, atoi( argv[i_arg++] ) ) + 1 );
 
         if( rcParams.logLevel > VVDEC_VERBOSE )
         {

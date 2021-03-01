@@ -159,25 +159,34 @@ int VVDecImpl::uninit()
     }
   };
 
-  for( auto& pic : m_pcLibPictureList )
-  {
-    m_cDecLib->releasePicture( pic );
-  }
-  m_pcLibPictureList.clear();
-
-  // destroy internal classes
-  m_cDecLib->destroy();
-
-  delete m_cDecLib;
-
-  destroyROM();
-
   for( auto& frame : m_rcFrameList )
   {
     vvdec_frame_reset( &frame );
   }
   m_rcFrameList.clear();
   m_pcFrameNext = m_rcFrameList.end();
+
+
+  for( auto& pic : m_pcLibPictureList )
+  {
+    m_cDecLib->releasePicture( pic );
+  }
+  m_pcLibPictureList.clear();
+
+
+  for( auto& storage : m_cFrameStorageMap )
+  {
+    if( storage.second.isAllocated())
+    {
+      storage.second.freeStorage();
+    }
+  }
+  m_cFrameStorageMap.clear();
+
+  // destroy internal classes
+  m_cDecLib->destroy();
+  delete m_cDecLib;
+  destroyROM();
 
 #if defined( __linux__ )
   malloc_trim(0);
@@ -187,7 +196,7 @@ int VVDecImpl::uninit()
   return VVDEC_OK;
 }
 
-void VVDecImpl::setLoggingCallback(vvdecLoggingCallback callback, void *userData, LogLevel level)
+void VVDecImpl::setLoggingCallback(vvdecLoggingCallback callback, void *userData, vvdecLogLevel level)
 {
   this->loggingCallback = callback;
   g_verbosity           = (MsgLevel)level;
@@ -519,30 +528,13 @@ int VVDecImpl::objectUnref( vvdecFrame* pcFrame )
     if( &pic == pcFrame )
     {
       bPicFound = true;
-
-      if ( !m_bCreateNewPicBuf )
-      {
-        // release internal picture memory
-        for( std::list<Picture*>::iterator itLibPic = m_pcLibPictureList.begin(); itLibPic != m_pcLibPictureList.end();  itLibPic++ )
-        {
-          if( (*itLibPic)->cts == pic.cts )
-          {
-            m_cDecLib->releasePicture( *itLibPic );
-            m_pcLibPictureList.erase( itLibPic );
-            break;
-          }
-        }
-      }
-
       vvdec_frame_reset( &pic );
-
       break;
     }
   }
 
   if( bPicFound )
   {
-    // remove picture from picture list
     std::list<vvdecFrame>::iterator itFrame = m_rcFrameList.end();
     for( std::list<vvdecFrame>::iterator it = m_rcFrameList.begin(); it != m_rcFrameList.end(); it++ )
     {
@@ -623,9 +615,9 @@ const char* VVDecImpl::getDecoderInfo()
     return m_sDecoderInfo.c_str();
 }
 
-NalType VVDecImpl::getNalUnitType ( vvdecAccessUnit& rcAccessUnit )
+vvdecNalType VVDecImpl::getNalUnitType ( vvdecAccessUnit& rcAccessUnit )
 {
-  NalType eNalType = VVC_NAL_UNIT_INVALID;
+  vvdecNalType eNalType = VVC_NAL_UNIT_INVALID;
 
   if( rcAccessUnit.payload == nullptr ||
       rcAccessUnit.payloadSize < 3 ||
@@ -683,13 +675,13 @@ NalType VVDecImpl::getNalUnitType ( vvdecAccessUnit& rcAccessUnit )
   {
     unsigned char uc = pcBuf[iOffset];
     int nalUnitType   = ((uc >> 3) & 0x1F ); 
-    eNalType = (NalType)nalUnitType;
+    eNalType = (vvdecNalType)nalUnitType;
   }
 
   return eNalType;
 }
 
-const char* VVDecImpl::getNalUnitTypeAsString( NalType t )
+const char* VVDecImpl::getNalUnitTypeAsString( vvdecNalType t )
 {
   if( (int) t >= (int)NAL_UNIT_INVALID || (int)t < 0)
   {
@@ -700,7 +692,7 @@ const char* VVDecImpl::getNalUnitTypeAsString( NalType t )
 }
 
 
-bool VVDecImpl::isNalUnitSlice( NalType t )
+bool VVDecImpl::isNalUnitSlice( vvdecNalType t )
 {
   return t == VVC_NAL_UNIT_CODED_SLICE_TRAIL
       || t == VVC_NAL_UNIT_CODED_SLICE_STSA
@@ -790,42 +782,33 @@ int VVDecImpl::xAddPicture( Picture* pcPic )
     return VVDEC_ERR_UNSPECIFIED;
   }
 
-  if( m_uiSeqNumber == 0 )
-  {
-    unsigned int uiBitDepth   = 8;
-    for( uint32_t c = 0; c < MAX_NUM_CHANNEL_TYPE; c++ )
-    {
-      uiBitDepth = std::max( (uint32_t)bitDepths.recon[c], uiBitDepth );
-    }
-#if RPR_YUV_OUTPUT
-    m_uiBitDepth = uiBitDepth;
-#else
-    m_bCreateNewPicBuf =  (uiBitDepth == 8) ? true : false; // for 8bit output we need to copy the lib picture from unsigned short into unsigned char buffer
-#endif
-  }
+  bool bCreateStorage = (bitDepths.recon[0] == 8) ? true : false; // for 8bit output we need to copy the lib picture from unsigned short into unsigned char buffer
 
   // create a brand new picture object
   vvdecFrame cFrame;
   vvdec_frame_default( &cFrame );
 
+  cFrame.sequenceNumber = m_uiSeqNumber;
+  cFrame.cts      = pcPic->getCts();
+  cFrame.ctsValid = true;
+
 #if RPR_YUV_OUTPUT
-  m_bCreateNewPicBuf = (m_uiBitDepth == 8);
   if( m_cDecLib->getUpscaledOutput() && ( uiWidth != orgWidth || uiHeight != orgHeight ) )
   {
-    m_bCreateNewPicBuf = true;
-    xCreateFrame ( cFrame, cPicBuf, orgWidth, orgHeight, bitDepths );
+    bCreateStorage = true;
+    xCreateFrame ( cFrame, cPicBuf, orgWidth, orgHeight, bitDepths, bCreateStorage );
   }
   else
   {
-    xCreateFrame ( cFrame, cPicBuf, uiWidth, uiHeight, bitDepths );
+    xCreateFrame ( cFrame, cPicBuf, uiWidth, uiHeight, bitDepths, bCreateStorage );
   }
 #else
-  xCreateFrame ( cFrame, cPicBuf, uiWidth, uiHeight, bitDepths );
+  xCreateFrame ( cFrame, cPicBuf, uiWidth, uiHeight, bitDepths, bCreateStorage );
 #endif
 
   const int maxComponent = getNumberValidComponents( cPicBuf.chromaFormat );
 
-  if( m_bCreateNewPicBuf )
+  if( bCreateStorage )
   {
 #if RPR_YUV_OUTPUT
     if( m_cDecLib->getUpscaledOutput() == 2 )
@@ -852,7 +835,6 @@ int VVDecImpl::xAddPicture( Picture* pcPic )
         unsigned int uiBytesPerSample = bitDepths.recon[0] > 8 ? 2 : 1;
         
         const ptrdiff_t   planeOffset = (confLeft >> csx) + (confTop >> csy) * area.stride;
-        //const unsigned char* pucOrigin   = (const unsigned char*)area.bufAt (0, 0).ptr;
         const unsigned char* pucOrigin   = (const unsigned char*)area.buf;
         
         copyComp(  pucOrigin + planeOffset,
@@ -876,7 +858,6 @@ int VVDecImpl::xAddPicture( Picture* pcPic )
         unsigned int uiBytesPerSample = bitDepths.recon[0] > 8 ? 2 : 1;
   
         const ptrdiff_t   planeOffset = (confLeft >> csx) + (confTop >> csy) * area.stride;
-        //const unsigned char* pucOrigin   = (const unsigned char*)area.bufAt (0, 0).ptr;
         const unsigned char* pucOrigin   = (const unsigned char*)area.buf;
   
        copyComp(  pucOrigin + planeOffset,
@@ -895,7 +876,6 @@ int VVDecImpl::xAddPicture( Picture* pcPic )
       const uint32_t    csx         = ::getComponentScaleX(compID, cPicBuf.chromaFormat);
       const uint32_t    csy         = ::getComponentScaleY(compID, cPicBuf.chromaFormat);
       const CPelBuf     area        = cPicBuf.get(compID);
-      //unsigned int wordSize         = bitDepths.recon[0] > 8 ? 2 : 1;
       const ptrdiff_t   planeOffset = (confLeft >> csx) + (confTop >> csy) * area.stride;
 
       //unsigned char* pucOrigin   = (unsigned char*)area.bufAt (0, 0).ptr;
@@ -907,9 +887,6 @@ int VVDecImpl::xAddPicture( Picture* pcPic )
   }
 
   // set picture attributes
-  cFrame.sequenceNumber = m_uiSeqNumber;
-  cFrame.cts      = pcPic->getCts();
-  cFrame.ctsValid = true;
 
   cFrame.picAttributes = new vvdecPicAttributes();
   vvdec_picAttributes_default( cFrame.picAttributes );
@@ -917,7 +894,7 @@ int VVDecImpl::xAddPicture( Picture* pcPic )
   cFrame.picAttributes->temporalLayer = pcPic->getTLayer();
   cFrame.picAttributes->bits          = pcPic->getNaluBits();
 
-  cFrame.picAttributes->nalType       = (NalType)pcPic->eNalUnitType;
+  cFrame.picAttributes->nalType       = (vvdecNalType)pcPic->eNalUnitType;
 
   cFrame.picAttributes->isRefPic = pcPic->referenced;
 
@@ -1010,28 +987,30 @@ int VVDecImpl::xAddPicture( Picture* pcPic )
 
   m_uiSeqNumber++;
 
+  if ( bCreateStorage   )
+  {
+    // release library picture storage, because picture has been copied into new storage class
+    m_cDecLib->releasePicture( pcPic );
+  }
+
   return 0;
 }
 
 
 
-int VVDecImpl::xCreateFrame( vvdecFrame& rcFrame, const CPelUnitBuf& rcPicBuf, uint32_t uiWidth, uint32_t uiHeight, const BitDepths& rcBitDepths )
+int VVDecImpl::xCreateFrame( vvdecFrame& rcFrame, const CPelUnitBuf& rcPicBuf, uint32_t uiWidth, uint32_t uiHeight, const BitDepths& rcBitDepths, bool bCreateStorage )
 {
-  rcFrame.width      = uiWidth;
-  rcFrame.height     = uiHeight;
-  rcFrame.bitDepth   = 8;
+  rcFrame.width       = uiWidth;
+  rcFrame.height      = uiHeight;
+  rcFrame.bitDepth    = 8;
   rcFrame.frameFormat = VVDEC_FF_PROGRESSIVE;
-
-  for( uint32_t c = 0; c < MAX_NUM_CHANNEL_TYPE; c++ )
-  {
-    rcFrame.bitDepth = std::max( (uint32_t)rcBitDepths.recon[c], rcFrame.bitDepth );
-  }
+  rcFrame.bitDepth    = std::max( (uint32_t)rcBitDepths.recon[CHANNEL_TYPE_LUMA], rcFrame.bitDepth );
 
   rcFrame.planes[VVDEC_CT_Y].width          = uiWidth;
   rcFrame.planes[VVDEC_CT_Y].height         = uiHeight;
   rcFrame.planes[VVDEC_CT_Y].bytesPerSample = rcBitDepths.recon[CHANNEL_TYPE_LUMA] > 8 ? 2 : 1;
-  rcFrame.planes[VVDEC_CT_Y].stride         = m_bCreateNewPicBuf  ? uiWidth*rcFrame.planes[VVDEC_CT_Y].bytesPerSample
-                                                                  : rcPicBuf.get(COMPONENT_Y).stride * rcFrame.planes[VVDEC_CT_Y].bytesPerSample;
+  rcFrame.planes[VVDEC_CT_Y].stride         = bCreateStorage  ? uiWidth*rcFrame.planes[VVDEC_CT_Y].bytesPerSample
+                                                              : rcPicBuf.get(COMPONENT_Y).stride * rcFrame.planes[VVDEC_CT_Y].bytesPerSample;
 
   size_t nBufSize = 0;
   size_t nLSize   = rcFrame.planes[VVDEC_CT_Y].stride * uiHeight;
@@ -1051,14 +1030,11 @@ int VVDecImpl::xCreateFrame( vvdecFrame& rcFrame, const CPelUnitBuf& rcPicBuf, u
 
         rcFrame.planes[VVDEC_CT_V].width          = 0;
         rcFrame.planes[VVDEC_CT_V].height         = 0;
-        rcFrame.planes[VVDEC_CT_V].stride          = 0;
+        rcFrame.planes[VVDEC_CT_V].stride         = 0;
         rcFrame.planes[VVDEC_CT_V].bytesPerSample = 0;
 
         nCSize = 0;
-        if( m_bCreateNewPicBuf )
-        {
-          nBufSize = nLSize; // we have to copy the packet into 8bit, because internal bitdepth is always Pel (unsigned short)
-        }
+        nBufSize = nLSize; // we have to copy the packet into 8bit, because internal bitdepth is always Pel (unsigned short)
         break;
       }
     case CHROMA_420:
@@ -1071,17 +1047,24 @@ int VVDecImpl::xCreateFrame( vvdecFrame& rcFrame, const CPelUnitBuf& rcPicBuf, u
         rcFrame.planes[VVDEC_CT_U].width          = uiCWidth;
         rcFrame.planes[VVDEC_CT_U].height         = uiCHeight;
         rcFrame.planes[VVDEC_CT_U].bytesPerSample = rcBitDepths.recon[CHANNEL_TYPE_CHROMA] > 8 ? 2 : 1;
-        rcFrame.planes[VVDEC_CT_U].stride         = m_bCreateNewPicBuf ? uiCWidth * rcFrame.planes[CHANNEL_TYPE_CHROMA].bytesPerSample
-                                                                       : rcPicBuf.get(COMPONENT_Cb).stride * rcFrame.planes[VVDEC_CT_Y].bytesPerSample;
+
         rcFrame.planes[VVDEC_CT_V].width          = uiCWidth;
         rcFrame.planes[VVDEC_CT_V].height         = uiCHeight;
         rcFrame.planes[VVDEC_CT_V].bytesPerSample = rcBitDepths.recon[CHANNEL_TYPE_CHROMA] > 8 ? 2 : 1;
-        rcFrame.planes[VVDEC_CT_V].stride         = uiCWidth * rcFrame.planes[CHANNEL_TYPE_CHROMA].bytesPerSample;
-        rcFrame.planes[VVDEC_CT_V].stride         = m_bCreateNewPicBuf ? uiCWidth * rcFrame.planes[CHANNEL_TYPE_CHROMA].bytesPerSample
-                                                                       : rcPicBuf.get(COMPONENT_Cr).stride * rcFrame.planes[VVDEC_CT_Y].bytesPerSample;
+
+        if( bCreateStorage )
+        {
+          rcFrame.planes[VVDEC_CT_U].stride         = uiCWidth * rcFrame.planes[CHANNEL_TYPE_CHROMA].bytesPerSample;
+          rcFrame.planes[VVDEC_CT_V].stride         = uiCWidth * rcFrame.planes[CHANNEL_TYPE_CHROMA].bytesPerSample;
+        }
+        else
+        {
+          rcFrame.planes[VVDEC_CT_U].stride         = rcPicBuf.get(COMPONENT_Cb).stride * rcFrame.planes[CHANNEL_TYPE_CHROMA].bytesPerSample;
+          rcFrame.planes[VVDEC_CT_V].stride         = rcPicBuf.get(COMPONENT_Cr).stride * rcFrame.planes[CHANNEL_TYPE_CHROMA].bytesPerSample;
+        }
 
         nCSize = rcFrame.planes[VVDEC_CT_U].stride*uiCHeight;
-        if( m_bCreateNewPicBuf )    nBufSize = nLSize + (nCSize<<1);
+        nBufSize = nLSize + (nCSize<<1);
         break;
       }
     case CHROMA_422:
@@ -1095,18 +1078,24 @@ int VVDecImpl::xCreateFrame( vvdecFrame& rcFrame, const CPelUnitBuf& rcPicBuf, u
         rcFrame.planes[VVDEC_CT_U].width          = uiCWidth;
         rcFrame.planes[VVDEC_CT_U].height         = uiCHeight;
         rcFrame.planes[VVDEC_CT_U].bytesPerSample = rcBitDepths.recon[CHANNEL_TYPE_CHROMA] > 8 ? 2 : 1;
-        rcFrame.planes[VVDEC_CT_U].stride         = m_bCreateNewPicBuf ? uiCWidth * rcFrame.planes[CHANNEL_TYPE_CHROMA].bytesPerSample :
-                                                                         rcPicBuf.get(COMPONENT_Cb).stride * rcFrame.planes[VVDEC_CT_Y].bytesPerSample;
 
         rcFrame.planes[VVDEC_CT_V].width          = uiCWidth;
         rcFrame.planes[VVDEC_CT_V].height         = uiCHeight;
         rcFrame.planes[VVDEC_CT_V].bytesPerSample = rcBitDepths.recon[CHANNEL_TYPE_CHROMA] > 8 ? 2 : 1;
-        rcFrame.planes[VVDEC_CT_V].stride          = uiCWidth * rcFrame.planes[CHANNEL_TYPE_CHROMA].bytesPerSample;
-        rcFrame.planes[VVDEC_CT_V].stride          = m_bCreateNewPicBuf ? uiCWidth * rcFrame.planes[CHANNEL_TYPE_CHROMA].bytesPerSample
-                                                                        : rcPicBuf.get(COMPONENT_Cr).stride * rcFrame.planes[VVDEC_CT_Y].bytesPerSample;
+
+        if( bCreateStorage )
+        {
+          rcFrame.planes[VVDEC_CT_U].stride         = uiCWidth * rcFrame.planes[CHANNEL_TYPE_CHROMA].bytesPerSample;
+          rcFrame.planes[VVDEC_CT_V].stride         = uiCWidth * rcFrame.planes[CHANNEL_TYPE_CHROMA].bytesPerSample;
+        }
+        else
+        {
+          rcFrame.planes[VVDEC_CT_U].stride         = rcPicBuf.get(COMPONENT_Cb).stride * rcFrame.planes[CHANNEL_TYPE_CHROMA].bytesPerSample;
+          rcFrame.planes[VVDEC_CT_V].stride         = rcPicBuf.get(COMPONENT_Cr).stride * rcFrame.planes[CHANNEL_TYPE_CHROMA].bytesPerSample;
+        }
 
         uint32_t nCSize = rcFrame.planes[VVDEC_CT_U].stride*uiCHeight;
-        if( m_bCreateNewPicBuf )  nBufSize = nLSize + (nCSize<<1);
+        nBufSize = nLSize + (nCSize<<1);
         break;
       }
     case CHROMA_444:
@@ -1117,25 +1106,37 @@ int VVDecImpl::xCreateFrame( vvdecFrame& rcFrame, const CPelUnitBuf& rcPicBuf, u
         rcFrame.planes[VVDEC_CT_U].width          = uiWidth;
         rcFrame.planes[VVDEC_CT_U].height         = uiHeight;
         rcFrame.planes[VVDEC_CT_U].bytesPerSample = rcBitDepths.recon[CHANNEL_TYPE_CHROMA] > 8 ? 2 : 1;
-        rcFrame.planes[VVDEC_CT_U].stride         = m_bCreateNewPicBuf ? uiWidth * rcFrame.planes[CHANNEL_TYPE_CHROMA].bytesPerSample
-                                                                       : rcPicBuf.get(COMPONENT_Cb).stride * rcFrame.planes[VVDEC_CT_Y].bytesPerSample;
         rcFrame.planes[VVDEC_CT_V].width          = uiWidth;
         rcFrame.planes[VVDEC_CT_V].height         = uiHeight;
         rcFrame.planes[VVDEC_CT_V].bytesPerSample = rcBitDepths.recon[CHANNEL_TYPE_CHROMA] > 8 ? 2 : 1;
-        rcFrame.planes[VVDEC_CT_V].stride         = m_bCreateNewPicBuf ? uiWidth * rcFrame.planes[CHANNEL_TYPE_CHROMA].bytesPerSample
-                                                                       : rcPicBuf.get(COMPONENT_Cr).stride * rcFrame.planes[VVDEC_CT_Y].bytesPerSample;
 
-        if( m_bCreateNewPicBuf ) nBufSize = nLSize*3;
+        if( bCreateStorage )
+        {
+          rcFrame.planes[VVDEC_CT_U].stride         = uiWidth * rcFrame.planes[CHANNEL_TYPE_CHROMA].bytesPerSample;
+          rcFrame.planes[VVDEC_CT_V].stride         = uiWidth * rcFrame.planes[CHANNEL_TYPE_CHROMA].bytesPerSample;
+        }
+        else
+        {
+          rcFrame.planes[VVDEC_CT_U].stride         = rcPicBuf.get(COMPONENT_Cb).stride * rcFrame.planes[CHANNEL_TYPE_CHROMA].bytesPerSample;
+          rcFrame.planes[VVDEC_CT_V].stride         = rcPicBuf.get(COMPONENT_Cr).stride * rcFrame.planes[CHANNEL_TYPE_CHROMA].bytesPerSample;
+        }
+
+        nBufSize = nLSize*3;
         break;
       }
     default: break;
   }
 
 
-  if( m_bCreateNewPicBuf )
+  if( bCreateStorage )
   {
     if( nBufSize == 0 ){ return VVDEC_ERR_ALLOCATE; }
-    rcFrame.planes[VVDEC_CT_Y].ptr = new unsigned char [ nBufSize ];
+
+    FrameStorage frameStorage;
+    frameStorage.allocateStorage( nBufSize );
+    rcFrame.planes[VVDEC_CT_Y].ptr = frameStorage.getStorage();
+
+    m_cFrameStorageMap.insert( frameStorageMapType( rcFrame.sequenceNumber, frameStorage));
 
     switch( rcPicBuf.chromaFormat )
     {
@@ -1290,14 +1291,28 @@ int VVDecImpl::xHandleOutput( Picture* pcPic )
     {
       ret = -1;
     }
-
-    if ( m_bCreateNewPicBuf )
-    {
-      m_cDecLib->releasePicture( pcPic );
-    }
   }
 
   return ret;
+}
+
+/*
+ * return true if the frame is allocated in vvdecimpl, because it had to be converted
+ * e.g. to convert internal 16->8bit samples
+ * of   to scale RPR picture
+*/
+bool VVDecImpl::isFrameConverted( vvdecFrame* frame )
+{
+  frameStorageMap::iterator storageIter =  m_cFrameStorageMap.find( frame->sequenceNumber );
+  if( storageIter != m_cFrameStorageMap.end() )
+  {
+    if( storageIter->second.isAllocated() )
+    {
+      return true;;
+    }
+  }
+
+  return false;
 }
 
 void VVDecImpl::vvdec_picAttributes_default(vvdecPicAttributes *attributes)
@@ -1341,15 +1356,30 @@ void VVDecImpl::vvdec_plane_default(vvdecPlane *plane)
 
 void VVDecImpl::vvdec_frame_reset(vvdecFrame *frame )
 {
-  if( m_bCreateNewPicBuf )
+  bool bIsInternalLibStorage = true;
+  frameStorageMap::iterator storageIter =  m_cFrameStorageMap.find( frame->sequenceNumber );
+  if( storageIter != m_cFrameStorageMap.end() )
   {
-    for( unsigned int comp = 0; comp < frame->numPlanes; comp++ )
+    if( storageIter->second.isAllocated() )
     {
-      if ( comp == 0 && NULL != frame->planes[comp].ptr )
+      storageIter->second.freeStorage();
+      bIsInternalLibStorage = false;
+    }
+
+    m_cFrameStorageMap.erase (storageIter);
+  }
+
+  if( bIsInternalLibStorage )
+  {
+    // release internal picture memory
+    for( std::list<Picture*>::iterator itLibPic = m_pcLibPictureList.begin(); itLibPic != m_pcLibPictureList.end();  itLibPic++ )
+    {
+      if( (*itLibPic)->cts == frame->cts )
       {
-        delete [] frame->planes[comp].ptr;
+        m_cDecLib->releasePicture( *itLibPic );
+        m_pcLibPictureList.erase( itLibPic );
+        break;
       }
-      frame->planes[comp].ptr = NULL;
     }
   }
 

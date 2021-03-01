@@ -211,7 +211,7 @@ int main( int argc, char* argv[] )
 
     bool bTunedIn = false;
     unsigned int uiNoFrameAfterTuneInCount = 0;
-    NalType eNalTypeSlice = VVC_NAL_UNIT_INVALID;
+    vvdecNalType eNalTypeSlice = VVC_NAL_UNIT_INVALID;
     bool bMultipleSlices = false;
 
     int iRead = 0;
@@ -220,7 +220,7 @@ int main( int argc, char* argv[] )
       iRead = readBitstreamFromFile( &cInFile, accessUnit, false );
       //if( iRead > 0 )
       {
-        NalType eNalType = vvdec_get_nal_unit_type( accessUnit );
+        vvdecNalType eNalType = vvdec_get_nal_unit_type( accessUnit );
         if( params.logLevel == VVDEC_DETAILS )
         {
           std::string cNal = getNalUnitTypeAsString( eNalType );

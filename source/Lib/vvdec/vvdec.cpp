@@ -54,8 +54,6 @@ extern "C" {
 
 VVDEC_NAMESPACE_BEGIN
 
-const char *sMsg = "Not initialized";
-
 VVDEC_DECL void vvdec_params_default(vvdecParams *params)
 {
   params->threads                      = -1;                   // thread count        ( default: -1 )
@@ -185,7 +183,7 @@ VVDEC_DECL int vvdec_decoder_close(vvdecDecoder *dec)
   return VVDEC_OK;
 }
 
-VVDEC_DECL int vvdec_set_logging_callback(vvdecDecoder* dec, vvdecLoggingCallback callback, void *userData, LogLevel loglevel )
+VVDEC_DECL int vvdec_set_logging_callback(vvdecDecoder* dec, vvdecLoggingCallback callback, void *userData, vvdecLogLevel loglevel )
 {
   auto d = (vvdec::VVDecImpl*)dec;
   if (!d || !callback)
@@ -298,7 +296,7 @@ const char* vvdec_get_error_msg( int nRet )
   return vvdec::VVDecImpl::getErrorMsg( nRet );
 }
 
-NalType vvdec_get_nal_unit_type ( vvdecAccessUnit *accessUnit )
+vvdecNalType vvdec_get_nal_unit_type( vvdecAccessUnit *accessUnit )
 {
   if( nullptr == accessUnit )
   {
@@ -307,12 +305,12 @@ NalType vvdec_get_nal_unit_type ( vvdecAccessUnit *accessUnit )
   return vvdec::VVDecImpl::getNalUnitType(*accessUnit);
 }
 
-const char* vvdec_get_nal_unit_type_name( NalType t )
+const char* vvdec_get_nal_unit_type_name( vvdecNalType t )
 {
   return vvdec::VVDecImpl::getNalUnitTypeAsString(t);
 }
 
-bool vvdec_is_nal_unit_slice               ( NalType t )
+bool vvdec_is_nal_unit_slice( vvdecNalType t )
 {
   return vvdec::VVDecImpl::isNalUnitSlice(t);
 }
