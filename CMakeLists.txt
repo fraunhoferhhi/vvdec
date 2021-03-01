@@ -277,7 +277,7 @@ if( VVDEC_ENABLE_BITSTREAM_DOWNLOAD )
 
   # download and uncompress
   set( COUNTER 1 )
-  foreach( BITSTREAM_ZIP IN LISTS BITSTREAM_FILES )
+  foreach( BITSTREAM_ZIP IN LISTS BITSTREAM_FILES BITSTREAM_FAULTY_FILES )
     string( REGEX REPLACE ".*/(.*)\\..*" "\\1" SUB_DIR "${BITSTREAM_URL_BASE}/${BITSTREAM_ZIP}" )
     set( BITSTREAM_INSTALL_DIR "${BITSTREAM_INSTALL_DIR_BASE}/${SUB_DIR}" )
     string( REGEX REPLACE "(.*).zip" "\\1" BITSTREAM_SHORT "${BITSTREAM_ZIP}" )
@@ -307,6 +307,24 @@ foreach( BITSTREAM IN LISTS BITSTREAM_FILES )
     set( MISSING_BITSTREAM_FILES TRUE )
   endif()
 endforeach()
+
+foreach( BITSTREAM IN LISTS BITSTREAM_FAULTY_FILES )
+  string( REGEX REPLACE "(.*).zip" "\\1" BITSTREAM_SHORT "${BITSTREAM}" )
+  set( BITSTREAM_FILE "${BITSTREAM_INSTALL_DIR_BASE}/${BITSTREAM_SHORT}/${BITSTREAM_SHORT}.bit" )
+
+  if( EXISTS ${BITSTREAM_FILE} )
+    add_test( NAME Faulty:${BITSTREAM_SHORT}.bit COMMAND vvdecapp -b ${BITSTREAM_FILE} -dph )
+    set_tests_properties( Faulty:${BITSTREAM_SHORT}.bit PROPERTIES TIMEOUT 120 )
+  else()
+    add_test( NAME MISSING:${BITSTREAM_SHORT}.bit COMMAND vvdecapp -b ${BITSTREAM_FILE} -dph )
+    set_tests_properties( MISSING:${BITSTREAM_SHORT}.bit PROPERTIES TIMEOUT 120 )
+
+    set( MISSING_BITSTREAM_FILES TRUE )
+  endif()
+endforeach()
+
+add_custom_target( test-ok  COMMAND ${CMAKE_CTEST_COMMAND} -C $<CONFIG> -R "\"^(Test|MISSING)\"" )
+add_custom_target( test-all COMMAND ${CMAKE_CTEST_COMMAND} -C $<CONFIG> -R "\"^(Test|MISSING|Faulty)\"" )
 
 if( MISSING_BITSTREAM_FILES )
   message( STATUS "Some bitstream files are missing." )

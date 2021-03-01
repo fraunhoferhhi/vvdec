@@ -6,38 +6,16 @@ else()
   set( BITSTREAM_URL_BASE "https://www.itu.int/wftp3/av-arch/jvet-site/bitstream_exchange/VVC/under_test/VTM-11.0" )
 endif()
 
+# put bitstreams from the conformance set that are should be decodable and are working
 list( APPEND BITSTREAM_FILES
   "10b400_A_Bytedance_2.zip"
   "10b400_B_Bytedance_2.zip"
-  #"10b422_A_Sony_4.zip"                               # MAIN_10_444 and MAIN_10_444_STILL_PICTURE is still experimental.
   "10b422_B_Sony_4.zip"
-  #"10b422_C_Sony_4.zip"                               # MAIN_10_444 and MAIN_10_444_STILL_PICTURE is still experimental.
-  #"10b422_D_Sony_4.zip"                               # MAIN_10_444 and MAIN_10_444_STILL_PICTURE is still experimental.
-  #"10b422_E_Sony_4.zip"                               # MAIN_10_444 and MAIN_10_444_STILL_PICTURE is still experimental.
-  #"10b422_F_Sony_4.zip"                               # MAIN_10_444 and MAIN_10_444_STILL_PICTURE is still experimental.
-  #"10b422_G_Sony_4.zip"                               # palette mode is not yet supported
-  #"10b422_H_Sony_4.zip"                               # palette mode is not yet supported
-  #"10b422_I_Sony_4.zip"                               # palette mode is not yet supported
-  #"10b422_J_Sony_4.zip"                               # palette mode is not yet supported
-  #"10b422_K_Sony_4.zip"                               # palette mode is not yet supported
-  #"10b422_L_Sony_4.zip"                               # palette mode is not yet supported
   "8b400_A_Bytedance_2.zip"
   "8b400_B_Bytedance_2.zip"
   "8b420_A_Bytedance_2.zip"
   "8b420_B_Bytedance_2.zip"
-  #"8b422_A_Sony_4.zip"                                # MAIN_10_444 and MAIN_10_444_STILL_PICTURE is still experimental.
   "8b422_B_Sony_4.zip"
-  #"8b422_C_Sony_4.zip"                                # MAIN_10_444 and MAIN_10_444_STILL_PICTURE is still experimental.
-  #"8b422_D_Sony_4.zip"                                # MAIN_10_444 and MAIN_10_444_STILL_PICTURE is still experimental.
-  #"8b422_E_Sony_4.zip"                                # MAIN_10_444 and MAIN_10_444_STILL_PICTURE is still experimental.
-  #"8b422_F_Sony_4.zip"                                # MAIN_10_444 and MAIN_10_444_STILL_PICTURE is still experimental.
-  #"8b422_G_Sony_4.zip"                                # palette mode is not yet supported
-  #"8b422_H_Sony_4.zip"                                # palette mode is not yet supported
-  #"8b422_I_Sony_4.zip"                                # palette mode is not yet supported
-  #"8b422_J_Sony_4.zip"                                # palette mode is not yet supported
-  #"8b422_K_Sony_4.zip"                                # palette mode is not yet supported
-  #"8b422_L_Sony_4.zip"                                # palette mode is not yet supported
-  #"ACT_A_Kwai_2.zip"                                  # palette mode is not yet supported
   "ACTPIC_A_Huawei_3.zip"
   "ACTPIC_B_Huawei_3.zip"
   "ACTPIC_C_Huawei_3.zip"
@@ -122,8 +100,6 @@ list( APPEND BITSTREAM_FILES
   "FIELD_B_Panasonic_1.zip"
   "FILLER_A_Bytedance_1.zip"
   "GDR_A_ERICSSON_2.zip"
-  #"GDR_A_NOKIA_2.zip"
-  #"GDR_B_NOKIA_2.zip"
   "GDR_C_NOKIA_1.zip"
   "GPM_A_Alibaba_3.zip"
   "GPM_B_Alibaba_1.zip"
@@ -176,16 +152,6 @@ list( APPEND BITSTREAM_FILES
   "MTS_LFNST_A_LGE_4.zip"
   "MTS_LFNST_B_LGE_4.zip"
   "MVCOMP_A_Sharp_2.zip"
-  #"OLS_A_Tencent_4.zip"                               # TODO ERROR: In function "parseVPS" in ../../source/Lib/DecoderLib/VLCReader.cpp:2053: needs to be adjusted, e.g. sublayer and independent layer stuff -> see VTM-9.0
-  #"OLS_B_Tencent_4.zip"                               # TODO ERROR: In function "parseVPS" in ../../source/Lib/DecoderLib/VLCReader.cpp:2053: needs to be adjusted, e.g. sublayer and independent layer stuff -> see VTM-9.0
-  #"OLS_C_Tencent_4.zip"                               # TODO ERROR: In function "parseVPS" in ../../source/Lib/DecoderLib/VLCReader.cpp:2053: needs to be adjusted, e.g. sublayer and independent layer stuff -> see VTM-9.0
-  #"OPI_A_Nokia_1.zip"                                 # TODO ERROR: In function "parseVPS" in ../../source/Lib/DecoderLib/VLCReader.cpp:2053: needs to be adjusted, e.g. sublayer and independent layer stuff -> see VTM-9.0
-  #"OPI_B_Nokia_1.zip"                                 # TODO ERROR: In function "parseVPS" in ../../source/Lib/DecoderLib/VLCReader.cpp:2053: needs to be adjusted, e.g. sublayer and independent layer stuff -> see VTM-9.0
-  #"PALETTE_A_Alibaba_2.zip"                           # palette mode is not yet supported
-  #"PALETTE_B_Alibaba_2.zip"                           # palette mode is not yet supported
-  #"PALETTE_C_Alibaba_2.zip"                           # palette mode is not yet supported
-  #"PALETTE_D_Alibaba_2.zip"                           # palette mode is not yet supported
-  #"PALETTE_E_Alibaba_1.zip"                           # palette mode is not yet supported
   "PDPC_A_Qualcomm_3.zip"
   "PDPC_B_Qualcomm_3.zip"
   "PDPC_C_Qualcomm_2.zip"
@@ -230,7 +196,6 @@ list( APPEND BITSTREAM_FILES
   "SDH_A_Dolby_2.zip"
   "SLICES_A_HUAWEI_2.zip"
   "SMVD_A_HUAWEI_2.zip"
-  #"SPALSCAL_A_Qualcomm_3.zip"                         # TODO ERROR: In function "parseVPS" in ../../source/Lib/DecoderLib/VLCReader.cpp:2053: needs to be adjusted, e.g. sublayer and independent layer stuff -> see VTM-9.0
   "SPS_A_Bytedance_1.zip"
   "SPS_B_Bytedance_1.zip"
   "SPS_C_Bytedance_1.zip"
@@ -261,9 +226,6 @@ list( APPEND BITSTREAM_FILES
   "TREE_C_HHI_3.zip"
   "VIRTUAL_A_MediaTek_3.zip"
   "VIRTUAL_B_MediaTek_3.zip"
-  #"VPS_A_INTEL_3.zip"                                 # TODO ERROR: In function "parseVPS" in ../../source/Lib/DecoderLib/VLCReader.cpp:2053: needs to be adjusted, e.g. sublayer and independent layer stuff -> see VTM-9.0
-  #"VPS_B_ERICSSON_1.zip"                              # TODO ERROR: In function "parseVPS" in ../../source/Lib/DecoderLib/VLCReader.cpp:2053: needs to be adjusted, e.g. sublayer and independent layer stuff -> see VTM-9.0
-  #"VPS_C_ERICSSON_1.zip"                              # TODO ERROR: In function "parseVPS" in ../../source/Lib/DecoderLib/VLCReader.cpp:2053: needs to be adjusted, e.g. sublayer and independent layer stuff -> see VTM-9.0
   "WP_A_InterDigital_3.zip"
   "WP_B_InterDigital_3.zip"
   "WPP_A_Sharp_3.zip"
@@ -273,3 +235,51 @@ list( APPEND BITSTREAM_FILES
   "WRAP_C_InterDigital_4.zip"
   "WRAP_D_InterDigital_4.zip"
 )
+
+# put bitstreams from the conformance set that should be decodable but aren't
+list( APPEND BITSTREAM_FAULTY_FILES
+  "GDR_A_NOKIA_2.zip"
+  "GDR_B_NOKIA_2.zip"
+)
+
+# put bitstreams from the conformance set that are not supported (wrong profile/level etc)
+list( APPEND BITSTREAM_NOT_MAIN10_FILES
+  "10b422_A_Sony_4.zip"                               # MAIN_10_444 and MAIN_10_444_STILL_PICTURE is still experimental.
+  "10b422_C_Sony_4.zip"                               # MAIN_10_444 and MAIN_10_444_STILL_PICTURE is still experimental.
+  "10b422_D_Sony_4.zip"                               # MAIN_10_444 and MAIN_10_444_STILL_PICTURE is still experimental.
+  "10b422_E_Sony_4.zip"                               # MAIN_10_444 and MAIN_10_444_STILL_PICTURE is still experimental.
+  "10b422_F_Sony_4.zip"                               # MAIN_10_444 and MAIN_10_444_STILL_PICTURE is still experimental.
+  "10b422_G_Sony_4.zip"                               # palette mode is not yet supported
+  "10b422_H_Sony_4.zip"                               # palette mode is not yet supported
+  "10b422_I_Sony_4.zip"                               # palette mode is not yet supported
+  "10b422_J_Sony_4.zip"                               # palette mode is not yet supported
+  "10b422_K_Sony_4.zip"                               # palette mode is not yet supported
+  "10b422_L_Sony_4.zip"                               # palette mode is not yet supported
+  "8b422_A_Sony_4.zip"                                # MAIN_10_444 and MAIN_10_444_STILL_PICTURE is still experimental.
+  "8b422_C_Sony_4.zip"                                # MAIN_10_444 and MAIN_10_444_STILL_PICTURE is still experimental.
+  "8b422_D_Sony_4.zip"                                # MAIN_10_444 and MAIN_10_444_STILL_PICTURE is still experimental.
+  "8b422_E_Sony_4.zip"                                # MAIN_10_444 and MAIN_10_444_STILL_PICTURE is still experimental.
+  "8b422_F_Sony_4.zip"                                # MAIN_10_444 and MAIN_10_444_STILL_PICTURE is still experimental.
+  "8b422_G_Sony_4.zip"                                # palette mode is not yet supported
+  "8b422_H_Sony_4.zip"                                # palette mode is not yet supported
+  "8b422_I_Sony_4.zip"                                # palette mode is not yet supported
+  "8b422_J_Sony_4.zip"                                # palette mode is not yet supported
+  "8b422_K_Sony_4.zip"                                # palette mode is not yet supported
+  "8b422_L_Sony_4.zip"                                # palette mode is not yet supported
+  "ACT_A_Kwai_2.zip"                                  # palette mode is not yet supported
+  "OLS_A_Tencent_4.zip"                               # TODO ERROR: In function "parseVPS" in ../../source/Lib/DecoderLib/VLCReader.cpp:2053: needs to be adjusted, e.g. sublayer and independent layer stuff -> see VTM-9.0
+  "OLS_B_Tencent_4.zip"                               # TODO ERROR: In function "parseVPS" in ../../source/Lib/DecoderLib/VLCReader.cpp:2053: needs to be adjusted, e.g. sublayer and independent layer stuff -> see VTM-9.0
+  "OLS_C_Tencent_4.zip"                               # TODO ERROR: In function "parseVPS" in ../../source/Lib/DecoderLib/VLCReader.cpp:2053: needs to be adjusted, e.g. sublayer and independent layer stuff -> see VTM-9.0
+  "OPI_A_Nokia_1.zip"                                 # TODO ERROR: In function "parseVPS" in ../../source/Lib/DecoderLib/VLCReader.cpp:2053: needs to be adjusted, e.g. sublayer and independent layer stuff -> see VTM-9.0
+  "OPI_B_Nokia_1.zip"                                 # TODO ERROR: In function "parseVPS" in ../../source/Lib/DecoderLib/VLCReader.cpp:2053: needs to be adjusted, e.g. sublayer and independent layer stuff -> see VTM-9.0
+  "PALETTE_A_Alibaba_2.zip"                           # palette mode is not yet supported
+  "PALETTE_B_Alibaba_2.zip"                           # palette mode is not yet supported
+  "PALETTE_C_Alibaba_2.zip"                           # palette mode is not yet supported
+  "PALETTE_D_Alibaba_2.zip"                           # palette mode is not yet supported
+  "PALETTE_E_Alibaba_1.zip"                           # palette mode is not yet supported
+  "SPALSCAL_A_Qualcomm_3.zip"                         # TODO ERROR: In function "parseVPS" in ../../source/Lib/DecoderLib/VLCReader.cpp:2053: needs to be adjusted, e.g. sublayer and independent layer stuff -> see VTM-9.0
+  "VPS_A_INTEL_3.zip"                                 # TODO ERROR: In function "parseVPS" in ../../source/Lib/DecoderLib/VLCReader.cpp:2053: needs to be adjusted, e.g. sublayer and independent layer stuff -> see VTM-9.0
+  "VPS_B_ERICSSON_1.zip"                              # TODO ERROR: In function "parseVPS" in ../../source/Lib/DecoderLib/VLCReader.cpp:2053: needs to be adjusted, e.g. sublayer and independent layer stuff -> see VTM-9.0
+  "VPS_C_ERICSSON_1.zip"                              # TODO ERROR: In function "parseVPS" in ../../source/Lib/DecoderLib/VLCReader.cpp:2053: needs to be adjusted, e.g. sublayer and independent layer stuff -> see VTM-9.0
+)
+
