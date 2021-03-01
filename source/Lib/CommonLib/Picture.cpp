@@ -240,6 +240,8 @@ void Picture::finalInit( const SPS *sps, const PPS *pps, PicHeader* picHeader, A
     memset( m_spliceIdx, 0, m_ctuNums * sizeof( int ) );
   }
 
+  resetProcessingTime();
+
   paddPicBorderBot       = paddPicBorderBotCore;
   paddPicBorderTop       = paddPicBorderTopCore;
   paddPicBorderLeftRight = paddPicBorderLeftRightCore;
