@@ -162,14 +162,14 @@ struct BlockingBarrier: public Barrier
   }
 
 #if THREAD_POOL_HANDLE_EXCEPTIONS
-  void setException( const Exception& e )
+  void setException( const Exception& e ) override
   {
     std::unique_lock<std::mutex> l( m_lock );
     Barrier::setException( e );
     m_cond.notify_all();
   }
 
-  void clearException()
+  void clearException() override
   {
     std::unique_lock<std::mutex> l( m_lock );
     Barrier::clearException();
