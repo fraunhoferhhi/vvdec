@@ -837,14 +837,10 @@ int VVDecImpl::xAddPicture( Picture* pcPic )
       PelStorage upscaledPic;
       upscaledPic.create( cPicBuf.chromaFormat, Size( orgWidth, orgHeight ) );
       
-#if RPR_FIX
-      int xScale = ( ( uiWidth << SCALE_RATIO_BITS ) + ( orgWidth >> 1 ) ) / orgWidth;
+      int xScale = ( ( uiWidth  << SCALE_RATIO_BITS ) + ( orgWidth  >> 1 ) ) / orgWidth;
       int yScale = ( ( uiHeight << SCALE_RATIO_BITS ) + ( orgHeight >> 1 ) ) / orgHeight;
 
-      Picture::rescalePicture( std::pair<int, int>( xScale, yScale ), cPicBuf, conf, upscaledPic, defDisp, pcPic->cs->sps->getChromaFormatIdc(), bitDepths, false, false, pcPic->cs->sps->getHorCollocatedChromaFlag(), pcPic->cs->sps->getVerCollocatedChromaFlag() );
-#else
-      Picture::rescalePicture( cPicBuf, conf, upscaledPic, defDisp, pcPic->cs->sps->getChromaFormatIdc(), bitDepths, false );
-#endif
+      upscaledPic.rescaleBuf( cPicBuf, std::pair<int, int>( xScale, yScale ), conf, defDisp, bitDepths, pcPic->cs->sps->getHorCollocatedChromaFlag(), pcPic->cs->sps->getVerCollocatedChromaFlag() );
       
       // copy picture into target memory
       for( int comp=0; comp < maxComponent; comp++ )

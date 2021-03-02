@@ -60,6 +60,7 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #include <type_traits>
 #include <typeinfo>
 #include <vector>
+#include <utility>
 
 // ---------------------------------------------------------------------------
 // AreaBuf struct
@@ -92,6 +93,13 @@ struct PelBufferOps
   void ( *transpose8x8 )  ( const Pel* src,  ptrdiff_t srcStride, Pel* dst, ptrdiff_t dstStride );
   void ( *applyLut )      (       Pel* ptr,  ptrdiff_t ptrStride, int width, int height, const Pel* lut );
   void ( *fillN_CU )      (       CodingUnit** ptr, ptrdiff_t ptrStride, int width, int height, CodingUnit* cuPtr );
+
+  void (*sampleRateConv)  ( const std::pair<int, int> scalingRatio, const std::pair<int, int> compScale,
+                            const Pel* orgSrc, const int orgStride, const int orgWidth, const int orgHeight,
+                            const int beforeScaleLeftOffset, const int beforeScaleTopOffset,
+                            Pel* scaledSrc, const int scaledStride, const int scaledWidth, const int scaledHeight,
+                            const int afterScaleLeftOffset, const int afterScaleTopOffset,
+                            const int bitDepth, const bool useLumaFilter, const bool horCollocatedPositionFlag, const bool verCollocatedPositionFlag );
 };
 #endif
 
@@ -105,6 +113,9 @@ extern PelBufferOps g_pelBufOP;
 #define GET_OFFSETX( ptr, stride, x ) ( ( ptr ) + ( x ) )
 #define GET_OFFSETY( ptr, stride, y ) ( ( ptr ) + ( y ) * ( stride ) )
 #define GET_OFFSET( ptr, stride, x, y ) ( ( ptr ) + ( x ) + ( y ) * ( stride ) )
+
+class Window;
+struct BitDepths;
 
 template<typename T>
 struct AreaBuf : public Size
@@ -138,6 +149,8 @@ struct AreaBuf : public Size
 
   void rspSignal            ( const Pel *lut );
   void scaleSignal          ( const int scale, const ClpRng& clpRng);
+
+  void rescaleBuf           ( const AreaBuf<const T>& beforeScaling, const ComponentID compID, const std::pair<int, int> scalingRatio, const Window& confBefore, const Window& confAfter, const ChromaFormat chromaFormatIDC, const BitDepths& bitDepths, const bool horCollocatedChromaFlag = false, const bool verCollocatedChromaFlag = false );
 
         T& at( const int &x, const int &y )          { return buf[y * stride + x]; }
   const T& at( const int &x, const int &y ) const    { return buf[y * stride + x]; }
@@ -464,6 +477,16 @@ void AreaBuf<T>::linearTransform( const int scale, const int shift, const int of
 template<>
 void AreaBuf<Pel>::linearTransform( const int scale, const int shift, const int offset, bool bClip, const ClpRng& clpRng );
 
+
+template<typename T>
+void AreaBuf<T>::rescaleBuf( const AreaBuf<const T>& beforeScaling, ComponentID compID, const std::pair<int, int> scalingRatio, const Window& confBefore, const Window& confAfter, const ChromaFormat chromaFormatIDC, const BitDepths& bitDepths, const bool horCollocatedChromaFlag, const bool verCollocatedChromaFlag )
+{
+  THROW( "Type not supported" );
+}
+
+template<>
+void AreaBuf<Pel>::rescaleBuf( const AreaBuf<const Pel>& beforeScaling, ComponentID compID, const std::pair<int, int> scalingRatio, const Window& confBefore, const Window& confAfter, const ChromaFormat chromaFormatIDC, const BitDepths& bitDepths, const bool horCollocatedChromaFlag, const bool verCollocatedChromaFlag );
+
 template<typename T>
 void AreaBuf<T>::extendBorderPel( unsigned margin )
 {
@@ -653,6 +676,8 @@ struct UnitBuf
   void extendBorderPel      ( unsigned margin );
   void extendBorderPel      ( unsigned margin, bool left, bool right, bool top, bool bottom );
 
+  void rescaleBuf           ( const UnitBuf<const T>& beforeScaling, const std::pair<int, int> scalingRatio, const Window& confBefore, const Window& confAfter, const BitDepths& bitDepths, const bool horCollocatedChromaFlag = false, const bool verCollocatedChromaFlag = false );
+
         UnitBuf<      T> subBuf (const Area& subArea);
   const UnitBuf<const T> subBuf (const Area& subArea) const;
         UnitBuf<      T> subBuf (const UnitArea& subArea);
@@ -837,6 +862,15 @@ const UnitBuf<const T> UnitBuf<T>::subBuf( const Area & subArea ) const
   }
 
   return subBuf;
+}
+
+template<typename T>
+void UnitBuf<T>::rescaleBuf( const UnitBuf<const T>& beforeScaling, const std::pair<int, int> scalingRatio, const Window& confBefore, const Window& confAfter, const BitDepths& bitDepths, const bool horCollocatedChromaFlag, const bool verCollocatedChromaFlag )
+{
+  for( unsigned i = 0; i < bufs.size(); i++ )
+  {
+    bufs[i].rescaleBuf( beforeScaling.bufs[i], ComponentID( i ), scalingRatio, confBefore, confAfter, chromaFormat, bitDepths, horCollocatedChromaFlag, verCollocatedChromaFlag );
+  }
 }
 
 // ---------------------------------------------------------------------------
