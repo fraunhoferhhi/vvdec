@@ -462,7 +462,7 @@ int VVDecImpl::flush( vvdecFrame** ppframe )
   return iRet;
 }
 
-vvdecSEI* VVDecImpl::findFrameSei( SEIPayloadType payloadType, vvdecFrame *frame )
+vvdecSEI* VVDecImpl::findFrameSei( vvdecSEIPayloadType payloadType, vvdecFrame *frame )
 {
   if( !m_bInitialized ){ return nullptr; }
 

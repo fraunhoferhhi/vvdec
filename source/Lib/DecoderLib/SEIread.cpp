@@ -193,7 +193,7 @@ void SEIReader::xReadSEImessage( seiMessages& seiList, const NalUnitType nalUnit
   } while (val==0xFF);
 
 #if ENABLE_TRACING
-  xTraceSEIMessageType((SEIPayloadType)payloadType);
+  xTraceSEIMessageType((vvdecSEIPayloadType)payloadType);
 #endif
 
   /* extract the payload for this single SEI message.
@@ -209,7 +209,7 @@ void SEIReader::xReadSEImessage( seiMessages& seiList, const NalUnitType nalUnit
   const vvdecSEIPictureTiming   *pt = NULL;
 
   vvdecSEI *s = NULL;
-  SEIPayloadType type = (SEIPayloadType)payloadType;
+  vvdecSEIPayloadType type = (vvdecSEIPayloadType)payloadType;
 
   if(nalUnitType == NAL_UNIT_PREFIX_SEI)
   {
@@ -453,7 +453,7 @@ void SEIReader::xParseSEIDecodedPictureHash(vvdecSEI* s, uint32_t payloadSize, s
 
   uint32_t val;
   sei_read_code( pDecodedMessageOutputStream, 8, val, "dph_sei_hash_type" );
-  sei->method = static_cast<HashType>(val); bytesRead++;
+  sei->method = static_cast<vvdecHashType>(val); bytesRead++;
   sei_read_code( pDecodedMessageOutputStream, 1, val, "dph_sei_single_component_flag");
   sei->singleCompFlag = val;
   sei_read_code( pDecodedMessageOutputStream, 7, val, "dph_sei_reserved_zero_7bits");
@@ -1627,7 +1627,7 @@ void SEIReader::xParseSEISubpictureLevelInfo(vvdecSEI* s, uint32_t payloadSize, 
   {
     for (int k = 0; k < sei->sliMaxSublayers; k++)
     {
-      sei->refLevelIdc[i][k] = Level::VVDEC_LEVEL15_5;
+      sei->refLevelIdc[i][k] = vvdecLevel::VVDEC_LEVEL15_5;
     }
   }
   if (sei->explicitFractionPresentFlag)
@@ -1650,9 +1650,9 @@ void SEIReader::xParseSEISubpictureLevelInfo(vvdecSEI* s, uint32_t payloadSize, 
     for (int i = 0; i < sei->numRefLevels; i++)
     {
 #if JVET_S0098_SLI_FRACTION
-      sei_read_code(pDecodedMessageOutputStream, 8, val, "sli_non_subpic_layers_fraction[i][k]");    sei->nonSubpicLayersFraction[i][k] = (Level) val;
+      sei_read_code(pDecodedMessageOutputStream, 8, val, "sli_non_subpic_layers_fraction[i][k]");    sei->nonSubpicLayersFraction[i][k] = (vvdecLevel) val;
 #endif
-      sei_read_code(pDecodedMessageOutputStream, 8, val, "sli_ref_level_idc[i][k]");                 sei->refLevelIdc[i][k] = (Level) val;
+      sei_read_code(pDecodedMessageOutputStream, 8, val, "sli_ref_level_idc[i][k]");                 sei->refLevelIdc[i][k] = (vvdecLevel) val;
 
       if (sei->explicitFractionPresentFlag)
       {

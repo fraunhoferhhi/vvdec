@@ -141,7 +141,7 @@ public:
 
    int flush( vvdecFrame** ppcFrame );
 
-   vvdecSEI* findFrameSei( SEIPayloadType payloadType, vvdecFrame *frame );
+   vvdecSEI* findFrameSei( vvdecSEIPayloadType payloadType, vvdecFrame *frame );
 
    int objectUnref( vvdecFrame* pframe );
 
@@ -172,8 +172,6 @@ private:
    bool isFrameConverted( vvdecFrame* frame );
 
    static int copyComp( const unsigned char* pucSrc, unsigned char* pucDest, unsigned int uiWidth, unsigned int uiHeight, int iStrideSrc, int iStrideDest, int iBytesPerSample );
-
-   static int getSizeOfSei( SEIPayloadType payloadType );
 
    void vvdec_picAttributes_default(vvdecPicAttributes *attributes);
    void vvdec_frame_default(vvdecFrame *frame);

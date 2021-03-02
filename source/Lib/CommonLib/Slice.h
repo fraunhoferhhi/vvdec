@@ -444,19 +444,19 @@ class ProfileTierLevel
   Profile::Name     m_profileIdc    = Profile::NONE;
   uint8_t           m_numSubProfile = 0;
   std::vector<uint32_t> m_subProfileIdc;
-  Level             m_levelIdc      = Level::VVDEC_LEVEL_NONE;
+  vvdecLevel        m_levelIdc      = vvdecLevel::VVDEC_LEVEL_NONE;
 #if JVET_S0138_GCI_PTL
   bool              m_frameOnlyConstraintFlag = true;
   bool              m_multiLayerEnabledFlag   = false;
 #endif
   ConstraintInfo    m_constraintInfo;
   bool              m_subLayerLevelPresentFlag[MAX_TLAYER - 1]; // init in constructor
-  Level             m_subLayerLevelIdc        [MAX_TLAYER]; // init in constructor
+  vvdecLevel        m_subLayerLevelIdc        [MAX_TLAYER]; // init in constructor
 public:
   ProfileTierLevel()
   {
     ::memset(m_subLayerLevelPresentFlag,   0, sizeof(m_subLayerLevelPresentFlag  ));
-    ::memset(m_subLayerLevelIdc, Level::VVDEC_LEVEL_NONE, sizeof(m_subLayerLevelIdc    ));
+    ::memset(m_subLayerLevelIdc, vvdecLevel::VVDEC_LEVEL_NONE, sizeof(m_subLayerLevelIdc    ));
   }
 
   Tier          getTierFlag() const                         { return m_tierFlag;                    }
@@ -471,8 +471,8 @@ public:
   uint32_t      getSubProfileIdc(int i) const               { return m_subProfileIdc[i]; }
   void          setSubProfileIdc(int i, uint32_t x)         { m_subProfileIdc[i] = x; }
 
-  Level         getLevelIdc() const                         { return m_levelIdc;                    }
-  void          setLevelIdc(Level x)                        { m_levelIdc = x;                       }
+  vvdecLevel    getLevelIdc() const                         { return m_levelIdc;                    }
+  void          setLevelIdc(vvdecLevel x)                   { m_levelIdc = x;                       }
 
 #if JVET_S0138_GCI_PTL
   bool                    getFrameOnlyConstraintFlag() const { return m_frameOnlyConstraintFlag; }
@@ -488,8 +488,8 @@ public:
   bool                    getSubLayerLevelPresentFlag(int i) const     { return m_subLayerLevelPresentFlag[i];   }
   void                    setSubLayerLevelPresentFlag(int i, bool x)   { m_subLayerLevelPresentFlag[i] = x;      }
 
-  Level                   getSubLayerLevelIdc(int i) const             { return m_subLayerLevelIdc[i];   }
-  void                    setSubLayerLevelIdc(int i, Level x)          { m_subLayerLevelIdc[i] = x;      }
+  vvdecLevel              getSubLayerLevelIdc(int i) const             { return m_subLayerLevelIdc[i];   }
+  void                    setSubLayerLevelIdc(int i, vvdecLevel x)     { m_subLayerLevelIdc[i] = x;      }
   friend bool             operator == (const ProfileTierLevel& op1, const ProfileTierLevel& op2);
   friend bool             operator != (const ProfileTierLevel& op1, const ProfileTierLevel& op2);
 };
@@ -3274,7 +3274,7 @@ public:
 
 struct LevelTierFeatures
 {
-  Level       level;
+  vvdecLevel  level;
   uint32_t    maxLumaPs;
   uint32_t    maxCpb[Tier::NUMBER_OF_TIERS];    // in units of CpbVclFactor or CpbNalFactor bits
   uint32_t    maxSlicesPerAu;

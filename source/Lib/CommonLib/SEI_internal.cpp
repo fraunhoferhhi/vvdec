@@ -49,7 +49,7 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #include "CommonDef.h"
 
 
-const char *SEI_internal::getSEIMessageString(SEIPayloadType payloadType)
+const char *SEI_internal::getSEIMessageString( vvdecSEIPayloadType payloadType)
 {
   switch (payloadType)
   {
@@ -82,7 +82,7 @@ const char *SEI_internal::getSEIMessageString(SEIPayloadType payloadType)
   }
 }
 
-seiMessages SEI_internal::getSeisByType(const seiMessages &seiList, SEIPayloadType seiType)
+seiMessages SEI_internal::getSeisByType(const seiMessages &seiList, vvdecSEIPayloadType seiType)
 {
   seiMessages result;
 
@@ -96,7 +96,7 @@ seiMessages SEI_internal::getSeisByType(const seiMessages &seiList, SEIPayloadTy
   return result;
 }
 
-seiMessages SEI_internal::extractSeisByType(seiMessages &seiList, SEIPayloadType seiType)
+seiMessages SEI_internal::extractSeisByType(seiMessages &seiList, vvdecSEIPayloadType seiType)
 {
   seiMessages result;
   seiMessages::iterator it=seiList.begin();
@@ -129,14 +129,14 @@ void SEI_internal::deleteSEIs ( seiMessages &seiList)
   seiList.clear();
 }
 
-vvdecSEI* SEI_internal::allocSEI( SEIPayloadType payloadType )
+vvdecSEI* SEI_internal::allocSEI( vvdecSEIPayloadType payloadType )
 {
   vvdecSEI* sei = new vvdecSEI;
 
   if( sei )
   {
     sei->payload     = NULL;
-    sei->payloadType = (SEIPayloadType)payloadType;
+    sei->payloadType = (vvdecSEIPayloadType)payloadType;
     sei->size        = 0;
   }
   else
@@ -172,7 +172,7 @@ int SEI_internal::allocSEIPayload( vvdecSEI* sei, int userDefSize )
   return 0;
 }
 
-int SEI_internal::getPayloadSize(SEIPayloadType payloadType)
+int SEI_internal::getPayloadSize(vvdecSEIPayloadType payloadType)
 {
   switch (payloadType)
   {

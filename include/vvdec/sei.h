@@ -50,7 +50,7 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #include <stdio.h>
 #include <stdint.h>
 
-enum SEIPayloadType
+typedef enum
 {
   VVDEC_BUFFERING_PERIOD                     = 0,
   VVDEC_PICTURE_TIMING                       = 1,
@@ -78,10 +78,9 @@ enum SEIPayloadType
   VVDEC_AMBIENT_VIEWING_ENVIRONMENT          = 148,
   VVDEC_CONTENT_COLOUR_VOLUME                = 149,
   VVDEC_SEI_UNKNOWN                          = -1,
-};
-typedef enum SEIPayloadType SEIPayloadType;
+}vvdecSEIPayloadType;
 
-enum Level
+typedef enum
 {
   VVDEC_LEVEL_NONE = 0,
   VVDEC_LEVEL1   = 16,
@@ -98,19 +97,17 @@ enum Level
   VVDEC_LEVEL6_1 = 99,
   VVDEC_LEVEL6_2 = 102,
   VVDEC_LEVEL15_5 = 255,
-};
-typedef enum Level Level;
+}vvdecLevel;
 
 
-enum HashType
+typedef enum
 {
   VVDEC_HASHTYPE_MD5             = 0,
   VVDEC_HASHTYPE_CRC             = 1,
   VVDEC_HASHTYPE_CHECKSUM        = 2,
   VVDEC_HASHTYPE_NONE            = 3,
   VVDEC_NUMBER_OF_HASHTYPES      = 4
-};
-typedef enum HashType HashType;
+}vvdecHashType;
 
 /* vvdecSEI
   The struct vvdecSEI contains the payload of a SEI message.
@@ -120,9 +117,9 @@ typedef enum HashType HashType;
 */
 typedef struct vvdecSEI
 {
-  SEIPayloadType  payloadType;     /* payload type as defined in sei.h */
-  unsigned int    size;            /* size of payload in bytes */
-  void           *payload;         /* payload structure as defined in sei.h */
+  vvdecSEIPayloadType  payloadType;     /* payload type as defined in sei.h */
+  unsigned int         size;            /* size of payload in bytes */
+  void                *payload;         /* payload structure as defined in sei.h */
 }vvdecSEI;
 
 typedef struct vvdecSEIBufferingPeriod
@@ -267,7 +264,7 @@ typedef struct vvdecSEIDecodingUnitInfo
 
 typedef struct vvdecSEIDecodedPictureHash
 {
-  HashType      method;
+  vvdecHashType method;
   bool          singleCompFlag;
   int           digist_length;
   unsigned char digest[16*3];
@@ -410,7 +407,7 @@ typedef struct vvdecSEISubpictureLevelInfo
   int         sliMaxSublayers;
   bool        sliSublayerInfoPresentFlag;
   int         nonSubpicLayersFraction[6][6];
-  Level       refLevelIdc[6][6];
+  vvdecLevel  refLevelIdc[6][6];
   int         refLevelFraction[6][64][6];
 }vvdecSEISubpictureLevelInfo;
 

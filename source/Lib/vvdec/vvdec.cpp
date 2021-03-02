@@ -224,7 +224,7 @@ VVDEC_DECL int vvdec_flush( vvdecDecoder *dec, vvdecFrame **frame )
   return d->setAndRetErrorMsg( d->flush( frame ) );
 }
 
-VVDEC_DECL vvdecSEI* vvdec_find_frame_sei( vvdecDecoder *dec, SEIPayloadType seiPayloadType, vvdecFrame *frame )
+VVDEC_DECL vvdecSEI* vvdec_find_frame_sei( vvdecDecoder *dec, vvdecSEIPayloadType seiPayloadType, vvdecFrame *frame )
 {
   auto d = (vvdec::VVDecImpl*)dec;
   if (!d)

@@ -4290,7 +4290,7 @@ void HLSyntaxReader::parseProfileTierLevel( ProfileTierLevel *ptl, int maxNumSub
   parseConstraintInfo( ptl->getConstraintInfo() );
 #endif
 
-  READ_CODE( 8, symbol, "general_level_idc" );                               ptl->setLevelIdc( Level( symbol ) );
+  READ_CODE( 8, symbol, "general_level_idc" );                               ptl->setLevelIdc( vvdecLevel( symbol ) );
 
 #if JVET_S0138_GCI_PTL
   READ_FLAG( symbol, "ptl_frame_only_constraint_flag" );                     ptl->setFrameOnlyConstraintFlag( symbol );
@@ -4346,7 +4346,7 @@ void HLSyntaxReader::parseProfileTierLevel( ProfileTierLevel *ptl, int maxNumSub
   {
     if( ptl->getSubLayerLevelPresentFlag( i ) )
     {
-      READ_CODE( 8, symbol, "sub_layer_level_idc[i]" );                    ptl->setSubLayerLevelIdc( i, Level( symbol ) );
+      READ_CODE( 8, symbol, "sub_layer_level_idc[i]" );                    ptl->setSubLayerLevelIdc( i, vvdecLevel( symbol ) );
     }
   }
 

@@ -62,20 +62,20 @@ public:
   SEI_internal() {}
   virtual ~SEI_internal() {}
 
-  static const char *getSEIMessageString( SEIPayloadType payloadType);
+  static const char *getSEIMessageString( vvdecSEIPayloadType payloadType);
 
   /// output a selection of SEI messages by payload type. Ownership stays in original message list.
-  static seiMessages getSeisByType(const seiMessages &seiList, SEIPayloadType seiType);
+  static seiMessages getSeisByType(const seiMessages &seiList, vvdecSEIPayloadType seiType);
 
   /// remove a selection of SEI messages by payload type from the original list and return them in a new list.
-  static seiMessages extractSeisByType(seiMessages &seiList, SEIPayloadType seiType);
+  static seiMessages extractSeisByType(seiMessages &seiList, vvdecSEIPayloadType seiType);
 
   /// delete list of SEI messages (freeing the referenced objects)
   static void deleteSEIs (seiMessages &seiList);
 
-  static vvdecSEI* allocSEI( SEIPayloadType payloadType );
+  static vvdecSEI* allocSEI ( vvdecSEIPayloadType payloadType );
   static int allocSEIPayload( vvdecSEI* sei, int userDefSize = -1 );
-  static int getPayloadSize(SEIPayloadType payloadType);
+  static int getPayloadSize ( vvdecSEIPayloadType payloadType);
 };
 
 

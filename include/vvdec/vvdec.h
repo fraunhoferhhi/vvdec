@@ -482,7 +482,7 @@ VVDEC_DECL int vvdec_flush( vvdecDecoder *, vvdecFrame **frame );
   \retval     int if non-zero an error occurred, otherwise the retval indicates success VVDEC_OK
   \pre        The decoder has to be initialized successfully.
 */
-VVDEC_DECL vvdecSEI* vvdec_find_frame_sei( vvdecDecoder *, SEIPayloadType seiPayloadType, vvdecFrame *frame );
+VVDEC_DECL vvdecSEI* vvdec_find_frame_sei( vvdecDecoder *, vvdecSEIPayloadType seiPayloadType, vvdecFrame *frame );
 
 /* vvdec_frame_unref
   This method unreference an picture and frees the memory.
