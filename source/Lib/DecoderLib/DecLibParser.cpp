@@ -610,12 +610,10 @@ DecLibParser::SliceHeadResult DecLibParser::xDecodeSliceHead( InputNALUnit& nalu
 
   m_prevLayerID = nalu.m_nuhLayerId;
 
-#if GDR_FIX
   if( !pps->pcv )
   {
     pps->pcv = std::make_unique<PreCalcValues>( *sps, *pps );
   }
-#endif
   
   //detect lost reference picture and insert copy of earlier frame.
   for( const auto rplIdx: { REF_PIC_LIST_0, REF_PIC_LIST_1 } )
@@ -639,11 +637,7 @@ DecLibParser::SliceHeadResult DecLibParser::xDecodeSliceHead( InputNALUnit& nalu
           if( rpl->isInterLayerRefPic( lostRefPicIndex ) == 0 )
           {
 #if JVET_S0124_UNAVAILABLE_REFERENCE
-#if GDR_FIX
             m_parseFrameList.push_back( prepareUnavailablePicture( pps, lostPoc, m_apcSlicePilot->getNalUnitLayerId(), rpl->isRefPicLongterm( lostRefPicIndex ), m_apcSlicePilot->getTLayer() ) ); // -1 because checkThatAllRefPicsAreAvailable() returns iPocLost+1
-#else
-            m_parseFrameList.push_back( prepareUnavailablePicture( pps, lostPoc - 1, m_apcSlicePilot->getPic()->layerId, rpl->isRefPicLongterm( lostRefPicIndex ), m_apcSlicePilot->getPic()->layer ) ); // -1 because checkThatAllRefPicsAreAvailable() returns iPocLost+1
-#endif
 #else
             m_parseFrameList.push_back( prepareUnavailablePicture( lostPoc - 1, m_apcSlicePilot->getPic()->layerId, rpl->isRefPicLongterm(refPicIndex) ) ); // -1 because checkThatAllRefPicsAreAvailable() returns iPocLost+1
 #endif
@@ -1376,14 +1370,10 @@ Picture* DecLibParser::prepareLostPicture( int iLostPoc, const int layerId )
   cFillPic->slices[0]->setPOC( iLostPoc );
   cFillPic->slices[0]->setTLayer( iTLayer );
   cFillPic->slices[0]->setNalUnitType( naluType );
-#if GDR_FIX
   if( (cFillPic->slices[0]->getTLayer() == 0) && (cFillPic->slices[0]->getNalUnitType() != NAL_UNIT_CODED_SLICE_RASL) && (cFillPic->slices[0]->getNalUnitType() != NAL_UNIT_CODED_SLICE_RADL) )
   {
     m_prevTid0POC = cFillPic->slices[0]->getPOC();
   }
-#else
-  xUpdatePreviousTid0POC( cFillPic->slices[0] );
-#endif
   cFillPic->layer           = iTLayer;
   cFillPic->referenced      = true;
   cFillPic->neededForOutput = false;
@@ -1416,9 +1406,7 @@ Picture* DecLibParser::prepareUnavailablePicture( int iUnavailablePoc, const int
   Picture* cFillPic = m_picListManager.getNewPicBuffer( *m_parameterSetManager.getFirstSPS(), *m_parameterSetManager.getFirstPPS(), 0, layerId );
 #endif
   cFillPic->finalInit( m_parameterSetManager.getFirstSPS(), m_parameterSetManager.getFirstPPS(), m_picHeader.get(), m_parameterSetManager.getAlfAPSs().data(), nullptr, nullptr ); //TODO: check this
-#if GDR_FIX
   cFillPic->allocateNewSlice();
-#endif
   cFillPic->slices[0]->initSlice();
 
   uint32_t yFill = 1 << (m_parameterSetManager.getFirstSPS()->getBitDepth(CHANNEL_TYPE_LUMA) - 1);
@@ -1431,7 +1419,6 @@ Picture* DecLibParser::prepareUnavailablePicture( int iUnavailablePoc, const int
 //  cFillPic->interLayerRefPicFlag = false; //always false and never gets checked
   cFillPic->longTerm = longTermFlag;
   cFillPic->slices[0]->setPOC(iUnavailablePoc);
-#if GDR_FIX
 //  cFillPic->wasLost = true;
   cFillPic->parseDone.unlock();
   cFillPic->poc = iUnavailablePoc;
@@ -1439,9 +1426,6 @@ Picture* DecLibParser::prepareUnavailablePicture( int iUnavailablePoc, const int
   {
     m_prevTid0POC = cFillPic->slices[0]->getPOC();
   }
-#else
-  xUpdatePreviousTid0POC(cFillPic->slices[0]);
-#endif
   cFillPic->reconstructed = true;
   cFillPic->neededForOutput = false;
 #if JVET_S0124_UNAVAILABLE_REFERENCE
@@ -1597,11 +1581,7 @@ bool DecLibParser::isRandomAccessSkipPicture()
   if (m_pocRandomAccess == MAX_INT) // start of random access point, m_pocRandomAccess has not been set yet.
   {
 #if GDR_ADJ
-#if GDR_FIX
     if (m_apcSlicePilot->getNalUnitType() == NAL_UNIT_CODED_SLICE_CRA || m_apcSlicePilot->getNalUnitType() == NAL_UNIT_CODED_SLICE_GDR )
-#else
-    if (m_apcSlicePilot->getNalUnitType() == NAL_UNIT_CODED_SLICE_CRA || ( m_apcSlicePilot->getNalUnitType() == NAL_UNIT_CODED_SLICE_GDR && m_apcSlicePilot->getPicHeader()->getRecoveryPocCnt() == 0 ) )
-#endif
 #else
     if (m_apcSlicePilot->getNalUnitType() == NAL_UNIT_CODED_SLICE_CRA )
 #endif

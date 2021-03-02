@@ -83,7 +83,6 @@ THE POSSIBILITY OF SUCH DAMAGE.
 
 #define GDR_ADJ                                           1
 #define ALF_FIX                                           1
-#define GDR_FIX                                           1
 
 #define TBD                                               1
 #define TBT                                               1
