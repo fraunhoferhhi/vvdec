@@ -58,7 +58,8 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #include "vvdecHelper.h"
 
 /*! Prototypes */
-int writeYUVToFile( std::ostream *f, vvdecFrame *frame, vvdecFrame *prevField = nullptr );
+int writeYUVToFile( std::ostream *f, vvdecFrame *frame );
+int writeYUVToFileInterlaced( std::ostream *f, vvdecFrame *topField, vvdecFrame *botField = nullptr );
 
 //LogLevel g_verbosity = VVDEC_VERBOSE;
 
@@ -368,7 +369,7 @@ int main( int argc, char* argv[] )
               }
               else
               {
-                if( 0 != writeYUVToFile( outStream, pcFrame, pcPrevField ) )
+                if( 0 != writeYUVToFileInterlaced( outStream, pcPrevField, pcFrame ) )
                 {
                   std::cout << "vvdecapp [error]: write of rec. yuv failed for picture seq. " <<  pcFrame->sequenceNumber << std::endl;
                   vvdec_accessUnit_free( accessUnit );
@@ -447,7 +448,7 @@ int main( int argc, char* argv[] )
             }
             else
             {
-              if( 0 != writeYUVToFile( outStream, pcFrame, pcPrevField ) )
+              if( 0 != writeYUVToFileInterlaced( outStream, pcPrevField, pcFrame ) )
               {
                 std::cout << "vvdecapp [error]: write of rec. yuv failed for picture seq. " <<  pcFrame->sequenceNumber << std::endl;
                 vvdec_accessUnit_free( accessUnit );

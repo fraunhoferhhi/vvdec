@@ -410,7 +410,7 @@ Picture* PicListManager::getNextOutputPic( uint32_t numReorderPicsHighestTid,
 
     for( auto& pcPic: picRange )
     {
-      CHECK( pcPic->fieldPic, "Interlaced not suported" );
+      //CHECK( pcPic->fieldPic, "Interlaced not suported" );
 
       if( pcPic->neededForOutput && pcPic->reconstructed &&
           ( lowestPOCPic==nullptr || pcPic->poc < lowestPOCPic->poc ) )

@@ -347,15 +347,47 @@ static int readBitstreamFromFile( std::ifstream *f, vvdecAccessUnit* pcAccessUni
   return len;
 }
 
+/**
+  This method writes and yuv planar picture into a file sink.
+  \param[in]  *f file sink pointer
+  \param[in]  *frame decoded picture pointer
+  \retval     int  if non-zero an error occurred (see ErrorCodes), otherwise the return value indicates success VVC_DEC_OK
+  \pre        The decoder must not be initialized.
+*/
+static int writeYUVToFile( std::ostream *f, vvdecFrame *frame  )
+{
+ int ret;
+ uint32_t c = 0;
+
+ uint32_t uiBytesPerSample = 1;
+
+ assert( f != NULL );
+
+ for( c = 0; c < frame->numPlanes; c++ )
+ {
+   uiBytesPerSample = std::max( (uint32_t)frame->planes[c].bytesPerSample, uiBytesPerSample );
+ }
+
+ for( c = 0; c < frame->numPlanes; c++ )
+ {
+   if( ( ret = _writeComponentToFile( f, &frame->planes[c], nullptr, uiBytesPerSample ) ) != 0 )
+   {
+     return ret;
+   }
+ }
+
+ return 0;
+}
 
  /**
    This method writes and yuv planar picture into a file sink.
    \param[in]  *f file sink pointer
-   \param[in]  *frame decoded picture pointer
+   \param[in]  *frame decoded picture pointer top field
+   \param[in]  *frame decoded picture pointer bottom field
    \retval     int  if non-zero an error occurred (see ErrorCodes), otherwise the return value indicates success VVC_DEC_OK
    \pre        The decoder must not be initialized.
  */
-static int writeYUVToFile( std::ostream *f, vvdecFrame *frame, vvdecFrame *prevField )
+static int writeYUVToFileInterlaced( std::ostream *f, vvdecFrame *topField, vvdecFrame *botField )
 {
   int ret;
   uint32_t c = 0;
@@ -363,35 +395,22 @@ static int writeYUVToFile( std::ostream *f, vvdecFrame *frame, vvdecFrame *prevF
   uint32_t uiBytesPerSample = 1;
 
   assert( f != NULL );
+  assert( topField != NULL );
+  assert( botField != NULL );
+  assert( topField->numPlanes == botField->numPlanes );
 
-  for( c = 0; c < frame->numPlanes; c++ )
+  for( c = 0; c < topField->numPlanes; c++ )
   {
-    uiBytesPerSample = std::max( (uint32_t)frame->planes[c].bytesPerSample, uiBytesPerSample );
+    uiBytesPerSample = std::max( (uint32_t)topField->planes[c].bytesPerSample, uiBytesPerSample );
   }
 
-  if( prevField )
+  for( c = 0; c < topField->numPlanes; c++ )
   {
-    // interlaced
-    for( c = 0; c < frame->numPlanes; c++ )
+    if( ( ret = _writeComponentToFile( f, &topField->planes[c], &botField->planes[c], uiBytesPerSample ) ) != 0 )
     {
-      if( ( ret = _writeComponentToFile( f, &prevField->planes[c], &frame->planes[c], uiBytesPerSample ) ) != 0 )
-      {
-        return ret;
-      }
+      return ret;
     }
   }
-  else
-  {
-    for( c = 0; c < frame->numPlanes; c++ )
-    {
-      if( ( ret = _writeComponentToFile( f, &frame->planes[c], nullptr, uiBytesPerSample ) ) != 0 )
-      {
-        return ret;
-      }
-    }
-  }
-
-
   return 0;
 }
 
