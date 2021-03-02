@@ -98,7 +98,6 @@ int VVDecImpl::init( const vvdecParams& params )
   case VVDEC_SIMD_AVX   : read_x86_extension( "AVX"    ); break;
   case VVDEC_SIMD_AVX2  : read_x86_extension( "AVX2"   ); break;
   case VVDEC_SIMD_AVX512: read_x86_extension( "AVX512" ); break;
-
   case VVDEC_SIMD_DEFAULT:
   default: break;
   }
