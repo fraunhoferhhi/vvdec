@@ -67,6 +67,7 @@ static const char * const vvdecErrorMsg[] = { "expected behavior",
                                               "unspecified malfunction",
                                               "decoder not initialized or tried to initialize multiple times",
                                               "internal allocation error",
+                                              "decoder input data error",
                                               "allocated memory to small to receive decoded data",
                                               "inconsistent or invalid parameters",
                                               "unsupported request",
@@ -147,7 +148,7 @@ public:
 
    int getNumberOfErrorsPictureHashSEI( );
 
-   int setAndRetErrorMsg( int Ret );
+   int setAndRetErrorMsg( int Ret, std::string errString = "" );
 
    const char* getDecoderInfo();
 //   const char* getDecoderCapabilities( );
@@ -160,7 +161,6 @@ public:
    static bool isNalUnitSlice               ( vvdecNalType t );
 
 private:
-
    int xAddPicture                  ( Picture* pcPic );
    int xCreateFrame                 ( vvdecFrame& frame, const CPelUnitBuf& rcPicBuf, uint32_t uiWidth, uint32_t uiHeight, const BitDepths& rcBitDepths, bool bCreateStorage );
 

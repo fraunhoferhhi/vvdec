@@ -84,6 +84,7 @@ typedef enum
   VVDEC_ERR_UNSPECIFIED       = -1,    // unspecified malfunction
   VVDEC_ERR_INITIALIZE        = -2,    // decoder not initialized or tried to initialize multiple times
   VVDEC_ERR_ALLOCATE          = -3,    // internal allocation error
+  VVDEC_ERR_DEC_INPUT         = -4,    // decoder input error, decoder input data error
   VVDEC_NOT_ENOUGH_MEM        = -5,    // allocated memory to small to receive decoded data. After allocating sufficient memory the failed call can be repeated.
   VVDEC_ERR_PARAMETER         = -7,    // inconsistent or invalid parameters
   VVDEC_ERR_NOT_SUPPORTED     = -10,   // unsupported request

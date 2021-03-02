@@ -206,7 +206,21 @@ void VVDecImpl::setLoggingCallback(vvdecLoggingCallback callback, void *userData
 
 int VVDecImpl::decode( vvdecAccessUnit& rcAccessUnit, vvdecFrame** ppcFrame )
 {
-  if( !m_bInitialized ){ return VVDEC_ERR_INITIALIZE; }
+  if( !m_bInitialized )      { return VVDEC_ERR_INITIALIZE; }
+  if( !rcAccessUnit.payload )
+  {
+    return setAndRetErrorMsg( VVDEC_ERR_DEC_INPUT, "decode: payload is null" );
+  }
+
+  if( rcAccessUnit.payloadSize <= 0  )
+  {
+    return setAndRetErrorMsg( VVDEC_ERR_DEC_INPUT, "decode: payloadSize must be > 0" );
+  }
+
+  if( rcAccessUnit.payloadUsedSize > rcAccessUnit.payloadSize )
+  {
+    return setAndRetErrorMsg( VVDEC_ERR_DEC_INPUT, "decode: payloadUsedSize must be <= payloadSize" );
+  }
 
   int iRet= VVDEC_OK;
 
@@ -467,7 +481,7 @@ vvdecSEI* VVDecImpl::findFrameSei( vvdecSEIPayloadType payloadType, vvdecFrame *
 
   if( nullptr == frame )
   {
-    msg(VERBOSE, "findFrameSei: frame is null\n");
+    m_cErrorString = "findFrameSei: frame is null\n";
     return nullptr;
   }
 
@@ -577,21 +591,29 @@ const char* VVDecImpl::getErrorMsg( int nRet )
   case VVDEC_ERR_UNSPECIFIED:      return vvdecErrorMsg[1]; break;
   case VVDEC_ERR_INITIALIZE:       return vvdecErrorMsg[2]; break;
   case VVDEC_ERR_ALLOCATE:         return vvdecErrorMsg[3]; break;
-  case VVDEC_NOT_ENOUGH_MEM:       return vvdecErrorMsg[4]; break;
-  case VVDEC_ERR_PARAMETER:        return vvdecErrorMsg[5]; break;
-  case VVDEC_ERR_NOT_SUPPORTED:    return vvdecErrorMsg[6]; break;
-  case VVDEC_ERR_RESTART_REQUIRED: return vvdecErrorMsg[7]; break;
-  case VVDEC_ERR_CPU:              return vvdecErrorMsg[8]; break;
-  case VVDEC_TRY_AGAIN:            return vvdecErrorMsg[9]; break;
-  case VVDEC_EOF:                  return vvdecErrorMsg[10]; break;
-  default:                         return vvdecErrorMsg[11]; break;
+  case VVDEC_ERR_DEC_INPUT:        return vvdecErrorMsg[4]; break;
+  case VVDEC_NOT_ENOUGH_MEM:       return vvdecErrorMsg[5]; break;
+  case VVDEC_ERR_PARAMETER:        return vvdecErrorMsg[6]; break;
+  case VVDEC_ERR_NOT_SUPPORTED:    return vvdecErrorMsg[7]; break;
+  case VVDEC_ERR_RESTART_REQUIRED: return vvdecErrorMsg[8]; break;
+  case VVDEC_ERR_CPU:              return vvdecErrorMsg[9]; break;
+  case VVDEC_TRY_AGAIN:            return vvdecErrorMsg[10]; break;
+  case VVDEC_EOF:                  return vvdecErrorMsg[11]; break;
+  default:                         return vvdecErrorMsg[12]; break;
   }
-  return vvdecErrorMsg[11];
+  return vvdecErrorMsg[12];
 }
 
-int VVDecImpl::setAndRetErrorMsg( int iRet )
+int VVDecImpl::setAndRetErrorMsg( int iRet, std::string errString  )
 {
-  m_cErrorString = getErrorMsg(iRet);
+  if( !errString.empty() )
+  {
+    m_cErrorString = errString;
+  }
+  else
+  {
+    m_cErrorString = getErrorMsg(iRet);
+  }
   return iRet;
 }
 

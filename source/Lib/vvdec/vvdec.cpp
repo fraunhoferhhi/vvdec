@@ -224,10 +224,10 @@ VVDEC_DECL int vvdec_decode( vvdecDecoder *dec, vvdecAccessUnit* accessUnit, vvd
 
   if( nullptr == accessUnit )
   {
-     return d->setAndRetErrorMsg(VVDEC_ERR_UNSPECIFIED);
+    return d->setAndRetErrorMsg(VVDEC_ERR_DEC_INPUT);
   }
 
-  return d->setAndRetErrorMsg( d->decode( *accessUnit, frame ) );
+  return d->decode( *accessUnit, frame );
 }
 
 
@@ -239,7 +239,7 @@ VVDEC_DECL int vvdec_flush( vvdecDecoder *dec, vvdecFrame **frame )
     return VVDEC_ERR_INITIALIZE;
   }
 
-  return d->setAndRetErrorMsg( d->flush( frame ) );
+  return d->flush( frame );
 }
 
 VVDEC_DECL vvdecSEI* vvdec_find_frame_sei( vvdecDecoder *dec, vvdecSEIPayloadType seiPayloadType, vvdecFrame *frame )
@@ -261,7 +261,7 @@ VVDEC_DECL int vvdec_frame_unref( vvdecDecoder *dec, vvdecFrame *frame )
     return VVDEC_ERR_INITIALIZE;
   }
 
-  return d->setAndRetErrorMsg( d->objectUnref( frame ) );
+  return d->objectUnref( frame );
 }
 
 VVDEC_DECL int vvdec_get_hash_error_count( vvdecDecoder *dec )
@@ -272,7 +272,7 @@ VVDEC_DECL int vvdec_get_hash_error_count( vvdecDecoder *dec )
     return VVDEC_ERR_INITIALIZE;
   }
 
-  return d->setAndRetErrorMsg( d->getNumberOfErrorsPictureHashSEI() );
+  return d->getNumberOfErrorsPictureHashSEI();
 }
 
 
