@@ -69,6 +69,7 @@ static __itt_string_handle* itt_handle_TPaddTask  = __itt_string_handle_create( 
 
 // enable this if tasks need to be added from mutliple threads
 #define ADD_TASK_THREAD_SAFE 0
+#define THREAD_POOL_HANDLE_EXCEPTIONS 1
 
 
 // ---------------------------------------------------------------------------
@@ -79,18 +80,48 @@ struct Barrier
 {
   virtual void unlock()
   {
+#if THREAD_POOL_HANDLE_EXCEPTIONS
+    if( m_exception )
+    {
+      throw Exception( *m_exception );
+    }
+#endif   // THREAD_POOL_HANDLE_EXCEPTIONS
     m_lockState.store( false );
   }
 
   virtual void lock()
   {
+#if THREAD_POOL_HANDLE_EXCEPTIONS
+    if( m_exception )
+    {
+      throw Exception( *m_exception );
+    }
+#endif   // THREAD_POOL_HANDLE_EXCEPTIONS
     m_lockState.store( true );
   }
 
   bool isBlocked() const
   {
+#if THREAD_POOL_HANDLE_EXCEPTIONS
+    if( m_exception )
+    {
+      throw Exception( *m_exception );
+    }
+#endif   // THREAD_POOL_HANDLE_EXCEPTIONS
     return m_lockState;
   }
+
+#if THREAD_POOL_HANDLE_EXCEPTIONS
+  virtual void     setException( const Exception& e ) { m_exception = new Exception( e ); }
+  const Exception* getException() const { return m_exception; }
+  bool             hasException() const { return !!m_exception; }
+  virtual void     clearException()
+  {
+    auto* tmp   = m_exception.load();
+    m_exception = nullptr;
+    delete tmp;
+  }
+#endif   // THREAD_POOL_HANDLE_EXCEPTIONS
 
   Barrier()  = default;
   virtual ~Barrier() = default;
@@ -104,6 +135,9 @@ struct Barrier
 
 private:
   std::atomic_bool m_lockState{ true };
+#if THREAD_POOL_HANDLE_EXCEPTIONS
+  std::atomic<Exception*> m_exception{ nullptr };
+#endif
 };
 
 struct BlockingBarrier: public Barrier
@@ -126,6 +160,21 @@ struct BlockingBarrier: public Barrier
     std::unique_lock<std::mutex> l( m_lock );
     m_cond.wait( l, [=] { return !Barrier::isBlocked(); } );
   }
+
+#if THREAD_POOL_HANDLE_EXCEPTIONS
+  void setException( const Exception& e )
+  {
+    std::unique_lock<std::mutex> l( m_lock );
+    Barrier::setException( e );
+    m_cond.notify_all();
+  }
+
+  void clearException()
+  {
+    std::unique_lock<std::mutex> l( m_lock );
+    Barrier::clearException();
+  }
+#endif
 
   BlockingBarrier()  = default;
   ~BlockingBarrier() { std::unique_lock<std::mutex> l( m_lock ); } // ensure all threads have unlocked the mutex, when we start destruction
@@ -166,14 +215,45 @@ struct WaitCounter
   bool isBlocked() const
   {
     std::unique_lock<std::mutex> l( const_cast<std::mutex&>( m_lock ) );
+#if THREAD_POOL_HANDLE_EXCEPTIONS
+    if( m_done.hasException() )
+    {
+      throw Exception( *m_done.getException() );
+    }
+#endif   // THREAD_POOL_HANDLE_EXCEPTIONS
     return 0 != m_count;
   }
 
   void wait() const
   {
     std::unique_lock<std::mutex> l( m_lock );
+#if THREAD_POOL_HANDLE_EXCEPTIONS
+    m_cond.wait( l, [=] { return m_count == 0 || m_done.hasException(); } );
+    if( m_done.hasException() )
+    {
+      throw Exception( *m_done.getException() );
+    }
+#else
     m_cond.wait( l, [=] { return m_count == 0; } );
+#endif   // THREAD_POOL_HANDLE_EXCEPTIONS
   }
+
+#if THREAD_POOL_HANDLE_EXCEPTIONS
+  void setException( const Exception& e )
+  {
+    std::unique_lock<std::mutex> l( m_lock );
+    m_done.setException( e );
+    m_cond.notify_all();
+  }
+
+  bool hasException() const { return m_done.hasException(); }
+
+  void clearException()
+  {
+    std::unique_lock<std::mutex> l( m_lock );
+    m_done.clearException();
+  }
+#endif   // THREAD_POOL_HANDLE_EXCEPTIONS
 
   WaitCounter() = default;
   ~WaitCounter() { std::unique_lock<std::mutex> l( m_lock ); }   // ensure all threads have unlocked the mutex, when we start destruction
@@ -223,7 +303,6 @@ class NoMallocThreadPool
     CBarrierVec            barriers;
     std::atomic<TaskState> state     { FREE };
   };
-
 
   class ChunkedTaskQueue
   {
@@ -362,8 +441,10 @@ public:
   int numThreads() const { return (int)m_threads.size(); }
 
 private:
-
   using TaskIterator = ChunkedTaskQueue::Iterator;
+#if THREAD_POOL_HANDLE_EXCEPTIONS
+  struct TaskException;
+#endif
 
   // members
   std::string              m_poolName;
@@ -383,6 +464,9 @@ private:
   TaskIterator findNextTask   ( int threadId, TaskIterator startSearch );
   static bool  processTask    ( int threadId, Slot& task );
   bool         bypassTaskQueue( TaskFunc func, void* param, WaitCounter* counter, Barrier* done, CBarrierVec& barriers, TaskFunc readyCheck );
+#if THREAD_POOL_HANDLE_EXCEPTIONS
+  static void  handleTaskException( const Exception& e, Barrier* done, WaitCounter* counter, std::atomic<TaskState>* slot_state );
+#endif
 };
 
 #endif   // NOMALLOCTHREADPOOL_H

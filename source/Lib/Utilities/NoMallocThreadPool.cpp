@@ -60,6 +60,17 @@ const static auto BUSY_WAIT_TIME = [] {
   return std::chrono::milliseconds( 1 );
 }();
 
+#if THREAD_POOL_HANDLE_EXCEPTIONS
+struct NoMallocThreadPool::TaskException : public Exception
+{
+  explicit TaskException( Exception& e, NoMallocThreadPool::Slot& task )
+    : Exception( e )
+    , m_task( task )
+  {}
+  NoMallocThreadPool::Slot& m_task;
+};
+#endif   // THREAD_POOL_HANDLE_EXCEPTIONS
+
 class ScopeIncDecCounter
 {
   std::atomic_uint& m_cntr;
@@ -98,11 +109,34 @@ bool NoMallocThreadPool::processTasksOnMainThread()
 {
   CHECK( m_threads.size() != 0, "should not be used with multiple threads" );
 
-  auto taskIt = findNextTask( 0, m_tasks.begin() );
-  while( taskIt.isValid() )
+  TaskIterator taskIt;
+  while( true )
   {
-    processTask( 0, *taskIt );
-    taskIt = findNextTask( 0, taskIt );
+#if THREAD_POOL_HANDLE_EXCEPTIONS
+    try
+    {
+#endif
+      if( !taskIt.isValid() )
+      {
+        taskIt = findNextTask( 0, m_tasks.begin() );
+      }
+      else
+      {
+        taskIt = findNextTask( 0, taskIt );
+      }
+
+      if( !taskIt.isValid() )
+      {
+        break;
+      }
+      processTask( 0, *taskIt );
+#if THREAD_POOL_HANDLE_EXCEPTIONS
+    }
+    catch( TaskException& e )
+    {
+      handleTaskException( e, e.m_task.done, e.m_task.counter, &e.m_task.state );
+    }
+#endif // THREAD_POOL_HANDLE_EXCEPTIONS
   }
 
   // return true if all done (-> false if some tasks blocked due to barriers)
@@ -140,59 +174,82 @@ void NoMallocThreadPool::threadProc( int threadId )
   auto nextTaskIt = m_tasks.begin();
   while( !m_exitThreads )
   {
-    auto taskIt = findNextTask( threadId, nextTaskIt );
-    if( !taskIt.isValid() )
+#if THREAD_POOL_HANDLE_EXCEPTIONS
+    try
     {
-      std::unique_lock<std::mutex> l( m_idleMutex, std::defer_lock );
-
-      ITT_TASKSTART( itt_domain_thrd, itt_handle_TPspinWait );
-      ScopeIncDecCounter cntr( m_waitingThreads );
-
-      const auto startWait = std::chrono::steady_clock::now();
-      while( !m_exitThreads )
+#endif   // THREAD_POOL_HANDLE_EXCEPTIONS
+      auto taskIt = findNextTask( threadId, nextTaskIt );
+      if( !taskIt.isValid() )
       {
-        taskIt = findNextTask( threadId, nextTaskIt );
-        if( taskIt.isValid() || m_exitThreads )
+        std::unique_lock<std::mutex> l( m_idleMutex, std::defer_lock );
+
+        ITT_TASKSTART( itt_domain_thrd, itt_handle_TPspinWait );
+        ScopeIncDecCounter cntr( m_waitingThreads );
+
+        const auto startWait = std::chrono::steady_clock::now();
+        while( !m_exitThreads )
         {
-          break;
+          taskIt = findNextTask( threadId, nextTaskIt );
+          if( taskIt.isValid() || m_exitThreads )
+          {
+            break;
+          }
+
+          if( !l.owns_lock()
+              && m_waitingThreads.load( std::memory_order_relaxed ) > 1
+              && ( BUSY_WAIT_TIME.count() == 0 || std::chrono::steady_clock::now() - startWait > BUSY_WAIT_TIME )
+              && !m_exitThreads )
+          {
+            ITT_TASKSTART( itt_domain_thrd, itt_handle_TPblocked );
+            l.lock();
+            ITT_TASKEND( itt_domain_thrd, itt_handle_TPblocked );
+          }
+          else
+          {
+            std::this_thread::yield();
+          }
         }
 
-        if( !l.owns_lock()
-            && m_waitingThreads.load( std::memory_order_relaxed ) > 1
-            && ( BUSY_WAIT_TIME.count() == 0 || std::chrono::steady_clock::now() - startWait > BUSY_WAIT_TIME )
-            && !m_exitThreads )
-        {
-          ITT_TASKSTART( itt_domain_thrd, itt_handle_TPblocked );
-          l.lock();
-          ITT_TASKEND( itt_domain_thrd, itt_handle_TPblocked );
-        }
-        else
-        {
-          std::this_thread::yield();
-        }
+        ITT_TASKEND( itt_domain_thrd, itt_handle_TPspinWait );
+      }
+      if( m_exitThreads )
+      {
+        return;
       }
 
-      ITT_TASKEND( itt_domain_thrd, itt_handle_TPspinWait );
+      processTask( threadId, *taskIt );
+
+      nextTaskIt = taskIt;
+      nextTaskIt.incWrap();
+#if THREAD_POOL_HANDLE_EXCEPTIONS
     }
-    if( m_exitThreads )
+    catch( TaskException& e )
     {
-      return;
+      handleTaskException( e, e.m_task.done, e.m_task.counter, &e.m_task.state );
     }
-
-    processTask( threadId, *taskIt );
-
-    nextTaskIt = taskIt;
-    nextTaskIt.incWrap();
+#endif   // THREAD_POOL_HANDLE_EXCEPTIONS
   }
 }
 
 bool NoMallocThreadPool::checkTaskReady( int threadId, CBarrierVec& barriers, NoMallocThreadPool::TaskFunc readyCheck, void* taskParam )
 {
-  if( !barriers.empty() && std::any_of( barriers.cbegin(), barriers.cend(), []( const Barrier* b ) { return b && b->isBlocked(); } ) )
+  if( !barriers.empty() )
   {
-    return false;
+#if THREAD_POOL_HANDLE_EXCEPTIONS
+    // don't break early, because isBlocked() also checks exception state
+    if( std::count_if( barriers.cbegin(), barriers.cend(), []( const Barrier* b ) { return b && b->isBlocked(); } ) )
+#else
+    if( std::any_of( barriers.cbegin(), barriers.cend(), []( const Barrier* b ) { return b && b->isBlocked(); } ) )
+#endif   // THREAD_POOL_HANDLE_EXCEPTIONS
+    {
+      return false;
+    }
   }
+#if THREAD_POOL_HANDLE_EXCEPTIONS
+  // don't clear the barriers, even if they are all unlocked, because exceptions could still be singalled through them
+#else
   barriers.clear();   // clear barriers, so we don't need to check them on the next try (we assume they won't get locked again)
+#endif
 
   if( readyCheck && readyCheck( threadId, taskParam ) == false )
   {
@@ -212,40 +269,61 @@ NoMallocThreadPool::TaskIterator NoMallocThreadPool::findNextTask( int threadId,
   for( auto it = startSearch; it != startSearch || first; it.incWrap() )
   {
     first = false;
-
-    Slot& task = *it;
-    auto expected = WAITING;
-    if( task.state == expected && task.state.compare_exchange_strong( expected, RUNNING ) )
+#if THREAD_POOL_HANDLE_EXCEPTIONS
+    try
     {
-      if( checkTaskReady( threadId, task.barriers, task.readyCheck, task.param ) )
+#endif   // THREAD_POOL_HANDLE_EXCEPTIONS
+      Slot& task     = *it;
+      auto  expected = WAITING;
+      if( task.state == expected && task.state.compare_exchange_strong( expected, RUNNING ) )
       {
-        return it;
-      }
+        if( checkTaskReady( threadId, task.barriers, task.readyCheck, task.param ) )
+        {
+          return it;
+        }
 
-      // reschedule
-      task.state = WAITING;
+        // reschedule
+        task.state = WAITING;
+      }
+#if THREAD_POOL_HANDLE_EXCEPTIONS
     }
+    catch( Exception& e )
+    {
+      throw TaskException( e, *it );
+    }
+#endif
   }
   return {};
 }
 
 bool NoMallocThreadPool::processTask( int threadId, NoMallocThreadPool::Slot& task )
 {
-  const bool success = task.func( threadId, task.param );
-  if( !success )
+#if THREAD_POOL_HANDLE_EXCEPTIONS
+  try
   {
-    task.state = WAITING;
-    return false;
-  }
+#endif
+    const bool success = task.func( threadId, task.param );
+    if( !success )
+    {
+      task.state = WAITING;
+      return false;
+    }
 
-  if( task.done != nullptr )
-  {
-    task.done->unlock();
+    if( task.done != nullptr )
+    {
+      task.done->unlock();
+    }
+    if( task.counter != nullptr )
+    {
+      --(*task.counter);
+    }
+#if THREAD_POOL_HANDLE_EXCEPTIONS
   }
-  if( task.counter != nullptr )
+  catch( Exception& e )
   {
-    --(*task.counter);
+    throw TaskException( e, task );
   }
+#endif   // THREAD_POOL_HANDLE_EXCEPTIONS
 
   task.state = FREE;
 
@@ -255,37 +333,66 @@ bool NoMallocThreadPool::processTask( int threadId, NoMallocThreadPool::Slot& ta
 bool NoMallocThreadPool::bypassTaskQueue( TaskFunc func, void* param, WaitCounter* counter, Barrier* done, CBarrierVec& barriers, TaskFunc readyCheck )
 {
   CHECKD( numThreads() > 0, "the task queue should only be bypassed, when running single-threaded." );
-
-  // if singlethreaded, execute all pending
-  bool waiting_tasks = m_nextFillSlot != m_tasks.begin();
-  bool is_ready      = checkTaskReady( 0, barriers, (TaskFunc)readyCheck, param );
-  if( !is_ready && waiting_tasks )
+#if THREAD_POOL_HANDLE_EXCEPTIONS
+  try
   {
-    waiting_tasks = processTasksOnMainThread();
-    is_ready      = checkTaskReady( 0, barriers, (TaskFunc)readyCheck, param );
-  }
-
-  // when no barriers block this task, execute it directly
-  if( is_ready )
-  {
-    if( func( 0, param ) )
+#endif
+    // if singlethreaded, execute all pending tasks
+    bool waiting_tasks = m_nextFillSlot != m_tasks.begin();
+    bool is_ready      = checkTaskReady( 0, barriers, (TaskFunc)readyCheck, param );
+    if( !is_ready && waiting_tasks )
     {
-      if( done != nullptr )
-      {
-        done->unlock();
-      }
-
-      if( waiting_tasks )
-      {
-        processTasksOnMainThread();
-      }
-      return true;
+      waiting_tasks = processTasksOnMainThread();
+      is_ready      = checkTaskReady( 0, barriers, (TaskFunc)readyCheck, param );
     }
+
+    // when no barriers block this task, execute it directly
+    if( is_ready )
+    {
+      if( func( 0, param ) )
+      {
+        if( done != nullptr )
+        {
+          done->unlock();
+        }
+
+        if( waiting_tasks )
+        {
+          processTasksOnMainThread();
+        }
+        return true;
+      }
+    }
+#if THREAD_POOL_HANDLE_EXCEPTIONS
   }
+  catch( Exception& e )
+  {
+    handleTaskException( e, done, counter, nullptr );
+  }
+#endif   // THREAD_POOL_HANDLE_EXCEPTIONS
 
   // direct execution of the task failed
   return false;
 }
+
+#if THREAD_POOL_HANDLE_EXCEPTIONS
+void NoMallocThreadPool::handleTaskException( const Exception& e, Barrier* done, WaitCounter* counter, std::atomic<TaskState>* slot_state )
+{
+  if( done != nullptr )
+  {
+    done->setException( e );
+  }
+  if( counter != nullptr )
+  {
+    counter->setException( e );
+  }
+
+  if( slot_state != nullptr )
+  {
+    *slot_state = FREE;
+  }
+}
+#endif
 
 // ---------------------------------------------------------------------------
 // Chunked Task Queue
