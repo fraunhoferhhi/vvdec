@@ -269,7 +269,6 @@ int main( int argc, char* argv[] )
 
         // call decode
 
-        accessUnit->payloadSize  =0;
         iRet = vvdec_decode( dec, accessUnit, &pcFrame );
         if( bIsSlice )
         {
