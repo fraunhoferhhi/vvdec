@@ -58,6 +58,7 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #include "MotionInfo.h"
 #include "BitStream.h"
 #include "PicListManager.h"
+#include "SEI_internal.h"
 
 #include "Utilities/NoMallocThreadPool.h"
 
@@ -67,8 +68,6 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #include <vector>
 #include <chrono>
 #include <future>
-
-#include "vvdec/sei.h"
 
 //! \ingroup CommonLib
 //! \{
@@ -441,27 +440,27 @@ public:
 
 class ProfileTierLevel
 {
-  Level::Tier       m_tierFlag      = Level::MAIN;
+  Tier              m_tierFlag      = Tier::MAIN;
   Profile::Name     m_profileIdc    = Profile::NONE;
   uint8_t           m_numSubProfile = 0;
   std::vector<uint32_t> m_subProfileIdc;
-  Level::Name       m_levelIdc      = Level::NONE;
+  vvdecLevel        m_levelIdc      = vvdecLevel::VVDEC_LEVEL_NONE;
 #if JVET_S0138_GCI_PTL
   bool              m_frameOnlyConstraintFlag = true;
   bool              m_multiLayerEnabledFlag   = false;
 #endif
   ConstraintInfo    m_constraintInfo;
   bool              m_subLayerLevelPresentFlag[MAX_TLAYER - 1]; // init in constructor
-  Level::Name       m_subLayerLevelIdc        [MAX_TLAYER]; // init in constructor
+  vvdecLevel        m_subLayerLevelIdc        [MAX_TLAYER]; // init in constructor
 public:
   ProfileTierLevel()
   {
     ::memset(m_subLayerLevelPresentFlag,   0, sizeof(m_subLayerLevelPresentFlag  ));
-    ::memset(m_subLayerLevelIdc, Level::NONE, sizeof(m_subLayerLevelIdc          ));
+    ::memset(m_subLayerLevelIdc, vvdecLevel::VVDEC_LEVEL_NONE, sizeof(m_subLayerLevelIdc    ));
   }
 
-  Level::Tier   getTierFlag() const                         { return m_tierFlag;                    }
-  void          setTierFlag(Level::Tier x)                  { m_tierFlag = x;                       }
+  Tier          getTierFlag() const                         { return m_tierFlag;                    }
+  void          setTierFlag(Tier x)                         { m_tierFlag = x;                       }
 
   Profile::Name getProfileIdc() const                       { return m_profileIdc;                  }
   void          setProfileIdc(Profile::Name x)              { m_profileIdc = x;                     }
@@ -472,8 +471,8 @@ public:
   uint32_t      getSubProfileIdc(int i) const               { return m_subProfileIdc[i]; }
   void          setSubProfileIdc(int i, uint32_t x)         { m_subProfileIdc[i] = x; }
 
-  Level::Name   getLevelIdc() const                         { return m_levelIdc;                    }
-  void          setLevelIdc(Level::Name x)                  { m_levelIdc = x;                       }
+  vvdecLevel    getLevelIdc() const                         { return m_levelIdc;                    }
+  void          setLevelIdc(vvdecLevel x)                   { m_levelIdc = x;                       }
 
 #if JVET_S0138_GCI_PTL
   bool                    getFrameOnlyConstraintFlag() const { return m_frameOnlyConstraintFlag; }
@@ -489,8 +488,8 @@ public:
   bool                    getSubLayerLevelPresentFlag(int i) const     { return m_subLayerLevelPresentFlag[i];   }
   void                    setSubLayerLevelPresentFlag(int i, bool x)   { m_subLayerLevelPresentFlag[i] = x;      }
 
-  Level::Name             getSubLayerLevelIdc(int i) const             { return m_subLayerLevelIdc[i];   }
-  void                    setSubLayerLevelIdc(int i, Level::Name x)    { m_subLayerLevelIdc[i] = x;      }
+  vvdecLevel              getSubLayerLevelIdc(int i) const             { return m_subLayerLevelIdc[i];   }
+  void                    setSubLayerLevelIdc(int i, vvdecLevel x)     { m_subLayerLevelIdc[i] = x;      }
   friend bool             operator == (const ProfileTierLevel& op1, const ProfileTierLevel& op2);
   friend bool             operator != (const ProfileTierLevel& op1, const ProfileTierLevel& op2);
 };
@@ -739,29 +738,30 @@ public:
 
   virtual ~HRD()
   {};
-  void                 setGeneralHrdParameters(GeneralHrdParams &generalHrdParam) { m_generalHrdParams = generalHrdParam; }
+  void                    setGeneralHrdParameters(GeneralHrdParams &generalHrdParam) { m_generalHrdParams = generalHrdParam; }
   GeneralHrdParams        getGeneralHrdParameters() const { return m_generalHrdParams; }
   const GeneralHrdParams& getGeneralHrdParameters() { return m_generalHrdParams; }
 
-  void                 setOlsHrdParameters(int tLayter, OlsHrdParams &olsHrdParam) { m_olsHrdParams[tLayter] = olsHrdParam; }
-  OlsHrdParams          getOlsHrdParameters() { return m_olsHrdParams[0]; }
-  OlsHrdParams*          getOlsHrdParametersAddr() { return &m_olsHrdParams[0]; }
-  const OlsHrdParams&    getOlsHrdParameters() const { return m_olsHrdParams[0]; }
+  void                setOlsHrdParameters(int tLayter, OlsHrdParams &olsHrdParam) { m_olsHrdParams[tLayter] = olsHrdParam; }
+  OlsHrdParams        getOlsHrdParameters() { return m_olsHrdParams[0]; }
+  OlsHrdParams*       getOlsHrdParametersAddr() { return &m_olsHrdParams[0]; }
+  const OlsHrdParams& getOlsHrdParameters() const { return m_olsHrdParams[0]; }
 
 
-  void                       setBufferingPeriodSEI(const vvdec::seiBufferingPeriod* bp)  { m_bufferingPeriodSEI = *bp; m_bufferingPeriodInitialized = true; }
-  const vvdec::seiBufferingPeriod*  getBufferingPeriodSEI() const                        { return m_bufferingPeriodInitialized ? &m_bufferingPeriodSEI : nullptr; }
+  void                           setBufferingPeriodSEI(const vvdecSEIBufferingPeriod* bp)  { m_bufferingPeriodSEI = *bp; m_bufferingPeriodInitialized = true; }
+  const vvdecSEIBufferingPeriod* getBufferingPeriodSEI() const                        { return m_bufferingPeriodInitialized ? &m_bufferingPeriodSEI : nullptr; }
 
-  void                       setPictureTimingSEI(const vvdec::seiPictureTiming* pt)  { m_pictureTimingSEI = *pt; m_pictureTimingAvailable = true; }
-  const vvdec::seiPictureTiming*    getPictureTimingSEI() const                      { return m_pictureTimingAvailable ? &m_pictureTimingSEI : nullptr; }
+  void                           setPictureTimingSEI(const vvdecSEIPictureTiming* pt)  { m_pictureTimingSEI = *pt; m_pictureTimingAvailable = true; }
+  const vvdecSEIPictureTiming*   getPictureTimingSEI() const                      { return m_pictureTimingAvailable ? &m_pictureTimingSEI : nullptr; }
 
 protected:
-  GeneralHrdParams           m_generalHrdParams;
-  OlsHrdParams               m_olsHrdParams[MAX_TLAYER];
-  bool                       m_bufferingPeriodInitialized;
-  vvdec::seiBufferingPeriod  m_bufferingPeriodSEI;
-  bool                       m_pictureTimingAvailable;
-  vvdec::seiPictureTiming    m_pictureTimingSEI;
+  GeneralHrdParams             m_generalHrdParams;
+  OlsHrdParams                 m_olsHrdParams[MAX_TLAYER];
+  bool                         m_bufferingPeriodInitialized;
+  vvdecSEIBufferingPeriod      m_bufferingPeriodSEI;
+  bool                         m_pictureTimingAvailable;
+  vvdecSEIPictureTiming        m_pictureTimingSEI;
+
 };
 
 
@@ -3274,15 +3274,15 @@ public:
 
 struct LevelTierFeatures
 {
-  Level::Name level;
+  vvdecLevel  level;
   uint32_t    maxLumaPs;
-  uint32_t    maxCpb[Level::NUMBER_OF_TIERS];    // in units of CpbVclFactor or CpbNalFactor bits
+  uint32_t    maxCpb[Tier::NUMBER_OF_TIERS];    // in units of CpbVclFactor or CpbNalFactor bits
   uint32_t    maxSlicesPerAu;
   uint32_t    maxTilesPerAu;
   uint32_t    maxTileCols;
   uint64_t    maxLumaSr;
-  uint32_t    maxBr[Level::NUMBER_OF_TIERS];     // in units of BrVclFactor or BrNalFactor bits/s
-  uint32_t    minCrBase[Level::NUMBER_OF_TIERS];
+  uint32_t    maxBr[Tier::NUMBER_OF_TIERS];     // in units of BrVclFactor or BrNalFactor bits/s
+  uint32_t    minCrBase[Tier::NUMBER_OF_TIERS];
   uint32_t    getMaxPicWidthInLumaSamples()  const;
   uint32_t    getMaxPicHeightInLumaSamples() const;
 };
@@ -3312,15 +3312,15 @@ class ProfileLevelTierFeatures
   private:
     const ProfileFeatures   *m_pProfile;
     const LevelTierFeatures *m_pLevelTier;
-    Level::Tier              m_tier;
+    Tier                     m_tier;
   public:
-    ProfileLevelTierFeatures() : m_pProfile(0), m_pLevelTier(0), m_tier(Level::MAIN) { }
+    ProfileLevelTierFeatures() : m_pProfile(0), m_pLevelTier(0), m_tier(Tier::MAIN) { }
 
     void extractPTLInformation(const SPS &sps);
 
     const ProfileFeatures     *getProfileFeatures()   const { return m_pProfile; }
     const LevelTierFeatures   *getLevelTierFeatures() const { return m_pLevelTier; }
-    Level::Tier                getTier()              const { return m_tier; }
+    Tier                       getTier()              const { return m_tier; }
     uint64_t getCpbSizeInBits()                       const;
     double getMinCr()                                 const;
     uint32_t getMaxDpbSize( uint32_t picSizeMaxInSamplesY ) const;

@@ -161,11 +161,7 @@ void Picture::destroy()
   }
   slices.clear();
 
-  for( auto &psei : SEIs )
-  {
-    delete psei;
-  }
-  SEIs.clear();
+  SEI_internal::deleteSEIs( seiMessageList );
 
   if (m_spliceIdx)
   {
@@ -185,12 +181,7 @@ const CPelUnitBuf Picture::getRecoBuf( bool wrap )                         const
 
 void Picture::finalInit( const SPS *sps, const PPS *pps, PicHeader* picHeader, APS* alfApss[ALF_CTB_MAX_NUM_APS], APS* lmcsAps, APS* scalingListAps )
 {
-  for( auto &sei : SEIs )
-  {
-    delete sei;
-  }
-
-  SEIs.clear();
+  SEI_internal::deleteSEIs( seiMessageList );
   clearSliceBuffer();
 
   const ChromaFormat chromaFormatIDC = sps->getChromaFormatIdc();

@@ -381,17 +381,21 @@ void DecLib::checkPictureHashSEI( Picture* pcPic )
 
   CHECK( !pcPic->reconstructed, "picture not reconstructed" );
 
-  vvdec::seiMessages           pictureHashes = vvdec::sei::getSeisByType( pcPic->SEIs, vvdec::sei::DECODED_PICTURE_HASH );
-  const vvdec::seiDecodedPictureHash* hash   = pictureHashes.size() > 0 ? (vvdec::seiDecodedPictureHash*)pictureHashes.front() : nullptr;
+  seiMessages pictureHashes = SEI_internal::getSeisByType( pcPic->seiMessageList, VVDEC_DECODED_PICTURE_HASH );
+
   if( pictureHashes.empty() )
   {
     msg( WARNING, "Warning: missing decoded picture hash SEI message.\n" );
     return;
   }
+
   if( pictureHashes.size() > 1 )
   {
     msg( WARNING, "Warning: Got multiple decoded picture hash SEI messages. Using first." );
   }
+
+  const vvdecSEIDecodedPictureHash* hash = (vvdecSEIDecodedPictureHash*) pictureHashes.front()->payload;
+
   msg( INFO, "         " );
   m_numberOfChecksumErrorsDetected += calcAndPrintHashStatus( pcPic->getRecoBuf(), hash, pcPic->cs->sps->getBitDepths(), INFO );
   msg( INFO, "\n" );

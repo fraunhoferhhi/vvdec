@@ -43,197 +43,298 @@ THE POSSIBILITY OF SUCH DAMAGE.
 
 
 ------------------------------------------------------------------------------------------- */
-#include "../../../include/vvdec/vvdec.h"
-
+#include "vvdec/vvdec.h"
 #include "vvdecimpl.h"
 
-#define THROW_EXC(x)            throw( Exception( "\nERROR: In function \"" ) << __FUNCTION__ << "\" in " << __FILE__ << ":" << __LINE__ << ": " << x )
+#include "vvdec/version.h"
 
-namespace vvdec {
-
-
-const char *sMsg = "Not initialized";
-
-VVDec::VVDec()
-{
-  m_pcVVDecImpl = new VVDecImpl;
-
-  if( NULL == m_pcVVDecImpl ) {  throw( Exception( "\nERROR: In function \"" ) << __FUNCTION__ << "\" in " << __FILE__ << ":" << __LINE__ << ": cannot init VVDecimpl" ); }
-}
-
-/// Destructor
-VVDec::~VVDec()
-{
-  if( NULL != m_pcVVDecImpl )
-  {
-    if( m_pcVVDecImpl->m_bInitialized )
-    {
-      uninit();
-    }
-    delete m_pcVVDecImpl;
-    m_pcVVDecImpl = NULL;
-  }
-}
-
-int VVDec::init( const VVDecParameter& rcVVDecParameter )
-{
-#if ENABLE_TRACING
-  if( !g_trace_ctx )
-  {
-    g_trace_ctx = tracing_init( sTracingFile, sTracingRule );
-  }
-  if( bTracingChannelsList && g_trace_ctx )
-  {
-    std::string sChannelsList;
-    g_trace_ctx->getChannelsList( sChannelsList );
-    msg( INFO, "\nAvailable tracing channels:\n\n%s\n", sChannelsList.c_str() );
-  }
+#ifdef __cplusplus
+extern "C" {
 #endif
-  
-  if( m_pcVVDecImpl->m_bInitialized )
+
+VVDEC_NAMESPACE_BEGIN
+
+VVDEC_DECL void vvdec_params_default(vvdecParams *params)
+{
+  params->threads                      = -1;                   // thread count        ( default: -1 )
+  params->parseThreads                 = -1;                   // parser thread count ( default: -1 )
+  params->upscaleOutput                = VVDEC_UPSCALING_OFF;  // do internal upscaling of rpr pictures to dest. resolution ( default: off )
+  params->logLevel                     = VVDEC_WARNING;        // verbosity level
+  params->verifyPictureHash            = false;                // verify picture, if digest is available, true: check hash in SEI messages if available, false: ignore SEI message
+  params->simd                         = VVDEC_SIMD_DEFAULT;   // set specific simd optimization (default: max. availalbe)
+}
+
+VVDEC_DECL vvdecParams* vvdec_params_alloc()
+{
+  vvdecParams* params = (vvdecParams*)malloc(sizeof(vvdecParams));
+  vvdec_params_default( params );
+  return params;
+}
+
+VVDEC_DECL void vvdec_params_free(vvdecParams *params )
+{
+  if( params )
   {
-    return m_pcVVDecImpl->setAndRetErrorMsg( VVDEC_ERR_INITIALIZE );
+    free(params);
+  }
+}
+
+
+VVDEC_DECL void vvdec_accessUnit_default(vvdecAccessUnit *accessUnit )
+{
+  accessUnit->payload         = NULL;         ///< pointer to buffer that retrieves the coded data,
+  accessUnit->payloadSize     = 0;            ///< size of the allocated buffer in bytes
+  accessUnit->payloadUsedSize = 0;            ///< length of the coded data in bytes
+  accessUnit->cts             = 0;            ///< composition time stamp in TicksPerSecond (see VVCDecoderParameter)
+  accessUnit->dts             = 0;            ///< decoding time stamp in TicksPerSecond (see VVCDecoderParameter)
+  accessUnit->ctsValid        = false;        ///< composition time stamp valid flag (true: valid, false: CTS not set)
+  accessUnit->dtsValid        = false;        ///< decoding time stamp valid flag (true: valid, false: DTS not set)
+  accessUnit->rap             = false;        ///< random access point flag (true: AU is random access point, false: sequential access)
+}
+
+VVDEC_DECL vvdecAccessUnit* vvdec_accessUnit_alloc()
+{
+  vvdecAccessUnit* accessUnit = (vvdecAccessUnit*)malloc(sizeof(vvdecAccessUnit));
+  vvdec_accessUnit_default( accessUnit );
+  return accessUnit;
+}
+
+VVDEC_DECL void vvdec_accessUnit_free(vvdecAccessUnit *accessUnit )
+{
+  if( accessUnit )
+  {
+    if( accessUnit->payload )
+    {
+      vvdec_accessUnit_free_payload ( accessUnit );
+    }
+    free(accessUnit);
+  }
+}
+
+VVDEC_DECL void vvdec_accessUnit_alloc_payload(vvdecAccessUnit *accessUnit, int payload_size )
+{
+  accessUnit->payload = (unsigned char*)malloc(sizeof(unsigned char) * payload_size );
+  accessUnit->payloadSize = payload_size;
+}
+
+VVDEC_DECL void vvdec_accessUnit_free_payload(vvdecAccessUnit *accessUnit )
+{
+  if( accessUnit->payload )
+  {
+    free(accessUnit->payload);
+    accessUnit->payloadSize = 0;
+    accessUnit->payloadUsedSize = 0;
+  }
+}
+
+
+
+VVDEC_DECL const char* vvdec_get_version()
+{
+  return VVDEC_VERSION;
+}
+
+VVDEC_DECL vvdecDecoder* vvdec_decoder_open( vvdecParams *params)
+{
+  if (nullptr == params)
+  {
+    msg( ERROR, "vvdec_Params_t is null\n" );
+    return nullptr;
   }
 
-  if( rcVVDecParameter.m_iThreads > 64 )
+  if( params->threads > 64 )
   {
-    return m_pcVVDecImpl->setAndRetErrorMsg( VVDEC_ERR_NOT_SUPPORTED );
+    msg( ERROR, "threads must be <= 64\n" );
+    return nullptr;
   }
 
-  if ( 0 != m_pcVVDecImpl->init( rcVVDecParameter ) )
+  if( params->parseThreads > 64 )
+  {
+    msg( ERROR, "parseThreads must be <= 64\n" );
+    return nullptr;
+  }
+
+  if( (int)params->simd > (int)VVDEC_SIMD_AVX512 || (int)params->simd < (int)VVDEC_SIMD_DEFAULT)
+  {
+    msg( ERROR, "unsupported simd mode. simd must be 0 <= simd <= 6\n" );
+    return nullptr;
+  }
+
+  if( (int)params->upscaleOutput > (int)VVDEC_UPSCALING_RESCALE || (int)params->upscaleOutput < (int)VVDEC_UPSCALING_OFF )
+  {
+    msg( ERROR, "unsupported upscaleOutput mode. must be 0 <= upscaleOutput <= 2\n" );
+    return nullptr;
+  }
+
+  vvdec::VVDecImpl* decCtx = new vvdec::VVDecImpl();
+  if (!decCtx)
+  {
+    msg( ERROR, "cannot allocate memory for VVdeC decoder\n" );
+    return nullptr;
+  }
+
+  int ret = decCtx->init(*params);
+  if (ret != 0)
+  {
+    // Error initializing the decoder
+    delete decCtx;
+
+    msg( ERROR, "cannot init the VVdeC decoder\n" );
+    return nullptr;
+  }
+
+  return (vvdecDecoder*)decCtx;
+}
+
+VVDEC_DECL int vvdec_decoder_close(vvdecDecoder *dec)
+{
+  auto d = (vvdec::VVDecImpl*)dec;
+  if (!d)
   {
     return VVDEC_ERR_INITIALIZE;
   }
 
+  d->uninit();
+
+  delete d;
+
   return VVDEC_OK;
 }
 
-int VVDec::uninit()
+VVDEC_DECL int vvdec_set_logging_callback(vvdecDecoder* dec, vvdecLoggingCallback callback, void *userData, vvdecLogLevel loglevel )
 {
-  if( !m_pcVVDecImpl->m_bInitialized )
+  auto d = (vvdec::VVDecImpl*)dec;
+  if (!d || !callback)
   {
-    return m_pcVVDecImpl->setAndRetErrorMsg( VVDEC_ERR_INITIALIZE );
+    return VVDEC_ERR_UNSPECIFIED;
   }
 
-  if ( 0 != m_pcVVDecImpl->uninit( ) )
+  d->setLoggingCallback(callback, userData, loglevel);
+  return VVDEC_OK;
+}
+
+
+VVDEC_DECL int vvdec_decode( vvdecDecoder *dec, vvdecAccessUnit* accessUnit, vvdecFrame** frame )
+{
+  auto d = (vvdec::VVDecImpl*)dec;
+  if (!d)
   {
     return VVDEC_ERR_INITIALIZE;
   }
 
-  m_pcVVDecImpl->m_bInitialized = false;
+  if( nullptr == accessUnit )
+  {
+    return d->setAndRetErrorMsg(VVDEC_ERR_DEC_INPUT);
+  }
 
-  return VVDEC_OK;
+  return d->decode( *accessUnit, frame );
 }
 
-bool VVDec::isInitialized()
+
+VVDEC_DECL int vvdec_flush( vvdecDecoder *dec, vvdecFrame **frame )
 {
-  return m_pcVVDecImpl->m_bInitialized;
+  auto d = (vvdec::VVDecImpl*)dec;
+  if (!d)
+  {
+    return VVDEC_ERR_INITIALIZE;
+  }
+
+  return d->flush( frame );
 }
 
-int VVDec::decode( AccessUnit& rcAccessUnit, Frame** ppcFrame )
+VVDEC_DECL vvdecSEI* vvdec_find_frame_sei( vvdecDecoder *dec, vvdecSEIPayloadType seiPayloadType, vvdecFrame *frame )
 {
-  if( !m_pcVVDecImpl->m_bInitialized )
-  { return m_pcVVDecImpl->setAndRetErrorMsg(VVDEC_ERR_INITIALIZE); }
+  auto d = (vvdec::VVDecImpl*)dec;
+  if (!d)
+  {
+    return nullptr;
+  }
 
-  return m_pcVVDecImpl->setAndRetErrorMsg( m_pcVVDecImpl->decode( rcAccessUnit, ppcFrame ) );
+  return  d->findFrameSei( seiPayloadType, frame );
 }
 
-int VVDec::flush(  Frame** ppcFrame )
+VVDEC_DECL int vvdec_frame_unref( vvdecDecoder *dec, vvdecFrame *frame )
 {
-  if( !m_pcVVDecImpl->m_bInitialized )
-  {  return m_pcVVDecImpl->setAndRetErrorMsg(VVDEC_ERR_INITIALIZE); }
+  auto d = (vvdec::VVDecImpl*)dec;
+  if (!d)
+  {
+    return VVDEC_ERR_INITIALIZE;
+  }
 
-  return m_pcVVDecImpl->setAndRetErrorMsg( m_pcVVDecImpl->flush( ppcFrame ) );
+  return d->objectUnref( frame );
 }
 
-int VVDec::objectUnref( Frame* pcFrame )
+VVDEC_DECL int vvdec_get_hash_error_count( vvdecDecoder *dec )
 {
-  if( !m_pcVVDecImpl->m_bInitialized )
-  {  return m_pcVVDecImpl->setAndRetErrorMsg(VVDEC_ERR_INITIALIZE); }
+  auto d = (vvdec::VVDecImpl*)dec;
+  if (!d)
+  {
+    return VVDEC_ERR_INITIALIZE;
+  }
 
-  return m_pcVVDecImpl->setAndRetErrorMsg( m_pcVVDecImpl->objectUnref( pcFrame ) );
+  return d->getNumberOfErrorsPictureHashSEI();
 }
 
 
-int VVDec::getNumberOfErrorsPictureHashSEI( )
+VVDEC_DECL const char* vvdec_get_dec_information( vvdecDecoder *dec )
 {
-  if( !m_pcVVDecImpl->m_bInitialized )
-  {  return m_pcVVDecImpl->setAndRetErrorMsg(VVDEC_ERR_INITIALIZE); }
+  auto d = (vvdec::VVDecImpl*)dec;
+  if (!d)
+  {
+    return nullptr;
+  }
 
-  return m_pcVVDecImpl->setAndRetErrorMsg( m_pcVVDecImpl->getNumberOfErrorsPictureHashSEI( ) );
+  return d->getDecoderInfo();
 }
 
-int VVDec::clockStartTime()
+VVDEC_DECL const char* vvdec_get_last_error( vvdecDecoder *dec )
 {
-  if( !m_pcVVDecImpl->m_bInitialized )
-  {  return m_pcVVDecImpl->setAndRetErrorMsg(VVDEC_ERR_INITIALIZE); }
+  auto d = (vvdec::VVDecImpl*)dec;
+  if (!d)
+  {
+    return nullptr;
+  }
 
-  m_pcVVDecImpl->clockStartTime();
-  return 0;
+  return d->m_cErrorString.c_str();
 }
 
-int VVDec::clockEndTime()
+VVDEC_DECL const char* vvdec_get_last_additional_error( vvdecDecoder *dec )
 {
-  if( !m_pcVVDecImpl->m_bInitialized )
-  {  return m_pcVVDecImpl->setAndRetErrorMsg(VVDEC_ERR_INITIALIZE); }
+  auto d = (vvdec::VVDecImpl*)dec;
+  if (!d)
+  {
+    return nullptr;
+  }
 
-  m_pcVVDecImpl->clockEndTime();
-  return 0;
+  return d->m_cAdditionalErrorString.c_str();
 }
 
-double VVDec::clockGetTimeDiffMs( )
+const char* vvdec_get_error_msg( int nRet )
 {
-  if( !m_pcVVDecImpl->m_bInitialized )
-  {  return m_pcVVDecImpl->setAndRetErrorMsg(VVDEC_ERR_INITIALIZE); }
-
-  return m_pcVVDecImpl->clockGetTimeDiffMs();
+  return vvdec::VVDecImpl::getErrorMsg( nRet );
 }
 
-const char* VVDec::getDecoderInfo()
+vvdecNalType vvdec_get_nal_unit_type( vvdecAccessUnit *accessUnit )
 {
-  return m_pcVVDecImpl->getDecoderInfo();
+  if( nullptr == accessUnit )
+  {
+    return VVC_NAL_UNIT_INVALID;
+  }
+  return vvdec::VVDecImpl::getNalUnitType(*accessUnit);
 }
 
-const char* VVDec::getLastError() const
+const char* vvdec_get_nal_unit_type_name( vvdecNalType t )
 {
-  return m_pcVVDecImpl->m_cErrorString.c_str();
+  return vvdec::VVDecImpl::getNalUnitTypeAsString(t);
 }
 
-const char* VVDec::getLastAdditionalError() const
+bool vvdec_is_nal_unit_slice( vvdecNalType t )
 {
-  return m_pcVVDecImpl->m_cAdditionalErrorString.c_str();
+  return vvdec::VVDecImpl::isNalUnitSlice(t);
 }
 
-const char* VVDec::getVersionNumber()
-{
-  return VVDecImpl::getVersionNumber();
-}
+#ifdef __cplusplus
+};
+#endif
 
-const char* VVDec::getErrorMsg( int nRet )
-{
-  return VVDecImpl::getErrorMsg(nRet);
-}
-
-
-NalType VVDec::getNalUnitType ( AccessUnit& rcAccessUnit )
-{
-  return VVDecImpl::getNalUnitType(rcAccessUnit);
-}
-
-const char* VVDec::getNalUnitTypeAsString( NalType t )
-{
-  return VVDecImpl::getNalUnitTypeAsString(t);
-}
-
-bool VVDec::isNalUnitSlice( NalType t )
-{
-  return VVDecImpl::isNalUnitSlice(t);
-}
-
-bool VVDec::isNalUnitSideData( NalType t )
-{
-  return VVDecImpl::isNalUnitSideData(t);
-}
-
-} // namespace
-
+VVDEC_NAMESPACE_END
