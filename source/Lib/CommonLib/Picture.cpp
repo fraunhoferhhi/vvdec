@@ -128,6 +128,16 @@ void Picture::resetForUse()
   inProgress       = false;
   wasLost          = false;
   skippedDecCount  = 0;
+
+#if THREAD_POOL_HANDLE_EXCEPTIONS
+  m_ctuTaskCounter      .clearException();
+  m_dmvrTaskCounter     .clearException();
+  m_borderExtTaskCounter.clearException();
+  m_copyWrapBufDone     .clearException();
+  done                  .clearException();
+  parseDone             .clearException();
+  std::for_each( ctuParsedBarrier.begin(), ctuParsedBarrier.end(), []( auto& b ) { b.clearException(); } );
+#endif   // THREAD_POOL_HANDLE_EXCEPTIONS
   done.lock();
 }
 
@@ -148,13 +158,9 @@ void Picture::destroy()
   }
 
 #if  RECO_WHILE_PARSE
-  if( ctuParsedBarrier )
-  {
-    delete[] ctuParsedBarrier;
-    ctuParsedBarrier = nullptr;
-  }
-
+  ctuParsedBarrier.clear();
 #endif
+
   for( auto &ps : slices )
   {
     delete ps;
@@ -168,6 +174,16 @@ void Picture::destroy()
     delete[] m_spliceIdx;
     m_spliceIdx = NULL;
   }
+
+#if THREAD_POOL_HANDLE_EXCEPTIONS
+  m_ctuTaskCounter      .clearException();
+  m_dmvrTaskCounter     .clearException();
+  m_borderExtTaskCounter.clearException();
+  m_copyWrapBufDone     .clearException();
+  done                  .clearException();
+  parseDone             .clearException();
+  std::for_each( ctuParsedBarrier.begin(), ctuParsedBarrier.end(), []( auto& b ) { b.clearException(); } );
+#endif   // THREAD_POOL_HANDLE_EXCEPTIONS
 }
 
        PelBuf     Picture::getRecoBuf(const ComponentID compID, bool wrap)       { return getBuf(compID, wrap ? PIC_RECON_WRAP : PIC_RECONSTRUCTION); }
@@ -195,12 +211,12 @@ void Picture::finalInit( const SPS *sps, const PPS *pps, PicHeader* picHeader, A
   }
 
 #if RECO_WHILE_PARSE
-  if( !ctuParsedBarrier )
+  if( ctuParsedBarrier.size() != pps->pcv->sizeInCtus )
   {
-    ctuParsedBarrier = new Barrier[pps->pcv->sizeInCtus];
+    ctuParsedBarrier = std::vector<Barrier>( pps->pcv->sizeInCtus );
   }
-
 #endif
+
   parseDone   . lock();
   cs->picture = this;
   cs->pps     = pps ? pps->getSharedPtr() : nullptr;

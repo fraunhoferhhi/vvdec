@@ -246,13 +246,14 @@ struct WaitCounter
     m_cond.notify_all();
   }
 
-  bool hasException() const { return m_done.hasException(); }
-
   void clearException()
   {
     std::unique_lock<std::mutex> l( m_lock );
     m_done.clearException();
   }
+
+  bool             hasException() const { return m_done.hasException(); }
+  const Exception* getException() const { return m_done.getException(); }
 #endif   // THREAD_POOL_HANDLE_EXCEPTIONS
 
   WaitCounter() = default;

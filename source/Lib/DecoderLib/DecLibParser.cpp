@@ -1033,18 +1033,36 @@ Slice*  DecLibParser::xDecodeSliceMain( InputNALUnit &nalu )
   {
     auto& decLib    = slice->parseTaskParams.decLibParser;
     auto& bitstream = slice->parseTaskParams.bitstream;
+    auto* pic       = slice->getPic();
 
-    slice->getPic()->startProcessingTimer();
-    //  Decode a picture
-    ITT_TASKSTART( itt_domain_prs, itt_handle_parse );
-    decLib->m_cSliceDecoder.parseSlice( slice, &bitstream, threadId );
-    ITT_TASKEND( itt_domain_prs, itt_handle_parse );
+#if THREAD_POOL_HANDLE_EXCEPTIONS
+    try
+    {
+#endif   // THREAD_POOL_HANDLE_EXCEPTIONS
 
-    slice->getPic()->stopProcessingTimer();
+      pic->startProcessingTimer();
 
-    bitstream.clearFifo();
-    bitstream.clearEmulationPreventionByteLocation();
+      //  Decode a picture
+      ITT_TASKSTART( itt_domain_prs, itt_handle_parse );
+      decLib->m_cSliceDecoder.parseSlice( slice, &bitstream, threadId );
+      ITT_TASKEND( itt_domain_prs, itt_handle_parse );
 
+      pic->stopProcessingTimer();
+
+      bitstream.clearFifo();
+      bitstream.clearEmulationPreventionByteLocation();
+#if THREAD_POOL_HANDLE_EXCEPTIONS
+    }
+    catch( Exception& e )
+    {
+      pic->parseDone.setException( e );
+      for( auto& b: pic->ctuParsedBarrier )
+      {
+        b.setException( e );
+      }
+      throw e;
+    }
+#endif   // THREAD_POOL_HANDLE_EXCEPTIONS
     return true;
   };
 
@@ -1062,7 +1080,7 @@ Slice*  DecLibParser::xDecodeSliceMain( InputNALUnit &nalu )
       m_threadPool->addBarrierTask<Slice>( parseTask, pcSlice, nullptr, &pcSlice->parseDone );
     }
   }
-  else  // run on main thread (still go through std::async to create the future)
+  else
   {
     parseTask( 0, pcSlice );
     pcSlice->parseDone.unlock();

@@ -541,7 +541,7 @@ void DecLibRecon::decompressPicture( Picture* pcPic )
                                                          param,
                                                          &pcPic->m_dmvrTaskCounter,
                                                          nullptr,
-                                                         { &commonTaskParam.dmvrTriggers[taskLineDMVR] } );
+                                                         { &commonTaskParam.dmvrTriggers[taskLineDMVR], &pcPic->parseDone } );
     }
   }
 
@@ -594,316 +594,336 @@ bool DecLibRecon::ctuTask( int tid, CtuTaskParam* param )
   const int       ctuStart     = col * param->numColPerTask;
   const int       ctuEnd       = std::min<int>( ctuStart + param->numColPerTask, cs.pcv->widthInCtus );
 
-  switch( thisCtuState.load() )
+#if THREAD_POOL_HANDLE_EXCEPTIONS
+  try
   {
-    // all case statements fall through to continue with next task, unless they return false due to unsatisfied preconditions
-
-  case MIDER:
-  {
-    if( col > 0 && thisLine[col - 1] <= MIDER )
-      return false;
-    if( line > 0 && lineAbove[std::min( col + 1, widthInCtus - 1 )] <= MIDER )
-      return false;
-    if( onlyCheckReadyState )
-      return true;
-
-    ITT_TASKSTART( itt_domain_dec, itt_handle_mider );
-
-    for( int ctu = ctuStart; ctu < ctuEnd; ctu++ )
+    if( cs.picture->m_ctuTaskCounter.hasException() )
     {
-      CtuData& ctuData = cs.getCtuData( ctu, line );
-      GCC_WARNING_DISABLE_class_memaccess
-      memset( ctuData.motion, 0, sizeof( CtuData::motion ) );
-      GCC_WARNING_RESET
-
-      if( !ctuData.cuPtr[0][0]->slice->isIntra() || cs.sps->getIBCFlag() )
-      {
-        const UnitArea ctuArea = getCtuArea( cs, ctu, line, true );
-        decLib.m_cCuDecoder[tid].TaskDeriveCtuMotionInfo( cs, ctuArea, param->common.perLineMiHist[line] );
-      }
+      throw Exception( *cs.picture->m_ctuTaskCounter.getException() );
     }
-    thisCtuState = ( TaskType )( MIDER + 1 );
+#endif  //THREAD_POOL_HANDLE_EXCEPTIONS
 
-    ITT_TASKEND( itt_domain_dec, itt_handle_mider );
-  }
-
-  case LF_INIT:
-  {
-    if( onlyCheckReadyState )
-      return true;
-
-    ITT_TASKSTART( itt_domain_dec, itt_handle_lfcl );
-
-    for( int ctu = ctuStart; ctu < ctuEnd; ctu++ )
+    switch( thisCtuState.load() )
     {
-      CtuData& ctuData = cs.getCtuData( ctu, line );
-      memset( ctuData.lfParam, 0, sizeof( CtuData::lfParam ) );
+      // all case statements fall through to continue with next task, unless they return false due to unsatisfied preconditions
 
-      const UnitArea  ctuArea  = getCtuArea( cs, ctu, line, true );
-      decLib.m_cLoopFilter.calcFilterStrengthsCTU( cs, ctuArea );
-    }
-
-    thisCtuState = ( TaskType )( LF_INIT + 1 );
-
-    ITT_TASKEND( itt_domain_dec, itt_handle_lfcl );
-  }
-
-  case INTER:
-  {
-    if( std::all_of( cs.picture->slices.begin(), cs.picture->slices.end(), []( const Slice* pcSlice ) { return pcSlice->isIntra(); } ) )
+    case MIDER:
     {
-      // not really necessary, but only for optimizing the wave-fronts
-      if( col > 1 && thisLine[col - 2] <= INTER )
+      if( col > 0 && thisLine[col - 1] <= MIDER )
         return false;
-      if( line > 0 && lineAbove[col] <= INTER )
+      if( line > 0 && lineAbove[std::min( col + 1, widthInCtus - 1 )] <= MIDER )
         return false;
-    }
-
-    if( std::any_of( cs.picture->refPicExtDepBarriers.cbegin(), cs.picture->refPicExtDepBarriers.cend(), []( const Barrier* b ) { return b->isBlocked(); } ) )
-    {
-      return false;
-    }
-
-    if( onlyCheckReadyState )
-      return true;
-
-    ITT_TASKSTART( itt_domain_dec, itt_handle_inter );
-
-    for( int ctu = ctuStart; ctu < ctuEnd; ctu++ )
-    {
-      const CtuData& ctuData = cs.getCtuData( ctuStart, line );
-      const UnitArea ctuArea = getCtuArea( cs, ctu, line, true );
-
-      decLib.m_cCuDecoder[tid].TaskTrafoCtu( cs, ctuArea );
-
-      if( !ctuData.cuPtr[0][0]->slice->isIntra() )
-      {
-        decLib.m_cCuDecoder[tid].TaskInterCtu( cs, ctuArea );
-      }
-    }
-
-    thisCtuState = ( TaskType )( INTER + 1 );
-
-    ITT_TASKEND( itt_domain_dec, itt_handle_inter );
-  }
-
-  case INTRA:
-  {
-    if( col > 0 && thisLine[col - 1] <= INTRA )
-      return false;
-    if( line > 0 && lineAbove[std::min( col + 1, widthInCtus - 1 )] <= INTRA )
-      return false;
-    if( onlyCheckReadyState )
-      return true;
-
-    ITT_TASKSTART( itt_domain_dec, itt_handle_intra );
-
-    for( int ctu = ctuStart; ctu < ctuEnd; ctu++ )
-    {
-      const UnitArea  ctuArea = getCtuArea( cs, ctu, line, true );
-      decLib.m_cCuDecoder[tid].TaskCriticalIntraKernel( cs, ctuArea );
-    }
-
-    thisCtuState = ( TaskType )( INTRA + 1 );
-
-    ITT_TASKEND( itt_domain_dec, itt_handle_intra );
-  }
-
-  case RSP:
-  {
-    // RIRZIIIII
-    // IIIIIXXXX
-    //
-    // - Z can be reshaped when it is no more an intra prediction source for X in the next line
-
-
-    if     ( line + 1 < heightInCtus && col + 1 < widthInCtus && lineBelow[col + 1] < RSP )
-      return false;
-    else if( line + 1 < heightInCtus &&                          lineBelow[col]     < RSP )
-      return false;
-    else if(                            col + 1 < widthInCtus && thisLine [col + 1] < RSP ) // need this for the last line
-      return false;
-
-    if( onlyCheckReadyState )
-      return true;
-
-    ITT_TASKSTART( itt_domain_dec, itt_handle_rsp );
-
-    for( int ctu = ctuStart; ctu < ctuEnd; ctu++ )
-    {
-      decLib.m_cReshaper[tid].rspCtu( cs, ctu, line, 0 );
-    }
-
-    ITT_TASKEND( itt_domain_dec, itt_handle_rsp );
-
-    thisCtuState = ( TaskType )( RSP + 1 );
-  }
-
-  case LF_V:
-  {
-    if( col > 0 && thisLine[col - 1] < LF_V )
-      return false;
-    if( onlyCheckReadyState )
-      return true;
-
-    ITT_TASKSTART( itt_domain_dec, itt_handle_lfl );
-
-    for( int ctu = ctuStart; ctu < ctuEnd; ctu++ )
-    {
-      decLib.m_cLoopFilter.loopFilterCTU( cs, MAX_NUM_CHANNEL_TYPE, ctu, line, 0, EDGE_VER );
-    }
-
-    thisCtuState = ( TaskType )( LF_V + 1 );
-
-    ITT_TASKEND( itt_domain_dec, itt_handle_lfl );
-  }
-
-  case LF_H:
-  {
-    if( line > 0 && lineAbove[col] < LF_H )
-      return false;
-
-    if( line > 0 && col + 1 < widthInCtus && lineAbove[col + 1] < LF_H )
-      return false;
-
-    if( col + 1 < widthInCtus && thisLine[col + 1] < LF_H )
-      return false;
-
-    if( onlyCheckReadyState )
-      return true;
-
-    ITT_TASKSTART( itt_domain_dec, itt_handle_lfl );
-
-    for( int ctu = ctuStart; ctu < ctuEnd; ctu++ )
-    {
-      decLib.m_cLoopFilter.loopFilterCTU( cs, MAX_NUM_CHANNEL_TYPE, ctu, line, 0, EDGE_HOR );
-    }
-
-    thisCtuState = ( TaskType )( LF_H + 1 );
-
-    ITT_TASKEND( itt_domain_dec, itt_handle_lfl );
-  }
-
-  case PRESAO:
-  {
-    // only last CTU processes full line
-    if( col == widthInCtus - 1 )
-    {
-      if( line > 0 && lineAbove[col] <= PRESAO )
-        return false;
-
-      for( int c = 0; c < widthInCtus; ++c )
-      {
-        if( thisLine[c] < PRESAO )
-          return false;
-
-        if( line + 1 < heightInCtus && lineBelow[c] < PRESAO )
-          return false;
-      }
       if( onlyCheckReadyState )
         return true;
 
-      ITT_TASKSTART( itt_domain_dec, itt_handle_presao );
+      ITT_TASKSTART( itt_domain_dec, itt_handle_mider );
 
-      if( cs.sps->getUseSAO() )
+      for( int ctu = ctuStart; ctu < ctuEnd; ctu++ )
       {
-        decLib.m_cSAO.SAOPrepareCTULine( cs, getLineArea( cs, line, true ) );
+        CtuData& ctuData = cs.getCtuData( ctu, line );
+        GCC_WARNING_DISABLE_class_memaccess
+        memset( ctuData.motion, 0, sizeof( CtuData::motion ) );
+        GCC_WARNING_RESET
+
+        if( !ctuData.cuPtr[0][0]->slice->isIntra() || cs.sps->getIBCFlag() )
+        {
+          const UnitArea ctuArea = getCtuArea( cs, ctu, line, true );
+          decLib.m_cCuDecoder[tid].TaskDeriveCtuMotionInfo( cs, ctuArea, param->common.perLineMiHist[line] );
+        }
       }
-      param->common.dmvrTriggers[line].unlock();
+      thisCtuState = ( TaskType )( MIDER + 1 );
 
-      ITT_TASKEND( itt_domain_dec, itt_handle_presao );
+      ITT_TASKEND( itt_domain_dec, itt_handle_mider );
     }
-    else if( thisLine[widthInCtus - 1] <= PRESAO )   // wait for last CTU to finish PRESAO
+
+    case LF_INIT:
     {
-      return false;
+      if( onlyCheckReadyState )
+        return true;
+
+      ITT_TASKSTART( itt_domain_dec, itt_handle_lfcl );
+
+      for( int ctu = ctuStart; ctu < ctuEnd; ctu++ )
+      {
+        CtuData& ctuData = cs.getCtuData( ctu, line );
+        memset( ctuData.lfParam, 0, sizeof( CtuData::lfParam ) );
+
+        const UnitArea  ctuArea  = getCtuArea( cs, ctu, line, true );
+        decLib.m_cLoopFilter.calcFilterStrengthsCTU( cs, ctuArea );
+      }
+
+      thisCtuState = ( TaskType )( LF_INIT + 1 );
+
+      ITT_TASKEND( itt_domain_dec, itt_handle_lfcl );
     }
-    if( onlyCheckReadyState )
-      return true;
 
-    thisCtuState = ( TaskType )( PRESAO + 1 );
-  }
-
-  case SAO:
-  {
-    if( onlyCheckReadyState )
-      return true;
-
-    // only last CTU processes full line
-    if( cs.sps->getUseSAO() )
+    case INTER:
     {
-      ITT_TASKSTART( itt_domain_dec, itt_handle_sao );
+      if( std::all_of( cs.picture->slices.begin(), cs.picture->slices.end(), []( const Slice* pcSlice ) { return pcSlice->isIntra(); } ) )
+      {
+        // not really necessary, but only for optimizing the wave-fronts
+        if( col > 1 && thisLine[col - 2] <= INTER )
+          return false;
+        if( line > 0 && lineAbove[col] <= INTER )
+          return false;
+      }
+
+      if( std::any_of( cs.picture->refPicExtDepBarriers.cbegin(), cs.picture->refPicExtDepBarriers.cend(), []( const Barrier* b ) { return b->isBlocked(); } ) )
+      {
+        return false;
+      }
+
+      if( onlyCheckReadyState )
+        return true;
+
+      ITT_TASKSTART( itt_domain_dec, itt_handle_inter );
+
+      for( int ctu = ctuStart; ctu < ctuEnd; ctu++ )
+      {
+        const CtuData& ctuData = cs.getCtuData( ctuStart, line );
+        const UnitArea ctuArea = getCtuArea( cs, ctu, line, true );
+
+        decLib.m_cCuDecoder[tid].TaskTrafoCtu( cs, ctuArea );
+
+        if( !ctuData.cuPtr[0][0]->slice->isIntra() )
+        {
+          decLib.m_cCuDecoder[tid].TaskInterCtu( cs, ctuArea );
+        }
+      }
+
+      thisCtuState = ( TaskType )( INTER + 1 );
+
+      ITT_TASKEND( itt_domain_dec, itt_handle_inter );
+    }
+
+    case INTRA:
+    {
+      if( col > 0 && thisLine[col - 1] <= INTRA )
+        return false;
+      if( line > 0 && lineAbove[std::min( col + 1, widthInCtus - 1 )] <= INTRA )
+        return false;
+      if( onlyCheckReadyState )
+        return true;
+
+      ITT_TASKSTART( itt_domain_dec, itt_handle_intra );
 
       for( int ctu = ctuStart; ctu < ctuEnd; ctu++ )
       {
         const UnitArea  ctuArea = getCtuArea( cs, ctu, line, true );
-        decLib.m_cSAO.SAOProcessCTU( cs, ctuArea );
+        decLib.m_cCuDecoder[tid].TaskCriticalIntraKernel( cs, ctuArea );
       }
 
-      ITT_TASKEND( itt_domain_dec, itt_handle_sao );
-    }
-    if( param->common.doALF )
-    {
-      ITT_TASKSTART( itt_domain_dec, itt_handle_alf );
+      thisCtuState = ( TaskType )( INTRA + 1 );
 
-      for( int ctu = ctuStart; ctu < ctuEnd; ctu++ )
-      {
-        AdaptiveLoopFilter::prepareCTU( cs, ctu, line );
-      }
-
-      ITT_TASKEND( itt_domain_dec, itt_handle_alf );
+      ITT_TASKEND( itt_domain_dec, itt_handle_intra );
     }
 
-    thisCtuState = ( TaskType )( SAO + 1 );
-  }
-
-  case ALF:
-  {
-    if( param->common.doALF )
+    case RSP:
     {
-      const bool a = line > 0;
-      const bool b = line + 1 < heightInCtus;
-      const bool c = col > 0;
-      const bool d = col + 1 < widthInCtus;
+      // RIRZIIIII
+      // IIIIIXXXX
+      //
+      // - Z can be reshaped when it is no more an intra prediction source for X in the next line
 
-      if( param->common.alfPrepared.isBlocked() )
+
+      if     ( line + 1 < heightInCtus && col + 1 < widthInCtus && lineBelow[col + 1] < RSP )
         return false;
-
-      if( a )
-      {
-        if( c && lineAbove[col - 1] < ALF ) return false;
-        if(      lineAbove[col    ] < ALF ) return false;
-        if( d && lineAbove[col + 1] < ALF ) return false;
-      }
-
-      if( b )
-      {
-        if( c && lineBelow[col - 1] < ALF ) return false;
-        if(      lineBelow[col    ] < ALF ) return false;
-        if( d && lineBelow[col + 1] < ALF ) return false;
-      }
-
-      if( c && thisLine[col - 1] < ALF ) return false;
-      if( d && thisLine[col + 1] < ALF ) return false;
+      else if( line + 1 < heightInCtus &&                          lineBelow[col]     < RSP )
+        return false;
+      else if(                            col + 1 < widthInCtus && thisLine [col + 1] < RSP ) // need this for the last line
+        return false;
 
       if( onlyCheckReadyState )
         return true;
 
-      ITT_TASKSTART( itt_domain_dec, itt_handle_alf );
+      ITT_TASKSTART( itt_domain_dec, itt_handle_rsp );
+
       for( int ctu = ctuStart; ctu < ctuEnd; ctu++ )
       {
-        decLib.m_cALF.processCTU( cs, ctu, line, tid );
+        decLib.m_cReshaper[tid].rspCtu( cs, ctu, line, 0 );
       }
-      ITT_TASKEND( itt_domain_dec, itt_handle_alf );
+
+      ITT_TASKEND( itt_domain_dec, itt_handle_rsp );
+
+      thisCtuState = ( TaskType )( RSP + 1 );
     }
-    else if( onlyCheckReadyState )
-      return true;
 
-    thisCtuState = ( TaskType )( ALF + 1 );
+    case LF_V:
+    {
+      if( col > 0 && thisLine[col - 1] < LF_V )
+        return false;
+      if( onlyCheckReadyState )
+        return true;
+
+      ITT_TASKSTART( itt_domain_dec, itt_handle_lfl );
+
+      for( int ctu = ctuStart; ctu < ctuEnd; ctu++ )
+      {
+        decLib.m_cLoopFilter.loopFilterCTU( cs, MAX_NUM_CHANNEL_TYPE, ctu, line, 0, EDGE_VER );
+      }
+
+      thisCtuState = ( TaskType )( LF_V + 1 );
+
+      ITT_TASKEND( itt_domain_dec, itt_handle_lfl );
+    }
+
+    case LF_H:
+    {
+      if( line > 0 && lineAbove[col] < LF_H )
+        return false;
+
+      if( line > 0 && col + 1 < widthInCtus && lineAbove[col + 1] < LF_H )
+        return false;
+
+      if( col + 1 < widthInCtus && thisLine[col + 1] < LF_H )
+        return false;
+
+      if( onlyCheckReadyState )
+        return true;
+
+      ITT_TASKSTART( itt_domain_dec, itt_handle_lfl );
+
+      for( int ctu = ctuStart; ctu < ctuEnd; ctu++ )
+      {
+        decLib.m_cLoopFilter.loopFilterCTU( cs, MAX_NUM_CHANNEL_TYPE, ctu, line, 0, EDGE_HOR );
+      }
+
+      thisCtuState = ( TaskType )( LF_H + 1 );
+
+      ITT_TASKEND( itt_domain_dec, itt_handle_lfl );
+    }
+
+    case PRESAO:
+    {
+      // only last CTU processes full line
+      if( col == widthInCtus - 1 )
+      {
+        if( line > 0 && lineAbove[col] <= PRESAO )
+          return false;
+
+        for( int c = 0; c < widthInCtus; ++c )
+        {
+          if( thisLine[c] < PRESAO )
+            return false;
+
+          if( line + 1 < heightInCtus && lineBelow[c] < PRESAO )
+            return false;
+        }
+        if( onlyCheckReadyState )
+          return true;
+
+        ITT_TASKSTART( itt_domain_dec, itt_handle_presao );
+
+        if( cs.sps->getUseSAO() )
+        {
+          decLib.m_cSAO.SAOPrepareCTULine( cs, getLineArea( cs, line, true ) );
+        }
+        param->common.dmvrTriggers[line].unlock();
+
+        ITT_TASKEND( itt_domain_dec, itt_handle_presao );
+      }
+      else if( thisLine[widthInCtus - 1] <= PRESAO )   // wait for last CTU to finish PRESAO
+      {
+        return false;
+      }
+      if( onlyCheckReadyState )
+        return true;
+
+      thisCtuState = ( TaskType )( PRESAO + 1 );
+    }
+
+    case SAO:
+    {
+      if( onlyCheckReadyState )
+        return true;
+
+      // only last CTU processes full line
+      if( cs.sps->getUseSAO() )
+      {
+        ITT_TASKSTART( itt_domain_dec, itt_handle_sao );
+
+        for( int ctu = ctuStart; ctu < ctuEnd; ctu++ )
+        {
+          const UnitArea  ctuArea = getCtuArea( cs, ctu, line, true );
+          decLib.m_cSAO.SAOProcessCTU( cs, ctuArea );
+        }
+
+        ITT_TASKEND( itt_domain_dec, itt_handle_sao );
+      }
+      if( param->common.doALF )
+      {
+        ITT_TASKSTART( itt_domain_dec, itt_handle_alf );
+
+        for( int ctu = ctuStart; ctu < ctuEnd; ctu++ )
+        {
+          AdaptiveLoopFilter::prepareCTU( cs, ctu, line );
+        }
+
+        ITT_TASKEND( itt_domain_dec, itt_handle_alf );
+      }
+
+      thisCtuState = ( TaskType )( SAO + 1 );
+    }
+
+    case ALF:
+    {
+      if( param->common.doALF )
+      {
+        const bool a = line > 0;
+        const bool b = line + 1 < heightInCtus;
+        const bool c = col > 0;
+        const bool d = col + 1 < widthInCtus;
+
+        if( param->common.alfPrepared.isBlocked() )
+          return false;
+
+        if( a )
+        {
+          if( c && lineAbove[col - 1] < ALF ) return false;
+          if(      lineAbove[col    ] < ALF ) return false;
+          if( d && lineAbove[col + 1] < ALF ) return false;
+        }
+
+        if( b )
+        {
+          if( c && lineBelow[col - 1] < ALF ) return false;
+          if(      lineBelow[col    ] < ALF ) return false;
+          if( d && lineBelow[col + 1] < ALF ) return false;
+        }
+
+        if( c && thisLine[col - 1] < ALF ) return false;
+        if( d && thisLine[col + 1] < ALF ) return false;
+
+        if( onlyCheckReadyState )
+          return true;
+
+        ITT_TASKSTART( itt_domain_dec, itt_handle_alf );
+        for( int ctu = ctuStart; ctu < ctuEnd; ctu++ )
+        {
+          decLib.m_cALF.processCTU( cs, ctu, line, tid );
+        }
+        ITT_TASKEND( itt_domain_dec, itt_handle_alf );
+      }
+      else if( onlyCheckReadyState )
+        return true;
+
+      thisCtuState = ( TaskType )( ALF + 1 );
+    }
+
+    default:
+      CHECKD( thisCtuState != DONE, "Wrong CTU state" );
+    }   // end switch
+#if THREAD_POOL_HANDLE_EXCEPTIONS
   }
-
-  default:
-    CHECKD( thisCtuState != DONE, "Wrong CTU state" );
-  }   // end switch
+  catch( Exception& e )
+  {
+    for( auto& t: param->common.dmvrTriggers )
+    {
+      t.setException( e );
+    }
+    throw e;
+  }
+#endif   // THREAD_POOL_HANDLE_EXCEPTIONS
 
   return true;
 }
