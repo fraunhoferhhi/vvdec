@@ -209,17 +209,17 @@ int VVDecImpl::decode( vvdecAccessUnit& rcAccessUnit, vvdecFrame** ppcFrame )
   if( !m_bInitialized )      { return VVDEC_ERR_INITIALIZE; }
   if( !rcAccessUnit.payload )
   {
-    return setAndRetErrorMsg( VVDEC_ERR_DEC_INPUT, "decode: payload is null" );
+    return setAndRetErrorMsg( VVDEC_ERR_DEC_INPUT, "payload is null" );
   }
 
   if( rcAccessUnit.payloadSize <= 0  )
   {
-    return setAndRetErrorMsg( VVDEC_ERR_DEC_INPUT, "decode: payloadSize must be > 0" );
+    return setAndRetErrorMsg( VVDEC_ERR_DEC_INPUT, "payloadSize must be > 0" );
   }
 
   if( rcAccessUnit.payloadUsedSize > rcAccessUnit.payloadSize )
   {
-    return setAndRetErrorMsg( VVDEC_ERR_DEC_INPUT, "decode: payloadUsedSize must be <= payloadSize" );
+    return setAndRetErrorMsg( VVDEC_ERR_DEC_INPUT, "payloadUsedSize must be <= payloadSize" );
   }
 
   int iRet= VVDEC_OK;

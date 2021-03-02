@@ -268,6 +268,8 @@ int main( int argc, char* argv[] )
         }
 
         // call decode
+
+        accessUnit->payloadSize  =0;
         iRet = vvdec_decode( dec, accessUnit, &pcFrame );
         if( bIsSlice )
         {
@@ -299,15 +301,16 @@ int main( int argc, char* argv[] )
         }
         else if( iRet != VVDEC_OK )
         {
+          std::string cErr = vvdec_get_last_error(dec);
           std::string cAdditionalErr = vvdec_get_last_additional_error(dec);
           if( !cAdditionalErr.empty() )
           {
-            std::cout << "vvdecapp [error]: decoding failed: " << vvdec_get_error_msg( iRet )
+            std::cout << "vvdecapp [error]: decoding failed: " << cErr << " (" <<vvdec_get_error_msg( iRet ) << ")"
                       << " detail: " << vvdec_get_last_additional_error(dec) << std::endl;
           }
           else
           {
-            std::cout << "vvdecapp [error]: decoding failed: " << vvdec_get_error_msg( iRet ) << std::endl;
+            std::cout << "vvdecapp [error]: decoding failed: " << cErr << " (" <<vvdec_get_error_msg( iRet ) << ")" << std::endl;
           }
           vvdec_accessUnit_free( accessUnit );
           return iRet;
