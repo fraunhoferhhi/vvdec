@@ -307,6 +307,14 @@ void DecLibRecon::createSubPicRefBufs( Picture* pic )
 
 void DecLibRecon::decompressPicture( Picture* pcPic )
 {
+  if( pcPic->reconstructed )
+  {
+    pcPic->inProgress = false;
+    pcPic->done.unlock();
+    m_currDecompPic = pcPic;
+    return;
+  }
+
   CodingStructure& cs = *pcPic->cs;
 
   pcPic->inProgress = true;
