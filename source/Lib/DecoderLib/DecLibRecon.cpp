@@ -543,6 +543,12 @@ void DecLibRecon::decompressPicture( Picture* pcPic )
                                                          nullptr,
                                                          { &commonTaskParam.dmvrTriggers[taskLineDMVR], &pcPic->parseDone } );
     }
+
+    {
+      // dummy task to propagate exceptions from the ctu-decoding tasks to the dmvrTaskCounter
+      static auto dummyTask = []( int, void* ) { return true; };
+      m_decodeThreadPool->addBarrierTask<void>( dummyTask, nullptr, &pcPic->m_dmvrTaskCounter, nullptr, { pcPic->m_ctuTaskCounter.donePtr() } );
+    }
   }
 
   if( m_decodeThreadPool->numThreads() == 0 )
