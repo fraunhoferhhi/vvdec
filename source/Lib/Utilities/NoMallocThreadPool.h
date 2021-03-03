@@ -83,7 +83,7 @@ struct Barrier
 #if THREAD_POOL_HANDLE_EXCEPTIONS
     if( m_exception )
     {
-      throw Exception( *m_exception );
+      rethrowException();
     }
 #endif   // THREAD_POOL_HANDLE_EXCEPTIONS
     m_lockState.store( false );
@@ -94,7 +94,7 @@ struct Barrier
 #if THREAD_POOL_HANDLE_EXCEPTIONS
     if( m_exception )
     {
-      throw Exception( *m_exception );
+      rethrowException();
     }
 #endif   // THREAD_POOL_HANDLE_EXCEPTIONS
     m_lockState.store( true );
@@ -105,21 +105,21 @@ struct Barrier
 #if THREAD_POOL_HANDLE_EXCEPTIONS
     if( m_exception )
     {
-      throw Exception( *m_exception );
+      rethrowException();
     }
 #endif   // THREAD_POOL_HANDLE_EXCEPTIONS
     return m_lockState;
   }
 
 #if THREAD_POOL_HANDLE_EXCEPTIONS
-  virtual void     setException( const Exception& e ) { m_exception = new Exception( e ); }
-  const Exception* getException() const { return m_exception; }
+  virtual void             setException( std::exception_ptr e ) { m_exception = e; }
+  virtual void             clearException() { m_exception = nullptr; }
+  const std::exception_ptr getException() const { return m_exception; }
   bool             hasException() const { return !!m_exception; }
-  virtual void     clearException()
+  void                     rethrowException() const
   {
-    auto* tmp   = m_exception.load();
-    m_exception = nullptr;
-    delete tmp;
+    CHECK( m_exception == nullptr, "no exception currently stored" );
+    std::rethrow_exception( m_exception );
   }
 #endif   // THREAD_POOL_HANDLE_EXCEPTIONS
 
@@ -136,7 +136,7 @@ struct Barrier
 private:
   std::atomic_bool m_lockState{ true };
 #if THREAD_POOL_HANDLE_EXCEPTIONS
-  std::atomic<Exception*> m_exception{ nullptr };
+  std::exception_ptr m_exception;
 #endif
 };
 
@@ -162,7 +162,7 @@ struct BlockingBarrier: public Barrier
   }
 
 #if THREAD_POOL_HANDLE_EXCEPTIONS
-  void setException( const Exception& e ) override
+  void setException( std::exception_ptr e ) override
   {
     std::unique_lock<std::mutex> l( m_lock );
     Barrier::setException( e );
@@ -218,7 +218,7 @@ struct WaitCounter
 #if THREAD_POOL_HANDLE_EXCEPTIONS
     if( m_done.hasException() )
     {
-      throw Exception( *m_done.getException() );
+      m_done.rethrowException();
     }
 #endif   // THREAD_POOL_HANDLE_EXCEPTIONS
     return 0 != m_count;
@@ -231,7 +231,7 @@ struct WaitCounter
     m_cond.wait( l, [=] { return m_count == 0 || m_done.hasException(); } );
     if( m_done.hasException() )
     {
-      throw Exception( *m_done.getException() );
+      m_done.rethrowException();
     }
 #else
     m_cond.wait( l, [=] { return m_count == 0; } );
@@ -239,7 +239,7 @@ struct WaitCounter
   }
 
 #if THREAD_POOL_HANDLE_EXCEPTIONS
-  void setException( const Exception& e )
+  void setException( std::exception_ptr e )
   {
     std::unique_lock<std::mutex> l( m_lock );
     m_done.setException( e );
@@ -253,7 +253,7 @@ struct WaitCounter
   }
 
   bool             hasException() const { return m_done.hasException(); }
-  const Exception* getException() const { return m_done.getException(); }
+  const std::exception_ptr getException() const { return m_done.getException(); }
 #endif   // THREAD_POOL_HANDLE_EXCEPTIONS
 
   WaitCounter() = default;
@@ -466,7 +466,7 @@ private:
   static bool  processTask    ( int threadId, Slot& task );
   bool         bypassTaskQueue( TaskFunc func, void* param, WaitCounter* counter, Barrier* done, CBarrierVec& barriers, TaskFunc readyCheck );
 #if THREAD_POOL_HANDLE_EXCEPTIONS
-  static void  handleTaskException( const Exception& e, Barrier* done, WaitCounter* counter, std::atomic<TaskState>* slot_state );
+  static void handleTaskException( const std::exception_ptr e, Barrier* done, WaitCounter* counter, std::atomic<TaskState>* slot_state );
 #endif
 };
 

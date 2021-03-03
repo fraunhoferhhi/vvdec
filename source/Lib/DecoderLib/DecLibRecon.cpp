@@ -605,7 +605,7 @@ bool DecLibRecon::ctuTask( int tid, CtuTaskParam* param )
   {
     if( cs.picture->m_ctuTaskCounter.hasException() )
     {
-      throw Exception( *cs.picture->m_ctuTaskCounter.getException() );
+      std::rethrow_exception( cs.picture->m_ctuTaskCounter.getException() );
     }
 #endif  //THREAD_POOL_HANDLE_EXCEPTIONS
 
@@ -921,13 +921,13 @@ bool DecLibRecon::ctuTask( int tid, CtuTaskParam* param )
     }   // end switch
 #if THREAD_POOL_HANDLE_EXCEPTIONS
   }
-  catch( Exception& e )
+  catch( ... )
   {
     for( auto& t: param->common.dmvrTriggers )
     {
-      t.setException( e );
+      t.setException( std::current_exception() );
     }
-    throw e;
+    std::rethrow_exception( std::current_exception() );
   }
 #endif   // THREAD_POOL_HANDLE_EXCEPTIONS
 

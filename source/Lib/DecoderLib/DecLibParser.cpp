@@ -1053,14 +1053,14 @@ Slice*  DecLibParser::xDecodeSliceMain( InputNALUnit &nalu )
       bitstream.clearEmulationPreventionByteLocation();
 #if THREAD_POOL_HANDLE_EXCEPTIONS
     }
-    catch( Exception& e )
+    catch( ... )
     {
-      pic->parseDone.setException( e );
+      pic->parseDone.setException( std::current_exception() );
       for( auto& b: pic->ctuParsedBarrier )
       {
-        b.setException( e );
+        b.setException( std::current_exception() );
       }
-      throw e;
+      std::rethrow_exception( std::current_exception() );
     }
 #endif   // THREAD_POOL_HANDLE_EXCEPTIONS
     return true;

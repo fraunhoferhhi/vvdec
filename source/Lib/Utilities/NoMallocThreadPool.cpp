@@ -61,12 +61,13 @@ const static auto BUSY_WAIT_TIME = [] {
 }();
 
 #if THREAD_POOL_HANDLE_EXCEPTIONS
-struct NoMallocThreadPool::TaskException : public Exception
+struct NoMallocThreadPool::TaskException : public std::exception
 {
-  explicit TaskException( Exception& e, NoMallocThreadPool::Slot& task )
-    : Exception( e )
+  explicit TaskException( std::exception_ptr e, NoMallocThreadPool::Slot& task )
+    : m_originalException( e )
     , m_task( task )
   {}
+  std::exception_ptr        m_originalException;
   NoMallocThreadPool::Slot& m_task;
 };
 #endif   // THREAD_POOL_HANDLE_EXCEPTIONS
@@ -134,7 +135,7 @@ bool NoMallocThreadPool::processTasksOnMainThread()
     }
     catch( TaskException& e )
     {
-      handleTaskException( e, e.m_task.done, e.m_task.counter, &e.m_task.state );
+      handleTaskException( e.m_originalException, e.m_task.done, e.m_task.counter, &e.m_task.state );
     }
 #endif // THREAD_POOL_HANDLE_EXCEPTIONS
   }
@@ -225,7 +226,7 @@ void NoMallocThreadPool::threadProc( int threadId )
     }
     catch( TaskException& e )
     {
-      handleTaskException( e, e.m_task.done, e.m_task.counter, &e.m_task.state );
+      handleTaskException( e.m_originalException, e.m_task.done, e.m_task.counter, &e.m_task.state );
     }
 #endif   // THREAD_POOL_HANDLE_EXCEPTIONS
   }
@@ -287,9 +288,9 @@ NoMallocThreadPool::TaskIterator NoMallocThreadPool::findNextTask( int threadId,
       }
 #if THREAD_POOL_HANDLE_EXCEPTIONS
     }
-    catch( Exception& e )
+    catch( ... )
     {
-      throw TaskException( e, *it );
+      throw TaskException( std::current_exception(), *it );
     }
 #endif
   }
@@ -319,9 +320,9 @@ bool NoMallocThreadPool::processTask( int threadId, NoMallocThreadPool::Slot& ta
     }
 #if THREAD_POOL_HANDLE_EXCEPTIONS
   }
-  catch( Exception& e )
+  catch( ... )
   {
-    throw TaskException( e, task );
+    throw TaskException( std::current_exception(), task );
   }
 #endif   // THREAD_POOL_HANDLE_EXCEPTIONS
 
@@ -365,9 +366,9 @@ bool NoMallocThreadPool::bypassTaskQueue( TaskFunc func, void* param, WaitCounte
     }
 #if THREAD_POOL_HANDLE_EXCEPTIONS
   }
-  catch( Exception& e )
+  catch( ... )
   {
-    handleTaskException( e, done, counter, nullptr );
+    handleTaskException( std::current_exception(), done, counter, nullptr );
   }
 #endif   // THREAD_POOL_HANDLE_EXCEPTIONS
 
@@ -376,7 +377,7 @@ bool NoMallocThreadPool::bypassTaskQueue( TaskFunc func, void* param, WaitCounte
 }
 
 #if THREAD_POOL_HANDLE_EXCEPTIONS
-void NoMallocThreadPool::handleTaskException( const Exception& e, Barrier* done, WaitCounter* counter, std::atomic<TaskState>* slot_state )
+void NoMallocThreadPool::handleTaskException( const std::exception_ptr e, Barrier* done, WaitCounter* counter, std::atomic<TaskState>* slot_state )
 {
   if( done != nullptr )
   {
