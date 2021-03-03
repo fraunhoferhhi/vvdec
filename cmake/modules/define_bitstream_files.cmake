@@ -240,6 +240,7 @@ list( APPEND BITSTREAM_FILES
 list( APPEND BITSTREAM_FAULTY_FILES
   "GDR_A_NOKIA_2.zip"
   "GDR_B_NOKIA_2.zip"
+  "SUBPIC_D_ERICSSON_1.zip"
 )
 
 # put bitstreams from the conformance set that are not supported (wrong profile/level etc)
