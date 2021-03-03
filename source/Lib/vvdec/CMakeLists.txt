@@ -15,6 +15,11 @@ file( GLOB BASE_SRC_FILES "*.cpp"  "../CommonLib/*.cpp"  "../Utilities/*.cpp" ".
 # get include files
 file( GLOB BASE_INC_FILES "*.h" "../CommonLib/*.h"  "../Utilities/*.h" "../DecoderLib/*.h" )
 
+
+if( NOT DEFINED VVDEC_ENABLE_X86_SIMD )
+  message( FATAL_ERROR "VVDEC_ENABLE_X86_SIMD is not defined. Please include TopLevel CmakeLists.txt file of vvdec to set all dependencies!" )
+endif()
+
 if( VVDEC_ENABLE_X86_SIMD )
   # get x86 source files
   file( GLOB X86_SRC_FILES "../CommonLib/x86/*.cpp" )
