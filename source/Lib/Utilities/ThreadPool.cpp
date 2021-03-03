@@ -176,8 +176,8 @@ void ThreadPool::checkAndThrowThreadPoolException()
 
   msg( WARNING, "ThreadPool is in exception state." );
 
-  std::exception_ptr tmp;
-  m_threadPoolException.swap( tmp );
+  std::exception_ptr tmp = m_threadPoolException;
+  m_threadPoolException  = tmp;
   m_exceptionFlag.store( false );
 
   std::rethrow_exception( tmp );

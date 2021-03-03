@@ -44,14 +44,14 @@ THE POSSIBILITY OF SUCH DAMAGE.
 
 ------------------------------------------------------------------------------------------- */
 
-#ifndef NOMALLOCTHREADPOOL_H
-#define NOMALLOCTHREADPOOL_H
+#ifndef THREADPOOL_H
+#define THREADPOOL_H
 
 #include <thread>
 #include <mutex>
 #include <condition_variable>
 #include <atomic>
-#include <iostream>
+#include <exception>
 #include <array>
 
 #include "CommonLib/CommonDef.h"
@@ -516,4 +516,4 @@ private:
 #endif
 };
 
-#endif   // NOMALLOCTHREADPOOL_H
+#endif   // THREADPOOL_H
