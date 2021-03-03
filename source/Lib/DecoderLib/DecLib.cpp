@@ -159,7 +159,6 @@ void DecLib::create(int numDecThreads, int parserFrameDelay)
 #endif
 
   m_sDecoderCapabilities = cssCap.str();
-  msg( INFO, "[%s]\n", m_sDecoderCapabilities.c_str() );
 
   DTRACE_UPDATE( g_trace_ctx, std::make_pair( "final", 1 ) );
 }
