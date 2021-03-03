@@ -61,8 +61,6 @@ THE POSSIBILITY OF SUCH DAMAGE.
 int writeYUVToFile( std::ostream *f, vvdecFrame *frame );
 int writeYUVToFileInterlaced( std::ostream *f, vvdecFrame *topField, vvdecFrame *botField = nullptr );
 
-//LogLevel g_verbosity = VVDEC_VERBOSE;
-
 void msgFnc( void *, int level, const char* fmt, va_list args )
 {
   vfprintf( level == 1 ? stderr : stdout, fmt, args );
@@ -340,7 +338,7 @@ int main( int argc, char* argv[] )
             uiBitrate += pcFrame->picAttributes->bits;
           }
 
-#if 0
+#if 0 // just sample code to retrieve sei messages
           vvdecSEI *sei = vvdec_find_frame_sei( dec, VVDEC_CONTENT_LIGHT_LEVEL_INFO, pcFrame );
           if( sei )
           {
