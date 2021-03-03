@@ -396,18 +396,7 @@ void DecLibRecon::decompressPicture( Picture* pcPic )
       {
         Picture* refPic = slice->getNoConstRefPic( ( RefPicList ) iDir, iRefIdx );
 
-        bool insertPic = true;
-
-        for( Picture* pic : refPics )
-        {
-          if( pic == refPic )
-          {
-            insertPic = false;
-            break;
-          }
-        }
-
-        if( insertPic )
+        if( std::find( refPics.cbegin(), refPics.cend(), refPic ) == refPics.cend() )
         {
           refPics.push_back( refPic );
         }

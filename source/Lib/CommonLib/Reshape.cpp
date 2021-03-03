@@ -154,7 +154,7 @@ void  Reshape::initSlice( int nalUnitLayerId, const PicHeader& picHeader, const 
     m_sliceReshapeInfo.sliceReshaperModelPresentFlag = false;
   }
   m_vpduX = -1;
-  m_vpduX = -1;
+  m_vpduY = -1;
 }
 
 bool Reshape::getCTUFlag( const Slice& slice ) const
