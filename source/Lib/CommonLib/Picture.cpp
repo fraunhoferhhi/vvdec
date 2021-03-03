@@ -117,6 +117,7 @@ void Picture::resetForUse()
 
   m_subPicRefBufs.clear();
 
+  subPicExtStarted = false;
   borderExtStarted = false;
 #if JVET_Q0764_WRAP_AROUND_WITH_RPR
   wrapAroundValid  = false;

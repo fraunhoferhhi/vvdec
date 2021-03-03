@@ -277,6 +277,8 @@ void DecLibRecon::borderExtPic( Picture* pic )
 
 void DecLibRecon::createSubPicRefBufs( Picture* pic )
 {
+  pic->subPicExtStarted = true;
+
   const PPS* pps       = pic->cs->pps.get();
   const SPS* sps       = pic->cs->sps.get();
   const int  numSubPic = pps->getNumSubPics();
@@ -289,7 +291,8 @@ void DecLibRecon::createSubPicRefBufs( Picture* pic )
                               currSubPic.getSubPicTop(),
                               currSubPic.getSubPicWidthInLumaSample(),
                               currSubPic.getSubPicHeightInLumaSample() );
-    pic->m_subPicRefBufs[i].create( pic->getRecoBuf().chromaFormat, Size( subPicArea ), sps->getMaxCUWidth(), pic->margin, MEMORY_ALIGN_DEF_SIZE );
+
+    pic->m_subPicRefBufs[i].create( pic->chromaFormat, Size( subPicArea ), sps->getMaxCUWidth(), pic->margin, MEMORY_ALIGN_DEF_SIZE );
 
     static auto task = []( int, SubPicExtTask* t ) {
       t->subPicBuf->copyFrom( t->picture->getRecoBuf().subBuf( t->subPicArea ) );
@@ -420,6 +423,14 @@ void DecLibRecon::decompressPicture( Picture* pcPic )
       borderExtPic( refPic );
     }
 
+    if( !refPic->subPicExtStarted && numSubPic > 1 && refPic->m_subPicRefBufs.size() != numSubPic )
+    {
+      CHECK( !refPic->m_subPicRefBufs.empty(), "Wrong number of subpics already present in reference picture" );
+      CHECK( cs.sps->getUseWrapAround(), "Wraparound + subpics not implemented" );
+
+      createSubPicRefBufs( refPic );
+    }
+
     if( refPic->m_borderExtTaskCounter.isBlocked() &&
         std::find( picExtBarriers.cbegin(), picExtBarriers.cend(), &refPic->m_borderExtTaskCounter.done ) == picExtBarriers.cend() )
     {
@@ -430,14 +441,6 @@ void DecLibRecon::decompressPicture( Picture* pcPic )
         std::find( picBarriers.cbegin(), picBarriers.cend(), &refPic->m_dmvrTaskCounter.done ) == picBarriers.cend() )
     {
       picBarriers.push_back( &refPic->m_dmvrTaskCounter.done );
-    }
-
-    if( numSubPic > 1 && refPic->m_subPicRefBufs.size() != numSubPic )
-    {
-      CHECK( !refPic->m_subPicRefBufs.empty(), "Wrong number of subpics already present in reference picture" );
-      CHECK( cs.sps->getUseWrapAround(), "Wraparound + subpics not implemented" );
-
-      createSubPicRefBufs( refPic );
     }
   }
 
