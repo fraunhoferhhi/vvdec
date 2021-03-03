@@ -667,7 +667,7 @@ bool DecLibRecon::ctuTask( int tid, CtuTaskParam* param )
 
   case INTER:
   {
-    if( cs.picture->slices[0]->isIntra() )
+    if( std::all_of( cs.picture->slices.begin(), cs.picture->slices.end(), []( const Slice* pcSlice ) { return pcSlice->isIntra(); } ) )
     {
       // not really necessary, but only for optimizing the wave-fronts
       if( col > 1 && thisLine[col - 2] <= INTER )
