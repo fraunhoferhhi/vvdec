@@ -624,15 +624,12 @@ const char* VVDecImpl::getVersionNumber()
 
 const char* VVDecImpl::getDecoderInfo()
 {
-    m_sDecoderInfo  = "Fraunhofer Versatile Video Decoder ";
-//     m_sDecoderInfo += "/";
-    m_sDecoderInfo += " version ";
+    m_sDecoderInfo  = "Fraunhofer VVC/H.266 Decoder VVdeC";
+    m_sDecoderInfo += ", version ";
     m_sDecoderInfo += getVersionNumber();
-    m_sDecoderInfo += "; ";
+    m_sDecoderInfo += " [";
     m_sDecoderInfo += m_sDecoderCapabilities;
-    //m_sDecoderInfo += ";";
-    //m_sDecoderInfo += hevcdec_capabilities( &m_hevcdec );
-    m_sDecoderInfo += ") ";
+    m_sDecoderInfo += "]";
     return m_sDecoderInfo.c_str();
 }
 

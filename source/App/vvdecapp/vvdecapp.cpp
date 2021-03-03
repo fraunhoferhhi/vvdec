@@ -85,8 +85,6 @@ int main( int argc, char* argv[] )
     }
   }
 
-  std::cout << "Fraunhofer VVC Decoder " << cAppname  << " version: " << VVDEC_VERSION << std::endl;
-
   std::string cBitstreamFile  = "";
   std::string cOutputFile = "";
   int iMaxFrames=-1;
@@ -192,7 +190,7 @@ int main( int argc, char* argv[] )
 
     vvdec_set_logging_callback( dec, msgFnc, nullptr, params.logLevel );
 
-    if( iLoop == 0 && params.logLevel >= VVDEC_VERBOSE )
+    if( iLoop == 0 )
     {
       std::cout << vvdec_get_dec_information( dec ) << std::endl;
     }
