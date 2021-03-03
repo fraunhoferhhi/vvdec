@@ -173,13 +173,16 @@ public:
 
   void    motionCompensationGeo      ( PredictionUnit &pu, PelUnitBuf &predBuf );
   void    weightedGeoBlk             ( PredictionUnit &pu, const uint8_t splitDir, int32_t channel, PelUnitBuf& predDst, PelUnitBuf& predSrc0, PelUnitBuf& predSrc1 );
+
+  static bool isSubblockVectorSpreadOverLimit( int a, int b, int c, int d, int predType );
+
+private:
   void    xPrefetch                  ( PredictionUnit& pu, PelUnitBuf &pcPad, RefPicList refId, bool forLuma );
   void    xPad                       ( PredictionUnit& pu, PelUnitBuf &pcPad, RefPicList refId, bool forLuma );
   void    xFinalPaddedMCForDMVR      ( PredictionUnit& pu, PelUnitBuf &pcYuvSrc0, PelUnitBuf &pcYuvSrc1, PelUnitBuf &pcPad0, PelUnitBuf &pcPad1, const bool bioApplied, const Mv startMV[NUM_REF_PIC_LIST_01] );
   void xBIPMVRefine(DistParam &cDistParam, const Pel *pRefL0, const Pel *pRefL1, uint64_t& minCost, int16_t *deltaMV, uint64_t *pSADsArray);
   void xinitMC(PredictionUnit& pu, const ClpRngs &clpRngs);
   void xProcessDMVR(PredictionUnit& pu, PelUnitBuf &pcYuvDst, const ClpRngs &clpRngs, const bool bioApplied );
-  static bool isSubblockVectorSpreadOverLimit( int a, int b, int c, int d, int predType );
   void xFillIBCBuffer(CodingUnit &cu);
 #if JVET_O1170_CHECK_BV_AT_DECODER
   void resetIBCBuffer(const ChromaFormat chromaFormatIDC, const int ctuSize);

@@ -3040,7 +3040,7 @@ public:
   const bool                  getLmcsEnabledFlag() const                              { return m_lmcsEnabledFlag;                                    }
 
   void                        setExplicitScalingListUsed(bool b)                      { m_explicitScalingListUsed = b;                               }
-  bool                        getExplicitScalingListUsed()                            { return m_explicitScalingListUsed;                            }
+  bool                        getExplicitScalingListUsed() const                      { return m_explicitScalingListUsed;                            }
   void                        setNumRefIdx( RefPicList e, int i )                    { m_aiNumRefIdx[e]    = i;                                      }
   void                        setPic( Picture* p )                                   { m_pcPic             = p;                                      }
 

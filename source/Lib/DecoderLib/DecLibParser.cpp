@@ -315,17 +315,20 @@ Picture* DecLibParser::getNextDecodablePicture()
 
     bool allRefPicsDone = true;
     const CodingStructure& cs = *pic->cs;
-    if( !cs.picture->slices[0]->isIntra() )
+    if( std::any_of( cs.picture->slices.begin(), cs.picture->slices.end(), []( const Slice* pcSlice ) { return !pcSlice->isIntra(); } ) )
     {
       for( int iDir = REF_PIC_LIST_0; iDir < NUM_REF_PIC_LIST_01 && allRefPicsDone; ++iDir )
       {
-        for( int iRefIdx = 0; iRefIdx < cs.picture->slices[0]->getNumRefIdx( (RefPicList)iDir ) && allRefPicsDone; iRefIdx++ )
+        for( const Slice* slice : cs.picture->slices )
         {
-          const Picture* refPic = cs.picture->slices[0]->getRefPic( (RefPicList)iDir, iRefIdx );
-          if( refPic->done.isBlocked() )
+          for( int iRefIdx = 0; iRefIdx < slice->getNumRefIdx( ( RefPicList ) iDir ) && allRefPicsDone; iRefIdx++ )
           {
-            allRefPicsDone = false;
-            break;
+            const Picture* refPic = slice->getRefPic( ( RefPicList ) iDir, iRefIdx );
+            if( refPic->done.isBlocked() )
+            {
+              allRefPicsDone = false;
+              break;
+            }
           }
         }
       }
@@ -664,7 +667,10 @@ DecLibParser::SliceHeadResult DecLibParser::xDecodeSliceHead( InputNALUnit& nalu
   m_prevPOC = slice->getPOC();
 
   auto ret = ContinueParsing;
-  if( m_bFirstSliceInPicture )
+
+  const unsigned lastCtuInSlice = slice->getCtuAddrInSlice( slice->getNumCtuInSlice() - 1 );
+
+  if( lastCtuInSlice == slice->getPPS()->pcv->sizeInCtus - 1 )
   {
     ret = NewPicture;
     xUpdateRasInit( slice );
