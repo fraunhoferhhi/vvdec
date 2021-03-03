@@ -440,3 +440,19 @@ void PicListManager::releasePicture( Picture* pic )
     pic->lockedByApplication = false;
   }
 }
+
+void PicListManager::markNotNeededForOutput()
+{
+  if( m_cPicList.empty() )
+  {
+    return;
+  }
+
+  PicList::iterator iterPic = m_cPicList.begin();
+  while (iterPic != m_cPicList.end())
+  {
+    
+    Picture *pcPic = *(iterPic++);
+    pcPic->neededForOutput = false;
+  }
+}

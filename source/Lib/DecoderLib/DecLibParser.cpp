@@ -426,6 +426,11 @@ DecLibParser::SliceHeadResult DecLibParser::xDecodeSliceHead( InputNALUnit& nalu
     m_HLSReader.parseSliceHeader( m_apcSlicePilot, m_picHeader.get(), &m_parameterSetManager, m_prevTid0POC, m_pcParsePic, m_bFirstSliceInPicture );
   }
 
+  if( m_picHeader->getGdrPicFlag() )
+  {
+    m_prevGDRInSameLayerRecoveryPOC = m_picHeader->getRecoveryPocCnt();
+  }
+  
   PPS *pps = m_parameterSetManager.getPPS( m_apcSlicePilot->getPicHeader()->getPPSId() );
   CHECK( pps == 0, "No PPS present" );
   SPS *sps = m_parameterSetManager.getSPS( pps->getSPSId() );
@@ -656,6 +661,18 @@ DecLibParser::SliceHeadResult DecLibParser::xDecodeSliceHead( InputNALUnit& nalu
   }
 
   Slice* slice = xDecodeSliceMain( nalu );
+
+  if( slice->getNalUnitType() == NAL_UNIT_CODED_SLICE_GDR && !slice->getPic()->cs->pps->getMixedNaluTypesInPicFlag() )
+  {
+    m_prevGDRInSameLayerPOC = m_pcParsePic->getPOC();
+  }
+  if( m_gdrRecoveryPeriod )
+  {
+    if( slice->getPic()->getPOC() >= m_prevGDRInSameLayerPOC + m_prevGDRInSameLayerRecoveryPOC )
+    {
+      m_gdrRecoveryPeriod = false;
+    }
+  }
 
   if( slice->getFirstCtuRsAddrInSlice() == 0 && !m_bFirstSliceInPicture )
   {
