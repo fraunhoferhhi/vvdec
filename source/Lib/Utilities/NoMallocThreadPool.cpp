@@ -52,6 +52,10 @@ THE POSSIBILITY OF SUCH DAMAGE.
 # include <pthread.h>
 #endif
 
+#if THREAD_POOL_HANDLE_EXCEPTIONS
+std::mutex Barrier::s_exceptionLock{};
+#endif
+
 // block threads after busy-waiting this long
 const static auto BUSY_WAIT_TIME = [] {
   const char* env = getenv( "BUSY_WAIT_TIME" );

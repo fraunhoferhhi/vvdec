@@ -81,45 +81,80 @@ struct Barrier
   virtual void unlock()
   {
 #if THREAD_POOL_HANDLE_EXCEPTIONS
-    if( m_exception )
-    {
-      rethrowException();
-    }
+    checkAndRethrowException();
 #endif   // THREAD_POOL_HANDLE_EXCEPTIONS
+
     m_lockState.store( false );
   }
 
   virtual void lock()
   {
 #if THREAD_POOL_HANDLE_EXCEPTIONS
-    if( m_exception )
-    {
-      rethrowException();
-    }
+    checkAndRethrowException();
 #endif   // THREAD_POOL_HANDLE_EXCEPTIONS
+
     m_lockState.store( true );
   }
 
   bool isBlocked() const
   {
 #if THREAD_POOL_HANDLE_EXCEPTIONS
-    if( m_exception )
-    {
-      rethrowException();
-    }
+    checkAndRethrowException();
 #endif   // THREAD_POOL_HANDLE_EXCEPTIONS
+
     return m_lockState;
   }
 
 #if THREAD_POOL_HANDLE_EXCEPTIONS
-  virtual void             setException( std::exception_ptr e ) { m_exception = e; }
-  virtual void             clearException() { m_exception = nullptr; }
-  const std::exception_ptr getException() const { return m_exception; }
-  bool             hasException() const { return !!m_exception; }
-  void                     rethrowException() const
+  virtual void setException( std::exception_ptr e )
   {
-    CHECK( m_exception == nullptr, "no exception currently stored" );
-    std::rethrow_exception( m_exception );
+    std::lock_guard<std::mutex> l( s_exceptionLock );
+    if( m_hasException )
+    {
+      CHECK( m_exception == nullptr, "no exception currently stored, but flag is set" );
+      // exception is already set -> no-op
+      return;
+    }
+    m_exception    = e;
+    m_hasException = true;
+  }
+
+  virtual void clearException()
+  {
+    if( m_hasException )
+    {
+      std::lock_guard<std::mutex> l( s_exceptionLock );
+      m_hasException = false;
+      m_exception    = nullptr;
+    }
+  }
+
+  const std::exception_ptr getException() const
+  {
+    if( !m_hasException )
+    {
+      return nullptr;
+    }
+
+    std::lock_guard<std::mutex> l( s_exceptionLock );
+    return m_exception;
+  }
+
+  bool hasException() const { return m_hasException; }
+
+  inline void checkAndRethrowException() const
+  {
+    if( !m_hasException )
+    {
+      return;
+    }
+
+    std::lock_guard<std::mutex> l( s_exceptionLock );
+    if( m_hasException )
+    {
+      CHECK( m_exception == nullptr, "no exception currently stored, but flag is set" );
+      std::rethrow_exception( m_exception );
+    }
   }
 #endif   // THREAD_POOL_HANDLE_EXCEPTIONS
 
@@ -134,9 +169,12 @@ struct Barrier
   Barrier& operator=( Barrier && )      = delete;
 
 private:
-  std::atomic_bool m_lockState{ true };
+  std::atomic_bool   m_lockState{ true };
 #if THREAD_POOL_HANDLE_EXCEPTIONS
+  std::atomic_bool   m_hasException{ false };
   std::exception_ptr m_exception;
+  static std::mutex  s_exceptionLock;   // we use one shared mutex for all barriers here. It is only involved, when exceptions actually happen, so there should
+                                        // be no contention during normal operations
 #endif
 };
 
@@ -216,10 +254,7 @@ struct WaitCounter
   {
     std::unique_lock<std::mutex> l( const_cast<std::mutex&>( m_lock ) );
 #if THREAD_POOL_HANDLE_EXCEPTIONS
-    if( m_done.hasException() )
-    {
-      m_done.rethrowException();
-    }
+    m_done.checkAndRethrowException();
 #endif   // THREAD_POOL_HANDLE_EXCEPTIONS
     return 0 != m_count;
   }
@@ -229,10 +264,7 @@ struct WaitCounter
     std::unique_lock<std::mutex> l( m_lock );
 #if THREAD_POOL_HANDLE_EXCEPTIONS
     m_cond.wait( l, [=] { return m_count == 0 || m_done.hasException(); } );
-    if( m_done.hasException() )
-    {
-      m_done.rethrowException();
-    }
+    m_done.checkAndRethrowException();
 #else
     m_cond.wait( l, [=] { return m_count == 0; } );
 #endif   // THREAD_POOL_HANDLE_EXCEPTIONS
