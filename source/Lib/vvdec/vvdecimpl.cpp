@@ -195,10 +195,10 @@ int VVDecImpl::uninit()
   return VVDEC_OK;
 }
 
-void VVDecImpl::setLoggingCallback( vvdecLoggingCallback callback )
+void VVDecImpl::setLoggingCallback( vvdecLoggingCallback callback, void *userData )
 {
-  this->loggingCallback = callback;
-  g_msgFnc = callback;
+  g_msgFnc      = callback;
+  g_msgUserData = userData;
 }
 
 int VVDecImpl::decode( vvdecAccessUnit& rcAccessUnit, vvdecFrame** ppcFrame )

@@ -441,10 +441,11 @@ VVDEC_DECL int vvdec_decoder_close(vvdecDecoder *);
   Set a logging callback. To disable set callback NULL.
   \param[in]   vvdecDecoder pointer of decoder handler
   \param[in]   vvdecLoggingCallback implementation of the callback that is called when logging messages are written
+  \param[in]   userData pointer to class that should be used when callback returns messages
   \retval      int if non-zero an error occurred (see ErrorCodes), otherwise VVDEC_OK indicates success.
   \pre         The decoder has to be initialized successfully.
  */
-VVDEC_DECL int vvdec_set_logging_callback(vvdecDecoder* , vvdecLoggingCallback callback);
+VVDEC_DECL int vvdec_set_logging_callback(vvdecDecoder*, vvdecLoggingCallback callback, void *userData );
 
 /* vvdec_decode
   This method decodes a compressed image packet (bitstream).

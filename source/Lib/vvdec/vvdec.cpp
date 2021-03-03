@@ -201,7 +201,7 @@ VVDEC_DECL int vvdec_decoder_close(vvdecDecoder *dec)
   return VVDEC_OK;
 }
 
-VVDEC_DECL int vvdec_set_logging_callback(vvdecDecoder* dec, vvdecLoggingCallback callback )
+VVDEC_DECL int vvdec_set_logging_callback(vvdecDecoder* dec, vvdecLoggingCallback callback, void *userData )
 {
   auto d = (vvdec::VVDecImpl*)dec;
   if (!d)
@@ -209,7 +209,7 @@ VVDEC_DECL int vvdec_set_logging_callback(vvdecDecoder* dec, vvdecLoggingCallbac
     return VVDEC_ERR_UNSPECIFIED;
   }
 
-  d->setLoggingCallback(callback);
+  d->setLoggingCallback(callback, userData );
   return VVDEC_OK;
 }
 

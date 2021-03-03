@@ -188,7 +188,7 @@ int main( int argc, char* argv[] )
       return -1;
     }
 
-    vvdec_set_logging_callback( dec, msgFnc );
+    vvdec_set_logging_callback( dec, msgFnc, nullptr );
 
     if( iLoop == 0 && params.logLevel >= VVDEC_VERBOSE )
     {
