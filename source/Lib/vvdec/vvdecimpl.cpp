@@ -195,13 +195,10 @@ int VVDecImpl::uninit()
   return VVDEC_OK;
 }
 
-void VVDecImpl::setLoggingCallback(vvdecLoggingCallback callback, void *userData, vvdecLogLevel level)
+void VVDecImpl::setLoggingCallback( vvdecLoggingCallback callback )
 {
   this->loggingCallback = callback;
-  g_verbosity           = (MsgLevel)level;
-  this->loggingUserData = userData;
   g_msgFnc = callback;
-  msg(VERBOSE, "Logging callback set to loglevel %d\n", level);
 }
 
 int VVDecImpl::decode( vvdecAccessUnit& rcAccessUnit, vvdecFrame** ppcFrame )
