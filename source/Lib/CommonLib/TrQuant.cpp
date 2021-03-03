@@ -148,9 +148,9 @@ void TrQuant::xDeQuant(const TransformUnit &tu,
   dequant( tu, dstCoeff, compID, cQP );
 }
 
-void TrQuant::init( Slice *slice )
+void TrQuant::init( const Picture *pic )
 {
-  Quant::init( slice );
+  Quant::init( pic );
 }
 
 void TrQuant::invLfnstNxN( int* src, int* dst, const uint32_t mode, const uint32_t index, const uint32_t size, int zeroOutSize )

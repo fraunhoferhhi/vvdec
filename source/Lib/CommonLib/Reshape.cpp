@@ -62,7 +62,6 @@ THE POSSIBILITY OF SUCH DAMAGE.
 
 Reshape::Reshape()
 {
-  m_CTUFlag = false;
   m_fwdLUT = nullptr;
   m_invLUT = nullptr;
   m_chromaScale = 1 << CSCALE_FP_PREC;
@@ -112,25 +111,23 @@ void  Reshape::destroy()
   m_invLUT = nullptr;
 }
 
-void  Reshape::initSlice( Slice* pcSlice )
+void  Reshape::initSlice( int nalUnitLayerId, const PicHeader& picHeader, const VPS& vps )
 {
-  if( pcSlice->getPicHeader()->getLmcsEnabledFlag() )
+  if( picHeader.getLmcsEnabledFlag() )
   {
-    if( pcSlice->getNalUnitLayerId() != pcSlice->getPicHeader()->getLmcsAPS()->getLayerId() )
+    if( nalUnitLayerId != picHeader.getLmcsAPS()->getLayerId() )
     {
-      CHECK( pcSlice->getPicHeader()->getLmcsAPS()->getLayerId() > pcSlice->getNalUnitLayerId(), "Layer Id of APS cannot be greater than layer Id of VCL NAL unit the refer to it" );
-      CHECK( pcSlice->getSPS()->getVPSId() == 0, "VPSId of the referred SPS cannot be 0 when layer Id of APS and layer Id of current slice are different" );
-      for (int i = 0; i < pcSlice->getVPS()->getNumOutputLayerSets(); i++ )
+      for (int i = 0; i < vps.getNumOutputLayerSets(); i++ )
       {
         bool isCurrLayerInOls = false;
         bool isRefLayerInOls = false;
-        for( int j = pcSlice->getVPS()->getNumLayersInOls(i) - 1; j >= 0; j-- )
+        for( int j = vps.getNumLayersInOls(i) - 1; j >= 0; j-- )
         {
-          if( pcSlice->getVPS()->getLayerIdInOls(i, j) == pcSlice->getNalUnitLayerId() )
+          if( vps.getLayerIdInOls(i, j) == nalUnitLayerId )
           {
             isCurrLayerInOls = true;
           }
-          if( pcSlice->getVPS()->getLayerIdInOls(i, j) == pcSlice->getPicHeader()->getLmcsAPS()->getLayerId() )
+          if( vps.getLayerIdInOls(i, j) == picHeader.getLmcsAPS()->getLayerId() )
           {
             isRefLayerInOls = true;
           }
@@ -139,10 +136,10 @@ void  Reshape::initSlice( Slice* pcSlice )
       }
     }
 
-    SliceReshapeInfo& sInfo = pcSlice->getPicHeader()->getLmcsAPS()->getReshaperAPSInfo();
+    SliceReshapeInfo& sInfo = picHeader.getLmcsAPS()->getReshaperAPSInfo();
     m_sliceReshapeInfo.sliceReshaperEnableFlag       = true;
     m_sliceReshapeInfo.sliceReshaperModelPresentFlag = true;
-    m_sliceReshapeInfo.enableChromaAdj               = pcSlice->getPicHeader()->getLmcsChromaResidualScaleFlag();
+    m_sliceReshapeInfo.enableChromaAdj               = picHeader.getLmcsChromaResidualScaleFlag();
     m_sliceReshapeInfo.reshaperModelMaxBinIdx        = sInfo.reshaperModelMaxBinIdx;
     m_sliceReshapeInfo.reshaperModelMinBinIdx        = sInfo.reshaperModelMinBinIdx;
     m_sliceReshapeInfo.maxNbitsNeededDeltaCW         = sInfo.maxNbitsNeededDeltaCW;
@@ -156,23 +153,20 @@ void  Reshape::initSlice( Slice* pcSlice )
     m_sliceReshapeInfo.enableChromaAdj               = false;
     m_sliceReshapeInfo.sliceReshaperModelPresentFlag = false;
   }
-  if( ( pcSlice->getSliceType() == I_SLICE ) && m_sliceReshapeInfo.sliceReshaperEnableFlag )
+  m_vpduX = -1;
+  m_vpduX = -1;
+}
+
+bool Reshape::getCTUFlag( const Slice& slice ) const
+{
+  if( (slice.getSliceType() == I_SLICE) && m_sliceReshapeInfo.sliceReshaperEnableFlag )
   {
-    m_CTUFlag = false;
+    return false;
   }
   else
   {
-    if( m_sliceReshapeInfo.sliceReshaperEnableFlag )
-    {
-      m_CTUFlag = true;
-    }
-    else
-    {
-      m_CTUFlag = false;
-    }
+    return m_sliceReshapeInfo.sliceReshaperEnableFlag;
   }
-  m_vpduX = -1;
-  m_vpduX = -1;
 }
 
 void Reshape::rspLine( CodingStructure &cs, int ln, const int offset ) const

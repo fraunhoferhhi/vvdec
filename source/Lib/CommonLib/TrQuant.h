@@ -78,7 +78,7 @@ public:
   ~TrQuant();
 
   // initialize class
-  void init      ( Slice *slice );
+  void init      ( const Picture *pic );
   void getTrTypes( const TransformUnit &tu, const ComponentID compID, int &trTypeHor, int &trTypeVer );
 
   void invLfnstNxN( int* src, int* dst, const uint32_t mode, const uint32_t index, const uint32_t size, int zeroOutSize );

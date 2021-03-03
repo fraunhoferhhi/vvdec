@@ -664,7 +664,10 @@ DecLibParser::SliceHeadResult DecLibParser::xDecodeSliceHead( InputNALUnit& nalu
   m_prevPOC = slice->getPOC();
 
   auto ret = ContinueParsing;
-  if( m_bFirstSliceInPicture )
+
+  const unsigned lastCtuInSlice = slice->getCtuAddrInSlice( slice->getNumCtuInSlice() - 1 );
+
+  if( lastCtuInSlice == slice->getPPS()->pcv->sizeInCtus - 1 )
   {
     ret = NewPicture;
     xUpdateRasInit( slice );

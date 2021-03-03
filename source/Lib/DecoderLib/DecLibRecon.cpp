@@ -326,14 +326,14 @@ void DecLibRecon::decompressPicture( Picture* pcPic )
     if( sps->getUseReshaper() )
     {
       m_cReshaper[i].createDec( sps->getBitDepth( CHANNEL_TYPE_LUMA ) );
-      m_cReshaper[i].initSlice( pcPic->slices[0] );
+      m_cReshaper[i].initSlice( pcPic->slices[0]->getNalUnitLayerId(), *pcPic->slices[0]->getPicHeader(), *pcPic->slices[0]->getVPS() );
     }
 
     m_cIntraPred[i].init( sps->getChromaFormatIdc(), sps->getBitDepth( CHANNEL_TYPE_LUMA ) );
     m_cInterPred[i].init( &m_cRdCost, sps->getChromaFormatIdc(), sps->getMaxCUHeight() );
 
     // Recursive structure
-    m_cTrQuant[i]  .init( pcPic->slices[0] );
+    m_cTrQuant[i]  .init( pcPic );
     m_cCuDecoder[i].init( &m_cIntraPred[i], &m_cInterPred[i], &m_cReshaper[i], &m_cTrQuant[i] );
   }
 
@@ -380,39 +380,64 @@ void DecLibRecon::decompressPicture( Picture* pcPic )
   if( numSubPic > 1 )
   {
     m_subPicExtTasks.clear();
-    m_subPicExtTasks.reserve( MAX_NUM_REF_PICS * numSubPic );
+    m_subPicExtTasks.reserve( pcPic->slices.size() * MAX_NUM_REF_PICS * numSubPic );
   }
+
+  std::vector<Picture*> refPics;
+
   for( int iDir = REF_PIC_LIST_0; iDir < NUM_REF_PIC_LIST_01; ++iDir )
   {
-    for( int iRefIdx = 0; iRefIdx < pcPic->slices[0]->getNumRefIdx( (RefPicList)iDir ); iRefIdx++ )
+    for( const Slice* slice : pcPic->slices )
     {
-      Picture* refPic = pcPic->slices[0]->getNoConstRefPic( (RefPicList)iDir, iRefIdx );
-
-      if( !refPic->borderExtStarted )
+      for( int iRefIdx = 0; iRefIdx < slice->getNumRefIdx( ( RefPicList ) iDir ); iRefIdx++ )
       {
-        // TODO: (GH) Can we bypass this border extension, when all subpics (>1) are treated as pics?
-        borderExtPic( refPic );
-      }
+        Picture* refPic = slice->getNoConstRefPic( ( RefPicList ) iDir, iRefIdx );
 
-      if( refPic->m_borderExtTaskCounter.isBlocked() &&
-          std::find( picExtBarriers.cbegin(), picExtBarriers.cend(), &refPic->m_borderExtTaskCounter.done ) == picExtBarriers.cend() )
-      {
-        picExtBarriers.push_back( &refPic->m_borderExtTaskCounter.done );
-      }
+        bool insertPic = true;
 
-      if( refPic->m_dmvrTaskCounter.isBlocked() &&
-          std::find( picBarriers.cbegin(), picBarriers.cend(), &refPic->m_dmvrTaskCounter.done ) == picBarriers.cend() )
-      {
-        picBarriers.push_back( &refPic->m_dmvrTaskCounter.done );
-      }
+        for( Picture* pic : refPics )
+        {
+          if( pic == refPic )
+          {
+            insertPic = false;
+            break;
+          }
+        }
 
-      if( numSubPic > 1 && refPic->m_subPicRefBufs.size() != numSubPic )
-      {
-        CHECK( !refPic->m_subPicRefBufs.empty(), "Wrong number of subpics already present in reference picture" );
-        CHECK( cs.sps->getUseWrapAround(), "Wraparound + subpics not implemented" );
-
-        createSubPicRefBufs( refPic );
+        if( insertPic )
+        {
+          refPics.push_back( refPic );
+        }
       }
+    }
+  }
+
+  for( Picture* refPic : refPics )
+  {
+    if( !refPic->borderExtStarted )
+    {
+      // TODO: (GH) Can we bypass this border extension, when all subpics (>1) are treated as pics?
+      borderExtPic( refPic );
+    }
+
+    if( refPic->m_borderExtTaskCounter.isBlocked() &&
+        std::find( picExtBarriers.cbegin(), picExtBarriers.cend(), &refPic->m_borderExtTaskCounter.done ) == picExtBarriers.cend() )
+    {
+      picExtBarriers.push_back( &refPic->m_borderExtTaskCounter.done );
+    }
+
+    if( refPic->m_dmvrTaskCounter.isBlocked() &&
+        std::find( picBarriers.cbegin(), picBarriers.cend(), &refPic->m_dmvrTaskCounter.done ) == picBarriers.cend() )
+    {
+      picBarriers.push_back( &refPic->m_dmvrTaskCounter.done );
+    }
+
+    if( numSubPic > 1 && refPic->m_subPicRefBufs.size() != numSubPic )
+    {
+      CHECK( !refPic->m_subPicRefBufs.empty(), "Wrong number of subpics already present in reference picture" );
+      CHECK( cs.sps->getUseWrapAround(), "Wraparound + subpics not implemented" );
+
+      createSubPicRefBufs( refPic );
     }
   }
 
@@ -423,7 +448,7 @@ void DecLibRecon::decompressPicture( Picture* pcPic )
     m_decodeThreadPool->processTasksOnMainThread();
   }
 
-  const bool isIntra = pcPic->slices[0]->isIntra();
+  const bool isIntra = std::all_of( pcPic->slices.begin(), pcPic->slices.end(), []( const Slice* pcSlice ) { return pcSlice->isIntra(); } );
 
   const int numColPerTask = std::max( std::min( widthInCtus, ( widthInCtus / std::max( m_numDecThreads * ( isIntra ? 2 : 1 ), 1 ) ) + ( isIntra ? 0 : 1 ) ), 1 );
   const int numTasksPerLine = widthInCtus / numColPerTask + !!( widthInCtus % numColPerTask );
@@ -647,12 +672,10 @@ bool DecLibRecon::ctuTask( int tid, CtuTaskParam* param )
       if( line > 0 && lineAbove[col] <= INTER )
         return false;
     }
-    else
+
+    if( std::any_of( cs.picture->refPicExtDepBarriers.cbegin(), cs.picture->refPicExtDepBarriers.cend(), []( const Barrier* b ) { return b->isBlocked(); } ) )
     {
-      if( std::any_of( cs.picture->refPicExtDepBarriers.cbegin(), cs.picture->refPicExtDepBarriers.cend(), []( const Barrier* b ) { return b->isBlocked(); } ) )
-      {
-        return false;
-      }
+      return false;
     }
 
     if( onlyCheckReadyState )
