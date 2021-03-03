@@ -166,6 +166,24 @@ void NoMallocThreadPool::waitForThreads()
   }
 }
 
+#if THREAD_POOL_HANDLE_EXCEPTIONS
+void NoMallocThreadPool::checkAndThrowThreadPoolException()
+{
+  if( !m_exceptionFlag.load() )
+  {
+    return;
+  }
+
+  msg( WARNING, "ThreadPool is in exception state." );
+
+  std::exception_ptr tmp;
+  m_threadPoolException.swap( tmp );
+  m_exceptionFlag.store( false );
+
+  std::rethrow_exception( tmp );
+}
+#endif   // THREAD_POOL_HANDLE_EXCEPTIONS
+
 void NoMallocThreadPool::threadProc( int threadId )
 {
 #if __linux
@@ -231,6 +249,18 @@ void NoMallocThreadPool::threadProc( int threadId )
     catch( TaskException& e )
     {
       handleTaskException( e.m_originalException, e.m_task.done, e.m_task.counter, &e.m_task.state );
+    }
+    catch( std::exception& e )
+    {
+      msg( ERROR, "ERROR: Caught unexpected exception from within the thread pool: %s", e.what() );
+
+      if( m_exceptionFlag.exchange( true ) )
+      {
+        msg( ERROR, "ERROR: Another exception has already happend in the thread pool, but we can only store one." );
+        return;
+      }
+      m_threadPoolException = std::current_exception();
+      return;
     }
 #endif   // THREAD_POOL_HANDLE_EXCEPTIONS
   }

@@ -284,7 +284,7 @@ struct WaitCounter
     m_done.clearException();
   }
 
-  bool             hasException() const { return m_done.hasException(); }
+  bool                     hasException() const { return m_done.hasException(); }
   const std::exception_ptr getException() const { return m_done.getException(); }
 #endif   // THREAD_POOL_HANDLE_EXCEPTIONS
 
@@ -415,6 +415,12 @@ public:
         return true;
       }
     }
+#if THREAD_POOL_HANDLE_EXCEPTIONS
+    else
+    {
+      checkAndThrowThreadPoolException();
+    }
+#endif
 
     while( true )
     {
@@ -467,6 +473,9 @@ public:
   }
 
   bool processTasksOnMainThread();
+#if THREAD_POOL_HANDLE_EXCEPTIONS
+  void checkAndThrowThreadPoolException();
+#endif
 
   void shutdown( bool block );
   void waitForThreads();
@@ -490,6 +499,11 @@ private:
 #endif
   std::mutex               m_idleMutex;
   std::atomic_uint         m_waitingThreads{ 0 };
+
+#if THREAD_POOL_HANDLE_EXCEPTIONS
+  std::atomic_bool         m_exceptionFlag{ false };
+  std::exception_ptr       m_threadPoolException;
+#endif
 
   // internal functions
   void         threadProc     ( int threadId );
