@@ -129,7 +129,7 @@ DecLibRecon::DecLibRecon()
 
 }
 
-void DecLibRecon::create( NoMallocThreadPool* threadPool, unsigned instanceId )
+void DecLibRecon::create( ThreadPool* threadPool, unsigned instanceId )
 {
   // run constructor again to ensure all variables, especially in DecLibParser have been reset
   this->~DecLibRecon();

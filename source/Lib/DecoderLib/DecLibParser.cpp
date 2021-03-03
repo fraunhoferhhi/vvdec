@@ -51,7 +51,7 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #include "CommonLib/dtrace_next.h"
 #include "CommonLib/dtrace_buffer.h"
 
-#include "Utilities/NoMallocThreadPool.h"
+#include "Utilities/ThreadPool.h"
 
 #include <unordered_map>
 
@@ -77,7 +77,7 @@ DecLibParser::~DecLibParser()
   destroy();
 }
 
-void DecLibParser::create( NoMallocThreadPool* tp, int parserFrameDelay, int numReconInst, int numDecThreads )
+void DecLibParser::create( ThreadPool* tp, int parserFrameDelay, int numReconInst, int numDecThreads )
 {
   m_threadPool        = tp;
   m_parseFrameDelay   = parserFrameDelay;

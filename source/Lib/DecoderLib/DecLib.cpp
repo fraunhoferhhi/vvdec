@@ -124,7 +124,7 @@ void DecLib::create(int numDecThreads, int parserFrameDelay)
     numDecThreads = std::thread::hardware_concurrency();
   }
 
-  m_decodeThreadPool.reset( new NoMallocThreadPool( numDecThreads, "DecThread" ) );
+  m_decodeThreadPool.reset( new ThreadPool( numDecThreads, "DecThread" ) );
 
   if( parserFrameDelay < 0 )
   {

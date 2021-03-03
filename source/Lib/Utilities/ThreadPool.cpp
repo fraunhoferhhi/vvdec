@@ -44,7 +44,7 @@ THE POSSIBILITY OF SUCH DAMAGE.
 
 ------------------------------------------------------------------------------------------- */
 
-#include "NoMallocThreadPool.h"
+#include "ThreadPool.h"
 
 #include <chrono>
 
@@ -65,14 +65,14 @@ const static auto BUSY_WAIT_TIME = [] {
 }();
 
 #if THREAD_POOL_HANDLE_EXCEPTIONS
-struct NoMallocThreadPool::TaskException : public std::exception
+struct ThreadPool::TaskException : public std::exception
 {
-  explicit TaskException( std::exception_ptr e, NoMallocThreadPool::Slot& task )
+  explicit TaskException( std::exception_ptr e, ThreadPool::Slot& task )
     : m_originalException( e )
     , m_task( task )
   {}
   std::exception_ptr        m_originalException;
-  NoMallocThreadPool::Slot& m_task;
+  ThreadPool::Slot& m_task;
 };
 #endif   // THREAD_POOL_HANDLE_EXCEPTIONS
 
@@ -92,25 +92,25 @@ public:
 // Thread Pool
 // ---------------------------------------------------------------------------
 
-NoMallocThreadPool::NoMallocThreadPool( int numThreads, const char* threadPoolName )
+ThreadPool::ThreadPool( int numThreads, const char* threadPoolName )
   : m_poolName( threadPoolName )
   , m_threads ( numThreads < 0 ? std::thread::hardware_concurrency() : numThreads )
 {
   int tid = 0;
   for( auto& t: m_threads )
   {
-    t = std::thread( &NoMallocThreadPool::threadProc, this, tid++ );
+    t = std::thread( &ThreadPool::threadProc, this, tid++ );
   }
 }
 
-NoMallocThreadPool::~NoMallocThreadPool()
+ThreadPool::~ThreadPool()
 {
   m_exitThreads = true;
 
   waitForThreads();
 }
 
-bool NoMallocThreadPool::processTasksOnMainThread()
+bool ThreadPool::processTasksOnMainThread()
 {
   CHECK( m_threads.size() != 0, "should not be used with multiple threads" );
 
@@ -148,7 +148,7 @@ bool NoMallocThreadPool::processTasksOnMainThread()
   return std::all_of( m_tasks.begin(), m_tasks.end(), []( Slot& t ) { return t.state == FREE; } );
 }
 
-void NoMallocThreadPool::shutdown( bool block )
+void ThreadPool::shutdown( bool block )
 {
   m_exitThreads = true;
   if( block )
@@ -157,7 +157,7 @@ void NoMallocThreadPool::shutdown( bool block )
   }
 }
 
-void NoMallocThreadPool::waitForThreads()
+void ThreadPool::waitForThreads()
 {
   for( auto& t: m_threads )
   {
@@ -167,7 +167,7 @@ void NoMallocThreadPool::waitForThreads()
 }
 
 #if THREAD_POOL_HANDLE_EXCEPTIONS
-void NoMallocThreadPool::checkAndThrowThreadPoolException()
+void ThreadPool::checkAndThrowThreadPoolException()
 {
   if( !m_exceptionFlag.load() )
   {
@@ -184,7 +184,7 @@ void NoMallocThreadPool::checkAndThrowThreadPoolException()
 }
 #endif   // THREAD_POOL_HANDLE_EXCEPTIONS
 
-void NoMallocThreadPool::threadProc( int threadId )
+void ThreadPool::threadProc( int threadId )
 {
 #if __linux
   if( !m_poolName.empty() )
@@ -266,7 +266,7 @@ void NoMallocThreadPool::threadProc( int threadId )
   }
 }
 
-bool NoMallocThreadPool::checkTaskReady( int threadId, CBarrierVec& barriers, NoMallocThreadPool::TaskFunc readyCheck, void* taskParam )
+bool ThreadPool::checkTaskReady( int threadId, CBarrierVec& barriers, ThreadPool::TaskFunc readyCheck, void* taskParam )
 {
   if( !barriers.empty() )
   {
@@ -294,7 +294,7 @@ bool NoMallocThreadPool::checkTaskReady( int threadId, CBarrierVec& barriers, No
   return true;
 }
 
-NoMallocThreadPool::TaskIterator NoMallocThreadPool::findNextTask( int threadId, TaskIterator startSearch )
+ThreadPool::TaskIterator ThreadPool::findNextTask( int threadId, TaskIterator startSearch )
 {
   if( !startSearch.isValid() )
   {
@@ -331,7 +331,7 @@ NoMallocThreadPool::TaskIterator NoMallocThreadPool::findNextTask( int threadId,
   return {};
 }
 
-bool NoMallocThreadPool::processTask( int threadId, NoMallocThreadPool::Slot& task )
+bool ThreadPool::processTask( int threadId, ThreadPool::Slot& task )
 {
 #if THREAD_POOL_HANDLE_EXCEPTIONS
   try
@@ -365,7 +365,7 @@ bool NoMallocThreadPool::processTask( int threadId, NoMallocThreadPool::Slot& ta
   return true;
 }
 
-bool NoMallocThreadPool::bypassTaskQueue( TaskFunc func, void* param, WaitCounter* counter, Barrier* done, CBarrierVec& barriers, TaskFunc readyCheck )
+bool ThreadPool::bypassTaskQueue( TaskFunc func, void* param, WaitCounter* counter, Barrier* done, CBarrierVec& barriers, TaskFunc readyCheck )
 {
   CHECKD( numThreads() > 0, "the task queue should only be bypassed, when running single-threaded." );
 #if THREAD_POOL_HANDLE_EXCEPTIONS
@@ -411,7 +411,7 @@ bool NoMallocThreadPool::bypassTaskQueue( TaskFunc func, void* param, WaitCounte
 }
 
 #if THREAD_POOL_HANDLE_EXCEPTIONS
-void NoMallocThreadPool::handleTaskException( const std::exception_ptr e, Barrier* done, WaitCounter* counter, std::atomic<TaskState>* slot_state )
+void ThreadPool::handleTaskException( const std::exception_ptr e, Barrier* done, WaitCounter* counter, std::atomic<TaskState>* slot_state )
 {
   if( done != nullptr )
   {
@@ -433,7 +433,7 @@ void NoMallocThreadPool::handleTaskException( const std::exception_ptr e, Barrie
 // Chunked Task Queue
 // ---------------------------------------------------------------------------
 
-NoMallocThreadPool::ChunkedTaskQueue::~ChunkedTaskQueue()
+ThreadPool::ChunkedTaskQueue::~ChunkedTaskQueue()
 {
   Chunk* next = m_firstChunk.m_next;
   while( next )
@@ -444,7 +444,7 @@ NoMallocThreadPool::ChunkedTaskQueue::~ChunkedTaskQueue()
   }
 }
 
-NoMallocThreadPool::ChunkedTaskQueue::Iterator NoMallocThreadPool::ChunkedTaskQueue::grow()
+ThreadPool::ChunkedTaskQueue::Iterator ThreadPool::ChunkedTaskQueue::grow()
 {
   std::unique_lock<std::mutex> l( m_resizeMutex );   // prevent concurrent growth of the queue. Read access while growing is no problem
 
@@ -454,7 +454,7 @@ NoMallocThreadPool::ChunkedTaskQueue::Iterator NoMallocThreadPool::ChunkedTaskQu
   return Iterator{ &m_lastChunk->m_slots.front(), m_lastChunk };
 }
 
-NoMallocThreadPool::ChunkedTaskQueue::Iterator& NoMallocThreadPool::ChunkedTaskQueue::Iterator::operator++()
+ThreadPool::ChunkedTaskQueue::Iterator& ThreadPool::ChunkedTaskQueue::Iterator::operator++()
 {
   CHECKD( m_slot == nullptr, "incrementing invalid iterator" );
   CHECKD( m_chunk == nullptr, "incrementing invalid iterator" );
@@ -478,7 +478,7 @@ NoMallocThreadPool::ChunkedTaskQueue::Iterator& NoMallocThreadPool::ChunkedTaskQ
   return *this;
 }
 
-NoMallocThreadPool::ChunkedTaskQueue::Iterator& NoMallocThreadPool::ChunkedTaskQueue::Iterator::incWrap()
+ThreadPool::ChunkedTaskQueue::Iterator& ThreadPool::ChunkedTaskQueue::Iterator::incWrap()
 {
   CHECKD( m_slot == nullptr, "incrementing invalid iterator" );
   CHECKD( m_chunk == nullptr, "incrementing invalid iterator" );

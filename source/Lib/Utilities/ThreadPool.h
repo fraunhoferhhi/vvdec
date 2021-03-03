@@ -314,7 +314,7 @@ private:
 
 using CBarrierVec = std::vector<const Barrier*>;
 
-class NoMallocThreadPool
+class ThreadPool
 {
   typedef enum
   {
@@ -396,8 +396,8 @@ class NoMallocThreadPool
 
 
 public:
-  NoMallocThreadPool( int numThreads = 1, const char *threadPoolName = nullptr );
-  ~NoMallocThreadPool();
+  ThreadPool( int numThreads = 1, const char *threadPoolName = nullptr );
+  ~ThreadPool();
 
   template<class TParam>
   bool addBarrierTask( bool       ( *func )( int, TParam* ),
