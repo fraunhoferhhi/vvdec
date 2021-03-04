@@ -68,7 +68,6 @@ class Reshape
 {
 protected:
   SliceReshapeInfo        m_sliceReshapeInfo;
-  bool                    m_CTUFlag;
   Pel*                    m_invLUT;
   Pel*                    m_fwdLUT;
   std::vector<int>        m_chromaAdjHelpLUT;
@@ -90,14 +89,14 @@ public:
   void createDec(int bitDepth);
   void destroy();
 
-  void initSlice( Slice* pcSlice );
+  void initSlice( int nalUnitLayerId, const PicHeader& picHeader, const VPS& vps );
   void rspLine( CodingStructure &cs, int ln, const int offset ) const;
   void rspCtu ( CodingStructure &cs, int col, int ln, const int offset ) const;
 
   const Pel* getFwdLUT() const { return m_fwdLUT; }
   const Pel* getInvLUT() const { return m_invLUT; }
 
-  bool getCTUFlag()              { return m_CTUFlag; }
+  bool getCTUFlag( const Slice& slice ) const;
 
   int  calculateChromaAdj(Pel avgLuma) const;
   int  getPWLIdxInv(int lumaVal) const;

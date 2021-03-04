@@ -130,7 +130,6 @@ public:
   uint64_t getNaluBits()                      const { return bits; }
   bool     getRap()                           const { return rap; }
 
-  void   setBorderExtension( bool bFlag )           { borderExtStarted = bFlag;}
   Pel*   getOrigin( const PictureType &type, const ComponentID compID ) const;
   PelBuf getOriginBuf( const PictureType &type, const ComponentID compID );
 
@@ -155,7 +154,8 @@ public:
 
   std::chrono::time_point<std::chrono::steady_clock> m_processingStartTime;
   double                                             m_dProcessingTime = 0;
-
+  
+  bool subPicExtStarted               = false;
   bool borderExtStarted               = false;
 #if JVET_Q0764_WRAP_AROUND_WITH_RPR
   bool wrapAroundValid                = false;

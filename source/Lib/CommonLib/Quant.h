@@ -126,7 +126,7 @@ public:
   virtual ~Quant();
 
   // initialize class
-  virtual void init( Slice *slice );
+  virtual void init( const Picture *pic );
 public:
   // de-quantization
   virtual void dequant           ( const TransformUnit &tu, CoeffBuf &dstCoeff, const ComponentID &compID, const QpParam &cQP );
