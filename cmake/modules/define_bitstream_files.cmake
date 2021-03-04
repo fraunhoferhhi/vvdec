@@ -100,6 +100,8 @@ list( APPEND BITSTREAM_FILES
   "FIELD_B_Panasonic_1.zip"
   "FILLER_A_Bytedance_1.zip"
   "GDR_A_ERICSSON_2.zip"
+  "GDR_A_NOKIA_2.zip"
+  "GDR_B_NOKIA_2.zip"
   "GDR_C_NOKIA_1.zip"
   "GPM_A_Alibaba_3.zip"
   "GPM_B_Alibaba_1.zip"
@@ -238,8 +240,6 @@ list( APPEND BITSTREAM_FILES
 
 # put bitstreams from the conformance set that should be decodable but aren't
 list( APPEND BITSTREAM_FAULTY_FILES
-  "GDR_A_NOKIA_2.zip"
-  "GDR_B_NOKIA_2.zip"
 )
 
 # put bitstreams from the conformance set that are not supported (wrong profile/level etc)
