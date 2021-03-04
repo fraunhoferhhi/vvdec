@@ -103,6 +103,7 @@ public:
   Picture*       findClosestPic( int iLostPoc );
   Picture*       getNextOutputPic( uint32_t numReorderPicsHighestTid, uint32_t maxDecPicBufferingHighestTid, bool bFlush );
   void           releasePicture( Picture* pic );
+  void           markNotNeededForOutput();
 };
 
 #endif   // PICLISTMANAGER_H

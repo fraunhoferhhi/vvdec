@@ -74,6 +74,11 @@ private:
   int         m_decodingOrderCounter = 0;
   uint32_t    m_prevLayerID       = MAX_INT;
 
+  bool        m_prevPicSkipped                = true;
+  bool        m_gdrRecoveryPeriod             = false;
+  int         m_prevGDRInSameLayerPOC         = 0;    ///< POC number of the latest GDR picture
+  int         m_prevGDRInSameLayerRecoveryPOC = 0;    ///< Recovery POC number of the latest GDR picture
+  
   int m_prevPOC                   = MAX_INT;
   int m_prevTid0POC               = 0;
 
@@ -181,15 +186,20 @@ public:
 
   ParameterSetManager getParameterSetManager()          { return m_parameterSetManager; }
   
+  bool getPrevPicSkipped()                              { return m_prevPicSkipped; }
+  void setPrevPicSkipped( bool val )                    { m_prevPicSkipped = val; }
+  bool getGdrRecoveryPeriod()                           { return m_gdrRecoveryPeriod; }
+  void setGdrRecoveryPeriod( bool val )                 { m_gdrRecoveryPeriod = val; }
+  
 private:
   enum SliceHeadResult { SkipPicture, NewPicture, ContinueParsing };
   SliceHeadResult xDecodeSliceHead( InputNALUnit& nalu, int* pSkipFrame );
   Slice*          xDecodeSliceMain( InputNALUnit& nalu );
 
   Picture*        xActivateParameterSets   ( const int layerId );
-  Picture*        prepareLostPicture       ( int iLostPOC, const int layerId );
+  void            prepareLostPicture       ( int iLostPOC, const int layerId );
 #if JVET_S0124_UNAVAILABLE_REFERENCE
-  Picture*        prepareUnavailablePicture( const PPS *pps, int iUnavailablePoc, const int layerId, const bool longTermFlag, const int temporalId );
+  void            prepareUnavailablePicture( const PPS *pps, int iUnavailablePoc, const int layerId, const bool longTermFlag, const int temporalId );
 #else
   Picture*        prepareUnavailablePicture( int iUnavailablePoc, const int layerId, const bool longTermFlag );
 #endif

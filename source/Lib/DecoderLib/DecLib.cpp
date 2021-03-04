@@ -201,11 +201,25 @@ Picture* DecLib::decode( InputNALUnit& nalu, int* pSkipFrame )
 #endif
   }
 
+  if( m_decLibParser.getPrevPicSkipped() && nalu.m_nalUnitType == NAL_UNIT_CODED_SLICE_GDR )
+  {
+    m_decLibParser.setGdrRecoveryPeriod( true );
+  }
+  
   if( pcParsedPic )
   {
     this->decompressPicture( pcParsedPic );
   }
 
+  if( nalu.isSlice() )
+  {
+    m_decLibParser.setPrevPicSkipped( false );
+  }
+  if( m_decLibParser.getGdrRecoveryPeriod() )
+  {
+    m_picListManager.markNotNeededForOutput();
+  }
+  
   if( m_decLibParser.getParseNewPicture() &&
       ( pcParsedPic || nalu.isSlice() || nalu.m_nalUnitType == NAL_UNIT_EOS ) )
   {

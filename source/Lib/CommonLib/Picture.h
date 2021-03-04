@@ -122,7 +122,7 @@ public:
   void (*paddPicBorderTop) (Pel *pi, ptrdiff_t stride,int width,int xmargin,int ymargin);
   void (*paddPicBorderLeftRight) (Pel *pi, ptrdiff_t stride,int width,int xmargin,int height);
 
-  void finalInit( const SPS * sps, const PPS * pps, PicHeader *picHeader, APS* alfApss[ALF_CTB_MAX_NUM_APS], APS * lmcsAps, APS* scalingListAps );
+  void finalInit( const SPS * sps, const PPS * pps, PicHeader *picHeader, APS* alfApss[ALF_CTB_MAX_NUM_APS], APS * lmcsAps, APS* scalingListAps, bool phPSupdate = true );
   int      getPOC()                           const { return poc; }
   uint64_t getCts()                           const { return cts; }
   uint64_t getDts()                           const { return dts; }

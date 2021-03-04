@@ -179,7 +179,7 @@ const CPelUnitBuf Picture::getRecoBuf(const UnitArea &unit, bool wrap)     const
        PelUnitBuf Picture::getRecoBuf( bool wrap )                               { return wrap ? m_bufs[PIC_RECON_WRAP] : m_bufs[PIC_RECONSTRUCTION]; }
 const CPelUnitBuf Picture::getRecoBuf( bool wrap )                         const { return wrap ? m_bufs[PIC_RECON_WRAP] : m_bufs[PIC_RECONSTRUCTION]; }
 
-void Picture::finalInit( const SPS *sps, const PPS *pps, PicHeader* picHeader, APS* alfApss[ALF_CTB_MAX_NUM_APS], APS* lmcsAps, APS* scalingListAps )
+void Picture::finalInit( const SPS *sps, const PPS *pps, PicHeader* picHeader, APS* alfApss[ALF_CTB_MAX_NUM_APS], APS* lmcsAps, APS* scalingListAps, bool phPSupdate )
 {
   SEI_internal::deleteSEIs( seiMessageList );
   clearSliceBuffer();
@@ -206,11 +206,14 @@ void Picture::finalInit( const SPS *sps, const PPS *pps, PicHeader* picHeader, A
   cs->pps     = pps ? pps->getSharedPtr() : nullptr;
   cs->sps     = sps ? sps->getSharedPtr() : nullptr;
 
-  picHeader->setSPSId         ( sps->getSPSId() );
-  picHeader->setPPSId         ( pps->getPPSId() );
-  picHeader->setLmcsAPS       ( lmcsAps        ? lmcsAps       ->getSharedPtr() : nullptr );
-  picHeader->setScalingListAPS( scalingListAps ? scalingListAps->getSharedPtr() : nullptr );
-
+  if( phPSupdate )
+  {
+    picHeader->setSPSId         ( sps->getSPSId() );
+    picHeader->setPPSId         ( pps->getPPSId() );
+    picHeader->setLmcsAPS       ( lmcsAps        ? lmcsAps       ->getSharedPtr() : nullptr );
+    picHeader->setScalingListAPS( scalingListAps ? scalingListAps->getSharedPtr() : nullptr );
+  }
+  
   for( int i = 0; i < ALF_CTB_MAX_NUM_APS; ++i )
   {
     cs->alfApss[i] = alfApss[i] ? alfApss[i]->getSharedPtr() : nullptr;

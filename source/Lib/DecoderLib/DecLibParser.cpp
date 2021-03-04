@@ -429,6 +429,11 @@ DecLibParser::SliceHeadResult DecLibParser::xDecodeSliceHead( InputNALUnit& nalu
     m_HLSReader.parseSliceHeader( m_apcSlicePilot, m_picHeader.get(), &m_parameterSetManager, m_prevTid0POC, m_pcParsePic, m_bFirstSliceInPicture );
   }
 
+  if( m_picHeader->getGdrPicFlag() )
+  {
+    m_prevGDRInSameLayerRecoveryPOC = m_picHeader->getRecoveryPocCnt();
+  }
+  
   PPS *pps = m_parameterSetManager.getPPS( m_apcSlicePilot->getPicHeader()->getPPSId() );
   CHECK( pps == 0, "No PPS present" );
   SPS *sps = m_parameterSetManager.getSPS( pps->getSPSId() );
@@ -613,6 +618,11 @@ DecLibParser::SliceHeadResult DecLibParser::xDecodeSliceHead( InputNALUnit& nalu
 
   m_prevLayerID = nalu.m_nuhLayerId;
 
+  if( !pps->pcv )
+  {
+    pps->pcv = std::make_unique<PreCalcValues>( *sps, *pps );
+  }
+  
   //detect lost reference picture and insert copy of earlier frame.
   for( const auto rplIdx: { REF_PIC_LIST_0, REF_PIC_LIST_1 } )
   {
@@ -635,7 +645,7 @@ DecLibParser::SliceHeadResult DecLibParser::xDecodeSliceHead( InputNALUnit& nalu
           if( rpl->isInterLayerRefPic( lostRefPicIndex ) == 0 )
           {
 #if JVET_S0124_UNAVAILABLE_REFERENCE
-            m_parseFrameList.push_back( prepareUnavailablePicture( pps, lostPoc - 1, m_apcSlicePilot->getPic()->layerId, rpl->isRefPicLongterm( lostRefPicIndex ), m_apcSlicePilot->getPic()->layer ) ); // -1 because checkThatAllRefPicsAreAvailable() returns iPocLost+1
+            prepareUnavailablePicture( pps, lostPoc, m_apcSlicePilot->getNalUnitLayerId(), rpl->isRefPicLongterm( lostRefPicIndex ), m_apcSlicePilot->getTLayer() ); // -1 because checkThatAllRefPicsAreAvailable() returns iPocLost+1
 #else
             m_parseFrameList.push_back( prepareUnavailablePicture( lostPoc - 1, m_apcSlicePilot->getPic()->layerId, rpl->isRefPicLongterm(refPicIndex) ) ); // -1 because checkThatAllRefPicsAreAvailable() returns iPocLost+1
 #endif
@@ -643,13 +653,29 @@ DecLibParser::SliceHeadResult DecLibParser::xDecodeSliceHead( InputNALUnit& nalu
         }
         else
         {
+#if JVET_S0124_UNAVAILABLE_REFERENCE
+          prepareLostPicture( lostPoc - 1, m_apcSlicePilot->getTLayer() );  // -1 because checkThatAllRefPicsAreAvailable() returns iPocLost+1
+#else
           m_parseFrameList.push_back( prepareLostPicture( lostPoc - 1, m_apcSlicePilot->getPic()->layerId ) );  // -1 because checkThatAllRefPicsAreAvailable() returns iPocLost+1
+#endif
         }
       }
     }
   }
 
   Slice* slice = xDecodeSliceMain( nalu );
+
+  if( slice->getNalUnitType() == NAL_UNIT_CODED_SLICE_GDR && !slice->getPic()->cs->pps->getMixedNaluTypesInPicFlag() )
+  {
+    m_prevGDRInSameLayerPOC = m_pcParsePic->getPOC();
+  }
+  if( m_gdrRecoveryPeriod )
+  {
+    if( slice->getPic()->getPOC() >= m_prevGDRInSameLayerPOC + m_prevGDRInSameLayerRecoveryPOC )
+    {
+      m_gdrRecoveryPeriod = false;
+    }
+  }
 
   if( slice->getFirstCtuRsAddrInSlice() == 0 && !m_bFirstSliceInPicture )
   {
@@ -1334,7 +1360,7 @@ Picture * DecLibParser::xActivateParameterSets( const int layerId )
   return pcPic;
 }
 
-Picture* DecLibParser::prepareLostPicture( int iLostPoc, const int layerId )
+void DecLibParser::prepareLostPicture( int iLostPoc, const int layerId )
 {
   msg( INFO, "inserting lost poc : %d\n", iLostPoc );
 
@@ -1343,8 +1369,9 @@ Picture* DecLibParser::prepareLostPicture( int iLostPoc, const int layerId )
 #else
   Picture* cFillPic = m_picListManager.getNewPicBuffer( *m_parameterSetManager.getFirstSPS(), *m_parameterSetManager.getFirstPPS(), 0, layerId );
 #endif
-  cFillPic->finalInit( m_parameterSetManager.getFirstSPS(), m_parameterSetManager.getFirstPPS(), m_picHeader.get(), m_parameterSetManager.getAlfAPSs().data(), nullptr, nullptr ); //TODO: check this
-
+  cFillPic->finalInit( m_parameterSetManager.getFirstSPS(), m_parameterSetManager.getFirstPPS(), m_picHeader.get(), m_parameterSetManager.getAlfAPSs().data(), nullptr, nullptr, false ); //TODO: check this
+  cFillPic->cs->initStructData();
+  
   int         iTLayer  = m_apcSlicePilot->getTLayer();   // TLayer needs to be <= TLayer of referencing frame
   bool        isIRAP   = false;
   NalUnitType naluType = NAL_UNIT_CODED_SLICE_TRAIL;
@@ -1385,8 +1412,10 @@ Picture* DecLibParser::prepareLostPicture( int iLostPoc, const int layerId )
   cFillPic->slices[0]->setPOC( iLostPoc );
   cFillPic->slices[0]->setTLayer( iTLayer );
   cFillPic->slices[0]->setNalUnitType( naluType );
-  xUpdatePreviousTid0POC( cFillPic->slices[0] );
-
+  if( (cFillPic->slices[0]->getTLayer() == 0) && (cFillPic->slices[0]->getNalUnitType() != NAL_UNIT_CODED_SLICE_RASL) && (cFillPic->slices[0]->getNalUnitType() != NAL_UNIT_CODED_SLICE_RADL) )
+  {
+    m_prevTid0POC = cFillPic->slices[0]->getPOC();
+  }
   cFillPic->layer           = iTLayer;
   cFillPic->referenced      = true;
   cFillPic->neededForOutput = false;
@@ -1403,11 +1432,10 @@ Picture* DecLibParser::prepareLostPicture( int iLostPoc, const int layerId )
     m_pocRandomAccess = iLostPoc;
     m_associatedIRAPDecodingOrderNumber = cFillPic->getDecodingOrderNumber();
   }
-  return cFillPic;
 }
 
 #if JVET_S0124_UNAVAILABLE_REFERENCE
-Picture* DecLibParser::prepareUnavailablePicture( const PPS *pps, int iUnavailablePoc, const int layerId, const bool longTermFlag, const int temporalId )
+void DecLibParser::prepareUnavailablePicture( const PPS *pps, int iUnavailablePoc, const int layerId, const bool longTermFlag, const int temporalId )
 #else
 Picture* DecLibParser::prepareUnavailablePicture( int iUnavailablePoc, const int layerId, const bool longTermFlag )
 #endif
@@ -1418,8 +1446,11 @@ Picture* DecLibParser::prepareUnavailablePicture( int iUnavailablePoc, const int
 #else
   Picture* cFillPic = m_picListManager.getNewPicBuffer( *m_parameterSetManager.getFirstSPS(), *m_parameterSetManager.getFirstPPS(), 0, layerId );
 #endif
-  cFillPic->finalInit( m_parameterSetManager.getFirstSPS(), m_parameterSetManager.getFirstPPS(), m_picHeader.get(), m_parameterSetManager.getAlfAPSs().data(), nullptr, nullptr ); //TODO: check this
+  APS* nullAlfApss[ALF_CTB_MAX_NUM_APS] = { nullptr, };
+  cFillPic->finalInit( m_parameterSetManager.getFirstSPS(), m_parameterSetManager.getFirstPPS(), m_picHeader.get(), nullAlfApss, nullptr, nullptr, false ); //TODO: check this
+  cFillPic->cs->initStructData();
 
+  cFillPic->allocateNewSlice();
   cFillPic->slices[0]->initSlice();
 
   uint32_t yFill = 1 << (m_parameterSetManager.getFirstSPS()->getBitDepth(CHANNEL_TYPE_LUMA) - 1);
@@ -1432,7 +1463,12 @@ Picture* DecLibParser::prepareUnavailablePicture( int iUnavailablePoc, const int
 //  cFillPic->interLayerRefPicFlag = false; //always false and never gets checked
   cFillPic->longTerm = longTermFlag;
   cFillPic->slices[0]->setPOC(iUnavailablePoc);
-  xUpdatePreviousTid0POC(cFillPic->slices[0]);
+//  cFillPic->wasLost = true;
+  cFillPic->poc = iUnavailablePoc;
+  if( (cFillPic->slices[0]->getTLayer() == 0) && (cFillPic->slices[0]->getNalUnitType() != NAL_UNIT_CODED_SLICE_RASL) && (cFillPic->slices[0]->getNalUnitType() != NAL_UNIT_CODED_SLICE_RADL) )
+  {
+    m_prevTid0POC = cFillPic->slices[0]->getPOC();
+  }
   cFillPic->reconstructed = true;
   cFillPic->neededForOutput = false;
 #if JVET_S0124_UNAVAILABLE_REFERENCE
@@ -1442,8 +1478,8 @@ Picture* DecLibParser::prepareUnavailablePicture( int iUnavailablePoc, const int
   cFillPic->nonReferencePictureFlag = false;
   cFillPic->slices[0]->setPPS( pps );
 #endif
-
-  return cFillPic;
+  cFillPic->parseDone.unlock();
+  cFillPic->done.unlock();
 }
 
 void DecLibParser::xParsePrefixSEImessages()
@@ -1588,7 +1624,7 @@ bool DecLibParser::isRandomAccessSkipPicture()
   if (m_pocRandomAccess == MAX_INT) // start of random access point, m_pocRandomAccess has not been set yet.
   {
 #if GDR_ADJ
-    if (m_apcSlicePilot->getNalUnitType() == NAL_UNIT_CODED_SLICE_CRA || ( m_apcSlicePilot->getNalUnitType() == NAL_UNIT_CODED_SLICE_GDR && m_apcSlicePilot->getPicHeader()->getRecoveryPocCnt() == 0 ) )
+    if (m_apcSlicePilot->getNalUnitType() == NAL_UNIT_CODED_SLICE_CRA || m_apcSlicePilot->getNalUnitType() == NAL_UNIT_CODED_SLICE_GDR )
 #else
     if (m_apcSlicePilot->getNalUnitType() == NAL_UNIT_CODED_SLICE_CRA )
 #endif

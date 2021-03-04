@@ -511,7 +511,7 @@ void DecLibRecon::decompressPicture( Picture* pcPic )
 
       picture->reconstructed = true;
       picture->inProgress    = false;
-      picture->neededForOutput = picture->slices[0]->getPicHeader()->getPicOutputFlag();
+//      picture->neededForOutput = picture->slices[0]->getPicHeader()->getPicOutputFlag();
 #ifdef TRACE_ENABLE_ITT
       // mark end of frame
       __itt_frame_end_v3( picture->m_itt_decLibInst, nullptr );
