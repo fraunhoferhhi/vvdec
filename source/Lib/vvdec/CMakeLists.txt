@@ -15,6 +15,11 @@ file( GLOB BASE_SRC_FILES "*.cpp"  "../CommonLib/*.cpp"  "../Utilities/*.cpp" ".
 # get include files
 file( GLOB BASE_INC_FILES "*.h" "../CommonLib/*.h"  "../Utilities/*.h" "../DecoderLib/*.h" )
 
+
+if( NOT DEFINED VVDEC_ENABLE_X86_SIMD )
+  message( FATAL_ERROR "VVDEC_ENABLE_X86_SIMD is not defined. Please include TopLevel CmakeLists.txt file of vvdec to set all dependencies!" )
+endif()
+
 if( VVDEC_ENABLE_X86_SIMD )
   # get x86 source files
   file( GLOB X86_SRC_FILES "../CommonLib/x86/*.cpp" )
@@ -93,7 +98,7 @@ target_compile_definitions( ${LIB_NAME} PUBLIC $<$<AND:$<PLATFORM_ID:Windows>,$<
 
 target_compile_options( ${LIB_NAME} PRIVATE $<$<OR:$<CXX_COMPILER_ID:Clang>,$<CXX_COMPILER_ID:AppleClang>>:-Wall -Werror -Wno-unused-function -Wno-enum-compare-switch -Wno-unknown-attributes>
                                             $<$<CXX_COMPILER_ID:GNU>:-Wall -Werror -Wno-unused-function -Wno-sign-compare -fdiagnostics-show-option>
-                                            $<$<CXX_COMPILER_ID:MSVC>:/W4 /WX /wd4100 /wd4127 /wd4244 /wd4245 /wd4251 /wd4389 /wd4456 /wd4457 /wd4458 /wd4459 /wd4505 /wd4701 /wd4702 /wd4703 >)
+                                            $<$<CXX_COMPILER_ID:MSVC>:/W4 /WX /wd4100 /wd4127 /wd4244 /wd4245 /wd4389 /wd4456 /wd4457 /wd4458 /wd4459 /wd4505 /wd4701 /wd4702 /wd4703 >)
 
 target_include_directories( ${LIB_NAME} PRIVATE           $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../../include> $<BUILD_INTERFACE:${CMAKE_BINARY_DIR}>                                        
                                         SYSTEM INTERFACE  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../../include> $<BUILD_INTERFACE:${CMAKE_BINARY_DIR}> )

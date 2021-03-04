@@ -56,6 +56,10 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #include <iomanip>
 #include <limits>
 
+#include <functional>
+#include <mutex>
+
+
 #if defined( __INTEL_COMPILER )
 #pragma warning( disable : 1786 )
 #pragma warning( disable : 3175 )   // unrecognized gcc optimization level
@@ -427,16 +431,25 @@ template <typename T> constexpr inline T Clip3  ( const T minVal, const T maxVal
 template <typename T> constexpr inline T ClipBD ( const T x, const int bitDepth )            { return Clip3( T( 0 ), T( ( 1 << bitDepth ) - 1 ), x ); }
 template <typename T> constexpr inline T ClipPel( const T a, const ClpRng& clpRng )          { return ClipBD( a, clpRng.bd ); }  ///< clip reconstruction
 
+static void default_msgFnc( void *, int level, const char* fmt, va_list args )
+{
+  vfprintf(stderr, fmt, args);
+}
+
 extern MsgLevel g_verbosity;
+
+extern std::function<void( void*, int, const char*, va_list )> g_msgFnc;
 
 #include <stdarg.h>
 inline void msg( MsgLevel level, const char* fmt, ... )
 {
-  if( g_verbosity >= level )
+  if ( g_msgFnc && g_verbosity >= level )
   {
+    static std::mutex _msgMutex;
+    std::unique_lock<std::mutex> _lock( _msgMutex );
     va_list args;
     va_start( args, fmt );
-    vfprintf( level == ERROR ? stderr : stdout, fmt, args );
+    g_msgFnc( nullptr, level, fmt, args );
     va_end( args );
   }
 }

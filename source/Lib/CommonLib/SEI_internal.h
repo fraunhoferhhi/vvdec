@@ -44,74 +44,81 @@ THE POSSIBILITY OF SUCH DAMAGE.
 
 ------------------------------------------------------------------------------------------- */
 
- /** \file     Reshape.h
-     \brief    reshaping header and class (header)
- */
-
-#ifndef __RESHAPE__
-#define __RESHAPE__
-
-#if _MSC_VER > 1000
 #pragma once
-#endif // _MSC_VER > 1000
 
-#include "CommonDef.h"
-#include "Rom.h"
-#include "CommonLib/Picture.h"
-//! \ingroup CommonLib
-//! \{
-// ====================================================================================================================
-// Class definition
-// ====================================================================================================================
+#include <list>
+#include <vector>
+#include <cstdint>
+#include <cstring>
 
-class Reshape
+#include "vvdec/sei.h"
+
+typedef std::list<vvdecSEI*> seiMessages;
+
+class SEI_internal
 {
-protected:
-  SliceReshapeInfo        m_sliceReshapeInfo;
-  Pel*                    m_invLUT;
-  Pel*                    m_fwdLUT;
-  std::vector<int>        m_chromaAdjHelpLUT;
-  std::vector<uint16_t>   m_binCW;
-  uint16_t                m_initCW;
-  std::vector<Pel>        m_reshapePivot;
-  std::vector<Pel>        m_inputPivot;
-  std::vector<int32_t>    m_fwdScaleCoef;
-  std::vector<int32_t>    m_invScaleCoef;
-  int                     m_lumaBD;
-  int                     m_reshapeLUTSize;
-  int                     m_chromaScale;
-  int                     m_vpduX;
-  int                     m_vpduY;
 public:
-  Reshape();
-  ~Reshape();
 
-  void createDec(int bitDepth);
-  void destroy();
+  SEI_internal() {}
+  virtual ~SEI_internal() {}
 
-  void initSlice( int nalUnitLayerId, const PicHeader& picHeader, const VPS& vps );
-  void rspLine( CodingStructure &cs, int ln, const int offset ) const;
-  void rspCtu ( CodingStructure &cs, int col, int ln, const int offset ) const;
+  static const char *getSEIMessageString( vvdecSEIPayloadType payloadType);
 
-  const Pel* getFwdLUT() const { return m_fwdLUT; }
-  const Pel* getInvLUT() const { return m_invLUT; }
+  /// output a selection of SEI messages by payload type. Ownership stays in original message list.
+  static seiMessages getSeisByType(const seiMessages &seiList, vvdecSEIPayloadType seiType);
 
-  bool getCTUFlag( const Slice& slice ) const;
+  /// remove a selection of SEI messages by payload type from the original list and return them in a new list.
+  static seiMessages extractSeisByType(seiMessages &seiList, vvdecSEIPayloadType seiType);
 
-  int  calculateChromaAdj(Pel avgLuma) const;
-  int  getPWLIdxInv(int lumaVal) const;
-  SliceReshapeInfo& getSliceReshaperInfo() { return m_sliceReshapeInfo; }
-  void copySliceReshaperInfo(SliceReshapeInfo& tInfo, SliceReshapeInfo& sInfo);
+  /// delete list of SEI messages (freeing the referenced objects)
+  static void deleteSEIs (seiMessages &seiList);
 
-  void constructReshaper();
-  int  calculateChromaAdjVpduNei(TransformUnit &tu, const Position pos);
-  void setVPDULoc(int x, int y) { m_vpduX = x, m_vpduY = y; }
-  bool isVPDUprocessed(int x, int y) { return ((x == m_vpduX) && (y == m_vpduY)); }
-  void setChromaScale (int chromaScale) { m_chromaScale = chromaScale; }
-  int  getChromaScale() { return m_chromaScale; }
-};// END CLASS DEFINITION Reshape
+  static vvdecSEI* allocSEI ( vvdecSEIPayloadType payloadType );
+  static int allocSEIPayload( vvdecSEI* sei, int userDefSize = -1 );
+  static int getPayloadSize ( vvdecSEIPayloadType payloadType);
+};
 
-//! \}
-#endif // __RESHAPE__
 
+
+struct PictureHash
+{
+  std::vector<uint8_t> hash = {};
+
+  bool operator==(const PictureHash &other) const
+  {
+    if (other.hash.size() != hash.size())
+    {
+      return false;
+    }
+    for(uint32_t i=0; i<uint32_t(hash.size()); i++)
+    {
+      if (other.hash[i] != hash[i])
+      {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  bool operator!=(const PictureHash &other) const
+  {
+    return !(*this == other);
+  }
+
+  bool equal( vvdecSEIDecodedPictureHash digest ) const
+  {
+    if ((size_t)digest.digist_length != hash.size())
+    {
+      return false;
+    }
+    for(uint32_t i=0; i<uint32_t(hash.size()); i++)
+    {
+      if (digest.digest[i] != hash[i])
+      {
+        return false;
+      }
+    }
+    return true;
+  }
+};
 

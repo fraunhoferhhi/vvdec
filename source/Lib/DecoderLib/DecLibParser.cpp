@@ -191,7 +191,7 @@ Picture* DecLibParser::parse( InputNALUnit& nalu, int* pSkipFrame )
       m_pictureSeiNalus.emplace_back( nalu );
       const SPS *sps = m_parameterSetManager.getActiveSPS();
       const VPS *vps = m_parameterSetManager.getVPS( sps->getVPSId() );
-      m_seiReader.parseSEImessage( &( nalu.getBitstream() ), m_pcParsePic->SEIs, nalu.m_nalUnitType, nalu.m_nuhLayerId, nalu.m_temporalId, vps, sps, m_HRD, m_pDecodedSEIOutputStream );
+      m_seiReader.parseSEImessage( &( nalu.getBitstream() ), m_pcParsePic->seiMessageList, nalu.m_nalUnitType, nalu.m_nuhLayerId, nalu.m_temporalId, vps, sps, m_HRD, m_pDecodedSEIOutputStream );
 
       if( m_parseFrameDelay == 0 )  // else it has to be done in finishPicture()
       {
@@ -315,17 +315,20 @@ Picture* DecLibParser::getNextDecodablePicture()
 
     bool allRefPicsDone = true;
     const CodingStructure& cs = *pic->cs;
-    if( !cs.picture->slices[0]->isIntra() )
+    if( std::any_of( cs.picture->slices.begin(), cs.picture->slices.end(), []( const Slice* pcSlice ) { return !pcSlice->isIntra(); } ) )
     {
       for( int iDir = REF_PIC_LIST_0; iDir < NUM_REF_PIC_LIST_01 && allRefPicsDone; ++iDir )
       {
-        for( int iRefIdx = 0; iRefIdx < cs.picture->slices[0]->getNumRefIdx( (RefPicList)iDir ) && allRefPicsDone; iRefIdx++ )
+        for( const Slice* slice : cs.picture->slices )
         {
-          const Picture* refPic = cs.picture->slices[0]->getRefPic( (RefPicList)iDir, iRefIdx );
-          if( refPic->done.isBlocked() )
+          for( int iRefIdx = 0; iRefIdx < slice->getNumRefIdx( ( RefPicList ) iDir ) && allRefPicsDone; iRefIdx++ )
           {
-            allRefPicsDone = false;
-            break;
+            const Picture* refPic = slice->getRefPic( ( RefPicList ) iDir, iRefIdx );
+            if( refPic->done.isBlocked() )
+            {
+              allRefPicsDone = false;
+              break;
+            }
           }
         }
       }
@@ -690,7 +693,10 @@ DecLibParser::SliceHeadResult DecLibParser::xDecodeSliceHead( InputNALUnit& nalu
   m_prevPOC = slice->getPOC();
 
   auto ret = ContinueParsing;
-  if( m_bFirstSliceInPicture )
+
+  const unsigned lastCtuInSlice = slice->getCtuAddrInSlice( slice->getNumCtuInSlice() - 1 );
+
+  if( lastCtuInSlice == slice->getPPS()->pcv->sizeInCtus - 1 )
   {
     ret = NewPicture;
     xUpdateRasInit( slice );
@@ -1109,11 +1115,25 @@ Picture * DecLibParser::xActivateParameterSets( const int layerId )
     pcPic->finalInit( sps, pps, m_picHeader.get(), alfApss, lmcsAPS, scalingListAPS );
 
     // Set Field/Frame coding mode
-    pcPic->fieldPic = false;
-    pcPic->topField = false;
+    bool isField    = false;
+    bool isTopField = false;
+    if(!m_seiMessageList.empty())
+    {
+      // Check if any new Frame Field Info SEI has arrived
+      seiMessages frameFieldSEIs = SEI_internal::getSeisByType( m_seiMessageList, VVDEC_FRAME_FIELD_INFO );
+      if(!frameFieldSEIs.empty())
+      {
+        const vvdecSEIFrameFieldInfo* ff = (vvdecSEIFrameFieldInfo*) frameFieldSEIs.front()->payload;
+        isField    = ff->fieldPicFlag;
+        isTopField = isField && (!ff->bottomFieldFlag);
+      }
+    }
+    pcPic->fieldPic = isField;
+    pcPic->topField = isTopField;
+
     // transfer any SEI messages that have been received to the picture
-    pcPic->SEIs = m_SEIs;
-    m_SEIs.clear();
+    pcPic->seiMessageList = m_seiMessageList;
+    m_seiMessageList.clear();
   }
   else
   {
@@ -1170,13 +1190,13 @@ Picture * DecLibParser::xActivateParameterSets( const int layerId )
     xParsePrefixSEImessages();
 
     // Check if any new SEI has arrived
-    if( !m_SEIs.empty() )
+    if( !m_seiMessageList.empty() )
     {
       // Currently only decoding Unit SEI message occurring between VCL NALUs copied
-      vvdec::seiMessages & picSEI            = pcPic->SEIs;
-      vvdec::seiMessages   decodingUnitInfos = vvdec::sei::extractSeisByType( picSEI, vvdec::sei::DECODING_UNIT_INFO );
+      seiMessages& picSEI = pcPic->seiMessageList;
+      seiMessages decodingUnitInfos = SEI_internal::extractSeisByType( picSEI, VVDEC_DECODING_UNIT_INFO );
       picSEI.insert( picSEI.end(), decodingUnitInfos.begin(), decodingUnitInfos.end() );
-      vvdec::sei::deleteSEIs   ( m_SEIs );
+      SEI_internal::deleteSEIs   ( m_seiMessageList );
     }
   }
 
@@ -1469,7 +1489,7 @@ void DecLibParser::xParsePrefixSEImessages()
     InputNALUnit& nalu = m_prefixSEINALUs.front();
     const SPS *sps = m_parameterSetManager.getActiveSPS();
     const VPS *vps = m_parameterSetManager.getVPS(sps->getVPSId());
-    m_seiReader.parseSEImessage( &(nalu.getBitstream()), m_SEIs, nalu.m_nalUnitType, nalu.m_nuhLayerId, nalu.m_temporalId, vps, sps, m_HRD, m_pDecodedSEIOutputStream );
+    m_seiReader.parseSEImessage( &(nalu.getBitstream()), m_seiMessageList, nalu.m_nalUnitType, nalu.m_nuhLayerId, nalu.m_temporalId, vps, sps, m_HRD, m_pDecodedSEIOutputStream );
     m_prefixSEINALUs.pop_front();
   }
 }

@@ -44,635 +44,413 @@ THE POSSIBILITY OF SUCH DAMAGE.
 
 ------------------------------------------------------------------------------------------- */
 
-#pragma once
+#ifndef _VVDEC_SEI_H_
+#define _VVDEC_SEI_H_
 
-#include "vvdec/vvdecDecl.h"
+#include <stdio.h>
+#include <stdint.h>
 
-#include <list>
-#include <vector>
-#include <cstdint>
-#include <cstring>
-
-namespace vvdec {
-
-
-class VVDEC_DECL sei
+typedef enum
 {
-public:
-  enum PayloadType
-  {
-    BUFFERING_PERIOD                     = 0,
-    PICTURE_TIMING                       = 1,
-    FILLER_PAYLOAD                       = 3,
-    USER_DATA_REGISTERED_ITU_T_T35       = 4,
-    USER_DATA_UNREGISTERED               = 5,
-    FILM_GRAIN_CHARACTERISTICS           = 19,
-    FRAME_PACKING                        = 45,
-    PARAMETER_SETS_INCLUSION_INDICATION  = 129,
-    DECODING_UNIT_INFO                   = 130,
-    DECODED_PICTURE_HASH                 = 132,
-    SCALABLE_NESTING                     = 133,
-    MASTERING_DISPLAY_COLOUR_VOLUME      = 137,
-    DEPENDENT_RAP_INDICATION             = 145,
-    EQUIRECTANGULAR_PROJECTION           = 150,
-    SPHERE_ROTATION                      = 154,
-    REGION_WISE_PACKING                  = 155,
-    OMNI_VIEWPORT                        = 156,
-    GENERALIZED_CUBEMAP_PROJECTION       = 153,
-    FRAME_FIELD_INFO                     = 168,
-    SUBPICTURE_LEVEL_INFO                = 203,
-    SAMPLE_ASPECT_RATIO_INFO             = 204,
-    CONTENT_LIGHT_LEVEL_INFO             = 144,
-    ALTERNATIVE_TRANSFER_CHARACTERISTICS = 147,
-    AMBIENT_VIEWING_ENVIRONMENT          = 148,
-    CONTENT_COLOUR_VOLUME                = 149
-  };
+  VVDEC_BUFFERING_PERIOD                     = 0,
+  VVDEC_PICTURE_TIMING                       = 1,
+  VVDEC_FILLER_PAYLOAD                       = 3,
+  VVDEC_USER_DATA_REGISTERED_ITU_T_T35       = 4,
+  VVDEC_USER_DATA_UNREGISTERED               = 5,
+  VVDEC_FILM_GRAIN_CHARACTERISTICS           = 19,
+  VVDEC_FRAME_PACKING                        = 45,
+  VVDEC_PARAMETER_SETS_INCLUSION_INDICATION  = 129,
+  VVDEC_DECODING_UNIT_INFO                   = 130,
+  VVDEC_DECODED_PICTURE_HASH                 = 132,
+  VVDEC_SCALABLE_NESTING                     = 133,
+  VVDEC_MASTERING_DISPLAY_COLOUR_VOLUME      = 137,
+  VVDEC_DEPENDENT_RAP_INDICATION             = 145,
+  VVDEC_EQUIRECTANGULAR_PROJECTION           = 150,
+  VVDEC_SPHERE_ROTATION                      = 154,
+  VVDEC_REGION_WISE_PACKING                  = 155,
+  VVDEC_OMNI_VIEWPORT                        = 156,
+  VVDEC_GENERALIZED_CUBEMAP_PROJECTION       = 153,
+  VVDEC_FRAME_FIELD_INFO                     = 168,
+  VVDEC_SUBPICTURE_LEVEL_INFO                = 203,
+  VVDEC_SAMPLE_ASPECT_RATIO_INFO             = 204,
+  VVDEC_CONTENT_LIGHT_LEVEL_INFO             = 144,
+  VVDEC_ALTERNATIVE_TRANSFER_CHARACTERISTICS = 147,
+  VVDEC_AMBIENT_VIEWING_ENVIRONMENT          = 148,
+  VVDEC_CONTENT_COLOUR_VOLUME                = 149,
+  VVDEC_SEI_UNKNOWN                          = -1,
+}vvdecSEIPayloadType;
 
-  sei() {}
-  virtual ~sei() {}
-
-  static const char *getSEIMessageString(sei::PayloadType payloadType);
-
-  /// output a selection of SEI messages by payload type. Ownership stays in original message list.
-  static std::list<sei*> getSeisByType(const std::list<sei*> &seiList, sei::PayloadType seiType);
-
-  /// remove a selection of SEI messages by payload type from the original list and return them in a new list.
-  static std::list<sei*> extractSeisByType(std::list<sei*> &seiList, sei::PayloadType seiType);
-
-  /// delete list of SEI messages (freeing the referenced objects)
-  static void deleteSEIs (std::list<sei*> &seiList);
-
-  virtual PayloadType payloadType() const = 0;
-};
-
-typedef std::list<vvdec::sei*> seiMessages;
-
-class VVDEC_DECL seiEquirectangularProjection : public sei
+typedef enum
 {
-public:
-  PayloadType payloadType() const { return EQUIRECTANGULAR_PROJECTION; }
+  VVDEC_LEVEL_NONE = 0,
+  VVDEC_LEVEL1   = 16,
+  VVDEC_LEVEL2   = 32,
+  VVDEC_LEVEL2_1 = 35,
+  VVDEC_LEVEL3   = 48,
+  VVDEC_LEVEL3_1 = 51,
+  VVDEC_LEVEL4   = 64,
+  VVDEC_LEVEL4_1 = 67,
+  VVDEC_LEVEL5   = 80,
+  VVDEC_LEVEL5_1 = 83,
+  VVDEC_LEVEL5_2 = 86,
+  VVDEC_LEVEL6   = 96,
+  VVDEC_LEVEL6_1 = 99,
+  VVDEC_LEVEL6_2 = 102,
+  VVDEC_LEVEL15_5 = 255,
+}vvdecLevel;
 
-  seiEquirectangularProjection()  {}
-  virtual ~seiEquirectangularProjection() {}
 
-  bool    m_erpCancelFlag          = false;
-  bool    m_erpPersistenceFlag     = false;
-  bool    m_erpGuardBandFlag       = false;
-  uint8_t m_erpGuardBandType       = 0;
-  uint8_t m_erpLeftGuardBandWidth  = 0;
-  uint8_t m_erpRightGuardBandWidth = 0;
-};
-
-class VVDEC_DECL seiSphereRotation : public sei
+typedef enum
 {
-public:
-  PayloadType payloadType() const { return SPHERE_ROTATION; }
+  VVDEC_HASHTYPE_MD5             = 0,
+  VVDEC_HASHTYPE_CRC             = 1,
+  VVDEC_HASHTYPE_CHECKSUM        = 2,
+  VVDEC_HASHTYPE_NONE            = 3,
+  VVDEC_NUMBER_OF_HASHTYPES      = 4
+}vvdecHashType;
 
-  seiSphereRotation()  {}
-  virtual ~seiSphereRotation() {}
-
-  bool  m_sphereRotationCancelFlag      = false;
-  bool  m_sphereRotationPersistenceFlag = false;
-  int   m_sphereRotationYaw             = 0;
-  int   m_sphereRotationPitch           = 0;
-  int   m_sphereRotationRoll            = 0;
-};
-
-class VVDEC_DECL seiOmniViewport : public sei
+/* vvdecSEI
+  The struct vvdecSEI contains the payload of a SEI message.
+  To get the data from the payload the SEI has to be type casted into target type
+  e.g.
+  vvdecSEIBufferingPeriod* s = reinterpret_cast<vvdecSEIBufferingPeriod *>(sei->payload);
+*/
+typedef struct vvdecSEI
 {
-public:
-  PayloadType payloadType() const { return OMNI_VIEWPORT; }
+  vvdecSEIPayloadType  payloadType;     /* payload type as defined in sei.h */
+  unsigned int         size;            /* size of payload in bytes */
+  void                *payload;         /* payload structure as defined in sei.h */
+}vvdecSEI;
 
-  seiOmniViewport() {}
-  virtual ~seiOmniViewport() {}
-
-  struct OmniViewport
-  {
-    int      azimuthCentre   = 0;
-    int      elevationCentre = 0;
-    int      tiltCentre      = 0;
-    uint32_t horRange        = 0;
-    uint32_t verRange        = 0;
-  };
-
-  uint32_t m_omniViewportId              = 0;
-  bool     m_omniViewportCancelFlag      = false;
-  bool     m_omniViewportPersistenceFlag = false;
-  uint8_t  m_omniViewportCnt             = 0;
-  std::vector<OmniViewport> m_omniViewportRegions = {};
-};
-
-class VVDEC_DECL seiRegionWisePacking : public sei
+typedef struct vvdecSEIBufferingPeriod
 {
-public:
-  PayloadType payloadType() const { return REGION_WISE_PACKING; }
-  seiRegionWisePacking() {}
-  virtual ~seiRegionWisePacking() {}
-  bool                  m_rwpCancelFlag                  = false;
-  bool                  m_rwpPersistenceFlag             = false;
-  bool                  m_constituentPictureMatchingFlag = false;
-  int                   m_numPackedRegions               = 0;
-  int                   m_projPictureWidth               = 0;
-  int                   m_projPictureHeight              = 0;
-  int                   m_packedPictureWidth             = 0;
-  int                   m_packedPictureHeight            = 0;
-  std::vector<uint8_t>  m_rwpTransformType               = {};
-  std::vector<bool>     m_rwpGuardBandFlag               = {};
-  std::vector<uint32_t> m_projRegionWidth                = {};
-  std::vector<uint32_t> m_projRegionHeight               = {};
-  std::vector<uint32_t> m_rwpProjRegionTop               = {};
-  std::vector<uint32_t> m_projRegionLeft                 = {};
-  std::vector<uint16_t> m_packedRegionWidth              = {};
-  std::vector<uint16_t> m_packedRegionHeight             = {};
-  std::vector<uint16_t> m_packedRegionTop                = {};
-  std::vector<uint16_t> m_packedRegionLeft               = {};
-  std::vector<uint8_t>  m_rwpLeftGuardBandWidth          = {};
-  std::vector<uint8_t>  m_rwpRightGuardBandWidth         = {};
-  std::vector<uint8_t>  m_rwpTopGuardBandHeight          = {};
-  std::vector<uint8_t>  m_rwpBottomGuardBandHeight       = {};
-  std::vector<bool>     m_rwpGuardBandNotUsedForPredFlag = {};
-  std::vector<uint8_t>  m_rwpGuardBandType               = {};
-};
+  bool        bpNalCpbParamsPresentFlag;
+  bool        bpVclCpbParamsPresentFlag;
+  uint32_t    initialCpbRemovalDelayLength;
+  uint32_t    cpbRemovalDelayLength;
+  uint32_t    dpbOutputDelayLength;
+  int         bpCpbCnt;
+  uint32_t    duCpbRemovalDelayIncrementLength;
+  uint32_t    dpbOutputDelayDuLength;
+  uint32_t    initialCpbRemovalDelay [7][32][2];
+  uint32_t    initialCpbRemovalOffset[7][32][2];
+  bool        concatenationFlag;
+  uint32_t    auCpbRemovalDelayDelta;
+  bool        cpbRemovalDelayDeltasPresentFlag;
+  int         numCpbRemovalDelayDeltas;
+  int         bpMaxSubLayers;
+  uint32_t    cpbRemovalDelayDelta[15];
+  bool        bpDecodingUnitHrdParamsPresentFlag;
+  bool        decodingUnitCpbParamsInPicTimingSeiFlag;
+  bool        decodingUnitDpbDuParamsInPicTimingSeiFlag;
+  bool        sublayerInitialCpbRemovalDelayPresentFlag;
+  bool        additionalConcatenationInfoPresentFlag;
+  uint32_t    maxInitialRemovalDelayForConcatenation;
+  bool        sublayerDpbOutputOffsetsPresentFlag;
+  uint32_t    dpbOutputTidOffset[7];
+  bool        altCpbParamsPresentFlag;
+  bool        useAltCpbParamsFlag;
+} vvdecSEIBufferingPeriod;
 
-class VVDEC_DECL seiGeneralizedCubemapProjection : public sei
+
+typedef struct vvdecSEIPictureTiming
 {
-public:
-  PayloadType payloadType() const { return GENERALIZED_CUBEMAP_PROJECTION; }
+  bool        ptSubLayerDelaysPresentFlag[7];
+  bool        cpbRemovalDelayDeltaEnabledFlag[7];
+  uint32_t    cpbRemovalDelayDeltaIdx[7];
+  uint32_t    auCpbRemovalDelay[7];
+  uint32_t    picDpbOutputDelay;
+  uint32_t    picDpbOutputDuDelay;
+  uint32_t    numDecodingUnits;
+  bool        duCommonCpbRemovalDelayFlag;
+  uint32_t    duCommonCpbRemovalDelay[7];
+  uint32_t    numNalusInDu[32];
+  uint32_t    duCpbRemovalDelay[32*7+7];
+  bool        cpbAltTimingInfoPresentFlag;
+  uint32_t    nalCpbAltInitialRemovalDelayDelta[7][32];
+  uint32_t    nalCpbAltInitialRemovalOffsetDelta[7][32];
+  uint32_t    nalCpbDelayOffset[7];
+  uint32_t    nalDpbDelayOffset[7];
+  uint32_t    vclCpbAltInitialRemovalDelayDelta[7][32];
+  uint32_t    vclCpbAltInitialRemovalOffsetDelta[7][32];
+  uint32_t    vclCpbDelayOffset[7];
+  uint32_t    vclDpbDelayOffset[7];
+  int         ptDisplayElementalPeriods;
+} vvdecSEIPictureTiming;
 
-  seiGeneralizedCubemapProjection()  {}
-  virtual ~seiGeneralizedCubemapProjection() {}
 
-  bool                 m_gcmpCancelFlag                    = false;
-  bool                 m_gcmpPersistenceFlag               = false;
-  uint8_t              m_gcmpPackingType                   = 0;
-  uint8_t              m_gcmpMappingFunctionType           = 0;
-  std::vector<uint8_t> m_gcmpFaceIndex                     = {};
-  std::vector<uint8_t> m_gcmpFaceRotation                  = {};
-  std::vector<uint8_t> m_gcmpFunctionCoeffU                = {};
-  std::vector<bool>    m_gcmpFunctionUAffectedByVFlag      = {};
-  std::vector<uint8_t> m_gcmpFunctionCoeffV                = {};
-  std::vector<bool>    m_gcmpFunctionVAffectedByUFlag      = {};
-  bool                 m_gcmpGuardBandFlag                 = false;
-  uint8_t              m_gcmpGuardBandType                 = 0;
-  bool                 m_gcmpGuardBandBoundaryExteriorFlag = false;
-  uint8_t              m_gcmpGuardBandSamples              = 0;
-};
-
-class VVDEC_DECL seiSampleAspectRatioInfo : public sei
+typedef struct vvdecSEIUserDataRegistered
 {
-public:
-  PayloadType payloadType() const { return SAMPLE_ASPECT_RATIO_INFO; }
-  seiSampleAspectRatioInfo() {}
-  virtual ~seiSampleAspectRatioInfo() {}
-  bool                  m_sariCancelFlag      = false;
-  bool                  m_sariPersistenceFlag = false;
-  int                   m_sariAspectRatioIdc  = 0;
-  int                   m_sariSarWidth        = 0;
-  int                   m_sariSarHeight       = 0;
-};
+  uint16_t    ituCountryCode;
+  uint32_t    userDataLength;
+  uint8_t    *userData;
+} vvdecSEIUserDataRegistered;
 
-class VVDEC_DECL seiUserDataUnregistered : public sei
+typedef struct vvdecSEIUserDataUnregistered
 {
-public:
-  PayloadType payloadType() const { return USER_DATA_UNREGISTERED; }
+  uint8_t     uuid_iso_iec_11578[16];
+  uint32_t    userDataLength;
+  uint8_t    *userData;
+} vvdecSEIUserDataUnregistered;
 
-  seiUserDataUnregistered()
-    {}
 
-  virtual ~seiUserDataUnregistered()
-  {
-    delete userData;
-  }
-
-  uint8_t  uuid_iso_iec_11578[16];
-  uint32_t userDataLength = 0;
-  uint8_t *userData;
-};
-
-struct PictureHash
+typedef struct vvdecCompModelIntensityValues
 {
-  std::vector<uint8_t> hash = {};
+  uint8_t     intensityIntervalLowerBound;
+  uint8_t     intensityIntervalUpperBound;
+  int         compModelValue[6];
+}vvdecCompModelIntensityValues;
 
-  bool operator==(const PictureHash &other) const
-  {
-    if (other.hash.size() != hash.size())
-    {
-      return false;
-    }
-    for(uint32_t i=0; i<uint32_t(hash.size()); i++)
-    {
-      if (other.hash[i] != hash[i])
-      {
-        return false;
-      }
-    }
-    return true;
-  }
-
-  bool operator!=(const PictureHash &other) const
-  {
-    return !(*this == other);
-  }
-};
-
-class VVDEC_DECL seiDecodedPictureHash : public sei
+typedef struct vvdecCompModel
 {
-public:
+  bool                          presentFlag;
+  uint8_t                       numModelValues;
+  vvdecCompModelIntensityValues intensityValues[265];
+}vvdecCompModel;
 
-  enum HashType
-  {
-    HASHTYPE_MD5             = 0,
-    HASHTYPE_CRC             = 1,
-    HASHTYPE_CHECKSUM        = 2,
-    HASHTYPE_NONE            = 3,
-    NUMBER_OF_HASHTYPES      = 4
-  };
-
-public:
-  PayloadType payloadType() const { return DECODED_PICTURE_HASH; }
-
-  seiDecodedPictureHash() {}
-  virtual ~seiDecodedPictureHash() {}
-
-  HashType    method         = HASHTYPE_MD5;
-  bool        singleCompFlag = false;
-  PictureHash m_pictureHash;
-};
-
-class VVDEC_DECL seiDependentRAPIndication : public sei
+typedef struct vvdecSEIFilmGrainCharacteristics
 {
-public:
-  PayloadType payloadType() const { return DEPENDENT_RAP_INDICATION; }
-  seiDependentRAPIndication() { }
+  bool             filmGrainCharacteristicsCancelFlag;
+  uint8_t          filmGrainModelId;
+  bool             separateColourDescriptionPresentFlag;
+  uint8_t          filmGrainBitDepthLuma;
+  uint8_t          filmGrainBitDepthChroma;
+  bool             filmGrainFullRangeFlag;
+  uint8_t          filmGrainColourPrimaries;
+  uint8_t          filmGrainTransferCharacteristics;
+  uint8_t          filmGrainMatrixCoeffs;
+  uint8_t          blendingModeId;
+  uint8_t          log2ScaleFactor;
+  vvdecCompModel   compModel[3];
+  bool             filmGrainCharacteristicsPersistenceFlag;
+}vvdecSEIFilmGrainCharacteristics;
 
-  virtual ~seiDependentRAPIndication() { }
-};
-
-class VVDEC_DECL seiBufferingPeriod : public sei
+typedef struct vvdecSEIFramePacking
 {
-public:
-  PayloadType payloadType() const { return BUFFERING_PERIOD; }
+  int         arrangementId;
+  bool        arrangementCancelFlag;
+  int         arrangementType;
+  bool        quincunxSamplingFlag;
+  int         contentInterpretationType;
+  bool        spatialFlippingFlag;
+  bool        frame0FlippedFlag;
+  bool        fieldViewsFlag;
+  bool        currentFrameIsFrame0Flag;
+  bool        frame0SelfContainedFlag;
+  bool        frame1SelfContainedFlag;
+  int         frame0GridPositionX;
+  int         frame0GridPositionY;
+  int         frame1GridPositionX;
+  int         frame1GridPositionY;
+  int         arrangementReservedByte;
+  bool        arrangementPersistenceFlag;
+  bool        upsampledAspectRatio;
+}vvdecSEIFramePacking;
 
-  seiBufferingPeriod()
-  {
-    ::memset(m_initialCpbRemovalDelay , 0, sizeof(m_initialCpbRemovalDelay));
-    ::memset(m_initialCpbRemovalOffset, 0, sizeof(m_initialCpbRemovalOffset));
-    ::memset(m_cpbRemovalDelayDelta   , 0, sizeof(m_cpbRemovalDelayDelta));
-    ::memset(m_dpbOutputTidOffset     , 0, sizeof(m_dpbOutputTidOffset));
-  }
-  virtual ~seiBufferingPeriod() {}
-
-  void      setDuCpbRemovalDelayIncrementLength( uint32_t value )        { m_duCpbRemovalDelayIncrementLength = value;        }
-  uint32_t  getDuCpbRemovalDelayIncrementLength( ) const                 { return m_duCpbRemovalDelayIncrementLength;         }
-  void      setDpbOutputDelayDuLength( uint32_t value )                  { m_dpbOutputDelayDuLength = value;                  }
-  uint32_t  getDpbOutputDelayDuLength( ) const                           { return m_dpbOutputDelayDuLength;                   }
-
-  bool     m_bpNalCpbParamsPresentFlag                 = false;
-  bool     m_bpVclCpbParamsPresentFlag                 = false;
-  uint32_t m_initialCpbRemovalDelayLength              = 0;
-  uint32_t m_cpbRemovalDelayLength                     = 0;
-  uint32_t m_dpbOutputDelayLength                      = 0;
-  int      m_bpCpbCnt                                  = 0;
-  uint32_t m_duCpbRemovalDelayIncrementLength          = 0;
-  uint32_t m_dpbOutputDelayDuLength                    = 0;
-  uint32_t m_initialCpbRemovalDelay         [7][32][2];
-  uint32_t m_initialCpbRemovalOffset        [7][32][2];
-  bool     m_concatenationFlag                         = false;
-  uint32_t m_auCpbRemovalDelayDelta                    = 0;
-  bool     m_cpbRemovalDelayDeltasPresentFlag          = false;
-  int      m_numCpbRemovalDelayDeltas                  = 0;
-  int      m_bpMaxSubLayers                            = 0;
-  uint32_t m_cpbRemovalDelayDelta           [15];
-  bool     m_bpDecodingUnitHrdParamsPresentFlag        = false;
-  bool     m_decodingUnitCpbParamsInPicTimingSeiFlag   = false;
-  bool     m_decodingUnitDpbDuParamsInPicTimingSeiFlag = false;
-  bool     m_sublayerInitialCpbRemovalDelayPresentFlag = false;
-  bool     m_additionalConcatenationInfoPresentFlag    = false;
-  uint32_t m_maxInitialRemovalDelayForConcatenation    = 0;
-  bool     m_sublayerDpbOutputOffsetsPresentFlag       = false;
-  uint32_t m_dpbOutputTidOffset              [7];
-  bool     m_altCpbParamsPresentFlag                   = false;
-  bool     m_useAltCpbParamsFlag                       = false;
-};
-
-class VVDEC_DECL seiPictureTiming : public sei
+typedef struct vvdecSEIParameterSetsInclusionIndication
 {
-public:
-  PayloadType payloadType() const { return PICTURE_TIMING; }
+  int         selfContainedClvsFlag;
+}vvdecSEIParameterSetsInclusionIndication;
 
-  seiPictureTiming()
-  {
-    ::memset(m_ptSubLayerDelaysPresentFlag,     0, sizeof(m_ptSubLayerDelaysPresentFlag));
-    ::memset(m_duCommonCpbRemovalDelay,         0, sizeof(m_duCommonCpbRemovalDelay));
-    ::memset(m_cpbRemovalDelayDeltaEnabledFlag, 0, sizeof(m_cpbRemovalDelayDeltaEnabledFlag));
-    ::memset(m_cpbRemovalDelayDeltaIdx,         0, sizeof(m_cpbRemovalDelayDeltaIdx));
-    ::memset(m_auCpbRemovalDelay,               0, sizeof(m_auCpbRemovalDelay));
-  }
-  virtual ~seiPictureTiming()
-  {
-  }
-
-  bool                  m_ptSubLayerDelaysPresentFlag[7];
-  bool                  m_cpbRemovalDelayDeltaEnabledFlag[7];
-  uint32_t              m_cpbRemovalDelayDeltaIdx[7];
-  uint32_t              m_auCpbRemovalDelay[7];
-  uint32_t              m_picDpbOutputDelay           = 0;
-  uint32_t              m_picDpbOutputDuDelay         = 0;
-  uint32_t              m_numDecodingUnits            = 0;
-  bool                  m_duCommonCpbRemovalDelayFlag = false;
-  uint32_t              m_duCommonCpbRemovalDelay[7];
-  std::vector<uint32_t> m_numNalusInDu                = {};
-  std::vector<uint32_t> m_duCpbRemovalDelay           = {};
-  bool                  m_cpbAltTimingInfoPresentFlag = false;
-  std::vector<std::vector<uint32_t>> m_nalCpbAltInitialRemovalDelayDelta  = {};
-  std::vector<std::vector<uint32_t>> m_nalCpbAltInitialRemovalOffsetDelta = {};
-  std::vector<uint32_t>              m_nalCpbDelayOffset = {};
-  std::vector<uint32_t>              m_nalDpbDelayOffset = {};
-  std::vector<std::vector<uint32_t>> m_vclCpbAltInitialRemovalDelayDelta  = {};
-  std::vector<std::vector<uint32_t>> m_vclCpbAltInitialRemovalOffsetDelta = {};
-  std::vector<uint32_t>              m_vclCpbDelayOffset = {};
-  std::vector<uint32_t>              m_vclDpbDelayOffset = {};
-  int                                m_ptDisplayElementalPeriods = 0;
-};
-
-class VVDEC_DECL seiDecodingUnitInfo : public sei
+typedef struct vvdecSEIDecodingUnitInfo
 {
-public:
-  PayloadType payloadType() const { return DECODING_UNIT_INFO; }
+  int         decodingUnitIdx;
+  bool        duiSubLayerDelaysPresentFlag[7];
+  int         duSptCpbRemovalDelayIncrement[7];
+  bool        dpbOutputDuDelayPresentFlag;
+  int         picSptDpbOutputDuDelay;
+}vvdecSEIDecodingUnitInfo;
 
-  seiDecodingUnitInfo()
-  {
-    ::memset(m_duiSubLayerDelaysPresentFlag,  0, sizeof(m_duiSubLayerDelaysPresentFlag));
-    ::memset(m_duSptCpbRemovalDelayIncrement, 0, sizeof(m_duSptCpbRemovalDelayIncrement));
-  }
-  virtual ~seiDecodingUnitInfo() {}
-  int  m_decodingUnitIdx = 0;
-  bool m_duiSubLayerDelaysPresentFlag[7];
-  int  m_duSptCpbRemovalDelayIncrement[7];
-  bool m_dpbOutputDuDelayPresentFlag = false;
-  int  m_picSptDpbOutputDuDelay      = 0;
-};
 
-class VVDEC_DECL seiFrameFieldInfo : public sei
+typedef struct vvdecSEIDecodedPictureHash
 {
-public:
-  PayloadType payloadType() const { return FRAME_FIELD_INFO; }
+  vvdecHashType method;
+  bool          singleCompFlag;
+  int           digist_length;
+  unsigned char digest[16*3];
+}vvdecSEIDecodedPictureHash;
 
-  seiFrameFieldInfo()
-  {}
-  virtual ~seiFrameFieldInfo() {}
 
-  bool m_fieldPicFlag                  = false;
-  bool m_bottomFieldFlag               = false;
-  bool m_pairingIndicatedFlag          = false;
-  bool m_pairedWithNextFieldFlag       = false;
-  bool m_displayFieldsFromFrameFlag    = false;
-  bool m_topFieldFirstFlag             = false;
-  int  m_displayElementalPeriods       = 0;
-  int  m_sourceScanType                = 0;
-  bool m_duplicateFlag                 = false;
-};
-
-class VVDEC_DECL seiFramePacking : public sei
+typedef struct vvdecSEIScalableNesting
 {
-public:
-  PayloadType payloadType() const { return FRAME_PACKING; }
+  bool        snOlsFlag;
+  bool        snSubpicFlag;
+  uint32_t    snNumOlss;
+  uint32_t    snOlsIdxDelta[64];
+  uint32_t    snOlsIdx[64];
+  bool        snAllLayersFlag;
+  uint32_t    snNumLayers;
+  uint8_t     snLayerId[64];
+  uint32_t    snNumSubpics;
+  uint8_t     snSubpicIdLen;
+  uint16_t    snSubpicId[64];
+  uint32_t    snNumSEIs;
 
-  seiFramePacking() {}
-  virtual ~seiFramePacking() {}
+  vvdecSEI* nestedSEIs[64];
+}vvdecSEIScalableNesting;
 
-  int  m_arrangementId               = 0;
-  bool m_arrangementCancelFlag       = false;
-  int  m_arrangementType             = 0;
-  bool m_quincunxSamplingFlag        = false;
-  int  m_contentInterpretationType   = 0;
-  bool m_spatialFlippingFlag         = false;
-  bool m_frame0FlippedFlag           = false;
-  bool m_fieldViewsFlag              = false;
-  bool m_currentFrameIsFrame0Flag    = false;
-  bool m_frame0SelfContainedFlag     = false;
-  bool m_frame1SelfContainedFlag     = false;
-  int  m_frame0GridPositionX         = 0;
-  int  m_frame0GridPositionY         = 0;
-  int  m_frame1GridPositionX         = 0;
-  int  m_frame1GridPositionY         = 0;
-  int  m_arrangementReservedByte     = 0;
-  bool m_arrangementPersistenceFlag  = false;
-  bool m_upsampledAspectRatio        = false;
-};
-
-class VVDEC_DECL seiParameterSetsInclusionIndication : public sei
+typedef struct vvdecSEIMasteringDisplayColourVolume
 {
-public:
-  PayloadType payloadType() const { return PARAMETER_SETS_INCLUSION_INDICATION; }
-  seiParameterSetsInclusionIndication() {}
-  virtual ~seiParameterSetsInclusionIndication() {}
+  uint32_t    maxLuminance;
+  uint32_t    minLuminance;
+  uint16_t    primaries[3][2];
+  uint16_t    whitePoint[2];
+}vvdecSEIMasteringDisplayColourVolume;
 
-  int m_selfContainedClvsFlag;
-};
-
-class VVDEC_DECL seiMasteringDisplayColourVolume : public sei
+typedef struct vvdecSEIDependentRapIndication
 {
-public:
-    PayloadType payloadType() const { return MASTERING_DISPLAY_COLOUR_VOLUME; }
-    seiMasteringDisplayColourVolume()
-    {
-      ::memset(primaries  , 0, sizeof(primaries));
-      ::memset(whitePoint , 0, sizeof(whitePoint));
-    }
-    virtual ~seiMasteringDisplayColourVolume(){}
+} vvdecSEIDependentRapIndication;
 
-    uint32_t maxLuminance           = 0;
-    uint32_t minLuminance           = 0;
-    uint16_t primaries[3][2];
-    uint16_t whitePoint[2];
-};
-
-class VVDEC_DECL seiScalableNesting : public sei
+typedef struct vvdecSEIEquirectangularProjection
 {
-public:
-  PayloadType payloadType() const { return SCALABLE_NESTING; }
+  bool        erpCancelFlag;
+  bool        erpPersistenceFlag;
+  bool        erpGuardBandFlag;
+  uint8_t     erpGuardBandType;
+  uint8_t     erpLeftGuardBandWidth;
+  uint8_t     erpRightGuardBandWidth;
+}vvdecSEIEquirectangularProjection;
 
-  seiScalableNesting()
-  {
-    ::memset(m_snOlsIdxDelta , 0, sizeof(m_snOlsIdxDelta));
-    ::memset(m_snOlsIdx      , 0, sizeof(m_snOlsIdx));
-    ::memset(m_snLayerId     , 0, sizeof(m_snLayerId));
-  }
-
-  virtual ~seiScalableNesting()
-  {
-    deleteSEIs(m_nestedSEIs);
-  }
-
-  bool      m_snOlsFlag         = false;
-  bool      m_snSubpicFlag      = false;
-  uint32_t  m_snNumOlss         = 0;
-  uint32_t  m_snOlsIdxDelta[64];
-  uint32_t  m_snOlsIdx[64];
-  bool      m_snAllLayersFlag   = false;  //value valid if m_nestingOlsFlag == 0
-  uint32_t  m_snNumLayers       = 0;      //value valid if m_nestingOlsFlag == 0 and m_nestingAllLayersFlag == 0
-  uint8_t   m_snLayerId[64];              //value valid if m_nestingOlsFlag == 0 and m_nestingAllLayersFlag == 0. This can e.g. be a static array of 64 uint8_t values
-  uint32_t  m_snNumSubpics      = 0;
-  uint8_t   m_snSubpicIdLen     = 0;
-  std::vector<uint16_t> m_snSubpicId = {};
-  uint32_t  m_snNumSEIs         = 0;
-
-  std::list<sei*> m_nestedSEIs;
-};
-
-
-class VVDEC_DECL seiAlternativeTransferCharacteristics : public sei
+typedef struct vvdecSEISphereRotation
 {
-public:
-  PayloadType payloadType() const { return ALTERNATIVE_TRANSFER_CHARACTERISTICS; }
+  bool        sphereRotationCancelFlag;
+  bool        sphereRotationPersistenceFlag;
+  int         sphereRotationYaw;
+  int         sphereRotationPitch;
+  int         sphereRotationRoll;
+}vvdecSEISphereRotation;
 
-  seiAlternativeTransferCharacteristics() : m_preferredTransferCharacteristics(18)
-  { }
-
-  virtual ~seiAlternativeTransferCharacteristics() {}
-
-  uint32_t m_preferredTransferCharacteristics = 0;
-};
-
-class VVDEC_DECL seiUserDataRegistered : public sei
+typedef struct vvdecSEIRegionWisePacking
 {
-public:
-  PayloadType payloadType() const { return USER_DATA_REGISTERED_ITU_T_T35; }
+  bool        rwpCancelFlag;
+  bool        rwpPersistenceFlag;
+  bool        constituentPictureMatchingFlag;
+  int         numPackedRegions;
+  int         projPictureWidth;
+  int         projPictureHeight;
+  int         packedPictureWidth;
+  int         packedPictureHeight;
+  uint8_t     rwpTransformType[265];
+  bool        rwpGuardBandFlag[265];
+  uint32_t    projRegionWidth[265];
+  uint32_t    projRegionHeight[265];
+  uint32_t    rwpProjRegionTop[265];
+  uint32_t    projRegionLeft[265];
+  uint16_t    packedRegionWidth[265];
+  uint16_t    packedRegionHeight[265];
+  uint16_t    packedRegionTop[265];
+  uint16_t    packedRegionLeft[265];
+  uint8_t     rwpLeftGuardBandWidth[265];
+  uint8_t     rwpRightGuardBandWidth[265];
+  uint8_t     rwpTopGuardBandHeight[265];
+  uint8_t     rwpBottomGuardBandHeight[265];
+  bool        rwpGuardBandNotUsedForPredFlag[265];
+  uint8_t     rwpGuardBandType[4*265];
+}vvdecSEIRegionWisePacking;
 
-  seiUserDataRegistered() {}
-  virtual ~seiUserDataRegistered() {}
-
-  uint16_t             m_ituCountryCode = 0;
-  std::vector<uint8_t> m_userData       = {};
-};
-
-class VVDEC_DECL seiFilmGrainCharacteristics : public sei
+typedef struct vvdecOmniViewportRegion
 {
-public:
-  PayloadType payloadType() const { return FILM_GRAIN_CHARACTERISTICS; }
+  int         azimuthCentre;
+  int         elevationCentre;
+  int         tiltCentre;
+  uint32_t    horRange;
+  uint32_t    verRange;
+}vvdecOmniViewportRegion;
 
-  seiFilmGrainCharacteristics() {}
-  virtual ~seiFilmGrainCharacteristics() {}
-
-  bool        m_filmGrainCharacteristicsCancelFlag   = false;
-  uint8_t     m_filmGrainModelId                     = 0;
-  bool        m_separateColourDescriptionPresentFlag = false;
-  uint8_t     m_filmGrainBitDepthLuma                = 0;
-  uint8_t     m_filmGrainBitDepthChroma              = 0;
-  bool        m_filmGrainFullRangeFlag               = false;
-  uint8_t     m_filmGrainColourPrimaries             = 0;
-  uint8_t     m_filmGrainTransferCharacteristics     = 0;
-  uint8_t     m_filmGrainMatrixCoeffs                = 0;
-  uint8_t     m_blendingModeId                       = 0;
-  uint8_t     m_log2ScaleFactor                      = 0;
-
-  struct CompModelIntensityValues
-  {
-    uint8_t intensityIntervalLowerBound = 0;
-    uint8_t intensityIntervalUpperBound = 0;
-    std::vector<int> compModelValue     = {};
-  };
-
-  struct CompModel
-  {
-    bool    presentFlag;
-    uint8_t numModelValues;
-    std::vector<CompModelIntensityValues> intensityValues = {};
-  };
-
-  CompModel m_compModel[3];
-  bool      m_filmGrainCharacteristicsPersistenceFlag = false;
-};
-
-class VVDEC_DECL seiContentLightLevelInfo : public sei
+typedef struct vvdecSEIOmniViewport
 {
-public:
-  PayloadType payloadType() const { return CONTENT_LIGHT_LEVEL_INFO; }
-  seiContentLightLevelInfo() { }
+  uint32_t                omniViewportId;
+  bool                    omniViewportCancelFlag;
+  bool                    omniViewportPersistenceFlag;
+  uint8_t                 omniViewportCnt;
+  vvdecOmniViewportRegion omniViewportRegions[16];
+}vvdecSEIOmniViewport;
 
-  virtual ~seiContentLightLevelInfo() { }
 
-  uint32_t m_maxContentLightLevel    = 0;
-  uint32_t m_maxPicAverageLightLevel = 0;
-};
-
-class VVDEC_DECL seiAmbientViewingEnvironment : public sei
+typedef struct vvdecSEIGeneralizedCubemapProjection
 {
-public:
-  PayloadType payloadType() const { return AMBIENT_VIEWING_ENVIRONMENT; }
-  seiAmbientViewingEnvironment() { }
+  bool        gcmpCancelFlag;
+  bool        gcmpPersistenceFlag;
+  uint8_t     gcmpPackingType;
+  uint8_t     gcmpMappingFunctionType;
+  uint8_t     gcmpFaceIndex[6];
+  uint8_t     gcmpFaceRotation[6];
+  uint8_t     gcmpFunctionCoeffU[6];
+  bool        gcmpFunctionUAffectedByVFlag[6];
+  uint8_t     gcmpFunctionCoeffV[6];
+  bool        gcmpFunctionVAffectedByUFlag[6];
+  bool        gcmpGuardBandFlag;
+  uint8_t     gcmpGuardBandType;
+  bool        gcmpGuardBandBoundaryExteriorFlag;
+  uint8_t     gcmpGuardBandSamples;
+}vvdecSEIGeneralizedCubemapProjection;
 
-  virtual ~seiAmbientViewingEnvironment() { }
-
-  uint32_t m_ambientIlluminance = 0;
-  uint16_t m_ambientLightX      = 0;
-  uint16_t m_ambientLightY      = 0;
-};
-
-class VVDEC_DECL seiContentColourVolume : public sei
+typedef struct vvdecSEIFrameFieldInfo
 {
-public:
-  PayloadType payloadType() const { return CONTENT_COLOUR_VOLUME; }
-  seiContentColourVolume()
-  {
-    ::memset(m_ccvPrimariesX , 0, sizeof(m_ccvPrimariesX));
-    ::memset(m_ccvPrimariesY , 0, sizeof(m_ccvPrimariesY));
-  }
-  virtual ~seiContentColourVolume() {}
+  bool        fieldPicFlag;
+  bool        bottomFieldFlag;
+  bool        pairingIndicatedFlag;
+  bool        pairedWithNextFieldFlag;
+  bool        displayFieldsFromFrameFlag;
+  bool        topFieldFirstFlag;
+  int         displayElementalPeriods;
+  int         sourceScanType;
+  bool        duplicateFlag;
+}vvdecSEIFrameFieldInfo;
 
-  bool      m_ccvCancelFlag                   = false;
-  bool      m_ccvPersistenceFlag              = false;
-  bool      m_ccvPrimariesPresentFlag         = false;
-  bool      m_ccvMinLuminanceValuePresentFlag = false;
-  bool      m_ccvMaxLuminanceValuePresentFlag = false;
-  bool      m_ccvAvgLuminanceValuePresentFlag = false;
-  int       m_ccvPrimariesX[3];
-  int       m_ccvPrimariesY[3];
-  uint32_t  m_ccvMinLuminanceValue            = 0;
-  uint32_t  m_ccvMaxLuminanceValue            = 0;
-  uint32_t  m_ccvAvgLuminanceValue            = 0;
-};
-
-
-class VVDEC_DECL seiSubpicureLevelInfo : public sei
+typedef struct vvdecSEISubpictureLevelInfo
 {
-public:
-  enum Level
-  {
-    LEVEL_NONE = 0,
-    LEVEL_1   = 16,
-    LEVEL_2   = 32,
-    LEVEL_2_1 = 35,
-    LEVEL_3   = 48,
-    LEVEL_3_1 = 51,
-    LEVEL_4   = 64,
-    LEVEL_4_1 = 67,
-    LEVEL_5   = 80,
-    LEVEL_5_1 = 83,
-    LEVEL_5_2 = 86,
-    LEVEL_6   = 96,
-    LEVEL_6_1 = 99,
-    LEVEL_6_2 = 102,
-    LEVEL_15_5 = 255,
-  };
+  int         numRefLevels;
+  bool        explicitFractionPresentFlag;
+  bool        cbrConstraintFlag;
+  int         numSubpics;
+  int         sliMaxSublayers;
+  bool        sliSublayerInfoPresentFlag;
+  int         nonSubpicLayersFraction[6][6];
+  vvdecLevel  refLevelIdc[6][6];
+  int         refLevelFraction[6][64][6];
+}vvdecSEISubpictureLevelInfo;
 
-public:
-  PayloadType payloadType() const { return SUBPICTURE_LEVEL_INFO; }
-  seiSubpicureLevelInfo()
-  {}
-  virtual ~seiSubpicureLevelInfo() {}
+typedef struct vvdecSEISampleAspectRatioInfo
+{
+  bool        sariCancelFlag;
+  bool        sariPersistenceFlag;
+  int         sariAspectRatioIdc;
+  int         sariSarWidth;
+  int         sariSarHeight;
+}vvdecSEISampleAspectRatioInfo;
 
-  int       m_numRefLevels                = 0;
-  bool      m_explicitFractionPresentFlag = false;
-  bool      m_cbrConstraintFlag           = false;
-  int       m_numSubpics                  = 0;
-  int       m_sliMaxSublayers             = 0;
-  bool      m_sliSublayerInfoPresentFlag  = false;
-  std::vector<std::vector<int>>              m_nonSubpicLayersFraction = {};
-  std::vector<std::vector<Level>>            m_refLevelIdc             = {};
-  std::vector<std::vector<std::vector<int>>> m_refLevelFraction        = {};
-};
+typedef struct vvdecSEIContentLightLevelInfo
+{
+  uint16_t    maxContentLightLevel;
+  uint16_t    maxPicAverageLightLevel;
+}vvdecSEIContentLightLevelInfo;
 
-} // namespace
+typedef struct vvdecSEIAlternativeTransferCharacteristics
+{
+  uint8_t     preferred_transfer_characteristics;
+}vvdecSEIAlternativeTransferCharacteristics;
 
+typedef struct vvdecSEIAmbientViewingEnvironment
+{
+  uint32_t    ambientIlluminance;
+  uint16_t    ambientLightX;
+  uint16_t    ambientLightY;
+}vvdecSEIAmbientViewingEnvironment;
+
+typedef struct vvdecSEIContentColourVolume
+{
+  bool        ccvCancelFlag;
+  bool        ccvPersistenceFlag;
+  bool        ccvPrimariesPresentFlag;
+  bool        ccvMinLuminanceValuePresentFlag;
+  bool        ccvMaxLuminanceValuePresentFlag;
+  bool        ccvAvgLuminanceValuePresentFlag;
+  int         ccvPrimariesX[3];
+  int         ccvPrimariesY[3];
+  uint32_t    ccvMinLuminanceValue;
+  uint32_t    ccvMaxLuminanceValue;
+  uint32_t    ccvAvgLuminanceValue;
+}vvdecSEIContentColourVolume;
+
+#endif /*_VVDEC_SEI_H_*/

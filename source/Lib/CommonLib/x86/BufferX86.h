@@ -57,6 +57,7 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #include "CommonDefX86.h"
 #include "CommonLib/Unit.h"
 #include "CommonLib/Buffer.h"
+#include "CommonLib/InterpolationFilter.h"
 
 
 #if ENABLE_SIMD_OPT_BUFFER
@@ -848,6 +849,496 @@ void fillN_CU_SIMD( CodingUnit** ptr, ptrdiff_t ptrStride, int width, int height
 }
 
 template<X86_VEXT vext>
+void sampleRateConvSIMD_8tap( const std::pair<int, int> scalingRatio, const std::pair<int, int> compScale,
+                              const Pel* orgSrc, const int orgStride, const int orgWidth, const int orgHeight,
+                              const int beforeScaleLeftOffset, const int beforeScaleTopOffset,
+                              Pel* scaledSrc, const int scaledStride, const int scaledWidth, const int scaledHeight,
+                              const int afterScaleLeftOffset, const int afterScaleTopOffset,
+                              const int bitDepth )
+{
+  static constexpr bool useLumaFilter = true;
+  static constexpr int horCollocatedPositionFlag = 1;
+  static constexpr int verCollocatedPositionFlag = 1;
+
+  const TFilterCoeff* filterHor = useLumaFilter ? &InterpolationFilter::m_lumaFilter[0][0] : &InterpolationFilter::m_chromaFilter[0][0];
+  const TFilterCoeff* filterVer = useLumaFilter ? &InterpolationFilter::m_lumaFilter[0][0] : &InterpolationFilter::m_chromaFilter[0][0];
+
+  const int numFracPositions  = useLumaFilter ? 15 : 31;
+  const int numFracShift      = useLumaFilter ? 4 : 5;
+  const int posShiftX = SCALE_RATIO_BITS - numFracShift + compScale.first;
+  const int posShiftY = SCALE_RATIO_BITS - numFracShift + compScale.second;
+  int addX = (1 << (posShiftX - 1)) + (beforeScaleLeftOffset << SCALE_RATIO_BITS) + ((int( 1 - horCollocatedPositionFlag ) * 8 * (scalingRatio.first - SCALE_1X.first) + (1 << (2 + compScale.first))) >> (3 + compScale.first));
+  int addY = (1 << (posShiftY - 1)) + (beforeScaleTopOffset << SCALE_RATIO_BITS) + ((int( 1 - verCollocatedPositionFlag ) * 8 * (scalingRatio.second - SCALE_1X.second) + (1 << (2 + compScale.second))) >> (3 + compScale.second));
+
+  const int filterLength = useLumaFilter ? NTAPS_LUMA : NTAPS_CHROMA;
+  const int log2Norm = 12;
+
+  int* buf = new int[orgHeight * scaledWidth];
+  int maxVal = (1 << bitDepth) - 1;
+
+  CHECK( bitDepth > 17, "Overflow may happen!" );
+
+  const Pel* org = orgSrc;
+
+  for( int j = 0; j < orgHeight; j += 4 )
+  {
+    const Pel* org0 = org;
+    const Pel* org1 = org0 + orgStride;
+    const Pel* org2 = org1 + orgStride;
+    const Pel* org3 = org2 + orgStride;
+
+    _mm_prefetch( ( const char* ) (org0 + (orgStride << 2)), _MM_HINT_T0 );
+    _mm_prefetch( ( const char* ) (org1 + (orgStride << 2)), _MM_HINT_T0 );
+    _mm_prefetch( ( const char* ) (org2 + (orgStride << 2)), _MM_HINT_T0 );
+    _mm_prefetch( ( const char* ) (org3 + (orgStride << 2)), _MM_HINT_T0 );
+
+    for( int i = 0; i < scaledWidth; i++ )
+    {
+      int refPos  = ( ( ( i << compScale.first ) - afterScaleLeftOffset ) * scalingRatio.first + addX ) >> posShiftX;
+      int integer = refPos >> numFracShift;
+      int frac    = refPos  & numFracPositions;
+
+      const TFilterCoeff* f = filterHor + frac * filterLength;
+
+      __m128i vsrc0, vsrc1, vsrc2, vsrc3;
+
+      if( integer + 0 - ( filterLength / 2 ) + 1 >= 0 && integer + ( NTAPS_LUMA - 1 ) - ( filterLength / 2 ) + 1 < orgWidth )
+      {
+        int xInt = integer + 0 - ( filterLength / 2 ) + 1;
+
+        vsrc0 = _mm_loadu_si128( (const __m128i*) &org0[xInt] );
+        vsrc1 = _mm_loadu_si128( (const __m128i*) &org1[xInt] );
+        vsrc2 = _mm_loadu_si128( (const __m128i*) &org2[xInt] );
+        vsrc3 = _mm_loadu_si128( (const __m128i*) &org3[xInt] );
+      }
+      else
+      {
+        Pel src[4][NTAPS_LUMA];
+
+        for( int k = 0; k < filterLength; k++ )
+        {
+          int xInt = std::min<int>( std::max( 0, integer + k - filterLength / 2 + 1 ), orgWidth - 1 );
+
+          src[0][k] = org0[xInt];
+          src[1][k] = org1[xInt];
+          src[2][k] = org2[xInt];
+          src[3][k] = org3[xInt];
+        }
+
+        vsrc0 = _mm_loadu_si128( (const __m128i*) &src[0][0] );
+        vsrc1 = _mm_loadu_si128( (const __m128i*) &src[1][0] );
+        vsrc2 = _mm_loadu_si128( (const __m128i*) &src[2][0] );
+        vsrc3 = _mm_loadu_si128( (const __m128i*) &src[3][0] );
+      }
+
+      __m128i vflt  = _mm_loadu_si128( (const __m128i*)  f );
+
+      __m128i vres0 = _mm_madd_epi16( vsrc0, vflt );
+      __m128i vres1 = _mm_madd_epi16( vsrc1, vflt );
+      __m128i vres2 = _mm_madd_epi16( vsrc2, vflt );
+      __m128i vres3 = _mm_madd_epi16( vsrc3, vflt );
+
+      vres0 = _mm_hadd_epi32( vres0, vres1 );
+      vres2 = _mm_hadd_epi32( vres2, vres3 );
+
+      vres0 = _mm_hadd_epi32( vres0, vres2 );
+
+      int* tmp = buf + i * orgHeight + j;
+
+      _mm_storeu_si128( (__m128i*) tmp, vres0 );
+    }
+
+    org = org3 + orgStride;
+  }
+
+  __m128i vzero = _mm_setzero_si128();
+  __m128i vnorm = _mm_set1_epi32( ( 1 << ( log2Norm - 1 ) ) );
+
+  for( int i = 0; i < scaledWidth; i += 4 )
+  {
+    Pel* dst = scaledSrc;
+
+    int* tmp0 = buf + i * orgHeight;
+    int* tmp1 = i + 1 < scaledWidth ? buf + (i + 1) * orgHeight : tmp0;
+    int* tmp2 = i + 2 < scaledWidth ? buf + (i + 2) * orgHeight : tmp0;
+    int* tmp3 = i + 3 < scaledWidth ? buf + (i + 3) * orgHeight : tmp0;
+
+    _mm_prefetch( ( const char* ) (tmp0 + (orgHeight << 2)), _MM_HINT_T0 );
+    _mm_prefetch( ( const char* ) (tmp1 + (orgHeight << 2)), _MM_HINT_T0 );
+    _mm_prefetch( ( const char* ) (tmp2 + (orgHeight << 2)), _MM_HINT_T0 );
+    _mm_prefetch( ( const char* ) (tmp3 + (orgHeight << 2)), _MM_HINT_T0 );
+
+    for( int j = 0; j < scaledHeight; j++ )
+    {
+      const int refPos      = ( ( ( j << compScale.second ) - afterScaleTopOffset ) * scalingRatio.second + addY ) >> posShiftY;
+      const int integer     = refPos >> numFracShift;
+      const int frac        = refPos & numFracPositions;
+      const TFilterCoeff* f = filterVer + frac * filterLength;
+      __m128i vres0, vres1, vres2, vres3;
+
+#if USE_AVX2
+      if( vext >= AVX2 )
+      {
+        __m256i vflt = _mm256_cvtepi16_epi32( _mm_loadu_si128( (const __m128i*)  f ) );
+
+        __m256i vsrc0, vsrc1, vsrc2, vsrc3;
+
+        if( integer + 0 - (filterLength / 2) + 1 >= 0 && integer + (NTAPS_LUMA - 1) - (filterLength / 2) + 1 < orgHeight )
+        {
+          int yInt = integer + 0 - (filterLength / 2) + 1;
+        
+          vsrc0 = _mm256_loadu_si256( (const __m256i*) &tmp0[yInt] );
+          vsrc1 = _mm256_loadu_si256( (const __m256i*) &tmp1[yInt] );
+          vsrc2 = _mm256_loadu_si256( (const __m256i*) &tmp2[yInt] );
+          vsrc3 = _mm256_loadu_si256( (const __m256i*) &tmp3[yInt] );
+        }
+        else
+        {
+          int src[4][NTAPS_LUMA];
+
+          for( int k = 0; k < filterLength; k++ )
+          {
+            int yInt = std::min<int>( std::max( 0, integer + k - filterLength / 2 + 1 ), orgHeight - 1 );
+            src[0][k] = tmp0[yInt];
+            src[1][k] = tmp1[yInt];
+            src[2][k] = tmp2[yInt];
+            src[3][k] = tmp3[yInt];
+          }
+
+          vsrc0 = _mm256_loadu_si256( (const __m256i*) &src[0][0] );
+          vsrc1 = _mm256_loadu_si256( (const __m256i*) &src[1][0] );
+          vsrc2 = _mm256_loadu_si256( (const __m256i*) &src[2][0] );
+          vsrc3 = _mm256_loadu_si256( (const __m256i*) &src[3][0] );
+        }
+
+        __m256i xres0 = _mm256_mullo_epi32( vsrc0, vflt );
+        __m256i xres1 = _mm256_mullo_epi32( vsrc1, vflt );
+        __m256i xres2 = _mm256_mullo_epi32( vsrc2, vflt );
+        __m256i xres3 = _mm256_mullo_epi32( vsrc3, vflt );
+
+        xres0 = _mm256_hadd_epi32( xres0, xres1 );
+        xres2 = _mm256_hadd_epi32( xres2, xres3 );
+
+        xres0 = _mm256_hadd_epi32( xres0, xres2 );
+
+        vres0 = _mm_add_epi32( _mm256_castsi256_si128( xres0 ), _mm256_extracti128_si256( xres0, 1 ) );
+      }
+      else
+#endif
+      {
+        __m128i vflt[2];
+        vflt[1] = _mm_loadu_si128( (const __m128i*)  f );
+        vflt[0] = _mm_cvtepi16_epi32( vflt[1] );
+        vflt[1] = _mm_cvtepi16_epi32( _mm_unpackhi_epi64( vflt[1], _mm_setzero_si128() ) );
+
+        __m128i vsrc0[2], vsrc1[2], vsrc2[2], vsrc3[2];
+
+        if( integer + 0 - ( filterLength / 2 ) + 1 >= 0 && integer + ( NTAPS_LUMA - 1 ) - ( filterLength / 2 ) + 1 < orgHeight )
+        {
+          int yInt = integer + 0 - ( filterLength / 2 ) + 1;
+      
+          vsrc0[0] = _mm_loadu_si128( (const __m128i*) &tmp0[yInt]);
+          vsrc0[1] = _mm_loadu_si128( (const __m128i*) &tmp0[yInt + 4]);
+
+          vsrc1[0] = _mm_loadu_si128( (const __m128i*) &tmp1[yInt]);
+          vsrc1[1] = _mm_loadu_si128( (const __m128i*) &tmp1[yInt + 4]);
+
+          vsrc2[0] = _mm_loadu_si128( (const __m128i*) &tmp2[yInt]);
+          vsrc2[1] = _mm_loadu_si128( (const __m128i*) &tmp2[yInt + 4]);
+
+          vsrc3[0] = _mm_loadu_si128( (const __m128i*) &tmp3[yInt]);
+          vsrc3[1] = _mm_loadu_si128( (const __m128i*) &tmp3[yInt + 4]);
+        }
+        else
+        {
+          int src[4][NTAPS_LUMA];
+
+          for( int k = 0; k < filterLength; k++ )
+          {
+            int yInt = std::min<int>( std::max( 0, integer + k - filterLength / 2 + 1 ), orgHeight - 1 );
+            src[0][k] = tmp0[yInt];
+            src[1][k] = tmp1[yInt];
+            src[2][k] = tmp2[yInt];
+            src[3][k] = tmp3[yInt];
+          }
+
+          vsrc0[0] = _mm_loadu_si128( (const __m128i*) &src[0][0] );
+          vsrc0[1] = _mm_loadu_si128( (const __m128i*) &src[0][4] );
+
+          vsrc1[0] = _mm_loadu_si128( (const __m128i*) &src[1][0] );
+          vsrc1[1] = _mm_loadu_si128( (const __m128i*) &src[1][4] );
+
+          vsrc2[0] = _mm_loadu_si128( (const __m128i*) &src[2][0] );
+          vsrc2[1] = _mm_loadu_si128( (const __m128i*) &src[2][4] );
+
+          vsrc3[0] = _mm_loadu_si128( (const __m128i*) &src[3][0] );
+          vsrc3[1] = _mm_loadu_si128( (const __m128i*) &src[3][4] );
+        }
+
+        vres0 = _mm_add_epi32( _mm_mullo_epi32( vsrc0[0], vflt[0] ), _mm_mullo_epi32( vsrc0[1], vflt[1] ) );
+        vres1 = _mm_add_epi32( _mm_mullo_epi32( vsrc1[0], vflt[0] ), _mm_mullo_epi32( vsrc1[1], vflt[1] ) );
+        vres2 = _mm_add_epi32( _mm_mullo_epi32( vsrc2[0], vflt[0] ), _mm_mullo_epi32( vsrc2[1], vflt[1] ) );
+        vres3 = _mm_add_epi32( _mm_mullo_epi32( vsrc3[0], vflt[0] ), _mm_mullo_epi32( vsrc3[1], vflt[1] ) );
+
+        vres0 = _mm_hadd_epi32( vres0, vres1 );
+        vres2 = _mm_hadd_epi32( vres2, vres3 );
+
+        vres0 = _mm_hadd_epi32( vres0, vres2 );
+      }
+
+      vres0 = _mm_add_epi32( vres0, vnorm );
+      vres0 = _mm_srai_epi32( vres0, log2Norm );
+      vres0 = _mm_max_epi32( _mm_min_epi32( _mm_set1_epi32( maxVal ), vres0 ), vzero );
+
+      vres0 = _mm_packs_epi32( vres0, _mm_setzero_si128() );
+
+      if( i + 3 < scaledWidth )
+      {
+        _mm_storel_epi64( (__m128i*) &dst[i], vres0 );
+      }
+      else if( i + 2 < scaledWidth )
+      {
+        _mm_storeu_si32( (__m128i*) &dst[i], vres0 );
+        dst[i + 2] = _mm_extract_epi16( vres0, 2 );
+      }
+      else if( i + 1 < scaledWidth )
+      {
+        _mm_storeu_si32( (__m128i*) &dst[i], vres0 );
+      }
+      else
+      {
+        dst[i] = _mm_extract_epi16( vres0, 0 );
+      }
+
+      dst += scaledStride;
+    }
+  }
+
+  delete[] buf;
+}
+
+template<X86_VEXT vext>
+void sampleRateConvSIMD_4tap( const std::pair<int, int> scalingRatio, const std::pair<int, int> compScale,
+                              const Pel* orgSrc, const int orgStride, const int orgWidth, const int orgHeight,
+                              const int beforeScaleLeftOffset, const int beforeScaleTopOffset,
+                              Pel* scaledSrc, const int scaledStride, const int scaledWidth, const int scaledHeight,
+                              const int afterScaleLeftOffset, const int afterScaleTopOffset,
+                              const int bitDepth,
+                              const bool horCollocatedPositionFlag, const bool verCollocatedPositionFlag )
+{
+  static constexpr bool useLumaFilter = false;
+
+  const TFilterCoeff* filterHor = useLumaFilter ? &InterpolationFilter::m_lumaFilter[0][0] : &InterpolationFilter::m_chromaFilter[0][0];
+  const TFilterCoeff* filterVer = useLumaFilter ? &InterpolationFilter::m_lumaFilter[0][0] : &InterpolationFilter::m_chromaFilter[0][0];
+
+  const int numFracPositions  = useLumaFilter ? 15 : 31;
+  const int numFracShift      = useLumaFilter ? 4 : 5;
+  const int posShiftX = SCALE_RATIO_BITS - numFracShift + compScale.first;
+  const int posShiftY = SCALE_RATIO_BITS - numFracShift + compScale.second;
+  int addX = (1 << (posShiftX - 1)) + (beforeScaleLeftOffset << SCALE_RATIO_BITS) + ((int( 1 - horCollocatedPositionFlag ) * 8 * (scalingRatio.first - SCALE_1X.first) + (1 << (2 + compScale.first))) >> (3 + compScale.first));
+  int addY = (1 << (posShiftY - 1)) + (beforeScaleTopOffset << SCALE_RATIO_BITS) + ((int( 1 - verCollocatedPositionFlag ) * 8 * (scalingRatio.second - SCALE_1X.second) + (1 << (2 + compScale.second))) >> (3 + compScale.second));
+
+  const int filterLength = useLumaFilter ? NTAPS_LUMA : NTAPS_CHROMA;
+  const int log2Norm = 12;
+
+  int* buf = new int[orgHeight * scaledWidth];
+  int maxVal = (1 << bitDepth) - 1;
+
+  CHECK( bitDepth > 17, "Overflow may happen!" );
+
+  const Pel* org = orgSrc;
+
+  for( int j = 0; j < orgHeight; j += 4 )
+  {
+    const Pel* org0 = org;
+    const Pel* org1 = org0 + orgStride;
+    const Pel* org2 = org1 + orgStride;
+    const Pel* org3 = org2 + orgStride;
+
+    _mm_prefetch( ( const char* ) (org0 + (orgStride << 1)), _MM_HINT_T0 );
+    _mm_prefetch( ( const char* ) (org1 + (orgStride << 1)), _MM_HINT_T0 );
+    _mm_prefetch( ( const char* ) (org2 + (orgStride << 1)), _MM_HINT_T0 );
+    _mm_prefetch( ( const char* ) (org3 + (orgStride << 1)), _MM_HINT_T0 );
+
+    for( int i = 0; i < scaledWidth; i++ )
+    {
+      int refPos = (((i << compScale.first) - afterScaleLeftOffset) * scalingRatio.first + addX) >> posShiftX;
+      int integer = refPos >> numFracShift;
+      int frac = refPos & numFracPositions;
+
+      const TFilterCoeff* f = filterHor + frac * filterLength;
+
+      __m128i vsrc0, vsrc1, vsrc2, vsrc3;
+
+      if( integer + 0 - (filterLength / 2) + 1 >= 0 && integer + (NTAPS_CHROMA - 1) - (filterLength / 2) + 1 < orgWidth )
+      {
+        int xInt = integer + 0 - (filterLength / 2) + 1;
+
+        vsrc0 = _mm_loadl_epi64( (const __m128i*) & org0[xInt] );
+        vsrc1 = _mm_loadl_epi64( (const __m128i*) & org1[xInt] );
+        vsrc2 = _mm_loadl_epi64( (const __m128i*) & org2[xInt] );
+        vsrc3 = _mm_loadl_epi64( (const __m128i*) & org3[xInt] );
+      }
+      else
+      {
+        Pel src[4][NTAPS_CHROMA];
+
+        for( int k = 0; k < filterLength; k++ )
+        {
+          int xInt = std::min<int>( std::max( 0, integer + k - filterLength / 2 + 1 ), orgWidth - 1 );
+
+          src[0][k] = org0[xInt];
+          src[1][k] = org1[xInt];
+          src[2][k] = org2[xInt];
+          src[3][k] = org3[xInt];
+        }
+
+        vsrc0 = _mm_loadl_epi64( (const __m128i*) & src[0][0] );
+        vsrc1 = _mm_loadl_epi64( (const __m128i*) & src[1][0] );
+        vsrc2 = _mm_loadl_epi64( (const __m128i*) & src[2][0] );
+        vsrc3 = _mm_loadl_epi64( (const __m128i*) & src[3][0] );
+      }
+
+      __m128i vflt = _mm_loadu_si128( (const __m128i*) f );
+      vflt = _mm_unpacklo_epi64( vflt, vflt );
+
+      __m128i vres0 = _mm_madd_epi16( _mm_unpacklo_epi64( vsrc0, vsrc1 ), vflt );
+      __m128i vres2 = _mm_madd_epi16( _mm_unpacklo_epi64( vsrc2, vsrc3 ), vflt );
+
+      vres0 = _mm_hadd_epi32( vres0, vres2 );
+
+      int* tmp = buf + i * orgHeight + j;
+
+      _mm_storeu_si128( (__m128i*) tmp, vres0 );
+    }
+
+    org = org3 + orgStride;
+  }
+
+  __m128i vzero = _mm_setzero_si128();
+  __m128i vnorm = _mm_set1_epi32( (1 << (log2Norm - 1)) );
+
+  for( int i = 0; i < scaledWidth; i += 4 )
+  {
+    Pel* dst = scaledSrc;
+
+    int* tmp0 = buf + i * orgHeight;
+    int* tmp1 = i + 1 < scaledWidth ? buf + (i + 1) * orgHeight : tmp0;
+    int* tmp2 = i + 2 < scaledWidth ? buf + (i + 2) * orgHeight : tmp0;
+    int* tmp3 = i + 3 < scaledWidth ? buf + (i + 3) * orgHeight : tmp0;
+
+    _mm_prefetch( ( const char* ) (tmp0 + (orgHeight << 2)), _MM_HINT_T0 );
+    _mm_prefetch( ( const char* ) (tmp1 + (orgHeight << 2)), _MM_HINT_T0 );
+    _mm_prefetch( ( const char* ) (tmp2 + (orgHeight << 2)), _MM_HINT_T0 );
+    _mm_prefetch( ( const char* ) (tmp3 + (orgHeight << 2)), _MM_HINT_T0 );
+
+    for( int j = 0; j < scaledHeight; j++ )
+    {
+      const int refPos = (((j << compScale.second) - afterScaleTopOffset) * scalingRatio.second + addY) >> posShiftY;
+      const int integer = refPos >> numFracShift;
+      const int frac = refPos & numFracPositions;
+      const TFilterCoeff* f = filterVer + frac * filterLength;
+
+      __m128i vflt;
+      vflt = _mm_cvtepi16_epi32( _mm_loadu_si128( (const __m128i*)  f ) );
+
+      __m128i vsrc0, vsrc1, vsrc2, vsrc3;
+
+      if( integer + 0 - (filterLength / 2) + 1 >= 0 && integer + (NTAPS_CHROMA - 1) - (filterLength / 2) + 1 < orgHeight )
+      {
+        int yInt = integer + 0 - (filterLength / 2) + 1;
+
+        vsrc0 = _mm_loadu_si128( (const __m128i*) &tmp0[yInt] );
+        vsrc1 = _mm_loadu_si128( (const __m128i*) &tmp1[yInt] );
+        vsrc2 = _mm_loadu_si128( (const __m128i*) &tmp2[yInt] );
+        vsrc3 = _mm_loadu_si128( (const __m128i*) &tmp3[yInt] );
+      }
+      else
+      {
+        int src[4][NTAPS_CHROMA];
+
+        for( int k = 0; k < filterLength; k++ )
+        {
+          int yInt = std::min<int>( std::max( 0, integer + k - filterLength / 2 + 1 ), orgHeight - 1 );
+          src[0][k] = tmp0[yInt];
+          src[1][k] = tmp1[yInt];
+          src[2][k] = tmp2[yInt];
+          src[3][k] = tmp3[yInt];
+        }
+
+        vsrc0 = _mm_loadu_si128( (const __m128i*) & src[0][0] );
+        vsrc1 = _mm_loadu_si128( (const __m128i*) & src[1][0] );
+        vsrc2 = _mm_loadu_si128( (const __m128i*) & src[2][0] );
+        vsrc3 = _mm_loadu_si128( (const __m128i*) & src[3][0] );
+      }
+
+      __m128i vres0 = _mm_mullo_epi32( vsrc0, vflt );
+      __m128i vres1 = _mm_mullo_epi32( vsrc1, vflt );
+      __m128i vres2 = _mm_mullo_epi32( vsrc2, vflt );
+      __m128i vres3 = _mm_mullo_epi32( vsrc3, vflt );
+
+      vres0 = _mm_hadd_epi32( vres0, vres1 );
+      vres2 = _mm_hadd_epi32( vres2, vres3 );
+
+      vres0 = _mm_hadd_epi32( vres0, vres2 );
+
+      vres0 = _mm_add_epi32( vres0, vnorm );
+      vres0 = _mm_srai_epi32( vres0, log2Norm );
+      vres0 = _mm_max_epi32( _mm_min_epi32( _mm_set1_epi32( maxVal ), vres0 ), vzero );
+
+      vres0 = _mm_packs_epi32( vres0, _mm_setzero_si128() );
+
+      if( i + 3 < scaledWidth )
+      {
+        _mm_storel_epi64( (__m128i*) & dst[i], vres0 );
+      }
+      else if( i + 2 < scaledWidth )
+      {
+        _mm_storeu_si32( (__m128i*) &dst[i], vres0 );
+        dst[i + 2] = _mm_extract_epi16( vres0, 2 );
+      }
+      else if( i + 1 < scaledWidth )
+      {
+        _mm_storeu_si32( (__m128i*) &dst[i], vres0 );
+      }
+      else
+      {
+        dst[i] = _mm_extract_epi16( vres0, 0 );
+      }
+
+      dst += scaledStride;
+    }
+  }
+
+  delete[] buf;
+}
+
+template<X86_VEXT vext>
+void sampleRateConvSIMD( const std::pair<int, int> scalingRatio, const std::pair<int, int> compScale,
+                         const Pel* orgSrc, const int orgStride, const int orgWidth, const int orgHeight,
+                         const int beforeScaleLeftOffset, const int beforeScaleTopOffset,
+                         Pel* scaledSrc, const int scaledStride, const int scaledWidth, const int scaledHeight,
+                         const int afterScaleLeftOffset, const int afterScaleTopOffset,
+                         const int bitDepth, const bool useLumaFilter,
+                         const bool horCollocatedPositionFlag, const bool verCollocatedPositionFlag )
+{
+  if( orgWidth == scaledWidth && orgHeight == scaledHeight && scalingRatio == SCALE_1X && !beforeScaleLeftOffset && !beforeScaleTopOffset && !afterScaleLeftOffset && !afterScaleTopOffset )
+  {
+    g_pelBufOP.copyBuffer( ( const char* ) orgSrc, orgStride * sizeof( Pel ), ( char* ) scaledSrc, scaledStride * sizeof( Pel ), orgWidth * sizeof( Pel ), orgHeight );
+
+    return;
+  }
+  else if( useLumaFilter )
+  {
+    sampleRateConvSIMD_8tap<vext>( scalingRatio, compScale, orgSrc, orgStride, orgWidth, orgHeight, beforeScaleLeftOffset, beforeScaleTopOffset, scaledSrc, scaledStride, scaledWidth, scaledHeight, afterScaleLeftOffset, afterScaleTopOffset, bitDepth );
+  }
+  else
+  {
+    sampleRateConvSIMD_4tap<vext>( scalingRatio, compScale, orgSrc, orgStride, orgWidth, orgHeight, beforeScaleLeftOffset, beforeScaleTopOffset, scaledSrc, scaledStride, scaledWidth, scaledHeight, afterScaleLeftOffset, afterScaleTopOffset, bitDepth, horCollocatedPositionFlag, verCollocatedPositionFlag );
+  }
+}
+
+template<X86_VEXT vext>
 void PelBufferOps::_initPelBufOpsX86()
 {
   addAvg16 = addAvg_SSE<vext, 16>;
@@ -877,6 +1368,8 @@ void PelBufferOps::_initPelBufOpsX86()
     applyLut = applyLut_SIMD<vext>;
 
   fillN_CU = fillN_CU_SIMD<vext>;
+
+  sampleRateConv = sampleRateConvSIMD<vext>;
 }
 
 template void PelBufferOps::_initPelBufOpsX86<SIMDX86>();

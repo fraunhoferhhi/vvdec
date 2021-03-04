@@ -686,9 +686,22 @@ void Quant::xDestroyScalingList()
 {
 }
 
-void Quant::init( Slice *slice )
+void Quant::init( const Picture *pic )
 {
-  if( slice->getExplicitScalingListUsed() )
+  const Slice* scalingListSlice = nullptr;
+
+  for( const Slice* slice : pic->slices )
+  {
+    if( slice->getExplicitScalingListUsed() )
+    {
+      scalingListSlice = slice;
+      break;
+    }
+  }
+
+  const Slice* slice = scalingListSlice;
+
+  if( slice && slice->getExplicitScalingListUsed() )
   {
     std::shared_ptr<APS> scalingListAPS = slice->getPicHeader()->getScalingListAPS();
     if( slice->getNalUnitLayerId() != scalingListAPS->getLayerId() )

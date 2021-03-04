@@ -63,10 +63,7 @@ THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "InterpolationFilter.h"
 
-namespace vvdec{
-class sei;
-}
-typedef std::list<vvdec::sei*> seiMessages;
+#include "vvdec/sei.h"
 
 struct Picture : public UnitArea
 {
@@ -133,7 +130,6 @@ public:
   uint64_t getNaluBits()                      const { return bits; }
   bool     getRap()                           const { return rap; }
 
-  void   setBorderExtension( bool bFlag )           { borderExtStarted = bFlag;}
   Pel*   getOrigin( const PictureType &type, const ComponentID compID ) const;
   PelBuf getOriginBuf( const PictureType &type, const ComponentID compID );
 
@@ -144,18 +140,8 @@ public:
   void          setSpliceIdx(uint32_t idx, int poc) { m_spliceIdx[idx] = poc; }
   void          createSpliceIdx(int nums);
   bool          getSpliceFull();
-#if RPR_FIX
-  static void   sampleRateConv( const std::pair<int, int> scalingRatio, const std::pair<int, int> compScale,
-                                const CPelBuf& beforeScale, const int beforeScaleLeftOffset, const int beforeScaleTopOffset,
-                                const PelBuf& afterScale, const int afterScaleLeftOffset, const int afterScaleTopOffset,
-                                const int bitDepth, const bool useLumaFilter, const bool downsampling,
-                                const bool horCollocatedPositionFlag, const bool verCollocatedPositionFlag );
-  static void   rescalePicture( const std::pair<int, int> scalingRatio, const CPelUnitBuf& beforeScaling, const Window& confBefore, const PelUnitBuf& afterScaling, const Window& confAfter, const ChromaFormat chromaFormatIDC, const BitDepths& bitDepths, const bool useLumaFilter, const bool downsampling, const bool horCollocatedChromaFlag, const bool verCollocatedChromaFlag );
-#else
-  static void   sampleRateConv( const Pel* orgSrc, SizeType orgWidth, SizeType orgHeight, ptrdiff_t orgStride, Pel* scaledSrc, SizeType scaledWidth, SizeType scaledHeight, SizeType paddedWidth, SizeType paddedHeight, ptrdiff_t scaledStride, const int bitDepth, const bool useLumaFilter, const bool downsampling = false );
 
-  static void   rescalePicture(const CPelUnitBuf& beforeScaling, const Window& confBefore, const PelUnitBuf& afterScaling, const Window& confAfter, const ChromaFormat chromaFormatIDC, const BitDepths& bitDepths, const bool useLumaFilter, const bool downsampling = false);
-#endif
+
 public:
 #if JVET_O1143_MV_ACROSS_SUBPIC_BOUNDARY
   std::vector<PelStorage> m_subPicRefBufs;   // used as reference for subpictures, that are treated as pictures
@@ -168,7 +154,8 @@ public:
 
   std::chrono::time_point<std::chrono::steady_clock> m_processingStartTime;
   double                                             m_dProcessingTime = 0;
-
+  
+  bool subPicExtStarted               = false;
   bool borderExtStarted               = false;
 #if JVET_Q0764_WRAP_AROUND_WITH_RPR
   bool wrapAroundValid                = false;
@@ -246,7 +233,8 @@ public:
 
   CodingStructure*   cs    = nullptr;
   std::vector<Slice*> slices;
-  vvdec::seiMessages  SEIs;
+
+  seiMessages        seiMessageList;
 
   bool               isRefScaled( const PPS* pps ) const
   {
@@ -331,7 +319,7 @@ public:
 #endif
 };
 
-int calcAndPrintHashStatus(const CPelUnitBuf& pic, const class vvdec::seiDecodedPictureHash* pictureHashSEI, const BitDepths &bitDepths, const MsgLevel msgl);
+int calcAndPrintHashStatus(const CPelUnitBuf& pic, const vvdecSEIDecodedPictureHash* pictureHashSEI, const BitDepths &bitDepths, const MsgLevel msgl);
 
 
 #endif
