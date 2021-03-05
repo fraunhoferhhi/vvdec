@@ -224,7 +224,7 @@ public:
   Barrier         m_copyWrapBufDone;
   BlockingBarrier done;
 #if RECO_WHILE_PARSE
-  Barrier        *ctuParsedBarrier = nullptr;
+  std::vector<Barrier> ctuParsedBarrier;
 #endif
 #if ALLOW_MIDER_LF_DURING_PICEXT
   CBarrierVec     refPicExtDepBarriers;

@@ -59,7 +59,7 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #include "CommonLib/AdaptiveLoopFilter.h"
 #include "CommonLib/SampleAdaptiveOffset.h"
 
-#include "Utilities/NoMallocThreadPool.h"
+#include "Utilities/ThreadPool.h"
 
 class DecLibRecon;
 class IntraPrediction;
@@ -133,7 +133,7 @@ private:
   AdaptiveLoopFilter   m_cALF;
 
   int                  m_numDecThreads = 0;
-  NoMallocThreadPool*  m_decodeThreadPool;
+  ThreadPool*          m_decodeThreadPool;
 
   Picture*             m_currDecompPic = nullptr;
 #if TRACE_ENABLE_ITT
@@ -152,7 +152,7 @@ public:
   DecLibRecon( const DecLibRecon& )  = delete;
   DecLibRecon( const DecLibRecon&& ) = delete;
 
-  void create( NoMallocThreadPool* threadPool, unsigned instanceId );
+  void create( ThreadPool* threadPool, unsigned instanceId );
   void destroy();
 
   void     decompressPicture( Picture* pcPic );

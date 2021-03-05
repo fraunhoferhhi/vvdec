@@ -59,7 +59,7 @@ THE POSSIBILITY OF SUCH DAMAGE.
 
 
 class InputNALUnit;
-class NoMallocThreadPool;
+class ThreadPool;
 class DecLib;
 class PicListManager;
 
@@ -133,7 +133,7 @@ private:
 
   HRD                       m_HRD;
   
-  NoMallocThreadPool*       m_threadPool = nullptr;
+  ThreadPool*               m_threadPool = nullptr;
 
   // functional classes
   HLSyntaxReader            m_HLSReader;
@@ -156,7 +156,7 @@ public:
   DecLibParser( DecLib& decLib, PicListManager& picListManager,  PicHeader* picHeader ) : m_decLib( decLib ), m_picListManager( picListManager ), m_picHeader( picHeader ) {}
   ~DecLibParser();
 
-  void create                   (NoMallocThreadPool* tp, int parserFrameDelay, int numReconInst, int numDecThreads);
+  void create                   ( ThreadPool* tp, int parserFrameDelay, int numReconInst, int numDecThreads );
   void destroy                  ();
 
   void recreateLostPicture      (Picture* pcPic);

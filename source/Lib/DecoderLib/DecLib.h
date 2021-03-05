@@ -57,7 +57,7 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #include "CommonLib/CommonDef.h"
 #include "CommonLib/Picture.h"
 
-#include "Utilities/NoMallocThreadPool.h"
+#include "Utilities/ThreadPool.h"
 
 //! \ingroup DecoderLib
 //! \{
@@ -73,7 +73,7 @@ class DecLib
   DecLibParser             m_decLibParser{ *this, m_picListManager, m_picHeader };
   std::list<DecLibRecon>   m_decLibRecon{ 2 };
 
-  std::unique_ptr<NoMallocThreadPool> m_decodeThreadPool;
+  std::unique_ptr<ThreadPool> m_decodeThreadPool;
 
   unsigned int m_parseFrameDelay = 0;
 #if RPR_YUV_OUTPUT

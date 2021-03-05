@@ -60,7 +60,7 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #include "PicListManager.h"
 #include "SEI_internal.h"
 
-#include "Utilities/NoMallocThreadPool.h"
+#include "Utilities/ThreadPool.h"
 
 #include <cstring>
 #include <list>

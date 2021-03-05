@@ -393,7 +393,7 @@ int VVDecImpl::decode( vvdecAccessUnit& rcAccessUnit, vvdecFrame** ppcFrame )
     std::stringstream css;
     css << "caught overflow exception " << e.what();
     m_cAdditionalErrorString = css.str();
-    return VVDEC_ERR_UNSPECIFIED;
+    return VVDEC_ERR_RESTART_REQUIRED;
   }
   catch( std::exception& e )
   {
@@ -401,7 +401,7 @@ int VVDecImpl::decode( vvdecAccessUnit& rcAccessUnit, vvdecFrame** ppcFrame )
     std::stringstream css;
     css << "caught unknown exception " << e.what();
     m_cAdditionalErrorString = css.str();
-    return VVDEC_ERR_UNSPECIFIED;
+    return VVDEC_ERR_RESTART_REQUIRED;
   }
 
   return iRet;
@@ -457,14 +457,14 @@ int VVDecImpl::flush( vvdecFrame** ppframe )
     std::stringstream css;
     css << "caught overflow exception " << e.what();
     m_cAdditionalErrorString = css.str();
-    return VVDEC_ERR_UNSPECIFIED;
+    return VVDEC_ERR_RESTART_REQUIRED;
   }
   catch( std::exception& e )
   {
     std::stringstream css;
     css << "caught unknown exception " << e.what();
     m_cAdditionalErrorString = css.str();
-    return VVDEC_ERR_UNSPECIFIED;
+    return VVDEC_ERR_RESTART_REQUIRED;
   }
 
   if( 0 != iRet )

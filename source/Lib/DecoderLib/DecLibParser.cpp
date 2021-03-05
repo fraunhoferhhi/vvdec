@@ -51,7 +51,7 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #include "CommonLib/dtrace_next.h"
 #include "CommonLib/dtrace_buffer.h"
 
-#include "Utilities/NoMallocThreadPool.h"
+#include "Utilities/ThreadPool.h"
 
 #include <unordered_map>
 
@@ -77,7 +77,7 @@ DecLibParser::~DecLibParser()
   destroy();
 }
 
-void DecLibParser::create( NoMallocThreadPool* tp, int parserFrameDelay, int numReconInst, int numDecThreads )
+void DecLibParser::create( ThreadPool* tp, int parserFrameDelay, int numReconInst, int numDecThreads )
 {
   m_threadPool        = tp;
   m_parseFrameDelay   = parserFrameDelay;
@@ -1033,18 +1033,31 @@ Slice*  DecLibParser::xDecodeSliceMain( InputNALUnit &nalu )
   {
     auto& decLib    = slice->parseTaskParams.decLibParser;
     auto& bitstream = slice->parseTaskParams.bitstream;
+    auto* pic       = slice->getPic();
 
-    slice->getPic()->startProcessingTimer();
-    //  Decode a picture
-    ITT_TASKSTART( itt_domain_prs, itt_handle_parse );
-    decLib->m_cSliceDecoder.parseSlice( slice, &bitstream, threadId );
-    ITT_TASKEND( itt_domain_prs, itt_handle_parse );
+    try
+    {
+      pic->startProcessingTimer();
 
-    slice->getPic()->stopProcessingTimer();
+      //  Decode a picture
+      ITT_TASKSTART( itt_domain_prs, itt_handle_parse );
+      decLib->m_cSliceDecoder.parseSlice( slice, &bitstream, threadId );
+      ITT_TASKEND( itt_domain_prs, itt_handle_parse );
 
-    bitstream.clearFifo();
-    bitstream.clearEmulationPreventionByteLocation();
+      pic->stopProcessingTimer();
 
+      bitstream.clearFifo();
+      bitstream.clearEmulationPreventionByteLocation();
+    }
+    catch( ... )
+    {
+      pic->parseDone.setException( std::current_exception() );
+      for( auto& b: pic->ctuParsedBarrier )
+      {
+        b.setException( std::current_exception() );
+      }
+      std::rethrow_exception( std::current_exception() );
+    }
     return true;
   };
 
@@ -1062,7 +1075,7 @@ Slice*  DecLibParser::xDecodeSliceMain( InputNALUnit &nalu )
       m_threadPool->addBarrierTask<Slice>( parseTask, pcSlice, nullptr, &pcSlice->parseDone );
     }
   }
-  else  // run on main thread (still go through std::async to create the future)
+  else
   {
     parseTask( 0, pcSlice );
     pcSlice->parseDone.unlock();
