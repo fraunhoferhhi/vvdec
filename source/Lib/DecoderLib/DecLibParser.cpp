@@ -1035,11 +1035,8 @@ Slice*  DecLibParser::xDecodeSliceMain( InputNALUnit &nalu )
     auto& bitstream = slice->parseTaskParams.bitstream;
     auto* pic       = slice->getPic();
 
-#if THREAD_POOL_HANDLE_EXCEPTIONS
     try
     {
-#endif   // THREAD_POOL_HANDLE_EXCEPTIONS
-
       pic->startProcessingTimer();
 
       //  Decode a picture
@@ -1051,7 +1048,6 @@ Slice*  DecLibParser::xDecodeSliceMain( InputNALUnit &nalu )
 
       bitstream.clearFifo();
       bitstream.clearEmulationPreventionByteLocation();
-#if THREAD_POOL_HANDLE_EXCEPTIONS
     }
     catch( ... )
     {
@@ -1062,7 +1058,6 @@ Slice*  DecLibParser::xDecodeSliceMain( InputNALUnit &nalu )
       }
       std::rethrow_exception( std::current_exception() );
     }
-#endif   // THREAD_POOL_HANDLE_EXCEPTIONS
     return true;
   };
 

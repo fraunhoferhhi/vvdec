@@ -52,9 +52,7 @@ THE POSSIBILITY OF SUCH DAMAGE.
 # include <pthread.h>
 #endif
 
-#if THREAD_POOL_HANDLE_EXCEPTIONS
 std::mutex Barrier::s_exceptionLock{};
-#endif
 
 // block threads after busy-waiting this long
 const static auto BUSY_WAIT_TIME = [] {
@@ -64,7 +62,6 @@ const static auto BUSY_WAIT_TIME = [] {
   return std::chrono::milliseconds( 1 );
 }();
 
-#if THREAD_POOL_HANDLE_EXCEPTIONS
 struct ThreadPool::TaskException : public std::exception
 {
   explicit TaskException( std::exception_ptr e, ThreadPool::Slot& task )
@@ -74,7 +71,6 @@ struct ThreadPool::TaskException : public std::exception
   std::exception_ptr        m_originalException;
   ThreadPool::Slot& m_task;
 };
-#endif   // THREAD_POOL_HANDLE_EXCEPTIONS
 
 class ScopeIncDecCounter
 {
@@ -117,10 +113,8 @@ bool ThreadPool::processTasksOnMainThread()
   TaskIterator taskIt;
   while( true )
   {
-#if THREAD_POOL_HANDLE_EXCEPTIONS
     try
     {
-#endif
       if( !taskIt.isValid() )
       {
         taskIt = findNextTask( 0, m_tasks.begin() );
@@ -135,13 +129,11 @@ bool ThreadPool::processTasksOnMainThread()
         break;
       }
       processTask( 0, *taskIt );
-#if THREAD_POOL_HANDLE_EXCEPTIONS
     }
     catch( TaskException& e )
     {
       handleTaskException( e.m_originalException, e.m_task.done, e.m_task.counter, &e.m_task.state );
     }
-#endif // THREAD_POOL_HANDLE_EXCEPTIONS
   }
 
   // return true if all done (-> false if some tasks blocked due to barriers)
@@ -166,7 +158,6 @@ void ThreadPool::waitForThreads()
   }
 }
 
-#if THREAD_POOL_HANDLE_EXCEPTIONS
 void ThreadPool::checkAndThrowThreadPoolException()
 {
   if( !m_exceptionFlag.load() )
@@ -182,7 +173,6 @@ void ThreadPool::checkAndThrowThreadPoolException()
 
   std::rethrow_exception( tmp );
 }
-#endif   // THREAD_POOL_HANDLE_EXCEPTIONS
 
 void ThreadPool::threadProc( int threadId )
 {
@@ -197,10 +187,8 @@ void ThreadPool::threadProc( int threadId )
   auto nextTaskIt = m_tasks.begin();
   while( !m_exitThreads )
   {
-#if THREAD_POOL_HANDLE_EXCEPTIONS
     try
     {
-#endif   // THREAD_POOL_HANDLE_EXCEPTIONS
       auto taskIt = findNextTask( threadId, nextTaskIt );
       if( !taskIt.isValid() )
       {
@@ -244,7 +232,6 @@ void ThreadPool::threadProc( int threadId )
 
       nextTaskIt = taskIt;
       nextTaskIt.incWrap();
-#if THREAD_POOL_HANDLE_EXCEPTIONS
     }
     catch( TaskException& e )
     {
@@ -262,7 +249,6 @@ void ThreadPool::threadProc( int threadId )
       m_threadPoolException = std::current_exception();
       return;
     }
-#endif   // THREAD_POOL_HANDLE_EXCEPTIONS
   }
 }
 
@@ -270,21 +256,14 @@ bool ThreadPool::checkTaskReady( int threadId, CBarrierVec& barriers, ThreadPool
 {
   if( !barriers.empty() )
   {
-#if THREAD_POOL_HANDLE_EXCEPTIONS
     // don't break early, because isBlocked() also checks exception state
     if( std::count_if( barriers.cbegin(), barriers.cend(), []( const Barrier* b ) { return b && b->isBlocked(); } ) )
-#else
-    if( std::any_of( barriers.cbegin(), barriers.cend(), []( const Barrier* b ) { return b && b->isBlocked(); } ) )
-#endif   // THREAD_POOL_HANDLE_EXCEPTIONS
     {
       return false;
     }
   }
-#if THREAD_POOL_HANDLE_EXCEPTIONS
   // don't clear the barriers, even if they are all unlocked, because exceptions could still be singalled through them
-#else
-  barriers.clear();   // clear barriers, so we don't need to check them on the next try (we assume they won't get locked again)
-#endif
+  // barriers.clear();
 
   if( readyCheck && readyCheck( threadId, taskParam ) == false )
   {
@@ -304,10 +283,8 @@ ThreadPool::TaskIterator ThreadPool::findNextTask( int threadId, TaskIterator st
   for( auto it = startSearch; it != startSearch || first; it.incWrap() )
   {
     first = false;
-#if THREAD_POOL_HANDLE_EXCEPTIONS
     try
     {
-#endif   // THREAD_POOL_HANDLE_EXCEPTIONS
       Slot& task     = *it;
       auto  expected = WAITING;
       if( task.state == expected && task.state.compare_exchange_strong( expected, RUNNING ) )
@@ -320,23 +297,19 @@ ThreadPool::TaskIterator ThreadPool::findNextTask( int threadId, TaskIterator st
         // reschedule
         task.state = WAITING;
       }
-#if THREAD_POOL_HANDLE_EXCEPTIONS
     }
     catch( ... )
     {
       throw TaskException( std::current_exception(), *it );
     }
-#endif
   }
   return {};
 }
 
 bool ThreadPool::processTask( int threadId, ThreadPool::Slot& task )
 {
-#if THREAD_POOL_HANDLE_EXCEPTIONS
   try
   {
-#endif
     const bool success = task.func( threadId, task.param );
     if( !success )
     {
@@ -352,13 +325,11 @@ bool ThreadPool::processTask( int threadId, ThreadPool::Slot& task )
     {
       --(*task.counter);
     }
-#if THREAD_POOL_HANDLE_EXCEPTIONS
   }
   catch( ... )
   {
     throw TaskException( std::current_exception(), task );
   }
-#endif   // THREAD_POOL_HANDLE_EXCEPTIONS
 
   task.state = FREE;
 
@@ -368,10 +339,8 @@ bool ThreadPool::processTask( int threadId, ThreadPool::Slot& task )
 bool ThreadPool::bypassTaskQueue( TaskFunc func, void* param, WaitCounter* counter, Barrier* done, CBarrierVec& barriers, TaskFunc readyCheck )
 {
   CHECKD( numThreads() > 0, "the task queue should only be bypassed, when running single-threaded." );
-#if THREAD_POOL_HANDLE_EXCEPTIONS
   try
   {
-#endif
     // if singlethreaded, execute all pending tasks
     bool waiting_tasks = m_nextFillSlot != m_tasks.begin();
     bool is_ready      = checkTaskReady( 0, barriers, (TaskFunc)readyCheck, param );
@@ -398,19 +367,16 @@ bool ThreadPool::bypassTaskQueue( TaskFunc func, void* param, WaitCounter* count
         return true;
       }
     }
-#if THREAD_POOL_HANDLE_EXCEPTIONS
   }
   catch( ... )
   {
     handleTaskException( std::current_exception(), done, counter, nullptr );
   }
-#endif   // THREAD_POOL_HANDLE_EXCEPTIONS
 
   // direct execution of the task failed
   return false;
 }
 
-#if THREAD_POOL_HANDLE_EXCEPTIONS
 void ThreadPool::handleTaskException( const std::exception_ptr e, Barrier* done, WaitCounter* counter, std::atomic<TaskState>* slot_state )
 {
   if( done != nullptr )
@@ -427,7 +393,6 @@ void ThreadPool::handleTaskException( const std::exception_ptr e, Barrier* done,
     *slot_state = FREE;
   }
 }
-#endif
 
 // ---------------------------------------------------------------------------
 // Chunked Task Queue

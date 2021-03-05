@@ -600,14 +600,12 @@ bool DecLibRecon::ctuTask( int tid, CtuTaskParam* param )
   const int       ctuStart     = col * param->numColPerTask;
   const int       ctuEnd       = std::min<int>( ctuStart + param->numColPerTask, cs.pcv->widthInCtus );
 
-#if THREAD_POOL_HANDLE_EXCEPTIONS
   try
   {
     if( cs.picture->m_ctuTaskCounter.hasException() )
     {
       std::rethrow_exception( cs.picture->m_ctuTaskCounter.getException() );
     }
-#endif  //THREAD_POOL_HANDLE_EXCEPTIONS
 
     switch( thisCtuState.load() )
     {
@@ -919,7 +917,6 @@ bool DecLibRecon::ctuTask( int tid, CtuTaskParam* param )
     default:
       CHECKD( thisCtuState != DONE, "Wrong CTU state" );
     }   // end switch
-#if THREAD_POOL_HANDLE_EXCEPTIONS
   }
   catch( ... )
   {
@@ -929,7 +926,6 @@ bool DecLibRecon::ctuTask( int tid, CtuTaskParam* param )
     }
     std::rethrow_exception( std::current_exception() );
   }
-#endif   // THREAD_POOL_HANDLE_EXCEPTIONS
 
   return true;
 }

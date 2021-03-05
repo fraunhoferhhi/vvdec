@@ -129,7 +129,6 @@ void Picture::resetForUse()
   wasLost          = false;
   skippedDecCount  = 0;
 
-#if THREAD_POOL_HANDLE_EXCEPTIONS
   m_ctuTaskCounter      .clearException();
   m_dmvrTaskCounter     .clearException();
   m_borderExtTaskCounter.clearException();
@@ -137,7 +136,7 @@ void Picture::resetForUse()
   done                  .clearException();
   parseDone             .clearException();
   std::for_each( ctuParsedBarrier.begin(), ctuParsedBarrier.end(), []( auto& b ) { b.clearException(); } );
-#endif   // THREAD_POOL_HANDLE_EXCEPTIONS
+
   done.lock();
 }
 
@@ -175,7 +174,6 @@ void Picture::destroy()
     m_spliceIdx = NULL;
   }
 
-#if THREAD_POOL_HANDLE_EXCEPTIONS
   m_ctuTaskCounter      .clearException();
   m_dmvrTaskCounter     .clearException();
   m_borderExtTaskCounter.clearException();
@@ -183,7 +181,6 @@ void Picture::destroy()
   done                  .clearException();
   parseDone             .clearException();
   std::for_each( ctuParsedBarrier.begin(), ctuParsedBarrier.end(), []( auto& b ) { b.clearException(); } );
-#endif   // THREAD_POOL_HANDLE_EXCEPTIONS
 }
 
        PelBuf     Picture::getRecoBuf(const ComponentID compID, bool wrap)       { return getBuf(compID, wrap ? PIC_RECON_WRAP : PIC_RECONSTRUCTION); }
