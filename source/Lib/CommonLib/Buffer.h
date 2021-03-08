@@ -142,9 +142,7 @@ struct AreaBuf : public Size
   void extendBorderPel      ( unsigned margin, bool left, bool right, bool top, bool bottom );
   void addWeightedAvg       ( const AreaBuf<const T> &other1, const AreaBuf<const T> &other2, const ClpRng& clpRng, const int8_t bcwIdx);
   void addAvg               ( const AreaBuf<const T> &other1, const AreaBuf<const T> &other2, const ClpRng& clpRng );
-#if ISSUE7
   void padBorderPel         ( unsigned marginX, unsigned marginY, int dir );
-#endif
   
   void linearTransform      ( const int scale, const int shift, const int offset, bool bClip, const ClpRng& clpRng );
 
@@ -601,7 +599,6 @@ void AreaBuf<T>::extendBorderPel(unsigned margin, bool left, bool right, bool to
   }
 }
 
-#if ISSUE7
 template<typename T>
 void AreaBuf<T>::padBorderPel( unsigned marginX, unsigned marginY, int dir )
 {
@@ -640,7 +637,6 @@ void AreaBuf<T>::padBorderPel( unsigned marginX, unsigned marginY, int dir )
     }
   }
 }
-#endif
 
 #if ENABLE_SIMD_OPT_BUFFER && defined(TARGET_SIMD_X86)
 template<> void AreaBuf<Pel>::transposedFrom( const AreaBuf<const Pel> &other );
@@ -719,9 +715,7 @@ struct UnitBuf
   void addAvg               ( const UnitBuf<      T> &other1, const UnitBuf<      T> &other2, const ClpRngs& clpRngs, const bool chromaOnly = false, const bool lumaOnly = false);
   void extendBorderPel      ( unsigned margin );
   void extendBorderPel      ( unsigned margin, bool left, bool right, bool top, bool bottom );
-#if ISSUE7
   void padBorderPel         ( unsigned margin, int dir );
-#endif
   
   void rescaleBuf           ( const UnitBuf<const T>& beforeScaling, const std::pair<int, int> scalingRatio, const Window& confBefore, const Window& confAfter, const BitDepths& bitDepths, const bool horCollocatedChromaFlag = false, const bool verCollocatedChromaFlag = false );
 
@@ -840,7 +834,6 @@ void UnitBuf<T>::extendBorderPel(unsigned margin, bool left, bool right, bool to
   }
 }
 
-#if ISSUE7
 template<typename T>
 void UnitBuf<T>::padBorderPel( unsigned margin, int dir )
 {
@@ -849,7 +842,6 @@ void UnitBuf<T>::padBorderPel( unsigned margin, int dir )
     bufs[i].padBorderPel( margin >> getComponentScaleX( ComponentID( i ), chromaFormat ), margin >> getComponentScaleY( ComponentID( i ), chromaFormat ), dir );
   }
 }
-#endif
 
 template<typename T>
 UnitBuf<T> UnitBuf<T>::subBuf( const UnitArea& subArea )

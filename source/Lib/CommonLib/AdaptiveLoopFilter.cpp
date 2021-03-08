@@ -119,10 +119,8 @@ bool AdaptiveLoopFilter::isCrossedByVirtualBoundaries( const CodingStructure& cs
                                                        int&                   numHorVirBndry,
                                                        int&                   numVerVirBndry,
                                                        int                    horVirBndryPos[],
-                                                       int                    verVirBndryPos[]
-#if ISSUE7
-                                                     , int&                   rasterSliceAlfPad
-#endif
+                                                       int                    verVirBndryPos[],
+                                                       int&                   rasterSliceAlfPad
 )
 {
   clipTop        = false;
@@ -242,7 +240,6 @@ bool AdaptiveLoopFilter::isCrossedByVirtualBoundaries( const CodingStructure& cs
     }
   }
 
-#if ISSUE7
   rasterSliceAlfPad = 0;
   if ( !clipTop && !clipLeft )
     {
@@ -271,7 +268,6 @@ bool AdaptiveLoopFilter::isCrossedByVirtualBoundaries( const CodingStructure& cs
       }
     }
   }
-#endif
   
   return numHorVirBndry > 0 || numVerVirBndry > 0 || clipTop || clipBottom || clipLeft || clipRight;
 }
@@ -627,18 +623,13 @@ void AdaptiveLoopFilter::filterCTU( const CPelUnitBuf&     srcBuf,
   int  horVirBndryPos[] = { 0, 0, 0 };
   int  verVirBndryPos[] = { 0, 0, 0 };
 
-#if ISSUE7
   int rasterSliceAlfPad = 0;
-#endif
   bool isCrssByVBs = isCrossedByVirtualBoundaries( cs,
                                                    Area( ctuPos, Size( srcBuf.Y() ) ),
                                                    clipTop, clipBottom, clipLeft, clipRight,
                                                    numHorVirBndry, numVerVirBndry,
-                                                   horVirBndryPos, verVirBndryPos
-#if ISSUE7
-                                                 , rasterSliceAlfPad
-#endif
-                                                  );
+                                                   horVirBndryPos, verVirBndryPos,
+                                                   rasterSliceAlfPad );
   if( isCrssByVBs )
   {
     CHECK( numHorVirBndry >= (int)( sizeof(horVirBndryPos) / sizeof(horVirBndryPos[0]) ), "Too many virtual boundaries" );
@@ -718,7 +709,7 @@ void AdaptiveLoopFilter::filterCTU( const CPelUnitBuf&     srcBuf,
           {
             auto tmpSubBuf = m_tempBuf[tid].subBuf( Area( posInSrc, paddedSize ) ).bufs[compID];
             tmpSubBuf.copyFrom( srcBuf.subBuf( Area( posInSrc, paddedSize ) ).bufs[compID] );
-#if ISSUE7
+
             // pad top-left unavailable samples for raster slice
             if( xStart == ctuPos.x && yStart == ctuPos.y && ( rasterSliceAlfPad & 1 ) )
             {
@@ -730,14 +721,13 @@ void AdaptiveLoopFilter::filterCTU( const CPelUnitBuf&     srcBuf,
             {
               tmpSubBuf.padBorderPel( MAX_ALF_PADDING_SIZE, MAX_ALF_PADDING_SIZE, 2 );
             }
-#endif
             tmpSubBuf.extendBorderPel( MAX_ALF_PADDING_SIZE );
           }
           else
           {
             auto tmpSubBuf = m_tempBuf[tid].subBuf( Area( posInSrc, paddedSize ) );
             tmpSubBuf.copyFrom( srcBuf.subBuf( Area( posInSrc, paddedSize ) ) );
-#if ISSUE7
+
             // pad top-left unavailable samples for raster slice
             if( xStart == ctuPos.x && yStart == ctuPos.y && ( rasterSliceAlfPad & 1 ) )
             {
@@ -749,7 +739,6 @@ void AdaptiveLoopFilter::filterCTU( const CPelUnitBuf&     srcBuf,
             {
               tmpSubBuf.padBorderPel( MAX_ALF_PADDING_SIZE, 2 );
             }
-#endif
             tmpSubBuf.extendBorderPel( MAX_ALF_PADDING_SIZE );
           }
 

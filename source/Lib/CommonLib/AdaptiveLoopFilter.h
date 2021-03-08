@@ -144,10 +144,8 @@ protected:
                                      int&        numHorVirBndry,
                                      int&        numVerVirBndry,
                                      int         horVirBndryPos[],
-                                     int         verVirBndryPos[]
-#if ISSUE7
-                                   , int&        rasterSliceAlfPad
-#endif
+                                     int         verVirBndryPos[],
+                                     int&        rasterSliceAlfPad
                                      );
 
   static const int        m_fixedFilterSetCoeff   [ALF_FIXED_FILTER_NUM][MAX_NUM_ALF_LUMA_COEFF];
