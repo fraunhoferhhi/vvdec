@@ -228,18 +228,6 @@ public:
   }
 };// END CLASS DEFINITION MV
 
-namespace std
-{
-  template <>
-  struct hash<Mv> : public unary_function<Mv, uint64_t>
-  {
-    uint64_t operator()(const Mv& value) const
-    {
-      return (((uint64_t)value.hor << 32) + value.ver);
-    }
-  };
-};
-
 #if JVET_R0058
 extern void(*clipMv) ( Mv& rcMv, const Position& pos, const struct Size& size, const SPS& sps, const PPS& pps );
 void clipMvInPic     ( Mv& rcMv, const Position& pos, const struct Size& size, const SPS& sps, const PPS& pps );

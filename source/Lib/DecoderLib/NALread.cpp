@@ -61,15 +61,12 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #include "CommonLib/Rom.h"
 #include "CommonLib/dtrace_next.h"
 
-
-using namespace std;
-
 //! \ingroup DecoderLib
 //! \{
-static void convertPayloadToRBSP(vector<uint8_t>& nalUnitBuf, InputBitstream *bitstream, bool isVclNalUnit)
+static void convertPayloadToRBSP(std::vector<uint8_t>& nalUnitBuf, InputBitstream *bitstream, bool isVclNalUnit)
 {
   uint32_t zeroCount = 0;
-  vector<uint8_t>::iterator it_read, it_write;
+  std::vector<uint8_t>::iterator it_read, it_write;
 
   uint32_t pos = 0;
   bitstream->clearEmulationPreventionByteLocation();
@@ -164,7 +161,7 @@ void InputNALUnit::readNalUnitHeader()
  */
 void InputNALUnit::read()
 {
-  vector<uint8_t> & nalUnitBuf = m_Bitstream.getFifo();
+  std::vector<uint8_t> & nalUnitBuf = m_Bitstream.getFifo();
 
   // perform anti-emulation prevention
   convertPayloadToRBSP( nalUnitBuf, &m_Bitstream, ( nalUnitBuf[0] & 64 ) == 0 );
