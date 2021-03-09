@@ -601,8 +601,12 @@ void SEIReader::xCheckScalableNestingConstraints(const vvdecSEIScalableNesting* 
   bool containBPorPTorDUIorSLI = false;
   bool containNoBPorPTorDUIorSLI = false;
 
-  for (auto nestedsei : sei->nestedSEIs)
+  for (auto* nestedsei : sei->nestedSEIs)
   {
+    if( !nestedsei )
+    {
+      continue;
+    }
     CHECK(nestedsei->payloadType == VVDEC_FILLER_PAYLOAD || nestedsei->payloadType == VVDEC_SCALABLE_NESTING, "An SEI message that has payloadType equal to filler payload or scalable nesting shall not be contained in a scalable nesting SEI message");
 
     CHECK(nestedsei->payloadType != VVDEC_FILLER_PAYLOAD && nestedsei->payloadType != VVDEC_DECODED_PICTURE_HASH && nalUnitType != NAL_UNIT_PREFIX_SEI, "When a scalable nesting SEI message contains an SEI message that has payloadType not equal to filler payload or decoded picture hash, the SEI NAL unit containing the scalable nesting SEI message shall have nal_unit_type equal to PREFIX_SEI_NUT");
@@ -614,7 +618,11 @@ void SEIReader::xCheckScalableNestingConstraints(const vvdecSEIScalableNesting* 
     CHECK(nestedsei->payloadType == VVDEC_SUBPICTURE_LEVEL_INFO && sei->snSubpicFlag, "When the scalable nesting SEI message contains an SEI message that has payloadType equal to SLI, the value of sn_subpic_flag shall be equal to 0");
 
 #if JVET_S0178_GENERAL_SEI_CHECK
-    CHECK(vps->getGeneralHrdParameters()->getGeneralSamePicTimingInAllOlsFlag() && nestedsei->payloadType == VVDEC_PICTURE_TIMING, "When general_same_pic_timing_in_all_ols_flag is equal to 1, there shall be no SEI NAL unit that contain a scalable-nested SEI message with payloadType equal to PT");
+    if( vps )
+    {
+      CHECK( vps->getGeneralHrdParameters()->getGeneralSamePicTimingInAllOlsFlag() && nestedsei->payloadType == VVDEC_PICTURE_TIMING,
+             "When general_same_pic_timing_in_all_ols_flag is equal to 1, there shall be no SEI NAL unit that contain a scalable-nested SEI message with payloadType equal to PT" );
+    }
 #endif
 
     for (int i = 0; i < (int)vclAssociatedSeiList.size(); i++)
