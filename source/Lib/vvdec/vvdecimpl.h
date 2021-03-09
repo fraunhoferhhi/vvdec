@@ -136,7 +136,7 @@ public:
    int init( const vvdecParams& params );
    int uninit();
 
-   void setLoggingCallback(vvdecLoggingCallback callback, void *userData, vvdecLogLevel level);
+   void setLoggingCallback( vvdecLoggingCallback callback );
 
    int decode( vvdecAccessUnit& accessUnit, vvdecFrame** ppframe );
 
@@ -201,9 +201,6 @@ public:
    uint64_t                                m_uiSeqNumber       = 0;
    uint64_t                                m_uiSeqNumOutput    = 0;
    uint64_t                                m_uiPicCount        = 0;
-
-  vvdecLoggingCallback                     loggingCallback {};
-  void                                     *loggingUserData {};
 };
 
 

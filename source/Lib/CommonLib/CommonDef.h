@@ -437,7 +437,7 @@ static void default_msgFnc( void *, int level, const char* fmt, va_list args )
 }
 
 extern MsgLevel g_verbosity;
-
+extern void    *g_context;
 extern std::function<void( void*, int, const char*, va_list )> g_msgFnc;
 
 #include <stdarg.h>
@@ -449,7 +449,7 @@ inline void msg( MsgLevel level, const char* fmt, ... )
     std::unique_lock<std::mutex> _lock( _msgMutex );
     va_list args;
     va_start( args, fmt );
-    g_msgFnc( nullptr, level, fmt, args );
+    g_msgFnc( g_context, level, fmt, args );
     va_end( args );
   }
 }

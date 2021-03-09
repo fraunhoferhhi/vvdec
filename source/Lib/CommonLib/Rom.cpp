@@ -82,8 +82,8 @@ TimeProfiler2D *g_timeProfiler = nullptr;
 std::atomic<int> romInitialized(0);
 
 MsgLevel g_verbosity = VERBOSE;
+void    *g_context = nullptr;
 std::function<void( void*, int, const char*, va_list )> g_msgFnc = default_msgFnc;
-
 
 const char* nalUnitTypeToString(NalUnitType type)
 {

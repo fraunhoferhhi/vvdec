@@ -115,6 +115,7 @@ int VVDecImpl::init( const vvdecParams& params )
 #endif
 
   g_verbosity = MsgLevel( params.logLevel );
+  g_context = this;
 
   // initialize decoder class
   m_cDecLib->setDecodedPictureHashSEIEnabled( (int) params.verifyPictureHash );
@@ -195,13 +196,9 @@ int VVDecImpl::uninit()
   return VVDEC_OK;
 }
 
-void VVDecImpl::setLoggingCallback(vvdecLoggingCallback callback, void *userData, vvdecLogLevel level)
+void VVDecImpl::setLoggingCallback( vvdecLoggingCallback callback )
 {
-  this->loggingCallback = callback;
-  g_verbosity           = (MsgLevel)level;
-  this->loggingUserData = userData;
-  g_msgFnc = callback;
-  msg(VERBOSE, "Logging callback set to loglevel %d\n", level);
+  g_msgFnc      = callback;
 }
 
 int VVDecImpl::decode( vvdecAccessUnit& rcAccessUnit, vvdecFrame** ppcFrame )
