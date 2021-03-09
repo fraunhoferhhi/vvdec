@@ -49,12 +49,10 @@ THE POSSIBILITY OF SUCH DAMAGE.
  \brief    reading functions for Annex B byte streams
  */
 
+#include "AnnexBread.h"
 
 #include <stdint.h>
 #include <vector>
-#include "AnnexBread.h"
-
-using namespace std;
 
 #ifdef TRACE_ENABLE_ITT
 static __itt_domain*        itt_domain_input       = __itt_domain_create( "I/O" );
@@ -75,7 +73,7 @@ static __itt_string_handle* itt_handle_extractNALU = __itt_string_handle_create(
 static void
 _byteStreamNALUnit(
   InputByteStream& bs,
-  vector<uint8_t>& nalUnit,
+  std::vector<uint8_t>& nalUnit,
   AnnexBStats& stats)
 {
   /* At the beginning of the decoding process, the decoder initialises its
@@ -172,7 +170,7 @@ _byteStreamNALUnit(
 bool
 byteStreamNALUnit(
   InputByteStream& bs,
-  vector<uint8_t>& nalUnit,
+  std::vector<uint8_t>& nalUnit,
   AnnexBStats& stats)
 {
   ITT_TASKSTART(itt_domain_input, itt_handle_extractNALU);
