@@ -69,7 +69,7 @@ void  xTraceSEIHeader()
   DTRACE( g_trace_ctx, D_HEADER, "=========== SEI message ===========\n");
 }
 
-void  xTraceSEIMessageType(SEIPayloadType payloadType)
+void  xTraceSEIMessageType(vvdecSEIPayloadType payloadType)
 {
   DTRACE( g_trace_ctx, D_HEADER, "=========== %s SEI message ===========\n", SEI_internal::getSEIMessageString( payloadType ) );
 }
@@ -544,7 +544,8 @@ void SEIReader::xParseSEIScalableNesting(vvdecSEI* s, const NalUnitType nalUnitT
     if (!sei->snAllLayersFlag)
     {
       sei_read_uvlc(decodedMessageOutputStream, symbol, "sn_nulayers_minus1"); sei->snNumLayers = symbol+1;
-      for (uint32_t i = 0; i < sei->snNumLayers; i++)
+      sei->snLayerId[0] = nuhLayerId;
+      for (uint32_t i = 1; i < sei->snNumLayers; i++)
       {
         sei_read_code(decodedMessageOutputStream, 6, symbol, "sn_layer_id[i]"); sei->snLayerId[i] = symbol;
       }
@@ -574,6 +575,7 @@ void SEIReader::xParseSEIScalableNesting(vvdecSEI* s, const NalUnitType nalUnitT
   {
     seiMessages tmpSeiList;
     xReadSEImessage(tmpSeiList, nalUnitType, nuhLayerId, 0, vps, sps, m_nestedHrd, decodedMessageOutputStream);
+    CHECK( tmpSeiList.empty(), "read empty nested sei list." );
 
     if (tmpSeiList.front()->payloadType == VVDEC_BUFFERING_PERIOD)
     {
@@ -581,7 +583,6 @@ void SEIReader::xParseSEIScalableNesting(vvdecSEI* s, const NalUnitType nalUnitT
       m_nestedHrd.setBufferingPeriodSEI(bp);
     }
     sei->nestedSEIs[i] = tmpSeiList.front();
-    tmpSeiList.clear();
   }
 
   xCheckScalableNestingConstraints(sei, nalUnitType, vps);
