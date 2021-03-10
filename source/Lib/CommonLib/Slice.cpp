@@ -1213,7 +1213,7 @@ void Slice::checkLeadingPictureRestrictions( const PicListRange & rcListPic ) co
 
 int Slice::checkThatAllRefPicsAreAvailable( const PicListRange& rcListPic, const ReferencePictureList *pRPL, bool printErrors, int* refPicIndex, int numActiveRefPics ) const
 {
-  if( this->isIDRorBLA() )
+  if( this->isIDR() )
     return 0;   // Assume that all pic in the DPB will be flushed anyway so no need to check.
 
   *refPicIndex = 0;

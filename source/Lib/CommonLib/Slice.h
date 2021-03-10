@@ -3008,7 +3008,7 @@ public:
 #else
   bool                        isClvssPu() const                                      { return m_eNalUnitType >= NAL_UNIT_CODED_SLICE_IDR_W_RADL && m_eNalUnitType <= NAL_UNIT_CODED_SLICE_GDR && !m_pcPPS->getMixedNaluTypesInPicFlag(); }
 #endif
-  bool                        isIDRorBLA() const                                     { return (getNalUnitType() == NAL_UNIT_CODED_SLICE_IDR_W_RADL) || (getNalUnitType() == NAL_UNIT_CODED_SLICE_IDR_N_LP); }
+  bool                        isIDR() const                                          { return (getNalUnitType() == NAL_UNIT_CODED_SLICE_IDR_W_RADL) || (getNalUnitType() == NAL_UNIT_CODED_SLICE_IDR_N_LP); }
   void                        checkCRA( int& pocCRA, NalUnitType& associatedIRAPType, const PicListRange& rcListPic );
   void                        checkSTSA( const PicListRange& rcListPic );
   void                        checkRPL(const ReferencePictureList* pRPL0, const ReferencePictureList* pRPL1, const int associatedIRAPDecodingOrderNumber, const PicListRange& rcListPic);
