@@ -316,7 +316,7 @@ Picture* PicListManager::getNextOutputPic( uint32_t numReorderPicsHighestTid,
       break;
     }
 
-    if( isIDR( *itPic ) )
+    if( isIDR( *itPic ) && !(*itPic)->getMixedNaluTypesInPicFlag())
     {
       if( !foundOutputPic ) // if there was no picture needed for output before the first RAP,
       {                     // we begin the range at the RAP...
@@ -379,7 +379,7 @@ Picture* PicListManager::getNextOutputPic( uint32_t numReorderPicsHighestTid,
   }
 
   // when there is an IDR picture coming up, we can flush all pictures before that
-  if( seqEnd != m_cPicList.cend() && isIDR( *seqEnd ) )
+  if( seqEnd != m_cPicList.cend() && isIDR( *seqEnd ) && !(*seqEnd)->getMixedNaluTypesInPicFlag() )
   {
     bFlush = true;
     IF_DEBUG_PIC_ORDER( std::cout << " flush" );
