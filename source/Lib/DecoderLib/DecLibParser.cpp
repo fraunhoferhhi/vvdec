@@ -55,6 +55,9 @@ THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <unordered_map>
 
+namespace vvdec
+{
+
 #ifdef TRACE_ENABLE_ITT
 extern __itt_domain* itt_domain_prs;
 extern __itt_domain* itt_domain_oth;
@@ -68,7 +71,6 @@ extern __itt_string_handle* itt_handle_start;
 #define ITT_TASKSTART( d, t )
 #define ITT_TASKEND( d, t )
 #endif
-
 
 DecLibParser::~DecLibParser()
 {
@@ -1862,4 +1864,6 @@ void DecLibParser::xCheckMixedNalUnit( Slice* pcSlice, InputNALUnit &nalu )
     }
     CHECK(!sameNalUnitType, "mixed_nalu_types_in_pic_flag is zero, but have different nal unit types");
   }
+}
+
 }

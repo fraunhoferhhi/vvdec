@@ -44,8 +44,7 @@ THE POSSIBILITY OF SUCH DAMAGE.
 
 ------------------------------------------------------------------------------------------- */
 
-#ifndef PARAM_SET_MANAGER_H
-#define PARAM_SET_MANAGER_H
+#pragma once
 
 #include "Common.h"
 #include "Slice.h"
@@ -53,6 +52,9 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #include <map>
 #include <vector>
 #include <array>
+
+namespace vvdec
+{
 
 void updateParameterSetChangedFlag( bool&                       bChanged,
                                     const std::vector<uint8_t>* pOldData,
@@ -211,4 +213,4 @@ protected:
   int m_activeVPSId = -1;   // -1 for nothing active
 };
 
-#endif   // !PARAM_SET_MANAGER_H
+}

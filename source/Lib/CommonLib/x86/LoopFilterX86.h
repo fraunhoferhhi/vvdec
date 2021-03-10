@@ -52,11 +52,6 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #include "../Rom.h"
 #include "../LoopFilter.h"
 
-//#include "../ChromaFormat.h"
-
-//! \ingroup CommonLib
-//! \{
-
 #ifdef TARGET_SIMD_X86
 
 #if defined _MSC_VER
@@ -64,6 +59,9 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #else
 #include <immintrin.h>
 #endif
+
+namespace vvdec
+{
 
 template<X86_VEXT vext>
 inline void xPelLumaCore( int64_t m0, int64_t& m1, int64_t& m2, int64_t& m3, int64_t& m4, int64_t& m5, int64_t& m6, int64_t m7, const int tc )
@@ -682,5 +680,7 @@ void LoopFilter::_initLoopFilterX86()
 }
 
 template void LoopFilter::_initLoopFilterX86<SIMDX86>();
+
+}
 
 #endif

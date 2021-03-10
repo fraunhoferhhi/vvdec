@@ -55,6 +55,8 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #include "WeightPrediction.h"
 #include "CodingStructure.h"
 
+namespace vvdec
+{
 
 // ====================================================================================================================
 // Class definition
@@ -394,4 +396,6 @@ void  WeightPrediction::xWeightedPredictionBi(const PredictionUnit       &pu,
   {
     THROW( "Both reference picture list indizes are negative" );
   }
+}
+
 }

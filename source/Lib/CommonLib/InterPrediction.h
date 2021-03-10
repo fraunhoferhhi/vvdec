@@ -48,9 +48,7 @@ THE POSSIBILITY OF SUCH DAMAGE.
     \brief    inter prediction class (header)
 */
 
-#ifndef __INTERPREDICTION__
-#define __INTERPREDICTION__
-
+#pragma once
 
 // Include files
 #include "InterpolationFilter.h"
@@ -62,6 +60,10 @@ THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "RdCost.h"
 #include "ContextModelling.h"
+
+namespace vvdec
+{
+
 // forward declaration
 class Mv;
 
@@ -198,6 +200,4 @@ private:
 #endif
 };
 
-//! \}
-
-#endif // __INTERPREDICTION__
+}

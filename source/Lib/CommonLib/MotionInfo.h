@@ -49,14 +49,13 @@ THE POSSIBILITY OF SUCH DAMAGE.
     \todo     MvField seems to be better to be inherited from Mv
 */
 
-#ifndef __MOTIONINFO__
-#define __MOTIONINFO__
+#pragma once
 
 #include "CommonDef.h"
 #include "Mv.h"
 
-//! \ingroup CommonLib
-//! \{
+namespace vvdec
+{
 
 // ====================================================================================================================
 // Type definition
@@ -228,4 +227,4 @@ struct MotionHist
   }
 };
 
-#endif // __MOTIONINFO__
+}

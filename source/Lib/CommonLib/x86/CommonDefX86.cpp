@@ -57,6 +57,8 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #include <string>
 #include "CommonLib/CommonDef.h"
 
+namespace vvdec
+{
 
 #ifdef TARGET_SIMD_X86
 
@@ -76,11 +78,15 @@ THE POSSIBILITY OF SUCH DAMAGE.
 
 /* use __cpuid for windows or inline assembler for gcc and clang */
 #if defined( _WIN32 ) && !defined( __MINGW32__ )
+}
 #include <intrin.h>
+namespace vvdec {
 #define doCpuid    __cpuid
 #define doCpuidex  __cpuidex
 #else
+}
 #include <cpuid.h>
+namespace vvdec {
 void doCpuid(int CPUInfo[4], int InfoType){
     __get_cpuid( (unsigned)InfoType, (unsigned*)&CPUInfo[0], (unsigned*)&CPUInfo[1], (unsigned*)&CPUInfo[2], (unsigned*)&CPUInfo[3] );
 }
@@ -237,3 +243,5 @@ const char* read_x86_extension(const std::string &extStrId)
 }
 
 #endif // __x86_64
+
+}

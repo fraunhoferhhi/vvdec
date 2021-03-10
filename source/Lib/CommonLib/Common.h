@@ -48,10 +48,12 @@ THE POSSIBILITY OF SUCH DAMAGE.
  *  \brief    Common 2D-geometrical structures
  */
 
-#ifndef __COMMON__
-#define __COMMON__
+#pragma once
 
 #include "CommonDef.h"
+
+namespace vvdec
+{
 
 typedef int PosType;
 typedef uint32_t SizeType;
@@ -172,6 +174,4 @@ inline Area clipArea(const Area &_area, const Area &boundingBox)
   return area;
 }
 
-
-
-#endif
+}

@@ -48,8 +48,7 @@ THE POSSIBILITY OF SUCH DAMAGE.
  *  \brief    Low-overhead class describing 2D memory layout
  */
 
-#ifndef __BUFFER__
-#define __BUFFER__
+#pragma once
 
 #include "Common.h"
 #include "CommonDef.h"
@@ -62,9 +61,8 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #include <vector>
 #include <utility>
 
-// ---------------------------------------------------------------------------
-// AreaBuf struct
-// ---------------------------------------------------------------------------
+namespace vvdec
+{
 
 #if ENABLE_SIMD_OPT_BUFFER
 struct PelBufferOps
@@ -908,4 +906,4 @@ private:
   Pel *m_origin[MAX_NUM_COMPONENT];
 };
 
-#endif
+}

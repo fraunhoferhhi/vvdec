@@ -56,6 +56,9 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #include "CommonDefX86.h"
 #include "CommonLib/InterPrediction.h"
 
+namespace vvdec
+{
+
 #if ENABLE_SIMD_OPT_BIO
 #ifdef TARGET_SIMD_X86
 
@@ -783,4 +786,5 @@ template void InterPrediction::_initInterPredictionX86<SIMDX86>();
 
 #endif // TARGET_SIMD_X86
 #endif
-//! \}
+
+}

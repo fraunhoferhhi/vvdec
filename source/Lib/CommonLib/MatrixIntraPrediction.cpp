@@ -54,6 +54,8 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #include "UnitTools.h"
 #include "MipData.h"
 
+namespace vvdec
+{
 
 namespace Mip
 {
@@ -385,3 +387,4 @@ void MatrixIntraPrediction::predBlock( const Size &puSize, const int intraMode, 
   }
 }
 
+}

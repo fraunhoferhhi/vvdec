@@ -51,15 +51,13 @@ THE POSSIBILITY OF SUCH DAMAGE.
 
 #pragma once
 
-#ifndef __NALREAD__
-#define __NALREAD__
-
 #include "CommonLib/CommonDef.h"
 #include "CommonLib/BitStream.h"
 #include "CommonLib/NAL.h"
 
-//! \ingroup DecoderLib
-//! \{
+
+namespace vvdec
+{
 
 /**
  * A convenience wrapper to NALUnit that also provides a
@@ -85,7 +83,4 @@ class InputNALUnit : public NALUnit
     bool checkPictureHeaderInSliceHeaderFlag(InputNALUnit & nalu);
 };
 
-
-//! \}
-
-#endif
+}

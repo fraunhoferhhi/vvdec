@@ -58,9 +58,8 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #include <algorithm>
 #include <cmath>
 
-//! \ingroup CommonLib
-//! \{
-
+namespace vvdec
+{
 
 template<bool bi>
 void applyPROFCore( Pel* dst, ptrdiff_t dstStride, const Pel* src, const Pel* gradX, const Pel* gradY, const int* dMvX, const int* dMvY, int shiftNum, Pel offset, const ClpRng& clpRng )
@@ -726,8 +725,8 @@ void InterPrediction::xPredInterBlk( const ComponentID&    compID,
   const ChromaFormat  chFmt = pu.chromaFormat;
   const bool          rndRes = !bi;
 
-  const int shiftHor = MV_FRACTIONAL_BITS_INTERNAL + ::getComponentScaleX(compID, chFmt);
-  const int shiftVer = MV_FRACTIONAL_BITS_INTERNAL + ::getComponentScaleY(compID, chFmt);
+  const int shiftHor = MV_FRACTIONAL_BITS_INTERNAL + getComponentScaleX(compID, chFmt);
+  const int shiftVer = MV_FRACTIONAL_BITS_INTERNAL + getComponentScaleY(compID, chFmt);
   
   const bool useAltHpelIf = pu.imv() == IMV_HPEL;
 
@@ -905,11 +904,11 @@ void InterPrediction::xPredAffineBlk( const ComponentID&    compID,
                                       )
 {
   const ChromaFormat chFmt = pu.chromaFormat;
-  const int iScaleX = ::getComponentScaleX( compID, chFmt );
-  const int iScaleY = ::getComponentScaleY( compID, chFmt );
+  const int iScaleX = getComponentScaleX( compID, chFmt );
+  const int iScaleY = getComponentScaleY( compID, chFmt );
 
-  const int chromaScaleX = ::getChannelTypeScaleX( CH_C, chFmt );
-  const int chromaScaleY = ::getChannelTypeScaleY( CH_C, chFmt );
+  const int chromaScaleX = getChannelTypeScaleX( CH_C, chFmt );
+  const int chromaScaleY = getChannelTypeScaleY( CH_C, chFmt );
 
   const int shiftX = 4 + iScaleX;
   const int shiftY = 4 + iScaleY;
@@ -2036,7 +2035,7 @@ void InterPrediction::xFillIBCBuffer(CodingUnit &cu)
         continue;
 
       const unsigned int lcuWidth = cu.slice->getSPS()->getMaxCUWidth();
-      const int shiftSample = ::getComponentScaleX(area.compID, cu.chromaFormat);
+      const int shiftSample = getComponentScaleX(area.compID, cu.chromaFormat);
       const int ctuSizeLog2 = getLog2(lcuWidth) - shiftSample;
       const int pux = area.x & ((m_IBCBufferWidth >> shiftSample) - 1);
       const int puy = area.y & (( 1 << ctuSizeLog2 ) - 1);
@@ -2052,8 +2051,8 @@ void InterPrediction::xFillIBCBuffer(CodingUnit &cu)
 void InterPrediction::xIntraBlockCopy( PredictionUnit &pu, PelUnitBuf &predBuf, const ComponentID compID )
 {
   const unsigned int lcuWidth = pu.slice->getSPS()->getMaxCUWidth();
-  const int shiftSampleHor = ::getComponentScaleX( compID, pu.chromaFormat );
-  const int shiftSampleVer = ::getComponentScaleY( compID, pu.chromaFormat );
+  const int shiftSampleHor = getComponentScaleX( compID, pu.chromaFormat );
+  const int shiftSampleVer = getComponentScaleY( compID, pu.chromaFormat );
   const int ctuSizeVerLog2 = getLog2(lcuWidth) - shiftSampleVer;
   Mv bv = pu.mv[REF_PIC_LIST_0][0];
   bv.changePrecision(MV_PRECISION_INTERNAL, MV_PRECISION_INT);
@@ -2135,8 +2134,8 @@ void InterPrediction::xPredInterBlkRPR( const std::pair<int, int>& scalingRatio,
 { 
   const bool          rndRes = !bi;
 
-  int shiftHor = MV_FRACTIONAL_BITS_INTERNAL + ::getComponentScaleX( compID, chFmt );
-  int shiftVer = MV_FRACTIONAL_BITS_INTERNAL + ::getComponentScaleY( compID, chFmt );
+  int shiftHor = MV_FRACTIONAL_BITS_INTERNAL + getComponentScaleX( compID, chFmt );
+  int shiftVer = MV_FRACTIONAL_BITS_INTERNAL + getComponentScaleY( compID, chFmt );
 
   int width  = dstWidth;
   int height = dstHeight;
@@ -2225,27 +2224,27 @@ void InterPrediction::xPredInterBlkRPR( const std::pair<int, int>& scalingRatio,
   int offX = 1 << ( posShift - shiftHor - 1 );
   int offY = 1 << ( posShift - shiftVer - 1 );
 
-  const int64_t posX = ( ( blkPos.x << ::getComponentScaleX( compID, chFmt ) ) - ( pps.getScalingWindow().getWindowLeftOffset() * SPS::getWinUnitX( chFmt ) ) ) >> ::getComponentScaleX( compID, chFmt );
-  const int64_t posY = ( ( blkPos.y << ::getComponentScaleY( compID, chFmt ) ) - ( pps.getScalingWindow().getWindowTopOffset()  * SPS::getWinUnitY( chFmt ) ) ) >> ::getComponentScaleY( compID, chFmt );
+  const int64_t posX = ( ( blkPos.x << getComponentScaleX( compID, chFmt ) ) - ( pps.getScalingWindow().getWindowLeftOffset() * SPS::getWinUnitX( chFmt ) ) ) >> getComponentScaleX( compID, chFmt );
+  const int64_t posY = ( ( blkPos.y << getComponentScaleY( compID, chFmt ) ) - ( pps.getScalingWindow().getWindowTopOffset()  * SPS::getWinUnitY( chFmt ) ) ) >> getComponentScaleY( compID, chFmt );
 
   int addX = isLuma( compID ) ? 0 : int( 1 - refPic->cs->sps->getHorCollocatedChromaFlag() ) * 8 * ( scalingRatio.first - SCALE_1X.first );
   int addY = isLuma( compID ) ? 0 : int( 1 - refPic->cs->sps->getVerCollocatedChromaFlag() ) * 8 * ( scalingRatio.second - SCALE_1X.second );
 
-  x0Int = ( ( posX << ( 4 + ::getComponentScaleX( compID, chFmt ) ) ) + mv.getHor() ) * (int64_t)scalingRatio.first + addX;
-  x0Int = SIGN( x0Int ) * ( ( llabs( x0Int ) + ( (long long)1 << ( 7 + ::getComponentScaleX( compID, chFmt ) ) ) ) >> ( 8 + ::getComponentScaleX( compID, chFmt ) ) ) + ( ( refPic->slices[0]->getPPS()->getScalingWindow().getWindowLeftOffset() * SPS::getWinUnitX( chFmt ) ) << ( ( posShift - ::getComponentScaleX( compID, chFmt ) ) ) );
+  x0Int = ( ( posX << ( 4 + getComponentScaleX( compID, chFmt ) ) ) + mv.getHor() ) * (int64_t)scalingRatio.first + addX;
+  x0Int = SIGN( x0Int ) * ( ( llabs( x0Int ) + ( (long long)1 << ( 7 + getComponentScaleX( compID, chFmt ) ) ) ) >> ( 8 + getComponentScaleX( compID, chFmt ) ) ) + ( ( refPic->slices[0]->getPPS()->getScalingWindow().getWindowLeftOffset() * SPS::getWinUnitX( chFmt ) ) << ( ( posShift - getComponentScaleX( compID, chFmt ) ) ) );
 
-  y0Int = ( ( posY << ( 4 + ::getComponentScaleY( compID, chFmt ) ) ) + mv.getVer() ) * (int64_t)scalingRatio.second + addY;
-  y0Int = SIGN( y0Int ) * ( ( llabs( y0Int ) + ( (long long)1 << ( 7 + ::getComponentScaleY( compID, chFmt ) ) ) ) >> ( 8 + ::getComponentScaleY( compID, chFmt ) ) ) + ( ( refPic->slices[0]->getPPS()->getScalingWindow().getWindowTopOffset() * SPS::getWinUnitY( chFmt ) ) << ( ( posShift - ::getComponentScaleY( compID, chFmt ) ) ) );
+  y0Int = ( ( posY << ( 4 + getComponentScaleY( compID, chFmt ) ) ) + mv.getVer() ) * (int64_t)scalingRatio.second + addY;
+  y0Int = SIGN( y0Int ) * ( ( llabs( y0Int ) + ( (long long)1 << ( 7 + getComponentScaleY( compID, chFmt ) ) ) ) >> ( 8 + getComponentScaleY( compID, chFmt ) ) ) + ( ( refPic->slices[0]->getPPS()->getScalingWindow().getWindowTopOffset() * SPS::getWinUnitY( chFmt ) ) << ( ( posShift - getComponentScaleY( compID, chFmt ) ) ) );
   
   const int extSize = isLuma( compID ) ? 1 : 2;
 
   int vFilterSize = isLuma( compID ) ? NTAPS_LUMA : NTAPS_CHROMA;
 
   int yInt0 = ( (int32_t)y0Int + offY ) >> posShift;
-  yInt0 = std::min( std::max( -(NTAPS_LUMA / 2), yInt0 ), ( refPicHeight >> ::getComponentScaleY( compID, chFmt ) ) + (NTAPS_LUMA / 2) );
+  yInt0 = std::min( std::max( -(NTAPS_LUMA / 2), yInt0 ), ( refPicHeight >> getComponentScaleY( compID, chFmt ) ) + (NTAPS_LUMA / 2) );
 
   int xInt0 = ( (int32_t)x0Int + offX ) >> posShift;
-  xInt0 = std::min( std::max( -(NTAPS_LUMA / 2), xInt0 ), ( refPicWidth >> ::getComponentScaleX( compID, chFmt ) ) + (NTAPS_LUMA / 2) );
+  xInt0 = std::min( std::max( -(NTAPS_LUMA / 2), xInt0 ), ( refPicWidth >> getComponentScaleX( compID, chFmt ) ) + (NTAPS_LUMA / 2) );
 
   int refHeight = ((((int32_t)y0Int + (height-1) * stepY) + offY ) >> posShift) - ((((int32_t)y0Int + 0 * stepY) + offY ) >> posShift) + 1;
   refHeight = std::max<int>( 1, refHeight );
@@ -2263,7 +2262,7 @@ void InterPrediction::xPredInterBlkRPR( const std::pair<int, int>& scalingRatio,
   {
     int posX = (int32_t)x0Int + col * stepX;
     xInt = ( posX + offX ) >> posShift;
-    xInt = std::min( std::max( -(NTAPS_LUMA / 2), xInt ), ( refPicWidth >> ::getComponentScaleX( compID, chFmt ) ) + (NTAPS_LUMA / 2) );
+    xInt = std::min( std::max( -(NTAPS_LUMA / 2), xInt ), ( refPicWidth >> getComponentScaleX( compID, chFmt ) ) + (NTAPS_LUMA / 2) );
     int xFrac = ( ( posX + offX ) >> ( posShift - shiftHor ) ) & ( ( 1 << shiftHor ) - 1 );
 
     CHECK( xInt0 > xInt, "Wrong horizontal starting point" );
@@ -2278,7 +2277,7 @@ void InterPrediction::xPredInterBlkRPR( const std::pair<int, int>& scalingRatio,
   {
     int posY = (int32_t)y0Int + row * stepY;
     yInt = ( posY + offY ) >> posShift;
-    yInt = std::min( std::max( -(NTAPS_LUMA / 2), yInt ), ( refPicHeight >> ::getComponentScaleY( compID, chFmt ) ) + (NTAPS_LUMA / 2) );
+    yInt = std::min( std::max( -(NTAPS_LUMA / 2), yInt ), ( refPicHeight >> getComponentScaleY( compID, chFmt ) ) + (NTAPS_LUMA / 2) );
     int yFrac = ( ( posY + offY ) >> ( posShift - shiftVer ) ) & ( ( 1 << shiftVer ) - 1 );
 
     CHECK( yInt0 > yInt, "Wrong vertical starting point" );
@@ -2287,4 +2286,4 @@ void InterPrediction::xPredInterBlkRPR( const std::pair<int, int>& scalingRatio,
   }
 }
 
-//! \}
+}

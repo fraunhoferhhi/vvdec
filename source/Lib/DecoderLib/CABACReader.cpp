@@ -58,6 +58,8 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #include "CommonLib/Picture.h"
 #include "CommonLib/TimeProfiler.h"
 
+namespace vvdec
+{
 
 void CABACReader::initCtxModels( Slice& slice )
 {
@@ -3143,4 +3145,6 @@ void CABACReader::mip_pred_mode( PredictionUnit &pu )
   CHECKD( pu.intraDir[CHANNEL_TYPE_LUMA] < 0 || pu.intraDir[CHANNEL_TYPE_LUMA] >= numModes, "Invalid MIP mode" );
 
   DTRACE( g_trace_ctx, D_SYNTAX, "mip_pred_mode() pos=(%d,%d) mode=%d transposed=%d\n", pu.lumaPos().x, pu.lumaPos().y, pu.intraDir[CHANNEL_TYPE_LUMA], pu.mipTransposedFlag() ? 1 : 0 );
+}
+
 }

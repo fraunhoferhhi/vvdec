@@ -62,8 +62,8 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #include <stdio.h>
 #include <math.h>
 
-//! \ingroup CommonLib
-//! \{
+namespace vvdec
+{
 
 void SampleAdaptiveOffset::offsetBlock_core( const int            channelBitDepth,
                                              const ClpRng&        clpRng,
@@ -698,11 +698,11 @@ void SampleAdaptiveOffset::offsetCTU( const UnitArea& area, const CPelUnitBuf& s
 
       for (int i = 0; i < numHorVirBndry; i++)
       {
-        horVirBndryPosComp[i] = (horVirBndryPos[i] >> ::getComponentScaleY(compID, area.chromaFormat)) - compArea.y;
+        horVirBndryPosComp[i] = (horVirBndryPos[i] >> getComponentScaleY(compID, area.chromaFormat)) - compArea.y;
       }
       for (int i = 0; i < numVerVirBndry; i++)
       {
-        verVirBndryPosComp[i] = (verVirBndryPos[i] >> ::getComponentScaleX(compID, area.chromaFormat)) - compArea.x;
+        verVirBndryPosComp[i] = (verVirBndryPos[i] >> getComponentScaleX(compID, area.chromaFormat)) - compArea.x;
       }
 
       offsetBlock( cs.sps->getBitDepth(toChannelType(compID)),
@@ -828,4 +828,5 @@ bool SampleAdaptiveOffset::isProcessDisabled( int xPos, int yPos, int numVerVirB
 
   return false;
 }
-//! \}
+
+}

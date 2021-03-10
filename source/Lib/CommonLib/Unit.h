@@ -48,8 +48,7 @@ THE POSSIBILITY OF SUCH DAMAGE.
  *  \brief    defines unit as a set of blocks and basic unit types (coding, prediction, transform)
  */
 
-#ifndef __UNIT__
-#define __UNIT__
+#pragma once
 
 #include "CommonDef.h"
 #include "Common.h"
@@ -57,6 +56,8 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #include "MotionInfo.h"
 #include "ChromaFormat.h"
 
+namespace vvdec
+{
 
 // ---------------------------------------------------------------------------
 // tools
@@ -274,8 +275,12 @@ class PPS;
 class Slice;
 struct CodingUnit;
 
+}
+
 #include "Buffer.h"
 
+namespace vvdec
+{
 
 // ---------------------------------------------------------------------------
 // transform unit
@@ -433,7 +438,11 @@ typedef CodingUnit PredictionUnit;
 // Utility class for easy for-each like unit traversing
 // ---------------------------------------------------------------------------
 
+}
+
 #include <iterator>
+
+namespace vvdec {
 
 template<typename T>
 class UnitIterator : public std::iterator<std::forward_iterator_tag, T>
@@ -495,8 +504,12 @@ typedef UnitTraverser<const CodingUnit>     cCUTraverser;
 typedef UnitTraverser<      TransformUnit>   TUTraverser;
 typedef UnitTraverser<const TransformUnit>  cTUTraverser;
 
+}
+
 #include <memory>
 #include <mutex>
+
+namespace vvdec {
 
 // ---------------------------------------------------------------------------
 // dynamic cache
@@ -602,6 +615,5 @@ private:
   std::vector< std::shared_ptr<TUCache> > m_tuCaches;
 };
 
-
-#endif
+}
 

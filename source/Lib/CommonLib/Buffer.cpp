@@ -58,6 +58,9 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #include "Picture.h"
 #include "Slice.h"
 
+namespace vvdec
+{
+
 template< typename T >
 void addAvgCore( const T* src1, ptrdiff_t src1Stride, const T* src2, ptrdiff_t src2Stride, T* dest, ptrdiff_t dstStride, int width, int height, int rshift, int offset, const ClpRng& clpRng )
 {
@@ -418,7 +421,7 @@ void AreaBuf<Pel>::rescaleBuf( const AreaBuf<const Pel>& beforeScaling, Componen
 #else
   sampleRateConvCore
 #endif
-                           ( scalingRatio, std::pair<int, int>( ::getComponentScaleX( compID, chromaFormatIDC ), ::getComponentScaleY( compID, chromaFormatIDC ) ),
+                           ( scalingRatio, std::pair<int, int>( getComponentScaleX( compID, chromaFormatIDC ), getComponentScaleY( compID, chromaFormatIDC ) ),
                              beforeScaling.buf, beforeScaling.stride, beforeScaling.width, beforeScaling.height,
                              confBefore.getWindowLeftOffset() * SPS::getWinUnitX( chromaFormatIDC ), confBefore.getWindowTopOffset() * SPS::getWinUnitY( chromaFormatIDC ),
                              buf, stride, width, height,
@@ -686,8 +689,8 @@ void PelStorage::create( const ChromaFormat _chromaFormat, const Size& _size, co
   for( uint32_t i = 0; i < numCh; i++ )
   {
     const ComponentID compID = ComponentID( i );
-    const unsigned scaleX = ::getComponentScaleX( compID, _chromaFormat );
-    const unsigned scaleY = ::getComponentScaleY( compID, _chromaFormat );
+    const unsigned scaleX = getComponentScaleX( compID, _chromaFormat );
+    const unsigned scaleY = getComponentScaleY( compID, _chromaFormat );
 
     unsigned scaledHeight = extHeight >> scaleY;
     unsigned scaledWidth  = extWidth  >> scaleX;
@@ -723,7 +726,7 @@ void PelStorage::createFromBuf( PelUnitBuf buf )
 {
   chromaFormat = buf.chromaFormat;
 
-  const uint32_t numCh = ::getNumberValidComponents( chromaFormat );
+  const uint32_t numCh = getNumberValidComponents( chromaFormat );
 
   bufs.resize(numCh);
 
@@ -736,7 +739,7 @@ void PelStorage::createFromBuf( PelUnitBuf buf )
 
 void PelStorage::swap( PelStorage& other )
 {
-  const uint32_t numCh = ::getNumberValidComponents( chromaFormat );
+  const uint32_t numCh = getNumberValidComponents( chromaFormat );
 
   for( uint32_t i = 0; i < numCh; i++ )
   {
@@ -865,4 +868,6 @@ void UnitBuf<T>::writeToFile( std::string filename ) const
   }
 
   fclose( f );
+}
+
 }

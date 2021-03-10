@@ -59,7 +59,8 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #include "dtrace.h"
 #include "dtrace_next.h"
 
-
+namespace vvdec
+{
 
 void Channel::update( std::map< CType, int > state )
 {
@@ -335,3 +336,4 @@ void CDTrace::dtrace_repeat( int k, int i_times, const char *format, /*va_list a
   return;
 }
 
+}

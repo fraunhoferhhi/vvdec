@@ -44,8 +44,7 @@ THE POSSIBILITY OF SUCH DAMAGE.
 
 ------------------------------------------------------------------------------------------- */
 
-#ifndef THREADPOOL_H
-#define THREADPOOL_H
+#pragma once
 
 #include <thread>
 #include <mutex>
@@ -55,6 +54,9 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #include <array>
 
 #include "CommonLib/CommonDef.h"
+
+namespace vvdec
+{
 
 #ifdef TRACE_ENABLE_ITT
 static __itt_domain* itt_domain_thrd = __itt_domain_create( "Threading" );
@@ -484,4 +486,4 @@ private:
   static void handleTaskException( const std::exception_ptr e, Barrier* done, WaitCounter* counter, std::atomic<TaskState>* slot_state );
 };
 
-#endif   // THREADPOOL_H
+}

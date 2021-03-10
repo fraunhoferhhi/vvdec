@@ -57,6 +57,9 @@ THE POSSIBILITY OF SUCH DAMAGE.
 # define IF_DEBUG_PIC_ORDER(...)
 #endif
 
+namespace vvdec
+{
+
 static bool isIDR( NalUnitType type )
 {
   return type == NAL_UNIT_CODED_SLICE_IDR_W_RADL || type == NAL_UNIT_CODED_SLICE_IDR_N_LP;
@@ -455,4 +458,6 @@ void PicListManager::markNotNeededForOutput()
     Picture *pcPic = *(iterPic++);
     pcPic->neededForOutput = false;
   }
+}
+
 }

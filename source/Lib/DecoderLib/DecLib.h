@@ -48,8 +48,7 @@ THE POSSIBILITY OF SUCH DAMAGE.
     \brief    decoder class (header)
 */
 
-#ifndef DECLIB_H
-#define DECLIB_H
+#pragma once
 
 #include "DecLibParser.h"
 #include "DecLibRecon.h"
@@ -59,8 +58,9 @@ THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "Utilities/ThreadPool.h"
 
-//! \ingroup DecoderLib
-//! \{
+namespace vvdec
+{
+
 // ====================================================================================================================
 // Class definition
 // ====================================================================================================================
@@ -148,6 +148,4 @@ private:
   void     xCheckNalUnitConstraintFlags( const ConstraintInfo *cInfo, uint32_t naluType );
 };
 
-//! \}
-
-#endif   // DECLIB_H
+}

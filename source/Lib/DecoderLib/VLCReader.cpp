@@ -58,6 +58,8 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #include "CommonLib/AdaptiveLoopFilter.h"
 #include "CommonLib/ParameterSetManager.h"
 
+namespace vvdec
+{
 
 #if ENABLE_TRACING
 
@@ -4881,4 +4883,4 @@ void HLSyntaxReader::alfFilter( AlfSliceParam& alfSliceParam, const bool isChrom
   }
 }
 
-//! \}
+}

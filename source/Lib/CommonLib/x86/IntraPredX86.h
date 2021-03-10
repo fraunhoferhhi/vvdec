@@ -48,14 +48,12 @@ THE POSSIBILITY OF SUCH DAMAGE.
     \brief    SIMD for IntraPrediction
 */
 
-//! \ingroup CommonLib
-//! \{
-
-
 #include "CommonLib/CommonDef.h"
 #include "CommonDefX86.h"
 #include "CommonLib/IntraPrediction.h"
 
+namespace vvdec
+{
 
 #if ENABLE_SIMD_OPT_INTRAPRED
 #ifdef TARGET_SIMD_X86
@@ -1126,4 +1124,5 @@ template void IntraPrediction::_initIntraPredictionX86<SIMDX86>();
 
 #endif // TARGET_SIMD_X86
 #endif
-//! \}
+
+}

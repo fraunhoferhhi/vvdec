@@ -48,10 +48,12 @@ THE POSSIBILITY OF SUCH DAMAGE.
     \brief    motion vector class (header)
 */
 
-#ifndef __MV__
-#define __MV__
+#pragma once
 
 #include "CommonDef.h"
+
+namespace vvdec
+{
 
 class SPS;
 class PPS;
@@ -249,6 +251,4 @@ bool wrapClipMv( int& mvx, int& mvy, const Position& pos, const Size& size, cons
 
 void roundAffineMv( int& mvx, int& mvy, int nShift );
 
-//! \}
-
-#endif // __MV__
+}

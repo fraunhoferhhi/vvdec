@@ -840,8 +840,8 @@ int VVDecImpl::xAddPicture( Picture* pcPic )
       for( int comp=0; comp < maxComponent; comp++ )
       {
         const ComponentID compID      = ComponentID(comp);
-        const uint32_t    csx         = ::getComponentScaleX(compID, cPicBuf.chromaFormat);
-        const uint32_t    csy         = ::getComponentScaleY(compID, cPicBuf.chromaFormat);
+        const uint32_t    csx         = getComponentScaleX(compID, cPicBuf.chromaFormat);
+        const uint32_t    csy         = getComponentScaleY(compID, cPicBuf.chromaFormat);
         const CPelBuf     area        = upscaledPic.get(compID);
         unsigned int uiBytesPerSample = bitDepths.recon[0] > 8 ? 2 : 1;
         
@@ -869,8 +869,8 @@ int VVDecImpl::xAddPicture( Picture* pcPic )
       for( int comp=0; comp < maxComponent; comp++ )
       {
         const ComponentID compID      = ComponentID(comp);
-        const uint32_t    csx         = ::getComponentScaleX(compID, cPicBuf.chromaFormat);
-        const uint32_t    csy         = ::getComponentScaleY(compID, cPicBuf.chromaFormat);
+        const uint32_t    csx         = getComponentScaleX(compID, cPicBuf.chromaFormat);
+        const uint32_t    csy         = getComponentScaleY(compID, cPicBuf.chromaFormat);
         const CPelBuf     area        = cPicBuf.get(compID);
         unsigned int uiBytesPerSample = bitDepths.recon[0] > 8 ? 2 : 1;
   
@@ -890,8 +890,8 @@ int VVDecImpl::xAddPicture( Picture* pcPic )
     for( int comp=0; comp < maxComponent; comp++ )
     {
       const ComponentID compID      = ComponentID(comp);
-      const uint32_t    csx         = ::getComponentScaleX(compID, cPicBuf.chromaFormat);
-      const uint32_t    csy         = ::getComponentScaleY(compID, cPicBuf.chromaFormat);
+      const uint32_t    csx         = getComponentScaleX(compID, cPicBuf.chromaFormat);
+      const uint32_t    csy         = getComponentScaleY(compID, cPicBuf.chromaFormat);
       const CPelBuf     area        = cPicBuf.get(compID);
       const ptrdiff_t   planeOffset = (confLeft >> csx) + (confTop >> csy) * area.stride;
 

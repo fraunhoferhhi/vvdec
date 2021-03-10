@@ -49,20 +49,15 @@ THE POSSIBILITY OF SUCH DAMAGE.
  \brief    reading funtionality for SEI messages
  */
 
-#ifndef __SEIREAD__
-#define __SEIREAD__
-
-#if _MSC_VER > 1000
 #pragma once
-#endif // _MSC_VER > 1000
-
-//! \ingroup DecoderLib
-//! \{
 
 #include "CommonLib/TypeDef.h"
 #include "CommonLib/Slice.h"
 #include "CommonLib/SEI_internal.h"
 #include "VLCReader.h"
+
+namespace vvdec
+{
 
 class InputBitstream;
 
@@ -137,6 +132,4 @@ protected:
 
 #endif
 
-//! \}
-
-#endif
+}

@@ -51,14 +51,14 @@ THE POSSIBILITY OF SUCH DAMAGE.
 
 #pragma once
 
-#ifndef __ANNEXBREAD__
-#define __ANNEXBREAD__
-
 #include <stdint.h>
 #include <istream>
 #include <vector>
 
 #include "CommonLib/CommonDef.h"
+
+namespace vvdec
+{
 
 //! \ingroup DecoderLib
 //! \{
@@ -204,6 +204,4 @@ struct AnnexBStats
 
 bool byteStreamNALUnit(InputByteStream& bs, std::vector<uint8_t>& nalUnit, AnnexBStats& stats);
 
-//! \}
-
-#endif
+}

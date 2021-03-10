@@ -56,6 +56,8 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #include "UnitTools.h"
 #include "Picture.h"
 
+namespace vvdec
+{
 
 PartLevel::PartLevel()
 : split               ( CU_DONT_SPLIT )
@@ -869,4 +871,6 @@ void PartitionerImpl::getSbtTuTiling( const UnitArea& cuArea, const CodingStruct
   }
 
   return;
+}
+
 }

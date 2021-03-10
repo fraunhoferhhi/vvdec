@@ -65,6 +65,8 @@ THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "Quant.h"
 
+namespace vvdec
+{
 
 InvTrans *fastInvTrans[NUM_TRANS_TYPE][g_numTransformMatrixSizes] =
 {
@@ -511,5 +513,4 @@ void TrQuant::xITransformSkip(const CCoeffBuf     &pCoeff,
   }
 }
 
-
-//! \}
+}

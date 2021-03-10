@@ -48,8 +48,7 @@ THE POSSIBILITY OF SUCH DAMAGE.
  *  \brief    Description of a coded picture
  */
 
-#ifndef __PICTURE__
-#define __PICTURE__
+#pragma once
 
 #include "CommonDef.h"
 
@@ -64,6 +63,9 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #include "InterpolationFilter.h"
 
 #include "vvdec/sei.h"
+
+namespace vvdec
+{
 
 struct Picture : public UnitArea
 {
@@ -321,5 +323,4 @@ public:
 
 int calcAndPrintHashStatus(const CPelUnitBuf& pic, const vvdecSEIDecodedPictureHash* pictureHashSEI, const BitDepths &bitDepths, const MsgLevel msgl);
 
-
-#endif
+}

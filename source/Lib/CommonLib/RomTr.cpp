@@ -50,6 +50,8 @@ THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "Rom.h"
 
+namespace vvdec
+{
 
 // DCT-2
 #define DEFINE_DCT2_P2_MATRIX(a) \
@@ -380,3 +382,5 @@ ALIGN_DATA( MEMORY_ALIGN_DEF_SIZE, const TMatrixCoeff g_trCoreDST7P16[16][16] ) 
 ALIGN_DATA( MEMORY_ALIGN_DEF_SIZE, const TMatrixCoeff g_trCoreDST7P32[32][32] ) = DEFINE_DST7_P32_MATRIX( 4,     9,    13,    17,    21,    26,    30,    34,    38,    42,    46,    50,    53,    56,    60,    63,    66,    68,    72,    74,    77,    78,    80,    82,    84,    85,    86,    87,    88,    89,    90,    90);
 
 //--------------------------------------------------------------------------------------------------
+
+}

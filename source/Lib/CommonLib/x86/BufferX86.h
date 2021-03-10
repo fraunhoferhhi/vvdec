@@ -59,9 +59,11 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #include "CommonLib/Buffer.h"
 #include "CommonLib/InterpolationFilter.h"
 
-
 #if ENABLE_SIMD_OPT_BUFFER
 #ifdef TARGET_SIMD_X86
+
+namespace vvdec
+{
 
 template< X86_VEXT vext, int W >
 void addAvg_SSE( const int16_t* src0, ptrdiff_t src0Stride, const int16_t* src1, ptrdiff_t src1Stride, int16_t *dst, ptrdiff_t dstStride, int width, int height, int shift, int offset, const ClpRng& clpRng )
@@ -1373,6 +1375,8 @@ void PelBufferOps::_initPelBufOpsX86()
 }
 
 template void PelBufferOps::_initPelBufOpsX86<SIMDX86>();
+
+}
 
 #endif // TARGET_SIMD_X86
 #endif

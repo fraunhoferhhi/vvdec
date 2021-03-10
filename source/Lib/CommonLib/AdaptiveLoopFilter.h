@@ -48,8 +48,7 @@ THE POSSIBILITY OF SUCH DAMAGE.
     \brief    adaptive loop filter class (header)
 */
 
-#ifndef __ADAPTIVELOOPFILTER__
-#define __ADAPTIVELOOPFILTER__
+#pragma once
 
 #include "CommonDef.h"
 
@@ -57,6 +56,9 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #include "UnitTools.h"
 
 #include <vector>
+
+namespace vvdec
+{
 
 struct AlfClassifier
 {
@@ -161,4 +163,4 @@ protected:
   int           m_alfVBChmaCTUHeight;
 };
 
-#endif
+}

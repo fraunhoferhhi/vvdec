@@ -50,13 +50,11 @@ THE POSSIBILITY OF SUCH DAMAGE.
 
 #pragma once
 
-
 #include "CommonLib/Contexts.h"
 #include "CommonLib/BitStream.h"
 
-
-
-
+namespace vvdec
+{
 
 class BinDecoderBase : public Ctx
 {
@@ -99,4 +97,4 @@ private:
   CtxStore& m_Ctx;
 };
 
-
+}

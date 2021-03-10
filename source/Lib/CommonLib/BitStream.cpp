@@ -55,8 +55,8 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #include <string.h>
 #include <memory.h>
 
-//! \ingroup CommonLib
-//! \{
+namespace vvdec
+{
 
 // ====================================================================================================================
 // Constructor / destructor / create / destroy
@@ -401,4 +401,4 @@ uint32_t InputBitstream::readByteAlignment()
   return numBits+1;
 }
 
-//! \}
+}

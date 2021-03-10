@@ -48,8 +48,7 @@ THE POSSIBILITY OF SUCH DAMAGE.
     \brief    transform and quantization class (header)
 */
 
-#ifndef __TRQUANT__
-#define __TRQUANT__
+#pragma once
 
 #include "CommonDef.h"
 #include "Unit.h"
@@ -60,8 +59,8 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #include "UnitPartitioner.h"
 #include "Quant.h"
 
-//! \ingroup CommonLib
-//! \{
+namespace vvdec
+{
 
 typedef void InvTrans(const TCoeff*, TCoeff*, int, int, int, int, const TCoeff, const TCoeff);
 
@@ -140,6 +139,4 @@ private:
 #endif
 };// END CLASS DEFINITION TrQuant
 
-//! \}
-
-#endif // __TRQUANT__
+}

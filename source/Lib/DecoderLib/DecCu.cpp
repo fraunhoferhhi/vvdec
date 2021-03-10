@@ -58,6 +58,8 @@ THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "CommonLib/dtrace_buffer.h"
 
+namespace vvdec
+{
 
 //! \ingroup DecoderLib
 //! \{
@@ -900,4 +902,5 @@ void DecCu::xDeriveCUMV( CodingUnit &cu, MotionHist& hist )
     }
   }
 }
-//! \}
+
+}

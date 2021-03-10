@@ -52,6 +52,9 @@ THE POSSIBILITY OF SUCH DAMAGE.
 # include <pthread.h>
 #endif
 
+namespace vvdec
+{
+
 std::mutex Barrier::s_exceptionLock{};
 
 // block threads after busy-waiting this long
@@ -465,4 +468,6 @@ ThreadPool::ChunkedTaskQueue::Iterator& ThreadPool::ChunkedTaskQueue::Iterator::
     m_slot = &m_chunk->m_slots.front();
   }
   return *this;
+}
+
 }

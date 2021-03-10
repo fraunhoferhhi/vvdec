@@ -64,6 +64,9 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #include "CommonLib/AdaptiveLoopFilter.h"
 #include "CommonLib/SampleAdaptiveOffset.h"
 
+namespace vvdec
+{
+
 #ifdef TARGET_SIMD_X86
 
 
@@ -327,3 +330,4 @@ void Quant::initQuantX86()
 
 #endif
 
+}

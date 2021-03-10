@@ -52,9 +52,8 @@ THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "RdCost.h"
 
-//! \ingroup CommonLib
-//! \{
-
+namespace vvdec
+{
 
 FpDistFunc RdCost::m_afpDistortFunc[DF_TOTAL_FUNCTIONS] = { nullptr, };
 
@@ -416,6 +415,4 @@ Distortion RdCost::xGetSAD64( const DistParam &rcDtParam )
   return (uiSum >> DISTORTION_PRECISION_ADJUSTMENT(rcDtParam.bitDepth));
 }
 
-
-
-//! \}
+}

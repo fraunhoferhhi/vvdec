@@ -58,8 +58,8 @@ THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <vector>
 
-//! \ingroup DecoderLib
-//! \{
+namespace vvdec
+{
 
 //////////////////////////////////////////////////////////////////////
 // Construction/Destruction
@@ -212,4 +212,4 @@ void DecSlice::parseSlice( Slice* slice, InputBitstream* bitstream, int threadId
   }
 }
 
-//! \}
+}

@@ -64,6 +64,9 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #include "CommonDefX86.h"
 #endif
 
+namespace vvdec
+{
+
 //! \ingroup CommonLib
 //! \{
 
@@ -1672,4 +1675,4 @@ void LoopFilter::xEdgeFilterChroma( CodingStructure &cs, const Position &pos, co
   }
 }
 
-//! \}
+}

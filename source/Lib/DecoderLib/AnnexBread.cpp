@@ -54,13 +54,14 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #include <stdint.h>
 #include <vector>
 
+namespace vvdec
+{
+
 #ifdef TRACE_ENABLE_ITT
 static __itt_domain*        itt_domain_input       = __itt_domain_create( "I/O" );
 static __itt_string_handle* itt_handle_extractNALU = __itt_string_handle_create( "Extract_NALU" );
 #endif   // TRACE_ENABLE_ITT
 
-//! \ingroup DecoderLib
-//! \{
 
 /**
  * Parse an AVC AnnexB Bytestream bs to extract a single nalUnit
@@ -187,4 +188,5 @@ byteStreamNALUnit(
   ITT_TASKEND(itt_domain_input, itt_handle_extractNALU);
   return eof;
 }
-//! \}
+
+}

@@ -47,16 +47,15 @@ THE POSSIBILITY OF SUCH DAMAGE.
 /** \file     CommonDefX86.h
 */
 
-#ifndef __COMMONDEFX86__
-#define __COMMONDEFX86__
+#pragma once
 
 #include "CommonDef.h"
 
-//! \ingroup CommonLib
-//! \{
-
 #include <immintrin.h>
 #include "FixMissingIntrin.h"
+
+namespace vvdec
+{
 
 #ifdef USE_AVX512
 #define SIMDX86 AVX512
@@ -390,6 +389,5 @@ static void _printReg( const R var, const char* varname, uint8_t count = sizeof(
 #define PREG( var, t, cnt )
 #endif
 
-#endif // __COMMONDEFX86__
-
+}
 

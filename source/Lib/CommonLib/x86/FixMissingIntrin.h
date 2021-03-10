@@ -3,6 +3,9 @@
 #include <immintrin.h>
 #include <cstdint>
 
+namespace vvdec
+{
+
 #ifndef HAVE_INITIN_mm_storeu_si32
 static inline void _mm_storeu_si32( void* p, __m128i a )
 {
@@ -30,3 +33,5 @@ static inline __m128i _mm_loadu_si64( const void* p )
   return _mm_cvtsi64_si128( *(int64_t*)p );
 }
 #endif
+
+}

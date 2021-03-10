@@ -60,7 +60,8 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #define CHECK(c,x)          if(c){ THROW(x); }
 #endif
 
-//namespace VVCEncoderLib {
+namespace vvdec
+{
 
 namespace StatCounters
 {
@@ -763,4 +764,4 @@ std::ostream& report2D( std::ostream& os, const StatCounter2DSet<T>& counters, b
 
 }
 
-//} // namespace VVCEncoderLib
+}

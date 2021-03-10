@@ -54,6 +54,8 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #include <cstring>
 #include <limits>
 
+namespace vvdec
+{
 
 const uint8_t ProbModelTables::m_RenormTable_32[32] =
 {
@@ -858,3 +860,5 @@ Ctx::operator explicit       CtxStore&()               { return m_CtxStore_Std; 
 Ctx::operator const CtxStore&()         const { return m_CtxStore_Std; }
 Ctx::operator       CtxStore&()               { return m_CtxStore_Std; }
 #endif
+
+}

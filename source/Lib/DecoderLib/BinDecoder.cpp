@@ -56,7 +56,8 @@ THE POSSIBILITY OF SUCH DAMAGE.
 
 #define CNT_OFFSET 0
 
-
+namespace vvdec
+{
 
 BinDecoderBase::BinDecoderBase()
   : Ctx         ()
@@ -382,4 +383,4 @@ unsigned BinDecoder::decodeBin( unsigned ctxId )
   return  bin;
 }
 
-
+}

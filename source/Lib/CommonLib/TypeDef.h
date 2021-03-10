@@ -48,10 +48,9 @@ THE POSSIBILITY OF SUCH DAMAGE.
     \brief    Define macros, basic types, new types and enumerations
 */
 
-#ifndef __TYPEDEF__
-#define __TYPEDEF__
+#pragma once
 
-#ifndef __COMMONDEF__
+#ifndef COMMONDEF_H
 #error Include CommonDef.h not TypeDef.h
 #endif
 
@@ -63,6 +62,8 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #include <assert.h>
 #include <cassert>
 
+namespace vvdec
+{
 
 #if __SANITIZE_ADDRESS__
 // macro to enable workarounds for address-sanitizer false-positives
@@ -795,7 +796,6 @@ enum MsgLevel
   DETAILS = 6
 };
 
-
 // ---------------------------------------------------------------------------
 // exception class
 // ---------------------------------------------------------------------------
@@ -1042,6 +1042,4 @@ static void move_to_end( typename TList::const_iterator it, TList& list )
   CHECKD( &list.back() != oldAddr, "moving failed" );
 }
 
-//! \}
-
-#endif
+}

@@ -48,8 +48,9 @@ THE POSSIBILITY OF SUCH DAMAGE.
     \brief    Defines version information, constants and small in-line functions
 */
 
-#ifndef __COMMONDEF__
-#define __COMMONDEF__
+#pragma once
+
+#define COMMONDEF_H
 
 #include <algorithm>
 #include <iostream>
@@ -59,6 +60,8 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #include <functional>
 #include <mutex>
 
+namespace vvdec
+{
 
 #if defined( __INTEL_COMPILER )
 #pragma warning( disable : 1786 )
@@ -74,8 +77,13 @@ THE POSSIBILITY OF SUCH DAMAGE.
 
 #pragma warning( disable : 4996 )
 #endif // _MSC_VER > 1000
+}
+
 #include "TypeDef.h"
 #include "vvdec/version.h"
+
+namespace vvdec
+{
 
 #ifdef _MSC_VER
 #if _MSC_VER <= 1500
@@ -440,16 +448,22 @@ extern MsgLevel g_verbosity;
 extern void    *g_context;
 extern std::function<void( void*, int, const char*, va_list )> g_msgFnc;
 
+}
+
 #include <stdarg.h>
+
+namespace vvdec
+{
+
 inline void msg( MsgLevel level, const char* fmt, ... )
 {
-  if ( g_msgFnc && g_verbosity >= level )
+  if ( vvdec::g_msgFnc && vvdec::g_verbosity >= level )
   {
     static std::mutex _msgMutex;
     std::unique_lock<std::mutex> _lock( _msgMutex );
     va_list args;
     va_start( args, fmt );
-    g_msgFnc( g_context, level, fmt, args );
+    vvdec::g_msgFnc( vvdec::g_context, level, fmt, args );
     va_end( args );
   }
 }
@@ -543,7 +557,9 @@ template <typename ValueType> inline ValueType rightShift_round(const ValueType 
 
 #ifdef TARGET_SIMD_X86
 #ifdef _WIN32
+}
 # include <intrin.h>
+namespace vvdec {
 static inline unsigned long _bit_scan_reverse( long a )
 {
   unsigned long idx = 0;
@@ -551,7 +567,9 @@ static inline unsigned long _bit_scan_reverse( long a )
   return idx;
 }
 #else
+}
 # include <x86intrin.h>
+namespace vvdec {
 #endif
 
 #endif
@@ -561,7 +579,9 @@ static inline int getLog2( long val )
   return _bit_scan_reverse( val );
 }
 #else
+}
 #include <cmath>
+namespace vvdec {
 extern int8_t g_aucLog2[MAX_CU_SIZE + 1];
 static inline int getLog2( long val )
 {
@@ -590,7 +610,9 @@ static inline int getLog2( long val )
 #endif
 
 #ifdef TRACE_ENABLE_ITT
+}
 # include <ittnotify.h>
+namespace vvdec {
 
 # define ITT_TASKSTART( d, t ) __itt_task_begin( ( d ), __itt_null, __itt_null, ( t ) )
 # define ITT_TASKEND( d, t )   __itt_task_end  ( ( d ) )
@@ -621,5 +643,5 @@ static inline int getLog2( long val )
 
 //! \}
 
-#endif // end of #ifndef  __COMMONDEF__
+}
 

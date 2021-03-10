@@ -48,8 +48,7 @@ THE POSSIBILITY OF SUCH DAMAGE.
  *  \brief    Reader for high level syntax
  */
 
-#ifndef __VLCREADER__
-#define __VLCREADER__
+#pragma once
 
 #include "CommonLib/Rom.h"
 #include "CommonLib/BitStream.h"
@@ -77,8 +76,8 @@ THE POSSIBILITY OF SUCH DAMAGE.
 
 #endif
 
-//! \ingroup DecoderLib
-//! \{
+namespace vvdec
+{
 
 // ====================================================================================================================
 // Class definition
@@ -194,7 +193,4 @@ protected:
   bool  xMoreRbspData();
 };
 
-
-//! \}
-
-#endif
+}
