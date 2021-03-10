@@ -535,26 +535,6 @@ PelBuf Picture::getOriginBuf( const PictureType &type, const ComponentID compID 
   return m_bufs[type].getOriginBuf( compID );
 }
 
-void Picture::createSpliceIdx(int nums)
-{
-  m_ctuNums = nums;
-  m_spliceIdx = new int[m_ctuNums];
-  memset(m_spliceIdx, 0, m_ctuNums * sizeof(int));
-}
-
-bool Picture::getSpliceFull()
-{
-  int count = 0;
-  for (int i = 0; i < m_ctuNums; i++)
-  {
-    if (m_spliceIdx[i] != 0)
-      count++;
-  }
-  if (count < m_ctuNums * 0.25)
-    return false;
-  return true;
-}
-
 void Picture::startProcessingTimer()
 {
   m_processingStartTime = std::chrono::steady_clock::now();

@@ -137,12 +137,8 @@ public:
 
   int  getDecodingOrderNumber()               const { return decodingOrderNumber; }
   void setDecodingOrderNumber(const int val)        { decodingOrderNumber = val;  }
-  
-  int           getSpliceIdx(uint32_t idx) const { return m_spliceIdx[idx]; }
-  void          setSpliceIdx(uint32_t idx, int poc) { m_spliceIdx[idx] = poc; }
-  void          createSpliceIdx(int nums);
-  bool          getSpliceFull();
 
+  bool getMixedNaluTypesInPicFlag()           const { return slices[0]->getPPS()->getMixedNaluTypesInPicFlag(); }
 
 public:
 #if JVET_O1143_MV_ACROSS_SUBPIC_BOUNDARY

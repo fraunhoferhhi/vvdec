@@ -97,7 +97,7 @@ PicListRange PicListManager::getPicListRange( const Picture* pic ) const
   auto seqStart = m_cPicList.cbegin();
   for( auto itPic = m_cPicList.cbegin(); itPic != m_cPicList.cend(); ++itPic )
   {
-    if( isIDR( *itPic ) )
+    if( isIDR( *itPic ) && !(*itPic)->getMixedNaluTypesInPicFlag() )
     {
       seqStart = itPic;
     }
@@ -251,7 +251,7 @@ void PicListManager::applyDoneReferencePictureMarking()
     inPicRange |= ( itPic == picRangeStart );   // all pictures before the current valid picture-range can also be marked as not needed for referenece
 
     bool isReference = false;
-    if( !isIDR( lastDonePic ) || !inPicRange )
+    if( !( isIDR( lastDonePic ) && !lastDonePic->getMixedNaluTypesInPicFlag() ) || !inPicRange )
     {
       for( auto& slice: lastDonePic->slices )
       {

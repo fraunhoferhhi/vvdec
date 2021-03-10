@@ -416,8 +416,8 @@ DecLibParser::SliceHeadResult DecLibParser::xDecodeSliceHead( InputNALUnit& nalu
   else // if it turns out, this was not the first slice in the picture, we need to parse the header again
   {
     CHECK( m_uiSliceSegmentIdx == 0, "slice segment idx should only be zero for first slice in picture" );
-    CHECK( nalu.m_nalUnitType != m_pcParsePic->slices[m_uiSliceSegmentIdx - 1]->getNalUnitType(), "The value of NAL unit type shall be the same for all coded slice NAL units of a picture" );
-
+    CHECK( !m_pcParsePic->getMixedNaluTypesInPicFlag() && nalu.m_nalUnitType != m_pcParsePic->slices[m_uiSliceSegmentIdx - 1]->getNalUnitType(),
+           "The value of NAL unit type shall be the same for all coded slice NAL units of a picture if pps_mixed_nalu_types_in_pic_flag is not set" )
     m_apcSlicePilot->copySliceInfo  ( m_pcParsePic->slices[m_uiSliceSegmentIdx-1] );
 
     m_apcSlicePilot->setNalUnitType ( nalu.m_nalUnitType );
