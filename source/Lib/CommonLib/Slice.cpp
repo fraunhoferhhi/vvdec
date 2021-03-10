@@ -427,13 +427,13 @@ bool Slice::getRapPicFlag() const
 
 Picture* Slice::xGetRefPic( const PicListRange & rcListPic, int poc, const int layerId )
 {
-  auto it = std::find_if( begin( rcListPic ), end( rcListPic ),
+  auto it = std::find_if( rcListPic.begin(), rcListPic.end(),
                           [poc,layerId]( Picture* p )
   {
     return ( p->getPOC() == poc && p->layerId == layerId );
   } );
 
-  if( it == end( rcListPic ) )
+  if( it == rcListPic.end() )
   {
     return nullptr;
   }
@@ -465,7 +465,7 @@ Picture* Slice::xGetLongTermRefPic( const PicListRange & rcListPic, int poc, boo
     }
   }
 
-  return *begin( rcListPic );
+  return *rcListPic.begin();
 }
 
 void Slice::setRefPOCList()

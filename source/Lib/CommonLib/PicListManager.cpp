@@ -232,20 +232,20 @@ void PicListManager::applyDoneReferencePictureMarking()
     return;
   }
 
-  const Picture* picRangeStart = *begin( getPicListRange( lastDonePic ) );
+  const Picture* picRangeStart = *getPicListRange( lastDonePic ).begin();
   bool           inPicRange    = false;
 
   for( auto& itPic: m_cPicList )
   {
-    if( !itPic->referenced )
-    {
-      // already marked as not references
-      continue;
-    }
     if( itPic == lastDonePic )
     {
       // only check up to the last finished picture
       return;
+    }
+    if( !itPic->referenced )
+    {
+      // already marked as not references
+      continue;
     }
 
     inPicRange |= ( itPic == picRangeStart );   // all pictures before the current valid picture-range can also be marked as not needed for referenece

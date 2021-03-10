@@ -63,14 +63,14 @@ class VPS;
 class ReferencePictureList;
 
 typedef std::list<Picture*> PicList;
-#if 0
-typedef const std::list<Picture*> PicListRange;
-#else
-typedef std::tuple<PicList::const_iterator, PicList::const_iterator> PicListRange;
+struct PicListRange
+{
+  PicList::const_iterator m_begin;
+  PicList::const_iterator m_end;
 
-static const PicList::const_iterator begin( const PicListRange & t ) { return std::get<0>( t ); }
-static const PicList::const_iterator end  ( const PicListRange & t ) { return std::get<1>( t ); }
-#endif
+  const PicList::const_iterator begin() const { return m_begin; }
+  const PicList::const_iterator end  () const { return m_end;   }
+};
 
 class PicListManager
 {
