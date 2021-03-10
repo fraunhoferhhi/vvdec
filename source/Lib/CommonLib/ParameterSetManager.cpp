@@ -46,6 +46,9 @@ THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "ParameterSetManager.h"
 
+namespace vvdec
+{
+
 void updateParameterSetChangedFlag( bool&                       bChanged,
                                     const std::vector<uint8_t>* pOldData,
                                     const std::vector<uint8_t>* pNewData )
@@ -308,4 +311,6 @@ bool ParameterSetManager::activateAPS( int apsId, int apsType )
     msg( WARNING, "Warning: tried to activate non-existing APS." );
   }
   return false;
+}
+
 }

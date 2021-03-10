@@ -57,6 +57,9 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #include "UnitTools.h"
 #include "UnitPartitioner.h"
 
+namespace vvdec
+{
+
  // ---------------------------------------------------------------------------
  // block method definitions
  // ---------------------------------------------------------------------------
@@ -363,4 +366,6 @@ std::shared_ptr<TUCache> ThreadSafeCUCache::getTuCache()
   // no cache instance available -> create a new one
   m_tuCaches.push_back( std::make_shared<TUCache>() );
   return m_tuCaches.back();
+}
+
 }

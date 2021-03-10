@@ -48,8 +48,7 @@ THE POSSIBILITY OF SUCH DAMAGE.
     \brief    RD cost computation classes (header)
 */
 
-#ifndef __RDCOST__
-#define __RDCOST__
+#pragma once
 
 #include "CommonDef.h"
 #include "Unit.h"
@@ -57,8 +56,8 @@ THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <math.h>
 
-//! \ingroup CommonLib
-//! \{
+namespace vvdec
+{
 
 class DistParam;
 class EncCfg;
@@ -130,6 +129,4 @@ private:
 #endif
 };// END CLASS DEFINITION RdCost
 
-//! \}
-
-#endif // __RDCOST__
+}

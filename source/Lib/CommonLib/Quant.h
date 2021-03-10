@@ -48,8 +48,7 @@ THE POSSIBILITY OF SUCH DAMAGE.
     \brief    base quantization class (header)
 */
 
-#ifndef __QUANT__
-#define __QUANT__
+#pragma once
 
 #include "CommonDef.h"
 #include "Unit.h"
@@ -59,8 +58,8 @@ THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "UnitPartitioner.h"
 
-//! \ingroup CommonLib
-//! \{
+namespace vvdec
+{
 
 // ====================================================================================================================
 // Constants
@@ -155,7 +154,4 @@ private:
 
 };// END CLASS DEFINITION Quant
 
-
-//! \}
-
-#endif // __QUANT__
+}

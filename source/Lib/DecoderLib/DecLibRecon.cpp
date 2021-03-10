@@ -63,6 +63,8 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #include "CommonLib/dtrace_next.h"
 #include "CommonLib/dtrace_buffer.h"
 
+namespace vvdec
+{
 
 #ifdef TRACE_ENABLE_ITT
 extern __itt_domain*              itt_domain_dec;
@@ -930,4 +932,4 @@ bool DecLibRecon::ctuTask( int tid, CtuTaskParam* param )
   return true;
 }
 
-//! \}
+}

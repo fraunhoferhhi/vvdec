@@ -53,6 +53,9 @@ THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "vvdec/sei.h"
 
+namespace vvdec
+{
+
 typedef std::list<vvdecSEI*> seiMessages;
 
 class SEI_internal
@@ -122,3 +125,4 @@ struct PictureHash
   }
 };
 
+}

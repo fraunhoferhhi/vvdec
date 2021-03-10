@@ -49,16 +49,15 @@ THE POSSIBILITY OF SUCH DAMAGE.
  * \brief Declaration of InterpolationFilter class
  */
 
-#ifndef __INTERPOLATIONFILTER__
-#define __INTERPOLATIONFILTER__
+#pragma once
 
 #include "CommonDef.h"
 
 #include "Unit.h"
 #include "Buffer.h"
 
-//! \ingroup CommonLib
-//! \{
+namespace vvdec
+{
 
 #define IF_INTERNAL_PREC 14 ///< Number of bits for internal precision
 #define IF_FILTER_PREC    6 ///< Log2 of sum of filter taps
@@ -135,6 +134,4 @@ public:
   static TFilterCoeff const * getChromaFilterTable(const int deltaFract) { return m_chromaFilter[deltaFract]; };
 };
 
-//! \}
-
-#endif
+}

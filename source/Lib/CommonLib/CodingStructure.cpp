@@ -56,6 +56,8 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #include "UnitTools.h"
 #include "UnitPartitioner.h"
 
+namespace vvdec
+{
 
 ThreadSafeCUCache g_globalUnitCache{};
 
@@ -139,7 +141,7 @@ CodingUnit& CodingStructure::addCU( const UnitArea &unit, const ChannelType chTy
 
   cu->idx = ++m_numCUs;
 
-  uint32_t numCh = ::getNumberValidChannels( area.chromaFormat );
+  uint32_t numCh = getNumberValidChannels( area.chromaFormat );
 
   CtuData& ctuData = getCtuData( currRsAddr );
   cu->ctuData = &ctuData;
@@ -525,8 +527,8 @@ void CodingStructure::fillIBCbuffer( CodingUnit &cu, int lineIdx )
         continue;
 
       const unsigned int lcuWidth = sps->getMaxCUWidth();
-      const int shiftSampleHor = ::getComponentScaleX(area.compID, cu.chromaFormat);
-      const int shiftSampleVer = ::getComponentScaleY(area.compID, cu.chromaFormat);
+      const int shiftSampleHor = getComponentScaleX(area.compID, cu.chromaFormat);
+      const int shiftSampleVer = getComponentScaleY(area.compID, cu.chromaFormat);
       const int ctuSizeVerLog2 = getLog2(lcuWidth) - shiftSampleVer;
       const int pux = area.x & ((m_IBCBufferWidth >> shiftSampleHor) - 1);
       const int puy = area.y & (( 1 << ctuSizeVerLog2 ) - 1);
@@ -539,3 +541,4 @@ void CodingStructure::fillIBCbuffer( CodingUnit &cu, int lineIdx )
   }
 }
 
+}

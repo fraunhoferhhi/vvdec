@@ -48,11 +48,12 @@ THE POSSIBILITY OF SUCH DAMAGE.
 \brief    matrix-based intra prediction class (header)
 */
 
-#ifndef __MATRIXINTRAPPREDICTION__
-#define __MATRIXINTRAPPREDICTION__
-
+#pragma once
 
 #include "Unit.h"
+
+namespace vvdec
+{
 
 static const int MIP_MAX_INPUT_SIZE             =  8;
 static const int MIP_MAX_REDUCED_OUTPUT_SAMPLES = 64;
@@ -123,5 +124,4 @@ private:
   int m_mipResult[MIP_MAX_WIDTH * MIP_MAX_HEIGHT];
 };
 
-
-#endif //__MATRIXINTRAPPREDICTION__
+}

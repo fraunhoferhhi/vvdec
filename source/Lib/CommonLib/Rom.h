@@ -48,8 +48,7 @@ THE POSSIBILITY OF SUCH DAMAGE.
     \brief    global variables & functions (header)
 */
 
-#ifndef __ROM__
-#define __ROM__
+#pragma once
 
 #include "CommonDef.h"
 #include "Common.h"
@@ -57,6 +56,9 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #include <atomic>
 #include <stdio.h>
 #include <iostream>
+
+namespace vvdec
+{
 
 
 //! \ingroup CommonLib
@@ -224,5 +226,5 @@ extern int16_t   g_weightOffset       [GEO_NUM_PARTITION_MODE][GEO_NUM_CU_SIZE][
 extern int8_t    g_angle2mask         [GEO_NUM_ANGLES];
 extern int8_t    g_Dis[GEO_NUM_ANGLES];
 extern int8_t    g_angle2mirror[GEO_NUM_ANGLES];
-#endif  //__TCOMROM__
 
+}

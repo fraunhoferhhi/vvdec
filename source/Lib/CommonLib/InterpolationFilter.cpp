@@ -60,8 +60,8 @@ THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "ChromaFormat.h"
 
-//! \ingroup CommonLib
-//! \{
+namespace vvdec
+{
 
 // ====================================================================================================================
 // Tables
@@ -1341,4 +1341,4 @@ void InterpolationFilter::initInterpolationFilter( bool enable )
 #endif
 }
 
-//! \}
+}

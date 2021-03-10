@@ -48,13 +48,15 @@ THE POSSIBILITY OF SUCH DAMAGE.
     \brief    weighting prediction class (header)
 */
 
-#ifndef __WEIGHTPREDICTION__
-#define __WEIGHTPREDICTION__
+#pragma once
 
 #include "CommonDef.h"
 #include "Slice.h"
 #include "Unit.h"
 #include "Buffer.h"
+
+namespace vvdec
+{
 
 // forward declarations
 struct WPScalingParam;
@@ -103,4 +105,4 @@ public:
                                 );
 };
 
-#endif
+}

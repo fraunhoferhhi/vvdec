@@ -48,8 +48,7 @@ THE POSSIBILITY OF SUCH DAMAGE.
  *  \brief    Reader for low level syntax
  */
 
-#ifndef __CABACREADER__
-#define __CABACREADER__
+#pragma once
 
 #include "BinDecoder.h"
 
@@ -58,6 +57,8 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #include "CommonLib/UnitPartitioner.h"
 #include "CommonLib/TrQuant.h"
 
+namespace vvdec
+{
 
 class CABACReader
 {
@@ -190,4 +191,4 @@ private:
   CABACReader             m_CABACReaderStd;
 };
 
-#endif
+}

@@ -48,8 +48,7 @@ THE POSSIBILITY OF SUCH DAMAGE.
     \brief    slice header and SPS class (header)
 */
 
-#ifndef __SLICE__
-#define __SLICE__
+#pragma once
 
 #include "CommonDef.h"
 #include "Rom.h"
@@ -69,14 +68,13 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #include <chrono>
 #include <future>
 
-//! \ingroup CommonLib
-//! \{
+namespace vvdec
+{
 
 // ====================================================================================================================
 // Constants
 // ====================================================================================================================
 class PreCalcValues;
-class DecLibParser;
 class ParameterSetManager;
 static const uint32_t REF_PIC_LIST_NUM_IDX=32;
 
@@ -557,7 +555,6 @@ struct BasePS: public std::enable_shared_from_this<T>
     return m_changedFlag;
   }
 
-private:
   bool             m_changedFlag = false;
 
   template<class Tf, int MAX_ID> friend class ParameterSetMap;
@@ -3195,15 +3192,15 @@ public:
 
   struct ParseTaskParams
   {
-    void init( DecLibParser* dec, InputBitstream&& bits )
+    void init( class DecLibParser* dec, InputBitstream&& bits )
     {
       decLibParser = dec;
       bitstream.~InputBitstream();
       new(&bitstream) InputBitstream( std::move(bits) );
     }
 
-    DecLibParser*      decLibParser = nullptr;
-    InputBitstream     bitstream;
+    class DecLibParser* decLibParser = nullptr;
+    InputBitstream      bitstream;
   } parseTaskParams;
 
   Barrier parseDone;
@@ -3338,4 +3335,4 @@ void xTraceSliceHeader();
 void xTraceAccessUnitDelimiter();
 #endif
 
-#endif // __SLICE__
+}

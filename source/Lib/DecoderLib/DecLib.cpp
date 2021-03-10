@@ -56,6 +56,9 @@ THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "NALread.h"
 
+namespace vvdec
+{
+
 #ifdef TRACE_ENABLE_ITT
 std::vector<__itt_domain*> itt_domain_decInst;
 __itt_domain* itt_domain_dec           = __itt_domain_create( "Decode" );
@@ -653,4 +656,4 @@ void DecLib::checkAPSInPictureUnit()
   }
 }
 
-//! \}
+}

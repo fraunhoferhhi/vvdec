@@ -60,9 +60,8 @@ THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "vvdec/sei.h"
 
-
-//! \ingroup DecoderLib
-//! \{
+namespace vvdec
+{
 
 #if ENABLE_TRACING
 void  xTraceSEIHeader()
@@ -1868,4 +1867,4 @@ void SeiCfgFileDump::xDumpSEIGeneralizedCubemapProjection  (SEIGeneralizedCubema
 
 #endif
 
-//! \}
+}

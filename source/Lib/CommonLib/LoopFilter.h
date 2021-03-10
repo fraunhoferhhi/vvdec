@@ -48,8 +48,7 @@ THE POSSIBILITY OF SUCH DAMAGE.
     \brief    deblocking filter (header)
 */
 
-#ifndef __LOOPFILTER__
-#define __LOOPFILTER__
+#pragma once
 
 #include "CommonDef.h"
 #include "Unit.h"
@@ -59,6 +58,9 @@ THE POSSIBILITY OF SUCH DAMAGE.
 //! \{
 
 #define DEBLOCK_SMALLEST_BLOCK  8
+
+namespace vvdec
+{
 
 // ====================================================================================================================
 // Class definition
@@ -122,6 +124,4 @@ public:
   void calcFilterStrengthsCTU     ( CodingStructure & cs, const UnitArea& ctuArea );
 };
 
-//! \}
-
-#endif
+}

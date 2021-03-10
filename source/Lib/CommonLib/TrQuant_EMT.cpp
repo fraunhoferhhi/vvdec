@@ -57,6 +57,9 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #include <limits>
 #include <memory.h>
 
+namespace vvdec
+{
+
 #if ENABLE_SIMD_TCOEFF_OPS
 template<int uiTrSize>
 inline void _fastInverseMM( const TCoeff *src, TCoeff *dst, int shift, int line, int iSkipLine, int iSkipLine2, const TCoeff outputMinimum, const TCoeff outputMaximum, const TMatrixCoeff* iT );
@@ -1034,8 +1037,13 @@ void fastInverseDCT8_B32(const TCoeff *src, TCoeff *dst, int shift, int line, in
 
 #define DONT_UNDEF_SIZE_AWARE_PER_EL_OP 1
 
+}
+
 #include "Unit.h"
 #include "Buffer.h"
+
+namespace vvdec
+{
 
 void cpyResiCore( const TCoeff* src, Pel* dst, ptrdiff_t stride, unsigned width, unsigned height )
 {
@@ -1090,3 +1098,5 @@ TCoeffOps::TCoeffOps()
 TCoeffOps g_tCoeffOps;
 
 #endif
+
+}

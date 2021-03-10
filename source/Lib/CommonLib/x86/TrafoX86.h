@@ -57,6 +57,8 @@ THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "TrQuant_EMT.h"
 
+namespace vvdec
+{
 
 #if ENABLE_SIMD_TCOEFF_OPS
 #ifdef TARGET_SIMD_X86
@@ -437,4 +439,5 @@ template void TCoeffOps::_initTCoeffOpsX86<SIMDX86>();
 
 #endif // TARGET_SIMD_X86
 #endif
-//! \}
+
+}

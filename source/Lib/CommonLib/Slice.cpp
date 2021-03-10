@@ -57,8 +57,8 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #include "UnitTools.h"
 #include "vvdec/sei.h"
 
-//! \ingroup CommonLib
-//! \{
+namespace vvdec
+{
 
 #if JVET_Q0814_DPB
 void VPS::deriveOutputLayerSets()
@@ -2587,3 +2587,5 @@ void xTraceAccessUnitDelimiter()
   DTRACE( g_trace_ctx, D_HEADER, "=========== Access Unit Delimiter ===========\n" );
 }
 #endif
+
+}

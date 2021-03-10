@@ -53,6 +53,9 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #include "CodingStructure.h"
 #include "Picture.h"
 
+namespace vvdec
+{
+
 CoeffCodingContext::CoeffCodingContext( const TransformUnit& tu, ComponentID component, bool signHide )
   : m_chType                    (toChannelType(component))
   , m_width                     (tu.block(component).width)
@@ -512,4 +515,6 @@ unsigned DeriveCtx::CtxMipFlag( const CodingUnit& cu )
   ctxId = ( cu.lwidth() > 2 * cu.lheight() || cu.lheight() > 2 * cu.lwidth() ) ? 3 : ctxId;
 
   return ctxId;
+}
+
 }

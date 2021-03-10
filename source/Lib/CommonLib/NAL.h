@@ -46,12 +46,12 @@ THE POSSIBILITY OF SUCH DAMAGE.
 
 #pragma once
 
-#ifndef __NAL__
-#define __NAL__
-
 #include <sstream>
 #include <list>
 #include "CommonDef.h"
+
+namespace vvdec
+{
 
 class OutputBitstream;
 
@@ -174,5 +174,4 @@ public:
   }
 };
 
-
-#endif
+}

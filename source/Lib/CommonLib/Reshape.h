@@ -48,18 +48,15 @@ THE POSSIBILITY OF SUCH DAMAGE.
      \brief    reshaping header and class (header)
  */
 
-#ifndef __RESHAPE__
-#define __RESHAPE__
-
-#if _MSC_VER > 1000
 #pragma once
-#endif // _MSC_VER > 1000
 
 #include "CommonDef.h"
 #include "Rom.h"
 #include "CommonLib/Picture.h"
-//! \ingroup CommonLib
-//! \{
+
+namespace vvdec
+{
+
 // ====================================================================================================================
 // Class definition
 // ====================================================================================================================
@@ -111,7 +108,4 @@ public:
   int  getChromaScale() { return m_chromaScale; }
 };// END CLASS DEFINITION Reshape
 
-//! \}
-#endif // __RESHAPE__
-
-
+}

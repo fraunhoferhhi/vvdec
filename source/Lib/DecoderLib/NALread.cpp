@@ -61,6 +61,9 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #include "CommonLib/Rom.h"
 #include "CommonLib/dtrace_next.h"
 
+namespace vvdec
+{
+
 //! \ingroup DecoderLib
 //! \{
 static void convertPayloadToRBSP(std::vector<uint8_t>& nalUnitBuf, InputBitstream *bitstream, bool isVclNalUnit)
@@ -176,4 +179,4 @@ bool InputNALUnit::checkPictureHeaderInSliceHeaderFlag( InputNALUnit& nalu )
   return (bool)bitstream.read(1);
 }
 
-//! \}
+}

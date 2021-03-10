@@ -48,8 +48,7 @@ THE POSSIBILITY OF SUCH DAMAGE.
  *  \brief    Easy to use dtrace calls concerning coding structures
  */
 
-#ifndef _DTRACE_CODINGSTRUCT_H_
-#define _DTRACE_CODINGSTRUCT_H_
+#pragma once
 
 #include "dtrace.h"
 #include "dtrace_next.h"
@@ -62,6 +61,9 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #include "CommonLib/UnitTools.h"
 
 #include <cmath>
+
+namespace vvdec
+{
 
 #if ENABLE_TRACING
 
@@ -90,4 +92,4 @@ inline void dtracePicComp( DTRACE_CHANNEL channel, CodingStructure& cs, const CP
 
 #endif
 
-#endif // _DTRACE_HEVC_H_
+}

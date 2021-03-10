@@ -48,13 +48,15 @@ THE POSSIBILITY OF SUCH DAMAGE.
  *  \brief    defines operations for basic units
  */
 
-#ifndef __UNITTOOLS__
-#define __UNITTOOLS__
+#pragma once
 
 #include "Unit.h"
 #include "UnitPartitioner.h"
 #include "ContextModelling.h"
 #include "InterPrediction.h"
+
+namespace vvdec
+{
 
 UnitArea getArea( const Slice &slice, const UnitArea &area, const ChannelType chType, const TreeType treeType = TREE_D );
 
@@ -202,4 +204,4 @@ bool isCrossedByVirtualBoundaries( const PicHeader* picHeader,
                                    int              horVirBndryPos[],
                                    int              verVirBndryPos[] );
 
-#endif
+}

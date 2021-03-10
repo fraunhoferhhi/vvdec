@@ -54,8 +54,10 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #include "CommonDefX86.h"
 #include "../RdCost.h"
 
-#ifdef TARGET_SIMD_X86
+namespace vvdec
+{
 
+#ifdef TARGET_SIMD_X86
 
 template<X86_VEXT vext>
 Distortion RdCost::xGetSAD_16xN_SIMD( const DistParam &rcDtParam )
@@ -315,4 +317,5 @@ void RdCost::_initRdCostX86()
 template void RdCost::_initRdCostX86<SIMDX86>();
 
 #endif //#if TARGET_SIMD_X86
-//! \}
+
+}

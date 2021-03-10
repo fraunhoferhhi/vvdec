@@ -59,6 +59,9 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #include <utility>
 #include <algorithm>
 
+namespace vvdec
+{
+
 static bool isDualITree( const Slice &slice )
 {
 #if GDR_ADJ
@@ -4001,4 +4004,6 @@ bool isCrossedByVirtualBoundaries( const PicHeader* picHeader,
   }
 
   return numHorVirBndry > 0 || numVerVirBndry > 0;
+}
+
 }

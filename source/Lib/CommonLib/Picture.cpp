@@ -55,6 +55,8 @@ THE POSSIBILITY OF SUCH DAMAGE.
 // picture methods
 // ---------------------------------------------------------------------------
 
+namespace vvdec
+{
 
 void paddPicBorderTopCore(Pel *pi, ptrdiff_t stride,int width,int xmargin,int ymargin)
 {
@@ -563,3 +565,5 @@ void Picture::stopProcessingTimer()
   auto endTime = std::chrono::steady_clock::now();
   m_dProcessingTime += std::chrono::duration<double>(endTime - m_processingStartTime).count();
 }
+
+};

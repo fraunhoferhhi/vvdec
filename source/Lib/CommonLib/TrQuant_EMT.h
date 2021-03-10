@@ -48,10 +48,12 @@ THE POSSIBILITY OF SUCH DAMAGE.
     \brief    transform and quantization class (header)
 */
 
-#ifndef __TRQUANT_EMT__
-#define __TRQUANT_EMT__
+#pragma once
 
 #include "CommonDef.h"
+
+namespace vvdec
+{
 
 #if ENABLE_SIMD_TCOEFF_OPS
 struct TCoeffOps
@@ -96,5 +98,4 @@ void fastInverseDCT8_B8  (const TCoeff *src, TCoeff *dst, int shift, int line, i
 void fastInverseDCT8_B16 (const TCoeff *src, TCoeff *dst, int shift, int line, int iSkipLine, int iSkipLine2, const TCoeff outputMinimum, const TCoeff outputMaximum);
 void fastInverseDCT8_B32 (const TCoeff *src, TCoeff *dst, int shift, int line, int iSkipLine, int iSkipLine2, const TCoeff outputMinimum, const TCoeff outputMaximum);
 
-
-#endif // __TRQUANT__
+}

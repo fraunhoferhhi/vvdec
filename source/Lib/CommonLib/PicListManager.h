@@ -44,13 +44,15 @@ THE POSSIBILITY OF SUCH DAMAGE.
 
 ------------------------------------------------------------------------------------------- */
 
-#ifndef PICLISTMANAGER_H
-#define PICLISTMANAGER_H
+#pragma once
 
 #include "CommonDef.h"
 
 #include <list>
 #include <tuple>
+
+namespace vvdec
+{
 
 struct Picture;
 class SPS;
@@ -106,4 +108,4 @@ public:
   void           markNotNeededForOutput();
 };
 
-#endif   // PICLISTMANAGER_H
+}

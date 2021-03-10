@@ -59,6 +59,9 @@ THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <array>
 
+namespace vvdec
+{
+
 constexpr int AdaptiveLoopFilter::AlfNumClippingValues[];
 
 AdaptiveLoopFilter::AdaptiveLoopFilter()
@@ -451,7 +454,7 @@ void AdaptiveLoopFilter::getCompatibleBuffer( const CodingStructure & cs, const 
     if( destBuf.chromaFormat == srcBuf.chromaFormat )
     {
       compat = true;
-      const uint32_t numCh = ::getNumberValidComponents( srcBuf.chromaFormat );
+      const uint32_t numCh = getNumberValidComponents( srcBuf.chromaFormat );
       for( uint32_t i = 0; i < numCh; i++ )
       {
         // check this otherwise it would turn out to get very weird
@@ -1315,4 +1318,6 @@ void AdaptiveLoopFilter::filterBlkCcAlf( const PelBuf&      dstBuf,
 
     lumaPtr += lumaStride * clsSizeY << getComponentScaleY(compId, nChromaFormat);
   }
+}
+
 }

@@ -48,8 +48,7 @@ THE POSSIBILITY OF SUCH DAMAGE.
     \brief    decoder class (header)
 */
 
-#ifndef DECLIB_RECON_H
-#define DECLIB_RECON_H
+#pragma once
 
 #include "CommonLib/CommonDef.h"
 #include "CommonLib/Picture.h"
@@ -60,6 +59,9 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #include "CommonLib/SampleAdaptiveOffset.h"
 
 #include "Utilities/ThreadPool.h"
+
+namespace vvdec
+{
 
 class DecLibRecon;
 class IntraPrediction;
@@ -170,6 +172,4 @@ private:
   static bool ctuTask( int tid, CtuTaskParam* param );
 };
 
-//! \}
-
-#endif   // DECLIB_RECON_H
+}

@@ -66,10 +66,8 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #include <ostream>
 #include <sstream>
 
-//! \ingroup CommonLib
-//! \{
-
-//namespace VVCEncoderLib {
+namespace vvdec
+{
 
 #if ENABLE_TIME_PROFILING || ENABLE_TIME_PROFILING_EXTENDED
 
@@ -375,6 +373,5 @@ public:
 #define PROFILER_SCOPE_AND_STAGE(cond,p,s)
 #define PROFILER_SCOPE_AND_STAGE_EXT(cond,p,s,cs,ch)
 #endif
-//} // namespace VVCEncoderLib
 
-//! \}
+}

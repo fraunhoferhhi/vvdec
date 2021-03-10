@@ -138,38 +138,38 @@ VVDEC_DECL vvdecDecoder* vvdec_decoder_open( vvdecParams *params)
 {
   if (nullptr == params)
   {
-    msg( ERROR, "vvdec_Params_t is null\n" );
+    vvdec::msg( vvdec::ERROR, "vvdec_Params_t is null\n" );
     return nullptr;
   }
 
   if( params->threads > 64 )
   {
-    msg( ERROR, "threads must be <= 64\n" );
+    vvdec::msg( vvdec::ERROR, "threads must be <= 64\n" );
     return nullptr;
   }
 
   if( params->parseThreads > 64 )
   {
-    msg( ERROR, "parseThreads must be <= 64\n" );
+    vvdec::msg( vvdec::ERROR, "parseThreads must be <= 64\n" );
     return nullptr;
   }
 
   if( (int)params->simd > (int)VVDEC_SIMD_AVX512 || (int)params->simd < (int)VVDEC_SIMD_DEFAULT)
   {
-    msg( ERROR, "unsupported simd mode. simd must be 0 <= simd <= 6\n" );
+    vvdec::msg( vvdec::ERROR, "unsupported simd mode. simd must be 0 <= simd <= 6\n" );
     return nullptr;
   }
 
   if( (int)params->upscaleOutput > (int)VVDEC_UPSCALING_RESCALE || (int)params->upscaleOutput < (int)VVDEC_UPSCALING_OFF )
   {
-    msg( ERROR, "unsupported upscaleOutput mode. must be 0 <= upscaleOutput <= 2\n" );
+    vvdec::msg( vvdec::ERROR, "unsupported upscaleOutput mode. must be 0 <= upscaleOutput <= 2\n" );
     return nullptr;
   }
 
   vvdec::VVDecImpl* decCtx = new vvdec::VVDecImpl();
   if (!decCtx)
   {
-    msg( ERROR, "cannot allocate memory for VVdeC decoder\n" );
+    vvdec::msg( vvdec::ERROR, "cannot allocate memory for VVdeC decoder\n" );
     return nullptr;
   }
 
@@ -179,7 +179,7 @@ VVDEC_DECL vvdecDecoder* vvdec_decoder_open( vvdecParams *params)
     // Error initializing the decoder
     delete decCtx;
 
-    msg( ERROR, "cannot init the VVdeC decoder\n" );
+    vvdec::msg( vvdec::ERROR, "cannot init the VVdeC decoder\n" );
     return nullptr;
   }
 

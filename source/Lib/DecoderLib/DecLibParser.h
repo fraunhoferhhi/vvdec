@@ -44,8 +44,7 @@ THE POSSIBILITY OF SUCH DAMAGE.
 
 ------------------------------------------------------------------------------------------- */
 
-#ifndef DEC_LIB_PARSER_H
-#define DEC_LIB_PARSER_H
+#pragma once
 
 #include "CommonLib/CommonDef.h"
 #include "CommonLib/Picture.h"
@@ -57,6 +56,10 @@ THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "CommonLib/ParameterSetManager.h"
 
+#include <deque>
+
+namespace vvdec
+{
 
 class InputNALUnit;
 class ThreadPool;
@@ -220,4 +223,4 @@ private:
   void xCheckMixedNalUnit     ( Slice* pcSlice, InputNALUnit &nalu );
 };
 
-#endif   // !DEC_LIB_PARSER_H
+}

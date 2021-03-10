@@ -51,11 +51,10 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #include <stdint.h>
 #include <cstring>
 
-//! \ingroup libMD5
-//! \{
+namespace vvdec
+{
 
 static const uint32_t MD5_DIGEST_STRING_LENGTH=16;
-
 
 #ifndef __BIG_ENDIAN__
 # define byteReverse(buf, len)    /* Nothing */
@@ -315,7 +314,6 @@ private:
   context_md5_t ctx;
 };
 
-
-//! \}
+}
 
 } // namespace

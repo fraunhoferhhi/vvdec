@@ -60,6 +60,8 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #include <immintrin.h>
 #endif
 
+namespace vvdec
+{
 
 template<X86_VEXT vext>
 void simdDeriveClassificationBlk(AlfClassifier *classifier, const CPelBuf &srcLuma, const Area& blk, const int shift, int vbCTUHeight, int vbPos)
@@ -1710,5 +1712,7 @@ void AdaptiveLoopFilter::_initAdaptiveLoopFilterX86()
 }
 
 template void AdaptiveLoopFilter::_initAdaptiveLoopFilterX86<SIMDX86>();
+
+}
+
 #endif //#ifdef TARGET_SIMD_X86
-//! \}

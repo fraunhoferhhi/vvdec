@@ -48,8 +48,8 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #include "libmd5/MD5.h"
 #include "SEI_internal.h"
 
-//! \ingroup CommonLib
-//! \{
+namespace vvdec
+{
 
 /**
  * Update md5 using n samples from plane, each sample is adjusted to
@@ -325,4 +325,4 @@ int calcAndPrintHashStatus(const CPelUnitBuf& pic, const vvdecSEIDecodedPictureH
   return mismatch;
 }
 
-//! \}
+}

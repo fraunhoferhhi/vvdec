@@ -48,8 +48,7 @@ THE POSSIBILITY OF SUCH DAMAGE.
     \brief    sample adaptive offset class (header)
 */
 
-#ifndef __SAMPLEADAPTIVEOFFSET__
-#define __SAMPLEADAPTIVEOFFSET__
+#pragma once
 
 #include "CommonDef.h"
 #include "Unit.h"
@@ -57,8 +56,8 @@ THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <array>
 
-//! \ingroup CommonLib
-//! \{
+namespace vvdec
+{
 
 template<typename T> static inline int sgn( T val )
 {
@@ -181,5 +180,4 @@ protected:
   uint32_t                                m_numberOfComponents;
 };
 
-//! \}
-#endif
+}

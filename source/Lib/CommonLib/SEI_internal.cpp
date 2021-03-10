@@ -48,6 +48,8 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #include <stdlib.h>
 #include "CommonDef.h"
 
+namespace vvdec
+{
 
 const char *SEI_internal::getSEIMessageString( vvdecSEIPayloadType payloadType)
 {
@@ -207,5 +209,4 @@ int SEI_internal::getPayloadSize(vvdecSEIPayloadType payloadType)
   return -1;
 }
 
-
-
+}

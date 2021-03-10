@@ -66,8 +66,8 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #include "CommonLib/InterpolationFilter.h"
 #include "CommonLib/TimeProfiler.h"
 
-//! \ingroup CommonLib
-//! \{
+namespace vvdec
+{ 
 
 // ====================================================================================================================
 // Tables
@@ -2228,4 +2228,4 @@ void IntraPrediction::predIntraMip( const ComponentID compId, PelBuf &piPred, co
 #endif
 }
 
-//! \}
+}

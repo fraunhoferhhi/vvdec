@@ -48,9 +48,7 @@ THE POSSIBILITY OF SUCH DAMAGE.
     \brief    prediction class (header)
 */
 
-#ifndef __INTRAPREDICTION__
-#define __INTRAPREDICTION__
-
+#pragma once
 
 // Include files
 #include "Unit.h"
@@ -59,8 +57,9 @@ THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "MatrixIntraPrediction.h"
 
-//! \ingroup CommonLib
-//! \{
+
+namespace vvdec
+{
 
 // ====================================================================================================================
 // Class definition
@@ -170,6 +169,4 @@ public:
 
 };
 
-//! \}
-
-#endif // __INTRAPREDICTION__
+}
