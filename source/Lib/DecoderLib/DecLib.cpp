@@ -399,21 +399,63 @@ void DecLib::checkPictureHashSEI( Picture* pcPic )
 
   seiMessages pictureHashes = SEI_internal::getSeisByType( pcPic->seiMessageList, VVDEC_DECODED_PICTURE_HASH );
 
-  if( pictureHashes.empty() )
+  if( !pictureHashes.empty() )
   {
-    msg( WARNING, "Warning: missing decoded picture hash SEI message.\n" );
-    return;
+    if( pictureHashes.size() > 1 )
+    {
+      msg( WARNING, "Warning: Got multiple decoded picture hash SEI messages. Using first." );
+    }
+
+    const vvdecSEIDecodedPictureHash* hash = (vvdecSEIDecodedPictureHash*)pictureHashes.front()->payload;
+
+    msg( INFO, "         " );
+    m_numberOfChecksumErrorsDetected += calcAndPrintHashStatus( pcPic->getRecoBuf(), hash, pcPic->cs->sps->getBitDepths(), INFO );
+  }
+  else
+  {
+    if( pcPic->subPictures.empty() )
+    {
+      msg( WARNING, "Warning: missing decoded picture hash SEI message.\n" );
+      return;
+    }
+
+    unsigned    checkedSubpicDPHs   = 0;
+    seiMessages scalableNestingSeis = SEI_internal::getSeisByType( pcPic->seiMessageList, VVDEC_SCALABLE_NESTING );
+    for( auto* seiIt: scalableNestingSeis )
+    {
+      CHECK( seiIt->payloadType != VVDEC_SCALABLE_NESTING, "expected nesting SEI" );
+
+      const vvdecSEIScalableNesting* nestingSei = (vvdecSEIScalableNesting*)seiIt->payload;
+      if( !nestingSei->snSubpicFlag )
+      {
+        continue;
+      }
+
+      uint32_t subpicId = nestingSei->snSubpicId[0];
+
+      for( int i = 0; i < nestingSei->snNumSEIs; ++i )
+      {
+        auto& nestedSei = nestingSei->nestedSEIs[i];
+        CHECK( nestedSei == nullptr, "missing nested sei" );
+        if( nestedSei && nestedSei->payloadType != VVDEC_DECODED_PICTURE_HASH )
+          continue;
+
+        const vvdecSEIDecodedPictureHash* hash = (vvdecSEIDecodedPictureHash*)nestedSei->payload;
+
+        const UnitArea area = UnitArea( pcPic->chromaFormat, pcPic->subPictures[subpicId].getLumaArea() );
+        m_numberOfChecksumErrorsDetected += calcAndPrintHashStatus( pcPic->cs->getRecoBuf( area ), hash, pcPic->cs->sps->getBitDepths(), INFO );
+        msg( INFO, "\n" );
+        ++checkedSubpicDPHs;
+      }
+    }
+
+    if( checkedSubpicDPHs < pcPic->subPictures.size() )
+    {
+      msg( WARNING, "Warning: missing decoded picture hash SEI message for SubPics (%u/%u).\n", checkedSubpicDPHs, pcPic->subPictures.size() );
+      return;
+    }
   }
 
-  if( pictureHashes.size() > 1 )
-  {
-    msg( WARNING, "Warning: Got multiple decoded picture hash SEI messages. Using first." );
-  }
-
-  const vvdecSEIDecodedPictureHash* hash = (vvdecSEIDecodedPictureHash*) pictureHashes.front()->payload;
-
-  msg( INFO, "         " );
-  m_numberOfChecksumErrorsDetected += calcAndPrintHashStatus( pcPic->getRecoBuf(), hash, pcPic->cs->sps->getBitDepths(), INFO );
   msg( INFO, "\n" );
 }
 

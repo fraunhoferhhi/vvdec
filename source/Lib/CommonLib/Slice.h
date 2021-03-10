@@ -980,6 +980,9 @@ public:
   void             setSubPicHeightInLumaSample(uint32_t u) {         m_subPicHeightInLumaSample = u;  }
   uint32_t         getSubPicHeightInLumaSample()     const { return  m_subPicHeightInLumaSample;      }
 
+  Area             getArea()                         const { return Area( m_subPicLeft, m_subPicTop, m_subPicWidth,             m_subPicHeight );             }
+  Area             getLumaArea()                     const { return Area( m_subPicLeft, m_subPicTop, m_subPicWidthInLumaSample, m_subPicHeightInLumaSample ); }
+
   std::vector<uint32_t> getCtuAddrList  ()           const { return  m_ctuAddrInSubPic;           }
   void                  clearCTUAddrList()                 { m_ctuAddrInSubPic.clear(); }
   void                  addCTUsToSubPic(std::vector<uint32_t> ctuAddrInSlice)
