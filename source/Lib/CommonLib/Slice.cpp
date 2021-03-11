@@ -2103,6 +2103,27 @@ void ReferencePictureList::printRefPicInfo() const
   printf("}\n");
 }
 
+int ReferencePictureList::calcLTRefPOC( int currPoc, int bitsForPoc, int refPicIdentifier, bool pocMSBPresent, int deltaPocMSBCycle )
+{
+  const int pocCycle = 1 << bitsForPoc;
+  int       ltrpPoc  = refPicIdentifier & ( pocCycle - 1 );
+  if( pocMSBPresent )
+  {
+    ltrpPoc += currPoc - deltaPocMSBCycle * pocCycle - ( currPoc & ( pocCycle - 1 ) );
+  }
+  return ltrpPoc;
+}
+
+int ReferencePictureList::calcLTRefPOC( int currPoc, int bitsForPoc, int refPicIdx ) const
+{
+  return calcLTRefPOC( currPoc,
+                       bitsForPoc,
+                       this->getRefPicIdentifier( refPicIdx ),
+                       this->getDeltaPocMSBPresentFlag( refPicIdx ),
+                       this->getDeltaPocMSBCycleLT( refPicIdx ) );
+}
+
+
 ScalingList::ScalingList()
 {
   m_chromaScalingListPresentFlag = true;

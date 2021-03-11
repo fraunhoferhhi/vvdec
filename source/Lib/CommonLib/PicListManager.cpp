@@ -204,9 +204,15 @@ static bool findInRefPicList( Picture* checkRefPic, const ReferencePictureList* 
     }
     else
     {
-      int pocCycle     = 1 << ( checkRefPic->cs->sps->getBitsForPOC() );
-      int refPocMasked = checkRefPic->poc & ( pocCycle - 1 );
-      if( refPocMasked == rpl->getRefPicIdentifier( i ) )
+      int curPoc = checkRefPic->poc;
+      int refPoc = rpl->calcLTRefPOC( currPicPoc, checkRefPic->cs->sps->getBitsForPOC(), i );
+      if( !rpl->getDeltaPocMSBPresentFlag( i ) )
+      {
+        const int pocCycle = 1 << ( checkRefPic->cs->sps->getBitsForPOC() );
+        curPoc &= ( pocCycle - 1 );
+      }
+
+      if( curPoc == refPoc )
       {
         checkRefPic->longTerm = true;
         return true;
