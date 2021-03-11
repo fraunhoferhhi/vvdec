@@ -146,6 +146,8 @@ list( APPEND BITSTREAM_FILES
   "MIP_A_HHI_3.zip"
   "MIP_B_HHI_3.zip"
   "MMVD_A_SAMSUNG_3.zip"
+  "MNUT_A_Nokia_3.zip"
+  "MNUT_B_Nokia_2.zip"
   "MPM_A_LGE_3.zip"
   "MRLP_A_HHI_2.zip"
   "MRLP_B_HHI_2.zip"
@@ -205,6 +207,7 @@ list( APPEND BITSTREAM_FILES
   "SUBPIC_B_HUAWEI_3.zip"
   "SUBPIC_C_ERICSSON_1.zip"
   "SUBPIC_D_MediaTek_1.zip"
+  "SUBPIC_D_ERICSSON_1.zip"
   "TEMPSCAL_A_Panasonic_4.zip"
   "TEMPSCAL_B_Panasonic_5.zip"
   "TEMPSCAL_C_Panasonic_3.zip"
@@ -240,9 +243,6 @@ list( APPEND BITSTREAM_FILES
 
 # put bitstreams from the conformance set that should be decodable but aren't
 list( APPEND BITSTREAM_FAULTY_FILES
-  "MNUT_A_Nokia_3.zip"
-  "MNUT_B_Nokia_2.zip"
-  "SUBPIC_D_ERICSSON_1.zip"
 )
 
 # put bitstreams from the conformance set that are not supported (wrong profile/level etc)
