@@ -1,9 +1,9 @@
 if( VVDEC_ENABLE_LOCAL_BITSTREAM_DOWNLOAD )
   # get bitstreams
-  set( BITSTREAM_URL_BASE "https://visvn.fe.hhi.de/download/VVC/under_test/VTM-11.0" )
+  set( BITSTREAM_URL_BASE "https://visvn.fe.hhi.de/download/VVC/under_test/VTM-12.0" )
 else()
   # get bitstreams
-  set( BITSTREAM_URL_BASE "https://www.itu.int/wftp3/av-arch/jvet-site/bitstream_exchange/VVC/under_test/VTM-11.0" )
+  set( BITSTREAM_URL_BASE "https://www.itu.int/wftp3/av-arch/jvet-site/bitstream_exchange/VVC/under_test/VTM-12.0" )
 endif()
 
 # put bitstreams from the conformance set that are should be decodable and are working
@@ -96,8 +96,8 @@ list( APPEND BITSTREAM_FILES
   "ENTROPY_A_Qualcomm_2.zip"
   "ENTROPY_B_Sharp_2.zip"
   "ERP_A_MediaTek_3.zip"
-  "FIELD_A_Panasonic_3.zip"
-  "FIELD_B_Panasonic_1.zip"
+  "FIELD_A_Panasonic_4.zip"
+  "FIELD_B_Panasonic_2.zip"
   "FILLER_A_Bytedance_1.zip"
   "GDR_A_ERICSSON_2.zip"
   "GDR_A_NOKIA_2.zip"
@@ -240,6 +240,8 @@ list( APPEND BITSTREAM_FILES
 
 # put bitstreams from the conformance set that should be decodable but aren't
 list( APPEND BITSTREAM_FAULTY_FILES
+  "MNUT_A_Nokia_3.zip"
+  "MNUT_B_Nokia_2.zip"
   "SUBPIC_D_ERICSSON_1.zip"
 )
 
@@ -268,6 +270,7 @@ list( APPEND BITSTREAM_NOT_MAIN10_FILES
   "8b422_K_Sony_4.zip"                                # palette mode is not yet supported
   "8b422_L_Sony_4.zip"                                # palette mode is not yet supported
   "ACT_A_Kwai_2.zip"                                  # palette mode is not yet supported
+  "ILRPL_A_Huawei_2.zip"                              # multi-layer not supported
   "OLS_A_Tencent_4.zip"                               # TODO ERROR: In function "parseVPS" in ../../source/Lib/DecoderLib/VLCReader.cpp:2053: needs to be adjusted, e.g. sublayer and independent layer stuff -> see VTM-9.0
   "OLS_B_Tencent_4.zip"                               # TODO ERROR: In function "parseVPS" in ../../source/Lib/DecoderLib/VLCReader.cpp:2053: needs to be adjusted, e.g. sublayer and independent layer stuff -> see VTM-9.0
   "OLS_C_Tencent_4.zip"                               # TODO ERROR: In function "parseVPS" in ../../source/Lib/DecoderLib/VLCReader.cpp:2053: needs to be adjusted, e.g. sublayer and independent layer stuff -> see VTM-9.0
