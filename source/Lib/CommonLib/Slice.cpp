@@ -427,17 +427,16 @@ bool Slice::getRapPicFlag() const
 
 Picture* Slice::xGetRefPic( const PicListRange & rcListPic, int poc, const int layerId )
 {
-  auto it = std::find_if( rcListPic.begin(), rcListPic.end(),
-                          [poc,layerId]( Picture* p )
+  // return a nullptr, if picture is not found
+  for ( auto &currPic : rcListPic )
   {
-    return ( p->getPOC() == poc && p->layerId == layerId );
-  } );
-
-  if( it == rcListPic.end() )
-  {
-    return nullptr;
+    if( currPic->getPOC() == poc && currPic->layerId == layerId )
+    {
+      return currPic;
+    }
   }
-  return *it;
+
+  return nullptr;
 }
 
 Picture* Slice::xGetLongTermRefPic( const PicListRange & rcListPic, int poc, bool pocHasMsb, const int layerId )
@@ -526,14 +525,7 @@ void Slice::constructSingleRefPicList(const PicListRange& rcListPic, RefPicList 
     }
     else
     {
-      int pocBits = getSPS()->getBitsForPOC();
-      int pocMask = ( 1 << pocBits ) - 1;
-      int ltrpPoc = rRPL.getRefPicIdentifier( ii ) & pocMask;
-      if( rRPL.getDeltaPocMSBPresentFlag( ii ) )
-      {
-//        ltrpPoc += pLocalRPL.getDeltaPocMSBCycleLT( ii ) << pocBits;
-        ltrpPoc += getPOC() - rRPL.getDeltaPocMSBCycleLT( ii ) * ( pocMask + 1 ) - ( getPOC() & pocMask );
-      }
+      int ltrpPoc = rRPL.calcLTRefPOC( getPOC(), getSPS()->getBitsForPOC(), ii );
 
       pcRefPic           = xGetLongTermRefPic( rcListPic, ltrpPoc, rRPL.getDeltaPocMSBPresentFlag( ii ), m_pcPic->layerId );
       pcRefPic->longTerm = true;
@@ -691,13 +683,8 @@ void Slice::checkRPL(const ReferencePictureList* pRPL0, const ReferencePictureLi
       }
       else
       {
-        int pocBits = getSPS()->getBitsForPOC();
-        int pocMask = ( 1 << pocBits ) - 1;
-        int ltrpPoc = rpl[refPicList]->getRefPicIdentifier( i ) & pocMask;
-        if( rpl[refPicList]->getDeltaPocMSBPresentFlag( i ) )
-        {
-          ltrpPoc += getPOC() - rpl[refPicList]->getDeltaPocMSBCycleLT( i ) * ( pocMask + 1 ) - ( getPOC() & pocMask );
-        }
+        int ltrpPoc = rpl[refPicList]->calcLTRefPOC( getPOC(), getSPS()->getBitsForPOC(), i );
+
         pcRefPic = xGetLongTermRefPic( rcListPic, ltrpPoc, rpl[refPicList]->getDeltaPocMSBPresentFlag( i ), m_pcPic->layerId );
         refPicPOC = pcRefPic->getPOC();
       }
