@@ -686,7 +686,7 @@ bool DecLibRecon::ctuTask( int tid, CtuTaskParam* param )
 
       for( int ctu = ctuStart; ctu < ctuEnd; ctu++ )
       {
-        const CtuData& ctuData = cs.getCtuData( ctuStart, line );
+        const CtuData& ctuData = cs.getCtuData( ctu, line );
         const UnitArea ctuArea = getCtuArea( cs, ctu, line, true );
 
         decLib.m_cCuDecoder[tid].TaskTrafoCtu( cs, ctuArea );
