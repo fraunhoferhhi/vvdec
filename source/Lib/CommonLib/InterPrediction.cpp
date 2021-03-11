@@ -338,7 +338,7 @@ void InterPrediction::init( RdCost* pcRdCost, ChromaFormat chromaFormatIDC, cons
 
     applyPROF[0] = applyPROFCore<0>;
     applyPROF[1] = applyPROFCore<1>;
-    PaddBIO=PaddBIOCore;
+    PaddBIO      = PaddBIOCore;
 #if ENABLE_SIMD_OPT_BIO && defined( TARGET_SIMD_X86 )
     initInterPredictionX86();
 #endif
@@ -349,6 +349,7 @@ void InterPrediction::init( RdCost* pcRdCost, ChromaFormat chromaFormatIDC, cons
     m_IBCBufferWidth = g_IBCBufferSize / ctuSize;
     m_IBCBuffer.create( UnitArea( chromaFormatIDC, Area( 0, 0, m_IBCBufferWidth, ctuSize ) ) );
   }
+  m_currChromaFormat = chromaFormatIDC;
 }
 
 // ====================================================================================================================
