@@ -1215,15 +1215,11 @@ int Slice::checkThatAllRefPicsAreAvailable( const PicListRange& rcListPic, const
     bool      isAvailable   = 0;
     for( auto& rpcPic: rcListPic )
     {
-      int pocCycle = 1 << rpcPic->cs->sps->getBitsForPOC();
-      int curPoc   = rpcPic->getPOC();
-      int refPoc   = notPresentPoc & ( pocCycle - 1 );
-      if( pRPL->getDeltaPocMSBPresentFlag( ii ) )
+      int refPoc = pRPL->calcLTRefPOC( this->getPOC(), rpcPic->cs->sps->getBitsForPOC(), ii );
+      int curPoc = rpcPic->getPOC();
+      if( !pRPL->getDeltaPocMSBPresentFlag( ii ) )
       {
-        refPoc += getPOC() - pRPL->getDeltaPocMSBCycleLT( ii ) * pocCycle - ( getPOC() & ( pocCycle - 1 ) );
-      }
-      else
-      {
+        int pocCycle = 1 << rpcPic->cs->sps->getBitsForPOC();
         curPoc = curPoc & ( pocCycle - 1 );
       }
 
@@ -1239,15 +1235,11 @@ int Slice::checkThatAllRefPicsAreAvailable( const PicListRange& rcListPic, const
     // if there was no such long-term check the short terms
     for( auto& rpcPic: rcListPic )
     {
-      int pocCycle = 1 << rpcPic->cs->sps->getBitsForPOC();
-      int curPoc   = rpcPic->getPOC();
-      int refPoc   = notPresentPoc & ( pocCycle - 1 );
-      if( pRPL->getDeltaPocMSBPresentFlag( ii ) )
+      int refPoc = pRPL->calcLTRefPOC( this->getPOC(), rpcPic->cs->sps->getBitsForPOC(), ii );
+      int curPoc = rpcPic->getPOC();
+      if( !pRPL->getDeltaPocMSBPresentFlag( ii ) )
       {
-        refPoc += getPOC() - pRPL->getDeltaPocMSBCycleLT( ii ) * pocCycle - ( getPOC() & ( pocCycle - 1 ) );
-      }
-      else
-      {
+        int pocCycle = 1 << rpcPic->cs->sps->getBitsForPOC();
         curPoc = curPoc & ( pocCycle - 1 );
       }
 
