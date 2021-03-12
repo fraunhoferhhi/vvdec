@@ -2119,6 +2119,17 @@ int ReferencePictureList::calcLTRefPOC( int currPoc, int bitsForPoc, int refPicI
                        this->getDeltaPocMSBCycleLT( refPicIdx ) );
 }
 
+bool isLTPocEqual( int poc1, int poc2, int bitsForPoc, bool msbPresent )
+{
+  if( msbPresent )
+  {
+    return poc1 == poc2;
+  }
+
+  const int pocCycle = 1 << bitsForPoc;
+  return ( poc1 & ( pocCycle - 1 ) ) == ( poc2 & ( pocCycle - 1 ) );
+}
+
 
 ScalingList::ScalingList()
 {

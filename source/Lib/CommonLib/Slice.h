@@ -150,6 +150,8 @@ public:
          int calcLTRefPOC( int currPoc, int bitsForPoc, int refPicIdx ) const;
 };
 
+bool isLTPocEqual( int poc1, int poc2, int bitsForPoc, bool msbPresent );
+
 /// Reference Picture List set class
 
 typedef std::vector<ReferencePictureList> RPLList;
