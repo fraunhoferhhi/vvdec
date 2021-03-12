@@ -1198,12 +1198,12 @@ void Slice::checkLeadingPictureRestrictions( const PicListRange & rcListPic ) co
 }
 
 
-int Slice::checkThatAllRefPicsAreAvailable( const PicListRange& rcListPic, const ReferencePictureList *pRPL, bool printErrors, int* refPicIndex, int numActiveRefPics ) const
+int Slice::checkThatAllRefPicsAreAvailable( const PicListRange& rcListPic, const ReferencePictureList *pRPL, bool printErrors, int* missingRefPicIndex, int numActiveRefPics ) const
 {
   if( this->isIDR() )
     return 0;   // Assume that all pic in the DPB will be flushed anyway so no need to check.
 
-  *refPicIndex = 0;
+  *missingRefPicIndex = 0;
 
   // Check long term ref pics
   for( int ii = 0; pRPL->getNumberOfLongtermPictures() > 0 && ii < numActiveRefPics; ii++ )
@@ -1211,15 +1211,23 @@ int Slice::checkThatAllRefPicsAreAvailable( const PicListRange& rcListPic, const
     if( !pRPL->isRefPicLongterm( ii ) )
       continue;
 
-    const int refPoc      = pRPL->getRefPicIdentifier( ii );
-    bool      isAvailable = 0;
-
+    const int notPresentPoc = pRPL->getRefPicIdentifier( ii );
+    bool      isAvailable   = 0;
     for( auto& rpcPic: rcListPic )
     {
-      int pocCycle     = 1 << ( rpcPic->cs->sps->getBitsForPOC() );
-      int curPocMasked = rpcPic->getPOC() & ( pocCycle - 1 );
-      int refPocMasked = refPoc           & ( pocCycle - 1 );
-      if( rpcPic->longTerm && curPocMasked == refPocMasked && rpcPic->referenced )
+      int pocCycle = 1 << rpcPic->cs->sps->getBitsForPOC();
+      int curPoc   = rpcPic->getPOC();
+      int refPoc   = notPresentPoc & ( pocCycle - 1 );
+      if( pRPL->getDeltaPocMSBPresentFlag( ii ) )
+      {
+        refPoc += getPOC() - pRPL->getDeltaPocMSBCycleLT( ii ) * pocCycle - ( getPOC() & ( pocCycle - 1 ) );
+      }
+      else
+      {
+        curPoc = curPoc & ( pocCycle - 1 );
+      }
+
+      if( rpcPic->longTerm && curPoc == refPoc && rpcPic->referenced )
       {
         isAvailable = 1;
         break;
@@ -1231,10 +1239,19 @@ int Slice::checkThatAllRefPicsAreAvailable( const PicListRange& rcListPic, const
     // if there was no such long-term check the short terms
     for( auto& rpcPic: rcListPic )
     {
-      int pocCycle     = 1 << ( rpcPic->cs->sps->getBitsForPOC() );
-      int curPocMasked = rpcPic->getPOC() & ( pocCycle - 1 );
-      int refPocMasked = refPoc           & ( pocCycle - 1 );
-      if( !rpcPic->longTerm && curPocMasked == refPocMasked && rpcPic->referenced )
+      int pocCycle = 1 << rpcPic->cs->sps->getBitsForPOC();
+      int curPoc   = rpcPic->getPOC();
+      int refPoc   = notPresentPoc & ( pocCycle - 1 );
+      if( pRPL->getDeltaPocMSBPresentFlag( ii ) )
+      {
+        refPoc += getPOC() - pRPL->getDeltaPocMSBCycleLT( ii ) * pocCycle - ( getPOC() & ( pocCycle - 1 ) );
+      }
+      else
+      {
+        curPoc = curPoc & ( pocCycle - 1 );
+      }
+
+      if( !rpcPic->longTerm && curPoc == refPoc && rpcPic->referenced )
       {
         isAvailable      = 1;
         rpcPic->longTerm = true;
@@ -1246,13 +1263,13 @@ int Slice::checkThatAllRefPicsAreAvailable( const PicListRange& rcListPic, const
     {
       if( printErrors )
       {
-        msg( ERROR, "\nCurrent picture: %d Long-term reference picture with POC = %3d seems to have been removed or not correctly decoded.", this->getPOC(), refPoc );
+        msg( ERROR, "\nCurrent picture: %d Long-term reference picture with POC = %3d seems to have been removed or not correctly decoded.", this->getPOC(), notPresentPoc );
       }
-      *refPicIndex = ii;
-      return refPoc;
+      *missingRefPicIndex = ii;
+      return notPresentPoc;
     }
   }
-  //report that a picture is lost if it is in the Reference Picture List but not in the DPB
+  // report that a picture is lost if it is in the Reference Picture List but not in the DPB
 
   // Check short term ref pics
   for( int ii = 0; ii < numActiveRefPics; ii++ )
@@ -1260,11 +1277,11 @@ int Slice::checkThatAllRefPicsAreAvailable( const PicListRange& rcListPic, const
     if( pRPL->isRefPicLongterm( ii ) )
       continue;
 
-    const int refPoc = this->getPOC() + pRPL->getRefPicIdentifier( ii );
+    const int notPresentPoc = this->getPOC() + pRPL->getRefPicIdentifier( ii );
     bool      isAvailable   = 0;
     for( auto& rpcPic: rcListPic )
     {
-      if( !rpcPic->longTerm && rpcPic->getPOC() == refPoc && rpcPic->referenced )
+      if( !rpcPic->longTerm && rpcPic->getPOC() == notPresentPoc && rpcPic->referenced )
       {
         isAvailable = 1;
         break;
@@ -1276,10 +1293,10 @@ int Slice::checkThatAllRefPicsAreAvailable( const PicListRange& rcListPic, const
     {
       if( printErrors )
       {
-        msg( ERROR, "\nCurrent picture: %d Short-term reference picture with POC = %3d seems to have been removed or not correctly decoded.", this->getPOC(), refPoc );
+        msg( ERROR, "\nCurrent picture: %d Short-term reference picture with POC = %3d seems to have been removed or not correctly decoded.", this->getPOC(), notPresentPoc );
       }
-      *refPicIndex = ii;
-      return refPoc;
+      *missingRefPicIndex = ii;
+      return notPresentPoc;
     }
   }
   return 0;
