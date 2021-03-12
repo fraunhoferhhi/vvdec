@@ -140,7 +140,8 @@ struct AreaBuf : public Size
   void extendBorderPel      ( unsigned margin, bool left, bool right, bool top, bool bottom );
   void addWeightedAvg       ( const AreaBuf<const T> &other1, const AreaBuf<const T> &other2, const ClpRng& clpRng, const int8_t bcwIdx);
   void addAvg               ( const AreaBuf<const T> &other1, const AreaBuf<const T> &other2, const ClpRng& clpRng );
-
+  void padBorderPel         ( unsigned marginX, unsigned marginY, int dir );
+  
   void linearTransform      ( const int scale, const int shift, const int offset, bool bClip, const ClpRng& clpRng );
 
   void transposedFrom       ( const AreaBuf<const T> &other );
@@ -596,6 +597,45 @@ void AreaBuf<T>::extendBorderPel(unsigned margin, bool left, bool right, bool to
   }
 }
 
+template<typename T>
+void AreaBuf<T>::padBorderPel( unsigned marginX, unsigned marginY, int dir )
+{
+  T*  p = buf;
+  int s = stride;
+  int h = height;
+  int w = width;
+
+  CHECK( w  > s, "Size of buffer too small to extend" );
+
+  // top-left margin
+  if ( dir == 1 )
+  {
+    for( int y = 0; y < marginY; y++ )
+    {
+      for( int x = 0; x < marginX; x++ )
+      {
+        p[x] = p[marginX];
+      }
+      p += s;
+    }
+  }
+
+  // bottom-right margin
+  if ( dir == 2 )
+  {
+    p = buf + s * ( h - marginY ) + w - marginX;
+
+    for( int y = 0; y < marginY; y++ )
+    {
+      for( int x = 0; x < marginX; x++ )
+      {
+        p[x] = p[-1];
+      }
+      p += s;
+    }
+  }
+}
+
 #if ENABLE_SIMD_OPT_BUFFER && defined(TARGET_SIMD_X86)
 template<> void AreaBuf<Pel>::transposedFrom( const AreaBuf<const Pel> &other );
 #endif
@@ -673,7 +713,8 @@ struct UnitBuf
   void addAvg               ( const UnitBuf<      T> &other1, const UnitBuf<      T> &other2, const ClpRngs& clpRngs, const bool chromaOnly = false, const bool lumaOnly = false);
   void extendBorderPel      ( unsigned margin );
   void extendBorderPel      ( unsigned margin, bool left, bool right, bool top, bool bottom );
-
+  void padBorderPel         ( unsigned margin, int dir );
+  
   void rescaleBuf           ( const UnitBuf<const T>& beforeScaling, const std::pair<int, int> scalingRatio, const Window& confBefore, const Window& confAfter, const BitDepths& bitDepths, const bool horCollocatedChromaFlag = false, const bool verCollocatedChromaFlag = false );
 
         UnitBuf<      T> subBuf (const Area& subArea);
@@ -788,6 +829,15 @@ void UnitBuf<T>::extendBorderPel(unsigned margin, bool left, bool right, bool to
   for( unsigned i = 0; i < bufs.size(); i++ )
   {
     bufs[i].extendBorderPel( margin, left, right, top, bottom );
+  }
+}
+
+template<typename T>
+void UnitBuf<T>::padBorderPel( unsigned margin, int dir )
+{
+  for( unsigned i = 0; i < bufs.size(); i++ )
+  {
+    bufs[i].padBorderPel( margin >> getComponentScaleX( ComponentID( i ), chromaFormat ), margin >> getComponentScaleY( ComponentID( i ), chromaFormat ), dir );
   }
 }
 
