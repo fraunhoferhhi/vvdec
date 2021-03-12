@@ -131,6 +131,9 @@ void Picture::resetForUse()
   wasLost          = false;
   skippedDecCount  = 0;
 
+  picCheckedDPH = false;
+  subpicsCheckedDPH.clear();
+
   m_ctuTaskCounter      .clearException();
   m_dmvrTaskCounter     .clearException();
   m_borderExtTaskCounter.clearException();
@@ -175,6 +178,8 @@ void Picture::destroy()
     delete[] m_spliceIdx;
     m_spliceIdx = NULL;
   }
+
+  subpicsCheckedDPH.clear();
 
   m_ctuTaskCounter      .clearException();
   m_dmvrTaskCounter     .clearException();

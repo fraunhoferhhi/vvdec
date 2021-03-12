@@ -399,7 +399,7 @@ void DecLib::checkPictureHashSEI( Picture* pcPic )
 
   seiMessages pictureHashes = SEI_internal::getSeisByType( pcPic->seiMessageList, VVDEC_DECODED_PICTURE_HASH );
 
-  if( !pictureHashes.empty() )
+  if( !pictureHashes.empty() && !pcPic->picCheckedDPH )
   {
     if( pictureHashes.size() > 1 )
     {
@@ -410,6 +410,8 @@ void DecLib::checkPictureHashSEI( Picture* pcPic )
 
     msg( INFO, "         " );
     m_numberOfChecksumErrorsDetected += calcAndPrintHashStatus( pcPic->getRecoBuf(), hash, pcPic->cs->sps->getBitDepths(), INFO );
+    pcPic->picCheckedDPH = true;
+    msg( INFO, "\n" );
   }
   else
   {
@@ -419,7 +421,6 @@ void DecLib::checkPictureHashSEI( Picture* pcPic )
       return;
     }
 
-    unsigned    checkedSubpicDPHs   = 0;
     seiMessages scalableNestingSeis = SEI_internal::getSeisByType( pcPic->seiMessageList, VVDEC_SCALABLE_NESTING );
     for( auto* seiIt: scalableNestingSeis )
     {
@@ -431,8 +432,6 @@ void DecLib::checkPictureHashSEI( Picture* pcPic )
         continue;
       }
 
-      uint32_t subpicId = nestingSei->snSubpicId[0];
-
       for( int i = 0; i < nestingSei->snNumSEIs; ++i )
       {
         auto& nestedSei = nestingSei->nestedSEIs[i];
@@ -442,21 +441,48 @@ void DecLib::checkPictureHashSEI( Picture* pcPic )
 
         const vvdecSEIDecodedPictureHash* hash = (vvdecSEIDecodedPictureHash*)nestedSei->payload;
 
-        const UnitArea area = UnitArea( pcPic->chromaFormat, pcPic->subPictures[subpicId].getLumaArea() );
-        m_numberOfChecksumErrorsDetected += calcAndPrintHashStatus( pcPic->cs->getRecoBuf( area ), hash, pcPic->cs->sps->getBitDepths(), INFO );
-        msg( INFO, "\n" );
-        ++checkedSubpicDPHs;
+        if( pcPic->subpicsCheckedDPH.empty() )
+        {
+          pcPic->subpicsCheckedDPH.resize( pcPic->subPictures.size(), false );
+        }
+        else
+        {
+          CHECK( pcPic->subpicsCheckedDPH.size() != pcPic->subPictures.size(), "Picture::subpicsCheckedDPH not properly initialized" );
+        }
+
+        for( int j = 0; j < nestingSei->snNumSubpics; ++j )
+        {
+          uint32_t subpicId = nestingSei->snSubpicId[j];
+
+          for( auto& subPic: pcPic->subPictures )
+          {
+            if( subPic.getSubPicID() != subpicId )
+              continue;
+
+            auto subPicIdx = subPic.getSubPicIdx();
+            if( pcPic->subpicsCheckedDPH[subPicIdx] )
+              continue;
+
+            const UnitArea area = UnitArea( pcPic->chromaFormat, subPic.getLumaArea() );
+            m_numberOfChecksumErrorsDetected += calcAndPrintHashStatus( pcPic->cs->getRecoBuf( area ), hash, pcPic->cs->sps->getBitDepths(), INFO );
+            pcPic->subpicsCheckedDPH[subPicIdx] = true;
+            msg( INFO, "\n" );
+          }
+        }
       }
     }
 
-    if( checkedSubpicDPHs < pcPic->subPictures.size() )
+    if( m_parseFrameDelay )
     {
-      msg( WARNING, "Warning: missing decoded picture hash SEI message for SubPics (%u/%u).\n", checkedSubpicDPHs, pcPic->subPictures.size() );
-      return;
+      // this warning is only enabled, when running with parse delay enabled, because otherwise we don't know here if the last DPH Suffix-SEI has already been
+      // parsed
+      int checkedSubpicCount = std::count( pcPic->subpicsCheckedDPH.cbegin(), pcPic->subpicsCheckedDPH.cend(), true );
+      if( checkedSubpicCount != pcPic->subPictures.size() )
+      {
+        msg( WARNING, "Warning: missing decoded picture hash SEI message for SubPics (%u/%u).\n", checkedSubpicCount, pcPic->subPictures.size() );
+      }
     }
   }
-
-  msg( INFO, "\n" );
 }
 
 Picture* DecLib::getNextOutputPic( bool bFlush )
