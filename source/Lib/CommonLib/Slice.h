@@ -139,13 +139,18 @@ public:
   bool    getDeltaPocMSBPresentFlag(int i) const   { return m_deltaPocMSBPresentFlag[i]; }
   void    setDeltaPocMSBPresentFlag(int i, bool x) { m_deltaPocMSBPresentFlag[i] = x; }
 
-  void    printRefPicInfo() const;
+  void      printRefPicInfo() const;
   bool      getInterLayerPresentFlag()                   const { return m_interLayerPresentFlag; }
   void      setInterLayerPresentFlag( bool b )                 { m_interLayerPresentFlag = b; }
   bool      isInterLayerRefPic( int idx )                const { return m_isInterLayerRefPic[idx]; }
   int       getInterLayerRefPicIdx( int idx )            const { return m_interLayerRefPicIdx[idx]; }
   void      setInterLayerRefPicIdx( int idx, int layerIdc )    { m_interLayerRefPicIdx[idx] = layerIdc; }
+
+  static int calcLTRefPOC( int currPoc, int bitsForPoc, int refPicIdentifier, bool pocMSBPresent, int deltaPocMSBCycle );
+         int calcLTRefPOC( int currPoc, int bitsForPoc, int refPicIdx ) const;
 };
+
+bool isLTPocEqual( int poc1, int poc2, int bitsForPoc, bool msbPresent );
 
 /// Reference Picture List set class
 

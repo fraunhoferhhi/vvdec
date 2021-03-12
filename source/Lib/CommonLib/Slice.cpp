@@ -427,45 +427,35 @@ bool Slice::getRapPicFlag() const
 
 Picture* Slice::xGetRefPic( const PicListRange & rcListPic, int poc, const int layerId )
 {
-  auto it = std::find_if( rcListPic.begin(), rcListPic.end(),
-                          [poc,layerId]( Picture* p )
+  // return a nullptr, if picture is not found
+  for ( auto &currPic : rcListPic )
   {
-    return ( p->getPOC() == poc && p->layerId == layerId );
-  } );
-
-  if( it == rcListPic.end() )
-  {
-    return nullptr;
+    if( currPic->getPOC() == poc && currPic->layerId == layerId )
+    {
+      return currPic;
+    }
   }
-  return *it;
+
+  return nullptr;
 }
 
 Picture* Slice::xGetLongTermRefPic( const PicListRange & rcListPic, int poc, bool pocHasMsb, const int layerId )
 {
-  int pocCycle = 1 << getSPS()->getBitsForPOC();
-  if (!pocHasMsb)
-  {
-    poc = poc & (pocCycle - 1);
-  }
-
   for( auto & pcPic: rcListPic )
   {
     if( pcPic && pcPic->getPOC() != this->getPOC() && pcPic->referenced && pcPic->layerId == layerId )
     {
-      int picPoc = pcPic->getPOC();
-      if (!pocHasMsb)
+      if( isLTPocEqual( poc,  pcPic->getPOC(), getSPS()->getBitsForPOC(), pocHasMsb ) )
       {
-        picPoc = picPoc & (pocCycle - 1);
-      }
+        if( !pcPic->longTerm )
+          return nullptr;
 
-      if (poc == picPoc)
-      {
         return pcPic;
       }
     }
   }
 
-  return *rcListPic.begin();
+  return nullptr;
 }
 
 void Slice::setRefPOCList()
@@ -526,14 +516,7 @@ void Slice::constructSingleRefPicList(const PicListRange& rcListPic, RefPicList 
     }
     else
     {
-      int pocBits = getSPS()->getBitsForPOC();
-      int pocMask = ( 1 << pocBits ) - 1;
-      int ltrpPoc = rRPL.getRefPicIdentifier( ii ) & pocMask;
-      if( rRPL.getDeltaPocMSBPresentFlag( ii ) )
-      {
-//        ltrpPoc += pLocalRPL.getDeltaPocMSBCycleLT( ii ) << pocBits;
-        ltrpPoc += getPOC() - rRPL.getDeltaPocMSBCycleLT( ii ) * ( pocMask + 1 ) - ( getPOC() & pocMask );
-      }
+      int ltrpPoc = rRPL.calcLTRefPOC( getPOC(), getSPS()->getBitsForPOC(), ii );
 
       pcRefPic           = xGetLongTermRefPic( rcListPic, ltrpPoc, rRPL.getDeltaPocMSBPresentFlag( ii ), m_pcPic->layerId );
       pcRefPic->longTerm = true;
@@ -691,13 +674,8 @@ void Slice::checkRPL(const ReferencePictureList* pRPL0, const ReferencePictureLi
       }
       else
       {
-        int pocBits = getSPS()->getBitsForPOC();
-        int pocMask = ( 1 << pocBits ) - 1;
-        int ltrpPoc = rpl[refPicList]->getRefPicIdentifier( i ) & pocMask;
-        if( rpl[refPicList]->getDeltaPocMSBPresentFlag( i ) )
-        {
-          ltrpPoc += getPOC() - rpl[refPicList]->getDeltaPocMSBCycleLT( i ) * ( pocMask + 1 ) - ( getPOC() & pocMask );
-        }
+        int ltrpPoc = rpl[refPicList]->calcLTRefPOC( getPOC(), getSPS()->getBitsForPOC(), i );
+
         pcRefPic = xGetLongTermRefPic( rcListPic, ltrpPoc, rpl[refPicList]->getDeltaPocMSBPresentFlag( i ), m_pcPic->layerId );
         refPicPOC = pcRefPic->getPOC();
       }
@@ -1211,12 +1189,12 @@ void Slice::checkLeadingPictureRestrictions( const PicListRange & rcListPic ) co
 }
 
 
-int Slice::checkThatAllRefPicsAreAvailable( const PicListRange& rcListPic, const ReferencePictureList *pRPL, bool printErrors, int* refPicIndex, int numActiveRefPics ) const
+int Slice::checkThatAllRefPicsAreAvailable( const PicListRange& rcListPic, const ReferencePictureList *pRPL, bool printErrors, int* missingRefPicIndex, int numActiveRefPics ) const
 {
   if( this->isIDR() )
     return 0;   // Assume that all pic in the DPB will be flushed anyway so no need to check.
 
-  *refPicIndex = 0;
+  *missingRefPicIndex = 0;
 
   // Check long term ref pics
   for( int ii = 0; pRPL->getNumberOfLongtermPictures() > 0 && ii < numActiveRefPics; ii++ )
@@ -1224,15 +1202,15 @@ int Slice::checkThatAllRefPicsAreAvailable( const PicListRange& rcListPic, const
     if( !pRPL->isRefPicLongterm( ii ) )
       continue;
 
-    const int refPoc      = pRPL->getRefPicIdentifier( ii );
-    bool      isAvailable = 0;
-
+    const int notPresentPoc = pRPL->getRefPicIdentifier( ii );
+    bool      isAvailable   = 0;
     for( auto& rpcPic: rcListPic )
     {
-      int pocCycle     = 1 << ( rpcPic->cs->sps->getBitsForPOC() );
-      int curPocMasked = rpcPic->getPOC() & ( pocCycle - 1 );
-      int refPocMasked = refPoc           & ( pocCycle - 1 );
-      if( rpcPic->longTerm && curPocMasked == refPocMasked && rpcPic->referenced )
+      const int bitsForPoc = rpcPic->cs->sps->getBitsForPOC();
+      const int poc        = rpcPic->getPOC();
+      const int refPoc     = pRPL->calcLTRefPOC( this->getPOC(), bitsForPoc, ii );
+
+      if( rpcPic->longTerm && isLTPocEqual( poc, refPoc, bitsForPoc, pRPL->getDeltaPocMSBPresentFlag( ii ) ) && rpcPic->referenced )
       {
         isAvailable = 1;
         break;
@@ -1244,10 +1222,11 @@ int Slice::checkThatAllRefPicsAreAvailable( const PicListRange& rcListPic, const
     // if there was no such long-term check the short terms
     for( auto& rpcPic: rcListPic )
     {
-      int pocCycle     = 1 << ( rpcPic->cs->sps->getBitsForPOC() );
-      int curPocMasked = rpcPic->getPOC() & ( pocCycle - 1 );
-      int refPocMasked = refPoc           & ( pocCycle - 1 );
-      if( !rpcPic->longTerm && curPocMasked == refPocMasked && rpcPic->referenced )
+      const int bitsForPoc = rpcPic->cs->sps->getBitsForPOC();
+      const int poc        = rpcPic->getPOC();
+      const int refPoc     = pRPL->calcLTRefPOC( this->getPOC(), bitsForPoc, ii );
+
+      if( !rpcPic->longTerm && isLTPocEqual( poc, refPoc, bitsForPoc, pRPL->getDeltaPocMSBPresentFlag( ii ) ) && rpcPic->referenced )
       {
         isAvailable      = 1;
         rpcPic->longTerm = true;
@@ -1259,13 +1238,13 @@ int Slice::checkThatAllRefPicsAreAvailable( const PicListRange& rcListPic, const
     {
       if( printErrors )
       {
-        msg( ERROR, "\nCurrent picture: %d Long-term reference picture with POC = %3d seems to have been removed or not correctly decoded.", this->getPOC(), refPoc );
+        msg( ERROR, "\nCurrent picture: %d Long-term reference picture with POC = %3d seems to have been removed or not correctly decoded.", this->getPOC(), notPresentPoc );
       }
-      *refPicIndex = ii;
-      return refPoc;
+      *missingRefPicIndex = ii;
+      return notPresentPoc;
     }
   }
-  //report that a picture is lost if it is in the Reference Picture List but not in the DPB
+  // report that a picture is lost if it is in the Reference Picture List but not in the DPB
 
   // Check short term ref pics
   for( int ii = 0; ii < numActiveRefPics; ii++ )
@@ -1273,11 +1252,11 @@ int Slice::checkThatAllRefPicsAreAvailable( const PicListRange& rcListPic, const
     if( pRPL->isRefPicLongterm( ii ) )
       continue;
 
-    const int refPoc = this->getPOC() + pRPL->getRefPicIdentifier( ii );
+    const int notPresentPoc = this->getPOC() + pRPL->getRefPicIdentifier( ii );
     bool      isAvailable   = 0;
     for( auto& rpcPic: rcListPic )
     {
-      if( !rpcPic->longTerm && rpcPic->getPOC() == refPoc && rpcPic->referenced )
+      if( !rpcPic->longTerm && rpcPic->getPOC() == notPresentPoc && rpcPic->referenced )
       {
         isAvailable = 1;
         break;
@@ -1289,10 +1268,10 @@ int Slice::checkThatAllRefPicsAreAvailable( const PicListRange& rcListPic, const
     {
       if( printErrors )
       {
-        msg( ERROR, "\nCurrent picture: %d Short-term reference picture with POC = %3d seems to have been removed or not correctly decoded.", this->getPOC(), refPoc );
+        msg( ERROR, "\nCurrent picture: %d Short-term reference picture with POC = %3d seems to have been removed or not correctly decoded.", this->getPOC(), notPresentPoc );
       }
-      *refPicIndex = ii;
-      return refPoc;
+      *missingRefPicIndex = ii;
+      return notPresentPoc;
     }
   }
   return 0;
@@ -2102,6 +2081,38 @@ void ReferencePictureList::printRefPicInfo() const
   //DTRACE(g_trace_ctx, D_RPSINFO, "}\n");
   printf("}\n");
 }
+
+int ReferencePictureList::calcLTRefPOC( int currPoc, int bitsForPoc, int refPicIdentifier, bool pocMSBPresent, int deltaPocMSBCycle )
+{
+  const int pocCycle = 1 << bitsForPoc;
+  int       ltrpPoc  = refPicIdentifier & ( pocCycle - 1 );
+  if( pocMSBPresent )
+  {
+    ltrpPoc += currPoc - deltaPocMSBCycle * pocCycle - ( currPoc & ( pocCycle - 1 ) );
+  }
+  return ltrpPoc;
+}
+
+int ReferencePictureList::calcLTRefPOC( int currPoc, int bitsForPoc, int refPicIdx ) const
+{
+  return calcLTRefPOC( currPoc,
+                       bitsForPoc,
+                       this->getRefPicIdentifier( refPicIdx ),
+                       this->getDeltaPocMSBPresentFlag( refPicIdx ),
+                       this->getDeltaPocMSBCycleLT( refPicIdx ) );
+}
+
+bool isLTPocEqual( int poc1, int poc2, int bitsForPoc, bool msbPresent )
+{
+  if( msbPresent )
+  {
+    return poc1 == poc2;
+  }
+
+  const int pocCycle = 1 << bitsForPoc;
+  return ( poc1 & ( pocCycle - 1 ) ) == ( poc2 & ( pocCycle - 1 ) );
+}
+
 
 ScalingList::ScalingList()
 {
