@@ -384,25 +384,29 @@ void DecLibRecon::decompressPicture( Picture* pcPic )
     m_subPicExtTasks.reserve( pcPic->slices.size() * MAX_NUM_REF_PICS * numSubPic );
   }
 
-  std::vector<Picture*> refPics;
-
-  for( int iDir = REF_PIC_LIST_0; iDir < NUM_REF_PIC_LIST_01; ++iDir )
+  std::vector<Picture*> borderExtRefPics;
+  for( const Slice* slice : pcPic->slices )
   {
-    for( const Slice* slice : pcPic->slices )
+    if( slice->isIntra() )
+    {
+      continue;
+    }
+
+    for( int iDir = REF_PIC_LIST_0; iDir < NUM_REF_PIC_LIST_01; ++iDir )
     {
       for( int iRefIdx = 0; iRefIdx < slice->getNumRefIdx( ( RefPicList ) iDir ); iRefIdx++ )
       {
         Picture* refPic = slice->getNoConstRefPic( ( RefPicList ) iDir, iRefIdx );
 
-        if( std::find( refPics.cbegin(), refPics.cend(), refPic ) == refPics.cend() )
+        if( std::find( borderExtRefPics.cbegin(), borderExtRefPics.cend(), refPic ) == borderExtRefPics.cend() )
         {
-          refPics.push_back( refPic );
+          borderExtRefPics.push_back( refPic );
         }
       }
     }
   }
 
-  for( Picture* refPic : refPics )
+  for( Picture* refPic : borderExtRefPics )
   {
     if( !refPic->borderExtStarted )
     {
@@ -459,11 +463,20 @@ void DecLibRecon::decompressPicture( Picture* pcPic )
 
   pcPic->done.lock();
 
+#if 0
+  // schedule in raster scan order
+  for( int line = 0; line < heightInCtus; ++line )
+  {
+    for( int col = 0; col < widthInCtus;  ++col )
+    {
+#else
+  // schedule in zig-zag scan order
   for( int i = 0; i < numTasksPerLine + heightInCtus; ++i )
   {
     int line = 0;
     for( int col = i; col >= 0; --col, ++line )
     {
+#endif
       if( line < heightInCtus && col < numTasksPerLine )
       {
         CBarrierVec ctuBarriesrs = picBarriers;
@@ -686,7 +699,7 @@ bool DecLibRecon::ctuTask( int tid, CtuTaskParam* param )
 
       for( int ctu = ctuStart; ctu < ctuEnd; ctu++ )
       {
-        const CtuData& ctuData = cs.getCtuData( ctuStart, line );
+        const CtuData& ctuData = cs.getCtuData( ctu, line );
         const UnitArea ctuArea = getCtuArea( cs, ctu, line, true );
 
         decLib.m_cCuDecoder[tid].TaskTrafoCtu( cs, ctuArea );

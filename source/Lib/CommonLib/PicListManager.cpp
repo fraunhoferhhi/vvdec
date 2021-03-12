@@ -97,7 +97,7 @@ PicListRange PicListManager::getPicListRange( const Picture* pic ) const
   auto seqStart = m_cPicList.cbegin();
   for( auto itPic = m_cPicList.cbegin(); itPic != m_cPicList.cend(); ++itPic )
   {
-    if( isIDR( *itPic ) )
+    if( isIDR( *itPic ) && !(*itPic)->getMixedNaluTypesInPicFlag() )
     {
       seqStart = itPic;
     }
@@ -232,26 +232,26 @@ void PicListManager::applyDoneReferencePictureMarking()
     return;
   }
 
-  const Picture* picRangeStart = *begin( getPicListRange( lastDonePic ) );
+  const Picture* picRangeStart = *getPicListRange( lastDonePic ).begin();
   bool           inPicRange    = false;
 
   for( auto& itPic: m_cPicList )
   {
-    if( !itPic->referenced )
-    {
-      // already marked as not references
-      continue;
-    }
     if( itPic == lastDonePic )
     {
       // only check up to the last finished picture
       return;
     }
+    if( !itPic->referenced )
+    {
+      // already marked as not references
+      continue;
+    }
 
     inPicRange |= ( itPic == picRangeStart );   // all pictures before the current valid picture-range can also be marked as not needed for referenece
 
     bool isReference = false;
-    if( !isIDR( lastDonePic ) || !inPicRange )
+    if( !( isIDR( lastDonePic ) && !lastDonePic->getMixedNaluTypesInPicFlag() ) || !inPicRange )
     {
       for( auto& slice: lastDonePic->slices )
       {
@@ -316,7 +316,7 @@ Picture* PicListManager::getNextOutputPic( uint32_t numReorderPicsHighestTid,
       break;
     }
 
-    if( isIDR( *itPic ) )
+    if( isIDR( *itPic ) && !(*itPic)->getMixedNaluTypesInPicFlag())
     {
       if( !foundOutputPic ) // if there was no picture needed for output before the first RAP,
       {                     // we begin the range at the RAP...
@@ -379,7 +379,7 @@ Picture* PicListManager::getNextOutputPic( uint32_t numReorderPicsHighestTid,
   }
 
   // when there is an IDR picture coming up, we can flush all pictures before that
-  if( seqEnd != m_cPicList.cend() && isIDR( *seqEnd ) )
+  if( seqEnd != m_cPicList.cend() && isIDR( *seqEnd ) && !(*seqEnd)->getMixedNaluTypesInPicFlag() )
   {
     bFlush = true;
     IF_DEBUG_PIC_ORDER( std::cout << " flush" );
