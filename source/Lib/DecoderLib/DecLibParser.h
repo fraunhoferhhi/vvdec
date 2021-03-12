@@ -14,7 +14,7 @@ Einsteinufer 37
 www.hhi.fraunhofer.de/vvc
 vvc@hhi.fraunhofer.de
 
-Copyright (c) 2018-2020, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. 
+Copyright (c) 2018-2021, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. 
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -44,8 +44,7 @@ THE POSSIBILITY OF SUCH DAMAGE.
 
 ------------------------------------------------------------------------------------------- */
 
-#ifndef DEC_LIB_PARSER_H
-#define DEC_LIB_PARSER_H
+#pragma once
 
 #include "CommonLib/CommonDef.h"
 #include "CommonLib/Picture.h"
@@ -57,9 +56,13 @@ THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "CommonLib/ParameterSetManager.h"
 
+#include <deque>
+
+namespace vvdec
+{
 
 class InputNALUnit;
-class NoMallocThreadPool;
+class ThreadPool;
 class DecLib;
 class PicListManager;
 
@@ -74,6 +77,11 @@ private:
   int         m_decodingOrderCounter = 0;
   uint32_t    m_prevLayerID       = MAX_INT;
 
+  bool        m_prevPicSkipped                = true;
+  bool        m_gdrRecoveryPeriod             = false;
+  int         m_prevGDRInSameLayerPOC         = 0;    ///< POC number of the latest GDR picture
+  int         m_prevGDRInSameLayerRecoveryPOC = 0;    ///< Recovery POC number of the latest GDR picture
+  
   int m_prevPOC                   = MAX_INT;
   int m_prevTid0POC               = 0;
 
@@ -123,11 +131,12 @@ private:
 
   std::ostream*             m_pDecodedSEIOutputStream = nullptr;
 
-  SEIMessages m_SEIs;       ///< List of SEI messages that have been received before the first slice and between slices,
-                            ///< excluding prefix SEIs...
+  seiMessages               m_seiMessageList;       ///< List of SEI messages that have been received before the first slice and between slices,
+                                                    ///< excluding prefix SEIs...
+
   HRD                       m_HRD;
   
-  NoMallocThreadPool*       m_threadPool = nullptr;
+  ThreadPool*               m_threadPool = nullptr;
 
   // functional classes
   HLSyntaxReader            m_HLSReader;
@@ -150,7 +159,7 @@ public:
   DecLibParser( DecLib& decLib, PicListManager& picListManager,  PicHeader* picHeader ) : m_decLib( decLib ), m_picListManager( picListManager ), m_picHeader( picHeader ) {}
   ~DecLibParser();
 
-  void create                   (NoMallocThreadPool* tp, int parserFrameDelay, int numReconInst, int numDecThreads);
+  void create                   ( ThreadPool* tp, int parserFrameDelay, int numReconInst, int numDecThreads );
   void destroy                  ();
 
   void recreateLostPicture      (Picture* pcPic);
@@ -180,15 +189,20 @@ public:
 
   ParameterSetManager getParameterSetManager()          { return m_parameterSetManager; }
   
+  bool getPrevPicSkipped()                              { return m_prevPicSkipped; }
+  void setPrevPicSkipped( bool val )                    { m_prevPicSkipped = val; }
+  bool getGdrRecoveryPeriod()                           { return m_gdrRecoveryPeriod; }
+  void setGdrRecoveryPeriod( bool val )                 { m_gdrRecoveryPeriod = val; }
+  
 private:
   enum SliceHeadResult { SkipPicture, NewPicture, ContinueParsing };
   SliceHeadResult xDecodeSliceHead( InputNALUnit& nalu, int* pSkipFrame );
   Slice*          xDecodeSliceMain( InputNALUnit& nalu );
 
   Picture*        xActivateParameterSets   ( const int layerId );
-  Picture*        prepareLostPicture       ( int iLostPOC, const int layerId );
+  void            prepareLostPicture       ( int iLostPOC, const int layerId );
 #if JVET_S0124_UNAVAILABLE_REFERENCE
-  Picture*        prepareUnavailablePicture( const PPS *pps, int iUnavailablePoc, const int layerId, const bool longTermFlag, const int temporalId );
+  void            prepareUnavailablePicture( const PPS *pps, int iUnavailablePoc, const int layerId, const bool longTermFlag, const int temporalId );
 #else
   Picture*        prepareUnavailablePicture( int iUnavailablePoc, const int layerId, const bool longTermFlag );
 #endif
@@ -209,4 +223,4 @@ private:
   void xCheckMixedNalUnit     ( Slice* pcSlice, InputNALUnit &nalu );
 };
 
-#endif   // !DEC_LIB_PARSER_H
+}

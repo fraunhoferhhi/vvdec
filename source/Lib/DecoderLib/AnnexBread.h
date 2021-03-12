@@ -14,7 +14,7 @@ Einsteinufer 37
 www.hhi.fraunhofer.de/vvc
 vvc@hhi.fraunhofer.de
 
-Copyright (c) 2018-2020, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. 
+Copyright (c) 2018-2021, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. 
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -51,14 +51,14 @@ THE POSSIBILITY OF SUCH DAMAGE.
 
 #pragma once
 
-#ifndef __ANNEXBREAD__
-#define __ANNEXBREAD__
-
 #include <stdint.h>
 #include <istream>
 #include <vector>
 
 #include "CommonLib/CommonDef.h"
+
+namespace vvdec
+{
 
 //! \ingroup DecoderLib
 //! \{
@@ -204,6 +204,4 @@ struct AnnexBStats
 
 bool byteStreamNALUnit(InputByteStream& bs, std::vector<uint8_t>& nalUnit, AnnexBStats& stats);
 
-//! \}
-
-#endif
+}

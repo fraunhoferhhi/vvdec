@@ -14,7 +14,7 @@ Einsteinufer 37
 www.hhi.fraunhofer.de/vvc
 vvc@hhi.fraunhofer.de
 
-Copyright (c) 2018-2020, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. 
+Copyright (c) 2018-2021, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. 
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -46,6 +46,9 @@ THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "ParameterSetManager.h"
 
+namespace vvdec
+{
+
 void updateParameterSetChangedFlag( bool&                       bChanged,
                                     const std::vector<uint8_t>* pOldData,
                                     const std::vector<uint8_t>* pNewData )
@@ -59,11 +62,13 @@ void updateParameterSetChangedFlag( bool&                       bChanged,
   {
     // pointers equal
     bChanged = false;
+    return;
   }
   else if( pOldData == nullptr || pNewData == nullptr )
   {
     // either one is null, but not both
     bChanged = true;
+    return;
   }
 
   // compare the contents
@@ -306,4 +311,6 @@ bool ParameterSetManager::activateAPS( int apsId, int apsType )
     msg( WARNING, "Warning: tried to activate non-existing APS." );
   }
   return false;
+}
+
 }

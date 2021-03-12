@@ -14,7 +14,7 @@ Einsteinufer 37
 www.hhi.fraunhofer.de/vvc
 vvc@hhi.fraunhofer.de
 
-Copyright (c) 2018-2020, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. 
+Copyright (c) 2018-2021, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. 
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -60,15 +60,8 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #include <limits>
 #include <memory.h>
 
-
-
-//! \ingroup CommonLib
-//! \{
-
-// ====================================================================================================================
-// Constants
-// ====================================================================================================================
-
+namespace vvdec
+{
 
 // ====================================================================================================================
 // QpParam constructor
@@ -237,7 +230,7 @@ Quant::Quant()
   xInitScalingList( nullptr );
   DeQuant= DeQuantCore;
   DeQuantPCM = DeQuantPCMCore;
-#if   ENABLE_SIMD_OPT_QUANT
+#if   ENABLE_SIMD_OPT_QUANT && defined( TARGET_SIMD_X86 )
   initQuantX86();
 #endif
 
@@ -686,9 +679,22 @@ void Quant::xDestroyScalingList()
 {
 }
 
-void Quant::init( Slice *slice )
+void Quant::init( const Picture *pic )
 {
-  if( slice->getExplicitScalingListUsed() )
+  const Slice* scalingListSlice = nullptr;
+
+  for( const Slice* slice : pic->slices )
+  {
+    if( slice->getExplicitScalingListUsed() )
+    {
+      scalingListSlice = slice;
+      break;
+    }
+  }
+
+  const Slice* slice = scalingListSlice;
+
+  if( slice && slice->getExplicitScalingListUsed() )
   {
     std::shared_ptr<APS> scalingListAPS = slice->getPicHeader()->getScalingListAPS();
     if( slice->getNalUnitLayerId() != scalingListAPS->getLayerId() )
@@ -723,5 +729,4 @@ void Quant::init( Slice *slice )
   }
 }
 
-//! \}
-
+}

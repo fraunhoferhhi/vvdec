@@ -14,7 +14,7 @@ Einsteinufer 37
 www.hhi.fraunhofer.de/vvc
 vvc@hhi.fraunhofer.de
 
-Copyright (c) 2018-2020, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. 
+Copyright (c) 2018-2021, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. 
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -48,12 +48,14 @@ THE POSSIBILITY OF SUCH DAMAGE.
  *  \brief    Provides a class for partitioning management
  */
 
-#ifndef __UNITPARTITIONER__
-#define __UNITPARTITIONER__
+#pragma once
 
 #include "Unit.h"
 
 #include "CommonDef.h"
+
+namespace vvdec
+{
 
 typedef std::vector<UnitArea> Partitioning;
 
@@ -183,4 +185,4 @@ namespace PartitionerImpl
   void getSbtTuTiling         ( const UnitArea &area, const CodingStructure &cs, const PartSplit splitType, Partitioning& dst );
 };
 
-#endif
+}

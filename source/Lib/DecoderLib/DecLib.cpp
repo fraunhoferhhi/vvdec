@@ -14,7 +14,7 @@ Einsteinufer 37
 www.hhi.fraunhofer.de/vvc
 vvc@hhi.fraunhofer.de
 
-Copyright (c) 2018-2020, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. 
+Copyright (c) 2018-2021, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. 
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -55,6 +55,9 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #include "CommonLib/TimeProfiler.h"
 
 #include "NALread.h"
+
+namespace vvdec
+{
 
 #ifdef TRACE_ENABLE_ITT
 std::vector<__itt_domain*> itt_domain_decInst;
@@ -109,7 +112,11 @@ DecLib::DecLib()
 #endif
 }
 
+#if RPR_YUV_OUTPUT
+void DecLib::create(int numDecThreads, int parserFrameDelay, int upscaledOutput)
+#else
 void DecLib::create(int numDecThreads, int parserFrameDelay)
+#endif
 {
   // run constructor again to ensure all variables, especially in DecLibParser have been reset
   this->~DecLib();
@@ -120,7 +127,7 @@ void DecLib::create(int numDecThreads, int parserFrameDelay)
     numDecThreads = std::thread::hardware_concurrency();
   }
 
-  m_decodeThreadPool.reset( new NoMallocThreadPool( numDecThreads, "DecThread" ) );
+  m_decodeThreadPool.reset( new ThreadPool( numDecThreads, "DecThread" ) );
 
   if( parserFrameDelay < 0 )
   {
@@ -128,7 +135,9 @@ void DecLib::create(int numDecThreads, int parserFrameDelay)
     parserFrameDelay = numDecThreads;
   }
   m_parseFrameDelay = parserFrameDelay;
-
+#if RPR_YUV_OUTPUT
+  m_upscaledOutput = upscaledOutput;
+#endif
   m_picListManager.create( m_parseFrameDelay, ( int ) m_decLibRecon.size() );
   m_decLibParser.create  ( m_decodeThreadPool.get(), m_parseFrameDelay, ( int ) m_decLibRecon.size(), numDecThreads );
     
@@ -142,14 +151,17 @@ void DecLib::create(int numDecThreads, int parserFrameDelay)
   cssCap << "THREADS="     << numDecThreads << "; "
          << "PARSE_DELAY=" << parserFrameDelay << "; ";
 #if ENABLE_SIMD_OPT
+#if defined( TARGET_SIMD_X86 )
   std::string cSIMD;
   cssCap << "SIMD=" << read_x86_extension( cSIMD );
+#else
+  cssCap << "SIMD=SCALAR";
+#endif
 #else
   cssCap << "SIMD=NONE";
 #endif
 
   m_sDecoderCapabilities = cssCap.str();
-  msg( INFO, "[%s]\n", m_sDecoderCapabilities.c_str() );
 
   DTRACE_UPDATE( g_trace_ctx, std::make_pair( "final", 1 ) );
 }
@@ -192,11 +204,25 @@ Picture* DecLib::decode( InputNALUnit& nalu, int* pSkipFrame )
 #endif
   }
 
+  if( m_decLibParser.getPrevPicSkipped() && nalu.m_nalUnitType == NAL_UNIT_CODED_SLICE_GDR )
+  {
+    m_decLibParser.setGdrRecoveryPeriod( true );
+  }
+  
   if( pcParsedPic )
   {
     this->decompressPicture( pcParsedPic );
   }
 
+  if( nalu.isSlice() )
+  {
+    m_decLibParser.setPrevPicSkipped( false );
+  }
+  if( m_decLibParser.getGdrRecoveryPeriod() )
+  {
+    m_picListManager.markNotNeededForOutput();
+  }
+  
   if( m_decLibParser.getParseNewPicture() &&
       ( pcParsedPic || nalu.isSlice() || nalu.m_nalUnitType == NAL_UNIT_EOS ) )
   {
@@ -285,7 +311,34 @@ int DecLib::finishPicture( Picture* pcPic, MsgLevel msgl )
     msg( msgl, "[L%d ", iRefList);
     for (int iRefIndex = 0; iRefIndex < pcSlice->getNumRefIdx(RefPicList(iRefList)); iRefIndex++)
     {
+#if RPR_OUTPUT_MSG
+      const std::pair<int, int>& scaleRatio = pcSlice->getScalingRatio( RefPicList( iRefList ), iRefIndex );
+      
+      if( pcSlice->getPicHeader()->getEnableTMVPFlag() && pcSlice->getColFromL0Flag() == bool(1 - iRefList) && pcSlice->getColRefIdx() == iRefIndex )
+      {
+        if( scaleRatio.first != 1 << SCALE_RATIO_BITS || scaleRatio.second != 1 << SCALE_RATIO_BITS )
+        {
+          msg( msgl, " %dc(%1.2lfx, %1.2lfx)", pcSlice->getRefPOC( RefPicList( iRefList ), iRefIndex ), double( scaleRatio.first ) / ( 1 << SCALE_RATIO_BITS ), double( scaleRatio.second ) / ( 1 << SCALE_RATIO_BITS ) );
+        }
+        else
+        {
+          msg( msgl, " %dc", pcSlice->getRefPOC( RefPicList( iRefList ), iRefIndex ) );
+        }
+      }
+      else
+      {
+        if( scaleRatio.first != 1 << SCALE_RATIO_BITS || scaleRatio.second != 1 << SCALE_RATIO_BITS )
+        {
+          msg( msgl, " %d(%1.2lfx, %1.2lfx)", pcSlice->getRefPOC( RefPicList( iRefList ), iRefIndex ), double( scaleRatio.first ) / ( 1 << SCALE_RATIO_BITS ), double( scaleRatio.second ) / ( 1 << SCALE_RATIO_BITS ) );
+        }
+        else
+        {
       msg( msgl, "%d ", pcSlice->getRefPOC(RefPicList(iRefList), iRefIndex));
+    }
+      }
+#else
+      msg( msgl, "%d ", pcSlice->getRefPOC(RefPicList(iRefList), iRefIndex));
+#endif
     }
     msg( msgl, "] ");
   }
@@ -344,20 +397,92 @@ void DecLib::checkPictureHashSEI( Picture* pcPic )
 
   CHECK( !pcPic->reconstructed, "picture not reconstructed" );
 
-  SEIMessages                  pictureHashes = getSeisByType( pcPic->SEIs, SEI::DECODED_PICTURE_HASH );
-  const SEIDecodedPictureHash* hash          = pictureHashes.size() > 0 ? (SEIDecodedPictureHash*)pictureHashes.front() : nullptr;
-  if( pictureHashes.empty() )
+  seiMessages pictureHashes = SEI_internal::getSeisByType( pcPic->seiMessageList, VVDEC_DECODED_PICTURE_HASH );
+
+  if( !pictureHashes.empty() && !pcPic->picCheckedDPH )
   {
-    msg( WARNING, "Warning: missing decoded picture hash SEI message.\n" );
-    return;
+    if( pictureHashes.size() > 1 )
+    {
+      msg( WARNING, "Warning: Got multiple decoded picture hash SEI messages. Using first." );
+    }
+
+    const vvdecSEIDecodedPictureHash* hash = (vvdecSEIDecodedPictureHash*)pictureHashes.front()->payload;
+
+    msg( INFO, "         " );
+    m_numberOfChecksumErrorsDetected += calcAndPrintHashStatus( pcPic->getRecoBuf(), hash, pcPic->cs->sps->getBitDepths(), INFO );
+    pcPic->picCheckedDPH = true;
+    msg( INFO, "\n" );
   }
-  if( pictureHashes.size() > 1 )
+  else
   {
-    msg( WARNING, "Warning: Got multiple decoded picture hash SEI messages. Using first." );
+    if( pcPic->subPictures.empty() )
+    {
+      msg( WARNING, "Warning: missing decoded picture hash SEI message.\n" );
+      return;
+    }
+
+    seiMessages scalableNestingSeis = SEI_internal::getSeisByType( pcPic->seiMessageList, VVDEC_SCALABLE_NESTING );
+    for( auto* seiIt: scalableNestingSeis )
+    {
+      CHECK( seiIt->payloadType != VVDEC_SCALABLE_NESTING, "expected nesting SEI" );
+
+      const vvdecSEIScalableNesting* nestingSei = (vvdecSEIScalableNesting*)seiIt->payload;
+      if( !nestingSei->snSubpicFlag )
+      {
+        continue;
+      }
+
+      for( int i = 0; i < nestingSei->snNumSEIs; ++i )
+      {
+        auto& nestedSei = nestingSei->nestedSEIs[i];
+        CHECK( nestedSei == nullptr, "missing nested sei" );
+        if( nestedSei && nestedSei->payloadType != VVDEC_DECODED_PICTURE_HASH )
+          continue;
+
+        const vvdecSEIDecodedPictureHash* hash = (vvdecSEIDecodedPictureHash*)nestedSei->payload;
+
+        if( pcPic->subpicsCheckedDPH.empty() )
+        {
+          pcPic->subpicsCheckedDPH.resize( pcPic->subPictures.size(), false );
+        }
+        else
+        {
+          CHECK( pcPic->subpicsCheckedDPH.size() != pcPic->subPictures.size(), "Picture::subpicsCheckedDPH not properly initialized" );
+        }
+
+        for( int j = 0; j < nestingSei->snNumSubpics; ++j )
+        {
+          uint32_t subpicId = nestingSei->snSubpicId[j];
+
+          for( auto& subPic: pcPic->subPictures )
+          {
+            if( subPic.getSubPicID() != subpicId )
+              continue;
+
+            auto subPicIdx = subPic.getSubPicIdx();
+            if( pcPic->subpicsCheckedDPH[subPicIdx] )
+              continue;
+
+            const UnitArea area = UnitArea( pcPic->chromaFormat, subPic.getLumaArea() );
+            m_numberOfChecksumErrorsDetected += calcAndPrintHashStatus( pcPic->cs->getRecoBuf( area ), hash, pcPic->cs->sps->getBitDepths(), INFO );
+            pcPic->subpicsCheckedDPH[subPicIdx] = true;
+            msg( INFO, "\n" );
+          }
+        }
+      }
+    }
+
+    if( m_parseFrameDelay )
+    {
+      // this warning is only enabled, when running with parse delay enabled, because otherwise we don't know here if the last DPH Suffix-SEI has already been
+      // parsed
+      int checkedSubpicCount = std::count( pcPic->subpicsCheckedDPH.cbegin(), pcPic->subpicsCheckedDPH.cend(), true );
+      if( checkedSubpicCount != pcPic->subPictures.size() )
+      {
+        msg( WARNING, "Warning: missing decoded picture hash SEI message for SubPics (%u/%u).\n", checkedSubpicCount, pcPic->subPictures.size() );
+      }
+    }
   }
-  msg( INFO, "         " );
-  m_numberOfChecksumErrorsDetected += calcAndPrintHashStatus( pcPic->getRecoBuf(), hash, pcPic->cs->sps->getBitDepths(), INFO );
-  msg( INFO, "\n" );
 }
 
 Picture* DecLib::getNextOutputPic( bool bFlush )
@@ -599,4 +724,4 @@ void DecLib::checkAPSInPictureUnit()
   }
 }
 
-//! \}
+}

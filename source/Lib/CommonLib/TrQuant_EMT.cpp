@@ -14,7 +14,7 @@ Einsteinufer 37
 www.hhi.fraunhofer.de/vvc
 vvc@hhi.fraunhofer.de
 
-Copyright (c) 2018-2020, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. 
+Copyright (c) 2018-2021, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. 
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -56,6 +56,9 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #include <math.h>
 #include <limits>
 #include <memory.h>
+
+namespace vvdec
+{
 
 #if ENABLE_SIMD_TCOEFF_OPS
 template<int uiTrSize>
@@ -1034,8 +1037,13 @@ void fastInverseDCT8_B32(const TCoeff *src, TCoeff *dst, int shift, int line, in
 
 #define DONT_UNDEF_SIZE_AWARE_PER_EL_OP 1
 
+}
+
 #include "Unit.h"
 #include "Buffer.h"
+
+namespace vvdec
+{
 
 void cpyResiCore( const TCoeff* src, Pel* dst, ptrdiff_t stride, unsigned width, unsigned height )
 {
@@ -1090,3 +1098,5 @@ TCoeffOps::TCoeffOps()
 TCoeffOps g_tCoeffOps;
 
 #endif
+
+}

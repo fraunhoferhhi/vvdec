@@ -14,7 +14,7 @@ Einsteinufer 37
 www.hhi.fraunhofer.de/vvc
 vvc@hhi.fraunhofer.de
 
-Copyright (c) 2018-2020, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. 
+Copyright (c) 2018-2021, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. 
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -57,6 +57,11 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #include <math.h>
 #include <iomanip>
 
+#include "vvdec/vvdec.h"
+
+namespace vvdec
+{
+
 // ====================================================================================================================
 // Initialize / destroy functions
 // ====================================================================================================================
@@ -80,6 +85,8 @@ TimeProfiler2D *g_timeProfiler = nullptr;
 std::atomic<int> romInitialized(0);
 
 MsgLevel g_verbosity = VERBOSE;
+void    *g_context = nullptr;
+std::function<void( void*, int, const char*, va_list )> g_msgFnc = default_msgFnc;
 
 const char* nalUnitTypeToString(NalUnitType type)
 {
@@ -474,7 +481,7 @@ const uint8_t g_chroma422IntraAngleMappingTable[NUM_INTRA_MODE] =
 // Misc.
 // ====================================================================================================================
 const SizeIndexInfoLog2   g_sizeIdxInfo;
-#if !ENABLE_SIMD_LOG2
+#if !( ENABLE_SIMD_LOG2 && defined( TARGET_SIMD_X86 ) )
 int8_t                    g_aucLog2    [MAX_CU_SIZE + 1];
 int8_t                    g_aucNextLog2[MAX_CU_SIZE + 1];
 int8_t                    g_aucPrevLog2[MAX_CU_SIZE + 1];
@@ -638,4 +645,5 @@ int16_t   g_weightOffset       [GEO_NUM_PARTITION_MODE][GEO_NUM_CU_SIZE][GEO_NUM
 int8_t    g_angle2mask[GEO_NUM_ANGLES] = { 0, -1, 1, 2, 3, 4, -1, -1, 5, -1, -1, 4, 3, 2, 1, -1, 0, -1, 1, 2, 3, 4, -1, -1, 5, -1, -1, 4, 3, 2, 1, -1 };
 int8_t    g_Dis[GEO_NUM_ANGLES] = { 8, 8, 8, 8, 4, 4, 2, 1, 0, -1, -2, -4, -4, -8, -8, -8, -8, -8, -8, -8, -4, -4, -2, -1, 0, 1, 2, 4, 4, 8, 8, 8 };
 int8_t    g_angle2mirror[GEO_NUM_ANGLES] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 2, 2, 2, 2 };
-//! \}
+
+}

@@ -14,7 +14,7 @@ Einsteinufer 37
 www.hhi.fraunhofer.de/vvc
 vvc@hhi.fraunhofer.de
 
-Copyright (c) 2018-2020, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. 
+Copyright (c) 2018-2021, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. 
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -59,7 +59,8 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #include "dtrace.h"
 #include "dtrace_next.h"
 
-
+namespace vvdec
+{
 
 void Channel::update( std::map< CType, int > state )
 {
@@ -335,3 +336,4 @@ void CDTrace::dtrace_repeat( int k, int i_times, const char *format, /*va_list a
   return;
 }
 
+}

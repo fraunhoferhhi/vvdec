@@ -14,7 +14,7 @@ Einsteinufer 37
 www.hhi.fraunhofer.de/vvc
 vvc@hhi.fraunhofer.de
 
-Copyright (c) 2018-2020, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. 
+Copyright (c) 2018-2021, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. 
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -48,8 +48,7 @@ THE POSSIBILITY OF SUCH DAMAGE.
  *  \brief    DTrace support for next software
  */
 
-#ifndef _DTRACE_NEXT_H_
-#define _DTRACE_NEXT_H_
+#pragma once
 
 #include "dtrace.h"
 
@@ -57,6 +56,9 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #include "CommonLib/Rom.h"
 
 #include <cmath>
+
+namespace vvdec
+{
 
 #if ENABLE_TRACING
 
@@ -287,5 +289,4 @@ inline CDTrace* tracing_init( std::string& sTracingFile, std::string& sTracingRu
 
 #endif
 
-
-#endif // _DTRACE_HEVC_H_
+}

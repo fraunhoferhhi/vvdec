@@ -14,7 +14,7 @@ Einsteinufer 37
 www.hhi.fraunhofer.de/vvc
 vvc@hhi.fraunhofer.de
 
-Copyright (c) 2018-2020, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. 
+Copyright (c) 2018-2021, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. 
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -45,11 +45,11 @@ THE POSSIBILITY OF SUCH DAMAGE.
 ------------------------------------------------------------------------------------------- */
 
 #include "Picture.h"
-#include "SEI.h"
 #include "libmd5/MD5.h"
+#include "SEI_internal.h"
 
-//! \ingroup CommonLib
-//! \{
+namespace vvdec
+{
 
 /**
  * Update md5 using n samples from plane, each sample is adjusted to
@@ -244,7 +244,27 @@ std::string hashToString(const PictureHash &digest, int numChar)
   return result;
 }
 
-int calcAndPrintHashStatus(const CPelUnitBuf& pic, const SEIDecodedPictureHash* pictureHashSEI, const BitDepths &bitDepths, const MsgLevel msgl)
+std::string hashToString(const vvdecSEIDecodedPictureHash* digest, int numChar)
+{
+  static const char* hex = "0123456789abcdef";
+  std::string result;
+
+  CHECK(numChar<=0, "numChar needs to be >0");
+
+  for(int pos=0; pos<int(digest->digist_length); pos++)
+  {
+    if ((pos % numChar) == 0 && pos!=0 )
+    {
+      result += ',';
+    }
+    result += hex[digest->digest[pos] >> 4];
+    result += hex[digest->digest[pos] & 0xf];
+  }
+
+  return result;
+}
+
+int calcAndPrintHashStatus(const CPelUnitBuf& pic, const vvdecSEIDecodedPictureHash* pictureHashSEI, const BitDepths &bitDepths, const MsgLevel msgl)
 {
   /* calculate MD5sum for entire reconstructed picture */
   PictureHash recon_digest;
@@ -255,19 +275,19 @@ int calcAndPrintHashStatus(const CPelUnitBuf& pic, const SEIDecodedPictureHash* 
   {
     switch (pictureHashSEI->method)
     {
-      case HASHTYPE_MD5:
+      case vvdecHashType::VVDEC_HASHTYPE_MD5:
         {
           hashType = "MD5";
           numChar = calcMD5(pic, recon_digest, bitDepths);
           break;
         }
-      case HASHTYPE_CRC:
+      case vvdecHashType::VVDEC_HASHTYPE_CRC:
         {
           hashType = "CRC";
           numChar = calcCRC(pic, recon_digest, bitDepths);
           break;
         }
-      case HASHTYPE_CHECKSUM:
+      case vvdecHashType::VVDEC_HASHTYPE_CHECKSUM:
         {
           hashType = "Checksum";
           numChar = calcChecksum(pic, recon_digest, bitDepths);
@@ -288,7 +308,8 @@ int calcAndPrintHashStatus(const CPelUnitBuf& pic, const SEIDecodedPictureHash* 
   if (pictureHashSEI)
   {
     ok = "(OK)";
-    if (recon_digest != pictureHashSEI->m_pictureHash)
+
+    if ( !recon_digest.equal( *pictureHashSEI ))
     {
       ok = "(***ERROR***)";
       mismatch = true;
@@ -299,9 +320,9 @@ int calcAndPrintHashStatus(const CPelUnitBuf& pic, const SEIDecodedPictureHash* 
 
   if (mismatch)
   {
-    msg( msgl, "[rx%s:%s] ", hashType, hashToString(pictureHashSEI->m_pictureHash, numChar).c_str());
+    msg( msgl, "[rx%s:%s] ", hashType, hashToString(pictureHashSEI, numChar).c_str());
   }
   return mismatch;
 }
 
-//! \}
+}

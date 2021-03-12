@@ -14,7 +14,7 @@ Einsteinufer 37
 www.hhi.fraunhofer.de/vvc
 vvc@hhi.fraunhofer.de
 
-Copyright (c) 2018-2020, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. 
+Copyright (c) 2018-2021, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. 
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -59,11 +59,6 @@ THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "../Unit.h"
 
-//#include "../ChromaFormat.h"
-
-//! \ingroup CommonLib
-//! \{
-
 #ifdef TARGET_SIMD_X86
 
 #if defined _MSC_VER
@@ -71,6 +66,9 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #else
 #include <immintrin.h>
 #endif
+
+namespace vvdec
+{
 
 #if USE_AVX2 && !defined( _mm256_set_m128i )
 #define VVCLIB_OWN_mm256_set_m128i
@@ -2942,5 +2940,6 @@ void InterpolationFilter::_initInterpolationFilterX86()
 
 template void InterpolationFilter::_initInterpolationFilterX86<SIMDX86>();
 
+}
+
 #endif //#ifdef TARGET_SIMD_X86
-//! \}

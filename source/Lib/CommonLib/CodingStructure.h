@@ -14,7 +14,7 @@ Einsteinufer 37
 www.hhi.fraunhofer.de/vvc
 vvc@hhi.fraunhofer.de
 
-Copyright (c) 2018-2020, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. 
+Copyright (c) 2018-2021, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. 
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -48,8 +48,7 @@ THE POSSIBILITY OF SUCH DAMAGE.
  *  \brief    A class managing the coding information for a specific image part
  */
 
-#ifndef __CODINGSTRUCTURE__
-#define __CODINGSTRUCTURE__
+#pragma once
 
 #include "Unit.h"
 #include "Buffer.h"
@@ -59,9 +58,10 @@ THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <vector>
 
+namespace vvdec
+{
 
 struct Picture;
-
 
 enum PictureType
 {
@@ -247,5 +247,4 @@ public:
   const CPelUnitBuf   getPredBuf(const CodingUnit &cu) const;
 };
 
-#endif
-
+}

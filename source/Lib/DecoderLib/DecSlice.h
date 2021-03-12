@@ -14,7 +14,7 @@ Einsteinufer 37
 www.hhi.fraunhofer.de/vvc
 vvc@hhi.fraunhofer.de
 
-Copyright (c) 2018-2020, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. 
+Copyright (c) 2018-2021, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. 
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -48,12 +48,7 @@ THE POSSIBILITY OF SUCH DAMAGE.
     \brief    slice decoder class (header)
 */
 
-#ifndef __DECSLICE__
-#define __DECSLICE__
-
-#if _MSC_VER > 1000
 #pragma once
-#endif // _MSC_VER > 1000
 
 #include "CABACReader.h"
 #include "DecCu.h"
@@ -61,8 +56,8 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #include "CommonLib/CommonDef.h"
 #include "CommonLib/BitStream.h"
 
-//! \ingroup DecoderLib
-//! \{
+namespace vvdec
+{
 
 // ====================================================================================================================
 // Class definition
@@ -86,7 +81,4 @@ public:
   void  destroy           ()                    { m_entropyCodingSyncContextState.clear(); }
 };
 
-//! \}
-
-#endif
-
+}

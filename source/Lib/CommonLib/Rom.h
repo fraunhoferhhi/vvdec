@@ -14,7 +14,7 @@ Einsteinufer 37
 www.hhi.fraunhofer.de/vvc
 vvc@hhi.fraunhofer.de
 
-Copyright (c) 2018-2020, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. 
+Copyright (c) 2018-2021, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. 
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -48,8 +48,7 @@ THE POSSIBILITY OF SUCH DAMAGE.
     \brief    global variables & functions (header)
 */
 
-#ifndef __ROM__
-#define __ROM__
+#pragma once
 
 #include "CommonDef.h"
 #include "Common.h"
@@ -57,6 +56,9 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #include <atomic>
 #include <stdio.h>
 #include <iostream>
+
+namespace vvdec
+{
 
 
 //! \ingroup CommonLib
@@ -140,7 +142,7 @@ extern const     uint8_t  g_lfnstLut[ NUM_INTRA_MODE + NUM_EXT_LUMA_MODE - 1 ];
 // Misc.
 // ====================================================================================================================
 #if !( ENABLE_SIMD_LOG2 && defined( TARGET_SIMD_X86 ) )
-extern int8_t          g_aucLog2                       [MAX_CU_SIZE + 1];
+extern int8_t          g_aucLog2            [MAX_CU_SIZE + 1];
 extern int8_t          g_aucNextLog2        [MAX_CU_SIZE + 1];
 extern int8_t          g_aucPrevLog2        [MAX_CU_SIZE + 1];
 #endif
@@ -224,5 +226,5 @@ extern int16_t   g_weightOffset       [GEO_NUM_PARTITION_MODE][GEO_NUM_CU_SIZE][
 extern int8_t    g_angle2mask         [GEO_NUM_ANGLES];
 extern int8_t    g_Dis[GEO_NUM_ANGLES];
 extern int8_t    g_angle2mirror[GEO_NUM_ANGLES];
-#endif  //__TCOMROM__
 
+}

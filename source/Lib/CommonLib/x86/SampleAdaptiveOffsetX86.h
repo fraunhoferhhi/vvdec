@@ -14,7 +14,7 @@ Einsteinufer 37
 www.hhi.fraunhofer.de/vvc
 vvc@hhi.fraunhofer.de
 
-Copyright (c) 2018-2020, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V.
+Copyright (c) 2018-2021, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V.
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -50,8 +50,8 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #include "CommonDefX86.h"
 #include "../SampleAdaptiveOffset.h"
 
-//! \ingroup CommonLib
-//! \{
+namespace vvdec
+{
 
 #ifdef TARGET_SIMD_X86
 #  if defined _MSC_VER
@@ -1363,4 +1363,5 @@ void SampleAdaptiveOffset::_initSampleAdaptiveOffsetX86()
 
 template void SampleAdaptiveOffset::_initSampleAdaptiveOffsetX86<SIMDX86>();
 #endif   //#ifdef TARGET_SIMD_X86
-//! \}
+
+}

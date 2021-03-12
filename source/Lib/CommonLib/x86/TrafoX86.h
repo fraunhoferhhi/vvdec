@@ -14,7 +14,7 @@ Einsteinufer 37
 www.hhi.fraunhofer.de/vvc
 vvc@hhi.fraunhofer.de
 
-Copyright (c) 2018-2020, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. 
+Copyright (c) 2018-2021, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. 
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -57,6 +57,8 @@ THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "TrQuant_EMT.h"
 
+namespace vvdec
+{
 
 #if ENABLE_SIMD_TCOEFF_OPS
 #ifdef TARGET_SIMD_X86
@@ -423,7 +425,7 @@ void cpyResi_SSE( const TCoeff* src, Pel* dst, ptrdiff_t stride, unsigned width,
 }
 
 template<X86_VEXT vext>
-void TCoeffOps::_initTCoeffOps()
+void TCoeffOps::_initTCoeffOpsX86()
 {
   cpyResi4     = cpyResi_SSE  <vext, 4>;
   cpyResi8     = cpyResi_SSE  <vext, 8>;
@@ -433,8 +435,9 @@ void TCoeffOps::_initTCoeffOps()
   fastInvCore8 = fastInv_SSE  <vext, 8>;
 }
 
-template void TCoeffOps::_initTCoeffOps<SIMDX86>();
+template void TCoeffOps::_initTCoeffOpsX86<SIMDX86>();
 
 #endif // TARGET_SIMD_X86
 #endif
-//! \}
+
+}

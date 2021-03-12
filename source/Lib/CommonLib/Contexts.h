@@ -14,7 +14,7 @@ Einsteinufer 37
 www.hhi.fraunhofer.de/vvc
 vvc@hhi.fraunhofer.de
 
-Copyright (c) 2018-2020, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. 
+Copyright (c) 2018-2021, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. 
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -48,13 +48,15 @@ THE POSSIBILITY OF SUCH DAMAGE.
  *  \brief    Classes providing probability descriptions and contexts (header)
  */
 
-#ifndef __CONTEXTS__
-#define __CONTEXTS__
+#pragma once
 
 #include "CommonDef.h"
 #include "Slice.h"
 
 #include <vector>
+
+namespace vvdec
+{
 
 static constexpr int     PROB_BITS   = 15;   // Nominal number of bits to represent probabilities
 static constexpr int     PROB_BITS_0 = 10;   // Number of bits to represent 1st estimate
@@ -307,6 +309,4 @@ private:
   CtxStore m_CtxStore_Std;
 };
 
-
-
-#endif
+}

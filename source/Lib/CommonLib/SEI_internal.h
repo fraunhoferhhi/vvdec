@@ -44,4 +44,85 @@ THE POSSIBILITY OF SUCH DAMAGE.
 
 ------------------------------------------------------------------------------------------- */
 
-#include "../LoopFilterX86.h"
+#pragma once
+
+#include <list>
+#include <vector>
+#include <cstdint>
+#include <cstring>
+
+#include "vvdec/sei.h"
+
+namespace vvdec
+{
+
+typedef std::list<vvdecSEI*> seiMessages;
+
+class SEI_internal
+{
+public:
+
+  SEI_internal() {}
+  virtual ~SEI_internal() {}
+
+  static const char *getSEIMessageString( vvdecSEIPayloadType payloadType);
+
+  /// output a selection of SEI messages by payload type. Ownership stays in original message list.
+  static seiMessages getSeisByType(const seiMessages &seiList, vvdecSEIPayloadType seiType);
+
+  /// remove a selection of SEI messages by payload type from the original list and return them in a new list.
+  static seiMessages extractSeisByType(seiMessages &seiList, vvdecSEIPayloadType seiType);
+
+  /// delete list of SEI messages (freeing the referenced objects)
+  static void deleteSEIs (seiMessages &seiList);
+
+  static vvdecSEI* allocSEI ( vvdecSEIPayloadType payloadType );
+  static int allocSEIPayload( vvdecSEI* sei, int userDefSize = -1 );
+  static int getPayloadSize ( vvdecSEIPayloadType payloadType);
+};
+
+
+
+struct PictureHash
+{
+  std::vector<uint8_t> hash = {};
+
+  bool operator==(const PictureHash &other) const
+  {
+    if (other.hash.size() != hash.size())
+    {
+      return false;
+    }
+    for(uint32_t i=0; i<uint32_t(hash.size()); i++)
+    {
+      if (other.hash[i] != hash[i])
+      {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  bool operator!=(const PictureHash &other) const
+  {
+    return !(*this == other);
+  }
+
+  bool equal( vvdecSEIDecodedPictureHash digest ) const
+  {
+    if ((size_t)digest.digist_length != hash.size())
+    {
+      return false;
+    }
+    for(uint32_t i=0; i<uint32_t(hash.size()); i++)
+    {
+      if (digest.digest[i] != hash[i])
+      {
+        return false;
+      }
+    }
+    return true;
+  }
+};
+
+}

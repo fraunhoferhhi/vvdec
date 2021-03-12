@@ -14,7 +14,7 @@ Einsteinufer 37
 www.hhi.fraunhofer.de/vvc
 vvc@hhi.fraunhofer.de
 
-Copyright (c) 2018-2020, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. 
+Copyright (c) 2018-2021, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. 
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -53,10 +53,8 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #include <vector>
 #include <cstdarg>
 
-//! \ingroup CommonLib
-//! \{
-
-//namespace VVCEncoderLib {
+namespace vvdec
+{
 
 #define OUTPUT(...) { sprintf( cStr, __VA_ARGS__ ); m_str << cStr; }
 #define OUTSTR( _w, ... ) { m_str << std::setw( _w ) << __VA_ARGS__; }
@@ -235,4 +233,4 @@ std::ostream& StatCounters::report2D( std::ostream& os, const StatCounter2DSet<T
 template std::ostream& StatCounters::report2D<double>( std::ostream& os, const StatCounter2DSet<double>& counters, bool axisInBlockSizes, bool absoluteNumbers, bool weightedByArea, bool secondColumnInPercentage, bool ratiosWithinSingleElement, int refCntId );
 template std::ostream& StatCounters::report2D<int64_t>( std::ostream& os, const StatCounter2DSet<int64_t>& counters, bool axisInBlockSizes, bool absoluteNumbers, bool weightedByArea, bool secondColumnInPercentage, bool ratiosWithinSingleElement, int refCntId );
 
-//} // namespace VVCEncoderLib
+}

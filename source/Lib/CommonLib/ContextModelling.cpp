@@ -14,7 +14,7 @@ Einsteinufer 37
 www.hhi.fraunhofer.de/vvc
 vvc@hhi.fraunhofer.de
 
-Copyright (c) 2018-2020, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. 
+Copyright (c) 2018-2021, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. 
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -52,6 +52,9 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #include "UnitTools.h"
 #include "CodingStructure.h"
 #include "Picture.h"
+
+namespace vvdec
+{
 
 CoeffCodingContext::CoeffCodingContext( const TransformUnit& tu, ComponentID component, bool signHide )
   : m_chType                    (toChannelType(component))
@@ -512,4 +515,6 @@ unsigned DeriveCtx::CtxMipFlag( const CodingUnit& cu )
   ctxId = ( cu.lwidth() > 2 * cu.lheight() || cu.lheight() > 2 * cu.lwidth() ) ? 3 : ctxId;
 
   return ctxId;
+}
+
 }

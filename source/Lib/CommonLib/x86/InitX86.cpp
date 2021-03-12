@@ -14,7 +14,7 @@ Einsteinufer 37
 www.hhi.fraunhofer.de/vvc
 vvc@hhi.fraunhofer.de
 
-Copyright (c) 2018-2020, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. 
+Copyright (c) 2018-2021, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. 
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -63,6 +63,9 @@ THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "CommonLib/AdaptiveLoopFilter.h"
 #include "CommonLib/SampleAdaptiveOffset.h"
+
+namespace vvdec
+{
 
 #ifdef TARGET_SIMD_X86
 
@@ -183,7 +186,7 @@ void LoopFilter::initLoopFilterX86()
 #endif
 
 #if ENABLE_SIMD_TCOEFF_OPS
-void TCoeffOps::initTCoeffOps()
+void TCoeffOps::initTCoeffOpsX86()
 {
   auto vext = read_x86_extension_flags();
 
@@ -191,14 +194,14 @@ void TCoeffOps::initTCoeffOps()
   {
   case AVX512:
   case AVX2:
-    _initTCoeffOps<AVX2>();
+    _initTCoeffOpsX86<AVX2>();
     break;
   case AVX:
-    _initTCoeffOps<AVX>();
+    _initTCoeffOpsX86<AVX>();
     break;
   case SSE42:
   case SSE41:
-    _initTCoeffOps<SSE41>();
+    _initTCoeffOpsX86<SSE41>();
     break;
   default:
   break;
@@ -327,3 +330,4 @@ void Quant::initQuantX86()
 
 #endif
 
+}

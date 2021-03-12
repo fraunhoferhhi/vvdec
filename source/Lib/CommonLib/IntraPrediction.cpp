@@ -14,7 +14,7 @@ Einsteinufer 37
 www.hhi.fraunhofer.de/vvc
 vvc@hhi.fraunhofer.de
 
-Copyright (c) 2018-2020, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. 
+Copyright (c) 2018-2021, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. 
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -66,8 +66,8 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #include "CommonLib/InterpolationFilter.h"
 #include "CommonLib/TimeProfiler.h"
 
-//! \ingroup CommonLib
-//! \{
+namespace vvdec
+{ 
 
 // ====================================================================================================================
 // Tables
@@ -362,28 +362,8 @@ void IntraPredAngleChroma(T* pDstBuf,const ptrdiff_t dstStride,int16_t* pBorder,
 // Constructor / destructor / initialize
 // ====================================================================================================================
 
-IntraPrediction::IntraPrediction()
-  : m_currChromaFormat( NUM_CHROMA_FORMAT )
+IntraPrediction::IntraPrediction() : m_currChromaFormat( NUM_CHROMA_FORMAT )
 {
-  for (uint32_t ch = 0; ch < MAX_NUM_COMPONENT; ch++)
-  {
-    for (uint32_t buf = 0; buf < NUM_PRED_BUF; buf++)
-    {
-      m_piYuvExt[ch][buf] = nullptr;
-    }
-  }
-  for (uint32_t ch = 0; ch < MAX_NUM_COMPONENT; ch++)
-  {
-    for (uint32_t buf = 0; buf < 4; buf++)
-    {
-      m_yuvExt2[ch][buf] = nullptr;
-    }
-  }
-
-  m_piTemp = nullptr;
-  m_pMdlmTemp = nullptr;
-
-
   IntraPredAngleCore4 = IntraPredAngleCore;
   IntraPredAngleCore8 = IntraPredAngleCore;
   IntraPredAngleChroma4 = IntraPredAngleChroma;
@@ -404,85 +384,25 @@ IntraPrediction::~IntraPrediction()
 
 void IntraPrediction::destroy()
 {
-  for (uint32_t ch = 0; ch < MAX_NUM_COMPONENT; ch++)
-  {
-    for (uint32_t buf = 0; buf < NUM_PRED_BUF; buf++)
-    {
-      delete[] m_piYuvExt[ch][buf];
-      m_piYuvExt[ch][buf] = nullptr;
-    }
-  }
-  for (uint32_t ch = 0; ch < MAX_NUM_COMPONENT; ch++)
-  {
-    for (uint32_t buf = 0; buf < 4; buf++)
-    {
-      delete[] m_yuvExt2[ch][buf];
-      m_yuvExt2[ch][buf] = nullptr;
-    }
-  }
-
-  delete[] m_piTemp;
-  m_piTemp = nullptr;
-  delete[] m_pMdlmTemp;
-  m_pMdlmTemp = nullptr;
 }
 
 void IntraPrediction::init(ChromaFormat chromaFormatIDC, const unsigned bitDepthY)
 {
   // if it has been initialised before, but the chroma format has changed, release the memory and start again.
-  if (m_piYuvExt[COMPONENT_Y][PRED_BUF_UNFILTERED] != nullptr && m_currChromaFormat != chromaFormatIDC)
-  {
-    destroy();
-  }
-
-  if (m_yuvExt2[COMPONENT_Y][0] != nullptr && m_currChromaFormat != chromaFormatIDC)
+  if (m_currChromaFormat != chromaFormatIDC)
   {
     destroy();
   }
 
   m_currChromaFormat = chromaFormatIDC;
 
-  if (m_piYuvExt[COMPONENT_Y][PRED_BUF_UNFILTERED] == nullptr) // check if first is null (in which case, nothing initialised yet)
-  {
-    m_iYuvExtSize = (MAX_CU_SIZE * 2 + 1 + MAX_REF_LINE_IDX) * (MAX_CU_SIZE * 2 + 1 + MAX_REF_LINE_IDX);
-
-    for (uint32_t ch = 0; ch < MAX_NUM_COMPONENT; ch++)
-    {
-      for (uint32_t buf = 0; buf < NUM_PRED_BUF; buf++)
-      {
-        m_piYuvExt[ch][buf] = new Pel[m_iYuvExtSize];
-      }
-    }
-  }
-
-  if (m_yuvExt2[COMPONENT_Y][0] == nullptr) // check if first is null (in which case, nothing initialised yet)
-  {
-    m_yuvExtSize2 = (MAX_CU_SIZE) * (MAX_CU_SIZE);
-
-    for (uint32_t ch = 0; ch < MAX_NUM_COMPONENT; ch++)
-    {
-      for (uint32_t buf = 0; buf < 4; buf++)
-      {
-        m_yuvExt2[ch][buf] = new Pel[m_yuvExtSize2];
-      }
-    }
-  }
-
   int shift = bitDepthY + 4;
   for (int i = 32; i < 64; i++)
   {
     m_auShiftLM[i - 32] = ((1 << shift) + i / 2) / i;
   }
-  if (m_piTemp == nullptr)
-  {
-    m_piTemp = new Pel[(MAX_CU_SIZE + 1) * (MAX_CU_SIZE + 1)];
-  }
-  if (m_pMdlmTemp == nullptr)
-  {
-    m_pMdlmTemp = new Pel[(2 * MAX_CU_SIZE + 1)*(2 * MAX_CU_SIZE + 1)];//MDLM will use top-above and left-below samples.
-  }
 
-#if   ENABLE_SIMD_OPT_INTRAPRED
+#if ENABLE_SIMD_OPT_INTRAPRED && defined( TARGET_SIMD_X86 )
   initIntraPredictionX86();
 #endif
 }
@@ -602,26 +522,26 @@ void IntraPrediction::predIntraAng( const ComponentID compId, PelBuf &piPred, co
       IntraPredSampleFilter8(srcBuf.buf,srcBuf.stride,piPred,uiDirMode,clpRng);
   }
 }
-void IntraPrediction::predIntraChromaLM(const ComponentID compID, PelBuf &piPred, const PredictionUnit &pu, const CompArea& chromaArea, int intraDir)
+void IntraPrediction::predIntraChromaLM( const ComponentID compID, PelBuf& piPred, const PredictionUnit& pu, const CompArea& chromaArea, int intraDir )
 {
   int  iLumaStride = 0;
   PelBuf Temp;
-  if ((intraDir == MDLM_L_IDX) || (intraDir == MDLM_T_IDX))
+  if( (intraDir == MDLM_L_IDX) || (intraDir == MDLM_T_IDX) )
   {
     iLumaStride = 2 * MAX_CU_SIZE + 1;
-    Temp = PelBuf(m_pMdlmTemp + iLumaStride + 1, iLumaStride, Size(chromaArea));
+    Temp = PelBuf( m_piYuvExt[1] + iLumaStride + 1, iLumaStride, Size( chromaArea ) );
   }
   else
   {
     iLumaStride = MAX_CU_SIZE + 1;
-    Temp = PelBuf(m_piTemp + iLumaStride + 1, iLumaStride, Size(chromaArea));
+    Temp = PelBuf( m_piYuvExt[1] + iLumaStride + 1, iLumaStride, Size( chromaArea ) );
   }
   int a, b, iShift;
-  xGetLMParameters(pu, compID, chromaArea, a, b, iShift);
+  xGetLMParameters( pu, compID, chromaArea, a, b, iShift );
 
   ////// final prediction
-  piPred.copyFrom(Temp);
-  piPred.linearTransform(a, iShift, b, true, pu.slice->clpRng(compID));
+  piPred.copyFrom( Temp );
+  piPred.linearTransform( a, iShift, b, true, pu.slice->clpRng( compID ) );
 }
 
 void IntraPrediction::xFilterGroup(Pel* pMulDst[], int i, Pel const * const piSrc, int iRecStride, bool bAboveAvaillable, bool bLeftAvaillable)
@@ -1060,7 +980,7 @@ void IntraPrediction::geneIntrainterPred( const CodingUnit &cu )
 
     const ComponentID currCompID2 = (ComponentID) currCompID;
 
-    predBuf.bufs[currCompID] = PelBuf( getPredictorPtr2( currCompID2, 0 ), cu.blocks[currCompID] );
+    predBuf.bufs[currCompID] = PelBuf( getPredictorPtr2( currCompID2 ), cu.blocks[currCompID] );
   }
 
   const bool isUseFilter = IntraPrediction::useFilteredIntraRefSamples( COMPONENT_Y, pu, cu );
@@ -1091,8 +1011,8 @@ void IntraPrediction::initIntraPatternChType(const TransformUnit &tu, const Comp
   CHECK( area.width == 2, "Width of 2 is not supported" );
   const CodingStructure& cs   = *tu.cu->cs;
 
-  Pel *refBufUnfiltered   = m_piYuvExt[area.compID][PRED_BUF_UNFILTERED];
-  Pel *refBufFiltered     = m_piYuvExt[area.compID][PRED_BUF_FILTERED];
+  Pel *refBufUnfiltered   = m_piYuvExt[PRED_BUF_UNFILTERED];
+  Pel *refBufFiltered     = m_piYuvExt[PRED_BUF_FILTERED];
 
   setReferenceArrayLengths( area );
 
@@ -1116,7 +1036,7 @@ void IntraPrediction::initIntraPatternChTypeISP(const CodingUnit& cu, const Comp
   // ----- Step 1: unfiltered reference samples -----
   if( cu.blocks[area.compID].x == area.x && cu.blocks[area.compID].y == area.y )
   {
-    Pel* refBufUnfiltered = m_piYuvExt[area.compID][PRED_BUF_UNFILTERED];
+    Pel* refBufUnfiltered = m_piYuvExt[PRED_BUF_UNFILTERED];
     // With the first subpartition all the CU reference samples are fetched at once in a single call to xFillReferenceSamples
     if( cu.ispMode() == HOR_INTRA_SUBPARTITIONS )
     {
@@ -1132,8 +1052,8 @@ void IntraPrediction::initIntraPatternChTypeISP(const CodingUnit& cu, const Comp
     const int srcStride = m_topRefLength + 1;
     const int srcHStride = m_leftRefLength + 1;
 
-    m_pelBufISP[0] = m_pelBufISPBase[0] = PelBuf(m_piYuvExt[area.compID][PRED_BUF_UNFILTERED], srcStride, srcHStride);
-    m_pelBufISP[1] = m_pelBufISPBase[1] = PelBuf(m_piYuvExt[area.compID][PRED_BUF_FILTERED], srcStride, srcHStride);
+    m_pelBufISP[0] = m_pelBufISPBase[0] = PelBuf(m_piYuvExt[PRED_BUF_UNFILTERED], srcStride, srcHStride);
+    m_pelBufISP[1] = m_pelBufISPBase[1] = PelBuf(m_piYuvExt[PRED_BUF_FILTERED], srcStride, srcHStride);
 
     xFillReferenceSamples( cs.picture->getRecoBuf( cu.Y() ), refBufUnfiltered, cu.Y(), isLuma( area.compID ) ? cu.firstTU : *cu.lastTU );
 
@@ -1253,8 +1173,6 @@ void IntraPrediction::xFillReferenceSamples( const CPelBuf &recoBuf, Pel* refBuf
   numIntraNeighbor    += isLeftAvailable ( tu, chType, posLT, numLeftUnits  + numLeftBelowUnits,  unitHeight, neighborFlags + totalLeftUnits - 1 );
 
   // ----- Step 2: fill reference samples (depending on neighborhood) -----
-  CHECK((predHSize + 1) * predStride > m_iYuvExtSize, "Reference sample area not supported");
-
   const Pel*  srcBuf    = recoBuf.buf;
   const ptrdiff_t srcStride = recoBuf.stride;
         Pel*  ptrDst    = refBufUnfiltered;
@@ -1706,12 +1624,12 @@ void IntraPrediction::xGetLumaRecPixels(const PredictionUnit &pu, CompArea chrom
   if ((curChromaMode == MDLM_L_IDX) || (curChromaMode == MDLM_T_IDX))
   {
     iDstStride = 2 * MAX_CU_SIZE + 1;
-    pDst0      = m_pMdlmTemp + iDstStride + 1;
+    pDst0      = m_piYuvExt[1] + iDstStride + 1;
   }
   else
   {
     iDstStride = MAX_CU_SIZE + 1;
-    pDst0      = m_piTemp + iDstStride + 1; //MMLM_SAMPLE_NEIGHBOR_LINES;
+    pDst0      = m_piYuvExt[1] + iDstStride + 1; //MMLM_SAMPLE_NEIGHBOR_LINES;
   }
   //assert 420 chroma subsampling
   CompArea lumaArea = CompArea( COMPONENT_Y, chromaArea.lumaPos( pu.chromaFormat),
@@ -2104,12 +2022,12 @@ void IntraPrediction::xGetLMParameters(const PredictionUnit &pu, const Component
   if ((curChromaMode == MDLM_L_IDX) || (curChromaMode == MDLM_T_IDX))
   {
     srcStride = 2 * MAX_CU_SIZE + 1;
-    temp      = PelBuf(m_pMdlmTemp + srcStride + 1, srcStride, Size(chromaArea));
+    temp      = PelBuf(m_piYuvExt[1] + srcStride + 1, srcStride, Size(chromaArea));
   }
   else
   {
     srcStride = MAX_CU_SIZE + 1;
-    temp      = PelBuf(m_piTemp + srcStride + 1, srcStride, Size(chromaArea));
+    temp      = PelBuf(m_piYuvExt[1] + srcStride + 1, srcStride, Size(chromaArea));
   }
   srcColor0 = temp.bufAt(0, 0);
   curChroma0 = getPredictorPtr(compID);
@@ -2310,4 +2228,4 @@ void IntraPrediction::predIntraMip( const ComponentID compId, PelBuf &piPred, co
 #endif
 }
 
-//! \}
+}

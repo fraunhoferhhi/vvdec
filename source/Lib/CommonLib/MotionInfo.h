@@ -14,7 +14,7 @@ Einsteinufer 37
 www.hhi.fraunhofer.de/vvc
 vvc@hhi.fraunhofer.de
 
-Copyright (c) 2018-2020, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. 
+Copyright (c) 2018-2021, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. 
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -49,14 +49,13 @@ THE POSSIBILITY OF SUCH DAMAGE.
     \todo     MvField seems to be better to be inherited from Mv
 */
 
-#ifndef __MOTIONINFO__
-#define __MOTIONINFO__
+#pragma once
 
 #include "CommonDef.h"
 #include "Mv.h"
 
-//! \ingroup CommonLib
-//! \{
+namespace vvdec
+{
 
 // ====================================================================================================================
 // Type definition
@@ -228,4 +227,4 @@ struct MotionHist
   }
 };
 
-#endif // __MOTIONINFO__
+}

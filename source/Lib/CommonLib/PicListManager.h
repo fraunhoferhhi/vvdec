@@ -14,7 +14,7 @@ Einsteinufer 37
 www.hhi.fraunhofer.de/vvc
 vvc@hhi.fraunhofer.de
 
-Copyright (c) 2018-2020, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. 
+Copyright (c) 2018-2021, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. 
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -44,13 +44,15 @@ THE POSSIBILITY OF SUCH DAMAGE.
 
 ------------------------------------------------------------------------------------------- */
 
-#ifndef PICLISTMANAGER_H
-#define PICLISTMANAGER_H
+#pragma once
 
 #include "CommonDef.h"
 
 #include <list>
 #include <tuple>
+
+namespace vvdec
+{
 
 struct Picture;
 class SPS;
@@ -61,14 +63,14 @@ class VPS;
 class ReferencePictureList;
 
 typedef std::list<Picture*> PicList;
-#if 0
-typedef const std::list<Picture*> PicListRange;
-#else
-typedef std::tuple<PicList::const_iterator, PicList::const_iterator> PicListRange;
+struct PicListRange
+{
+  PicList::const_iterator m_begin;
+  PicList::const_iterator m_end;
 
-static const PicList::const_iterator begin( const PicListRange & t ) { return std::get<0>( t ); }
-static const PicList::const_iterator end  ( const PicListRange & t ) { return std::get<1>( t ); }
-#endif
+  const PicList::const_iterator begin() const { return m_begin; }
+  const PicList::const_iterator end  () const { return m_end;   }
+};
 
 class PicListManager
 {
@@ -99,11 +101,11 @@ public:
   Picture*       getNewPicBuffer( const SPS& sps,const PPS& pps, const uint32_t temporalLayer, const int layerId );
 #endif
   void           deleteBuffers();
-  void           applyReferencePictureListBasedMarking( const Picture * currPic, const ReferencePictureList * rpl0, const ReferencePictureList * rpl1 );
   void           applyDoneReferencePictureMarking();
   Picture*       findClosestPic( int iLostPoc );
   Picture*       getNextOutputPic( uint32_t numReorderPicsHighestTid, uint32_t maxDecPicBufferingHighestTid, bool bFlush );
   void           releasePicture( Picture* pic );
+  void           markNotNeededForOutput();
 };
 
-#endif   // PICLISTMANAGER_H
+}

@@ -14,7 +14,7 @@ Einsteinufer 37
 www.hhi.fraunhofer.de/vvc
 vvc@hhi.fraunhofer.de
 
-Copyright (c) 2018-2020, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. 
+Copyright (c) 2018-2021, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. 
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -59,6 +59,8 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #if ENABLE_SIMD_OPT_PICTURE
 #ifdef TARGET_SIMD_X86
 
+namespace vvdec
+{
 
 template<X86_VEXT vext>
 void paddPicBorderLeftRightSIMD(Pel *pi, ptrdiff_t stride,int width,int xmargin,int height)
@@ -204,15 +206,16 @@ void paddPicBorderTopSIMD( Pel *pi, ptrdiff_t stride, int width, int xmargin, in
 #endif
 }
 
-
 template<X86_VEXT vext>
 void Picture::_initPictureX86()
 {
-  paddPicBorderBot = paddPicBorderBotSIMD<vext>;
-  paddPicBorderTop = paddPicBorderTopSIMD<vext>;
+  paddPicBorderBot       = paddPicBorderBotSIMD<vext>;
+  paddPicBorderTop       = paddPicBorderTopSIMD<vext>;
   paddPicBorderLeftRight = paddPicBorderLeftRightSIMD<vext>;
 }
 template void Picture::_initPictureX86<SIMDX86>();
+
+}
 
 #endif // TARGET_SIMD_X86
 #endif

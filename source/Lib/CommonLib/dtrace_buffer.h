@@ -14,7 +14,7 @@ Einsteinufer 37
 www.hhi.fraunhofer.de/vvc
 vvc@hhi.fraunhofer.de
 
-Copyright (c) 2018-2020, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. 
+Copyright (c) 2018-2021, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. 
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -48,8 +48,7 @@ THE POSSIBILITY OF SUCH DAMAGE.
  *  \brief    Easy to use dtrace calls concerning buffers
  */
 
-#ifndef _DTRACE_BUFFER_H_
-#define _DTRACE_BUFFER_H_
+#pragma once
 
 #include "dtrace.h"
 #include "dtrace_next.h"
@@ -57,6 +56,9 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #include "CommonLib/CommonDef.h"
 #include "CommonLib/Buffer.h"
 #include "CommonLib/Unit.h"
+
+namespace vvdec
+{
 
 inline unsigned calcCheckSum( const int iWidth, const int iHeight,  const Pel* p,  const ptrdiff_t stride,  const int bitdepth )
 {
@@ -203,4 +205,4 @@ inline void dtraceCCRC( CDTrace *trace_ctx, DTRACE_CHANNEL channel, const Coding
 
 #endif
 
-#endif // _DTRACE_HEVC_H_
+}

@@ -14,7 +14,7 @@ Einsteinufer 37
 www.hhi.fraunhofer.de/vvc
 vvc@hhi.fraunhofer.de
 
-Copyright (c) 2018-2020, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. 
+Copyright (c) 2018-2021, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. 
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -44,8 +44,7 @@ THE POSSIBILITY OF SUCH DAMAGE.
 
 ------------------------------------------------------------------------------------------- */
 
-#ifndef __CHROMAFORMAT__
-#define __CHROMAFORMAT__
+#pragma once
 
 #include "Common.h"
 #include "CommonDef.h"
@@ -58,6 +57,8 @@ THE POSSIBILITY OF SUCH DAMAGE.
 //Chroma format utility functions  =====================================================================================
 //======================================================================================================================
 
+namespace vvdec
+{
 
 static inline ChannelType toChannelType             (const ComponentID id)                         { return (id==COMPONENT_Y)? CHANNEL_TYPE_LUMA : CHANNEL_TYPE_CHROMA; }
 static inline bool        isLuma                    (const ComponentID id)                         { return (id==COMPONENT_Y);                                          }
@@ -142,4 +143,4 @@ static inline int getScalingListType(const PredMode predMode, const ComponentID 
   return ( ( predMode == MODE_INTRA ) ? 0 : MAX_NUM_COMPONENT ) + MAP_CHROMA( compID );
 }
 
-#endif
+}

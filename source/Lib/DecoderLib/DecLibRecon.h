@@ -14,7 +14,7 @@ Einsteinufer 37
 www.hhi.fraunhofer.de/vvc
 vvc@hhi.fraunhofer.de
 
-Copyright (c) 2018-2020, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. 
+Copyright (c) 2018-2021, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. 
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -48,8 +48,7 @@ THE POSSIBILITY OF SUCH DAMAGE.
     \brief    decoder class (header)
 */
 
-#ifndef DECLIB_RECON_H
-#define DECLIB_RECON_H
+#pragma once
 
 #include "CommonLib/CommonDef.h"
 #include "CommonLib/Picture.h"
@@ -59,7 +58,10 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #include "CommonLib/AdaptiveLoopFilter.h"
 #include "CommonLib/SampleAdaptiveOffset.h"
 
-#include "Utilities/NoMallocThreadPool.h"
+#include "Utilities/ThreadPool.h"
+
+namespace vvdec
+{
 
 class DecLibRecon;
 class IntraPrediction;
@@ -95,6 +97,13 @@ struct CommonTaskParam
   void reset( CodingStructure& cs, TaskType ctuStartState, int tasksPerLine, bool doALF );
 };
 
+struct SubPicExtTask
+{
+  Picture*    picture   = nullptr;
+  PelStorage* subPicBuf = nullptr;
+  Area        subPicArea;
+};
+
 struct LineTaskParam
 {
   CommonTaskParam& common;
@@ -126,7 +135,7 @@ private:
   AdaptiveLoopFilter   m_cALF;
 
   int                  m_numDecThreads = 0;
-  NoMallocThreadPool*  m_decodeThreadPool;
+  ThreadPool*          m_decodeThreadPool;
 
   Picture*             m_currDecompPic = nullptr;
 #if TRACE_ENABLE_ITT
@@ -134,6 +143,7 @@ private:
 #endif
 
   CommonTaskParam            commonTaskParam{ this };
+  std::vector<SubPicExtTask> m_subPicExtTasks;
   std::vector<LineTaskParam> tasksDMVR;
   std::vector<CtuTaskParam>  tasksCtu;
   CBarrierVec                picBarriers;
@@ -144,7 +154,7 @@ public:
   DecLibRecon( const DecLibRecon& )  = delete;
   DecLibRecon( const DecLibRecon&& ) = delete;
 
-  void create( NoMallocThreadPool* threadPool, unsigned instanceId );
+  void create( ThreadPool* threadPool, unsigned instanceId );
   void destroy();
 
   void     decompressPicture( Picture* pcPic );
@@ -154,11 +164,12 @@ public:
 
 private:
   void borderExtPic ( Picture* pic );
+#if JVET_O1143_MV_ACROSS_SUBPIC_BOUNDARY
+  void createSubPicRefBufs( Picture* pic );
+#endif
 
   template<bool checkReadyState=false>
   static bool ctuTask( int tid, CtuTaskParam* param );
 };
 
-//! \}
-
-#endif   // DECLIB_RECON_H
+}

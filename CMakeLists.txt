@@ -10,14 +10,46 @@ if( NOT CMAKE_VERSION VERSION_LESS 3.12.0 )
 endif()
 
 # project name
-project( vvdec VERSION 0.2.1.0 )
+project( vvdec VERSION 1.0.0.0 )
 
-if( NOT CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR )
-  # enable sse4.1 build for all source files for gcc and clang
+set( VVDEC_ENABLE_X86_SIMD TRUE )
+set( VVDEC_ENABLE_ARM_SIMD FALSE )
+
+if( APPLE )
+  if( DEFINED CMAKE_OSX_ARCHITECTURES )
+    if( CMAKE_OSX_ARCHITECTURES STREQUAL "" )
+      if( CMAKE_HOST_SYSTEM_PROCESSOR STREQUAL "arm64" )
+        set( VVDEC_ENABLE_X86_SIMD FALSE )
+        set( VVDEC_ENABLE_ARM_SIMD TRUE )
+      endif()
+    elseif( CMAKE_OSX_ARCHITECTURES STREQUAL "arm64" )
+      set( VVDEC_ENABLE_X86_SIMD FALSE )
+      set( VVDEC_ENABLE_ARM_SIMD TRUE )
+    endif()
+  else()
+    if( CMAKE_HOST_SYSTEM_PROCESSOR STREQUAL "arm64" )
+      set( VVDEC_ENABLE_X86_SIMD FALSE )
+      set( VVDEC_ENABLE_ARM_SIMD TRUE )
+    endif()
+  endif()
+endif()
+
+# enable sse4.1 build for all source files for gcc and clang
+if( VVDEC_ENABLE_X86_SIMD )
   if( UNIX OR MINGW )
     add_compile_options( "-msse4.1" )
   endif()
 
+  set( CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DTARGET_SIMD_X86" )
+  set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DTARGET_SIMD_X86" )
+endif()
+
+if( VVDEC_ENABLE_ARM_SIMD )
+  set( CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DTARGET_SIMD_ARM" )
+  set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DTARGET_SIMD_ARM" )
+endif()
+
+if( NOT CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR )
   # set exception handling
   if( MSVC )
     add_compile_options( "/EHsc" )
@@ -131,11 +163,6 @@ message( STATUS "CMAKE_MODULE_PATH: updating module path to: ${CMAKE_MODULE_PATH
 # Enable multithreading
 find_package( Threads REQUIRED )
 
-# enable sse4.1 build for all source files for gcc and clang
-if( UNIX OR MINGW )
-  add_compile_options( "-msse4.1" )
-endif()
-
 # set _WIN32_WINNT
 if( WIN32 )
   # set _WIN32_WINT version global
@@ -156,9 +183,11 @@ if( VVDEC_USE_ADDRESS_SANITIZER )
   add_link_options( "-fsanitize=address" )
 endif()
 
-if( ( UNIX OR MINGW ) AND NOT VVDEC_OPT_TARGET_ARCH STREQUAL "" )
-  set( CMAKE_C_FLAGS   "${CMAKE_C_FLAGS} -march=${VVDEC_OPT_TARGET_ARCH} -mtune=${VVDEC_OPT_TARGET_ARCH}" )
-  set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -march=${VVDEC_OPT_TARGET_ARCH} -mtune=${VVDEC_OPT_TARGET_ARCH}" )
+if( VVDEC_ENABLE_X86_SIMD )
+  if( ( UNIX OR MINGW ) AND NOT VVDEC_OPT_TARGET_ARCH STREQUAL "" )
+    set( CMAKE_C_FLAGS   "${CMAKE_C_FLAGS} -march=${VVDEC_OPT_TARGET_ARCH} -mtune=${VVDEC_OPT_TARGET_ARCH}" )
+    set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -march=${VVDEC_OPT_TARGET_ARCH} -mtune=${VVDEC_OPT_TARGET_ARCH}" )
+  endif()
 endif()
 
 if( VVDEC_ENABLE_LINK_TIME_OPT )
@@ -209,14 +238,6 @@ if( VVDEC_ENABLE_ITT )
   endif()
 endif()
 
-#if( SET_ENABLE_TRACING )
-#  if( ENABLE_TRACING )
-#    add_compile_definitions( ENABLE_TRACING=1 )
-#  else()
-#    add_compile_definitions( ENABLE_TRACING=0 )
-#  endif()
-#endif()
-
 # handle rpath correctly
 if( VVDEC_ENABLE_INSTALL )
   if( CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT )
@@ -256,7 +277,7 @@ if( VVDEC_ENABLE_BITSTREAM_DOWNLOAD )
 
   # download and uncompress
   set( COUNTER 1 )
-  foreach( BITSTREAM_ZIP IN LISTS BITSTREAM_FILES )
+  foreach( BITSTREAM_ZIP IN LISTS BITSTREAM_FILES BITSTREAM_FAULTY_FILES )
     string( REGEX REPLACE ".*/(.*)\\..*" "\\1" SUB_DIR "${BITSTREAM_URL_BASE}/${BITSTREAM_ZIP}" )
     set( BITSTREAM_INSTALL_DIR "${BITSTREAM_INSTALL_DIR_BASE}/${SUB_DIR}" )
     string( REGEX REPLACE "(.*).zip" "\\1" BITSTREAM_SHORT "${BITSTREAM_ZIP}" )
@@ -286,6 +307,24 @@ foreach( BITSTREAM IN LISTS BITSTREAM_FILES )
     set( MISSING_BITSTREAM_FILES TRUE )
   endif()
 endforeach()
+
+foreach( BITSTREAM IN LISTS BITSTREAM_FAULTY_FILES )
+  string( REGEX REPLACE "(.*).zip" "\\1" BITSTREAM_SHORT "${BITSTREAM}" )
+  set( BITSTREAM_FILE "${BITSTREAM_INSTALL_DIR_BASE}/${BITSTREAM_SHORT}/${BITSTREAM_SHORT}.bit" )
+
+  if( EXISTS ${BITSTREAM_FILE} )
+    add_test( NAME Faulty:${BITSTREAM_SHORT}.bit COMMAND vvdecapp -b ${BITSTREAM_FILE} -dph )
+    set_tests_properties( Faulty:${BITSTREAM_SHORT}.bit PROPERTIES TIMEOUT 120 )
+  else()
+    add_test( NAME MISSING:${BITSTREAM_SHORT}.bit COMMAND vvdecapp -b ${BITSTREAM_FILE} -dph )
+    set_tests_properties( MISSING:${BITSTREAM_SHORT}.bit PROPERTIES TIMEOUT 120 )
+
+    set( MISSING_BITSTREAM_FILES TRUE )
+  endif()
+endforeach()
+
+add_custom_target( test-ok  USES_TERMINAL COMMAND ${CMAKE_CTEST_COMMAND} -C $<CONFIG> -R "\"^(Test|MISSING)\"" )
+add_custom_target( test-all USES_TERMINAL COMMAND ${CMAKE_CTEST_COMMAND} -C $<CONFIG> -R "\"^(Test|MISSING|Faulty)\"" )
 
 if( MISSING_BITSTREAM_FILES )
   message( STATUS "Some bitstream files are missing." )

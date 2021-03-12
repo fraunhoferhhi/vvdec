@@ -14,7 +14,7 @@ Einsteinufer 37
 www.hhi.fraunhofer.de/vvc
 vvc@hhi.fraunhofer.de
 
-Copyright (c) 2018-2020, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. 
+Copyright (c) 2018-2021, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. 
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -52,6 +52,9 @@ THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "Common.h"
 #include "Slice.h"
+
+namespace vvdec
+{
 
 const MvPrecision Mv::m_amvrPrecision[4] = { MV_PRECISION_QUARTER, MV_PRECISION_INT, MV_PRECISION_4PEL, MV_PRECISION_HALF }; // for cu.imv=0, 1, 2 and 3
 
@@ -229,4 +232,5 @@ bool wrapClipMv( int &mvx, int &mvy, const Position& pos, const struct Size& siz
   return wrapRef;
 }
 #endif
-//! \}
+
+}

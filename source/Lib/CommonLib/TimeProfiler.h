@@ -14,7 +14,7 @@ Einsteinufer 37
 www.hhi.fraunhofer.de/vvc
 vvc@hhi.fraunhofer.de
 
-Copyright (c) 2018-2020, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. 
+Copyright (c) 2018-2021, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. 
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -66,10 +66,8 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #include <ostream>
 #include <sstream>
 
-//! \ingroup CommonLib
-//! \{
-
-//namespace VVCEncoderLib {
+namespace vvdec
+{
 
 #if ENABLE_TIME_PROFILING || ENABLE_TIME_PROFILING_EXTENDED
 
@@ -375,6 +373,5 @@ public:
 #define PROFILER_SCOPE_AND_STAGE(cond,p,s)
 #define PROFILER_SCOPE_AND_STAGE_EXT(cond,p,s,cs,ch)
 #endif
-//} // namespace VVCEncoderLib
 
-//! \}
+}

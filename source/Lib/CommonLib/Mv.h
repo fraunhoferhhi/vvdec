@@ -14,7 +14,7 @@ Einsteinufer 37
 www.hhi.fraunhofer.de/vvc
 vvc@hhi.fraunhofer.de
 
-Copyright (c) 2018-2020, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. 
+Copyright (c) 2018-2021, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. 
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -48,10 +48,12 @@ THE POSSIBILITY OF SUCH DAMAGE.
     \brief    motion vector class (header)
 */
 
-#ifndef __MV__
-#define __MV__
+#pragma once
 
 #include "CommonDef.h"
+
+namespace vvdec
+{
 
 class SPS;
 class PPS;
@@ -228,18 +230,6 @@ public:
   }
 };// END CLASS DEFINITION MV
 
-namespace std
-{
-  template <>
-  struct hash<Mv> : public unary_function<Mv, uint64_t>
-  {
-    uint64_t operator()(const Mv& value) const
-    {
-      return (((uint64_t)value.hor << 32) + value.ver);
-    }
-  };
-};
-
 #if JVET_R0058
 extern void(*clipMv) ( Mv& rcMv, const Position& pos, const struct Size& size, const SPS& sps, const PPS& pps );
 void clipMvInPic     ( Mv& rcMv, const Position& pos, const struct Size& size, const SPS& sps, const PPS& pps );
@@ -261,6 +251,4 @@ bool wrapClipMv( int& mvx, int& mvy, const Position& pos, const Size& size, cons
 
 void roundAffineMv( int& mvx, int& mvy, int nShift );
 
-//! \}
-
-#endif // __MV__
+}

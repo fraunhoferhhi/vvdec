@@ -14,7 +14,7 @@ Einsteinufer 37
 www.hhi.fraunhofer.de/vvc
 vvc@hhi.fraunhofer.de
 
-Copyright (c) 2018-2020, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. 
+Copyright (c) 2018-2021, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. 
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -46,10 +46,36 @@ THE POSSIBILITY OF SUCH DAMAGE.
 
 #pragma once
 
-#include "../../../include/vvdec/vvdec.h"
+#include "vvdec/vvdec.h"
 #include "DecoderLib/DecLib.h"             // internal decoder
 
 namespace vvdec {
+
+
+static const char * const vvdecNalTypeNames[] = { "NAL_UNIT_CODED_SLICE_TRAIL", "NAL_UNIT_CODED_SLICE_STSA", "NAL_UNIT_CODED_SLICE_RADL", "NAL_UNIT_CODED_SLICE_RASL",
+                                                  "NAL_UNIT_RESERVED_VCL_4", "NAL_UNIT_RESERVED_VCL_5", "NAL_UNIT_RESERVED_VCL_6",
+                                                  "NAL_UNIT_CODED_SLICE_IDR_W_RADL","NAL_UNIT_CODED_SLICE_IDR_N_LP","NAL_UNIT_CODED_SLICE_CRA","NAL_UNIT_CODED_SLICE_GDR",
+                                                  "NAL_UNIT_RESERVED_IRAP_VCL_11","NAL_UNIT_RESERVED_IRAP_VCL_12",
+                                                  "NAL_UNIT_DCI","NAL_UNIT_VPS","NAL_UNIT_SPS","NAL_UNIT_PPS",
+                                                  "NAL_UNIT_PREFIX_APS","NAL_UNIT_SUFFIX_APS","NAL_UNIT_PH","NAL_UNIT_ACCESS_UNIT_DELIMITER",
+                                                  "NAL_UNIT_EOS","NAL_UNIT_EOB","NAL_UNIT_PREFIX_SEI","NAL_UNIT_SUFFIX_SEI","NAL_UNIT_FD",
+                                                  "NAL_UNIT_RESERVED_NVCL_26","NAL_UNIT_RESERVED_NVCL_27",
+                                                  "NAL_UNIT_UNSPECIFIED_28","NAL_UNIT_UNSPECIFIED_29","NAL_UNIT_UNSPECIFIED_30","NAL_UNIT_UNSPECIFIED_31",
+                                                  "NAL_UNIT_INVALID", 0 };
+
+static const char * const vvdecErrorMsg[] = { "expected behavior",
+                                              "unspecified malfunction",
+                                              "decoder not initialized or tried to initialize multiple times",
+                                              "internal allocation error",
+                                              "decoder input data error",
+                                              "allocated memory to small to receive decoded data",
+                                              "inconsistent or invalid parameters",
+                                              "unsupported request",
+                                              "decoder requires restart",
+                                              "unsupported CPU - SSE 4.1 needed",
+                                              "more bitstream data needed. try again",
+                                              "end of stream",
+                                              "unknown error code", 0 };
 
 /**
   \ingroup hhivvcdeclibExternalInterfaces
@@ -67,24 +93,62 @@ public:
   /// Destructor
   virtual ~VVDecImpl();
 
+  class FrameStorage
+  {
+  public:
+    FrameStorage()  = default;
+    ~FrameStorage() = default;
+
+    int allocateStorage( size_t size )
+    {
+      if( size == 0 ){ return VVDEC_ERR_ALLOCATE; }
+      m_ptr = new unsigned char [ size ];
+      m_size = size;
+      m_isAllocated = true;
+      return 0;
+    }
+
+    int freeStorage()
+    {
+      if( !m_isAllocated) { return VVDEC_ERR_ALLOCATE; }
+      delete [] m_ptr;
+      m_size = 0;
+      m_isAllocated = false;
+      return 0;
+    }
+
+    unsigned char * getStorage()
+    {
+      if( !m_isAllocated) { return nullptr; }
+      return m_ptr;
+    }
+
+    bool isAllocated(){ return m_isAllocated; }
+
+  private:
+    bool           m_isAllocated = false;
+    unsigned char *m_ptr         = nullptr;     // pointer to plane buffer
+    size_t         m_size        = 0;
+  };
+
 public:
 
-   int init( const VVDecParameter& rcVVDecParameter );
+   int init( const vvdecParams& params );
    int uninit();
 
-   int decode( AccessUnit& rcAccessUnit, Frame** ppcFrame );
+   void setLoggingCallback( vvdecLoggingCallback callback );
 
-   int flush( Frame** ppcFrame );
+   int decode( vvdecAccessUnit& accessUnit, vvdecFrame** ppframe );
 
-   int objectUnref( Frame* pcFrame );
+   int flush( vvdecFrame** ppcFrame );
+
+   vvdecSEI* findFrameSei( vvdecSEIPayloadType payloadType, vvdecFrame *frame );
+
+   int objectUnref( vvdecFrame* pframe );
 
    int getNumberOfErrorsPictureHashSEI( );
 
-   void clockStartTime();
-   void clockEndTime();
-   double clockGetTimeDiffMs();
-
-   int setAndRetErrorMsg( int Ret );
+   int setAndRetErrorMsg( int Ret, std::string errString = "" );
 
    const char* getDecoderInfo();
 //   const char* getDecoderCapabilities( );
@@ -92,35 +156,41 @@ public:
    static const char* getErrorMsg( int nRet );
    static const char* getVersionNumber();
 
-   static NalType getNalUnitType        ( AccessUnit& rcAccessUnit );
-   static const char* getNalUnitTypeAsString( NalType t );
-
-   static bool isNalUnitSlice               ( NalType t );
-   static bool isNalUnitSideData            ( NalType t );
+   static vvdecNalType getNalUnitType       ( vvdecAccessUnit& accessUnit );
+   static const char* getNalUnitTypeAsString( vvdecNalType t );
+   static bool isNalUnitSlice               ( vvdecNalType t );
 
 private:
-
    int xAddPicture                  ( Picture* pcPic );
-   int xCreateFrame                 ( Frame& rcFrame, const CPelUnitBuf& rcPicBuf, uint32_t uiWidth, uint32_t uiHeight, const BitDepths& rcBitDepths );
+   int xCreateFrame                 ( vvdecFrame& frame, const CPelUnitBuf& rcPicBuf, uint32_t uiWidth, uint32_t uiHeight, const BitDepths& rcBitDepths, bool bCreateStorage );
+
    static int xRetrieveNalStartCode ( unsigned char *pB, int iZerosInStartcode );
    static int xConvertPayloadToRBSP ( std::vector<uint8_t>& nalUnitBuf, InputBitstream *bitstream, bool isVclNalUnit);
    static int xReadNalUnitHeader    ( InputNALUnit& nalu );
 
    int xHandleOutput( Picture* pcPic );
+   bool isFrameConverted( vvdecFrame* frame );
 
    static int copyComp( const unsigned char* pucSrc, unsigned char* pucDest, unsigned int uiWidth, unsigned int uiHeight, int iStrideSrc, int iStrideDest, int iBytesPerSample );
 
-public:
+   void vvdec_picAttributes_default(vvdecPicAttributes *attributes);
+   void vvdec_frame_default(vvdecFrame *frame);
+   void vvdec_plane_default(vvdecPlane *plane);
+   void vvdec_frame_reset(vvdecFrame *frame );
 
+private:
+  typedef std::map<uint64_t,FrameStorage>    frameStorageMap;
+  typedef frameStorageMap::value_type        frameStorageMapType;
+public:
    bool                                    m_bInitialized = false;
 
-   DecLib                                  m_cDecLib;
-   bool                                    m_bCreateNewPicBuf    = false;
+   DecLib*                                 m_cDecLib;
 
-   std::list<Frame>                        m_rcFrameList;
-   std::list<Frame>::iterator              m_pcFrameNext = m_rcFrameList.begin();
+   std::list<vvdecFrame>                   m_rcFrameList;
+   std::list<vvdecFrame>::iterator         m_pcFrameNext = m_rcFrameList.begin();
 
-   std::list<Picture*>                     m_pcLibPictureList; // internal picture list
+   std::list<Picture*>                     m_pcLibPictureList;  // internal picture list
+   frameStorageMap                         m_cFrameStorageMap;  // map of frame storage class( converted frames)
 
    std::string                             m_sDecoderInfo;
    std::string                             m_sDecoderCapabilities;
@@ -131,12 +201,6 @@ public:
    uint64_t                                m_uiSeqNumber       = 0;
    uint64_t                                m_uiSeqNumOutput    = 0;
    uint64_t                                m_uiPicCount        = 0;
-
-  static std::string                       m_cTmpErrorString;
-  static std::string                       m_cNalType;
-
-  std::chrono::steady_clock::time_point    m_cTPStart;
-  std::chrono::steady_clock::time_point    m_cTPEnd;
 };
 
 

@@ -14,7 +14,7 @@ Einsteinufer 37
 www.hhi.fraunhofer.de/vvc
 vvc@hhi.fraunhofer.de
 
-Copyright (c) 2018-2020, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. 
+Copyright (c) 2018-2021, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. 
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -58,7 +58,13 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #include "vvdecHelper.h"
 
 /*! Prototypes */
-int writeYUVToFile( std::ostream *f, vvdec::Frame *frame );
+int writeYUVToFile( std::ostream *f, vvdecFrame *frame );
+int writeYUVToFileInterlaced( std::ostream *f, vvdecFrame *topField, vvdecFrame *botField = nullptr );
+
+void msgFnc( void *, int level, const char* fmt, va_list args )
+{
+  vfprintf( level == 1 ? stderr : stdout, fmt, args );
+}
 
 int main( int argc, char* argv[] )
 {
@@ -77,28 +83,27 @@ int main( int argc, char* argv[] )
     }
   }
 
-  std::cout << "Fraunhofer VVC Decoder " << cAppname  << " version: " << VVDEC_VERSION << std::endl;
-
   std::string cBitstreamFile  = "";
   std::string cOutputFile = "";
   int iMaxFrames=-1;
   int iLoopCount=1;
-  vvdec::VVDecParameter cVVDecParameter;
+  vvdecParams params;
+  vvdec_params_default(&params);
 
-  cVVDecParameter.m_eLogLevel = vvdec::LogLevel::LL_INFO;
+  params.logLevel = VVDEC_INFO;
 
   if(  argc > 1 && (!strcmp( (const char*) argv[1], "--help" ) || !strcmp( (const char*) argv[1], "-help" )) )
   {
-    vvdecoderapp::CmdLineParser::print_usage( cAppname, cVVDecParameter );
+    vvdecoderapp::CmdLineParser::print_usage( cAppname, params );
     return 0;
   }
 
-  int iRet = vvdecoderapp::CmdLineParser::parse_command_line(  argc, argv, cVVDecParameter, cBitstreamFile, cOutputFile, iMaxFrames, iLoopCount );
+  int iRet = vvdecoderapp::CmdLineParser::parse_command_line(  argc, argv, params, cBitstreamFile, cOutputFile, iMaxFrames, iLoopCount );
   if( iRet != 0 )
   {
     if( iRet == 2 )
     {
-      vvdecoderapp::CmdLineParser::print_usage( cAppname, cVVDecParameter);
+      vvdecoderapp::CmdLineParser::print_usage( cAppname, params);
       return 0;
     }
 
@@ -140,14 +145,16 @@ int main( int argc, char* argv[] )
     return -1;
   }
 
-  vvdec::VVDec cVVDec;
+  vvdecDecoder *dec = nullptr;
 
   //> decoding loop
-  vvdec::AccessUnit cAccessUnit;
-  cAccessUnit.m_pucBuffer = new unsigned char [ MAX_CODED_PICTURE_SIZE ];
-  cAccessUnit.m_iBufSize = MAX_CODED_PICTURE_SIZE;
+  vvdecAccessUnit* accessUnit = vvdec_accessUnit_alloc();
+  vvdec_accessUnit_alloc_payload( accessUnit, MAX_CODED_PICTURE_SIZE );
 
   bool bOutputInfoWritten = false;
+
+  std::chrono::steady_clock::time_point cTPStartRun;
+  std::chrono::steady_clock::time_point cTPEndRun;
 
   std::chrono::steady_clock::time_point cTPStart;
   std::chrono::steady_clock::time_point cTPEnd;
@@ -160,7 +167,8 @@ int main( int argc, char* argv[] )
   bool bContinue = true;
   while ( bContinue )
   {
-    vvdec::Frame* pcFrame = NULL;
+    vvdecFrame* pcFrame     = NULL;
+    vvdecFrame* pcPrevField = NULL;
 
     if( iLoopCount > 1 )
     {
@@ -170,32 +178,28 @@ int main( int argc, char* argv[] )
     }
 
     // initialize the decoder
-    int iRet = cVVDec.init( cVVDecParameter );
-    if( 0 != iRet )
+    dec = vvdec_decoder_open( &params );
+    if( nullptr == dec )
     {
-      std::cout << "cannot init decoder, ";
-      switch( iRet )
-      {
-        case vvdec::VVDEC_ERR_CPU :       std::cout << "SSE 4.1 cpu support required."; break;
-        case vvdec::VVDEC_ERR_PARAMETER : std::cout << "invalid parameter."; break;
-        default : std::cout << "error " << iRet; break;
-      };
-      std::cout << std::endl;
+      std::cout << "cannot init decoder" << std::endl;
+      vvdec_accessUnit_free( accessUnit );
       return -1;
     }
 
-    if( iLoop == 0 && cVVDecParameter.m_eLogLevel >= vvdec::LL_VERBOSE )
+    vvdec_set_logging_callback( dec, msgFnc );
+
+    if( iLoop == 0 )
     {
-      std::cout << cVVDec.getDecoderInfo() << std::endl;
+      std::cout << vvdec_get_dec_information( dec ) << std::endl;
     }
 
     bool bFlushDecoder = false;
 
-    cVVDec.clockStartTime();
-    cTPStart = std::chrono::steady_clock::now();
+    cTPStartRun = std::chrono::steady_clock::now();
+    cTPStart    = std::chrono::steady_clock::now();
 
-    cAccessUnit.m_uiCts = 0; cAccessUnit.m_bCtsValid = true;
-    cAccessUnit.m_uiDts = 0; cAccessUnit.m_bDtsValid = true;
+    accessUnit->cts = 0; accessUnit->ctsValid = true;
+    accessUnit->dts = 0; accessUnit->dtsValid = true;
 
     int iComprPics = 0;
     unsigned int uiFrames = 0;
@@ -204,34 +208,34 @@ int main( int argc, char* argv[] )
 
     bool bTunedIn = false;
     unsigned int uiNoFrameAfterTuneInCount = 0;
-    vvdec::NalType eNalTypeSlice = vvdec::VVC_NAL_UNIT_INVALID;
+    vvdecNalType eNalTypeSlice = VVC_NAL_UNIT_INVALID;
     bool bMultipleSlices = false;
 
     int iRead = 0;
     do
     {
-      iRead = readBitstreamFromFile( &cInFile, &cAccessUnit, false );
+      iRead = readBitstreamFromFile( &cInFile, accessUnit, false );
       //if( iRead > 0 )
       {
-        vvdec::NalType eNalType = vvdec::VVDec::getNalUnitType( cAccessUnit );
-        if( cVVDecParameter.m_eLogLevel == vvdec::LL_DETAILS )
+        vvdecNalType eNalType = vvdec_get_nal_unit_type( accessUnit );
+        if( params.logLevel == VVDEC_DETAILS )
         {
           std::string cNal = getNalUnitTypeAsString( eNalType );
-          std::cout << "  read nal " <<  cNal << " size " << cAccessUnit.m_iUsedSize << std::endl;
+          std::cout << "  read nal " <<  cNal << " size " << accessUnit->payloadUsedSize << std::endl;
         }
 
-        if( eNalType == vvdec::VVC_NAL_UNIT_PH )
+        if( eNalType == VVC_NAL_UNIT_PH )
         {
           // picture header indicates multiple slices
           bMultipleSlices = true;
         }
 
-        bool bIsSlice  = vvdec::VVDec::isNalUnitSlice( eNalType );
+        bool bIsSlice  = vvdec_is_nal_unit_slice( eNalType );
         if( bIsSlice )
         {
           if( bMultipleSlices )
           {
-            if( eNalTypeSlice == vvdec::VVC_NAL_UNIT_INVALID )
+            if( eNalTypeSlice == VVC_NAL_UNIT_INVALID )
             {
               // set current slice type and increment pic count
               iComprPics++;
@@ -248,10 +252,10 @@ int main( int argc, char* argv[] )
           }
         }
 
-        if( eNalTypeSlice != vvdec::VVC_NAL_UNIT_INVALID &&
+        if( eNalTypeSlice != VVC_NAL_UNIT_INVALID &&
             eNalType != eNalTypeSlice )
         {
-          eNalTypeSlice = vvdec::VVC_NAL_UNIT_INVALID; // reset slice type
+          eNalTypeSlice = VVC_NAL_UNIT_INVALID; // reset slice type
         }
 
 
@@ -261,25 +265,25 @@ int main( int argc, char* argv[] )
         }
 
         // call decode
-        iRet = cVVDec.decode( cAccessUnit, &pcFrame );
 
+        iRet = vvdec_decode( dec, accessUnit, &pcFrame );
         if( bIsSlice )
         {
-          cAccessUnit.m_uiCts++;
-          cAccessUnit.m_uiDts++;
+          accessUnit->cts++;
+          accessUnit->dts++;
         }
 
         // check success
-        if( iRet == vvdec::VVDEC_EOF )
+        if( iRet == VVDEC_EOF )
         {
           //std::cout << "flush" << std::endl;
           bFlushDecoder = true;
         }
-        else if( iRet == vvdec::VVDEC_TRY_AGAIN )
+        else if( iRet == VVDEC_TRY_AGAIN )
         {
           if( !bMultipleSlices )
           {
-            if( cVVDecParameter.m_eLogLevel >= vvdec::LL_VERBOSE ) std::cout << "more data needed to tune in" << std::endl;
+            if( params.logLevel >= VVDEC_VERBOSE ) std::cout << "more data needed to tune in" << std::endl;
             if( bTunedIn )
             {
               // after the first frame is returned, the decoder must always return a frame
@@ -291,28 +295,30 @@ int main( int argc, char* argv[] )
             }
           }
         }
-        else if( iRet != vvdec::VVDEC_OK )
+        else if( iRet != VVDEC_OK )
         {
-          std::string cAdditionalErr = cVVDec.getLastAdditionalError();
+          std::string cErr = vvdec_get_last_error(dec);
+          std::string cAdditionalErr = vvdec_get_last_additional_error(dec);
           if( !cAdditionalErr.empty() )
           {
-            std::cout << "vvdecapp [error]: decoding failed: " << cVVDec.getErrorMsg( iRet )
-                      << " detail: " << cVVDec.getLastAdditionalError() << std::endl;
+            std::cout << "vvdecapp [error]: decoding failed: " << cErr << " (" <<vvdec_get_error_msg( iRet ) << ")"
+                      << " detail: " << vvdec_get_last_additional_error(dec) << std::endl;
           }
           else
           {
-            std::cout << "vvdecapp [error]: decoding failed: " << cVVDec.getErrorMsg( iRet ) << std::endl;
+            std::cout << "vvdecapp [error]: decoding failed: " << cErr << " (" <<vvdec_get_error_msg( iRet ) << ")" << std::endl;
           }
+          vvdec_accessUnit_free( accessUnit );
           return iRet;
         }
 
-        if( NULL != pcFrame && pcFrame->m_bCtsValid)
+        if( NULL != pcFrame && pcFrame->ctsValid )
         {
           if (!bOutputInfoWritten)
           {
-            if( cVVDecParameter.m_eLogLevel >= vvdec::LL_INFO )
+            if( params.logLevel >= VVDEC_INFO )
             {
-              std::cout << "vvdecapp [info]: SizeInfo: " << pcFrame->m_uiWidth << "x" << pcFrame->m_uiHeight << " (" << pcFrame->m_uiBitDepth << "b)" << std::endl;
+              std::cout << "vvdecapp [info]: SizeInfo: " << pcFrame->width << "x" << pcFrame->height << " (" << pcFrame->bitDepth << "b)" << std::endl;
             }
             bOutputInfoWritten = true;
           }
@@ -325,25 +331,66 @@ int main( int argc, char* argv[] )
           uiFrames++;
           uiFramesTmp++;
 
-          if( pcFrame->m_pcPicExtendedAttributes )
+          if( pcFrame->picAttributes )
           {
-            uiBitrate += pcFrame->m_pcPicExtendedAttributes->m_uiBits;
+            uiBitrate += pcFrame->picAttributes->bits;
           }
+
+#if 0 // just sample code to retrieve sei messages
+          vvdecSEI *sei = vvdec_find_frame_sei( dec, VVDEC_CONTENT_LIGHT_LEVEL_INFO, pcFrame );
+          if( sei )
+          {
+            vvdecSEIContentLightLevelInfo* p = reinterpret_cast<vvdecSEIContentLightLevelInfo *>(sei->payload);
+            std::cout << "vvdecapp [info]: CONTENT_LIGHT_LEVEL_INFO: " << p->maxContentLightLevel << "," << p->maxPicAverageLightLevel << std::endl;
+          }
+#endif
 
           if( cRecFile.is_open() )
           {
-            if( 0 != writeYUVToFile( outStream, pcFrame ) )
+            if( pcFrame->frameFormat == VVDEC_FF_PROGRESSIVE)
             {
-              std::cout << "vvdecapp [error]: write of rec. yuv failed for picture seq. " <<  pcFrame->m_uiSequenceNumber << std::endl;
-              return iRet;
+              if( 0 != writeYUVToFile( outStream, pcFrame ) )
+              {
+                std::cout << "vvdecapp [error]: write of rec. yuv failed for picture seq. " <<  pcFrame->sequenceNumber << std::endl;
+                vvdec_accessUnit_free( accessUnit );
+                return iRet;
+              }
+            }
+            else if( pcFrame->frameFormat == VVDEC_FF_TOP_FIELD ||
+                     pcFrame->frameFormat == VVDEC_FF_BOT_FIELD )
+            {
+              if( !pcPrevField )
+              {
+                pcPrevField = pcFrame;
+              }
+              else
+              {
+                if( 0 != writeYUVToFileInterlaced( outStream, pcPrevField, pcFrame ) )
+                {
+                  std::cout << "vvdecapp [error]: write of rec. yuv failed for picture seq. " <<  pcFrame->sequenceNumber << std::endl;
+                  vvdec_accessUnit_free( accessUnit );
+                  return iRet;
+                }
+                vvdec_frame_unref( dec, pcPrevField );
+                pcPrevField = nullptr;
+              }
+            }
+            else
+            {
+              std::cout << "vvdecapp [error]: unsupported FrameFormat " << pcFrame->frameFormat << " for picture seq. " <<  pcFrame->sequenceNumber << std::endl;
+              vvdec_accessUnit_free( accessUnit );
+              return -1;
             }
           }
 
-          // freevvdecmemory
-          cVVDec.objectUnref( pcFrame );
+          // free picture memory
+          if( !pcPrevField || pcPrevField != pcFrame)
+          {
+            vvdec_frame_unref( dec, pcFrame );
+          }
         }
 
-        if( uiFrames && cVVDecParameter.m_eLogLevel >= vvdec::LL_INFO )
+        if( uiFrames && params.logLevel >= VVDEC_INFO )
         {
           cTPEnd = std::chrono::steady_clock::now();
           double dTimeMs = std::chrono::duration_cast<std::chrono::milliseconds>((cTPEnd)-(cTPStart)).count();
@@ -364,11 +411,11 @@ int main( int argc, char* argv[] )
     bFlushDecoder = true;
     while( bFlushDecoder)
     {
-      vvdec::Frame* pcFrame = NULL;
+      vvdecFrame* pcFrame = NULL;
 
       // flush the decoder
-      iRet = cVVDec.flush( &pcFrame );
-      if( iRet != vvdec::VVDEC_OK && iRet != vvdec::VVDEC_EOF )
+      iRet = vvdec_flush( dec, &pcFrame );
+      if( iRet != VVDEC_OK && iRet != VVDEC_EOF )
       {
         std::cout << "vvdecapp [error]: decoding failed (" << iRet << ")" << std::endl;  return iRet;
       }
@@ -379,17 +426,49 @@ int main( int argc, char* argv[] )
 
         if( cRecFile.is_open() )
         {
-          if( 0 != writeYUVToFile( outStream, pcFrame ) )
+          if( pcFrame->frameFormat == VVDEC_FF_PROGRESSIVE)
           {
-            std::cout << "vvdecapp [error]: write of rec. yuv failed for picture seq. " <<  pcFrame->m_uiSequenceNumber << std::endl;
-            return iRet;
+            if( 0 != writeYUVToFile( outStream, pcFrame ) )
+            {
+              std::cout << "vvdecapp [error]: write of rec. yuv failed for picture seq. " <<  pcFrame->sequenceNumber << std::endl;
+              vvdec_accessUnit_free( accessUnit );
+              return iRet;
+            }
+          }
+          else if( pcFrame->frameFormat == VVDEC_FF_TOP_FIELD ||
+                   pcFrame->frameFormat == VVDEC_FF_BOT_FIELD )
+          {
+            if( !pcPrevField )
+            {
+              pcPrevField = pcFrame;
+            }
+            else
+            {
+              if( 0 != writeYUVToFileInterlaced( outStream, pcPrevField, pcFrame ) )
+              {
+                std::cout << "vvdecapp [error]: write of rec. yuv failed for picture seq. " <<  pcFrame->sequenceNumber << std::endl;
+                vvdec_accessUnit_free( accessUnit );
+                return iRet;
+              }
+              vvdec_frame_unref( dec, pcPrevField );
+              pcPrevField = nullptr;
+            }
+          }
+          else
+          {
+            std::cout << "vvdecapp [error]: unsupported FrameFormat " << pcFrame->frameFormat << " for picture seq. " <<  pcFrame->sequenceNumber << std::endl;
+            vvdec_accessUnit_free( accessUnit );
+            return -1;
           }
         }
 
         // free picture memory
-        cVVDec.objectUnref( pcFrame );
+        if( !pcPrevField || pcPrevField != pcFrame)
+        {
+          vvdec_frame_unref( dec, pcFrame );
+        }
 
-        if( cVVDecParameter.m_eLogLevel >= vvdec::LL_INFO )
+        if( params.logLevel >= VVDEC_INFO )
         {
           cTPEnd = std::chrono::steady_clock::now();
           double dTimeMs = std::chrono::duration_cast<std::chrono::milliseconds>((cTPEnd)-(cTPStart)).count();
@@ -412,29 +491,37 @@ int main( int argc, char* argv[] )
       std::cout << "vvdecapp [error]: Decoder did not return " << uiNoFrameAfterTuneInCount << " pictures during decoding - came out too late" << std::endl;
     }
 
-    cVVDec.clockEndTime();
-    double dTimeSec = cVVDec.clockGetTimeDiffMs() / 1000;
-    double dFps = (double)uiFrames / dTimeSec;
+    cTPEndRun = std::chrono::steady_clock::now();
+    double dTimeSec = std::chrono::duration_cast<std::chrono::milliseconds>((cTPEndRun)-(cTPStartRun)).count() / 1000.0;
+
+    double dFps = dTimeSec ? ((double)uiFrames / dTimeSec) : uiFrames;
     dFpsPerLoopVec.push_back( dFps );
-    if( cVVDecParameter.m_eLogLevel >= vvdec::LL_INFO )
+    if( params.logLevel >= VVDEC_INFO )
       std::cout << "vvdecapp [info]: " << getTimePointAsString() << ": " << uiFrames << " frames decoded @ " << dFps << " fps (" << dTimeSec << " sec)\n" << std::endl;
 
-    iSEIHashErrCount = cVVDec.getNumberOfErrorsPictureHashSEI();
+    iSEIHashErrCount = vvdec_get_hash_error_count(dec);
     if (iSEIHashErrCount )
     {
       std::cout << "vvdecapp [error]: MD5 checksum error ( " << iSEIHashErrCount << " errors )" << std::endl;
+      vvdec_accessUnit_free( accessUnit );
       return iSEIHashErrCount;
     }
 
     if( iComprPics && !uiFrames )
     {
       std::cout << "vvdecapp [error]: read some input pictures (" << iComprPics << "), but no output was generated." << std::endl;
+      vvdec_accessUnit_free( accessUnit );
       return -1;
     }
 
     // un-initialize the decoder
-    iRet = cVVDec.uninit();
-    if( 0 != iRet )  { std::cout << "vvdecapp [error]: cannot uninit decoder (" << iRet << ")" << std::endl;  return iRet;  }
+    iRet = vvdec_decoder_close(dec);
+    if( 0 != iRet )
+    {
+      std::cout << "vvdecapp [error]: cannot uninit decoder (" << iRet << ")" << std::endl;
+      vvdec_accessUnit_free( accessUnit );
+      return iRet;
+    }
 
     if( iLoopCount < 0 || iLoop < iLoopCount-1 )
     {
@@ -442,7 +529,9 @@ int main( int argc, char* argv[] )
       cInFile.seekg( 0, cInFile.beg );
       if(cInFile.bad() || cInFile.fail())
       {
-        std::cout << "vvdecapp [error]: cannot seek to bitstream begin" << std::endl;  return -1;
+        std::cout << "vvdecapp [error]: cannot seek to bitstream begin" << std::endl;
+        vvdec_accessUnit_free( accessUnit );
+        return -1;
       }
     }
 
@@ -453,7 +542,7 @@ int main( int argc, char* argv[] )
   //< decoding loop finished
 
   // free memory of access unit
-  delete [] cAccessUnit.m_pucBuffer;
+  vvdec_accessUnit_free( accessUnit );
 
   // close yuv output file
   if( !cOutputFile.empty() )
@@ -471,7 +560,7 @@ int main( int argc, char* argv[] )
     {
       dFpsSum += f;
     }
-    if( cVVDecParameter.m_eLogLevel > vvdec::LL_SILENT )
+    if( params.logLevel > VVDEC_SILENT )
       std::cout <<"vvdecapp [info]: avg. fps for " << dFpsPerLoopVec.size() << " loops: " << dFpsSum/dFpsPerLoopVec.size() << " Hz " << std::endl;
   }
 

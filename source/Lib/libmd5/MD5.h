@@ -14,7 +14,7 @@ Einsteinufer 37
 www.hhi.fraunhofer.de/vvc
 vvc@hhi.fraunhofer.de
 
-Copyright (c) 2018-2020, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. 
+Copyright (c) 2018-2021, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. 
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -51,11 +51,10 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #include <stdint.h>
 #include <cstring>
 
-//! \ingroup libMD5
-//! \{
+namespace vvdec
+{
 
 static const uint32_t MD5_DIGEST_STRING_LENGTH=16;
-
 
 #ifndef __BIG_ENDIAN__
 # define byteReverse(buf, len)    /* Nothing */
@@ -315,7 +314,6 @@ private:
   context_md5_t ctx;
 };
 
-
-//! \}
+}
 
 } // namespace

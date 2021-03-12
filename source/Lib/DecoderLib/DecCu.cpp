@@ -14,7 +14,7 @@ Einsteinufer 37
 www.hhi.fraunhofer.de/vvc
 vvc@hhi.fraunhofer.de
 
-Copyright (c) 2018-2020, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. 
+Copyright (c) 2018-2021, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. 
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -58,6 +58,8 @@ THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "CommonLib/dtrace_buffer.h"
 
+namespace vvdec
+{
 
 //! \ingroup DecoderLib
 //! \{
@@ -420,16 +422,16 @@ void DecCu::predAndReco( CodingUnit& cu, bool doCiipIntra )
 
     if( cu.ciipFlag() && doCiipIntra )
     {
-      m_pcIntraPred->geneWeightedPred( COMPONENT_Y,    predBuf.Y(),  cu, m_pcIntraPred->getPredictorPtr2( COMPONENT_Y,  0 ) );
+      m_pcIntraPred->geneWeightedPred( COMPONENT_Y, predBuf.Y(), cu, m_pcIntraPred->getPredictorPtr2( COMPONENT_Y ) );
 
-#if JVET_Q0438_MONOCHROME_BUGFIXES
+#if JVET_Q0438_MONOCHROME_BUGFIXES                                                                                     
       if( isChromaEnabled( cu.chromaFormat ) && cu.chromaSize().width > 2 )
-#else
+#else                                                                                                                  
       if( cu.chromaSize().width > 2 )
-#endif
+#endif                                                                                                                 
       {
-        m_pcIntraPred->geneWeightedPred( COMPONENT_Cb, predBuf.Cb(), cu, m_pcIntraPred->getPredictorPtr2( COMPONENT_Cb, 0 ) );
-        m_pcIntraPred->geneWeightedPred( COMPONENT_Cr, predBuf.Cr(), cu, m_pcIntraPred->getPredictorPtr2( COMPONENT_Cr, 0 ) );
+        m_pcIntraPred->geneWeightedPred( COMPONENT_Cb, predBuf.Cb(), cu, m_pcIntraPred->getPredictorPtr2( COMPONENT_Cb ) );
+        m_pcIntraPred->geneWeightedPred( COMPONENT_Cr, predBuf.Cr(), cu, m_pcIntraPred->getPredictorPtr2( COMPONENT_Cr ) );
       }
     }
 
@@ -444,7 +446,7 @@ void DecCu::predAndReco( CodingUnit& cu, bool doCiipIntra )
         recoBuf.colorSpaceConvert( recoBuf, cu.slice->clpRng( COMPONENT_Y ) );
       }
 #endif
-      if( cu.slice->getLmcsEnabledFlag() && m_pcReshape->getCTUFlag() && !doCiipIntra )
+      if( cu.slice->getLmcsEnabledFlag() && m_pcReshape->getCTUFlag( *cu.slice ) && !doCiipIntra )
       {
         predBuf.Y().rspSignal( m_pcReshape->getFwdLUT() );
       }
@@ -456,7 +458,7 @@ void DecCu::predAndReco( CodingUnit& cu, bool doCiipIntra )
     }
     else
     {
-      if( cu.slice->getLmcsEnabledFlag() && m_pcReshape->getCTUFlag() && !CU::isIBC( cu ) )
+      if( cu.slice->getLmcsEnabledFlag() && m_pcReshape->getCTUFlag( *cu.slice ) && !CU::isIBC( cu ) )
       {
         predBuf.Y().rspSignal( m_pcReshape->getFwdLUT() );
       }
@@ -887,8 +889,18 @@ void DecCu::xDeriveCUMV( CodingUnit &cu, MotionHist& hist )
   bool isIbcSmallBlk = CU::isIBC( cu ) && ( cu.lwidth() * cu.lheight() <= 16 );
   if( !pu.affineFlag() && !pu.geoFlag() && !isIbcSmallBlk )
   {
-    HPMVInfo mi( pu.getMotionInfo(), pu.interDir() == 3 ? pu.BcwIdx() : BCW_DEFAULT, pu.imv() == IMV_HPEL );
-    MotionHist::addMiToLut( CU::isIBC( cu ) ? hist.motionLutIbc : hist.motionLut, mi );
+    const unsigned log2ParallelMergeLevel = (pu.cs->sps->getLog2ParallelMergeLevelMinus2() + 2);
+    const unsigned xBr = pu.Y().width  + pu.Y().x;
+    const unsigned yBr = pu.Y().height + pu.Y().y;
+    bool enableHmvp      = ((xBr >> log2ParallelMergeLevel) > (pu.Y().x >> log2ParallelMergeLevel)) && ((yBr >> log2ParallelMergeLevel) > (pu.Y().y >> log2ParallelMergeLevel));
+    bool enableInsertion = CU::isIBC( cu ) || enableHmvp;
+
+    if( enableInsertion )
+    {
+      HPMVInfo mi( pu.getMotionInfo(), pu.interDir() == 3 ? pu.BcwIdx() : BCW_DEFAULT, pu.imv() == IMV_HPEL );
+      MotionHist::addMiToLut( CU::isIBC( cu ) ? hist.motionLutIbc : hist.motionLut, mi );
+    }
   }
 }
-//! \}
+
+}

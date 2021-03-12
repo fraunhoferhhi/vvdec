@@ -14,7 +14,7 @@ Einsteinufer 37
 www.hhi.fraunhofer.de/vvc
 vvc@hhi.fraunhofer.de
 
-Copyright (c) 2018-2020, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. 
+Copyright (c) 2018-2021, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. 
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -49,20 +49,19 @@ THE POSSIBILITY OF SUCH DAMAGE.
  \brief    reading functions for Annex B byte streams
  */
 
+#include "AnnexBread.h"
 
 #include <stdint.h>
 #include <vector>
-#include "AnnexBread.h"
 
-using namespace std;
+namespace vvdec
+{
 
 #ifdef TRACE_ENABLE_ITT
 static __itt_domain*        itt_domain_input       = __itt_domain_create( "I/O" );
 static __itt_string_handle* itt_handle_extractNALU = __itt_string_handle_create( "Extract_NALU" );
 #endif   // TRACE_ENABLE_ITT
 
-//! \ingroup DecoderLib
-//! \{
 
 /**
  * Parse an AVC AnnexB Bytestream bs to extract a single nalUnit
@@ -75,7 +74,7 @@ static __itt_string_handle* itt_handle_extractNALU = __itt_string_handle_create(
 static void
 _byteStreamNALUnit(
   InputByteStream& bs,
-  vector<uint8_t>& nalUnit,
+  std::vector<uint8_t>& nalUnit,
   AnnexBStats& stats)
 {
   /* At the beginning of the decoding process, the decoder initialises its
@@ -172,7 +171,7 @@ _byteStreamNALUnit(
 bool
 byteStreamNALUnit(
   InputByteStream& bs,
-  vector<uint8_t>& nalUnit,
+  std::vector<uint8_t>& nalUnit,
   AnnexBStats& stats)
 {
   ITT_TASKSTART(itt_domain_input, itt_handle_extractNALU);
@@ -189,4 +188,5 @@ byteStreamNALUnit(
   ITT_TASKEND(itt_domain_input, itt_handle_extractNALU);
   return eof;
 }
-//! \}
+
+}

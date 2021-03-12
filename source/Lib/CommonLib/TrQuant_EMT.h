@@ -14,7 +14,7 @@ Einsteinufer 37
 www.hhi.fraunhofer.de/vvc
 vvc@hhi.fraunhofer.de
 
-Copyright (c) 2018-2020, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. 
+Copyright (c) 2018-2021, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. 
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -48,20 +48,24 @@ THE POSSIBILITY OF SUCH DAMAGE.
     \brief    transform and quantization class (header)
 */
 
-#ifndef __TRQUANT_EMT__
-#define __TRQUANT_EMT__
+#pragma once
 
 #include "CommonDef.h"
+
+namespace vvdec
+{
 
 #if ENABLE_SIMD_TCOEFF_OPS
 struct TCoeffOps
 {
   TCoeffOps();
 
-  void initTCoeffOps();
+#if defined( TARGET_SIMD_X86 )
+  void initTCoeffOpsX86();
   template<X86_VEXT vext>
-  void _initTCoeffOps();
+  void _initTCoeffOpsX86();
 
+#endif
   void( *cpyResi8 )    ( const TCoeff*      src,        Pel*    dst, ptrdiff_t stride, unsigned width, unsigned height );
   void( *cpyResi4 )    ( const TCoeff*      src,        Pel*    dst, ptrdiff_t stride, unsigned width, unsigned height );
   void( *fastInvCore4 )( const TMatrixCoeff* it,  const TCoeff* src, TCoeff* dst, unsigned trSize, unsigned lines, unsigned reducedLines, unsigned rows );
@@ -94,5 +98,4 @@ void fastInverseDCT8_B8  (const TCoeff *src, TCoeff *dst, int shift, int line, i
 void fastInverseDCT8_B16 (const TCoeff *src, TCoeff *dst, int shift, int line, int iSkipLine, int iSkipLine2, const TCoeff outputMinimum, const TCoeff outputMaximum);
 void fastInverseDCT8_B32 (const TCoeff *src, TCoeff *dst, int shift, int line, int iSkipLine, int iSkipLine2, const TCoeff outputMinimum, const TCoeff outputMaximum);
 
-
-#endif // __TRQUANT__
+}

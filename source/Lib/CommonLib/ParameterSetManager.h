@@ -14,7 +14,7 @@ Einsteinufer 37
 www.hhi.fraunhofer.de/vvc
 vvc@hhi.fraunhofer.de
 
-Copyright (c) 2018-2020, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. 
+Copyright (c) 2018-2021, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. 
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -44,8 +44,7 @@ THE POSSIBILITY OF SUCH DAMAGE.
 
 ------------------------------------------------------------------------------------------- */
 
-#ifndef PARAM_SET_MANAGER_H
-#define PARAM_SET_MANAGER_H
+#pragma once
 
 #include "Common.h"
 #include "Slice.h"
@@ -53,6 +52,9 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #include <map>
 #include <vector>
 #include <array>
+
+namespace vvdec
+{
 
 void updateParameterSetChangedFlag( bool&                       bChanged,
                                     const std::vector<uint8_t>* pOldData,
@@ -86,12 +88,15 @@ public:
       // work out changed flag
       updateParameterSetChangedFlag( mapData.parameterSet->m_changedFlag, &mapData.cNaluData, pNaluData );
 
-      if( !mapData.parameterSet->m_changedFlag )
-      {
-        // just keep the old one
-        delete ps;
-        return;
-      }
+      // Don't throw away identical parameter sets as VTM does:
+      //   The PPS can be identical to a previous one, but the SPS changed, so it needs to be interpreted differently.
+      //
+      // if( !mapData.parameterSet->m_changedFlag )
+      // {
+      //   // just keep the old one
+      //   delete ps;
+      //   return;
+      // }
 
       if( find( m_activePsId.begin(), m_activePsId.end(), psId ) != m_activePsId.end() )
       {
@@ -208,4 +213,4 @@ protected:
   int m_activeVPSId = -1;   // -1 for nothing active
 };
 
-#endif   // !PARAM_SET_MANAGER_H
+}
