@@ -123,6 +123,25 @@ void SEI_internal::deleteSEIs ( seiMessages &seiList)
   {
     if( sei )
     {
+      if( sei->payloadType == VVDEC_SCALABLE_NESTING )
+      {
+        const vvdecSEIScalableNesting* nestingSei = ( vvdecSEIScalableNesting* ) sei->payload;
+
+        if( !nestingSei->snSubpicFlag )
+        {
+          continue;
+        }
+
+        for( int i = 0; i < nestingSei->snNumSEIs; ++i )
+        {
+          auto& nestedSei = nestingSei->nestedSEIs[i];
+
+          if( nestedSei->payload )
+            free( nestedSei->payload );
+          delete nestedSei;
+        }
+      }
+
       if( sei->payload )
           free( sei->payload );
       delete sei ;

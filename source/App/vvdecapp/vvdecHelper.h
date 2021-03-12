@@ -295,7 +295,7 @@ static int readBitstreamFromFile( std::ifstream *f, vvdecAccessUnit* pcAccessUni
     if( pos >= pcAccessUnit->payloadSize )
     {
       int iNewSize = pcAccessUnit->payloadSize*2;
-      unsigned char* newbuf = new unsigned char[iNewSize];
+      unsigned char* newbuf = (unsigned char*) malloc( sizeof( unsigned char ) * iNewSize );
       if( newbuf == NULL )
       {
         fprintf( stderr, "ERR: readBitstreamFromFile: memory re-allocation failed!\n" );
@@ -303,7 +303,7 @@ static int readBitstreamFromFile( std::ifstream *f, vvdecAccessUnit* pcAccessUni
       }
       std::copy_n( pcAccessUnit->payload, std::min( pcAccessUnit->payloadSize , iNewSize), newbuf);
       pcAccessUnit->payloadSize = iNewSize;
-      delete[] pcAccessUnit->payload;
+      free( pcAccessUnit->payload );
 
       pcAccessUnit->payload = newbuf;
       pBuf = pcAccessUnit->payload;

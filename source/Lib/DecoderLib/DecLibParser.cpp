@@ -95,6 +95,8 @@ void DecLibParser::create( ThreadPool* tp, int parserFrameDelay, int numReconIns
 
 void DecLibParser::destroy()
 {
+  SEI_internal::deleteSEIs( m_seiMessageList );
+
   m_threadPool    = nullptr;
 
   delete m_apcSlicePilot;
@@ -1209,7 +1211,7 @@ Picture * DecLibParser::xActivateParameterSets( const int layerId )
     {
       // Currently only decoding Unit SEI message occurring between VCL NALUs copied
       seiMessages& picSEI = pcPic->seiMessageList;
-      seiMessages decodingUnitInfos = SEI_internal::extractSeisByType( picSEI, VVDEC_DECODING_UNIT_INFO );
+      seiMessages decodingUnitInfos = SEI_internal::extractSeisByType( m_seiMessageList, VVDEC_DECODING_UNIT_INFO );
       picSEI.insert( picSEI.end(), decodingUnitInfos.begin(), decodingUnitInfos.end() );
       SEI_internal::deleteSEIs   ( m_seiMessageList );
     }
