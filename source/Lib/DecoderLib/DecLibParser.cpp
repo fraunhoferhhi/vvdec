@@ -14,7 +14,7 @@ Einsteinufer 37
 www.hhi.fraunhofer.de/vvc
 vvc@hhi.fraunhofer.de
 
-Copyright (c) 2018-2020, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. 
+Copyright (c) 2018-2021, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. 
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -51,9 +51,12 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #include "CommonLib/dtrace_next.h"
 #include "CommonLib/dtrace_buffer.h"
 
-#include "Utilities/NoMallocThreadPool.h"
+#include "Utilities/ThreadPool.h"
 
 #include <unordered_map>
+
+namespace vvdec
+{
 
 #ifdef TRACE_ENABLE_ITT
 extern __itt_domain* itt_domain_prs;
@@ -69,7 +72,6 @@ extern __itt_string_handle* itt_handle_start;
 #define ITT_TASKEND( d, t )
 #endif
 
-
 DecLibParser::~DecLibParser()
 {
   m_prefixSEINALUs.clear();
@@ -77,7 +79,7 @@ DecLibParser::~DecLibParser()
   destroy();
 }
 
-void DecLibParser::create( NoMallocThreadPool* tp, int parserFrameDelay, int numReconInst, int numDecThreads )
+void DecLibParser::create( ThreadPool* tp, int parserFrameDelay, int numReconInst, int numDecThreads )
 {
   m_threadPool        = tp;
   m_parseFrameDelay   = parserFrameDelay;
@@ -93,6 +95,8 @@ void DecLibParser::create( NoMallocThreadPool* tp, int parserFrameDelay, int num
 
 void DecLibParser::destroy()
 {
+  SEI_internal::deleteSEIs( m_seiMessageList );
+
   m_threadPool    = nullptr;
 
   delete m_apcSlicePilot;
@@ -191,10 +195,16 @@ Picture* DecLibParser::parse( InputNALUnit& nalu, int* pSkipFrame )
       m_pictureSeiNalus.emplace_back( nalu );
       const SPS *sps = m_parameterSetManager.getActiveSPS();
       const VPS *vps = m_parameterSetManager.getVPS( sps->getVPSId() );
-      m_seiReader.parseSEImessage( &( nalu.getBitstream() ), m_pcParsePic->SEIs, nalu.m_nalUnitType, nalu.m_nuhLayerId, nalu.m_temporalId, vps, sps, m_HRD, m_pDecodedSEIOutputStream );
+      m_seiReader.parseSEImessage( &( nalu.getBitstream() ), m_pcParsePic->seiMessageList, nalu.m_nalUnitType, nalu.m_nuhLayerId, nalu.m_temporalId, vps, sps, m_HRD, m_pDecodedSEIOutputStream );
 
       if( m_parseFrameDelay == 0 )  // else it has to be done in finishPicture()
       {
+        // if parallel parsing is disabled, wait for the picture to finish
+        if( m_threadPool->numThreads() == 0 )
+        {
+          m_threadPool->processTasksOnMainThread();
+        }
+        m_pcParsePic->done.wait();
         m_decLib.checkPictureHashSEI( m_pcParsePic );
       }
     }
@@ -287,6 +297,14 @@ Picture* DecLibParser::getNextDecodablePicture()
     return nullptr;
   }
 
+  if( m_threadPool->numThreads() == 0 || m_parseFrameDelay == 0 )
+  {
+    // adhere to strict decoding order if running singlethreaded
+    Picture * pic = m_parseFrameList.front();
+    m_parseFrameList.pop_front();
+    return pic;
+  }
+
   // try to find next picture, that is parsed and has all reference pictures decoded
   for( auto picIt = m_parseFrameList.begin(); picIt != m_parseFrameList.end(); ++picIt )
   {
@@ -301,17 +319,20 @@ Picture* DecLibParser::getNextDecodablePicture()
 
     bool allRefPicsDone = true;
     const CodingStructure& cs = *pic->cs;
-    if( !cs.picture->slices[0]->isIntra() )
+    if( std::any_of( cs.picture->slices.begin(), cs.picture->slices.end(), []( const Slice* pcSlice ) { return !pcSlice->isIntra(); } ) )
     {
       for( int iDir = REF_PIC_LIST_0; iDir < NUM_REF_PIC_LIST_01 && allRefPicsDone; ++iDir )
       {
-        for( int iRefIdx = 0; iRefIdx < cs.picture->slices[0]->getNumRefIdx( (RefPicList)iDir ) && allRefPicsDone; iRefIdx++ )
+        for( const Slice* slice : cs.picture->slices )
         {
-          const Picture* refPic = cs.picture->slices[0]->getRefPic( (RefPicList)iDir, iRefIdx );
-          if( refPic->done.isBlocked() )
+          for( int iRefIdx = 0; iRefIdx < slice->getNumRefIdx( ( RefPicList ) iDir ) && allRefPicsDone; iRefIdx++ )
           {
-            allRefPicsDone = false;
-            break;
+            const Picture* refPic = slice->getRefPic( ( RefPicList ) iDir, iRefIdx );
+            if( refPic->done.isBlocked() )
+            {
+              allRefPicsDone = false;
+              break;
+            }
           }
         }
       }
@@ -376,7 +397,8 @@ DecLibParser::SliceHeadResult DecLibParser::xDecodeSliceHead( InputNALUnit& nalu
 
   m_HLSReader.setBitstream( &nalu.getBitstream() );
 
-  m_HLSReader.parseSliceHeader( m_apcSlicePilot, m_picHeader.get(), &m_parameterSetManager, m_prevTid0POC, m_pcParsePic );
+  m_bFirstSliceInPicture = true;
+  m_HLSReader.parseSliceHeader( m_apcSlicePilot, m_picHeader.get(), &m_parameterSetManager, m_prevTid0POC, m_pcParsePic, m_bFirstSliceInPicture );
 
   if( pSkipFrame && *pSkipFrame )
   {
@@ -386,7 +408,7 @@ DecLibParser::SliceHeadResult DecLibParser::xDecodeSliceHead( InputNALUnit& nalu
     return SkipPicture;
   }
 
-  m_bFirstSliceInPicture = m_apcSlicePilot->getCtuAddrInSlice( 0 ) == 0;
+  CHECK( m_bFirstSliceInPicture != ( m_apcSlicePilot->getCtuAddrInSlice( 0 ) == 0 ), "first slice in picture should start at CTU-addr 0" );
 
   if( m_bFirstSliceInPicture )
   {
@@ -395,8 +417,9 @@ DecLibParser::SliceHeadResult DecLibParser::xDecodeSliceHead( InputNALUnit& nalu
   }
   else // if it turns out, this was not the first slice in the picture, we need to parse the header again
   {
-    CHECK( nalu.m_nalUnitType != m_pcParsePic->slices[m_uiSliceSegmentIdx - 1]->getNalUnitType(), "The value of NAL unit type shall be the same for all coded slice NAL units of a picture" );
-
+    CHECK( m_uiSliceSegmentIdx == 0, "slice segment idx should only be zero for first slice in picture" );
+    CHECK( !m_pcParsePic->getMixedNaluTypesInPicFlag() && nalu.m_nalUnitType != m_pcParsePic->slices[m_uiSliceSegmentIdx - 1]->getNalUnitType(),
+           "The value of NAL unit type shall be the same for all coded slice NAL units of a picture if pps_mixed_nalu_types_in_pic_flag is not set" )
     m_apcSlicePilot->copySliceInfo  ( m_pcParsePic->slices[m_uiSliceSegmentIdx-1] );
 
     m_apcSlicePilot->setNalUnitType ( nalu.m_nalUnitType );
@@ -407,9 +430,14 @@ DecLibParser::SliceHeadResult DecLibParser::xDecodeSliceHead( InputNALUnit& nalu
     nalu.readNalUnitHeader();
     m_HLSReader.setBitstream        ( &nalu.getBitstream() );
 
-    m_HLSReader.parseSliceHeader    ( m_apcSlicePilot, m_picHeader.get(), &m_parameterSetManager, m_prevTid0POC, m_pcParsePic );
+    m_HLSReader.parseSliceHeader( m_apcSlicePilot, m_picHeader.get(), &m_parameterSetManager, m_prevTid0POC, m_pcParsePic, m_bFirstSliceInPicture );
   }
 
+  if( m_picHeader->getGdrPicFlag() )
+  {
+    m_prevGDRInSameLayerRecoveryPOC = m_picHeader->getRecoveryPocCnt();
+  }
+  
   PPS *pps = m_parameterSetManager.getPPS( m_apcSlicePilot->getPicHeader()->getPPSId() );
   CHECK( pps == 0, "No PPS present" );
   SPS *sps = m_parameterSetManager.getSPS( pps->getSPSId() );
@@ -476,7 +504,12 @@ DecLibParser::SliceHeadResult DecLibParser::xDecodeSliceHead( InputNALUnit& nalu
   m_apcSlicePilot->setAssociatedIRAPPOC ( m_pocCRA );
   m_apcSlicePilot->setAssociatedIRAPType( m_associatedIRAPType );
 
-  //For inference of NoOutputOfPriorPicsFlag
+  // For inference of NoOutputOfPriorPicsFlag
+  //
+  // TODO: (GH) Currently setting NoOutputBeforeRecoveryFlag is more or less disabled as a workaround for missing
+  //       output pictures du to parallel parsing. See: https://github.com/fraunhoferhhi/vvdec/issues/17
+  //       This should be implemented properly, so we can correctly detect the start of a new CLVS.
+  //
   if( /*m_apcSlicePilot->getRapPicFlag() ||*/ m_apcSlicePilot->getNalUnitType() == NAL_UNIT_CODED_SLICE_GDR )
   {
     if( !pps->getMixedNaluTypesInPicFlag() )
@@ -589,6 +622,11 @@ DecLibParser::SliceHeadResult DecLibParser::xDecodeSliceHead( InputNALUnit& nalu
 
   m_prevLayerID = nalu.m_nuhLayerId;
 
+  if( !pps->pcv )
+  {
+    pps->pcv = std::make_unique<PreCalcValues>( *sps, *pps );
+  }
+  
   //detect lost reference picture and insert copy of earlier frame.
   for( const auto rplIdx: { REF_PIC_LIST_0, REF_PIC_LIST_1 } )
   {
@@ -611,7 +649,7 @@ DecLibParser::SliceHeadResult DecLibParser::xDecodeSliceHead( InputNALUnit& nalu
           if( rpl->isInterLayerRefPic( lostRefPicIndex ) == 0 )
           {
 #if JVET_S0124_UNAVAILABLE_REFERENCE
-            m_parseFrameList.push_back( prepareUnavailablePicture( pps, lostPoc - 1, m_apcSlicePilot->getPic()->layerId, rpl->isRefPicLongterm( lostRefPicIndex ), m_apcSlicePilot->getPic()->layer ) ); // -1 because checkThatAllRefPicsAreAvailable() returns iPocLost+1
+            prepareUnavailablePicture( pps, lostPoc, m_apcSlicePilot->getNalUnitLayerId(), rpl->isRefPicLongterm( lostRefPicIndex ), m_apcSlicePilot->getTLayer() ); // -1 because checkThatAllRefPicsAreAvailable() returns iPocLost+1
 #else
             m_parseFrameList.push_back( prepareUnavailablePicture( lostPoc - 1, m_apcSlicePilot->getPic()->layerId, rpl->isRefPicLongterm(refPicIndex) ) ); // -1 because checkThatAllRefPicsAreAvailable() returns iPocLost+1
 #endif
@@ -619,13 +657,29 @@ DecLibParser::SliceHeadResult DecLibParser::xDecodeSliceHead( InputNALUnit& nalu
         }
         else
         {
+#if JVET_S0124_UNAVAILABLE_REFERENCE
+          prepareLostPicture( lostPoc - 1, m_apcSlicePilot->getTLayer() );  // -1 because checkThatAllRefPicsAreAvailable() returns iPocLost+1
+#else
           m_parseFrameList.push_back( prepareLostPicture( lostPoc - 1, m_apcSlicePilot->getPic()->layerId ) );  // -1 because checkThatAllRefPicsAreAvailable() returns iPocLost+1
+#endif
         }
       }
     }
   }
 
   Slice* slice = xDecodeSliceMain( nalu );
+
+  if( slice->getNalUnitType() == NAL_UNIT_CODED_SLICE_GDR && !slice->getPic()->cs->pps->getMixedNaluTypesInPicFlag() )
+  {
+    m_prevGDRInSameLayerPOC = m_pcParsePic->getPOC();
+  }
+  if( m_gdrRecoveryPeriod )
+  {
+    if( slice->getPic()->getPOC() >= m_prevGDRInSameLayerPOC + m_prevGDRInSameLayerRecoveryPOC )
+    {
+      m_gdrRecoveryPeriod = false;
+    }
+  }
 
   if( slice->getFirstCtuRsAddrInSlice() == 0 && !m_bFirstSliceInPicture )
   {
@@ -643,7 +697,10 @@ DecLibParser::SliceHeadResult DecLibParser::xDecodeSliceHead( InputNALUnit& nalu
   m_prevPOC = slice->getPOC();
 
   auto ret = ContinueParsing;
-  if( m_bFirstSliceInPicture )
+
+  const unsigned lastCtuInSlice = slice->getCtuAddrInSlice( slice->getNumCtuInSlice() - 1 );
+
+  if( lastCtuInSlice == slice->getPPS()->pcv->sizeInCtus - 1 )
   {
     ret = NewPicture;
     xUpdateRasInit( slice );
@@ -793,7 +850,7 @@ Slice*  DecLibParser::xDecodeSliceMain( InputNALUnit &nalu )
   }
 #endif
 
-  pcSlice->scaleRefPicList( m_pcParsePic->cs->picHeader, m_parameterSetManager.getAlfAPSs().data(), m_picHeader->getLmcsAPS().get(), m_picHeader->getScalingListAPS().get(), true );
+  pcSlice->scaleRefPicList( m_pcParsePic->cs->picHeader, m_parameterSetManager.getAlfAPSs().data(), m_picHeader->getLmcsAPS().get(), m_picHeader->getScalingListAPS().get() );
 
 #if !JVET_S0258_SUBPIC_CONSTRAINTS
 #if JVET_R0276_REORDERED_SUBPICS
@@ -980,18 +1037,31 @@ Slice*  DecLibParser::xDecodeSliceMain( InputNALUnit &nalu )
   {
     auto& decLib    = slice->parseTaskParams.decLibParser;
     auto& bitstream = slice->parseTaskParams.bitstream;
+    auto* pic       = slice->getPic();
 
-    slice->getPic()->startProcessingTimer();
-    //  Decode a picture
-    ITT_TASKSTART( itt_domain_prs, itt_handle_parse );
-    decLib->m_cSliceDecoder.parseSlice( slice, &bitstream, threadId );
-    ITT_TASKEND( itt_domain_prs, itt_handle_parse );
+    try
+    {
+      pic->startProcessingTimer();
 
-    slice->getPic()->stopProcessingTimer();
+      //  Decode a picture
+      ITT_TASKSTART( itt_domain_prs, itt_handle_parse );
+      decLib->m_cSliceDecoder.parseSlice( slice, &bitstream, threadId );
+      ITT_TASKEND( itt_domain_prs, itt_handle_parse );
 
-    bitstream.clearFifo();
-    bitstream.clearEmulationPreventionByteLocation();
+      pic->stopProcessingTimer();
 
+      bitstream.clearFifo();
+      bitstream.clearEmulationPreventionByteLocation();
+    }
+    catch( ... )
+    {
+      pic->parseDone.setException( std::current_exception() );
+      for( auto& b: pic->ctuParsedBarrier )
+      {
+        b.setException( std::current_exception() );
+      }
+      std::rethrow_exception( std::current_exception() );
+    }
     return true;
   };
 
@@ -1009,7 +1079,7 @@ Slice*  DecLibParser::xDecodeSliceMain( InputNALUnit &nalu )
       m_threadPool->addBarrierTask<Slice>( parseTask, pcSlice, nullptr, &pcSlice->parseDone );
     }
   }
-  else  // run on main thread (still go through std::async to create the future)
+  else
   {
     parseTask( 0, pcSlice );
     pcSlice->parseDone.unlock();
@@ -1062,11 +1132,25 @@ Picture * DecLibParser::xActivateParameterSets( const int layerId )
     pcPic->finalInit( sps, pps, m_picHeader.get(), alfApss, lmcsAPS, scalingListAPS );
 
     // Set Field/Frame coding mode
-    pcPic->fieldPic = false;
-    pcPic->topField = false;
+    bool isField    = false;
+    bool isTopField = false;
+    if(!m_seiMessageList.empty())
+    {
+      // Check if any new Frame Field Info SEI has arrived
+      seiMessages frameFieldSEIs = SEI_internal::getSeisByType( m_seiMessageList, VVDEC_FRAME_FIELD_INFO );
+      if(!frameFieldSEIs.empty())
+      {
+        const vvdecSEIFrameFieldInfo* ff = (vvdecSEIFrameFieldInfo*) frameFieldSEIs.front()->payload;
+        isField    = ff->fieldPicFlag;
+        isTopField = isField && (!ff->bottomFieldFlag);
+      }
+    }
+    pcPic->fieldPic = isField;
+    pcPic->topField = isTopField;
+
     // transfer any SEI messages that have been received to the picture
-    pcPic->SEIs = m_SEIs;
-    m_SEIs.clear();
+    pcPic->seiMessageList = m_seiMessageList;
+    m_seiMessageList.clear();
   }
   else
   {
@@ -1123,13 +1207,13 @@ Picture * DecLibParser::xActivateParameterSets( const int layerId )
     xParsePrefixSEImessages();
 
     // Check if any new SEI has arrived
-    if( !m_SEIs.empty() )
+    if( !m_seiMessageList.empty() )
     {
       // Currently only decoding Unit SEI message occurring between VCL NALUs copied
-      SEIMessages & picSEI            = pcPic->SEIs;
-      SEIMessages   decodingUnitInfos = extractSeisByType( picSEI, SEI::DECODING_UNIT_INFO );
+      seiMessages& picSEI = pcPic->seiMessageList;
+      seiMessages decodingUnitInfos = SEI_internal::extractSeisByType( m_seiMessageList, VVDEC_DECODING_UNIT_INFO );
       picSEI.insert( picSEI.end(), decodingUnitInfos.begin(), decodingUnitInfos.end() );
-      deleteSEIs   ( m_SEIs );
+      SEI_internal::deleteSEIs   ( m_seiMessageList );
     }
   }
 
@@ -1293,7 +1377,7 @@ Picture * DecLibParser::xActivateParameterSets( const int layerId )
   return pcPic;
 }
 
-Picture* DecLibParser::prepareLostPicture( int iLostPoc, const int layerId )
+void DecLibParser::prepareLostPicture( int iLostPoc, const int layerId )
 {
   msg( INFO, "inserting lost poc : %d\n", iLostPoc );
 
@@ -1302,8 +1386,9 @@ Picture* DecLibParser::prepareLostPicture( int iLostPoc, const int layerId )
 #else
   Picture* cFillPic = m_picListManager.getNewPicBuffer( *m_parameterSetManager.getFirstSPS(), *m_parameterSetManager.getFirstPPS(), 0, layerId );
 #endif
-  cFillPic->finalInit( m_parameterSetManager.getFirstSPS(), m_parameterSetManager.getFirstPPS(), m_picHeader.get(), m_parameterSetManager.getAlfAPSs().data(), nullptr, nullptr ); //TODO: check this
-
+  cFillPic->finalInit( m_parameterSetManager.getFirstSPS(), m_parameterSetManager.getFirstPPS(), m_picHeader.get(), m_parameterSetManager.getAlfAPSs().data(), nullptr, nullptr, false ); //TODO: check this
+  cFillPic->cs->initStructData();
+  
   int         iTLayer  = m_apcSlicePilot->getTLayer();   // TLayer needs to be <= TLayer of referencing frame
   bool        isIRAP   = false;
   NalUnitType naluType = NAL_UNIT_CODED_SLICE_TRAIL;
@@ -1344,8 +1429,10 @@ Picture* DecLibParser::prepareLostPicture( int iLostPoc, const int layerId )
   cFillPic->slices[0]->setPOC( iLostPoc );
   cFillPic->slices[0]->setTLayer( iTLayer );
   cFillPic->slices[0]->setNalUnitType( naluType );
-  xUpdatePreviousTid0POC( cFillPic->slices[0] );
-
+  if( (cFillPic->slices[0]->getTLayer() == 0) && (cFillPic->slices[0]->getNalUnitType() != NAL_UNIT_CODED_SLICE_RASL) && (cFillPic->slices[0]->getNalUnitType() != NAL_UNIT_CODED_SLICE_RADL) )
+  {
+    m_prevTid0POC = cFillPic->slices[0]->getPOC();
+  }
   cFillPic->layer           = iTLayer;
   cFillPic->referenced      = true;
   cFillPic->neededForOutput = false;
@@ -1362,11 +1449,10 @@ Picture* DecLibParser::prepareLostPicture( int iLostPoc, const int layerId )
     m_pocRandomAccess = iLostPoc;
     m_associatedIRAPDecodingOrderNumber = cFillPic->getDecodingOrderNumber();
   }
-  return cFillPic;
 }
 
 #if JVET_S0124_UNAVAILABLE_REFERENCE
-Picture* DecLibParser::prepareUnavailablePicture( const PPS *pps, int iUnavailablePoc, const int layerId, const bool longTermFlag, const int temporalId )
+void DecLibParser::prepareUnavailablePicture( const PPS *pps, int iUnavailablePoc, const int layerId, const bool longTermFlag, const int temporalId )
 #else
 Picture* DecLibParser::prepareUnavailablePicture( int iUnavailablePoc, const int layerId, const bool longTermFlag )
 #endif
@@ -1377,8 +1463,11 @@ Picture* DecLibParser::prepareUnavailablePicture( int iUnavailablePoc, const int
 #else
   Picture* cFillPic = m_picListManager.getNewPicBuffer( *m_parameterSetManager.getFirstSPS(), *m_parameterSetManager.getFirstPPS(), 0, layerId );
 #endif
-  cFillPic->finalInit( m_parameterSetManager.getFirstSPS(), m_parameterSetManager.getFirstPPS(), m_picHeader.get(), m_parameterSetManager.getAlfAPSs().data(), nullptr, nullptr ); //TODO: check this
+  APS* nullAlfApss[ALF_CTB_MAX_NUM_APS] = { nullptr, };
+  cFillPic->finalInit( m_parameterSetManager.getFirstSPS(), m_parameterSetManager.getFirstPPS(), m_picHeader.get(), nullAlfApss, nullptr, nullptr, false ); //TODO: check this
+  cFillPic->cs->initStructData();
 
+  cFillPic->allocateNewSlice();
   cFillPic->slices[0]->initSlice();
 
   uint32_t yFill = 1 << (m_parameterSetManager.getFirstSPS()->getBitDepth(CHANNEL_TYPE_LUMA) - 1);
@@ -1391,7 +1480,12 @@ Picture* DecLibParser::prepareUnavailablePicture( int iUnavailablePoc, const int
 //  cFillPic->interLayerRefPicFlag = false; //always false and never gets checked
   cFillPic->longTerm = longTermFlag;
   cFillPic->slices[0]->setPOC(iUnavailablePoc);
-  xUpdatePreviousTid0POC(cFillPic->slices[0]);
+//  cFillPic->wasLost = true;
+  cFillPic->poc = iUnavailablePoc;
+  if( (cFillPic->slices[0]->getTLayer() == 0) && (cFillPic->slices[0]->getNalUnitType() != NAL_UNIT_CODED_SLICE_RASL) && (cFillPic->slices[0]->getNalUnitType() != NAL_UNIT_CODED_SLICE_RADL) )
+  {
+    m_prevTid0POC = cFillPic->slices[0]->getPOC();
+  }
   cFillPic->reconstructed = true;
   cFillPic->neededForOutput = false;
 #if JVET_S0124_UNAVAILABLE_REFERENCE
@@ -1401,8 +1495,8 @@ Picture* DecLibParser::prepareUnavailablePicture( int iUnavailablePoc, const int
   cFillPic->nonReferencePictureFlag = false;
   cFillPic->slices[0]->setPPS( pps );
 #endif
-
-  return cFillPic;
+  cFillPic->parseDone.unlock();
+  cFillPic->done.unlock();
 }
 
 void DecLibParser::xParsePrefixSEImessages()
@@ -1412,7 +1506,7 @@ void DecLibParser::xParsePrefixSEImessages()
     InputNALUnit& nalu = m_prefixSEINALUs.front();
     const SPS *sps = m_parameterSetManager.getActiveSPS();
     const VPS *vps = m_parameterSetManager.getVPS(sps->getVPSId());
-    m_seiReader.parseSEImessage( &(nalu.getBitstream()), m_SEIs, nalu.m_nalUnitType, nalu.m_nuhLayerId, nalu.m_temporalId, vps, sps, m_HRD, m_pDecodedSEIOutputStream );
+    m_seiReader.parseSEImessage( &(nalu.getBitstream()), m_seiMessageList, nalu.m_nalUnitType, nalu.m_nuhLayerId, nalu.m_temporalId, vps, sps, m_HRD, m_pDecodedSEIOutputStream );
     m_prefixSEINALUs.pop_front();
   }
 }
@@ -1546,7 +1640,11 @@ bool DecLibParser::isRandomAccessSkipPicture()
 {
   if (m_pocRandomAccess == MAX_INT) // start of random access point, m_pocRandomAccess has not been set yet.
   {
+#if GDR_ADJ
+    if (m_apcSlicePilot->getNalUnitType() == NAL_UNIT_CODED_SLICE_CRA || m_apcSlicePilot->getNalUnitType() == NAL_UNIT_CODED_SLICE_GDR )
+#else
     if (m_apcSlicePilot->getNalUnitType() == NAL_UNIT_CODED_SLICE_CRA )
+#endif
     {
       // set the POC random access since we need to skip the reordered pictures in the case of CRA/CRANT/BLA/BLANT.
       m_pocRandomAccess = m_apcSlicePilot->getPOC();
@@ -1768,4 +1866,6 @@ void DecLibParser::xCheckMixedNalUnit( Slice* pcSlice, InputNALUnit &nalu )
     }
     CHECK(!sameNalUnitType, "mixed_nalu_types_in_pic_flag is zero, but have different nal unit types");
   }
+}
+
 }

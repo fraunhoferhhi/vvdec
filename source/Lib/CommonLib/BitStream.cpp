@@ -14,7 +14,7 @@ Einsteinufer 37
 www.hhi.fraunhofer.de/vvc
 vvc@hhi.fraunhofer.de
 
-Copyright (c) 2018-2020, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. 
+Copyright (c) 2018-2021, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. 
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -48,16 +48,15 @@ THE POSSIBILITY OF SUCH DAMAGE.
     \brief    class for handling bitstream
 */
 
+#include "BitStream.h"
+
 #include <stdint.h>
 #include <vector>
-#include "BitStream.h"
 #include <string.h>
 #include <memory.h>
 
-using namespace std;
-
-//! \ingroup CommonLib
-//! \{
+namespace vvdec
+{
 
 // ====================================================================================================================
 // Constructor / destructor / create / destroy
@@ -164,8 +163,8 @@ void   OutputBitstream::addSubstream( OutputBitstream* pcSubstream )
 {
   uint32_t uiNumBits = pcSubstream->getNumberOfWrittenBits();
 
-  const vector<uint8_t>& rbsp = pcSubstream->getFIFO();
-  for (vector<uint8_t>::const_iterator it = rbsp.begin(); it != rbsp.end();)
+  const std::vector<uint8_t>& rbsp = pcSubstream->getFIFO();
+  for (std::vector<uint8_t>::const_iterator it = rbsp.begin(); it != rbsp.end();)
   {
     write(*it++, 8);
   }
@@ -184,15 +183,15 @@ void OutputBitstream::writeByteAlignment()
 int OutputBitstream::countStartCodeEmulations()
 {
   uint32_t cnt = 0;
-  vector<uint8_t>& rbsp   = getFIFO();
-  for (vector<uint8_t>::iterator it = rbsp.begin(); it != rbsp.end();)
+  std::vector<uint8_t>& rbsp   = getFIFO();
+  for (std::vector<uint8_t>::iterator it = rbsp.begin(); it != rbsp.end();)
   {
-    vector<uint8_t>::iterator found = it;
+    std::vector<uint8_t>::iterator found = it;
     do
     {
       // find the next emulated 00 00 {00,01,02,03}
       // NB, end()-1, prevents finding a trailing two byte sequence
-      found = search_n(found, rbsp.end()-1, 2, 0);
+      found = std::search_n(found, rbsp.end()-1, 2, 0);
       found++;
       // if not found, found == end, otherwise found = second zero byte
       if (found == rbsp.end())
@@ -235,7 +234,7 @@ void InputBitstream::pseudoRead ( uint32_t uiNumberOfBits, uint32_t& ruiBits )
   uint8_t saved_held_bits = m_held_bits;
   uint32_t saved_fifo_idx = m_fifo_idx;
 
-  uint32_t num_bits_to_read = min(uiNumberOfBits, getNumBitsLeft());
+  uint32_t num_bits_to_read = std::min(uiNumberOfBits, getNumBitsLeft());
   read(num_bits_to_read, ruiBits);
   ruiBits <<= (uiNumberOfBits - num_bits_to_read);
 
@@ -315,7 +314,7 @@ void OutputBitstream::insertAt(const OutputBitstream& src, uint32_t pos)
 {
   CHECK(0 != src.getNumberOfWrittenBits() % 8, "Number of written bits is not a multiple of 8");
 
-  vector<uint8_t>::iterator at = m_fifo.begin() + pos;
+  std::vector<uint8_t>::iterator at = m_fifo.begin() + pos;
   m_fifo.insert(at, src.m_fifo.begin(), src.m_fifo.end());
 }
 
@@ -402,4 +401,4 @@ uint32_t InputBitstream::readByteAlignment()
   return numBits+1;
 }
 
-//! \}
+}

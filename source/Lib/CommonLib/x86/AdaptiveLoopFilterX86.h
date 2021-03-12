@@ -14,7 +14,7 @@ Einsteinufer 37
 www.hhi.fraunhofer.de/vvc
 vvc@hhi.fraunhofer.de
 
-Copyright (c) 2018-2020, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. 
+Copyright (c) 2018-2021, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. 
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -59,6 +59,9 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #else
 #include <immintrin.h>
 #endif
+
+namespace vvdec
+{
 
 template<X86_VEXT vext>
 void simdDeriveClassificationBlk(AlfClassifier *classifier, const CPelBuf &srcLuma, const Area& blk, const int shift, int vbCTUHeight, int vbPos)
@@ -562,7 +565,16 @@ void simdDeriveClassificationBlk<AVX2>(AlfClassifier *classifier, const CPelBuf 
 #endif
 
 template<X86_VEXT vext>
-static void simdFilter5x5Blk( const AlfClassifier *, const PelUnitBuf &recDst, const CPelUnitBuf &recSrc, const Area &blk, const ComponentID compId, const short *filterSet, const short* fClipSet, const ClpRng &clpRng, const CodingStructure &cs, int vbCTUHeight, int vbPos )
+static void simdFilter5x5Blk( const AlfClassifier*,
+                              const PelUnitBuf&  recDst,
+                              const CPelUnitBuf& recSrc,
+                              const Area&        blk,
+                              const ComponentID  compId,
+                              const short*       filterSet,
+                              const short*       fClipSet,
+                              const ClpRng&      clpRng,
+                              int                vbCTUHeight,
+                              int                vbPos )
 {
   CHECK(!isChroma(compId), "ALF 5x5 filter is for chroma only");
 
@@ -723,7 +735,16 @@ static void simdFilter5x5Blk( const AlfClassifier *, const PelUnitBuf &recDst, c
 
 #if USE_AVX2
 template<>
-void simdFilter5x5Blk<AVX2>( const AlfClassifier *, const PelUnitBuf &recDst, const CPelUnitBuf &recSrc, const Area &blk, const ComponentID compId, const short *filterSet, const short* fClipSet, const ClpRng &clpRng, const CodingStructure &cs, int vbCTUHeight, int vbPos )
+void simdFilter5x5Blk<AVX2>( const AlfClassifier*,
+                             const PelUnitBuf&      recDst,
+                             const CPelUnitBuf&     recSrc,
+                             const Area&            blk,
+                             const ComponentID      compId,
+                             const short*           filterSet,
+                             const short*           fClipSet,
+                             const ClpRng&          clpRng,
+                             int                    vbCTUHeight,
+                             int                    vbPos )
 {
   CHECK( !isChroma( compId ), "ALF 5x5 filter is for chroma only" );
 
@@ -922,9 +943,16 @@ static const uint16_t shuffleTab[4][2][8] = {
 #endif
 
 template<X86_VEXT vext>
-static void simdFilter7x7Blk(const AlfClassifier *classifier, const PelUnitBuf &recDst, const CPelUnitBuf &recSrc,
-                             const Area &blk, const ComponentID compId, const short *filterSet, const short *fClipSet,
-                             const ClpRng &clpRng, const CodingStructure &cs, int vbCTUHeight, int vbPos)
+static void simdFilter7x7Blk( const AlfClassifier*   classifier,
+                              const PelUnitBuf&      recDst,
+                              const CPelUnitBuf&     recSrc,
+                              const Area&            blk,
+                              const ComponentID      compId,
+                              const short*           filterSet,
+                              const short*           fClipSet,
+                              const ClpRng&          clpRng,
+                              int                    vbCTUHeight,
+                              int                    vbPos )
 {
   const CPelBuf srcBuffer = recSrc.get(compId);
   PelBuf        dstBuffer = recDst.get(compId);
@@ -1134,11 +1162,20 @@ static void simdFilter7x7Blk(const AlfClassifier *classifier, const PelUnitBuf &
 
 #if USE_AVX2
 template<>
-void simdFilter7x7Blk<AVX2>(const AlfClassifier *classifier, const PelUnitBuf &recDst, const CPelUnitBuf &recSrc, const Area &blk, const ComponentID compId, const short *filterSet, const short *fClipSet, const ClpRng &clpRng, const CodingStructure &cs, int vbCTUHeight, int vbPos)
+void simdFilter7x7Blk<AVX2>( const AlfClassifier* classifier,
+                             const PelUnitBuf&    recDst,
+                             const CPelUnitBuf&   recSrc,
+                             const Area&          blk,
+                             const ComponentID    compId,
+                             const short*         filterSet,
+                             const short*         fClipSet,
+                             const ClpRng&        clpRng,
+                             int                  vbCTUHeight,
+                             int                  vbPos )
 {
-  if( blk.width & 16 )
+  if( blk.width & 15 )
   {
-    simdFilter7x7Blk<SSE42>( classifier, recDst, recSrc, blk, compId, filterSet, fClipSet, clpRng, cs, vbCTUHeight, vbPos );
+    simdFilter7x7Blk<SSE42>( classifier, recDst, recSrc, blk, compId, filterSet, fClipSet, clpRng, vbCTUHeight, vbPos );
     return;
   }
 
@@ -1331,9 +1368,15 @@ void simdFilter7x7Blk<AVX2>(const AlfClassifier *classifier, const PelUnitBuf &r
 #endif
 
 template<X86_VEXT vext>
-void simdFilterBlkCcAlf( const PelBuf &dstBuf, const CPelUnitBuf &recSrc, const Area &blkDst,
-                          const Area &blkSrc, const ComponentID compId, const int16_t *filterCoeff,
-                          const ClpRngs &clpRngs, CodingStructure &cs, int vbCTUHeight, int vbPos )
+void simdFilterBlkCcAlf( const PelBuf&      dstBuf,
+                         const CPelUnitBuf& recSrc,
+                         const Area&        blkDst,
+                         const Area&        blkSrc,
+                         const ComponentID  compId,
+                         const int16_t*     filterCoeff,
+                         const ClpRngs&     clpRngs,
+                         int                vbCTUHeight,
+                         int                vbPos )
 {
   CHECK( 1 << getLog2( vbCTUHeight ) != vbCTUHeight, "Not a power of 2" );
 
@@ -1343,14 +1386,13 @@ void simdFilterBlkCcAlf( const PelBuf &dstBuf, const CPelUnitBuf &recSrc, const 
   static constexpr int clsSizeY  = 4;
   static constexpr int clsSizeX  = 4;
 
-  const SPS* sps        = cs.sps.get();
-  ChromaFormat nChromaFormat = sps->getChromaFormatIdc();
-  const int startHeight = blkDst.y;
-  const int endHeight   = blkDst.y + blkDst.height;
-  const int startWidth  = blkDst.x;
-  const int endWidth    = blkDst.x + blkDst.width;
-  const int scaleX      = getComponentScaleX( compId, nChromaFormat );
-  const int scaleY      = getComponentScaleY( compId, nChromaFormat );
+  const int          startHeight   = blkDst.y;
+  const int          endHeight     = blkDst.y + blkDst.height;
+  const int          startWidth    = blkDst.x;
+  const int          endWidth      = blkDst.x + blkDst.width;
+  const ChromaFormat nChromaFormat = recSrc.chromaFormat;
+  const int          scaleX        = getComponentScaleX( compId, nChromaFormat );
+  const int          scaleY        = getComponentScaleY( compId, nChromaFormat );
 
   CHECK( startHeight % clsSizeY, "Wrong startHeight in filtering" );
   CHECK( startWidth % clsSizeX, "Wrong startWidth in filtering" );
@@ -1486,26 +1528,32 @@ void simdFilterBlkCcAlf( const PelBuf &dstBuf, const CPelUnitBuf &recSrc, const 
 
       chromaPtr += chromaStride * clsSizeY;
 
-      lumaPtr += lumaStride * clsSizeY << getComponentScaleY( compId, nChromaFormat );
+      lumaPtr += lumaStride * clsSizeY << scaleY;
     }
   }
   else
   {
     // TODO: implement for 444 subsampling
-    AdaptiveLoopFilter::filterBlkCcAlf<CC_ALF>( dstBuf, recSrc, blkDst, blkSrc, compId, filterCoeff, clpRngs, cs, vbCTUHeight, vbPos );
+    AdaptiveLoopFilter::filterBlkCcAlf( dstBuf, recSrc, blkDst, blkSrc, compId, filterCoeff, clpRngs, vbCTUHeight, vbPos );
   }
 }
 
 #if USE_AVX2
 
 template<>
-void simdFilterBlkCcAlf<AVX2>( const PelBuf &dstBuf, const CPelUnitBuf &recSrc, const Area &blkDst,
-                               const Area &blkSrc, const ComponentID compId, const int16_t *filterCoeff,
-                               const ClpRngs &clpRngs, CodingStructure &cs, int vbCTUHeight, int vbPos )
+void simdFilterBlkCcAlf<AVX2>( const PelBuf&      dstBuf,
+                               const CPelUnitBuf& recSrc,
+                               const Area&        blkDst,
+                               const Area&        blkSrc,
+                               const ComponentID  compId,
+                               const int16_t*     filterCoeff,
+                               const ClpRngs&     clpRngs,
+                               int                vbCTUHeight,
+                               int                vbPos )
 {
   if( blkDst.width & 7 )
   {
-    simdFilterBlkCcAlf<SSE42>( dstBuf, recSrc, blkDst, blkSrc, compId, filterCoeff, clpRngs, cs, vbCTUHeight, vbPos );
+    simdFilterBlkCcAlf<SSE42>( dstBuf, recSrc, blkDst, blkSrc, compId, filterCoeff, clpRngs, vbCTUHeight, vbPos );
     return;
   }
 
@@ -1515,15 +1563,14 @@ void simdFilterBlkCcAlf<AVX2>( const PelBuf &dstBuf, const CPelUnitBuf &recSrc, 
 
   static constexpr int scaleBits = 7; // 8-bits
   static constexpr int clsSizeY = 4;
-  static constexpr int clsSizeX = 4;
+  static constexpr int clsSizeX  = 4;
 
-  const SPS* sps = cs.sps.get();
-  ChromaFormat nChromaFormat = sps->getChromaFormatIdc();
-  const int startHeight = blkDst.y;
-  const int endHeight = blkDst.y + blkDst.height;
-  const int startWidth = blkDst.x;
-  const int endWidth = blkDst.x + blkDst.width;
-  //const int scaleX = getComponentScaleX( compId, nChromaFormat );
+  const int  startHeight   = blkDst.y;
+  const int  endHeight     = blkDst.y + blkDst.height;
+  const int  startWidth    = blkDst.x;
+  const int  endWidth      = blkDst.x + blkDst.width;
+  const auto nChromaFormat = recSrc.chromaFormat;
+  // const int scaleX = getComponentScaleX( compId, nChromaFormat );
   const int scaleY = getComponentScaleY( compId, nChromaFormat );
 
   CHECK( startHeight % clsSizeY, "Wrong startHeight in filtering" );
@@ -1643,13 +1690,13 @@ void simdFilterBlkCcAlf<AVX2>( const PelBuf &dstBuf, const CPelUnitBuf &recSrc, 
 
       chromaPtr += chromaStride * clsSizeY;
 
-      lumaPtr += lumaStride * clsSizeY << getComponentScaleY( compId, nChromaFormat );
+      lumaPtr += lumaStride * clsSizeY << scaleY;
     }
   }
   else
   {
     // TODO: implement for 444 subsampling
-    AdaptiveLoopFilter::filterBlkCcAlf<CC_ALF>( dstBuf, recSrc, blkDst, blkSrc, compId, filterCoeff, clpRngs, cs, vbCTUHeight, vbPos );
+    AdaptiveLoopFilter::filterBlkCcAlf( dstBuf, recSrc, blkDst, blkSrc, compId, filterCoeff, clpRngs, vbCTUHeight, vbPos );
   }
 }
 
@@ -1665,5 +1712,7 @@ void AdaptiveLoopFilter::_initAdaptiveLoopFilterX86()
 }
 
 template void AdaptiveLoopFilter::_initAdaptiveLoopFilterX86<SIMDX86>();
+
+}
+
 #endif //#ifdef TARGET_SIMD_X86
-//! \}

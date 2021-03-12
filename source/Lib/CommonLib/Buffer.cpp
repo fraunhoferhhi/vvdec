@@ -14,7 +14,7 @@ Einsteinufer 37
 www.hhi.fraunhofer.de/vvc
 vvc@hhi.fraunhofer.de
 
-Copyright (c) 2018-2020, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. 
+Copyright (c) 2018-2021, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. 
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -51,9 +51,15 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #define DONT_UNDEF_SIZE_AWARE_PER_EL_OP
 
 // unit needs to come first due to a forward declaration
+
 #include "Unit.h"
 #include "Buffer.h"
 #include "InterpolationFilter.h"
+#include "Picture.h"
+#include "Slice.h"
+
+namespace vvdec
+{
 
 template< typename T >
 void addAvgCore( const T* src1, ptrdiff_t src1Stride, const T* src2, ptrdiff_t src2Stride, T* dest, ptrdiff_t dstStride, int width, int height, int rshift, int offset, const ClpRng& clpRng )
@@ -161,11 +167,13 @@ void addWeightedAvgCore( const T* src1, ptrdiff_t src1Stride, const T* src2, ptr
 
 void copyBufferCore( const char *src, ptrdiff_t srcStride, char *dst, ptrdiff_t dstStride, int width, int height )
 {
+#if ENABLE_SIMD_OPT_BUFFER && defined( TARGET_SIMD_X86 )
   _mm_prefetch( (const char *) ( src ),             _MM_HINT_T0 );
   _mm_prefetch( (const char *) ( src + srcStride ), _MM_HINT_T0 );
   _mm_prefetch( (const char *) ( dst ),             _MM_HINT_T0 );
   _mm_prefetch( (const char *) ( dst + dstStride ), _MM_HINT_T0 );
 
+#endif
   if( width == srcStride && width == dstStride )
   {
     memcpy( dst, src, width * height );
@@ -173,9 +181,11 @@ void copyBufferCore( const char *src, ptrdiff_t srcStride, char *dst, ptrdiff_t 
 
   for( int i = 0; i < height; i++ )
   {
+#if ENABLE_SIMD_OPT_BUFFER && defined( TARGET_SIMD_X86 )
     _mm_prefetch( (const char *) ( src + srcStride ), _MM_HINT_T0 );
     _mm_prefetch( (const char *) ( dst + dstStride ), _MM_HINT_T0 );
 
+#endif
     memcpy( dst, src, width );
 
     src += srcStride;
@@ -244,6 +254,94 @@ void fillN_CuCore( CodingUnit** ptr, ptrdiff_t ptrStride, int width, int height,
   }
 }
 
+void sampleRateConvCore( const std::pair<int, int> scalingRatio, const std::pair<int, int> compScale,
+                         const Pel* orgSrc, const int orgStride, const int orgWidth, const int orgHeight,
+                         const int beforeScaleLeftOffset, const int beforeScaleTopOffset,
+                         Pel* scaledSrc, const int scaledStride, const int scaledWidth, const int scaledHeight,
+                         const int afterScaleLeftOffset, const int afterScaleTopOffset,
+                         const int bitDepth, const bool useLumaFilter,
+                         const bool horCollocatedPositionFlag, const bool verCollocatedPositionFlag )
+{
+  if( orgWidth == scaledWidth && orgHeight == scaledHeight && scalingRatio == SCALE_1X && !beforeScaleLeftOffset && !beforeScaleTopOffset && !afterScaleLeftOffset && !afterScaleTopOffset )
+  {
+    g_pelBufOP.copyBuffer( ( const char * ) orgSrc, orgStride * sizeof( Pel ), ( char* ) scaledSrc, scaledStride * sizeof( Pel ), orgWidth * sizeof( Pel ), orgHeight );
+
+    return;
+  }
+
+  const TFilterCoeff* filterHor = useLumaFilter ? &InterpolationFilter::m_lumaFilter[0][0] : &InterpolationFilter::m_chromaFilter[0][0];
+  const TFilterCoeff* filterVer = useLumaFilter ? &InterpolationFilter::m_lumaFilter[0][0] : &InterpolationFilter::m_chromaFilter[0][0];
+
+  const int numFracPositions  = useLumaFilter ? 15 : 31;
+  const int numFracShift      = useLumaFilter ? 4 : 5;
+  const int posShiftX         = SCALE_RATIO_BITS - numFracShift + compScale.first;
+  const int posShiftY         = SCALE_RATIO_BITS - numFracShift + compScale.second;
+  int addX  = (1 << (posShiftX - 1)) + (beforeScaleLeftOffset << SCALE_RATIO_BITS) + ((int( 1 - horCollocatedPositionFlag ) * 8 * (scalingRatio.first - SCALE_1X.first) + (1 << (2 + compScale.first))) >> (3 + compScale.first));
+  int addY  = (1 << (posShiftY - 1)) + (beforeScaleTopOffset << SCALE_RATIO_BITS) + ((int( 1 - verCollocatedPositionFlag ) * 8 * (scalingRatio.second - SCALE_1X.second) + (1 << (2 + compScale.second))) >> (3 + compScale.second));
+
+  const int filterLength = useLumaFilter ? NTAPS_LUMA : NTAPS_CHROMA;
+  const int log2Norm     = 12;
+
+  int* buf = new int[orgHeight * scaledWidth];
+  int maxVal = (1 << bitDepth) - 1;
+
+  CHECK( bitDepth > 17, "Overflow may happen!" );
+
+  for( int i = 0; i < scaledWidth; i++ )
+  {
+    const Pel* org = orgSrc;
+    int refPos = (((i << compScale.first) - afterScaleLeftOffset) * scalingRatio.first + addX) >> posShiftX;
+    int integer = refPos >> numFracShift;
+    int frac = refPos & numFracPositions;
+    int* tmp = buf + i;
+
+    for( int j = 0; j < orgHeight; j++ )
+    {
+      int sum = 0;
+      const TFilterCoeff* f = filterHor + frac * filterLength;
+
+      for( int k = 0; k < filterLength; k++ )
+      {
+        int xInt = std::min<int>( std::max( 0, integer + k - filterLength / 2 + 1 ), orgWidth - 1 );
+        sum += f[k] * org[xInt]; // postpone horizontal filtering gain removal after vertical filtering
+      }
+
+      *tmp = sum;
+
+      tmp += scaledWidth;
+      org += orgStride;
+    }
+  }
+
+  Pel* dst = scaledSrc;
+
+  for( int j = 0; j < scaledHeight; j++ )
+  {
+    int refPos = (((j << compScale.second) - afterScaleTopOffset) * scalingRatio.second + addY) >> posShiftY;
+    int integer = refPos >> numFracShift;
+    int frac = refPos & numFracPositions;
+
+    for( int i = 0; i < scaledWidth; i++ )
+    {
+      int sum = 0;
+      int* tmp = buf + i;
+      const TFilterCoeff* f = filterVer + frac * filterLength;
+
+      for( int k = 0; k < filterLength; k++ )
+      {
+        int yInt = std::min<int>( std::max( 0, integer + k - filterLength / 2 + 1 ), orgHeight - 1 );
+        sum += f[k] * tmp[yInt * scaledWidth];
+      }
+
+      dst[i] = std::min<int>( std::max( 0, (sum + (1 << (log2Norm - 1))) >> log2Norm ), maxVal );
+    }
+
+    dst += scaledStride;
+  }
+
+  delete[] buf;
+}
+
 PelBufferOps::PelBufferOps()
 {
   addAvg4  = addAvgCore<Pel>;
@@ -269,6 +367,8 @@ PelBufferOps::PelBufferOps()
   applyLut = applyLutCore;
 
   fillN_CU = fillN_CuCore;
+
+  sampleRateConv = sampleRateConvCore;
 }
 
 PelBufferOps g_pelBufOP = PelBufferOps();
@@ -311,6 +411,23 @@ void AreaBuf<Pel>::addWeightedAvg(const AreaBuf<const Pel> &other1, const AreaBu
 #undef ADD_AVG_OP
 #undef ADD_AVG_INC
   }
+}
+
+template<>
+void AreaBuf<Pel>::rescaleBuf( const AreaBuf<const Pel>& beforeScaling, ComponentID compID, const std::pair<int, int> scalingRatio, const Window& confBefore, const Window& confAfter, const ChromaFormat chromaFormatIDC, const BitDepths& bitDepths, const bool horCollocatedChromaFlag, const bool verCollocatedChromaFlag )
+{
+#if ENABLE_SIMD_OPT_BUFFER
+  g_pelBufOP.sampleRateConv
+#else
+  sampleRateConvCore
+#endif
+                           ( scalingRatio, std::pair<int, int>( getComponentScaleX( compID, chromaFormatIDC ), getComponentScaleY( compID, chromaFormatIDC ) ),
+                             beforeScaling.buf, beforeScaling.stride, beforeScaling.width, beforeScaling.height,
+                             confBefore.getWindowLeftOffset() * SPS::getWinUnitX( chromaFormatIDC ), confBefore.getWindowTopOffset() * SPS::getWinUnitY( chromaFormatIDC ),
+                             buf, stride, width, height,
+                             confAfter.getWindowLeftOffset() * SPS::getWinUnitX( chromaFormatIDC ), confAfter.getWindowTopOffset() * SPS::getWinUnitY( chromaFormatIDC ),
+                             bitDepths.recon[toChannelType( compID )], isLuma( compID ),
+                             isLuma( compID ) ? 1 : horCollocatedChromaFlag, isLuma( compID ) ? 1 : verCollocatedChromaFlag );
 }
 
 template<>
@@ -572,8 +689,8 @@ void PelStorage::create( const ChromaFormat _chromaFormat, const Size& _size, co
   for( uint32_t i = 0; i < numCh; i++ )
   {
     const ComponentID compID = ComponentID( i );
-    const unsigned scaleX = ::getComponentScaleX( compID, _chromaFormat );
-    const unsigned scaleY = ::getComponentScaleY( compID, _chromaFormat );
+    const unsigned scaleX = getComponentScaleX( compID, _chromaFormat );
+    const unsigned scaleY = getComponentScaleY( compID, _chromaFormat );
 
     unsigned scaledHeight = extHeight >> scaleY;
     unsigned scaledWidth  = extWidth  >> scaleX;
@@ -609,7 +726,7 @@ void PelStorage::createFromBuf( PelUnitBuf buf )
 {
   chromaFormat = buf.chromaFormat;
 
-  const uint32_t numCh = ::getNumberValidComponents( chromaFormat );
+  const uint32_t numCh = getNumberValidComponents( chromaFormat );
 
   bufs.resize(numCh);
 
@@ -622,7 +739,7 @@ void PelStorage::createFromBuf( PelUnitBuf buf )
 
 void PelStorage::swap( PelStorage& other )
 {
-  const uint32_t numCh = ::getNumberValidComponents( chromaFormat );
+  const uint32_t numCh = getNumberValidComponents( chromaFormat );
 
   for( uint32_t i = 0; i < numCh; i++ )
   {
@@ -733,5 +850,24 @@ void UnitBuf<Pel>::colorSpaceConvert( const UnitBuf<Pel> &other, const ClpRng& c
     pDst1 += strideDst;
     pDst2 += strideDst;
   }
+}
+
+template void UnitBuf<Pel>::writeToFile( std::string filename ) const;
+
+template<typename T>
+void UnitBuf<T>::writeToFile( std::string filename ) const
+{
+  FILE* f = fopen( filename.c_str(), "w" );
+
+  for( auto& b: bufs )
+  {
+    for( unsigned y = 0; y < b.height; y++ )
+    {
+      fwrite( b.bufAt( 0, y ), sizeof( T ), b.width, f );
+    }
+  }
+
+  fclose( f );
+}
 
 }

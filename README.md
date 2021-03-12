@@ -69,6 +69,10 @@ To generate a solution for the default builder on your system simply call:
 To run the simple conformance test suite (if the bitstreams are downloaded and available) call:
 
     make test
+    
+The above call only tests the sequences that are know to work. To run a test over all conformance sequences with supported profile call:
+
+    make test-all
 
 # Contributing
 
@@ -84,6 +88,6 @@ Please see [LICENSE.txt](./LICENSE.txt) file for the terms of use of the content
 
 For more information, please contact: vvc@hhi.fraunhofer.de
 
-**Copyright (c) 2018-2020 Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V.**
+**Copyright (c) 2018-2021 Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V.**
 
 **All rights reserved.**

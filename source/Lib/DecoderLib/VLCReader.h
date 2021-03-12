@@ -14,7 +14,7 @@ Einsteinufer 37
 www.hhi.fraunhofer.de/vvc
 vvc@hhi.fraunhofer.de
 
-Copyright (c) 2018-2020, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. 
+Copyright (c) 2018-2021, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. 
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -48,8 +48,7 @@ THE POSSIBILITY OF SUCH DAMAGE.
  *  \brief    Reader for high level syntax
  */
 
-#ifndef __VLCREADER__
-#define __VLCREADER__
+#pragma once
 
 #include "CommonLib/Rom.h"
 #include "CommonLib/BitStream.h"
@@ -77,8 +76,8 @@ THE POSSIBILITY OF SUCH DAMAGE.
 
 #endif
 
-//! \ingroup DecoderLib
-//! \{
+namespace vvdec
+{
 
 // ====================================================================================================================
 // Class definition
@@ -142,15 +141,14 @@ public:
 class HLSyntaxReader : public VLCReader
 {
 public:
-  HLSyntaxReader();
-  virtual ~HLSyntaxReader();
+  HLSyntaxReader()          = default;
+  virtual ~HLSyntaxReader() = default;
 
 protected:
   void  copyRefPicList      ( SPS* pcSPS, ReferencePictureList* source_rpl, ReferencePictureList* dest_rpl );
   void  parseRefPicList     (const SPS* pcSPS, ReferencePictureList* rpl, int rplIdx );
 
 public:
-  void  setBitstream        ( InputBitstream* p )   { m_pcBitstream = p; }
   void  parseVPS            ( VPS* pcVPS );
   void  parseDCI            ( DCI* dci );
   void  parseSPS            ( SPS* pcSPS, ParameterSetManager *parameterSetManager );
@@ -169,7 +167,7 @@ public:
   void  parseOlsHrdParameters    ( GeneralHrdParams* generalHrd, OlsHrdParams *olsHrd, uint32_t firstSubLayer, uint32_t tempLevelHigh );
   void  parseGeneralHrdParameters( GeneralHrdParams *generalHrd );
   void  parsePictureHeader  ( PicHeader* picHeader, ParameterSetManager *parameterSetManager, bool readRbspTrailingBits );
-  void  parseSliceHeader    ( Slice* pcSlice, PicHeader* parsedPicHeader, ParameterSetManager *parameterSetManager, const int prevTid0POC, Picture* parsePic );
+  void  parseSliceHeader    ( Slice* pcSlice, PicHeader* parsedPicHeader, ParameterSetManager *parameterSetManager, const int prevTid0POC, Picture* parsePic , bool& firstSliceInPic );
   template<typename HeaderT>
   void  parsePicOrSliceHeaderRPL( HeaderT* header, const SPS* sps, const PPS* pps );
   void  checkAlfNaluTidAndPicTid( Slice* pcSlice, PicHeader* picHeader, ParameterSetManager *parameterSetManager);
@@ -195,7 +193,4 @@ protected:
   bool  xMoreRbspData();
 };
 
-
-//! \}
-
-#endif
+}

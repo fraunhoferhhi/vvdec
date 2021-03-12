@@ -14,7 +14,7 @@ Einsteinufer 37
 www.hhi.fraunhofer.de/vvc
 vvc@hhi.fraunhofer.de
 
-Copyright (c) 2018-2020, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. 
+Copyright (c) 2018-2021, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. 
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -62,8 +62,8 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #include <stdio.h>
 #include <math.h>
 
-//! \ingroup CommonLib
-//! \{
+namespace vvdec
+{
 
 void SampleAdaptiveOffset::offsetBlock_core( const int            channelBitDepth,
                                              const ClpRng&        clpRng,
@@ -351,7 +351,7 @@ SampleAdaptiveOffset::~SampleAdaptiveOffset()
 void SampleAdaptiveOffset::create( int picWidth, int picHeight, ChromaFormat format, uint32_t maxCUWidth, uint32_t maxCUHeight, uint32_t maxCUDepth, uint32_t lumaBitShift, uint32_t chromaBitShift )
 {
   offsetBlock = offsetBlock_core;
-#if ENABLE_SIMD_OPT_SAO
+#if ENABLE_SIMD_OPT_SAO && defined( TARGET_SIMD_X86 )
   initSampleAdaptiveOffsetX86();
 #endif
 
@@ -698,11 +698,11 @@ void SampleAdaptiveOffset::offsetCTU( const UnitArea& area, const CPelUnitBuf& s
 
       for (int i = 0; i < numHorVirBndry; i++)
       {
-        horVirBndryPosComp[i] = (horVirBndryPos[i] >> ::getComponentScaleY(compID, area.chromaFormat)) - compArea.y;
+        horVirBndryPosComp[i] = (horVirBndryPos[i] >> getComponentScaleY(compID, area.chromaFormat)) - compArea.y;
       }
       for (int i = 0; i < numVerVirBndry; i++)
       {
-        verVirBndryPosComp[i] = (verVirBndryPos[i] >> ::getComponentScaleX(compID, area.chromaFormat)) - compArea.x;
+        verVirBndryPosComp[i] = (verVirBndryPos[i] >> getComponentScaleX(compID, area.chromaFormat)) - compArea.x;
       }
 
       offsetBlock( cs.sps->getBitDepth(toChannelType(compID)),
@@ -752,94 +752,61 @@ void SampleAdaptiveOffset::deriveLoopFilterBoundaryAvailibility( CodingStructure
   const CodingUnit* cuBelowLeft   = cuLeft  && cuBelow  ? cs.getCtuData( ctuX - 1, ctuY + 1 ).cuPtr[0][0] : nullptr;
   const CodingUnit* cuBelowRight  = cuRight && cuBelow  ? cs.getCtuData( ctuX + 1, ctuY + 1 ).cuPtr[0][0] : nullptr;
 
+  isLeftAvail       = (cuLeft       != NULL);
+  isAboveAvail      = (cuAbove      != NULL);
+  isRightAvail      = (cuRight      != NULL);
+  isBelowAvail      = (cuBelow      != NULL);
+  isAboveLeftAvail  = (cuAboveLeft  != NULL);
+  isAboveRightAvail = (cuAboveRight != NULL);
+  isBelowLeftAvail  = (cuBelowLeft  != NULL);
+  isBelowRightAvail = (cuBelowRight != NULL);
 
   // check cross slice flags
   const bool isLoopFilterAcrossSlicePPS = cs.pps->getLoopFilterAcrossSlicesEnabledFlag();
   if (!isLoopFilterAcrossSlicePPS)
   {
-    isLeftAvail       = (cuLeft == NULL)       ? false : CU::isSameSlice(*cuCurr, *cuLeft);
-    isAboveAvail      = (cuAbove == NULL)      ? false : CU::isSameSlice(*cuCurr, *cuAbove);
-    isRightAvail      = (cuRight == NULL)      ? false : CU::isSameSlice(*cuCurr, *cuRight);
-    isBelowAvail      = (cuBelow == NULL)      ? false : CU::isSameSlice(*cuCurr, *cuBelow);
-    isAboveLeftAvail  = (cuAboveLeft == NULL)  ? false : CU::isSameSlice(*cuCurr, *cuAboveLeft);
-    isAboveRightAvail = (cuAboveRight == NULL) ? false : CU::isSameSlice(*cuCurr, *cuAboveRight);
-    isBelowLeftAvail  = (cuBelowLeft == NULL)  ? false : CU::isSameSlice(*cuCurr, *cuBelowLeft);
-    isBelowRightAvail = (cuBelowRight == NULL) ? false : CU::isSameSlice(*cuCurr, *cuBelowRight);
-  }
-  else
-  {
-    isLeftAvail       = (cuLeft != NULL);
-    isAboveAvail      = (cuAbove != NULL);
-    isRightAvail      = (cuRight != NULL);
-    isBelowAvail      = (cuBelow != NULL);
-    isAboveLeftAvail  = (cuAboveLeft != NULL);
-    isAboveRightAvail = (cuAboveRight != NULL);
-    isBelowLeftAvail  = (cuBelowLeft != NULL);
-    isBelowRightAvail = (cuBelowRight != NULL);
+    isLeftAvail       = isLeftAvail       && CU::isSameSlice(*cuCurr, *cuLeft);
+    isAboveAvail      = isAboveAvail      && CU::isSameSlice(*cuCurr, *cuAbove);
+    isRightAvail      = isRightAvail      && CU::isSameSlice(*cuCurr, *cuRight);
+    isBelowAvail      = isBelowAvail      && CU::isSameSlice(*cuCurr, *cuBelow);
+    isAboveLeftAvail  = isAboveLeftAvail  && CU::isSameSlice(*cuCurr, *cuAboveLeft);
+    isAboveRightAvail = isAboveRightAvail && CU::isSameSlice(*cuCurr, *cuAboveRight);
+    isBelowLeftAvail  = isBelowLeftAvail  && CU::isSameSlice(*cuCurr, *cuBelowLeft);
+    isBelowRightAvail = isBelowRightAvail && CU::isSameSlice(*cuCurr, *cuBelowRight);
   }
 
   // check cross tile flags
   const bool isLoopFilterAcrossTilePPS = cs.pps->getLoopFilterAcrossTilesEnabledFlag();
   if (!isLoopFilterAcrossTilePPS)
   {
-    isLeftAvail       = (!isLeftAvail)       ? false : CU::isSameTile(*cuCurr, *cuLeft);
-    isAboveAvail      = (!isAboveAvail)      ? false : CU::isSameTile(*cuCurr, *cuAbove);
-    isRightAvail      = (!isRightAvail)      ? false : CU::isSameTile(*cuCurr, *cuRight);
-    isBelowAvail      = (!isBelowAvail)      ? false : CU::isSameTile(*cuCurr, *cuBelow);
-    isAboveLeftAvail  = (!isAboveLeftAvail)  ? false : CU::isSameTile(*cuCurr, *cuAboveLeft);
-    isAboveRightAvail = (!isAboveRightAvail) ? false : CU::isSameTile(*cuCurr, *cuAboveRight);
-    isBelowLeftAvail  = (!isBelowLeftAvail)  ? false : CU::isSameTile(*cuCurr, *cuBelowLeft);
-    isBelowRightAvail = (!isBelowRightAvail) ? false : CU::isSameTile(*cuCurr, *cuBelowRight);
+    isLeftAvail       = isLeftAvail       && CU::isSameTile(*cuCurr, *cuLeft);
+    isAboveAvail      = isAboveAvail      && CU::isSameTile(*cuCurr, *cuAbove);
+    isRightAvail      = isRightAvail      && CU::isSameTile(*cuCurr, *cuRight);
+    isBelowAvail      = isBelowAvail      && CU::isSameTile(*cuCurr, *cuBelow);
+    isAboveLeftAvail  = isAboveLeftAvail  && CU::isSameTile(*cuCurr, *cuAboveLeft);
+    isAboveRightAvail = isAboveRightAvail && CU::isSameTile(*cuCurr, *cuAboveRight);
+    isBelowLeftAvail  = isBelowLeftAvail  && CU::isSameTile(*cuCurr, *cuBelowLeft);
+    isBelowRightAvail = isBelowRightAvail && CU::isSameTile(*cuCurr, *cuBelowRight);
   }
 
 #if JVET_O1143_LPF_ACROSS_SUBPIC_BOUNDARY
   // check cross subpic flags
-  const SPS             &sps    = *cs.sps;
-
-  
-  if( sps.getSubPicInfoPresentFlag() )
+  if( cs.sps->getSubPicInfoPresentFlag() )
   {
     const SubPic& curSubPic = cs.pps->getSubPicFromCU(*cuCurr);
     if( !curSubPic.getloopFilterAcrossSubPicEnabledFlag() )
     {
-      isLeftAvail       = (!isLeftAvail)       ? false : CU::isSameSubPic(*cuCurr, *cuLeft);
-      isAboveAvail      = (!isAboveAvail)      ? false : CU::isSameSubPic(*cuCurr, *cuAbove);
-      isRightAvail      = (!isRightAvail)      ? false : CU::isSameSubPic(*cuCurr, *cuRight);
-      isBelowAvail      = (!isBelowAvail)      ? false : CU::isSameSubPic(*cuCurr, *cuBelow);
-      isAboveLeftAvail  = (!isAboveLeftAvail)  ? false : CU::isSameSubPic(*cuCurr, *cuAboveLeft);
-      isAboveRightAvail = (!isAboveRightAvail) ? false : CU::isSameSubPic(*cuCurr, *cuAboveRight);
-      isBelowLeftAvail  = (!isBelowLeftAvail)  ? false : CU::isSameSubPic(*cuCurr, *cuBelowLeft);
-      isBelowRightAvail = (!isBelowRightAvail) ? false : CU::isSameSubPic(*cuCurr, *cuBelowRight);
+      isLeftAvail       = isLeftAvail       && CU::isSameSubPic(*cuCurr, *cuLeft);
+      isAboveAvail      = isAboveAvail      && CU::isSameSubPic(*cuCurr, *cuAbove);
+      isRightAvail      = isRightAvail      && CU::isSameSubPic(*cuCurr, *cuRight);
+      isBelowAvail      = isBelowAvail      && CU::isSameSubPic(*cuCurr, *cuBelow);
+      isAboveLeftAvail  = isAboveLeftAvail  && CU::isSameSubPic(*cuCurr, *cuAboveLeft);
+      isAboveRightAvail = isAboveRightAvail && CU::isSameSubPic(*cuCurr, *cuAboveRight);
+      isBelowLeftAvail  = isBelowLeftAvail  && CU::isSameSubPic(*cuCurr, *cuBelowLeft);
+      isBelowRightAvail = isBelowRightAvail && CU::isSameSubPic(*cuCurr, *cuBelowRight);
     }
   }
 #endif
-}
-
-bool SampleAdaptiveOffset::isCrossedByVirtualBoundaries( const PicHeader* picHeader, const Area& area, int& numHorVirBndry, int& numVerVirBndry, int horVirBndryPos[], int verVirBndryPos[] )
-{
-  numHorVirBndry = 0;
-  numVerVirBndry = 0;
-  if( !picHeader->getVirtualBoundariesPresentFlag() )
-  {
-    return false;
-  }
-
-  for( int i = 0; i < picHeader->getNumHorVirtualBoundaries(); i++ )
-  {
-    if( area.y <= picHeader->getVirtualBoundariesPosY( i ) && picHeader->getVirtualBoundariesPosY( i ) <= area.y + area.height )
-    {
-      horVirBndryPos[numHorVirBndry++] = picHeader->getVirtualBoundariesPosY( i );
-    }
-  }
-  for( int i = 0; i < picHeader->getNumVerVirtualBoundaries(); i++ )
-  {
-    if( area.x <= picHeader->getVirtualBoundariesPosX( i ) && picHeader->getVirtualBoundariesPosX( i ) <= area.x + area.width )
-    {
-      verVirBndryPos[numVerVirBndry++] = picHeader->getVirtualBoundariesPosX( i );
-    }
-  }
-
-  return numHorVirBndry > 0 || numVerVirBndry > 0;
 }
 
 bool SampleAdaptiveOffset::isProcessDisabled( int xPos, int yPos, int numVerVirBndry, int numHorVirBndry, int verVirBndryPos[], int horVirBndryPos[] )
@@ -861,4 +828,5 @@ bool SampleAdaptiveOffset::isProcessDisabled( int xPos, int yPos, int numVerVirB
 
   return false;
 }
-//! \}
+
+}

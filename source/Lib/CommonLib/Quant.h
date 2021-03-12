@@ -14,7 +14,7 @@ Einsteinufer 37
 www.hhi.fraunhofer.de/vvc
 vvc@hhi.fraunhofer.de
 
-Copyright (c) 2018-2020, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. 
+Copyright (c) 2018-2021, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. 
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -48,8 +48,7 @@ THE POSSIBILITY OF SUCH DAMAGE.
     \brief    base quantization class (header)
 */
 
-#ifndef __QUANT__
-#define __QUANT__
+#pragma once
 
 #include "CommonDef.h"
 #include "Unit.h"
@@ -59,8 +58,8 @@ THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "UnitPartitioner.h"
 
-//! \ingroup CommonLib
-//! \{
+namespace vvdec
+{
 
 // ====================================================================================================================
 // Constants
@@ -126,7 +125,7 @@ public:
   virtual ~Quant();
 
   // initialize class
-  virtual void init( Slice *slice );
+  virtual void init( const Picture *pic );
 public:
   // de-quantization
   virtual void dequant           ( const TransformUnit &tu, CoeffBuf &dstCoeff, const ComponentID &compID, const QpParam &cQP );
@@ -146,7 +145,7 @@ private:
   void ( *DeQuantPCM) (const int maxX,const int restX,const int maxY,const int scale,TCoeff   *const piQCoef,const size_t piQCfStride,TCoeff   *const piCoef,const int rightShift,const int inputMaximum,const TCoeff transformMaximum);
 
 
-#if ENABLE_SIMD_OPT_QUANT
+#if ENABLE_SIMD_OPT_QUANT && defined( TARGET_SIMD_X86 )
   void initQuantX86();
   template <X86_VEXT vext>
   void _initQuantX86();
@@ -155,7 +154,4 @@ private:
 
 };// END CLASS DEFINITION Quant
 
-
-//! \}
-
-#endif // __QUANT__
+}

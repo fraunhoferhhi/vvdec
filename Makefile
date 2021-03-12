@@ -55,6 +55,10 @@ ifneq ($(disable-lto),)
 CONFIG_OPTIONS += -DVVDEC_ENABLE_LINK_TIME_OPT=OFF
 endif
 
+ifneq ($(osx-arch),)
+CONFIG_OPTIONS += -DCMAKE_OSX_ARCHITECTURES=$(osx-arch)
+endif
+
 ifeq ($(j),)
 # Query cmake for the number of cores
 NUM_JOBS := $(shell cmake -P cmake/modules/vvdecNumCores.cmake)
@@ -256,16 +260,12 @@ install-ds: install-debug-shared
 install-p: install-relwithdebinfo
 install-ps: install-relwithdebinfo-shared
 
-
-ifeq ($(CMAKE_MCONFIG),)
-TEST_TARGET := test
-else
-TEST_TARGET := RUN_TESTS
-endif
-
 # test target
 test: release
-	cmake $(BUILD_OPTIONS-release) --target $(TEST_TARGET) $(BUILD_TOOL_OPTIONS)
+	cmake $(BUILD_OPTIONS-release) --target test-ok $(BUILD_TOOL_OPTIONS)
+  
+test-all: release
+	cmake $(BUILD_OPTIONS-release) --target test-all $(BUILD_TOOL_OPTIONS)
 
 #
 # project specific targets

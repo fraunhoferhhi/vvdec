@@ -14,7 +14,7 @@ Einsteinufer 37
 www.hhi.fraunhofer.de/vvc
 vvc@hhi.fraunhofer.de
 
-Copyright (c) 2018-2020, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. 
+Copyright (c) 2018-2021, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. 
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -48,13 +48,15 @@ THE POSSIBILITY OF SUCH DAMAGE.
  *  \brief    defines operations for basic units
  */
 
-#ifndef __UNITTOOLS__
-#define __UNITTOOLS__
+#pragma once
 
 #include "Unit.h"
 #include "UnitPartitioner.h"
 #include "ContextModelling.h"
 #include "InterPrediction.h"
+
+namespace vvdec
+{
 
 UnitArea getArea( const Slice &slice, const UnitArea &area, const ChannelType chType, const TreeType treeType = TREE_D );
 
@@ -74,9 +76,9 @@ namespace CU
   bool isSameCtu                      (const CodingUnit &cu, const CodingUnit &cu2);
   bool isSameSlice                    (const CodingUnit &cu, const CodingUnit &cu2);
   bool isSameTile                     (const CodingUnit &cu, const CodingUnit &cu2);
-#if JVET_O1143_SUBPIC_BOUNDARY
   bool isSameSubPic                   (const CodingUnit &cu, const CodingUnit &cu2);
-#endif
+  bool isAvailable                    (const CodingUnit &cu, const CodingUnit &cu2, const bool bEnforceSliceRestriction, const bool bEnforceTileRestriction, const bool bEnforceSubPicRestriction);
+
   uint32_t getCtuAddr                 (const CodingUnit &cu);
 
   int  predictQP                      (const CodingUnit& cu, const int prevQP );
@@ -140,7 +142,7 @@ namespace PU
   void getIBCMergeCandidates          (const PredictionUnit &pu, MergeCtx& mrgCtx, MotionHist &hist, const int& mrgCandIdx = -1);
   void getInterMMVDMergeCandidates    (const PredictionUnit &pu, MergeCtx& mrgCtx, const int& mrgCandIdx = -1);
   int getDistScaleFactor              (const int &currPOC, const int &currRefPOC, const int &colPOC, const int &colRefPOC);
-  bool isDiffMER                      (const PredictionUnit &pu, const PredictionUnit &pu2);
+  bool isDiffMER                      (const Position &pos1, const Position &pos2, const unsigned plevel);
   bool getColocatedMVP                (const PredictionUnit &pu, const RefPicList &eRefPicList, const Position &pos, Mv& rcMv, const int &refIdx);
   void fillMvpCand                    (      PredictionUnit &pu, const RefPicList &eRefPicList, const int &refIdx, AMVPInfo &amvpInfo, MotionHist& hist);
   void fillIBCMvpCand                 (      PredictionUnit &pu, AMVPInfo &amvpInfo, MotionHist& hist);
@@ -194,4 +196,12 @@ UnitArea getLineArea       (const CodingStructure& cs, unsigned line, bool clipT
 int  getNumModesMip   (const Size& block);
 int getMipSizeId      (const Size& block);
 bool allowLfnstWithMip(const Size& block);
-#endif
+
+bool isCrossedByVirtualBoundaries( const PicHeader* picHeader,
+                                   const Area&      area,
+                                   int&             numHorVirBndry,
+                                   int&             numVerVirBndry,
+                                   int              horVirBndryPos[],
+                                   int              verVirBndryPos[] );
+
+}

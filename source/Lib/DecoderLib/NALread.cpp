@@ -14,7 +14,7 @@ Einsteinufer 37
 www.hhi.fraunhofer.de/vvc
 vvc@hhi.fraunhofer.de
 
-Copyright (c) 2018-2020, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. 
+Copyright (c) 2018-2021, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. 
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -61,15 +61,15 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #include "CommonLib/Rom.h"
 #include "CommonLib/dtrace_next.h"
 
-
-using namespace std;
+namespace vvdec
+{
 
 //! \ingroup DecoderLib
 //! \{
-static void convertPayloadToRBSP(vector<uint8_t>& nalUnitBuf, InputBitstream *bitstream, bool isVclNalUnit)
+static void convertPayloadToRBSP(std::vector<uint8_t>& nalUnitBuf, InputBitstream *bitstream, bool isVclNalUnit)
 {
   uint32_t zeroCount = 0;
-  vector<uint8_t>::iterator it_read, it_write;
+  std::vector<uint8_t>::iterator it_read, it_write;
 
   uint32_t pos = 0;
   bitstream->clearEmulationPreventionByteLocation();
@@ -164,7 +164,7 @@ void InputNALUnit::readNalUnitHeader()
  */
 void InputNALUnit::read()
 {
-  vector<uint8_t> & nalUnitBuf = m_Bitstream.getFifo();
+  std::vector<uint8_t> & nalUnitBuf = m_Bitstream.getFifo();
 
   // perform anti-emulation prevention
   convertPayloadToRBSP( nalUnitBuf, &m_Bitstream, ( nalUnitBuf[0] & 64 ) == 0 );
@@ -179,4 +179,4 @@ bool InputNALUnit::checkPictureHeaderInSliceHeaderFlag( InputNALUnit& nalu )
   return (bool)bitstream.read(1);
 }
 
-//! \}
+}

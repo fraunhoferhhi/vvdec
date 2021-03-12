@@ -14,7 +14,7 @@ Einsteinufer 37
 www.hhi.fraunhofer.de/vvc
 vvc@hhi.fraunhofer.de
 
-Copyright (c) 2018-2020, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. 
+Copyright (c) 2018-2021, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. 
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -59,15 +59,26 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #include <utility>
 #include <algorithm>
 
+namespace vvdec
+{
+
 static bool isDualITree( const Slice &slice )
 {
+#if GDR_ADJ
+  return slice.isIntra() && slice.getSPS()->getUseDualITree();
+#else
   return slice.isIRAP() && slice.getSPS()->getUseDualITree();
+#endif
 }
 
 
 bool CU::isDualITree( const CodingUnit &cu )
 {
+#if GDR_ADJ
+  return cu.slice->isIntra() && cu.slice->getSPS()->getUseDualITree();
+#else
   return cu.slice->isIRAP() && cu.slice->getSPS()->getUseDualITree();
+#endif
 }
 
 UnitArea getArea( const Slice &slice, const UnitArea &area, const ChannelType chType, const TreeType treeType )
@@ -264,6 +275,13 @@ bool CU::isSameCtu(const CodingUnit& cu, const CodingUnit& cu2)
   Position pos2Ctu(cu2.lumaPos().x >> ctuSizeBit, cu2.lumaPos().y >> ctuSizeBit);
 
   return pos1Ctu.x == pos2Ctu.x && pos1Ctu.y == pos2Ctu.y;
+}
+
+bool CU::isAvailable( const CodingUnit& cu, const CodingUnit& cu2, const bool bEnforceSliceRestriction, const bool bEnforceTileRestriction, const bool bEnforceSubPicRestriction )
+{
+  return ( !bEnforceSliceRestriction || CU::isSameSlice( cu, cu2 ) )
+         && ( !bEnforceTileRestriction || CU::isSameTile( cu, cu2 ) )
+         && ( !bEnforceSubPicRestriction || CU::isSameSubPic( cu, cu2 ) );
 }
 
 uint32_t CU::getCtuAddr( const CodingUnit &cu )
@@ -859,6 +877,7 @@ void PU::getIBCMergeCandidates(const PredictionUnit &pu, MergeCtx& mrgCtx, Motio
 
 void PU::getInterMergeCandidates( const PredictionUnit &pu, MergeCtx& mrgCtx, MotionHist& hist, const int& mrgCandIdx )
 {
+  const unsigned plevel      = pu.cs->sps->getLog2ParallelMergeLevelMinus2() + 2;
   const CodingStructure &cs  = *pu.cs;
   const Slice &slice         = *pu.slice;
   const uint32_t maxNumMergeCand = pu.cs->sps->getMaxNumMergeCand();// slice.getPicHeader()->getMaxNumMergeCand();
@@ -889,7 +908,7 @@ void PU::getInterMergeCandidates( const PredictionUnit &pu, MergeCtx& mrgCtx, Mo
   // above
   const CodingUnit *cuAbove = cs.getCURestricted( posRT.offset( 0, -1 ), cu, CH_L, cu.above );
 
-  bool isAvailableB1 = cuAbove && CU::isInter( *cuAbove ) && isDiffMER( pu, *cuAbove );
+  bool isAvailableB1 = cuAbove && CU::isInter( *cuAbove ) && isDiffMER( pu.lumaPos(), posRT.offset( 0, -1 ), plevel );
 
   if( isAvailableB1 )
   {
@@ -923,7 +942,7 @@ void PU::getInterMergeCandidates( const PredictionUnit &pu, MergeCtx& mrgCtx, Mo
   //left
   const CodingUnit* cuLeft = cs.getCURestricted( posLB.offset( -1, 0 ), cu, CH_L, cu.left );
 
-  const bool isAvailableA1 = cuLeft && CU::isInter( *cuLeft ) && isDiffMER( pu, *cuLeft );
+  const bool isAvailableA1 = cuLeft && CU::isInter( *cuLeft ) && isDiffMER( pu.lumaPos(), posLB.offset( -1, 0 ), plevel );
 
   if( isAvailableA1 )
   {
@@ -962,7 +981,7 @@ void PU::getInterMergeCandidates( const PredictionUnit &pu, MergeCtx& mrgCtx, Mo
   // above right
   const CodingUnit *cuAboveRight = cs.getCURestricted( posRT.offset( 1, -1 ), cu, CH_L, cuAbove );
 
-  bool isAvailableB0 = cuAboveRight && CU::isInter( *cuAboveRight ) && isDiffMER( pu, *cuAboveRight );
+  bool isAvailableB0 = cuAboveRight && CU::isInter( *cuAboveRight ) && isDiffMER( pu.lumaPos(), posRT.offset(1, -1), plevel);
 
   if( isAvailableB0 )
   {
@@ -1001,7 +1020,7 @@ void PU::getInterMergeCandidates( const PredictionUnit &pu, MergeCtx& mrgCtx, Mo
   //left bottom
   const CodingUnit *cuLeftBottom = cs.getCURestricted( posLB.offset( -1, 1 ), cu, CH_L, cuLeft );
 
-  bool isAvailableA0 = cuLeftBottom && CU::isInter( *cuLeftBottom ) && isDiffMER( pu, *cuLeftBottom );
+  bool isAvailableA0 = cuLeftBottom && CU::isInter( *cuLeftBottom ) && isDiffMER( pu.lumaPos(), posLB.offset(-1, 1), plevel);
 
   if( isAvailableA0 )
   {
@@ -1042,7 +1061,7 @@ void PU::getInterMergeCandidates( const PredictionUnit &pu, MergeCtx& mrgCtx, Mo
   {
     const CodingUnit *cuAboveLeft = cs.getCURestricted( posLT.offset( -1, -1 ), cu, CH_L, cu.left ? cu.left : cu.above );
 
-    bool isAvailableB2 = cuAboveLeft && CU::isInter( *cuAboveLeft ) && isDiffMER( pu, *cuAboveLeft );
+    bool isAvailableB2 = cuAboveLeft && CU::isInter( *cuAboveLeft ) && isDiffMER( pu.lumaPos(), posLT.offset(-1, -1), plevel );
 
     if( isAvailableB2 )
     {
@@ -1541,14 +1560,12 @@ bool PU::getColocatedMVP(const PredictionUnit &pu, const RefPicList &eRefPicList
   return true;
 }
 
-bool PU::isDiffMER( const PredictionUnit &pu1, const PredictionUnit &pu2 )
+bool PU::isDiffMER( const Position& pos1, const Position& pos2, const unsigned plevel )
 {
-  const unsigned xN = pu1.lx();
-  const unsigned yN = pu1.ly();
-  const unsigned xP = pu2.lx();
-  const unsigned yP = pu2.ly();
-
-  unsigned plevel = pu1.cs->sps->getLog2ParallelMergeLevelMinus2() + 2;
+  const unsigned xN = pos1.x;
+  const unsigned yN = pos1.y;
+  const unsigned xP = pos2.x;
+  const unsigned yP = pos2.y;
 
   if( ( xN >> plevel ) != ( xP >> plevel ) )
   {
@@ -2366,17 +2383,18 @@ int getAvailableAffineNeighboursForLeftPredictor( const PredictionUnit &pu, cons
 {
   const CodingUnit &cu = pu;
   const Position posLB = pu.Y().bottomLeft();
+  const unsigned plevel = pu.cs->sps->getLog2ParallelMergeLevelMinus2() + 2;
   int num = 0;
 
   const CodingUnit *cuLeftBottom = cu.cs->getCURestricted( posLB.offset( -1, 1 ), cu, CH_L, cu.left );
-  if( cuLeftBottom && cuLeftBottom->affineFlag() && cuLeftBottom->mergeType() == MRG_TYPE_DEFAULT_N && PU::isDiffMER( pu, *cuLeftBottom ) )
+  if( cuLeftBottom && cuLeftBottom->affineFlag() && cuLeftBottom->mergeType() == MRG_TYPE_DEFAULT_N && PU::isDiffMER( pu.lumaPos(), posLB.offset( -1, 1 ), plevel ) )
   {
     npu[num++] = cuLeftBottom;
     return num;
   }
 
   const CodingUnit* cuLeft = cu.cs->getCURestricted( posLB.offset( -1, 0 ), cu, CH_L, cu.left );
-  if( cuLeft && cuLeft->affineFlag() && cuLeft->mergeType() == MRG_TYPE_DEFAULT_N && PU::isDiffMER( pu, *cuLeft ) )
+  if( cuLeft && cuLeft->affineFlag() && cuLeft->mergeType() == MRG_TYPE_DEFAULT_N && PU::isDiffMER( pu.lumaPos(), posLB.offset( -1, 0 ), plevel ) )
   {
     npu[num++] = cuLeft;
     return num;
@@ -2390,24 +2408,25 @@ int getAvailableAffineNeighboursForAbovePredictor( const PredictionUnit &pu, con
   const CodingUnit &cu = pu;
   const Position posLT = pu.Y().topLeft();
   const Position posRT = pu.Y().topRight();
+  const unsigned plevel = pu.cs->sps->getLog2ParallelMergeLevelMinus2() + 2;
   int num = numAffNeighLeft;
 
   const CodingUnit* cuAboveRight = cu.cs->getCURestricted( posRT.offset( 1, -1 ), cu, CH_L, cu.above );
-  if( cuAboveRight && cuAboveRight->affineFlag() && cuAboveRight->mergeType() == MRG_TYPE_DEFAULT_N && PU::isDiffMER( pu, *cuAboveRight ) )
+  if( cuAboveRight && cuAboveRight->affineFlag() && cuAboveRight->mergeType() == MRG_TYPE_DEFAULT_N && PU::isDiffMER( pu.lumaPos(), posRT.offset( 1, -1 ), plevel ) )
   {
     npu[num++] = cuAboveRight;
     return num;
   }
 
   const CodingUnit* cuAbove = cu.cs->getCURestricted( posRT.offset( 0, -1 ), cu, CH_L, cu.above );
-  if( cuAbove && cuAbove->affineFlag() && cuAbove->mergeType() == MRG_TYPE_DEFAULT_N && PU::isDiffMER( pu, *cuAbove ) )
+  if( cuAbove && cuAbove->affineFlag() && cuAbove->mergeType() == MRG_TYPE_DEFAULT_N && PU::isDiffMER( pu.lumaPos(), posRT.offset( 0, -1 ), plevel ) )
   {
     npu[num++] = cuAbove;
     return num;
   }
 
   const CodingUnit *cuAboveLeft = cu.cs->getCURestricted( posLT.offset( -1, -1 ), cu, CH_L, cu.left ? cu.left : cu.above );
-  if( cuAboveLeft && cuAboveLeft->affineFlag() && cuAboveLeft->mergeType() == MRG_TYPE_DEFAULT_N && PU::isDiffMER( pu, *cuAboveLeft ) )
+  if( cuAboveLeft && cuAboveLeft->affineFlag() && cuAboveLeft->mergeType() == MRG_TYPE_DEFAULT_N && PU::isDiffMER( pu.lumaPos(), posLT.offset( -1, -1 ), plevel ) )
   {
     npu[num++] = cuAboveLeft;
     return num;
@@ -2422,6 +2441,7 @@ void PU::getAffineMergeCand( const PredictionUnit &pu, AffineMergeCtx& affMrgCtx
   const CodingStructure &cs = *cu.cs;
   const Slice &slice        = *cu.slice;
   const uint32_t maxNumAffineMergeCand = slice.getPicHeader()->getMaxNumAffineMergeCand();
+  const unsigned plevel = pu.cs->sps->getLog2ParallelMergeLevelMinus2() + 2;
 
   for ( int i = 0; i < maxNumAffineMergeCand; i++ )
   {
@@ -2453,7 +2473,7 @@ void PU::getAffineMergeCand( const PredictionUnit &pu, AffineMergeCtx& affMrgCtx
 
     //left
     const CodingUnit* cuLeft = cs.getCURestricted( posCurLB.offset( -1, 0 ), cu, CH_L, cu.left );
-    const bool isAvailableA1 = cuLeft && CU::isInter( *cuLeft ) && isDiffMER( pu, *cuLeft );
+    const bool isAvailableA1 = cuLeft && CU::isInter( *cuLeft ) && isDiffMER( pu.lumaPos(), posCurLB.offset( -1, 0 ), plevel );
     if ( isAvailableA1 )
     {
       const MotionInfo& miLeft = cuLeft->getMotionInfo( posCurLB.offset( -1, 0 ) );
@@ -2556,7 +2576,7 @@ void PU::getAffineMergeCand( const PredictionUnit &pu, AffineMergeCtx& affMrgCtx
         const Position pos = posLT[i];
         const CodingUnit* cuNeigh = cs.getCURestricted( pos, cu, CH_L, guess[i] );
 
-        if( cuNeigh && CU::isInter( *cuNeigh ) && PU::isDiffMER( pu, *cuNeigh ) )
+        if( cuNeigh && CU::isInter( *cuNeigh ) && PU::isDiffMER( pu.lumaPos(), pos, plevel ) )
         {
           isAvailable[0] = true;
           mi[0] = cuNeigh->getMotionInfo( pos );
@@ -2572,7 +2592,7 @@ void PU::getAffineMergeCand( const PredictionUnit &pu, AffineMergeCtx& affMrgCtx
         const Position pos = posRT[i];
         const CodingUnit* cuNeigh = cs.getCURestricted( pos, cu, CH_L, cu.above );
 
-        if( cuNeigh && CU::isInter( *cuNeigh ) && PU::isDiffMER( pu, *cuNeigh ) )
+        if( cuNeigh && CU::isInter( *cuNeigh ) && PU::isDiffMER( pu.lumaPos(), pos, plevel ) )
         {
           isAvailable[1] = true;
           mi[1] = cuNeigh->getMotionInfo( pos );
@@ -2588,7 +2608,7 @@ void PU::getAffineMergeCand( const PredictionUnit &pu, AffineMergeCtx& affMrgCtx
         const Position pos = posLB[i];
         const CodingUnit* cuNeigh = cs.getCURestricted( pos, cu, CH_L, cu.left );
 
-        if( cuNeigh && CU::isInter( *cuNeigh ) && PU::isDiffMER( pu, *cuNeigh ) )
+        if( cuNeigh && CU::isInter( *cuNeigh ) && PU::isDiffMER( pu.lumaPos(), pos, plevel ) )
         {
           isAvailable[2] = true;
           mi[2] = cuNeigh->getMotionInfo( pos );
@@ -3952,4 +3972,38 @@ bool PU::isRefPicSameSize( const PredictionUnit& pu )
   }
 
   return samePicSize;
+}
+
+bool isCrossedByVirtualBoundaries( const PicHeader* picHeader,
+                                   const Area&      area,
+                                   int&             numHorVirBndry,
+                                   int&             numVerVirBndry,
+                                   int              horVirBndryPos[],
+                                   int              verVirBndryPos[] )
+{
+  numHorVirBndry = 0;
+  numVerVirBndry = 0;
+  if( !picHeader->getVirtualBoundariesPresentFlag() )
+  {
+    return false;
+  }
+
+  for( int i = 0; i < picHeader->getNumHorVirtualBoundaries(); i++ )
+  {
+    if( area.y <= picHeader->getVirtualBoundariesPosY( i ) && picHeader->getVirtualBoundariesPosY( i ) <= area.y + area.height )
+    {
+      horVirBndryPos[numHorVirBndry++] = picHeader->getVirtualBoundariesPosY( i );
+    }
+  }
+  for( int i = 0; i < picHeader->getNumVerVirtualBoundaries(); i++ )
+  {
+    if( area.x <= picHeader->getVirtualBoundariesPosX( i ) && picHeader->getVirtualBoundariesPosX( i ) <= area.x + area.width )
+    {
+      verVirBndryPos[numVerVirBndry++] = picHeader->getVirtualBoundariesPosX( i );
+    }
+  }
+
+  return numHorVirBndry > 0 || numVerVirBndry > 0;
+}
+
 }

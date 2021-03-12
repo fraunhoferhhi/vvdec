@@ -14,7 +14,7 @@ Einsteinufer 37
 www.hhi.fraunhofer.de/vvc
 vvc@hhi.fraunhofer.de
 
-Copyright (c) 2018-2020, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. 
+Copyright (c) 2018-2021, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. 
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -48,13 +48,15 @@ THE POSSIBILITY OF SUCH DAMAGE.
     \brief    weighting prediction class (header)
 */
 
-#ifndef __WEIGHTPREDICTION__
-#define __WEIGHTPREDICTION__
+#pragma once
 
 #include "CommonDef.h"
 #include "Slice.h"
 #include "Unit.h"
 #include "Buffer.h"
+
+namespace vvdec
+{
 
 // forward declarations
 struct WPScalingParam;
@@ -103,4 +105,4 @@ public:
                                 );
 };
 
-#endif
+}

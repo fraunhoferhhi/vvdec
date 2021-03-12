@@ -14,7 +14,7 @@ Einsteinufer 37
 www.hhi.fraunhofer.de/vvc
 vvc@hhi.fraunhofer.de
 
-Copyright (c) 2018-2020, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. 
+Copyright (c) 2018-2021, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. 
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -48,20 +48,15 @@ THE POSSIBILITY OF SUCH DAMAGE.
     \brief    class for handling bitstream (header)
 */
 
-#ifndef __BITSTREAM__
-#define __BITSTREAM__
-
-#if _MSC_VER > 1000
 #pragma once
-#endif // _MSC_VER > 1000
 
 #include <stdint.h>
 #include <vector>
 #include <stdio.h>
 #include "CommonDef.h"
 
-//! \ingroup CommonLib
-//! \{
+namespace vvdec
+{
 
 // ====================================================================================================================
 // Class definition
@@ -238,6 +233,4 @@ public:
   void                        clearFifo()     { m_fifo.clear(); }
 };
 
-//! \}
-
-#endif
+}

@@ -14,7 +14,7 @@ Einsteinufer 37
 www.hhi.fraunhofer.de/vvc
 vvc@hhi.fraunhofer.de
 
-Copyright (c) 2018-2020, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. 
+Copyright (c) 2018-2021, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. 
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -52,9 +52,8 @@ THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "RdCost.h"
 
-//! \ingroup CommonLib
-//! \{
-
+namespace vvdec
+{
 
 FpDistFunc RdCost::m_afpDistortFunc[DF_TOTAL_FUNCTIONS] = { nullptr, };
 
@@ -416,6 +415,4 @@ Distortion RdCost::xGetSAD64( const DistParam &rcDtParam )
   return (uiSum >> DISTORTION_PRECISION_ADJUSTMENT(rcDtParam.bitDepth));
 }
 
-
-
-//! \}
+}

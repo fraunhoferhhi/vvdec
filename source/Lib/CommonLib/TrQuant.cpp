@@ -14,7 +14,7 @@ Einsteinufer 37
 www.hhi.fraunhofer.de/vvc
 vvc@hhi.fraunhofer.de
 
-Copyright (c) 2018-2020, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. 
+Copyright (c) 2018-2021, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. 
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -65,6 +65,8 @@ THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "Quant.h"
 
+namespace vvdec
+{
 
 InvTrans *fastInvTrans[NUM_TRANS_TYPE][g_numTransformMatrixSizes] =
 {
@@ -148,9 +150,9 @@ void TrQuant::xDeQuant(const TransformUnit &tu,
   dequant( tu, dstCoeff, compID, cQP );
 }
 
-void TrQuant::init( Slice *slice )
+void TrQuant::init( const Picture *pic )
 {
-  Quant::init( slice );
+  Quant::init( pic );
 }
 
 void TrQuant::invLfnstNxN( int* src, int* dst, const uint32_t mode, const uint32_t index, const uint32_t size, int zeroOutSize )
@@ -511,5 +513,4 @@ void TrQuant::xITransformSkip(const CCoeffBuf     &pCoeff,
   }
 }
 
-
-//! \}
+}

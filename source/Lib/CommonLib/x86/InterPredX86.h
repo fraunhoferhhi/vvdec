@@ -14,7 +14,7 @@ Einsteinufer 37
 www.hhi.fraunhofer.de/vvc
 vvc@hhi.fraunhofer.de
 
-Copyright (c) 2018-2020, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. 
+Copyright (c) 2018-2021, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. 
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -55,6 +55,9 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #include "CommonLib/CommonDef.h"
 #include "CommonDefX86.h"
 #include "CommonLib/InterPrediction.h"
+
+namespace vvdec
+{
 
 #if ENABLE_SIMD_OPT_BIO
 #ifdef TARGET_SIMD_X86
@@ -698,7 +701,7 @@ void gradFilter_SSE( int16_t* src, ptrdiff_t _srcStride, int width, int height, 
       {
         __m128i mmPixTop    = _mm_srai_epi16( _mm_loadu_si128( ( __m128i* )( srcTmp + x - srcStride ) ), shift1 );
         __m128i mmPixBottom = _mm_srai_epi16( _mm_loadu_si128( ( __m128i* )( srcTmp + x + srcStride ) ), shift1 );
-        __m128i mmPixLeft   = _mm_srai_epi16( _mm_load_si128 ( ( __m128i* )( srcTmp + x - 1 ) ),         shift1 );
+        __m128i mmPixLeft   = _mm_srai_epi16( _mm_loadu_si128( ( __m128i* )( srcTmp + x - 1 ) ),         shift1 );
         __m128i mmPixRight  = _mm_srai_epi16( _mm_loadu_si128( ( __m128i* )( srcTmp + x + 1 ) ),         shift1 );
 
         __m128i mmGradVer = _mm_sub_epi16( mmPixBottom, mmPixTop );
@@ -783,4 +786,5 @@ template void InterPrediction::_initInterPredictionX86<SIMDX86>();
 
 #endif // TARGET_SIMD_X86
 #endif
-//! \}
+
+}

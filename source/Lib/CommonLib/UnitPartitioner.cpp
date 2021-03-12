@@ -14,7 +14,7 @@ Einsteinufer 37
 www.hhi.fraunhofer.de/vvc
 vvc@hhi.fraunhofer.de
 
-Copyright (c) 2018-2020, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. 
+Copyright (c) 2018-2021, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. 
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -56,6 +56,8 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #include "UnitTools.h"
 #include "Picture.h"
 
+namespace vvdec
+{
 
 PartLevel::PartLevel()
 : split               ( CU_DONT_SPLIT )
@@ -186,10 +188,13 @@ void Partitioner::initCtu( const UnitArea& ctuArea, const ChannelType _chType, c
   setNeighborCu( m_partStack.back(), *this, cs );
 
   const SPS& sps = *cs.sps;
-
+#if GDR_ADJ
+  isDualITree = slice.isIntra() && slice.getSPS()->getUseDualITree();
+  const int valIdx = slice.isIntra() ? ( !isDualITree? 0 : ( _chType << 1 ) ) : 1;
+#else
   isDualITree = slice.isIRAP() && slice.getSPS()->getUseDualITree();
-
   const int valIdx = slice.isIRAP() ? ( _chType << 1 ) : 1;
+#endif
 
   const unsigned minBtSizeArr[] = { 1u << sps.getLog2MinCodingBlockSize(), 1u << sps.getLog2MinCodingBlockSize(), 1u << sps.getLog2MinCodingBlockSize() };
   const unsigned minTtSizeArr[] = { 1u << sps.getLog2MinCodingBlockSize(), 1u << sps.getLog2MinCodingBlockSize(), 1u << sps.getLog2MinCodingBlockSize() };
@@ -866,4 +871,6 @@ void PartitionerImpl::getSbtTuTiling( const UnitArea& cuArea, const CodingStruct
   }
 
   return;
+}
+
 }

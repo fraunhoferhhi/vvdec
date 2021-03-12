@@ -14,7 +14,7 @@ Einsteinufer 37
 www.hhi.fraunhofer.de/vvc
 vvc@hhi.fraunhofer.de
 
-Copyright (c) 2018-2020, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. 
+Copyright (c) 2018-2021, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. 
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -48,13 +48,20 @@ THE POSSIBILITY OF SUCH DAMAGE.
     \brief    Defines version information, constants and small in-line functions
 */
 
-#ifndef __COMMONDEF__
-#define __COMMONDEF__
+#pragma once
+
+#define COMMONDEF_H
 
 #include <algorithm>
 #include <iostream>
 #include <iomanip>
 #include <limits>
+
+#include <functional>
+#include <mutex>
+
+namespace vvdec
+{
 
 #if defined( __INTEL_COMPILER )
 #pragma warning( disable : 1786 )
@@ -70,8 +77,13 @@ THE POSSIBILITY OF SUCH DAMAGE.
 
 #pragma warning( disable : 4996 )
 #endif // _MSC_VER > 1000
+}
+
 #include "TypeDef.h"
 #include "vvdec/version.h"
+
+namespace vvdec
+{
 
 #ifdef _MSC_VER
 #if _MSC_VER <= 1500
@@ -331,7 +343,7 @@ static const int MAX_TU_LEVEL_CTX_CODED_BIN_CONSTRAINT_CHROMA =    28;
 
 static const int BIO_EXTEND_SIZE              =                     1;
 static const int BIO_ALIGN_SIZE               =                     8;
-static const int BIO_TEMP_BUFFER_SIZE         =                     (MAX_CU_SIZE + 2 * BIO_ALIGN_SIZE) * (MAX_CU_SIZE + 2 * BIO_ALIGN_SIZE);
+static const int BIO_TEMP_BUFFER_SIZE         =                     (MAX_BDOF_APPLICATION_REGION + 2 * BIO_ALIGN_SIZE) * (MAX_BDOF_APPLICATION_REGION + 2 * BIO_ALIGN_SIZE);
 
 static const int PROF_BORDER_EXT_W            =                     1;
 static const int PROF_BORDER_EXT_H            =                     1;
@@ -427,16 +439,31 @@ template <typename T> constexpr inline T Clip3  ( const T minVal, const T maxVal
 template <typename T> constexpr inline T ClipBD ( const T x, const int bitDepth )            { return Clip3( T( 0 ), T( ( 1 << bitDepth ) - 1 ), x ); }
 template <typename T> constexpr inline T ClipPel( const T a, const ClpRng& clpRng )          { return ClipBD( a, clpRng.bd ); }  ///< clip reconstruction
 
+static void default_msgFnc( void *, int level, const char* fmt, va_list args )
+{
+  vfprintf(stderr, fmt, args);
+}
+
 extern MsgLevel g_verbosity;
+extern void    *g_context;
+extern std::function<void( void*, int, const char*, va_list )> g_msgFnc;
+
+}
 
 #include <stdarg.h>
+
+namespace vvdec
+{
+
 inline void msg( MsgLevel level, const char* fmt, ... )
 {
-  if( g_verbosity >= level )
+  if ( vvdec::g_msgFnc && vvdec::g_verbosity >= level )
   {
+    static std::mutex _msgMutex;
+    std::unique_lock<std::mutex> _lock( _msgMutex );
     va_list args;
     va_start( args, fmt );
-    vfprintf( level == ERROR ? stderr : stdout, fmt, args );
+    vvdec::g_msgFnc( vvdec::g_context, level, fmt, args );
     va_end( args );
   }
 }
@@ -505,8 +532,7 @@ T* aligned_malloc(size_t len, size_t alignement) {
 
 #if ENABLE_SIMD_OPT
 
-#if defined(__i386__) || defined(i386) || defined(__x86_64__) || defined(_M_X64) || defined (_WIN32) || defined (_MSC_VER)
-#define TARGET_SIMD_X86
+#ifdef TARGET_SIMD_X86
 typedef enum{
   SCALAR = 0,
   SSE41,
@@ -515,10 +541,6 @@ typedef enum{
   AVX2,
   AVX512
 } X86_VEXT;
-#elif defined (__ARM_NEON__)
-#define TARGET_SIMD_ARM 1
-#else
-#error no simd target
 #endif
 
 #ifdef TARGET_SIMD_X86
@@ -535,7 +557,9 @@ template <typename ValueType> inline ValueType rightShift_round(const ValueType 
 
 #ifdef TARGET_SIMD_X86
 #ifdef _WIN32
+}
 # include <intrin.h>
+namespace vvdec {
 static inline unsigned long _bit_scan_reverse( long a )
 {
   unsigned long idx = 0;
@@ -543,7 +567,9 @@ static inline unsigned long _bit_scan_reverse( long a )
   return idx;
 }
 #else
+}
 # include <x86intrin.h>
+namespace vvdec {
 #endif
 
 #endif
@@ -553,7 +579,9 @@ static inline int getLog2( long val )
   return _bit_scan_reverse( val );
 }
 #else
+}
 #include <cmath>
+namespace vvdec {
 extern int8_t g_aucLog2[MAX_CU_SIZE + 1];
 static inline int getLog2( long val )
 {
@@ -582,7 +610,9 @@ static inline int getLog2( long val )
 #endif
 
 #ifdef TRACE_ENABLE_ITT
+}
 # include <ittnotify.h>
+namespace vvdec {
 
 # define ITT_TASKSTART( d, t ) __itt_task_begin( ( d ), __itt_null, __itt_null, ( t ) )
 # define ITT_TASKEND( d, t )   __itt_task_end  ( ( d ) )
@@ -613,5 +643,5 @@ static inline int getLog2( long val )
 
 //! \}
 
-#endif // end of #ifndef  __COMMONDEF__
+}
 

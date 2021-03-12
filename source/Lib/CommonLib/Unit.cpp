@@ -14,7 +14,7 @@ Einsteinufer 37
 www.hhi.fraunhofer.de/vvc
 vvc@hhi.fraunhofer.de
 
-Copyright (c) 2018-2020, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. 
+Copyright (c) 2018-2021, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. 
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -56,6 +56,9 @@ THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "UnitTools.h"
 #include "UnitPartitioner.h"
+
+namespace vvdec
+{
 
  // ---------------------------------------------------------------------------
  // block method definitions
@@ -363,4 +366,6 @@ std::shared_ptr<TUCache> ThreadSafeCUCache::getTuCache()
   // no cache instance available -> create a new one
   m_tuCaches.push_back( std::make_shared<TUCache>() );
   return m_tuCaches.back();
+}
+
 }

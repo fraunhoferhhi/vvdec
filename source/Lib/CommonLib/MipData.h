@@ -14,7 +14,7 @@ Einsteinufer 37
 www.hhi.fraunhofer.de/vvc
 vvc@hhi.fraunhofer.de
 
-Copyright (c) 2018-2020, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. 
+Copyright (c) 2018-2021, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. 
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -48,10 +48,13 @@ THE POSSIBILITY OF SUCH DAMAGE.
 \brief    weight and bias data for matrix-based intra prediction (MIP)
 */
 
-static const uint8_t MIP_SHIFT_MATRIX  =  6;
+namespace vvdec
+{
+
+static const uint8_t MIP_SHIFT_MATRIX = 6;
 static const uint8_t MIP_OFFSET_MATRIX = 32;
 
-ALIGN_DATA(MEMORY_ALIGN_DEF_SIZE, const uint8_t mipMatrix4x4[16][16][4]) =
+ALIGN_DATA( MEMORY_ALIGN_DEF_SIZE, const uint8_t mipMatrix4x4[16][16][4] ) =
 {
   {
     {   32,   30,   90,   28},
@@ -343,7 +346,7 @@ ALIGN_DATA(MEMORY_ALIGN_DEF_SIZE, const uint8_t mipMatrix4x4[16][16][4]) =
   }
 };
 
-ALIGN_DATA(MEMORY_ALIGN_DEF_SIZE, const uint8_t mipMatrix8x8[8][16][8]) =
+ALIGN_DATA( MEMORY_ALIGN_DEF_SIZE, const uint8_t mipMatrix8x8[8][16][8] ) =
 {
   {
     {   30,   63,   46,   37,   25,   33,   33,   34},
@@ -491,7 +494,7 @@ ALIGN_DATA(MEMORY_ALIGN_DEF_SIZE, const uint8_t mipMatrix8x8[8][16][8]) =
   }
 };
 
-ALIGN_DATA(MEMORY_ALIGN_DEF_SIZE, const uint8_t mipMatrix16x16[6][64][7]) =
+ALIGN_DATA( MEMORY_ALIGN_DEF_SIZE, const uint8_t mipMatrix16x16[6][64][7] ) =
 {
   {
     {   42,   37,   33,   27,   44,   33,   35},
@@ -891,3 +894,4 @@ ALIGN_DATA(MEMORY_ALIGN_DEF_SIZE, const uint8_t mipMatrix16x16[6][64][7]) =
   }
 };
 
+}

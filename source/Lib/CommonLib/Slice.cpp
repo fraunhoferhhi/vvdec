@@ -14,7 +14,7 @@ Einsteinufer 37
 www.hhi.fraunhofer.de/vvc
 vvc@hhi.fraunhofer.de
 
-Copyright (c) 2018-2020, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. 
+Copyright (c) 2018-2021, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. 
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -55,9 +55,10 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #include "dtrace_next.h"
 
 #include "UnitTools.h"
+#include "vvdec/sei.h"
 
-//! \ingroup CommonLib
-//! \{
+namespace vvdec
+{
 
 #if JVET_Q0814_DPB
 void VPS::deriveOutputLayerSets()
@@ -426,45 +427,35 @@ bool Slice::getRapPicFlag() const
 
 Picture* Slice::xGetRefPic( const PicListRange & rcListPic, int poc, const int layerId )
 {
-  auto it = std::find_if( begin( rcListPic ), end( rcListPic ),
-                          [poc,layerId]( Picture* p )
+  // return a nullptr, if picture is not found
+  for ( auto &currPic : rcListPic )
   {
-    return ( p->getPOC() == poc && p->layerId == layerId );
-  } );
-
-  if( it == end( rcListPic ) )
-  {
-    return nullptr;
+    if( currPic->getPOC() == poc && currPic->layerId == layerId )
+    {
+      return currPic;
+    }
   }
-  return *it;
+
+  return nullptr;
 }
 
 Picture* Slice::xGetLongTermRefPic( const PicListRange & rcListPic, int poc, bool pocHasMsb, const int layerId )
 {
-  int pocCycle = 1 << getSPS()->getBitsForPOC();
-  if (!pocHasMsb)
-  {
-    poc = poc & (pocCycle - 1);
-  }
-
   for( auto & pcPic: rcListPic )
   {
     if( pcPic && pcPic->getPOC() != this->getPOC() && pcPic->referenced && pcPic->layerId == layerId )
     {
-      int picPoc = pcPic->getPOC();
-      if (!pocHasMsb)
+      if( isLTPocEqual( poc,  pcPic->getPOC(), getSPS()->getBitsForPOC(), pocHasMsb ) )
       {
-        picPoc = picPoc & (pocCycle - 1);
-      }
+        if( !pcPic->longTerm )
+          return nullptr;
 
-      if (poc == picPoc)
-      {
         return pcPic;
       }
     }
   }
 
-  return *begin( rcListPic );
+  return nullptr;
 }
 
 void Slice::setRefPOCList()
@@ -525,14 +516,7 @@ void Slice::constructSingleRefPicList(const PicListRange& rcListPic, RefPicList 
     }
     else
     {
-      int pocBits = getSPS()->getBitsForPOC();
-      int pocMask = ( 1 << pocBits ) - 1;
-      int ltrpPoc = rRPL.getRefPicIdentifier( ii ) & pocMask;
-      if( rRPL.getDeltaPocMSBPresentFlag( ii ) )
-      {
-//        ltrpPoc += pLocalRPL.getDeltaPocMSBCycleLT( ii ) << pocBits;
-        ltrpPoc += getPOC() - rRPL.getDeltaPocMSBCycleLT( ii ) * ( pocMask + 1 ) - ( getPOC() & pocMask );
-      }
+      int ltrpPoc = rRPL.calcLTRefPOC( getPOC(), getSPS()->getBitsForPOC(), ii );
 
       pcRefPic           = xGetLongTermRefPic( rcListPic, ltrpPoc, rRPL.getDeltaPocMSBPresentFlag( ii ), m_pcPic->layerId );
       pcRefPic->longTerm = true;
@@ -690,13 +674,8 @@ void Slice::checkRPL(const ReferencePictureList* pRPL0, const ReferencePictureLi
       }
       else
       {
-        int pocBits = getSPS()->getBitsForPOC();
-        int pocMask = ( 1 << pocBits ) - 1;
-        int ltrpPoc = rpl[refPicList]->getRefPicIdentifier( i ) & pocMask;
-        if( rpl[refPicList]->getDeltaPocMSBPresentFlag( i ) )
-        {
-          ltrpPoc += getPOC() - rpl[refPicList]->getDeltaPocMSBCycleLT( i ) * ( pocMask + 1 ) - ( getPOC() & pocMask );
-        }
+        int ltrpPoc = rpl[refPicList]->calcLTRefPOC( getPOC(), getSPS()->getBitsForPOC(), i );
+
         pcRefPic = xGetLongTermRefPic( rcListPic, ltrpPoc, rpl[refPicList]->getDeltaPocMSBPresentFlag( i ), m_pcPic->layerId );
         refPicPOC = pcRefPic->getPOC();
       }
@@ -1041,9 +1020,11 @@ void Slice::copySliceInfo(Slice *pSrc, bool cpyAlmostAll)
 
 //  m_sliceCurStartCtuTsAddr        = pSrc->m_sliceCurStartCtuTsAddr;
 //  m_sliceCurEndCtuTsAddr          = pSrc->m_sliceCurEndCtuTsAddr;
+  m_sliceMap                      = pSrc->m_sliceMap;
   m_independentSliceIdx           = pSrc->m_independentSliceIdx;
   m_nextSlice                     = pSrc->m_nextSlice;
   m_clpRngs                       = pSrc->m_clpRngs;
+  m_lmcsEnabledFlag               = pSrc->m_lmcsEnabledFlag;
   m_pendingRasInit                = pSrc->m_pendingRasInit;
 
   for ( uint32_t e=0 ; e<NUM_REF_PIC_LIST_01 ; e++ )
@@ -1208,12 +1189,12 @@ void Slice::checkLeadingPictureRestrictions( const PicListRange & rcListPic ) co
 }
 
 
-int Slice::checkThatAllRefPicsAreAvailable( const PicListRange& rcListPic, const ReferencePictureList *pRPL, bool printErrors, int* refPicIndex, int numActiveRefPics ) const
+int Slice::checkThatAllRefPicsAreAvailable( const PicListRange& rcListPic, const ReferencePictureList *pRPL, bool printErrors, int* missingRefPicIndex, int numActiveRefPics ) const
 {
-  if( this->isIDRorBLA() )
+  if( this->isIDR() )
     return 0;   // Assume that all pic in the DPB will be flushed anyway so no need to check.
 
-  *refPicIndex = 0;
+  *missingRefPicIndex = 0;
 
   // Check long term ref pics
   for( int ii = 0; pRPL->getNumberOfLongtermPictures() > 0 && ii < numActiveRefPics; ii++ )
@@ -1221,15 +1202,15 @@ int Slice::checkThatAllRefPicsAreAvailable( const PicListRange& rcListPic, const
     if( !pRPL->isRefPicLongterm( ii ) )
       continue;
 
-    const int refPoc      = pRPL->getRefPicIdentifier( ii );
-    bool      isAvailable = 0;
-
+    const int notPresentPoc = pRPL->getRefPicIdentifier( ii );
+    bool      isAvailable   = 0;
     for( auto& rpcPic: rcListPic )
     {
-      int pocCycle     = 1 << ( rpcPic->cs->sps->getBitsForPOC() );
-      int curPocMasked = rpcPic->getPOC() & ( pocCycle - 1 );
-      int refPocMasked = refPoc           & ( pocCycle - 1 );
-      if( rpcPic->longTerm && curPocMasked == refPocMasked && rpcPic->referenced )
+      const int bitsForPoc = rpcPic->cs->sps->getBitsForPOC();
+      const int poc        = rpcPic->getPOC();
+      const int refPoc     = pRPL->calcLTRefPOC( this->getPOC(), bitsForPoc, ii );
+
+      if( rpcPic->longTerm && isLTPocEqual( poc, refPoc, bitsForPoc, pRPL->getDeltaPocMSBPresentFlag( ii ) ) && rpcPic->referenced )
       {
         isAvailable = 1;
         break;
@@ -1241,10 +1222,11 @@ int Slice::checkThatAllRefPicsAreAvailable( const PicListRange& rcListPic, const
     // if there was no such long-term check the short terms
     for( auto& rpcPic: rcListPic )
     {
-      int pocCycle     = 1 << ( rpcPic->cs->sps->getBitsForPOC() );
-      int curPocMasked = rpcPic->getPOC() & ( pocCycle - 1 );
-      int refPocMasked = refPoc           & ( pocCycle - 1 );
-      if( !rpcPic->longTerm && curPocMasked == refPocMasked && rpcPic->referenced )
+      const int bitsForPoc = rpcPic->cs->sps->getBitsForPOC();
+      const int poc        = rpcPic->getPOC();
+      const int refPoc     = pRPL->calcLTRefPOC( this->getPOC(), bitsForPoc, ii );
+
+      if( !rpcPic->longTerm && isLTPocEqual( poc, refPoc, bitsForPoc, pRPL->getDeltaPocMSBPresentFlag( ii ) ) && rpcPic->referenced )
       {
         isAvailable      = 1;
         rpcPic->longTerm = true;
@@ -1256,13 +1238,13 @@ int Slice::checkThatAllRefPicsAreAvailable( const PicListRange& rcListPic, const
     {
       if( printErrors )
       {
-        msg( ERROR, "\nCurrent picture: %d Long-term reference picture with POC = %3d seems to have been removed or not correctly decoded.", this->getPOC(), refPoc );
+        msg( ERROR, "\nCurrent picture: %d Long-term reference picture with POC = %3d seems to have been removed or not correctly decoded.", this->getPOC(), notPresentPoc );
       }
-      *refPicIndex = ii;
-      return refPoc;
+      *missingRefPicIndex = ii;
+      return notPresentPoc;
     }
   }
-  //report that a picture is lost if it is in the Reference Picture List but not in the DPB
+  // report that a picture is lost if it is in the Reference Picture List but not in the DPB
 
   // Check short term ref pics
   for( int ii = 0; ii < numActiveRefPics; ii++ )
@@ -1270,11 +1252,11 @@ int Slice::checkThatAllRefPicsAreAvailable( const PicListRange& rcListPic, const
     if( pRPL->isRefPicLongterm( ii ) )
       continue;
 
-    const int refPoc = this->getPOC() + pRPL->getRefPicIdentifier( ii );
+    const int notPresentPoc = this->getPOC() + pRPL->getRefPicIdentifier( ii );
     bool      isAvailable   = 0;
     for( auto& rpcPic: rcListPic )
     {
-      if( !rpcPic->longTerm && rpcPic->getPOC() == refPoc && rpcPic->referenced )
+      if( !rpcPic->longTerm && rpcPic->getPOC() == notPresentPoc && rpcPic->referenced )
       {
         isAvailable = 1;
         break;
@@ -1286,10 +1268,10 @@ int Slice::checkThatAllRefPicsAreAvailable( const PicListRange& rcListPic, const
     {
       if( printErrors )
       {
-        msg( ERROR, "\nCurrent picture: %d Short-term reference picture with POC = %3d seems to have been removed or not correctly decoded.", this->getPOC(), refPoc );
+        msg( ERROR, "\nCurrent picture: %d Short-term reference picture with POC = %3d seems to have been removed or not correctly decoded.", this->getPOC(), notPresentPoc );
       }
-      *refPicIndex = ii;
-      return refPoc;
+      *missingRefPicIndex = ii;
+      return notPresentPoc;
     }
   }
   return 0;
@@ -1594,51 +1576,123 @@ void PPS::initRectSlices()
  */
 void PPS::initRectSliceMap(const SPS  *sps)
 {
-  uint32_t  ctuY;
-  uint32_t  tileX, tileY;
-    
-  m_ctuToSubPicIdx.resize(getPicWidthInCtu() * getPicHeightInCtu());
-  if (sps->getNumSubPics() > 1)
+  if (sps)
   {
-    for (int i = 0; i <= sps->getNumSubPics() - 1; i++)
+    m_ctuToSubPicIdx.resize(getPicWidthInCtu() * getPicHeightInCtu());
+    if (sps->getNumSubPics() > 1)
     {
-      for (int y = sps->getSubPicCtuTopLeftY(i); y < sps->getSubPicCtuTopLeftY(i) + sps->getSubPicHeight(i); y++)
+      for (int i = 0; i <= sps->getNumSubPics() - 1; i++)
       {
-        for (int x = sps->getSubPicCtuTopLeftX(i); x < sps->getSubPicCtuTopLeftX(i) + sps->getSubPicWidth(i); x++)
+        for (int y = sps->getSubPicCtuTopLeftY(i); y < sps->getSubPicCtuTopLeftY(i) + sps->getSubPicHeight(i); y++)
         {
-          m_ctuToSubPicIdx[ x+ y * getPicWidthInCtu()] = i;
+          for (int x = sps->getSubPicCtuTopLeftX(i); x < sps->getSubPicCtuTopLeftX(i) + sps->getSubPicWidth(i); x++)
+          {
+            m_ctuToSubPicIdx[ x+ y * getPicWidthInCtu()] = i;
+          }
         }
       }
     }
+    else
+    {
+      for (int i = 0; i < getPicWidthInCtu() * getPicHeightInCtu(); i++)
+      {
+        m_ctuToSubPicIdx[i] = 0;
+      }
+    }
   }
-  // allocate new memory for slice list
-  CHECK(m_numSlicesInPic > MAX_SLICES, "Number of slices in picture exceeds valid range");
-  m_sliceMap.resize( m_numSlicesInPic );
+
   if( getSingleSlicePerSubPicFlag() )
   {
-    for (uint32_t i = 0; i <= getNumSubPics() - 1; i++)
+    CHECK (sps==nullptr, "RectSliceMap can only be initialized for slice_per_sub_pic_flag with a valid SPS");
+    m_numSlicesInPic = sps->getNumSubPics();
+
+    // allocate new memory for slice list
+    CHECK(m_numSlicesInPic > MAX_SLICES, "Number of slices in picture exceeds valid range");
+    m_sliceMap.resize( m_numSlicesInPic );
+
+    if (sps->getNumSubPics() > 1)
     {
-      m_sliceMap[i].initSliceMap();
+      // Q2001 v15 equation 29
+      std::vector<uint32_t> subpicWidthInTiles;
+      std::vector<uint32_t> subpicHeightInTiles;
+      std::vector<uint32_t> subpicHeightLessThanOneTileFlag;
+      subpicWidthInTiles.resize(sps->getNumSubPics());
+      subpicHeightInTiles.resize(sps->getNumSubPics());
+      subpicHeightLessThanOneTileFlag.resize(sps->getNumSubPics());
+      for (uint32_t i = 0; i <sps->getNumSubPics(); i++)
+      {
+        uint32_t leftX = sps->getSubPicCtuTopLeftX(i);
+        uint32_t rightX = leftX + sps->getSubPicWidth(i) - 1;
+        subpicWidthInTiles[i] = m_ctuToTileCol[rightX] + 1 - m_ctuToTileCol[leftX];
+
+        uint32_t topY = sps->getSubPicCtuTopLeftY(i);
+        uint32_t bottomY = topY + sps->getSubPicHeight(i) - 1;
+        subpicHeightInTiles[i] = m_ctuToTileRow[bottomY] + 1 - m_ctuToTileRow[topY];
+
+        if (subpicHeightInTiles[i] == 1 && sps->getSubPicHeight(i) < m_tileRowHeight[m_ctuToTileRow[topY]] )
+        {
+          subpicHeightLessThanOneTileFlag[i] = 1;
+        }
+        else
+        {
+          subpicHeightLessThanOneTileFlag[i] = 0;
+        }
+      }
+
+      for( int i = 0; i < m_numSlicesInPic; i++ )
+      {
+        CHECK(m_numSlicesInPic != sps->getNumSubPics(), "in single slice per subpic mode, number of slice and subpic shall be equal");
+        m_sliceMap[ i ].initSliceMap();
+        if (subpicHeightLessThanOneTileFlag[i])
+        {
+          m_sliceMap[i].addCtusToSlice(sps->getSubPicCtuTopLeftX(i), sps->getSubPicCtuTopLeftX(i) + sps->getSubPicWidth(i),
+                                       sps->getSubPicCtuTopLeftY(i), sps->getSubPicCtuTopLeftY(i) + sps->getSubPicHeight(i), m_picWidthInCtu);
+        }
+        else
+        {
+          uint32_t tileX = m_ctuToTileCol[sps->getSubPicCtuTopLeftX(i)];
+          uint32_t tileY = m_ctuToTileRow[sps->getSubPicCtuTopLeftY(i)];
+          for (uint32_t j = 0; j< subpicHeightInTiles[i]; j++)
+          {
+            for (uint32_t k = 0; k < subpicWidthInTiles[i]; k++)
+            {
+              m_sliceMap[i].addCtusToSlice(getTileColumnBd(tileX + k), getTileColumnBd(tileX + k + 1), getTileRowBd(tileY + j), getTileRowBd(tileY + j + 1), m_picWidthInCtu);
+            }
+          }
+        }
+      }
+      subpicWidthInTiles.clear();
+      subpicHeightInTiles.clear();
+      subpicHeightLessThanOneTileFlag.clear();
     }
-    uint32_t picSizeInCtu = getPicWidthInCtu() * getPicHeightInCtu();
-    uint32_t sliceIdx;
-    for (uint32_t i = 0; i < picSizeInCtu; i++)
+    else
     {
-      sliceIdx = getCtuToSubPicIdx(i);
-      m_sliceMap[sliceIdx].pushToCtuAddrInSlice(i);
+      m_sliceMap[0].initSliceMap();
+      for (int tileY=0; tileY<m_numTileRows; tileY++)
+      {
+        for (int tileX=0; tileX<m_numTileCols; tileX++)
+        {
+          m_sliceMap[0].addCtusToSlice(getTileColumnBd(tileX), getTileColumnBd(tileX + 1),
+                                       getTileRowBd(tileY), getTileRowBd(tileY + 1), m_picWidthInCtu);
+        }
+      }
+      m_sliceMap[0].setSliceID(0);
     }
   }
   else
   {
-  // generate CTU maps for all rectangular slices in picture
+    // allocate new memory for slice list
+    CHECK(m_numSlicesInPic > MAX_SLICES, "Number of slices in picture exceeds valid range");
+    m_sliceMap.resize( m_numSlicesInPic );
+    // generate CTU maps for all rectangular slices in picture
     for( uint32_t i = 0; i < m_numSlicesInPic; i++ )
     {
       m_sliceMap[ i ].initSliceMap();
 
       // get position of first tile in slice
-      tileX =  m_rectSlices[ i ].getTileIdx() % m_numTileCols;
-      tileY =  m_rectSlices[ i ].getTileIdx() / m_numTileCols;
-      
+      uint32_t tileX =  m_rectSlices[ i ].getTileIdx() % m_numTileCols;
+      uint32_t tileY =  m_rectSlices[ i ].getTileIdx() / m_numTileCols;
+
       // infer slice size for last slice in picture
       if( i == m_numSlicesInPic-1 )
       {
@@ -1649,7 +1703,7 @@ void PPS::initRectSliceMap(const SPS  *sps)
 
       // set slice index
       m_sliceMap[ i ].setSliceID(i);
-      
+
       // complete tiles within a single slice case
       if( m_rectSlices[ i ].getSliceWidthInTiles( ) > 1 || m_rectSlices[ i ].getSliceHeightInTiles( ) > 1)
       {
@@ -1667,13 +1721,14 @@ void PPS::initRectSliceMap(const SPS  *sps)
       {
         uint32_t  numSlicesInTile = m_rectSlices[ i ].getNumSlicesInTile( );
 
-        ctuY = getTileRowBd( tileY );
+        uint32_t ctuY = getTileRowBd( tileY );
         for( uint32_t j = 0; j < numSlicesInTile-1; j++ )
         {
           m_sliceMap[ i ].addCtusToSlice( getTileColumnBd(tileX), getTileColumnBd(tileX+1),
                                           ctuY, ctuY + m_rectSlices[ i ].getSliceHeightInCtu(), m_picWidthInCtu);
           ctuY += m_rectSlices[ i ].getSliceHeightInCtu();
           i++;
+          m_sliceMap[ i ].initSliceMap();
           m_sliceMap[ i ].setSliceID(i);
         }
 
@@ -1688,7 +1743,7 @@ void PPS::initRectSliceMap(const SPS  *sps)
   // check for valid rectangular slice map
   checkSliceMap();
 }
-  
+
 /**
 - initialize mapping between subpicture and CTUs
 */
@@ -1943,32 +1998,6 @@ SliceMap::~SliceMap()
   m_numCtuInSlice = 0;
   m_ctuAddrInSlice.clear();
 }
-  
-#if JVET_O1143_SUBPIC_BOUNDARY
-SubPic::SubPic()
-//: m_subPicID              (0)
-//, m_numCTUsInSubPic       (0)
-//, m_subPicCtuTopLeftX     (0)
-//, m_subPicCtuTopLeftY     (0)
-//, m_subPicWidth           (0)
-//, m_subPicHeight          (0)
-//, m_firstCtuInSubPic      (0)
-//, m_lastCtuInSubPic       (0)
-//, m_subPicLeft            (0)
-//, m_subPicRight           (0)
-//, m_subPicTop             (0)
-//, m_subPicBottom          (0)
-//, m_treatedAsPicFlag                  (false)
-//, m_loopFilterAcrossSubPicEnabledFlag (false)
-{
-  m_ctuAddrInSubPic.clear();
-}
-
-SubPic::~SubPic()
-{
-  //m_ctuAddrInSubPic.clear();
-}
-#endif
 
 /** Sorts the deltaPOC and Used by current values in the RPS based on the deltaPOC values.
  *  deltaPOC values are sorted with -ve values before the +ve values.  -ve values are in decreasing order.
@@ -2052,6 +2081,38 @@ void ReferencePictureList::printRefPicInfo() const
   //DTRACE(g_trace_ctx, D_RPSINFO, "}\n");
   printf("}\n");
 }
+
+int ReferencePictureList::calcLTRefPOC( int currPoc, int bitsForPoc, int refPicIdentifier, bool pocMSBPresent, int deltaPocMSBCycle )
+{
+  const int pocCycle = 1 << bitsForPoc;
+  int       ltrpPoc  = refPicIdentifier & ( pocCycle - 1 );
+  if( pocMSBPresent )
+  {
+    ltrpPoc += currPoc - deltaPocMSBCycle * pocCycle - ( currPoc & ( pocCycle - 1 ) );
+  }
+  return ltrpPoc;
+}
+
+int ReferencePictureList::calcLTRefPOC( int currPoc, int bitsForPoc, int refPicIdx ) const
+{
+  return calcLTRefPOC( currPoc,
+                       bitsForPoc,
+                       this->getRefPicIdentifier( refPicIdx ),
+                       this->getDeltaPocMSBPresentFlag( refPicIdx ),
+                       this->getDeltaPocMSBCycleLT( refPicIdx ) );
+}
+
+bool isLTPocEqual( int poc1, int poc2, int bitsForPoc, bool msbPresent )
+{
+  if( msbPresent )
+  {
+    return poc1 == poc2;
+  }
+
+  const int pocCycle = 1 << bitsForPoc;
+  return ( poc1 & ( pocCycle - 1 ) ) == ( poc2 & ( pocCycle - 1 ) );
+}
+
 
 ScalingList::ScalingList()
 {
@@ -2164,9 +2225,8 @@ bool ScalingList::isLumaScalingList( int scalingListId) const
   return (scalingListId % MAX_NUM_COMPONENT == SCALING_LIST_1D_START_4x4 || scalingListId == SCALING_LIST_1D_START_64x64 + 1);
 }
 
-void Slice::scaleRefPicList( PicHeader *picHeader, APS** apss, APS* lmcsAps, APS* scalingListAps, const bool isDecoder )
+void Slice::scaleRefPicList( PicHeader *picHeader, APS** apss, APS* lmcsAps, APS* scalingListAps )
 {
-  int i;
   const SPS* sps = getSPS();
   const PPS* pps = getPPS();
 
@@ -2179,8 +2239,6 @@ void Slice::scaleRefPicList( PicHeader *picHeader, APS** apss, APS* lmcsAps, APS
   {
     return;
   }
-  
-  Picture* scaledRefPic[MAX_NUM_REF] = {};
   
   for( int refList = 0; refList < NUM_REF_PIC_LIST_01; refList++ )
   {
@@ -2204,72 +2262,7 @@ void Slice::scaleRefPicList( PicHeader *picHeader, APS** apss, APS* lmcsAps, APS
         refPicIsSameRes = true;
       }
 
-      if( m_scalingRatio[refList][rIdx] == SCALE_1X || isDecoder )
-      {
-        m_scaledRefPicList[refList][rIdx] = m_apcRefPicList[refList][rIdx];
-      }
-      else
-      {
-        int poc = m_apcRefPicList[refList][rIdx]->getPOC();
-        // check whether the reference picture has already been scaled 
-        for( i = 0; i < MAX_NUM_REF; i++ )
-        {
-          if( scaledRefPic[i] != nullptr && scaledRefPic[i]->poc == poc )
-          {
-            break;
-          }
-        }
-
-        if( i == MAX_NUM_REF )
-        {
-          int j;
-          // search for unused Picture structure in scaledRefPic
-          for( j = 0; j < MAX_NUM_REF; j++ )
-          {
-            if( scaledRefPic[j] == nullptr )
-            {
-              break;
-            }
-          }
-
-          CHECK( j >= MAX_NUM_REF, "scaledRefPic can not hold all reference pictures!" );
-
-          if( j >= MAX_NUM_REF )
-          {
-            j = 0;
-          }
-
-          if( scaledRefPic[j] == nullptr )
-          {
-            scaledRefPic[j] = new Picture;
-
-            scaledRefPic[j]->setBorderExtension( false );
-            scaledRefPic[j]->reconstructed = false;
-            scaledRefPic[j]->referenced = true;
-            scaledRefPic[j]->finalInit( sps, pps, picHeader, apss, lmcsAps, scalingListAps );
-            scaledRefPic[j]->poc = -1;
-
-            scaledRefPic[j]->create( sps->getChromaFormatIdc(), Size( pps->getPicWidthInLumaSamples(), pps->getPicHeightInLumaSamples() ), sps->getMaxCUWidth(), sps->getMaxCUWidth() + 16, m_pcPic->layerId );
-          }
-
-          scaledRefPic[j]->poc = poc;
-          scaledRefPic[j]->longTerm = m_apcRefPicList[refList][rIdx]->longTerm;
-
-          // rescale the reference picture
-          const bool downsampling = m_apcRefPicList[refList][rIdx]->getRecoBuf().Y().width >= scaledRefPic[j]->getRecoBuf().Y().width && m_apcRefPicList[refList][rIdx]->getRecoBuf().Y().height >= scaledRefPic[j]->getRecoBuf().Y().height;
-          Picture::rescalePicture( m_apcRefPicList[refList][rIdx]->getRecoBuf(), m_apcRefPicList[refList][rIdx]->slices[0]->getPPS()->getConformanceWindow(), scaledRefPic[j]->getRecoBuf(), pps->getConformanceWindow(), sps->getChromaFormatIdc(), sps->getBitDepths(), true, downsampling );
-#if JVET_Q0764_WRAP_AROUND_WITH_RPR
-          scaledRefPic[j]->unscaledPic = m_apcRefPicList[refList][rIdx];
-#endif
-          scaledRefPic[j]->extendPicBorder();
-
-          m_scaledRefPicList[refList][rIdx] = scaledRefPic[j];
-        }
-        else
-        {
-          m_scaledRefPicList[refList][rIdx] = scaledRefPic[i];
-        }
-      }
+      m_scaledRefPicList[refList][rIdx] = m_apcRefPicList[refList][rIdx];
     }
   }
 
@@ -2295,24 +2288,6 @@ void Slice::scaleRefPicList( PicHeader *picHeader, APS** apss, APS* lmcsAps, APS
   if(!refPicIsSameRes)
   {
     CHECK(getPicHeader()->getEnableTMVPFlag() != 0, "TMVP cannot be enabled in pictures that have no reference pictures with the same resolution")
-  }
-
-  freeScaledRefPicList( scaledRefPic );
-}
-
-void Slice::freeScaledRefPicList( Picture *scaledRefPic[] )
-{
-  if( m_eSliceType == I_SLICE )
-  {
-    return;
-  }
-  for( int i = 0; i < MAX_NUM_REF; i++ )
-  {
-    if( scaledRefPic[i] != nullptr )
-    {
-      scaledRefPic[i]->destroy();
-      scaledRefPic[i] = nullptr;
-    }
   }
 }
 
@@ -2462,21 +2437,21 @@ static const uint64_t MAX_CNFUINT64 = std::numeric_limits<uint64_t>::max();
 static const LevelTierFeatures mainLevelTierInfo[] =
 {
       //  level,       maxlumaps,      maxcpb[tier],,  maxSlicesPerAu,maxTilesPerAu,cols, maxLumaSr,       maxBr[tier],,    minCr[tier],,
-    { Level::LEVEL1  ,    36864, {      350,        0 },       16,        1,        1,     552960ULL, {     128,        0 }, { 2, 2} },
-    { Level::LEVEL2  ,   122880, {     1500,        0 },       16,        1,        1,    3686400ULL, {    1500,        0 }, { 2, 2} },
-    { Level::LEVEL2_1,   245760, {     3000,        0 },       20,        1,        1,    7372800ULL, {    3000,        0 }, { 2, 2} },
-    { Level::LEVEL3  ,   552960, {     6000,        0 },       30,        4,        2,   16588800ULL, {    6000,        0 }, { 2, 2} },
-    { Level::LEVEL3_1,   983040, {    10000,        0 },       40,        9,        3,   33177600ULL, {   10000,        0 }, { 2, 2} },
-    { Level::LEVEL4  ,  2228224, {    12000,    30000 },       75,       25,        5,   66846720ULL, {   12000,    30000 }, { 4, 4} },
-    { Level::LEVEL4_1,  2228224, {    20000,    50000 },       75,       25,        5,  133693440ULL, {   20000,    50000 }, { 4, 4} },
-    { Level::LEVEL5  ,  8912896, {    25000,   100000 },      200,      110,       10,  267386880ULL, {   25000,   100000 }, { 6, 4} },
-    { Level::LEVEL5_1,  8912896, {    40000,   160000 },      200,      110,       10,  534773760ULL, {   40000,   160000 }, { 8, 4} },
-    { Level::LEVEL5_2,  8912896, {    60000,   240000 },      200,      110,       10, 1069547520ULL, {   60000,   240000 }, { 8, 4} },
-    { Level::LEVEL6  , 35651584, {    80000,   240000 },      600,      440,       20, 1069547520ULL, {   60000,   240000 }, { 8, 4} },
-    { Level::LEVEL6_1, 35651584, {   120000,   480000 },      600,      440,       20, 2139095040ULL, {  120000,   480000 }, { 8, 4} },
-    { Level::LEVEL6_2, 35651584, {   180000,   800000 },      600,      440,       20, 4278190080ULL, {  240000,   800000 }, { 8, 4} },
-    { Level::LEVEL15_5, MAX_UINT,{ MAX_UINT, MAX_UINT }, MAX_UINT, MAX_UINT, MAX_UINT, MAX_CNFUINT64, {MAX_UINT, MAX_UINT }, { 0, 0} },
-    { Level::NONE    }
+    { vvdecLevel::VVDEC_LEVEL1  ,    36864, {      350,        0 },       16,        1,        1,     552960ULL, {     128,        0 }, { 2, 2} },
+    { vvdecLevel::VVDEC_LEVEL2  ,   122880, {     1500,        0 },       16,        1,        1,    3686400ULL, {    1500,        0 }, { 2, 2} },
+    { vvdecLevel::VVDEC_LEVEL2_1,   245760, {     3000,        0 },       20,        1,        1,    7372800ULL, {    3000,        0 }, { 2, 2} },
+    { vvdecLevel::VVDEC_LEVEL3  ,   552960, {     6000,        0 },       30,        4,        2,   16588800ULL, {    6000,        0 }, { 2, 2} },
+    { vvdecLevel::VVDEC_LEVEL3_1,   983040, {    10000,        0 },       40,        9,        3,   33177600ULL, {   10000,        0 }, { 2, 2} },
+    { vvdecLevel::VVDEC_LEVEL4  ,  2228224, {    12000,    30000 },       75,       25,        5,   66846720ULL, {   12000,    30000 }, { 4, 4} },
+    { vvdecLevel::VVDEC_LEVEL4_1,  2228224, {    20000,    50000 },       75,       25,        5,  133693440ULL, {   20000,    50000 }, { 4, 4} },
+    { vvdecLevel::VVDEC_LEVEL5  ,  8912896, {    25000,   100000 },      200,      110,       10,  267386880ULL, {   25000,   100000 }, { 6, 4} },
+    { vvdecLevel::VVDEC_LEVEL5_1,  8912896, {    40000,   160000 },      200,      110,       10,  534773760ULL, {   40000,   160000 }, { 8, 4} },
+    { vvdecLevel::VVDEC_LEVEL5_2,  8912896, {    60000,   240000 },      200,      110,       10, 1069547520ULL, {   60000,   240000 }, { 8, 4} },
+    { vvdecLevel::VVDEC_LEVEL6  , 35651584, {    80000,   240000 },      600,      440,       20, 1069547520ULL, {   60000,   240000 }, { 8, 4} },
+    { vvdecLevel::VVDEC_LEVEL6_1, 35651584, {   120000,   480000 },      600,      440,       20, 2139095040ULL, {  120000,   480000 }, { 8, 4} },
+    { vvdecLevel::VVDEC_LEVEL6_2, 35651584, {   180000,   800000 },      600,      440,       20, 4278190080ULL, {  240000,   800000 }, { 8, 4} },
+    { vvdecLevel::VVDEC_LEVEL15_5, MAX_UINT,{ MAX_UINT, MAX_UINT }, MAX_UINT, MAX_UINT, MAX_UINT, MAX_CNFUINT64, {MAX_UINT, MAX_UINT }, { 0, 0} },
+    { vvdecLevel::VVDEC_LEVEL_NONE    }
 };
 
 static const ProfileFeatures validProfiles[] = {
@@ -2533,11 +2508,11 @@ ProfileLevelTierFeatures::extractPTLInformation(const SPS &sps)
   if (m_pProfile != 0)
   {
     // Now identify the level:
-    const LevelTierFeatures *pLTF = m_pProfile->pLevelTiersListInfo;
-    const Level::Name spsLevelName = spsPtl.getLevelIdc();
-    if (spsLevelName!=Level::LEVEL15_5 || m_pProfile->canUseLevel15p5)
+    const LevelTierFeatures *pLTF  = m_pProfile->pLevelTiersListInfo;
+    const vvdecLevel spsLevelName  = spsPtl.getLevelIdc();
+    if (spsLevelName!=vvdecLevel::VVDEC_LEVEL15_5 || m_pProfile->canUseLevel15p5)
     {
-      for(int i=0; pLTF[i].level!=Level::NONE; i++)
+      for(int i=0; pLTF[i].level!=vvdecLevel::VVDEC_LEVEL_NONE; i++)
       {
         if (pLTF[i].level == spsLevelName)
         {
@@ -2563,7 +2538,7 @@ uint32_t ProfileLevelTierFeatures::getMaxDpbSize( uint32_t picSizeMaxInSamplesY 
   const uint32_t maxDpbPicBuf = 8;
   uint32_t       maxDpbSize;
 
-  if (m_pLevelTier->level == Level::LEVEL15_5)
+  if (m_pLevelTier->level == vvdecLevel::VVDEC_LEVEL15_5)
   {
     // maxDpbSize is unconstrained in this case
     maxDpbSize = std::numeric_limits<uint32_t>::max();
@@ -2623,3 +2598,5 @@ void xTraceAccessUnitDelimiter()
   DTRACE( g_trace_ctx, D_HEADER, "=========== Access Unit Delimiter ===========\n" );
 }
 #endif
+
+}

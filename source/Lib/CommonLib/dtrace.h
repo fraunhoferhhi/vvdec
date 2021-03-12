@@ -14,7 +14,7 @@ Einsteinufer 37
 www.hhi.fraunhofer.de/vvc
 vvc@hhi.fraunhofer.de
 
-Copyright (c) 2018-2020, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. 
+Copyright (c) 2018-2021, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. 
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -48,8 +48,7 @@ THE POSSIBILITY OF SUCH DAMAGE.
  *  \brief    Implementation of trace messages support for debugging
  */
 
-#ifndef _DTRACE_H_
-#define _DTRACE_H_
+#pragma once
 
 #include <stdio.h>
 
@@ -60,6 +59,8 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #include <vector>
 #include <cstdarg>
 
+namespace vvdec
+{
 
 class CDTrace;
 
@@ -142,6 +143,4 @@ public:
     void    decrementChannelCounter( int channel ) { chanRules[channel].decrementCounter(); }
 };
 
-
-#endif // _DTRACE_H_
-
+}

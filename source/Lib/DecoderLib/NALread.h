@@ -14,7 +14,7 @@ Einsteinufer 37
 www.hhi.fraunhofer.de/vvc
 vvc@hhi.fraunhofer.de
 
-Copyright (c) 2018-2020, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. 
+Copyright (c) 2018-2021, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. 
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -51,15 +51,13 @@ THE POSSIBILITY OF SUCH DAMAGE.
 
 #pragma once
 
-#ifndef __NALREAD__
-#define __NALREAD__
-
 #include "CommonLib/CommonDef.h"
 #include "CommonLib/BitStream.h"
 #include "CommonLib/NAL.h"
 
-//! \ingroup DecoderLib
-//! \{
+
+namespace vvdec
+{
 
 /**
  * A convenience wrapper to NALUnit that also provides a
@@ -85,7 +83,4 @@ class InputNALUnit : public NALUnit
     bool checkPictureHeaderInSliceHeaderFlag(InputNALUnit & nalu);
 };
 
-
-//! \}
-
-#endif
+}

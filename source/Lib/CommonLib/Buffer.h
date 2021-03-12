@@ -14,7 +14,7 @@ Einsteinufer 37
 www.hhi.fraunhofer.de/vvc
 vvc@hhi.fraunhofer.de
 
-Copyright (c) 2018-2020, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. 
+Copyright (c) 2018-2021, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. 
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -48,8 +48,7 @@ THE POSSIBILITY OF SUCH DAMAGE.
  *  \brief    Low-overhead class describing 2D memory layout
  */
 
-#ifndef __BUFFER__
-#define __BUFFER__
+#pragma once
 
 #include "Common.h"
 #include "CommonDef.h"
@@ -60,22 +59,21 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #include <type_traits>
 #include <typeinfo>
 #include <vector>
+#include <utility>
 
-// ---------------------------------------------------------------------------
-// AreaBuf struct
-// ---------------------------------------------------------------------------
+namespace vvdec
+{
 
+#if ENABLE_SIMD_OPT_BUFFER
 struct PelBufferOps
 {
   PelBufferOps();
 
-#if ENABLE_SIMD_OPT_BUFFER
 #ifdef TARGET_SIMD_X86
   void initPelBufOpsX86();
   template<X86_VEXT vext>
   void _initPelBufOpsX86();
 
-#endif
 #endif
   void ( *addAvg4 )       ( const Pel* src0, ptrdiff_t src0Stride, const Pel* src1, ptrdiff_t src1Stride, Pel *dst, ptrdiff_t dstStride, int width, int height,            int shift, int offset,      const ClpRng& clpRng );
   void ( *addAvg8 )       ( const Pel* src0, ptrdiff_t src0Stride, const Pel* src1, ptrdiff_t src1Stride, Pel *dst, ptrdiff_t dstStride, int width, int height,            int shift, int offset,      const ClpRng& clpRng );
@@ -93,7 +91,15 @@ struct PelBufferOps
   void ( *transpose8x8 )  ( const Pel* src,  ptrdiff_t srcStride, Pel* dst, ptrdiff_t dstStride );
   void ( *applyLut )      (       Pel* ptr,  ptrdiff_t ptrStride, int width, int height, const Pel* lut );
   void ( *fillN_CU )      (       CodingUnit** ptr, ptrdiff_t ptrStride, int width, int height, CodingUnit* cuPtr );
+
+  void (*sampleRateConv)  ( const std::pair<int, int> scalingRatio, const std::pair<int, int> compScale,
+                            const Pel* orgSrc, const int orgStride, const int orgWidth, const int orgHeight,
+                            const int beforeScaleLeftOffset, const int beforeScaleTopOffset,
+                            Pel* scaledSrc, const int scaledStride, const int scaledWidth, const int scaledHeight,
+                            const int afterScaleLeftOffset, const int afterScaleTopOffset,
+                            const int bitDepth, const bool useLumaFilter, const bool horCollocatedPositionFlag, const bool verCollocatedPositionFlag );
 };
+#endif
 
 extern PelBufferOps g_pelBufOP;
 
@@ -105,6 +111,9 @@ extern PelBufferOps g_pelBufOP;
 #define GET_OFFSETX( ptr, stride, x ) ( ( ptr ) + ( x ) )
 #define GET_OFFSETY( ptr, stride, y ) ( ( ptr ) + ( y ) * ( stride ) )
 #define GET_OFFSET( ptr, stride, x, y ) ( ( ptr ) + ( x ) + ( y ) * ( stride ) )
+
+class Window;
+struct BitDepths;
 
 template<typename T>
 struct AreaBuf : public Size
@@ -131,13 +140,16 @@ struct AreaBuf : public Size
   void extendBorderPel      ( unsigned margin, bool left, bool right, bool top, bool bottom );
   void addWeightedAvg       ( const AreaBuf<const T> &other1, const AreaBuf<const T> &other2, const ClpRng& clpRng, const int8_t bcwIdx);
   void addAvg               ( const AreaBuf<const T> &other1, const AreaBuf<const T> &other2, const ClpRng& clpRng );
-
+  void padBorderPel         ( unsigned marginX, unsigned marginY, int dir );
+  
   void linearTransform      ( const int scale, const int shift, const int offset, bool bClip, const ClpRng& clpRng );
 
   void transposedFrom       ( const AreaBuf<const T> &other );
 
   void rspSignal            ( const Pel *lut );
   void scaleSignal          ( const int scale, const ClpRng& clpRng);
+
+  void rescaleBuf           ( const AreaBuf<const T>& beforeScaling, const ComponentID compID, const std::pair<int, int> scalingRatio, const Window& confBefore, const Window& confAfter, const ChromaFormat chromaFormatIDC, const BitDepths& bitDepths, const bool horCollocatedChromaFlag = false, const bool verCollocatedChromaFlag = false );
 
         T& at( const int &x, const int &y )          { return buf[y * stride + x]; }
   const T& at( const int &x, const int &y ) const    { return buf[y * stride + x]; }
@@ -367,7 +379,7 @@ void AreaBuf<T>::memset( const int val )
   GCC_WARNING_RESET
 }
 
-#if ENABLE_SIMD_OPT_BUFFER && defined( TARGET_SIMD_X86 )
+#if ENABLE_SIMD_OPT_BUFFER
 template<typename T>
 void AreaBuf<T>::copyFrom( const AreaBuf<const T> &other ) const
 {
@@ -463,6 +475,16 @@ void AreaBuf<T>::linearTransform( const int scale, const int shift, const int of
 
 template<>
 void AreaBuf<Pel>::linearTransform( const int scale, const int shift, const int offset, bool bClip, const ClpRng& clpRng );
+
+
+template<typename T>
+void AreaBuf<T>::rescaleBuf( const AreaBuf<const T>& beforeScaling, ComponentID compID, const std::pair<int, int> scalingRatio, const Window& confBefore, const Window& confAfter, const ChromaFormat chromaFormatIDC, const BitDepths& bitDepths, const bool horCollocatedChromaFlag, const bool verCollocatedChromaFlag )
+{
+  THROW( "Type not supported" );
+}
+
+template<>
+void AreaBuf<Pel>::rescaleBuf( const AreaBuf<const Pel>& beforeScaling, ComponentID compID, const std::pair<int, int> scalingRatio, const Window& confBefore, const Window& confAfter, const ChromaFormat chromaFormatIDC, const BitDepths& bitDepths, const bool horCollocatedChromaFlag, const bool verCollocatedChromaFlag );
 
 template<typename T>
 void AreaBuf<T>::extendBorderPel( unsigned margin )
@@ -575,6 +597,45 @@ void AreaBuf<T>::extendBorderPel(unsigned margin, bool left, bool right, bool to
   }
 }
 
+template<typename T>
+void AreaBuf<T>::padBorderPel( unsigned marginX, unsigned marginY, int dir )
+{
+  T*  p = buf;
+  int s = stride;
+  int h = height;
+  int w = width;
+
+  CHECK( w  > s, "Size of buffer too small to extend" );
+
+  // top-left margin
+  if ( dir == 1 )
+  {
+    for( int y = 0; y < marginY; y++ )
+    {
+      for( int x = 0; x < marginX; x++ )
+      {
+        p[x] = p[marginX];
+      }
+      p += s;
+    }
+  }
+
+  // bottom-right margin
+  if ( dir == 2 )
+  {
+    p = buf + s * ( h - marginY ) + w - marginX;
+
+    for( int y = 0; y < marginY; y++ )
+    {
+      for( int x = 0; x < marginX; x++ )
+      {
+        p[x] = p[-1];
+      }
+      p += s;
+    }
+  }
+}
+
 #if ENABLE_SIMD_OPT_BUFFER && defined(TARGET_SIMD_X86)
 template<> void AreaBuf<Pel>::transposedFrom( const AreaBuf<const Pel> &other );
 #endif
@@ -652,12 +713,17 @@ struct UnitBuf
   void addAvg               ( const UnitBuf<      T> &other1, const UnitBuf<      T> &other2, const ClpRngs& clpRngs, const bool chromaOnly = false, const bool lumaOnly = false);
   void extendBorderPel      ( unsigned margin );
   void extendBorderPel      ( unsigned margin, bool left, bool right, bool top, bool bottom );
+  void padBorderPel         ( unsigned margin, int dir );
+  
+  void rescaleBuf           ( const UnitBuf<const T>& beforeScaling, const std::pair<int, int> scalingRatio, const Window& confBefore, const Window& confAfter, const BitDepths& bitDepths, const bool horCollocatedChromaFlag = false, const bool verCollocatedChromaFlag = false );
 
         UnitBuf<      T> subBuf (const Area& subArea);
   const UnitBuf<const T> subBuf (const Area& subArea) const;
         UnitBuf<      T> subBuf (const UnitArea& subArea);
   const UnitBuf<const T> subBuf (const UnitArea& subArea) const;
   void colorSpaceConvert    ( const UnitBuf<T> &other, const ClpRng& clpRng );
+
+  void writeToFile( std::string filename ) const;   // for debug purposes
 };
 
 typedef UnitBuf<      Pel>  PelUnitBuf;
@@ -767,6 +833,15 @@ void UnitBuf<T>::extendBorderPel(unsigned margin, bool left, bool right, bool to
 }
 
 template<typename T>
+void UnitBuf<T>::padBorderPel( unsigned margin, int dir )
+{
+  for( unsigned i = 0; i < bufs.size(); i++ )
+  {
+    bufs[i].padBorderPel( margin >> getComponentScaleX( ComponentID( i ), chromaFormat ), margin >> getComponentScaleY( ComponentID( i ), chromaFormat ), dir );
+  }
+}
+
+template<typename T>
 UnitBuf<T> UnitBuf<T>::subBuf( const UnitArea& subArea )
 {
   UnitBuf<T> subBuf;
@@ -837,6 +912,15 @@ const UnitBuf<const T> UnitBuf<T>::subBuf( const Area & subArea ) const
   return subBuf;
 }
 
+template<typename T>
+void UnitBuf<T>::rescaleBuf( const UnitBuf<const T>& beforeScaling, const std::pair<int, int> scalingRatio, const Window& confBefore, const Window& confAfter, const BitDepths& bitDepths, const bool horCollocatedChromaFlag, const bool verCollocatedChromaFlag )
+{
+  for( unsigned i = 0; i < bufs.size(); i++ )
+  {
+    bufs[i].rescaleBuf( beforeScaling.bufs[i], ComponentID( i ), scalingRatio, confBefore, confAfter, chromaFormat, bitDepths, horCollocatedChromaFlag, verCollocatedChromaFlag );
+  }
+}
+
 // ---------------------------------------------------------------------------
 // PelStorage struct (PelUnitBuf which allocates its own memory)
 // ---------------------------------------------------------------------------
@@ -872,4 +956,4 @@ private:
   Pel *m_origin[MAX_NUM_COMPONENT];
 };
 
-#endif
+}

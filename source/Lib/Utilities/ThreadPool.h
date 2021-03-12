@@ -1,11 +1,11 @@
 /* -----------------------------------------------------------------------------
 The copyright in this software is being made available under the BSD
-License, included below. No patent rights, trademark rights and/or 
-other Intellectual Property Rights other than the copyrights concerning 
+License, included below. No patent rights, trademark rights and/or
+other Intellectual Property Rights other than the copyrights concerning
 the Software are granted under this license.
 
-For any license concerning other Intellectual Property rights than the software, 
-especially patent licenses, a separate Agreement needs to be closed. 
+For any license concerning other Intellectual Property rights than the software,
+especially patent licenses, a separate Agreement needs to be closed.
 For more information please contact:
 
 Fraunhofer Heinrich Hertz Institute
@@ -14,7 +14,7 @@ Einsteinufer 37
 www.hhi.fraunhofer.de/vvc
 vvc@hhi.fraunhofer.de
 
-Copyright (c) 2018-2020, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. 
+Copyright (c) 2018-2021, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V.
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -44,18 +44,19 @@ THE POSSIBILITY OF SUCH DAMAGE.
 
 ------------------------------------------------------------------------------------------- */
 
-#ifndef NOMALLOCTHREADPOOL_H
-#define NOMALLOCTHREADPOOL_H
+#pragma once
 
 #include <thread>
 #include <mutex>
 #include <condition_variable>
 #include <atomic>
-#include <chrono>
-#include <iostream>
+#include <exception>
 #include <array>
 
 #include "CommonLib/CommonDef.h"
+
+namespace vvdec
+{
 
 #ifdef TRACE_ENABLE_ITT
 static __itt_domain* itt_domain_thrd = __itt_domain_create( "Threading" );
@@ -64,22 +65,12 @@ static __itt_string_handle* itt_handle_TPspinWait = __itt_string_handle_create( 
 static __itt_string_handle* itt_handle_TPblocked  = __itt_string_handle_create( "Blocked" );
 static __itt_string_handle* itt_handle_TPaddTask  = __itt_string_handle_create( "Add_Task" );
 
-//static long itt_TP_blocked = 1;
-
-#endif //TRACE_ENABLE_ITT
-
-// block threads after busy-waiting this long
-const static auto BUSY_WAIT_TIME = [] {
-  const char *env = getenv( "BUSY_WAIT_TIME" );
-  if( env )
-    return std::chrono::milliseconds( atoi( env ) );
-  return std::chrono::milliseconds( 1 );
-}();
+// static long itt_TP_blocked = 1;
+#endif   // TRACE_ENABLE_ITT
 
 
 // enable this if tasks need to be added from mutliple threads
 #define ADD_TASK_THREAD_SAFE 0
-
 
 // ---------------------------------------------------------------------------
 // Synchronization tools
@@ -87,23 +78,80 @@ const static auto BUSY_WAIT_TIME = [] {
 
 struct Barrier
 {
-  void unlock()
+  virtual void unlock()
   {
+    checkAndRethrowException();
+
     m_lockState.store( false );
   }
 
-  void lock()
+  virtual void lock()
   {
+    checkAndRethrowException();
+
     m_lockState.store( true );
   }
 
   bool isBlocked() const
   {
+    checkAndRethrowException();
+
     return m_lockState;
   }
 
+  virtual void setException( std::exception_ptr e )
+  {
+    std::lock_guard<std::mutex> l( s_exceptionLock );
+    if( m_hasException )
+    {
+      CHECK( m_exception == nullptr, "no exception currently stored, but flag is set" );
+      // exception is already set -> no-op
+      return;
+    }
+    m_exception    = e;
+    m_hasException = true;
+  }
+
+  virtual void clearException()
+  {
+    if( m_hasException )
+    {
+      std::lock_guard<std::mutex> l( s_exceptionLock );
+      m_hasException = false;
+      m_exception    = nullptr;
+    }
+  }
+
+  const std::exception_ptr getException() const
+  {
+    if( !m_hasException )
+    {
+      return nullptr;
+    }
+
+    std::lock_guard<std::mutex> l( s_exceptionLock );
+    return m_exception;
+  }
+
+  bool hasException() const { return m_hasException; }
+
+  inline void checkAndRethrowException() const
+  {
+    if( !m_hasException )
+    {
+      return;
+    }
+
+    std::lock_guard<std::mutex> l( s_exceptionLock );
+    if( m_hasException )
+    {
+      CHECK( m_exception == nullptr, "no exception currently stored, but flag is set" );
+      std::rethrow_exception( m_exception );
+    }
+  }
+
   Barrier()  = default;
-  ~Barrier() = default;
+  virtual ~Barrier() = default;
   explicit Barrier( bool locked ) : m_lockState( locked ) {}
 
   Barrier( const Barrier & ) = delete;
@@ -113,38 +161,45 @@ struct Barrier
   Barrier& operator=( Barrier && )      = delete;
 
 private:
-  std::atomic_bool m_lockState{ true };
+  std::atomic_bool   m_lockState{ true };
+  std::atomic_bool   m_hasException{ false };
+  std::exception_ptr m_exception;
+  static std::mutex  s_exceptionLock;   // we use one shared mutex for all barriers here. It is only involved, when exceptions actually happen, so there should
+                                        // be no contention during normal operations
 };
 
-struct BlockingBarrier
+struct BlockingBarrier: public Barrier
 {
-  void unlock()
+  void unlock() override
   {
     std::unique_lock<std::mutex> l( m_lock );
-    m_intBarrier.unlock();
-    if( !m_intBarrier.isBlocked() )
-    {
-      m_cond.notify_all();
-    }
+    Barrier::unlock();
+    m_cond.notify_all();
   }
 
-  void lock()
+  void lock() override
   {
     std::unique_lock<std::mutex> l( m_lock );
-    m_intBarrier.lock();
-  }
-
-  bool isBlocked() const
-  {
-    return m_intBarrier.isBlocked();
+    Barrier::lock();
   }
 
   void wait() const
   {
-    BlockingBarrier* nonconst = const_cast<BlockingBarrier*>(this);
+    std::unique_lock<std::mutex> l( m_lock );
+    m_cond.wait( l, [=] { return !Barrier::isBlocked(); } );
+  }
 
-    std::unique_lock<std::mutex> l( nonconst->m_lock );
-    nonconst->m_cond.wait( l, [=] { return !m_intBarrier.isBlocked(); } );
+  void setException( std::exception_ptr e ) override
+  {
+    std::unique_lock<std::mutex> l( m_lock );
+    Barrier::setException( e );
+    m_cond.notify_all();
+  }
+
+  void clearException() override
+  {
+    std::unique_lock<std::mutex> l( m_lock );
+    Barrier::clearException();
   }
 
   BlockingBarrier()  = default;
@@ -156,13 +211,9 @@ struct BlockingBarrier
   BlockingBarrier& operator=( const BlockingBarrier& ) = delete;
   BlockingBarrier& operator=( BlockingBarrier&& ) = delete;
 
-  // cast to const ref Barrier, so we can use it for thread pool tasks:
-  operator const Barrier&() const { return m_intBarrier; }
-
 private:
-  Barrier                 m_intBarrier;
-  std::condition_variable m_cond;
-  std::mutex              m_lock;
+  mutable std::condition_variable m_cond;
+  mutable std::mutex              m_lock;
 };
 
 struct WaitCounter
@@ -170,7 +221,7 @@ struct WaitCounter
   int operator++()
   {
     std::unique_lock<std::mutex> l( m_lock );
-    done.lock();
+    m_done.lock();
     return ++m_count;
   }
 
@@ -178,27 +229,44 @@ struct WaitCounter
   {
     std::unique_lock<std::mutex> l( m_lock );
     const unsigned int new_count = --m_count;
-      if( new_count == 0 )
+    if( new_count == 0 )
     {
+      m_done.unlock();
       m_cond.notify_all();
-        done.unlock();
-      }
+    }
     l.unlock(); // unlock mutex after done-barrier to prevent race between barrier and counter
     return new_count;
   }
 
   bool isBlocked() const
   {
+    std::unique_lock<std::mutex> l( const_cast<std::mutex&>( m_lock ) );
+    m_done.checkAndRethrowException();
     return 0 != m_count;
   }
 
   void wait() const
   {
-    WaitCounter* nonconst = const_cast<WaitCounter*>(this);
-
-    std::unique_lock<std::mutex> l( nonconst->m_lock );
-    nonconst->m_cond.wait( l, [=] { return m_count == 0; } );
+    std::unique_lock<std::mutex> l( m_lock );
+    m_cond.wait( l, [=] { return m_count == 0 || m_done.hasException(); } );
+    m_done.checkAndRethrowException();
   }
+
+  void setException( std::exception_ptr e )
+  {
+    std::unique_lock<std::mutex> l( m_lock );
+    m_done.setException( e );
+    m_cond.notify_all();
+  }
+
+  void clearException()
+  {
+    std::unique_lock<std::mutex> l( m_lock );
+    m_done.clearException();
+  }
+
+  bool                     hasException() const { return m_done.hasException(); }
+  const std::exception_ptr getException() const { return m_done.getException(); }
 
   WaitCounter() = default;
   ~WaitCounter() { std::unique_lock<std::mutex> l( m_lock ); }   // ensure all threads have unlocked the mutex, when we start destruction
@@ -209,12 +277,13 @@ struct WaitCounter
   WaitCounter &operator=( const WaitCounter & ) = delete;
   WaitCounter &operator=( WaitCounter && )      = delete;
 
-  Barrier done{ false };
+  const Barrier* donePtr() const { return &m_done; }
 
 private:
-  std::condition_variable m_cond;
-  std::mutex              m_lock;
-  unsigned int            m_count = 0;
+  mutable std::condition_variable m_cond;
+  mutable std::mutex              m_lock;
+  unsigned int                    m_count = 0;
+  Barrier                         m_done{ false };
 };
 
 
@@ -225,7 +294,7 @@ private:
 
 using CBarrierVec = std::vector<const Barrier*>;
 
-class NoMallocThreadPool
+class ThreadPool
 {
   typedef enum
   {
@@ -247,7 +316,6 @@ class NoMallocThreadPool
     CBarrierVec            barriers;
     std::atomic<TaskState> state     { FREE };
   };
-
 
   class ChunkedTaskQueue
   {
@@ -274,54 +342,10 @@ class NoMallocThreadPool
       Iterator() = default;
       Iterator( Slot* slot, Chunk* chunk ) : m_slot( slot ), m_chunk( chunk ) {}
 
-      Iterator& operator++()
-      {
-        CHECKD( m_slot == nullptr, "incrementing invalid iterator" );
-        CHECKD( m_chunk == nullptr, "incrementing invalid iterator" );
-
-        if( m_slot != &m_chunk->m_slots.back() )
-        {
-          ++m_slot;
-        }
-        else
-        {
-          m_chunk = m_chunk->m_next;
-          if( m_chunk )
-          {
-            m_slot  = &m_chunk->m_slots.front();
-          }
-          else
-          {
-            m_slot  = nullptr;
-          }
-        }
-        return *this;
-      }
+      Iterator& operator++();
 
       // increment iterator and wrap around, if end is reached
-      Iterator& incWrap()
-      {
-        CHECKD( m_slot == nullptr, "incrementing invalid iterator" );
-        CHECKD( m_chunk == nullptr, "incrementing invalid iterator" );
-
-        if( m_slot != &m_chunk->m_slots.back() )
-        {
-          ++m_slot;
-        }
-        else
-        {
-          if( m_chunk->m_next )
-          {
-            m_chunk = m_chunk->m_next;
-          }
-          else
-          {
-            m_chunk = &m_chunk->m_firstChunk;
-          }
-          m_slot = &m_chunk->m_slots.front();
-        }
-        return *this;
-      }
+      Iterator& incWrap();
 
       bool operator==( const Iterator& rhs ) const { return m_slot == rhs.m_slot; } // don't need to compare m_chunk, because m_slot is a pointer
       bool operator!=( const Iterator& rhs ) const { return m_slot != rhs.m_slot; } // don't need to compare m_chunk, because m_slot is a pointer
@@ -332,31 +356,13 @@ class NoMallocThreadPool
     };
 
     ChunkedTaskQueue() = default;
-    ~ChunkedTaskQueue()
-    {
-      Chunk* next = m_firstChunk.m_next;
-      while( next )
-      {
-        Chunk* curr = next;
-        next = curr->m_next;
-        delete curr;
-      }
-    }
+    ~ChunkedTaskQueue();
 
     ChunkedTaskQueue( const ChunkedTaskQueue& ) = delete;
     ChunkedTaskQueue( ChunkedTaskQueue&& )      = delete;
 
     // grow the queue by adding a chunk and return an iterator to the first new task-slot
-    Iterator grow()
-    {
-      std::unique_lock<std::mutex> l( m_resizeMutex );  // prevent concurrent growth of the queue. Read access while growing is no problem
-//      std::cerr << __PRETTY_FUNCTION__ << std::endl;
-
-      m_lastChunk->m_next = new Chunk( &m_firstChunk );
-      m_lastChunk         = m_lastChunk->m_next;
-
-      return Iterator{ &m_lastChunk->m_slots.front(), m_lastChunk };
-    }
+    Iterator grow();
 
     Iterator begin() { return Iterator{ &m_firstChunk.m_slots.front(), &m_firstChunk }; }
     Iterator end()   { return Iterator{ nullptr, nullptr }; }
@@ -370,38 +376,28 @@ class NoMallocThreadPool
 
 
 public:
-  NoMallocThreadPool( int numThreads = 1, const char *threadPoolName = nullptr );
-  ~NoMallocThreadPool();
+  ThreadPool( int numThreads = 1, const char *threadPoolName = nullptr );
+  ~ThreadPool();
 
   template<class TParam>
-  bool addBarrierTask( bool             ( *func )( int, TParam* ),
-                       TParam*             param,
-                       WaitCounter*        counter                      = nullptr,
-                       Barrier*            done                         = nullptr,
-                       const CBarrierVec&& barriers                     = {},
-                       bool             ( *readyCheck )( int, TParam* ) = nullptr )
+  bool addBarrierTask( bool       ( *func )( int, TParam* ),
+                       TParam*       param,
+                       WaitCounter*  counter                      = nullptr,
+                       Barrier*      done                         = nullptr,
+                       CBarrierVec&& barriers                     = {},
+                       bool       ( *readyCheck )( int, TParam* ) = nullptr )
   {
     if( m_threads.empty() )
     {
-      // if singlethreaded, execute all pending tasks
-      if( m_nextFillSlot != m_tasks.begin() )
+      // in the single threaded case try to exectute the task directly
+      if( bypassTaskQueue( (TaskFunc)func, param, counter, done, barriers, (TaskFunc)readyCheck ) )
       {
-        processTasksOnMainThread();
+        return true;
       }
-
-      // when no barriers block this task, execute it directly
-      if( std::none_of( barriers.begin(), barriers.end(), []( const Barrier* b ) { return b && b->isBlocked(); } )
-          && ( !readyCheck || readyCheck( 0, param ) ) )
-      {
-        if( func( 0, param ) )
-        {
-          if( done != nullptr )
-          {
-            done->unlock();
-          }
-          return true;
-        }
-      }
+    }
+    else
+    {
+      checkAndThrowThreadPoolException();
     }
 
     while( true )
@@ -455,6 +451,7 @@ public:
   }
 
   bool processTasksOnMainThread();
+  void checkAndThrowThreadPoolException();
 
   void shutdown( bool block );
   void waitForThreads();
@@ -462,8 +459,8 @@ public:
   int numThreads() const { return (int)m_threads.size(); }
 
 private:
-
   using TaskIterator = ChunkedTaskQueue::Iterator;
+  struct TaskException;
 
   // members
   std::string              m_poolName;
@@ -477,10 +474,16 @@ private:
   std::mutex               m_idleMutex;
   std::atomic_uint         m_waitingThreads{ 0 };
 
+  std::atomic_bool         m_exceptionFlag{ false };
+  std::exception_ptr       m_threadPoolException;
+
   // internal functions
-  void         threadProc  ( int threadId );
-  TaskIterator findNextTask( int threadId, TaskIterator startSearch );
-  bool         processTask ( int threadId, Slot& task );
+  void         threadProc     ( int threadId );
+  static bool  checkTaskReady ( int threadId, CBarrierVec& barriers, TaskFunc readyCheck, void* taskParam );
+  TaskIterator findNextTask   ( int threadId, TaskIterator startSearch );
+  static bool  processTask    ( int threadId, Slot& task );
+  bool         bypassTaskQueue( TaskFunc func, void* param, WaitCounter* counter, Barrier* done, CBarrierVec& barriers, TaskFunc readyCheck );
+  static void handleTaskException( const std::exception_ptr e, Barrier* done, WaitCounter* counter, std::atomic<TaskState>* slot_state );
 };
 
-#endif   // NOMALLOCTHREADPOOL_H
+}

@@ -14,7 +14,7 @@ Einsteinufer 37
 www.hhi.fraunhofer.de/vvc
 vvc@hhi.fraunhofer.de
 
-Copyright (c) 2018-2020, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. 
+Copyright (c) 2018-2021, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. 
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -48,9 +48,7 @@ THE POSSIBILITY OF SUCH DAMAGE.
  *  \brief    Classes providing probability descriptions and contexts (header)
  */
 
-#ifndef __CONTEXTMODELLING__
-#define __CONTEXTMODELLING__
-
+#pragma once
 
 #include "CommonDef.h"
 #include "Contexts.h"
@@ -62,6 +60,8 @@ THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "CommonLib/dtrace_next.h"
 
+namespace vvdec
+{
 
 struct CoeffCodingContext
 {
@@ -512,4 +512,4 @@ unsigned CtxIBCFlag   (const CodingUnit& cu);
 unsigned CtxMipFlag   ( const CodingUnit& cu );
 }
 
-#endif // __CONTEXTMODELLING__
+}

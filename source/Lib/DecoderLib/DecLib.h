@@ -14,7 +14,7 @@ Einsteinufer 37
 www.hhi.fraunhofer.de/vvc
 vvc@hhi.fraunhofer.de
 
-Copyright (c) 2018-2020, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. 
+Copyright (c) 2018-2021, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. 
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -48,8 +48,7 @@ THE POSSIBILITY OF SUCH DAMAGE.
     \brief    decoder class (header)
 */
 
-#ifndef DECLIB_H
-#define DECLIB_H
+#pragma once
 
 #include "DecLibParser.h"
 #include "DecLibRecon.h"
@@ -57,10 +56,11 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #include "CommonLib/CommonDef.h"
 #include "CommonLib/Picture.h"
 
-#include "Utilities/NoMallocThreadPool.h"
+#include "Utilities/ThreadPool.h"
 
-//! \ingroup DecoderLib
-//! \{
+namespace vvdec
+{
+
 // ====================================================================================================================
 // Class definition
 // ====================================================================================================================
@@ -73,9 +73,12 @@ class DecLib
   DecLibParser             m_decLibParser{ *this, m_picListManager, m_picHeader };
   std::list<DecLibRecon>   m_decLibRecon{ 2 };
 
-  std::unique_ptr<NoMallocThreadPool> m_decodeThreadPool;
+  std::unique_ptr<ThreadPool> m_decodeThreadPool;
 
   unsigned int m_parseFrameDelay = 0;
+#if RPR_YUV_OUTPUT
+  unsigned int m_upscaledOutput  = 0;
+#endif
 
   int         m_decodedPictureHashSEIEnabled   = 0;   ///< Checksum(3)/CRC(2)/MD5(1)/disable(0) acting on decoded picture hash SEI message
   uint32_t    m_numberOfChecksumErrorsDetected = 0;
@@ -99,7 +102,11 @@ public:
   DecLib();
   ~DecLib() = default;
 
+#if RPR_YUV_OUTPUT
+  void create( int numDecThreads, int parserFrameDelay, int upscaledOutput );
+#else
   void create( int numDecThreads, int parserFrameDelay );
+#endif
   void destroy();
 
   const char* getDecoderCapabilities() const { return m_sDecoderCapabilities.c_str(); }
@@ -126,6 +133,10 @@ public:
   void checkAPSInPictureUnit();
   void resetPictureUnitNals() { m_pictureUnitNals.clear(); }
 
+#if RPR_YUV_OUTPUT
+  unsigned int getUpscaledOutput() { return m_upscaledOutput; }
+#endif
+
 private:
   void     decompressPicture( Picture* pcPic );
 #if JVET_R0270
@@ -137,6 +148,4 @@ private:
   void     xCheckNalUnitConstraintFlags( const ConstraintInfo *cInfo, uint32_t naluType );
 };
 
-//! \}
-
-#endif   // DECLIB_H
+}
