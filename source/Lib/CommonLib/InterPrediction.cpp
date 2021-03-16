@@ -594,7 +594,7 @@ void InterPrediction::xPredInterUni( const PredictionUnit &pu, const RefPicList 
   {
     mv[0] = pu.mv[eRefPicList][0];
 
-    CHECK( !refPic, "bloed" );
+    CHECK( !refPic, "xPredInterUni missing ref pic" );
 
     if( !isIBC && !scaled )
     {

@@ -2017,6 +2017,7 @@ void ReferencePictureList::clear()
 
 void ReferencePictureList::setRefPicIdentifier( int idx, int identifier, bool isLongterm, bool isInterLayerRefPic, int interLayerIdx )
 {
+  CHECK( idx > MAX_NUM_REF_PICS, "RPL setRefPicIdentifier out of range (0-15)" );
   m_refPicIdentifier[idx] = identifier;
   m_isLongtermRefPic[idx] = isLongterm;
 
@@ -2036,6 +2037,12 @@ int ReferencePictureList::getRefPicIdentifier(int idx) const
 bool ReferencePictureList::isRefPicLongterm(int idx) const
 {
   return m_isLongtermRefPic[idx];
+}
+
+void ReferencePictureList::setRefPicLongterm(int idx,bool isLongterm)
+{
+  CHECK( idx > MAX_NUM_REF_PICS, "RPL setRefPicLongterm out of range (0-15)" );
+  m_isLongtermRefPic[idx] = isLongterm;
 }
 
 void ReferencePictureList::setNumberOfShorttermPictures(int numberOfStrp)
@@ -2060,12 +2067,31 @@ int ReferencePictureList::getNumberOfLongtermPictures() const
 
 void ReferencePictureList::setPOC(int idx, int POC)
 {
+  CHECK( idx > MAX_NUM_REF_PICS, "RPL setPOC out of range (0-15)" );
   m_POC[idx] = POC;
 }
 
 int ReferencePictureList::getPOC(int idx) const
 {
   return m_POC[idx];
+}
+
+void ReferencePictureList::setDeltaPocMSBCycleLT(int idx, int x)
+{
+  CHECK( idx > MAX_NUM_REF_PICS, "RPL setDeltaPocMSBCycleLT out of range (0-15)" );
+  m_deltaPOCMSBCycleLT[idx] = x;
+}
+
+void ReferencePictureList::setDeltaPocMSBPresentFlag(int idx, bool x)
+{
+  CHECK( idx > MAX_NUM_REF_PICS, "RPL setDeltaPocMSBPresentFlag out of range (0-15)" );
+  m_deltaPocMSBPresentFlag[idx] = x;
+}
+
+void ReferencePictureList::setInterLayerRefPicIdx( int idx, int layerIdc )
+{
+  CHECK( idx > MAX_NUM_REF_PICS, "RPL setInterLayerRefPicIdx out of range (0-15)" );
+  m_interLayerRefPicIdx[idx] = layerIdc;
 }
 
 void ReferencePictureList::printRefPicInfo() const
@@ -2256,7 +2282,7 @@ void Slice::scaleRefPicList( PicHeader *picHeader, APS** apss, APS* lmcsAps, APS
       CU::getRprScaling( sps, pps, m_apcRefPicList[refList][rIdx]->slices[0]->getPPS(), xScale, yScale );
       m_scalingRatio[refList][rIdx] = std::pair<int, int>( xScale, yScale );
 
-      CHECK( !m_apcRefPicList[refList][rIdx], "bloed" );
+      CHECK( !m_apcRefPicList[refList][rIdx], "scaleRefPicList missing ref pic" );
       if( m_apcRefPicList[refList][rIdx]->isRefScaled( pps ) == false )
       {
         refPicIsSameRes = true;

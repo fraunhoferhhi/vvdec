@@ -87,6 +87,19 @@ static const char * const vvdecErrorMsg[] = { "expected behavior",
 class VVDecImpl
 {
 public:
+
+  enum VVDecInternalState
+  {
+    INTERNAL_STATE_UNINITIALIZED = 0,
+    INTERNAL_STATE_INITIALIZED   = 1,
+    INTERNAL_STATE_DECODING      = 2,
+    INTERNAL_STATE_FLUSHING      = 3,
+    INTERNAL_STATE_FINALIZED     = 4,
+    INTERNAL_STATE_RESTART_REQUIRED = 5
+  };
+
+public:
+
   /// Constructor
   VVDecImpl();
 
@@ -183,6 +196,7 @@ private:
   typedef frameStorageMap::value_type        frameStorageMapType;
 public:
    bool                                    m_bInitialized = false;
+   VVDecInternalState                      m_eState       = INTERNAL_STATE_UNINITIALIZED;
 
    DecLib*                                 m_cDecLib;
 
