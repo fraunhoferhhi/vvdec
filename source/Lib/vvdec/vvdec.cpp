@@ -333,8 +333,10 @@ bool vvdec_is_nal_unit_slice( vvdecNalType t )
   return vvdec::VVDecImpl::isNalUnitSlice(t);
 }
 
+VVDEC_NAMESPACE_END
+
 #ifdef __cplusplus
 };
 #endif
 
-VVDEC_NAMESPACE_END
+

@@ -130,6 +130,7 @@ int VVDecImpl::init( const vvdecParams& params )
   m_uiSeqNumber    = 0;
   m_uiSeqNumOutput = 0;
   m_bInitialized   = true;
+  m_eState         = INTERNAL_STATE_INITIALIZED;
 
   return VVDEC_OK;
 }
@@ -193,6 +194,8 @@ int VVDecImpl::uninit()
 #endif
 
   m_bInitialized = false;
+  m_eState       = INTERNAL_STATE_UNINITIALIZED;
+
   return VVDEC_OK;
 }
 
@@ -204,6 +207,12 @@ void VVDecImpl::setLoggingCallback( vvdecLoggingCallback callback )
 int VVDecImpl::decode( vvdecAccessUnit& rcAccessUnit, vvdecFrame** ppcFrame )
 {
   if( !m_bInitialized )      { return VVDEC_ERR_INITIALIZE; }
+  if( m_eState == INTERNAL_STATE_FINALIZED )        { m_cErrorString = "decoder already flushed, please reinit."; return VVDEC_ERR_RESTART_REQUIRED; }
+  if( m_eState == INTERNAL_STATE_RESTART_REQUIRED ) { m_cErrorString = "restart required, please reinit."; return VVDEC_ERR_RESTART_REQUIRED; }
+  if( m_eState == INTERNAL_STATE_FLUSHING )         { m_cErrorString = "decoder already received flush indication, please reinit."; return VVDEC_ERR_RESTART_REQUIRED; }
+
+  if( m_eState == INTERNAL_STATE_INITIALIZED ){ m_eState = INTERNAL_STATE_DECODING; }
+
   if( !rcAccessUnit.payload )
   {
     return setAndRetErrorMsg( VVDEC_ERR_DEC_INPUT, "payload is null" );
@@ -390,6 +399,7 @@ int VVDecImpl::decode( vvdecAccessUnit& rcAccessUnit, vvdecFrame** ppcFrame )
     std::stringstream css;
     css << "caught overflow exception " << e.what();
     m_cAdditionalErrorString = css.str();
+    m_eState = INTERNAL_STATE_RESTART_REQUIRED;
     return VVDEC_ERR_RESTART_REQUIRED;
   }
   catch( std::exception& e )
@@ -398,6 +408,7 @@ int VVDecImpl::decode( vvdecAccessUnit& rcAccessUnit, vvdecFrame** ppcFrame )
     std::stringstream css;
     css << "caught unknown exception " << e.what();
     m_cAdditionalErrorString = css.str();
+    m_eState = INTERNAL_STATE_RESTART_REQUIRED;
     return VVDEC_ERR_RESTART_REQUIRED;
   }
 
@@ -407,6 +418,13 @@ int VVDecImpl::decode( vvdecAccessUnit& rcAccessUnit, vvdecFrame** ppcFrame )
 int VVDecImpl::flush( vvdecFrame** ppframe )
 {
   if( !m_bInitialized ){ return VVDEC_ERR_INITIALIZE; }
+
+  if( m_eState == INTERNAL_STATE_INITIALIZED )      { m_cErrorString = "decoder did not receive any data to decode, cannot flush"; return VVDEC_ERR_RESTART_REQUIRED; }
+  if( m_eState == INTERNAL_STATE_FINALIZED )        { m_cErrorString = "decoder already flushed, please reinit."; return VVDEC_ERR_RESTART_REQUIRED; }
+  if( m_eState == INTERNAL_STATE_RESTART_REQUIRED ) { m_cErrorString = "restart required, please reinit."; return VVDEC_ERR_RESTART_REQUIRED; }
+
+  if( m_eState == INTERNAL_STATE_DECODING ) { m_eState = INTERNAL_STATE_FLUSHING; }
+
   int iRet= VVDEC_OK;
 
   // Flush decoder
@@ -435,6 +453,7 @@ int VVDecImpl::flush( vvdecFrame** ppframe )
       {
         iRet = VVDEC_EOF;
         *ppframe = nullptr;
+         m_eState = INTERNAL_STATE_FINALIZED;
       }
       else
       {
@@ -447,6 +466,7 @@ int VVDecImpl::flush( vvdecFrame** ppframe )
     {
       iRet = VVDEC_EOF;
       *ppframe = nullptr;
+      m_eState = INTERNAL_STATE_FINALIZED;
     }
   }
   catch( std::overflow_error& e )
@@ -454,6 +474,7 @@ int VVDecImpl::flush( vvdecFrame** ppframe )
     std::stringstream css;
     css << "caught overflow exception " << e.what();
     m_cAdditionalErrorString = css.str();
+    m_eState = INTERNAL_STATE_RESTART_REQUIRED;
     return VVDEC_ERR_RESTART_REQUIRED;
   }
   catch( std::exception& e )
@@ -461,11 +482,13 @@ int VVDecImpl::flush( vvdecFrame** ppframe )
     std::stringstream css;
     css << "caught unknown exception " << e.what();
     m_cAdditionalErrorString = css.str();
+    m_eState = INTERNAL_STATE_RESTART_REQUIRED;
     return VVDEC_ERR_RESTART_REQUIRED;
   }
 
   if( 0 != iRet )
   {
+    m_eState = INTERNAL_STATE_FINALIZED;
     return (int)VVDEC_EOF;
   }
 
