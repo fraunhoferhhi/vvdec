@@ -556,6 +556,7 @@ VVDEC_DECL const char* vvdec_get_nal_unit_type_name( vvdecNalType t );
 */
 VVDEC_DECL bool vvdec_is_nal_unit_slice ( vvdecNalType t );
 
+VVDEC_NAMESPACE_END
 
 #ifdef __cplusplus
 }
