@@ -205,7 +205,7 @@ typedef struct vvdecCompModel
 {
   bool                          presentFlag;
   uint8_t                       numModelValues;
-  vvdecCompModelIntensityValues intensityValues[265];
+  vvdecCompModelIntensityValues intensityValues[256];
 }vvdecCompModel;
 
 typedef struct vvdecSEIFilmGrainCharacteristics

@@ -507,7 +507,7 @@ void SEIReader::xParseSEIScalableNesting(vvdecSEI* s, const NalUnitType nalUnitT
   if (sei->snOlsFlag)
   {
     sei_read_uvlc(decodedMessageOutputStream, symbol, "sn_nuolss_minus1"); sei->snNumOlss = symbol+1;
-    CHECK( sei->snNumOlss > 63, "sn_nuolss_minus1 must be < 63 in vvdecSEIScalableNesting" );
+    CHECK( sei->snNumOlss > 64, "sn_nuolss_minus1 must be < 64 in vvdecSEIScalableNesting" );
 
     for (uint32_t i = 0; i < sei->snNumOlss; i++)
     {
@@ -1218,11 +1218,11 @@ void SEIReader::xParseSEIUserDataRegistered(vvdecSEI* sei, uint32_t payloadSize,
 
   vvdecSEIUserDataRegistered t;
 
-  CHECK(payloadSize == 0, "wrong" );
+  CHECK(payloadSize == 0, "no payload" );
   sei_read_code(pDecodedMessageOutputStream, 8, code, "itu_t_t35_country_code"); payloadSize--;
   if (code == 255)
   {
-    CHECK(payloadSize == 0, "wrong" );
+    CHECK(payloadSize == 0, "no payload" );
     sei_read_code(pDecodedMessageOutputStream, 8, code, "itu_t_t35_country_code_extension_byte"); payloadSize--;
     code += 255;
   }
@@ -1348,7 +1348,7 @@ void SEIReader::xParseSEIFilmGrainCharacteristics(vvdecSEI* s, uint32_t payloadS
         sei_read_code(pDecodedMessageOutputStream, 8, code, "nuintensity_intervals_minus1[c]"); numIntensityIntervals = code + 1;
         sei_read_code(pDecodedMessageOutputStream, 3, code, "numodel_values_minus1[c]");        cm.numModelValues = code + 1;
 
-        CHECK ( numIntensityIntervals > 255, "nuintensity_intervals_minus1[c] out of range" );
+        CHECK ( numIntensityIntervals > 256, "nuintensity_intervals_minus1[c] out of range" );
         CHECK ( cm.numModelValues > 5, "numodel_values_minus1[c] out of range" );
 
         for (uint32_t interval = 0; interval < numIntensityIntervals; interval++)
@@ -1502,7 +1502,7 @@ void SEIReader::xParseSEIOmniViewport(vvdecSEI* s, uint32_t payloadSize, std::os
   {
     sei_read_flag( pDecodedMessageOutputStream,    code, "omni_viewport_persistence_flag" );  sei->omniViewportPersistenceFlag = code;
     sei_read_code( pDecodedMessageOutputStream, 4, code, "omni_viewport_cnt_minus1"       );  sei->omniViewportCnt =  code+1;
-    CHECK( sei->omniViewportCnt > 15, "omni_viewport_cnt_minus1 must be < 16 in vvdecSEIDecodedPictureHash" );
+    CHECK( sei->omniViewportCnt > 16, "omni_viewport_cnt_minus1 must be < 16 in vvdecSEIDecodedPictureHash" );
 
     for(uint32_t region=0; region < sei->omniViewportCnt; region++)
     {
@@ -1627,7 +1627,7 @@ void SEIReader::xParseSEISubpictureLevelInfo(vvdecSEI* s, uint32_t payloadSize, 
   if (sei->explicitFractionPresentFlag)
   {
     sei_read_uvlc(pDecodedMessageOutputStream,      val,    "sli_nusubpics_minus1");                  sei->numSubpics = val + 1;
-    CHECK( sei->numSubpics > 63, "sli_nusubpics_minus1 must be < 63 in vvdecSEISubpictureLevelInfo" );
+    CHECK( sei->numSubpics > 64, "sli_nusubpics_minus1 must be < 64 in vvdecSEISubpictureLevelInfo" );
 #if JVET_S0176_SLI_SEI
     sei_read_code(pDecodedMessageOutputStream,  3,  val,    "sli_max_sublayers_minus1"  );            sei->sliMaxSublayers = val + 1;
     CHECK( sei->sliMaxSublayers > 6, "sli_max_sublayers_minus1 must be < 6 in vvdecSEISubpictureLevelInfo" );
