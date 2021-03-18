@@ -51,6 +51,12 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #include "Rom.h"
 #include "UnitTools.h"
 
+#if ENABLE_TRACING
+#include "dtrace.h"
+
+#include <string>
+#endif
+
 #include <memory.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -68,7 +74,7 @@ namespace vvdec
 
 #if ENABLE_TRACING
 CDTrace *g_trace_ctx = NULL;
-std::string sTracingRule="D_HEADER:poc<=1";
+std::string sTracingRule="D_HEADER,D_SYNTAX:poc==16";
 std::string sTracingFile="tracefile_dec.txt";
 bool   bTracingChannelsList = false;
 #endif
