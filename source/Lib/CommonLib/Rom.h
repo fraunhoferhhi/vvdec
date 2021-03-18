@@ -52,6 +52,9 @@ THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "CommonDef.h"
 #include "Common.h"
+#if ENABLE_TRACING
+#include "dtrace.h"
+#endif
 
 #include <atomic>
 #include <stdio.h>
@@ -164,7 +167,6 @@ extern const UnitScale g_miScaling; // scaling object for motion scaling
 
 /*! Sophisticated Trace-logging */
 #if ENABLE_TRACING
-#include "dtrace.h"
 extern CDTrace* g_trace_ctx;
 extern std::string sTracingRule;
 extern std::string sTracingFile;

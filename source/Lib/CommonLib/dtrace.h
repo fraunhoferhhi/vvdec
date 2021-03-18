@@ -72,7 +72,7 @@ struct dtrace_channel
   std::string channel_name;
 };
 
-typedef std::vector< dtrace_channel > dtrace_channels_t;
+typedef std::vector<dtrace_channel> dtrace_channels_t;
 
 class Condition
 {
