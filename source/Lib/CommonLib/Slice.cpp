@@ -725,7 +725,6 @@ void Slice::checkRPL(const ReferencePictureList* pRPL0, const ReferencePictureLi
       }
     }
   }
-
 }
 
 /** Function for marking the reference pictures when an IDR/CRA/CRANT/BLA/BLANT is encountered.
@@ -1054,12 +1053,16 @@ void Slice::checkLeadingPictureRestrictions( const PicListRange & rcListPic ) co
   }
 }
 
-
-int Slice::checkThatAllRefPicsAreAvailable( const PicListRange& rcListPic, const ReferencePictureList *pRPL, bool printErrors, int* missingRefPicIndex, int numActiveRefPics ) const
+bool Slice::checkThatAllRefPicsAreAvailable( const PicListRange&         rcListPic,
+                                             const ReferencePictureList* pRPL,
+                                             int                         numActiveRefPics,
+                                             int*                        missingPOC,
+                                             int*                        missingRefPicIndex ) const
 {
   if( this->isIDR() )
-    return 0;   // Assume that all pic in the DPB will be flushed anyway so no need to check.
+    return true;   // Assume that all pic in the DPB will be flushed anyway so no need to check.
 
+  *missingPOC         = 0;
   *missingRefPicIndex = 0;
 
   // Check long term ref pics
@@ -1102,12 +1105,11 @@ int Slice::checkThatAllRefPicsAreAvailable( const PicListRange& rcListPic, const
 
     if( !isAvailable )
     {
-      if( printErrors )
-      {
-        msg( ERROR, "\nCurrent picture: %d Long-term reference picture with POC = %3d seems to have been removed or not correctly decoded.", this->getPOC(), notPresentPoc );
-      }
+      msg( ERROR, "\nCurrent picture: %d Long-term reference picture with POC = %3d seems to have been removed or not correctly decoded.", this->getPOC(), notPresentPoc );
+
+      *missingPOC         = notPresentPoc;
       *missingRefPicIndex = ii;
-      return notPresentPoc;
+      return false;
     }
   }
   // report that a picture is lost if it is in the Reference Picture List but not in the DPB
@@ -1132,15 +1134,15 @@ int Slice::checkThatAllRefPicsAreAvailable( const PicListRange& rcListPic, const
     // report that a picture is lost if it is in the Reference Picture List but not in the DPB
     if( !isAvailable && pRPL->getNumberOfShorttermPictures() > 0 )
     {
-      if( printErrors )
-      {
-        msg( ERROR, "\nCurrent picture: %d Short-term reference picture with POC = %3d seems to have been removed or not correctly decoded.", this->getPOC(), notPresentPoc );
-      }
+      msg( ERROR, "\nCurrent picture: %d Short-term reference picture with POC = %3d seems to have been removed or not correctly decoded.", this->getPOC(), notPresentPoc );
+
+      *missingPOC         = notPresentPoc;
       *missingRefPicIndex = ii;
-      return notPresentPoc;
+      return false;
     }
   }
-  return 0;
+
+  return true;
 }
 
 //! get AC and DC values for weighted pred

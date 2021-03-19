@@ -2954,7 +2954,8 @@ public:
 #else
   bool                        isClvssPu() const                                      { return m_eNalUnitType >= NAL_UNIT_CODED_SLICE_IDR_W_RADL && m_eNalUnitType <= NAL_UNIT_CODED_SLICE_GDR && !m_pcPPS->getMixedNaluTypesInPicFlag(); }
 #endif
-  bool                        isIDR() const                                          { return (getNalUnitType() == NAL_UNIT_CODED_SLICE_IDR_W_RADL) || (getNalUnitType() == NAL_UNIT_CODED_SLICE_IDR_N_LP); }
+  bool                        isIDR() const                                          { return m_eNalUnitType == NAL_UNIT_CODED_SLICE_IDR_W_RADL || m_eNalUnitType == NAL_UNIT_CODED_SLICE_IDR_N_LP; }
+  bool                        isCRAorGDR() const                                     { return m_eNalUnitType == NAL_UNIT_CODED_SLICE_CRA || m_eNalUnitType == NAL_UNIT_CODED_SLICE_GDR; }
   void                        checkCRA( int& pocCRA, NalUnitType& associatedIRAPType, const PicListRange& rcListPic );
   void                        checkSTSA( const PicListRange& rcListPic );
   void                        checkRPL(const ReferencePictureList* pRPL0, const ReferencePictureList* pRPL1, const int associatedIRAPDecodingOrderNumber, const PicListRange& rcListPic);
@@ -3017,11 +3018,11 @@ public:
   void                        setTLayer( uint32_t uiTLayer )                         { m_uiTLayer = uiTLayer;                                        }
 
   void                        checkLeadingPictureRestrictions( const PicListRange & rcListPic ) const;
-  int                         checkThatAllRefPicsAreAvailable( const PicListRange&         rcListPic,
+  bool                        checkThatAllRefPicsAreAvailable( const PicListRange&         rcListPic,
                                                                const ReferencePictureList* pRPL,
-                                                               bool                        printErrors,
-                                                               int*                        refPicIndex,
-                                                               int                         numActiveRefPics ) const;
+                                                               int                         numActiveRefPics,
+                                                               int*                        missingPOC,
+                                                               int*                        missingRefPicIndex ) const;
 
   void                        setNoRaslOutputFlag( bool val )                        { m_noRaslOutputFlag = val;                                     }
   bool                        getNoRaslOutputFlag() const                            { return m_noRaslOutputFlag;                                    }

@@ -489,14 +489,11 @@ DecLibParser::SliceHeadResult DecLibParser::xDecodeSliceHead( InputNALUnit& nalu
   DTRACE_UPDATE( g_trace_ctx, std::make_pair( "poc", m_apcSlicePilot->getPOC() ) );
 
 #if !DISABLE_CHECK_NO_OUTPUT_PRIOR_PICS_FLAG
-  if( ( m_bFirstSliceInPicture ||
-        m_apcSlicePilot->getNalUnitType() == NAL_UNIT_CODED_SLICE_CRA ||
-        m_apcSlicePilot->getNalUnitType() == NAL_UNIT_CODED_SLICE_GDR ) &&
-        getNoOutputPriorPicsFlag() )
-    {
-      checkNoOutputPriorPics  ();
-      setNoOutputPriorPicsFlag( false );
-    }
+  if( ( m_bFirstSliceInPicture || m_apcSlicePilot->isCRAorGDR() ) && getNoOutputPriorPicsFlag() )
+  {
+    checkNoOutputPriorPics();
+    setNoOutputPriorPicsFlag( false );
+  }
 #endif
 
   xUpdatePreviousTid0POC( m_apcSlicePilot );
@@ -542,12 +539,12 @@ DecLibParser::SliceHeadResult DecLibParser::xDecodeSliceHead( InputNALUnit& nalu
       m_apcSlicePilot->setNoOutputOfPriorPicsFlag( false );
     }
 
-    if( m_apcSlicePilot->getNalUnitType() == NAL_UNIT_CODED_SLICE_CRA || m_apcSlicePilot->getNalUnitType() == NAL_UNIT_CODED_SLICE_GDR )
+    if( m_apcSlicePilot->isCRAorGDR() )
     {
       m_lastNoOutputBeforeRecoveryFlag[nalu.m_nuhLayerId] = m_picHeader->getNoOutputBeforeRecoveryFlag();
     }
-    
-    
+
+
     if( m_apcSlicePilot->getNoOutputOfPriorPicsFlag() )
     {
       m_lastPOCNoOutputPriorPics = m_apcSlicePilot->getPOC();
@@ -583,9 +580,7 @@ DecLibParser::SliceHeadResult DecLibParser::xDecodeSliceHead( InputNALUnit& nalu
   }
 #endif
 
-  if( !pps->getMixedNaluTypesInPicFlag()
-    && ( m_apcSlicePilot->getNalUnitType() == NAL_UNIT_CODED_SLICE_CRA || m_apcSlicePilot->getNalUnitType() == NAL_UNIT_CODED_SLICE_GDR )
-    && m_lastNoOutputBeforeRecoveryFlag[nalu.m_nuhLayerId] )
+  if( !pps->getMixedNaluTypesInPicFlag() && m_apcSlicePilot->isCRAorGDR() && m_lastNoOutputBeforeRecoveryFlag[nalu.m_nuhLayerId] )
   {
     int iMaxPOClsb = 1 << sps->getBitsForPOC();
     m_apcSlicePilot->setPOC( m_apcSlicePilot->getPOC() & ( iMaxPOClsb - 1 ) );
@@ -626,33 +621,36 @@ DecLibParser::SliceHeadResult DecLibParser::xDecodeSliceHead( InputNALUnit& nalu
   {
     pps->pcv = std::make_unique<PreCalcValues>( *sps, *pps );
   }
-  
+
   //detect lost reference picture and insert copy of earlier frame.
   for( const auto rplIdx: { REF_PIC_LIST_0, REF_PIC_LIST_1 } )
   {
-    const auto* rpl             = m_apcSlicePilot->getRPL( rplIdx );
-    int         lostPoc         = MAX_INT;
-    int         lostRefPicIndex = 0;
-    while( lostPoc > 0 )
+    const auto* rpl = m_apcSlicePilot->getRPL( rplIdx );
+
+    int lostPoc         = MAX_INT;
+    int lostRefPicIndex = 0;
+    while( !m_apcSlicePilot->checkThatAllRefPicsAreAvailable( m_picListManager.getPicListRange( m_picListManager.getBackPic() ),
+                                                              rpl,
+                                                              m_apcSlicePilot->getNumRefIdx( rplIdx ),
+                                                              &lostPoc,
+                                                              &lostRefPicIndex ) )
     {
-      lostPoc = m_apcSlicePilot->checkThatAllRefPicsAreAvailable( m_picListManager.getPicListRange( m_picListManager.getBackPic() ), rpl, true, &lostRefPicIndex, m_apcSlicePilot->getNumRefIdx( rplIdx ) );
-      if( lostPoc > 0 )
+      if( !pps->getMixedNaluTypesInPicFlag()
+          && ( ( m_apcSlicePilot->isIDR() && ( sps->getIDRRefParamListPresent() || pps->getRplInfoInPhFlag() ) )
+               || ( m_apcSlicePilot->isCRAorGDR() && m_picHeader->getNoOutputBeforeRecoveryFlag() ) ) )
       {
-        if( !pps->getMixedNaluTypesInPicFlag() && (
-          ( ( m_apcSlicePilot->getNalUnitType() == NAL_UNIT_CODED_SLICE_IDR_W_RADL || m_apcSlicePilot->getNalUnitType() == NAL_UNIT_CODED_SLICE_IDR_N_LP )
-         && ( sps->getIDRRefParamListPresent() || pps->getRplInfoInPhFlag() ) ) ||
-          ( ( m_apcSlicePilot->getNalUnitType() == NAL_UNIT_CODED_SLICE_GDR || m_apcSlicePilot->getNalUnitType() == NAL_UNIT_CODED_SLICE_CRA )
-         && m_picHeader->getNoOutputBeforeRecoveryFlag() ) ) )
+        if( !rpl->isInterLayerRefPic( lostRefPicIndex ) )
         {
-          if( rpl->isInterLayerRefPic( lostRefPicIndex ) == 0 )
-          {
-            prepareUnavailablePicture( pps, lostPoc, m_apcSlicePilot->getNalUnitLayerId(), rpl->isRefPicLongterm( lostRefPicIndex ), m_apcSlicePilot->getTLayer() ); // -1 because checkThatAllRefPicsAreAvailable() returns iPocLost+1
-          }
+          prepareUnavailablePicture( pps,
+                                     lostPoc,
+                                     m_apcSlicePilot->getNalUnitLayerId(),
+                                     rpl->isRefPicLongterm( lostRefPicIndex ),
+                                     m_apcSlicePilot->getTLayer() );
         }
-        else
-        {
-          prepareLostPicture( lostPoc - 1, m_apcSlicePilot->getTLayer() );  // -1 because checkThatAllRefPicsAreAvailable() returns iPocLost+1
-        }
+      }
+      else
+      {
+        prepareLostPicture( lostPoc, m_apcSlicePilot->getTLayer() );
       }
     }
   }
