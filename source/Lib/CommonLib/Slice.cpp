@@ -649,7 +649,6 @@ void Slice::checkRPL(const ReferencePictureList* pRPL0, const ReferencePictureLi
 
   int irapPOC = getAssociatedIRAPPOC();
   
-#if JVET_S0124_UNAVAILABLE_REFERENCE
   const int                   numEntries[]       = { pRPL0->getNumberOfShorttermPictures() + pRPL0->getNumberOfLongtermPictures() + pRPL0->getNumberOfInterLayerPictures(),
                                                      pRPL1->getNumberOfShorttermPictures() + pRPL1->getNumberOfLongtermPictures() + pRPL1->getNumberOfInterLayerPictures() };
   const int numActiveEntries[] = { getNumRefIdx( REF_PIC_LIST_0 ), getNumRefIdx( REF_PIC_LIST_1 ) };
@@ -726,140 +725,7 @@ void Slice::checkRPL(const ReferencePictureList* pRPL0, const ReferencePictureLi
       }
     }
   }
-#else
-  int numEntriesL0 = pRPL0->getNumberOfShorttermPictures() + pRPL0->getNumberOfLongtermPictures() + pRPL0->getNumberOfInterLayerPictures();
-  int numEntriesL1 = pRPL1->getNumberOfShorttermPictures() + pRPL1->getNumberOfLongtermPictures() + pRPL1->getNumberOfInterLayerPictures();
 
-  int numActiveEntriesL0 = getNumRefIdx(REF_PIC_LIST_0);
-  int numActiveEntriesL1 = getNumRefIdx(REF_PIC_LIST_1);
-
-  bool fieldSeqFlag = getSPS()->getFieldSeqFlag();
-
-  int layerIdx = m_pcPic->cs->vps == nullptr ? 0 : m_pcPic->cs->vps->getGeneralLayerIdx(m_pcPic->layerId);
-
-    if ( m_pcPic->cs->vps && !m_pcPic->cs->vps->getIndependentLayerFlag(layerIdx) && (pRPL0->getNumberOfInterLayerPictures() || pRPL1->getNumberOfInterLayerPictures()))
-  {
-    CHECK( getPicHeader()->getPocMsbPresentFlag(), "The value of ph_poc_msb_cycle_present_flag is required to be equal to 0 when vps_independent_layer_flag[GeneralLayerIdx[nuh_layer_id]] is equal to 0 and there is an ILRP entry in RefPicList[0] or RefPicList[1] of a slice of the current picture" );
-  }
-
-  int currentPictureIsTrailing = 0;
-  if (getPic()->getDecodingOrderNumber() > associatedIRAPDecodingOrderNumber)
-  {
-    switch (m_eNalUnitType)
-    {
-    case NAL_UNIT_CODED_SLICE_STSA:
-    case NAL_UNIT_CODED_SLICE_IDR_W_RADL:
-    case NAL_UNIT_CODED_SLICE_IDR_N_LP:
-    case NAL_UNIT_CODED_SLICE_CRA:
-    case NAL_UNIT_CODED_SLICE_RADL:
-    case NAL_UNIT_CODED_SLICE_RASL:
-      currentPictureIsTrailing = 0;
-      break;
-    default:
-      currentPictureIsTrailing = 1;
-    }
-  }
-
-  for (int i = 0; i < numEntriesL0; i++)
-  {
-    if (!pRPL0->isRefPicLongterm(i))
-    {
-      refPicPOC = getPOC() + pRPL0->getRefPicIdentifier(i);
-      pcRefPic = xGetRefPic(rcListPic, refPicPOC, m_pcPic->layerId);
-    }
-    else
-    {
-      int pocBits = getSPS()->getBitsForPOC();
-      int pocMask = (1 << pocBits) - 1;
-      int ltrpPoc = pRPL0->getRefPicIdentifier(i) & pocMask;
-      if(pRPL0->getDeltaPocMSBPresentFlag(i))
-      {
-        ltrpPoc += getPOC() - pRPL0->getDeltaPocMSBCycleLT(i) * (pocMask + 1) - (getPOC() & pocMask);
-      }
-      pcRefPic = xGetLongTermRefPic(rcListPic, ltrpPoc, pRPL0->getDeltaPocMSBPresentFlag(i), m_pcPic->layerId);
-      refPicPOC = pcRefPic->getPOC();
-    }
-    refPicDecodingOrderNumber = pcRefPic->getDecodingOrderNumber();
-
-    // Checking this: "When the current picture follows an IRAP picture having the same value of nuh_layer_id in both decoding order
-    // and output order, there shall be no picture referred to by an active entry in RefPicList[ 0 ] or RefPicList[ 1 ] that
-    // precedes that IRAP picture in output order or decoding order."
-    if (m_eNalUnitType == NAL_UNIT_CODED_SLICE_CRA || m_eNalUnitType == NAL_UNIT_CODED_SLICE_IDR_W_RADL || m_eNalUnitType == NAL_UNIT_CODED_SLICE_IDR_N_LP )
-    {
-      CHECK(refPicPOC < irapPOC || refPicDecodingOrderNumber < associatedIRAPDecodingOrderNumber, "IRAP picture detected that violate the rule that no entry in RefPicList[] shall precede, in output order or decoding order, any preceding IRAP picture in decoding order (when present).");
-    }
-
-    // Checking this: "When the current picture is a trailing picture that follows in both decoding orderand output order one
-    // or more leading pictures associated with the same IRAP picture, if any, there shall be no picture referred to by an
-    // entry in RefPicList[0] or RefPicList[1] that precedes the associated IRAP picture in output order or decoding order"
-    // Note that when not in field coding, we know that all leading pictures of an IRAP precedes all trailing pictures of the
-    // same IRAP picture.
-    if (currentPictureIsTrailing && !fieldSeqFlag) //
-    {
-      CHECK(refPicPOC < irapPOC || refPicDecodingOrderNumber < associatedIRAPDecodingOrderNumber, "Trailing picture detected that follows one or more leading pictures, if any, and violates the rule that no entry in RefPicList[] shall precede the associated IRAP picture in output order or decoding order.");
-    }
-
-    if (i < numActiveEntriesL0)
-    {
-      // Checking this "When the current picture is a trailing picture, there shall be no picture referred to by an active
-      // entry in RefPicList[ 0 ] or RefPicList[ 1 ] that precedes the associated IRAP picture in output order or decoding order"
-      if (currentPictureIsTrailing)
-      {
-        CHECK(refPicPOC < irapPOC || refPicDecodingOrderNumber < associatedIRAPDecodingOrderNumber, "Trailing picture detected that violate the rule that no active entry in RefPicList[] shall precede the associated IRAP picture in output order or decoding order");
-      }
-
-      // Checking this: "When the current picture is a RADL picture, there shall be no active entry in RefPicList[ 0 ] or
-      // RefPicList[ 1 ] that is any of the following: A picture that precedes the associated IRAP picture in decoding order"
-      if (m_eNalUnitType == NAL_UNIT_CODED_SLICE_RADL)
-      {
-        CHECK(refPicDecodingOrderNumber < associatedIRAPDecodingOrderNumber, "RADL picture detected that violate the rule that no active entry in RefPicList[] shall precede the associated IRAP picture in decoding order");
-      }
-    }
-  }
-
-  for (int i = 0; i < numEntriesL1; i++)
-  {
-    if (!pRPL1->isRefPicLongterm(i))
-    {
-      refPicPOC = getPOC() + pRPL1->getRefPicIdentifier(i);
-      pcRefPic = xGetRefPic(rcListPic, refPicPOC, m_pcPic->layerId);
-    }
-    else
-    {
-      int pocBits = getSPS()->getBitsForPOC();
-      int pocMask = (1 << pocBits) - 1;
-      int ltrpPoc = pRPL1->getRefPicIdentifier(i) & pocMask;
-      if(pRPL1->getDeltaPocMSBPresentFlag(i))
-      {
-        ltrpPoc += getPOC() - pRPL1->getDeltaPocMSBCycleLT(i) * (pocMask + 1) - (getPOC() & pocMask);
-      }
-      pcRefPic = xGetLongTermRefPic(rcListPic, ltrpPoc, pRPL1->getDeltaPocMSBPresentFlag(i), m_pcPic->layerId);
-      refPicPOC = pcRefPic->getPOC();
-    }
-    refPicDecodingOrderNumber = pcRefPic->getDecodingOrderNumber();
-
-    if (m_eNalUnitType == NAL_UNIT_CODED_SLICE_CRA)
-    {
-      CHECK(refPicPOC < irapPOC || refPicDecodingOrderNumber < associatedIRAPDecodingOrderNumber, "CRA picture detected that violate the rule that no entry in RefPicList[] shall precede, in output order or decoding order, any preceding IRAP picture in decoding order (when present).");
-    }
-    if (currentPictureIsTrailing && !fieldSeqFlag)
-    {
-      CHECK(refPicPOC < irapPOC || refPicDecodingOrderNumber < associatedIRAPDecodingOrderNumber, "Trailing picture detected that follows one or more leading pictures, if any, and violates the rule that no entry in RefPicList[] shall precede the associated IRAP picture in output order or decoding order.");
-    }
-
-    if (i < numActiveEntriesL1)
-    {
-      if (currentPictureIsTrailing)
-      {
-        CHECK(refPicPOC < irapPOC || refPicDecodingOrderNumber < associatedIRAPDecodingOrderNumber, "Trailing picture detected that violate the rule that no active entry in RefPicList[] shall precede the associated IRAP picture in output order or decoding order");
-      }
-      if (m_eNalUnitType == NAL_UNIT_CODED_SLICE_RADL)
-      {
-        CHECK(refPicDecodingOrderNumber < associatedIRAPDecodingOrderNumber, "RADL picture detected that violate the rule that no active entry in RefPicList[] shall precede the associated IRAP picture in decoding order");
-      }
-    }
-  }
-#endif
 }
 
 /** Function for marking the reference pictures when an IDR/CRA/CRANT/BLA/BLANT is encountered.

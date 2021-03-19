@@ -639,29 +639,19 @@ DecLibParser::SliceHeadResult DecLibParser::xDecodeSliceHead( InputNALUnit& nalu
       if( lostPoc > 0 )
       {
         if( !pps->getMixedNaluTypesInPicFlag() && (
-#if JVET_S0123_IDR_UNAVAILABLE_REFERENCE
           ( ( m_apcSlicePilot->getNalUnitType() == NAL_UNIT_CODED_SLICE_IDR_W_RADL || m_apcSlicePilot->getNalUnitType() == NAL_UNIT_CODED_SLICE_IDR_N_LP )
          && ( sps->getIDRRefParamListPresent() || pps->getRplInfoInPhFlag() ) ) ||
-#endif
           ( ( m_apcSlicePilot->getNalUnitType() == NAL_UNIT_CODED_SLICE_GDR || m_apcSlicePilot->getNalUnitType() == NAL_UNIT_CODED_SLICE_CRA )
          && m_picHeader->getNoOutputBeforeRecoveryFlag() ) ) )
         {
           if( rpl->isInterLayerRefPic( lostRefPicIndex ) == 0 )
           {
-#if JVET_S0124_UNAVAILABLE_REFERENCE
             prepareUnavailablePicture( pps, lostPoc, m_apcSlicePilot->getNalUnitLayerId(), rpl->isRefPicLongterm( lostRefPicIndex ), m_apcSlicePilot->getTLayer() ); // -1 because checkThatAllRefPicsAreAvailable() returns iPocLost+1
-#else
-            m_parseFrameList.push_back( prepareUnavailablePicture( lostPoc - 1, m_apcSlicePilot->getPic()->layerId, rpl->isRefPicLongterm(refPicIndex) ) ); // -1 because checkThatAllRefPicsAreAvailable() returns iPocLost+1
-#endif
           }
         }
         else
         {
-#if JVET_S0124_UNAVAILABLE_REFERENCE
           prepareLostPicture( lostPoc - 1, m_apcSlicePilot->getTLayer() );  // -1 because checkThatAllRefPicsAreAvailable() returns iPocLost+1
-#else
-          m_parseFrameList.push_back( prepareLostPicture( lostPoc - 1, m_apcSlicePilot->getPic()->layerId ) );  // -1 because checkThatAllRefPicsAreAvailable() returns iPocLost+1
-#endif
         }
       }
     }
@@ -1451,11 +1441,7 @@ void DecLibParser::prepareLostPicture( int iLostPoc, const int layerId )
   }
 }
 
-#if JVET_S0124_UNAVAILABLE_REFERENCE
 void DecLibParser::prepareUnavailablePicture( const PPS *pps, int iUnavailablePoc, const int layerId, const bool longTermFlag, const int temporalId )
-#else
-Picture* DecLibParser::prepareUnavailablePicture( int iUnavailablePoc, const int layerId, const bool longTermFlag )
-#endif
 {
   msg( INFO, "inserting unavailable poc : %d\n", iUnavailablePoc );
 #if JVET_Q0814_DPB
@@ -1488,13 +1474,12 @@ Picture* DecLibParser::prepareUnavailablePicture( int iUnavailablePoc, const int
   }
   cFillPic->reconstructed = true;
   cFillPic->neededForOutput = false;
-#if JVET_S0124_UNAVAILABLE_REFERENCE
   // picture header is not derived for generated reference picture
   cFillPic->slices[0]->setPicHeader( nullptr );
   cFillPic->layer = temporalId;
   cFillPic->nonReferencePictureFlag = false;
   cFillPic->slices[0]->setPPS( pps );
-#endif
+
   cFillPic->parseDone.unlock();
   cFillPic->done.unlock();
 }

@@ -201,12 +201,8 @@ private:
 
   Picture*        xActivateParameterSets   ( const int layerId );
   void            prepareLostPicture       ( int iLostPOC, const int layerId );
-#if JVET_S0124_UNAVAILABLE_REFERENCE
   void            prepareUnavailablePicture( const PPS *pps, int iUnavailablePoc, const int layerId, const bool longTermFlag, const int temporalId );
-#else
-  Picture*        prepareUnavailablePicture( int iUnavailablePoc, const int layerId, const bool longTermFlag );
-#endif
-  
+
   void xParsePrefixSEImessages();
   void xParsePrefixSEIsForUnknownVCLNal();
 
