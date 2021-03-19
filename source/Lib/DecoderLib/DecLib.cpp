@@ -399,7 +399,7 @@ void DecLib::checkPictureHashSEI( Picture* pcPic )
 
   seiMessages pictureHashes = SEI_internal::getSeisByType( pcPic->seiMessageList, VVDEC_DECODED_PICTURE_HASH );
 
-  if( !pictureHashes.empty() && !pcPic->picCheckedDPH )
+  if( !pictureHashes.empty() && !pcPic->picCheckedDPH && pcPic->neededForOutput )
   {
     if( pictureHashes.size() > 1 )
     {
@@ -413,7 +413,7 @@ void DecLib::checkPictureHashSEI( Picture* pcPic )
     pcPic->picCheckedDPH = true;
     msg( INFO, "\n" );
   }
-  else
+  else if( pcPic->neededForOutput )
   {
     if( pcPic->subPictures.empty() )
     {

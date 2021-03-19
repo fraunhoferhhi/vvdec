@@ -1105,7 +1105,7 @@ bool Slice::checkThatAllRefPicsAreAvailable( const PicListRange&         rcListP
 
     if( !isAvailable )
     {
-      msg( ERROR, "\nCurrent picture: %d Long-term reference picture with POC = %3d seems to have been removed or not correctly decoded.", this->getPOC(), notPresentPoc );
+      msg( ERROR, "Current picture: %d Long-term reference picture with POC = %3d seems to have been removed or not correctly decoded.\n", this->getPOC(), notPresentPoc );
 
       *missingPOC         = notPresentPoc;
       *missingRefPicIndex = ii;
@@ -1134,7 +1134,7 @@ bool Slice::checkThatAllRefPicsAreAvailable( const PicListRange&         rcListP
     // report that a picture is lost if it is in the Reference Picture List but not in the DPB
     if( !isAvailable && pRPL->getNumberOfShorttermPictures() > 0 )
     {
-      msg( ERROR, "\nCurrent picture: %d Short-term reference picture with POC = %3d seems to have been removed or not correctly decoded.", this->getPOC(), notPresentPoc );
+      msg( ERROR, "Current picture: %d Short-term reference picture with POC = %3d seems to have been removed or not correctly decoded.\n", this->getPOC(), notPresentPoc );
 
       *missingPOC         = notPresentPoc;
       *missingRefPicIndex = ii;

@@ -200,7 +200,7 @@ private:
   Slice*          xDecodeSliceMain( InputNALUnit& nalu );
 
   Picture*        xActivateParameterSets   ( const int layerId );
-  void            prepareLostPicture       ( int iLostPOC, const int layerId );
+  Picture*        prepareLostPicture       ( int iLostPOC, const int layerId );
   void            prepareUnavailablePicture( const PPS *pps, int iUnavailablePoc, const int layerId, const bool longTermFlag, const int temporalId );
 
   void xParsePrefixSEImessages();

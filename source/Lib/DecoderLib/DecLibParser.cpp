@@ -138,6 +138,9 @@ void DecLibParser::recreateLostPicture( Picture* pcPic )
     pcPic->slices[0]->setPOC( pcPic->poc );
 
     pcPic->reconstructed = true;
+
+    pcPic->parseDone.unlock();
+    pcPic->done.unlock();
   }
 }
 
@@ -650,7 +653,7 @@ DecLibParser::SliceHeadResult DecLibParser::xDecodeSliceHead( InputNALUnit& nalu
       }
       else
       {
-        prepareLostPicture( lostPoc, m_apcSlicePilot->getTLayer() );
+        m_parseFrameList.push_back( prepareLostPicture( lostPoc, m_apcSlicePilot->getTLayer() ) );
       }
     }
   }
@@ -1365,7 +1368,7 @@ Picture * DecLibParser::xActivateParameterSets( const int layerId )
   return pcPic;
 }
 
-void DecLibParser::prepareLostPicture( int iLostPoc, const int layerId )
+Picture* DecLibParser::prepareLostPicture( int iLostPoc, const int layerId )
 {
   msg( INFO, "inserting lost poc : %d\n", iLostPoc );
 
@@ -1437,6 +1440,7 @@ void DecLibParser::prepareLostPicture( int iLostPoc, const int layerId )
     m_pocRandomAccess = iLostPoc;
     m_associatedIRAPDecodingOrderNumber = cFillPic->getDecodingOrderNumber();
   }
+  return cFillPic;
 }
 
 void DecLibParser::prepareUnavailablePicture( const PPS *pps, int iUnavailablePoc, const int layerId, const bool longTermFlag, const int temporalId )
@@ -1572,7 +1576,8 @@ void DecLibParser::xDecodeAPS( InputNALUnit& nalu )
 
 void DecLibParser::xUpdatePreviousTid0POC(Slice * pSlice)
 {
-  if( (pSlice->getTLayer() == 0) && (pSlice->getNalUnitType() != NAL_UNIT_CODED_SLICE_RASL) && (pSlice->getNalUnitType() != NAL_UNIT_CODED_SLICE_RADL) && !pSlice->getPicHeader()->getNonReferencePictureFlag() )
+  if( pSlice->getTLayer() == 0 && pSlice->getNalUnitType() != NAL_UNIT_CODED_SLICE_RASL && pSlice->getNalUnitType() != NAL_UNIT_CODED_SLICE_RADL
+      && !pSlice->getPicHeader()->getNonReferencePictureFlag() )
   {
     m_prevTid0POC = pSlice->getPOC();
   }
@@ -1599,11 +1604,10 @@ void DecLibParser::checkNoOutputPriorPics()
     return;
   }
 
-  auto pcListPic =  m_picListManager.getPicListRange( m_picListManager.getFrontPic() );
-  for( auto & pcPicTmp: pcListPic )
+  auto pcListPic = m_picListManager.getPicListRange( m_picListManager.getBackPic() );   // TODO: really front pic here? not back?
+  for( auto& pcPicTmp: pcListPic )
   {
-    if (pcPicTmp->reconstructed &&
-        pcPicTmp->getPOC() < m_lastPOCNoOutputPriorPics )
+    if( pcPicTmp->reconstructed && pcPicTmp->getPOC() < m_lastPOCNoOutputPriorPics )
     {
       pcPicTmp->neededForOutput = false;
     }
@@ -1641,7 +1645,7 @@ bool DecLibParser::isRandomAccessSkipPicture()
     {
       if(!m_warningMessageSkipPicture)
       {
-        msg( WARNING, "\nWarning: this is not a valid random access point and the data is discarded until the first CRA picture");
+        msg( WARNING, "Warning: this is not a valid random access point and the data is discarded until the first CRA picture\n");
         m_warningMessageSkipPicture = true;
       }
       return true;

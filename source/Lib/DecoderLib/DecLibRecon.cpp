@@ -586,14 +586,13 @@ Picture* DecLibRecon::waitForPrevDecompressedPic()
   if( m_decodeThreadPool->numThreads() == 0 )
   {
     m_decodeThreadPool->processTasksOnMainThread();
+    CHECK( m_currDecompPic->m_dmvrTaskCounter.isBlocked() || m_currDecompPic->done.isBlocked(), "can't make progress. some dependecy has not been finished" );
   }
   m_currDecompPic->m_dmvrTaskCounter.wait();
   m_currDecompPic->done.wait();
   ITT_TASKEND( itt_domain_dec, itt_handle_waitTasks );
 
-  Picture* pic = m_currDecompPic;
-  m_currDecompPic = nullptr;
-  return pic;
+  return std::exchange( m_currDecompPic, nullptr );
 }
 
 template<bool onlyCheckReadyState>
