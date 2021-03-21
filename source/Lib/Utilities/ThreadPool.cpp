@@ -211,7 +211,6 @@ void ThreadPool::threadProc( int threadId )
             break;
           }
 
-          //const auto waitingNow = m_waitingThreads.load( std::memory_order_relaxed );
           if( !l.owns_lock()
               && ( BUSY_WAIT_TIME.count() == 0 || std::chrono::steady_clock::now() - startWait > BUSY_WAIT_TIME )
               && !m_exitThreads )
@@ -245,7 +244,6 @@ void ThreadPool::threadProc( int threadId )
     }
     catch( TaskException& e )
     {
-      std::cout << "Caught task exception\n";
       handleTaskException( e.m_originalException, e.m_task.done, e.m_task.counter, &e.m_task.state );
     }
     catch( std::exception& e )

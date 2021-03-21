@@ -64,9 +64,6 @@ int writeYUVToFileInterlaced( std::ostream *f, vvdecFrame *topField, vvdecFrame 
 
 void msgFnc( void *, int level, const char* fmt, va_list args )
 {
-  (void)level;
-  (void)fmt;
-  (void)args;
   vfprintf( level == 1 ? stderr : stdout, fmt, args );
 }
 
@@ -269,6 +266,7 @@ int main( int argc, char* argv[] )
         }
 
         // call decode
+        
         iRet = vvdec_decode( dec, accessUnit, &pcFrame );
         if( bIsSlice )
         {
