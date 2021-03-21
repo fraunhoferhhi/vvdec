@@ -49,6 +49,7 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #include <fstream>
 #include <string.h>
 #include <chrono>
+#include <thread>
 
 #include "vvdec/vvdec.h"
 #include "vvdec/version.h"
@@ -63,6 +64,9 @@ int writeYUVToFileInterlaced( std::ostream *f, vvdecFrame *topField, vvdecFrame 
 
 void msgFnc( void *, int level, const char* fmt, va_list args )
 {
+  (void)level;
+  (void)fmt;
+  (void)args;
   vfprintf( level == 1 ? stderr : stdout, fmt, args );
 }
 
@@ -211,6 +215,8 @@ int main( int argc, char* argv[] )
     vvdecNalType eNalTypeSlice = VVC_NAL_UNIT_INVALID;
     bool bMultipleSlices = false;
 
+    unsigned nrAU = 0;
+
     int iRead = 0;
     do
     {
@@ -265,6 +271,13 @@ int main( int argc, char* argv[] )
         }
 
         // call decode
+
+        if (nrAU++ == 30)
+        {
+          std::cout << "Start simulated sleeping";
+          std::this_thread::sleep_for(std::chrono::seconds(5));
+          std::cout << "End simulated sleeping";
+        }
 
         iRet = vvdec_decode( dec, accessUnit, &pcFrame );
         if( bIsSlice )
@@ -407,7 +420,7 @@ int main( int argc, char* argv[] )
 
     //std::cout << "flush" << std::endl;
 
-    // flush the encoder
+    // flush the decoder
     bFlushDecoder = true;
     while( bFlushDecoder)
     {

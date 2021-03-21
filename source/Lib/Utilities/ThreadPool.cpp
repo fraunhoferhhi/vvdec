@@ -96,6 +96,7 @@ ThreadPool::ThreadPool( int numThreads, const char* threadPoolName )
   , m_threads ( numThreads < 0 ? std::thread::hardware_concurrency() : numThreads )
 {
   int tid = 0;
+  m_poolPause.setNrThreads(m_threads.size());
   for( auto& t: m_threads )
   {
     t = std::thread( &ThreadPool::threadProc, this, tid++ );
@@ -154,6 +155,10 @@ void ThreadPool::shutdown( bool block )
 
 void ThreadPool::waitForThreads()
 {
+  std::cout << "waitForThreads unpause\n";
+  m_poolPause.unpauseIfPaused();
+  std::cout << "waitForThreads\n";
+
   for( auto& t: m_threads )
   {
     if( t.joinable() )
@@ -198,7 +203,6 @@ void ThreadPool::threadProc( int threadId )
         std::unique_lock<std::mutex> l( m_idleMutex, std::defer_lock );
 
         ITT_TASKSTART( itt_domain_thrd, itt_handle_TPspinWait );
-        ScopeIncDecCounter cntr( m_waitingThreads );
 
         const auto startWait = std::chrono::steady_clock::now();
         while( !m_exitThreads )
@@ -209,18 +213,19 @@ void ThreadPool::threadProc( int threadId )
             break;
           }
 
+          //const auto waitingNow = m_waitingThreads.load( std::memory_order_relaxed );
           if( !l.owns_lock()
-              && m_waitingThreads.load( std::memory_order_relaxed ) > 1
               && ( BUSY_WAIT_TIME.count() == 0 || std::chrono::steady_clock::now() - startWait > BUSY_WAIT_TIME )
               && !m_exitThreads )
           {
             ITT_TASKSTART( itt_domain_thrd, itt_handle_TPblocked );
+            ScopeIncDecCounter cntr( m_poolPause.m_waitingForLockThreads );
             l.lock();
             ITT_TASKEND( itt_domain_thrd, itt_handle_TPblocked );
           }
           else
           {
-            std::this_thread::yield();
+            m_poolPause.pauseIfAllOtherThreadsWaiting();
           }
         }
 
@@ -238,6 +243,7 @@ void ThreadPool::threadProc( int threadId )
     }
     catch( TaskException& e )
     {
+      std::cout << "Caught task exception\n";
       handleTaskException( e.m_originalException, e.m_task.done, e.m_task.counter, &e.m_task.state );
     }
     catch( std::exception& e )
