@@ -215,8 +215,6 @@ int main( int argc, char* argv[] )
     vvdecNalType eNalTypeSlice = VVC_NAL_UNIT_INVALID;
     bool bMultipleSlices = false;
 
-    unsigned nrAU = 0;
-
     int iRead = 0;
     do
     {
@@ -271,14 +269,6 @@ int main( int argc, char* argv[] )
         }
 
         // call decode
-
-        if (nrAU++ == 30)
-        {
-          std::cout << "Start simulated sleeping";
-          std::this_thread::sleep_for(std::chrono::seconds(5));
-          std::cout << "End simulated sleeping";
-        }
-
         iRet = vvdec_decode( dec, accessUnit, &pcFrame );
         if( bIsSlice )
         {
