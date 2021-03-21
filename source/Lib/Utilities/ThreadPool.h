@@ -290,7 +290,6 @@ class PoolPause
 {
 public:
   PoolPause() = default;
-  ~PoolPause() { std::cout << "PoolPuase Destroy\n"; }
   void setNrThreads(size_t nr) { m_nrThreads = nr; }
   void unpauseIfPaused()
   {
@@ -312,12 +311,10 @@ public:
       // or if the thread pool is closed or destroyed.
       std::unique_lock<std::mutex> lock(m_allThreadsWaitingMutex);
       m_allThreadWaitingMoreWork = true;
-      std::cout << "Pool pause\n";
       while (m_allThreadWaitingMoreWork)
       {
         m_allThreadsWaitingCV.wait(lock);
       }
-      std::cout << "Pool unpause\n";
     }
   }
   

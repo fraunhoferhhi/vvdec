@@ -155,9 +155,7 @@ void ThreadPool::shutdown( bool block )
 
 void ThreadPool::waitForThreads()
 {
-  std::cout << "waitForThreads unpause\n";
   m_poolPause.unpauseIfPaused();
-  std::cout << "waitForThreads\n";
 
   for( auto& t: m_threads )
   {
