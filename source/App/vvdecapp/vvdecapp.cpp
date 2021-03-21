@@ -266,7 +266,7 @@ int main( int argc, char* argv[] )
         }
 
         // call decode
-        
+
         iRet = vvdec_decode( dec, accessUnit, &pcFrame );
         if( bIsSlice )
         {
