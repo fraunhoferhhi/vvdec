@@ -221,9 +221,13 @@ void ThreadPool::threadProc( int threadId )
             l.lock();
             ITT_TASKEND( itt_domain_thrd, itt_handle_TPblocked );
           }
-          else
+          else if (std::chrono::steady_clock::now() - startWait > std::chrono::milliseconds(500))
           {
             m_poolPause.pauseIfAllOtherThreadsWaiting();
+          }
+          else
+          {
+            std::this_thread::yield();
           }
         }
 
