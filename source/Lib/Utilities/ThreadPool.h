@@ -311,10 +311,7 @@ public:
       // or if the thread pool is closed or destroyed.
       std::unique_lock<std::mutex> lock(m_allThreadsWaitingMutex);
       m_allThreadWaitingMoreWork = true;
-      while (m_allThreadWaitingMoreWork)
-      {
-        m_allThreadsWaitingCV.wait(lock);
-      }
+      m_allThreadsWaitingCV.wait( lock, [=] { return !m_allThreadWaitingMoreWork; } );
     }
   }
   
