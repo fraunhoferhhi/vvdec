@@ -286,7 +286,43 @@ private:
   Barrier                         m_done{ false };
 };
 
+class PoolPause
+{
+public:
+  PoolPause() = default;
+  void setNrThreads(size_t nr) { m_nrThreads = nr; }
+  void unpauseIfPaused()
+  {
+    // All threads may be sleeping. If so, wake up.
+    std::unique_lock<std::mutex> lock(m_allThreadsWaitingMutex);
+    m_allThreadWaitingMoreWork = false;
+    m_allThreadsWaitingCV.notify_all();
+  }
+  void pauseIfAllOtherThreadsWaiting()
+  {
+    if (m_nrThreads == 0)
+      return;
+    auto nrWaiting = m_waitingForLockThreads.load( std::memory_order_relaxed );
+    if (nrWaiting == m_nrThreads - 1)
+    {
+      // All threads are waiting. This (current) threads is the one which locked `l`. All
+      // other threads are waiting in the above condition for `l.lock();`.
+      // The only way how more work for the threads can come in is if addBarrierTask is called 
+      // or if the thread pool is closed or destroyed.
+      std::unique_lock<std::mutex> lock(m_allThreadsWaitingMutex);
+      m_allThreadWaitingMoreWork = true;
+      m_allThreadsWaitingCV.wait( lock, [=] { return !m_allThreadWaitingMoreWork; } );
+    }
+  }
+  
+  std::atomic_uint         m_waitingForLockThreads{ 0 };
 
+private:
+  std::mutex               m_allThreadsWaitingMutex;
+  std::condition_variable  m_allThreadsWaitingCV;
+  bool                     m_allThreadWaitingMoreWork{ false };
+  size_t m_nrThreads{};
+};
 
 // ---------------------------------------------------------------------------
 // Thread Pool
@@ -438,6 +474,7 @@ public:
           l.lock();
 #endif
           m_nextFillSlot.incWrap();
+          m_poolPause.unpauseIfPaused();
           return true;
         }
       }
@@ -472,10 +509,11 @@ private:
   std::mutex               m_nextFillSlotMutex;
 #endif
   std::mutex               m_idleMutex;
-  std::atomic_uint         m_waitingThreads{ 0 };
 
   std::atomic_bool         m_exceptionFlag{ false };
   std::exception_ptr       m_threadPoolException;
+
+  PoolPause m_poolPause;
 
   // internal functions
   void         threadProc     ( int threadId );
@@ -483,7 +521,7 @@ private:
   TaskIterator findNextTask   ( int threadId, TaskIterator startSearch );
   static bool  processTask    ( int threadId, Slot& task );
   bool         bypassTaskQueue( TaskFunc func, void* param, WaitCounter* counter, Barrier* done, CBarrierVec& barriers, TaskFunc readyCheck );
-  static void handleTaskException( const std::exception_ptr e, Barrier* done, WaitCounter* counter, std::atomic<TaskState>* slot_state );
+  static void  handleTaskException( const std::exception_ptr e, Barrier* done, WaitCounter* counter, std::atomic<TaskState>* slot_state );
 };
 
 }

@@ -110,8 +110,8 @@ typedef enum
 }vvdecLogLevel;
 
 /*
-  \enum LogLevel
-  The enum LogLevel enumerates supported log levels/verbosity.
+  \enum SIMD_Extension
+  The enum SIMD_Extension enumerates the supported simd optimizations.
 */
 typedef enum
 {
@@ -256,7 +256,7 @@ typedef struct vvdecAccessUnit
 /* vvdec_accessUnit_alloc:
    Allocates an vvdecAccessUnit instance.
    The returned accessUnit is set to default values.
-   The payload memory must be allocated seperately by using vvdecAccessUnit.
+   The payload memory must be allocated seperately by using vvdec_accessUnit_alloc_payload.
    To free the memory use vvdecAccessUnit_free.
 */
 VVDEC_DECL vvdecAccessUnit* vvdec_accessUnit_alloc();
