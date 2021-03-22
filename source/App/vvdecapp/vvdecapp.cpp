@@ -49,6 +49,7 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #include <fstream>
 #include <string.h>
 #include <chrono>
+#include <thread>
 
 #include "vvdec/vvdec.h"
 #include "vvdec/version.h"
@@ -407,7 +408,7 @@ int main( int argc, char* argv[] )
 
     //std::cout << "flush" << std::endl;
 
-    // flush the encoder
+    // flush the decoder
     bFlushDecoder = true;
     while( bFlushDecoder)
     {
