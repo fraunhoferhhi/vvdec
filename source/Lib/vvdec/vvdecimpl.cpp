@@ -245,6 +245,7 @@ int VVDecImpl::decode( vvdecAccessUnit& rcAccessUnit, vvdecFrame** ppcFrame )
       std::vector<size_t> iStartCodeSizeVec;
 
       int pos = 0;
+      int lastpos = 0;
       while( pos+3 < rcAccessUnit.payloadUsedSize )
       {
         // no start code found
@@ -258,11 +259,11 @@ int VVDecImpl::decode( vvdecAccessUnit& rcAccessUnit, vvdecFrame** ppcFrame )
           iStartCodePosVec.push_back( pos+4 );
           iStartCodeSizeVec.push_back( 4 );
 
-          if( pos > 0 )
+          if( pos > lastpos )
           {
             iAUEndPosVec.push_back(pos);
           }
-
+          lastpos = pos+4;
           pos+=3;
         }
         else
@@ -274,11 +275,12 @@ int VVDecImpl::decode( vvdecAccessUnit& rcAccessUnit, vvdecFrame** ppcFrame )
 
             iStartCodePosVec.push_back( pos+3 );
             iStartCodeSizeVec.push_back( 3 );
-            if( pos > 0 )
+
+            if( pos > lastpos )
             {
               iAUEndPosVec.push_back(pos);
             }
-
+            lastpos = pos+3;
             pos+=2;
           }
         }
