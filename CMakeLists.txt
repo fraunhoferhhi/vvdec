@@ -48,6 +48,9 @@ if( VVDEC_ENABLE_ARM_SIMD )
   set( CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DTARGET_SIMD_ARM" )
   set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DTARGET_SIMD_ARM" )
 endif()
+  
+list( APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake/modules" )
+message( STATUS "CMAKE_MODULE_PATH: updating module path to: ${CMAKE_MODULE_PATH}" )
 
 if( NOT CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR )
   # set exception handling
@@ -62,7 +65,8 @@ if( NOT CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR )
   # add subdirectories the superproject asked for
   foreach( subdir IN LISTS ${PROJECT_NAME}_ADD_SUBDIRECTORIES )
     add_subdirectory( ${subdir} )
-  endforeach()
+  endforeach()  
+  
   return()
 endif()
 
@@ -156,9 +160,6 @@ set( CMAKE_POSITION_INDEPENDENT_CODE TRUE )
 
 # use folders in IDEs for projects (e.g. lib sample app test)
 set_property( GLOBAL PROPERTY USE_FOLDERS ON )
-
-set( CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake/modules" )
-message( STATUS "CMAKE_MODULE_PATH: updating module path to: ${CMAKE_MODULE_PATH}" )
 
 # Enable multithreading
 find_package( Threads REQUIRED )
