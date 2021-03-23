@@ -222,8 +222,6 @@ list( APPEND BITSTREAM_FILES
   "TMVP_D_Chipsnmedia_3.zip"
   "TRANS_A_Chipsnmedia_2.zip"
   "TRANS_B_Chipsnmedia_2.zip"
-  "TRANS_C_Chipsnmedia_2.zip"
-  "TRANS_D_Chipsnmedia_2.zip"
   "TREE_A_HHI_3.zip"
   "TREE_B_HHI_3.zip"
   "TREE_C_HHI_3.zip"
@@ -243,6 +241,8 @@ list( APPEND BITSTREAM_FILES
 list( APPEND BITSTREAM_FAULTY_FILES
   "GDR_A_ERICSSON_2.zip"
   "POUT_A_Sharplabs_2.zip"
+  "TRANS_C_Chipsnmedia_2.zip" # probably broken bitstreams. Also does not decode with VTM
+  "TRANS_D_Chipsnmedia_2.zip" # probably broken bitstreams. Also does not decode with VTM
 )
 
 # put bitstreams from the conformance set that are not supported (wrong profile/level etc)
