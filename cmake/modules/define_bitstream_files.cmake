@@ -102,7 +102,7 @@ list( APPEND BITSTREAM_FILES
   "GDR_A_ERICSSON_2.zip"
   "GDR_A_NOKIA_2.zip"
   "GDR_B_NOKIA_2.zip"
-  "GDR_C_NOKIA_1.zip"
+  "GDR_C_NOKIA_2.zip"
   "GPM_A_Alibaba_3.zip"
   "GPM_B_Alibaba_1.zip"
   "HLG_A_NHK_3.zip"
