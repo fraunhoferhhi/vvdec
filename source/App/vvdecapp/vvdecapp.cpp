@@ -149,7 +149,7 @@ int main( int argc, char* argv[] )
   }
 
   // stream buffer to directly calculate MD5 hash over the YUV output
-  MD5StreamBuf md5Buf( 1024 * 1024 );
+  vvdecoderapp::MD5StreamBuf md5Buf( 1024 * 1024 );
   std::ostream md5Stream( &md5Buf );
 
   vvdecDecoder *dec = nullptr;
