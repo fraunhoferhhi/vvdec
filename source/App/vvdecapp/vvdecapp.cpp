@@ -89,7 +89,7 @@ int main( int argc, char* argv[] )
   std::string cOutputFile    = "";
   int         iMaxFrames     = -1;
   int         iLoopCount     = 1;
-  bool        bOverallYuvMD5 = false;
+  std::string cExpectedYuvMD5;
   vvdecParams params;
   vvdec_params_default(&params);
 
@@ -101,7 +101,7 @@ int main( int argc, char* argv[] )
     return 0;
   }
 
-  int iRet = vvdecoderapp::CmdLineParser::parse_command_line(  argc, argv, params, cBitstreamFile, cOutputFile, iMaxFrames, iLoopCount, bOverallYuvMD5 );
+  int iRet = vvdecoderapp::CmdLineParser::parse_command_line(  argc, argv, params, cBitstreamFile, cOutputFile, iMaxFrames, iLoopCount, cExpectedYuvMD5 );
   if( iRet != 0 )
   {
     if( iRet == 2 )
@@ -354,7 +354,7 @@ int main( int argc, char* argv[] )
 
           if( pcFrame->frameFormat == VVDEC_FF_PROGRESSIVE )
           {
-            if( bOverallYuvMD5 )
+            if( !cExpectedYuvMD5.empty() )
             {
               writeYUVToFile( &md5Stream, pcFrame );
             }
@@ -374,7 +374,7 @@ int main( int argc, char* argv[] )
             }
             else
             {
-              if( bOverallYuvMD5 )
+              if( !cExpectedYuvMD5.empty() )
               {
                 writeYUVToFileInterlaced( &md5Stream, pcPrevField, pcFrame );
               }
@@ -438,7 +438,7 @@ int main( int argc, char* argv[] )
 
         if( pcFrame->frameFormat == VVDEC_FF_PROGRESSIVE )
         {
-          if( bOverallYuvMD5 )
+          if( !cExpectedYuvMD5.empty() )
           {
             writeYUVToFile( &md5Stream, pcFrame );
           }
@@ -458,7 +458,7 @@ int main( int argc, char* argv[] )
           }
           else
           {
-            if( bOverallYuvMD5 )
+            if( !cExpectedYuvMD5.empty() )
             {
               writeYUVToFileInterlaced( &md5Stream, pcPrevField, pcFrame );
             }
@@ -516,10 +516,6 @@ int main( int argc, char* argv[] )
     if( params.logLevel >= VVDEC_INFO )
       std::cout << "vvdecapp [info]: " << getTimePointAsString() << ": " << uiFrames << " frames decoded @ " << dFps << " fps (" << dTimeSec << " sec)\n" << std::endl;
 
-    if( bOverallYuvMD5 )
-    {
-      std::cout << "vvdecapp YUV MD5: " << md5Buf.finalizeHex() << std::endl;
-    }
 
     iSEIHashErrCount = vvdec_get_hash_error_count(dec);
     if (iSEIHashErrCount )
@@ -534,6 +530,19 @@ int main( int argc, char* argv[] )
       std::cout << "vvdecapp [error]: read some input pictures (" << iComprPics << "), but no output was generated." << std::endl;
       vvdec_accessUnit_free( accessUnit );
       return -1;
+    }
+
+    if( !cExpectedYuvMD5.empty() )
+    {
+      std::transform( cExpectedYuvMD5.begin(), cExpectedYuvMD5.end(), cExpectedYuvMD5.begin(), (int ( * )( int ))std::tolower );
+
+      const std::string yuvMD5 = md5Buf.finalizeHex();
+      if( cExpectedYuvMD5 != yuvMD5 )
+      {
+        std::cout << "vvdecapp [error] full YUV output MD5 mismatch: " << cExpectedYuvMD5 << " != " << yuvMD5 << std::endl;
+        vvdec_accessUnit_free( accessUnit );
+        return -1;
+      }
     }
 
     // un-initialize the decoder
@@ -559,7 +568,6 @@ int main( int argc, char* argv[] )
 
     iLoop++;
     if( iLoopCount >= 0 && iLoop >= iLoopCount ){ bContinue = false;}
-
   }
   //< decoding loop finished
 

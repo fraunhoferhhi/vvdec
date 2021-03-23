@@ -308,12 +308,10 @@ foreach( BITSTREAM IN LISTS BITSTREAM_FILES )
 
   if( EXISTS ${BITSTREAM_FILE} )
     read_bitstream_yuv_md5( ${BITSTREAM_FILE} RX_MD5_HASH )
-    add_test( NAME Test:${BITSTREAM_SHORT}.bit COMMAND vvdecapp -b ${BITSTREAM_FILE} -dph -md5 )
-    set_tests_properties( Test:${BITSTREAM_SHORT}.bit PROPERTIES
-                          TIMEOUT 120
-                          PASS_REGULAR_EXPRESSION "YUV MD5: ${RX_MD5_HASH}" )
+    add_test( NAME Test:${BITSTREAM_SHORT}.bit COMMAND vvdecapp -b ${BITSTREAM_FILE} -dph -md5 ${RX_MD5_HASH} )
+    set_tests_properties( Test:${BITSTREAM_SHORT}.bit PROPERTIES TIMEOUT 120 )
   else()
-    add_test( NAME MISSING:${BITSTREAM_SHORT}.bit COMMAND vvdecapp -b ${BITSTREAM_FILE} -dph -md5 )
+    add_test( NAME MISSING:${BITSTREAM_SHORT}.bit COMMAND vvdecapp -b ${BITSTREAM_FILE} -dph )
     set_tests_properties( MISSING:${BITSTREAM_SHORT}.bit PROPERTIES TIMEOUT 120 )
 
     set( MISSING_BITSTREAM_FILES TRUE )
@@ -326,10 +324,8 @@ foreach( BITSTREAM IN LISTS BITSTREAM_FAULTY_FILES )
 
   if( EXISTS ${BITSTREAM_FILE} )
     read_bitstream_yuv_md5( ${BITSTREAM_FILE} RX_MD5_HASH )
-    add_test( NAME Faulty:${BITSTREAM_SHORT}.bit COMMAND vvdecapp -b ${BITSTREAM_FILE} -dph )
-    set_tests_properties( Faulty:${BITSTREAM_SHORT}.bit PROPERTIES
-                          TIMEOUT 120
-                          PASS_REGULAR_EXPRESSION "YUV MD5: ${RX_MD5_HASH}" )
+    add_test( NAME Faulty:${BITSTREAM_SHORT}.bit COMMAND vvdecapp -b ${BITSTREAM_FILE} -dph -md5 ${RX_MD5_HASH} )
+    set_tests_properties( Faulty:${BITSTREAM_SHORT}.bit PROPERTIES TIMEOUT 120 )
   else()
     add_test( NAME MISSING:${BITSTREAM_SHORT}.bit COMMAND vvdecapp -b ${BITSTREAM_FILE} -dph )
     set_tests_properties( MISSING:${BITSTREAM_SHORT}.bit PROPERTIES TIMEOUT 120 )

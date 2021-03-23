@@ -86,7 +86,7 @@ public:
           "\t\t [--simd <int>              ] : used simd extension (0: scalar, 1: sse41, 2: sse42, 3: avx, 4: avx2, 5: avx512) (default: < 0 auto detection)\n"
           "\n"
           "\t\t [--SEIDecodedPictureHash,-dph ] : enable handling of decoded picture hash SEI messages\n"
-          "\t\t [--OverallMD5,-md5            ] : enable calculation of md5 hash over the full YUV output\n"
+          "\t\t [--CheckYuvMD5,-md5 <md5str>  ] : enable calculation of md5 hash over the full YUV output and check against the provided value.\n"
           "\n"
           "\t General Options\n"
           "\n"
@@ -99,7 +99,7 @@ public:
 
 
   static int parse_command_line( int argc, char* argv[] , vvdecParams& rcParams, std::string& rcBitstreamFile, std::string& rcOutputFile,
-                                 int& riFrames, int& riLoops, bool& rbCalcMD5 )
+                                 int& riFrames, int& riLoops, std::string& rcExpectYuvMD5 )
   {
     int iRet = 0;
     /* Check command line parameters */
@@ -229,20 +229,20 @@ public:
           fprintf( stdout, "[SEIDecodedPictureHash] : true\n" );
         rcParams.verifyPictureHash = true;
       }
-      else if( (!strcmp( (const char*)argv[i_arg], "-md5" )) || !strcmp( (const char*)argv[i_arg], "--OverallMD5" ) )
+      else if( ( !strcmp( (const char*)argv[i_arg], "-md5" ) ) || !strcmp( (const char*)argv[i_arg], "--CheckYuvMD5" ) )
       {
+        if( i_arg >= argc - 1 ) { fprintf( stderr, " - missing argument for: %s \n", argv[i_arg] ); return -1; }
         i_arg++;
-        if( i_arg < argc )
+        if( strlen( argv[i_arg] ) != 32 )
         {
-          if( std::isdigit(argv[i_arg][0]))
-          {
-            i_arg++;
-          }
+          fprintf( stderr, " - the provided md5 hash to %s should be exactly 32 characters long\n", argv[i_arg - 1] );
+          return -1;
         }
 
+        rcExpectYuvMD5 = std::string( argv[i_arg++] );
+
         if( rcParams.logLevel > VVDEC_VERBOSE )
-          fprintf( stdout, "[OverallMD5] : true\n" );
-        rbCalcMD5 = true;
+          fprintf( stdout, "[CheckYuvMD5] : %s\n", rcExpectYuvMD5.c_str() );
       }
       else if( (!strcmp( (const char*)argv[i_arg], "-L" )) || !strcmp( (const char*)argv[i_arg], "--loops" ) )
       {
