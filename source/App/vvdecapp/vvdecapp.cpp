@@ -57,6 +57,7 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #include "CmdLineParser.h"
 
 #include "vvdecHelper.h"
+#include "MD5StreamBuf.h"
 
 /*! Prototypes */
 int writeYUVToFile( std::ostream *f, vvdecFrame *frame );
@@ -84,10 +85,11 @@ int main( int argc, char* argv[] )
     }
   }
 
-  std::string cBitstreamFile  = "";
-  std::string cOutputFile = "";
-  int iMaxFrames=-1;
-  int iLoopCount=1;
+  std::string cBitstreamFile = "";
+  std::string cOutputFile    = "";
+  int         iMaxFrames     = -1;
+  int         iLoopCount     = 1;
+  bool        bOverallYuvMD5 = false;
   vvdecParams params;
   vvdec_params_default(&params);
 
@@ -99,7 +101,7 @@ int main( int argc, char* argv[] )
     return 0;
   }
 
-  int iRet = vvdecoderapp::CmdLineParser::parse_command_line(  argc, argv, params, cBitstreamFile, cOutputFile, iMaxFrames, iLoopCount );
+  int iRet = vvdecoderapp::CmdLineParser::parse_command_line(  argc, argv, params, cBitstreamFile, cOutputFile, iMaxFrames, iLoopCount, bOverallYuvMD5 );
   if( iRet != 0 )
   {
     if( iRet == 2 )
@@ -145,6 +147,10 @@ int main( int argc, char* argv[] )
     std::cout << "vvdecapp [error]: failed to open ouptut file " << cOutputFile << std::endl;
     return -1;
   }
+
+  // stream buffer to directly calculate MD5 hash over the YUV output
+  MD5StreamBuf md5Buf( 1024 * 1024 );
+  std::ostream md5Stream( &md5Buf );
 
   vvdecDecoder *dec = nullptr;
 
@@ -346,42 +352,47 @@ int main( int argc, char* argv[] )
           }
 #endif
 
-          if( cRecFile.is_open() )
+          if( pcFrame->frameFormat == VVDEC_FF_PROGRESSIVE )
           {
-            if( pcFrame->frameFormat == VVDEC_FF_PROGRESSIVE)
+            if( bOverallYuvMD5 )
             {
-              if( 0 != writeYUVToFile( outStream, pcFrame ) )
+              writeYUVToFile( &md5Stream, pcFrame );
+            }
+            if( cRecFile.is_open() && 0 != writeYUVToFile( outStream, pcFrame ) )
+            {
+              std::cout << "vvdecapp [error]: write of rec. yuv failed for picture seq. " <<  pcFrame->sequenceNumber << std::endl;
+              vvdec_accessUnit_free( accessUnit );
+              return iRet;
+            }
+          }
+          else if( pcFrame->frameFormat == VVDEC_FF_TOP_FIELD ||
+                   pcFrame->frameFormat == VVDEC_FF_BOT_FIELD )
+          {
+            if( !pcPrevField )
+            {
+              pcPrevField = pcFrame;
+            }
+            else
+            {
+              if( bOverallYuvMD5 )
+              {
+                writeYUVToFileInterlaced( &md5Stream, pcPrevField, pcFrame );
+              }
+              if( cRecFile.is_open() && 0 != writeYUVToFileInterlaced( outStream, pcPrevField, pcFrame ) )
               {
                 std::cout << "vvdecapp [error]: write of rec. yuv failed for picture seq. " <<  pcFrame->sequenceNumber << std::endl;
                 vvdec_accessUnit_free( accessUnit );
                 return iRet;
               }
+              vvdec_frame_unref( dec, pcPrevField );
+              pcPrevField = nullptr;
             }
-            else if( pcFrame->frameFormat == VVDEC_FF_TOP_FIELD ||
-                     pcFrame->frameFormat == VVDEC_FF_BOT_FIELD )
-            {
-              if( !pcPrevField )
-              {
-                pcPrevField = pcFrame;
-              }
-              else
-              {
-                if( 0 != writeYUVToFileInterlaced( outStream, pcPrevField, pcFrame ) )
-                {
-                  std::cout << "vvdecapp [error]: write of rec. yuv failed for picture seq. " <<  pcFrame->sequenceNumber << std::endl;
-                  vvdec_accessUnit_free( accessUnit );
-                  return iRet;
-                }
-                vvdec_frame_unref( dec, pcPrevField );
-                pcPrevField = nullptr;
-              }
-            }
-            else
-            {
-              std::cout << "vvdecapp [error]: unsupported FrameFormat " << pcFrame->frameFormat << " for picture seq. " <<  pcFrame->sequenceNumber << std::endl;
-              vvdec_accessUnit_free( accessUnit );
-              return -1;
-            }
+          }
+          else
+          {
+            std::cout << "vvdecapp [error]: unsupported FrameFormat " << pcFrame->frameFormat << " for picture seq. " <<  pcFrame->sequenceNumber << std::endl;
+            vvdec_accessUnit_free( accessUnit );
+            return -1;
           }
 
           // free picture memory
@@ -425,42 +436,47 @@ int main( int argc, char* argv[] )
       {
         uiFrames++;
 
-        if( cRecFile.is_open() )
+        if( pcFrame->frameFormat == VVDEC_FF_PROGRESSIVE )
         {
-          if( pcFrame->frameFormat == VVDEC_FF_PROGRESSIVE)
+          if( bOverallYuvMD5 )
           {
-            if( 0 != writeYUVToFile( outStream, pcFrame ) )
-            {
-              std::cout << "vvdecapp [error]: write of rec. yuv failed for picture seq. " <<  pcFrame->sequenceNumber << std::endl;
-              vvdec_accessUnit_free( accessUnit );
-              return iRet;
-            }
+            writeYUVToFile( &md5Stream, pcFrame );
           }
-          else if( pcFrame->frameFormat == VVDEC_FF_TOP_FIELD ||
-                   pcFrame->frameFormat == VVDEC_FF_BOT_FIELD )
+          if( cRecFile.is_open() && 0 != writeYUVToFile( outStream, pcFrame ) )
           {
-            if( !pcPrevField )
-            {
-              pcPrevField = pcFrame;
-            }
-            else
-            {
-              if( 0 != writeYUVToFileInterlaced( outStream, pcPrevField, pcFrame ) )
-              {
-                std::cout << "vvdecapp [error]: write of rec. yuv failed for picture seq. " <<  pcFrame->sequenceNumber << std::endl;
-                vvdec_accessUnit_free( accessUnit );
-                return iRet;
-              }
-              vvdec_frame_unref( dec, pcPrevField );
-              pcPrevField = nullptr;
-            }
+            std::cout << "vvdecapp [error]: write of rec. yuv failed for picture seq. " << pcFrame->sequenceNumber << std::endl;
+            vvdec_accessUnit_free( accessUnit );
+            return iRet;
+          }
+        }
+        else if( pcFrame->frameFormat == VVDEC_FF_TOP_FIELD ||
+                 pcFrame->frameFormat == VVDEC_FF_BOT_FIELD )
+        {
+          if( !pcPrevField )
+          {
+            pcPrevField = pcFrame;
           }
           else
           {
-            std::cout << "vvdecapp [error]: unsupported FrameFormat " << pcFrame->frameFormat << " for picture seq. " <<  pcFrame->sequenceNumber << std::endl;
-            vvdec_accessUnit_free( accessUnit );
-            return -1;
+            if( bOverallYuvMD5 )
+            {
+              writeYUVToFileInterlaced( &md5Stream, pcPrevField, pcFrame );
+            }
+            if( cRecFile.is_open() && 0 != writeYUVToFileInterlaced( outStream, pcPrevField, pcFrame ) )
+            {
+              std::cout << "vvdecapp [error]: write of rec. yuv failed for picture seq. " << pcFrame->sequenceNumber << std::endl;
+              vvdec_accessUnit_free( accessUnit );
+              return iRet;
+            }
+            vvdec_frame_unref( dec, pcPrevField );
+            pcPrevField = nullptr;
           }
+        }
+        else
+        {
+          std::cout << "vvdecapp [error]: unsupported FrameFormat " << pcFrame->frameFormat << " for picture seq. " <<  pcFrame->sequenceNumber << std::endl;
+          vvdec_accessUnit_free( accessUnit );
+          return -1;
         }
 
         // free picture memory
@@ -499,6 +515,11 @@ int main( int argc, char* argv[] )
     dFpsPerLoopVec.push_back( dFps );
     if( params.logLevel >= VVDEC_INFO )
       std::cout << "vvdecapp [info]: " << getTimePointAsString() << ": " << uiFrames << " frames decoded @ " << dFps << " fps (" << dTimeSec << " sec)\n" << std::endl;
+
+    if( bOverallYuvMD5 )
+    {
+      std::cout << "vvdecapp YUV MD5: " << md5Buf.finalizeHex() << std::endl;
+    }
 
     iSEIHashErrCount = vvdec_get_hash_error_count(dec);
     if (iSEIHashErrCount )

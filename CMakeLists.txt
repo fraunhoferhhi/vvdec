@@ -48,7 +48,7 @@ if( VVDEC_ENABLE_ARM_SIMD )
   set( CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DTARGET_SIMD_ARM" )
   set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DTARGET_SIMD_ARM" )
 endif()
-  
+
 list( APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake/modules" )
 message( STATUS "CMAKE_MODULE_PATH: updating module path to: ${CMAKE_MODULE_PATH}" )
 
@@ -65,8 +65,8 @@ if( NOT CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR )
   # add subdirectories the superproject asked for
   foreach( subdir IN LISTS ${PROJECT_NAME}_ADD_SUBDIRECTORIES )
     add_subdirectory( ${subdir} )
-  endforeach()  
-  
+  endforeach()
+
   return()
 endif()
 
@@ -293,17 +293,27 @@ endif()
 # enable testing with ctest
 enable_testing()
 
-set( VVDEC_TEST_SCRIPT "${CMAKE_CURRENT_SOURCE_DIR}/cmake/test/run_test.cmake" )
+function( read_bitstream_yuv_md5 BITSTREAM_FILE OUT_MD5_HASH )
+  STRING( REGEX REPLACE "\\.bit$" ".yuv.md5" MD5_FILE ${BITSTREAM_FILE} )
+  file( READ ${MD5_FILE} MD5_HASH LIMIT 32 )
+  string( STRIP "${MD5_HASH}" MD5_HASH )
+  string( TOLOWER "${MD5_HASH}" MD5_HASH )
+  set( ${OUT_MD5_HASH} ${MD5_HASH} PARENT_SCOPE )
+endfunction()
+
 # add tests for bitstreams
 foreach( BITSTREAM IN LISTS BITSTREAM_FILES )
   string( REGEX REPLACE "(.*).zip" "\\1" BITSTREAM_SHORT "${BITSTREAM}" )
   set( BITSTREAM_FILE "${BITSTREAM_INSTALL_DIR_BASE}/${BITSTREAM_SHORT}/${BITSTREAM_SHORT}.bit" )
 
   if( EXISTS ${BITSTREAM_FILE} )
-    add_test( NAME Test:${BITSTREAM_SHORT}.bit COMMAND cmake -DEXECUTABLE=$<TARGET_FILE:vvdecapp> -DBITSTREAM_FILE=${BITSTREAM_FILE} -P ${VVDEC_TEST_SCRIPT} )
-    set_tests_properties( Test:${BITSTREAM_SHORT}.bit PROPERTIES TIMEOUT 120 )
+    read_bitstream_yuv_md5( ${BITSTREAM_FILE} RX_MD5_HASH )
+    add_test( NAME Test:${BITSTREAM_SHORT}.bit COMMAND vvdecapp -b ${BITSTREAM_FILE} -dph -md5 )
+    set_tests_properties( Test:${BITSTREAM_SHORT}.bit PROPERTIES
+                          TIMEOUT 120
+                          PASS_REGULAR_EXPRESSION "YUV MD5: ${RX_MD5_HASH}" )
   else()
-    add_test( NAME MISSING:${BITSTREAM_SHORT}.bit COMMAND cmake -DEXECUTABLE=$<TARGET_FILE:vvdecapp> -DBITSTREAM_FILE=${BITSTREAM_FILE} -P ${VVDEC_TEST_SCRIPT} )
+    add_test( NAME MISSING:${BITSTREAM_SHORT}.bit COMMAND vvdecapp -b ${BITSTREAM_FILE} -dph -md5 )
     set_tests_properties( MISSING:${BITSTREAM_SHORT}.bit PROPERTIES TIMEOUT 120 )
 
     set( MISSING_BITSTREAM_FILES TRUE )
@@ -315,10 +325,13 @@ foreach( BITSTREAM IN LISTS BITSTREAM_FAULTY_FILES )
   set( BITSTREAM_FILE "${BITSTREAM_INSTALL_DIR_BASE}/${BITSTREAM_SHORT}/${BITSTREAM_SHORT}.bit" )
 
   if( EXISTS ${BITSTREAM_FILE} )
-    add_test( NAME Faulty:${BITSTREAM_SHORT}.bit COMMAND cmake -DEXECUTABLE=$<TARGET_FILE:vvdecapp> -DBITSTREAM_FILE=${BITSTREAM_FILE} -P ${VVDEC_TEST_SCRIPT} )
-    set_tests_properties( Faulty:${BITSTREAM_SHORT}.bit PROPERTIES TIMEOUT 120 )
+    read_bitstream_yuv_md5( ${BITSTREAM_FILE} RX_MD5_HASH )
+    add_test( NAME Faulty:${BITSTREAM_SHORT}.bit COMMAND vvdecapp -b ${BITSTREAM_FILE} -dph )
+    set_tests_properties( Faulty:${BITSTREAM_SHORT}.bit PROPERTIES
+                          TIMEOUT 120
+                          PASS_REGULAR_EXPRESSION "YUV MD5: ${RX_MD5_HASH}" )
   else()
-    add_test( NAME MISSING:${BITSTREAM_SHORT}.bit COMMAND cmake -DEXECUTABLE=$<TARGET_FILE:vvdecapp> -DBITSTREAM_FILE=${BITSTREAM_FILE} -P ${VVDEC_TEST_SCRIPT} )
+    add_test( NAME MISSING:${BITSTREAM_SHORT}.bit COMMAND vvdecapp -b ${BITSTREAM_FILE} -dph )
     set_tests_properties( MISSING:${BITSTREAM_SHORT}.bit PROPERTIES TIMEOUT 120 )
 
     set( MISSING_BITSTREAM_FILES TRUE )

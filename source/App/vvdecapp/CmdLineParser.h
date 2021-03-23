@@ -85,7 +85,8 @@ public:
           "\t\t [--parsedelay,-p  <int>    ] : maximal number of frames to read before decoding (default: <= 0 auto detection )\n"
           "\t\t [--simd <int>              ] : used simd extension (0: scalar, 1: sse41, 2: sse42, 3: avx, 4: avx2, 5: avx512) (default: < 0 auto detection)\n"
           "\n"
-          "\t\t [--SEIDecodedPictureHash,-dph ] : enable handling of decoded picture hash SEI messages"
+          "\t\t [--SEIDecodedPictureHash,-dph ] : enable handling of decoded picture hash SEI messages\n"
+          "\t\t [--OverallMD5,-md5            ] : enable calculation of md5 hash over the full YUV output\n"
           "\n"
           "\t General Options\n"
           "\n"
@@ -98,7 +99,7 @@ public:
 
 
   static int parse_command_line( int argc, char* argv[] , vvdecParams& rcParams, std::string& rcBitstreamFile, std::string& rcOutputFile,
-                                 int& riFrames, int& riLoops )
+                                 int& riFrames, int& riLoops, bool& rbCalcMD5 )
   {
     int iRet = 0;
     /* Check command line parameters */
@@ -227,6 +228,21 @@ public:
         if( rcParams.logLevel > VVDEC_VERBOSE )
           fprintf( stdout, "[SEIDecodedPictureHash] : true\n" );
         rcParams.verifyPictureHash = true;
+      }
+      else if( (!strcmp( (const char*)argv[i_arg], "-md5" )) || !strcmp( (const char*)argv[i_arg], "--OverallMD5" ) )
+      {
+        i_arg++;
+        if( i_arg < argc )
+        {
+          if( std::isdigit(argv[i_arg][0]))
+          {
+            i_arg++;
+          }
+        }
+
+        if( rcParams.logLevel > VVDEC_VERBOSE )
+          fprintf( stdout, "[OverallMD5] : true\n" );
+        rbCalcMD5 = true;
       }
       else if( (!strcmp( (const char*)argv[i_arg], "-L" )) || !strcmp( (const char*)argv[i_arg], "--loops" ) )
       {
