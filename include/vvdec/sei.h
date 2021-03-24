@@ -205,7 +205,7 @@ typedef struct vvdecCompModel
 {
   bool                          presentFlag;
   uint8_t                       numModelValues;
-  vvdecCompModelIntensityValues intensityValues[265];
+  vvdecCompModelIntensityValues intensityValues[256];
 }vvdecCompModel;
 
 typedef struct vvdecSEIFilmGrainCharacteristics
@@ -330,22 +330,22 @@ typedef struct vvdecSEIRegionWisePacking
   int         projPictureHeight;
   int         packedPictureWidth;
   int         packedPictureHeight;
-  uint8_t     rwpTransformType[265];
-  bool        rwpGuardBandFlag[265];
-  uint32_t    projRegionWidth[265];
-  uint32_t    projRegionHeight[265];
-  uint32_t    rwpProjRegionTop[265];
-  uint32_t    projRegionLeft[265];
-  uint16_t    packedRegionWidth[265];
-  uint16_t    packedRegionHeight[265];
-  uint16_t    packedRegionTop[265];
-  uint16_t    packedRegionLeft[265];
-  uint8_t     rwpLeftGuardBandWidth[265];
-  uint8_t     rwpRightGuardBandWidth[265];
-  uint8_t     rwpTopGuardBandHeight[265];
-  uint8_t     rwpBottomGuardBandHeight[265];
-  bool        rwpGuardBandNotUsedForPredFlag[265];
-  uint8_t     rwpGuardBandType[4*265];
+  uint8_t     rwpTransformType[256];
+  bool        rwpGuardBandFlag[256];
+  uint32_t    projRegionWidth[256];
+  uint32_t    projRegionHeight[256];
+  uint32_t    rwpProjRegionTop[256];
+  uint32_t    projRegionLeft[256];
+  uint16_t    packedRegionWidth[256];
+  uint16_t    packedRegionHeight[256];
+  uint16_t    packedRegionTop[256];
+  uint16_t    packedRegionLeft[256];
+  uint8_t     rwpLeftGuardBandWidth[256];
+  uint8_t     rwpRightGuardBandWidth[256];
+  uint8_t     rwpTopGuardBandHeight[256];
+  uint8_t     rwpBottomGuardBandHeight[256];
+  bool        rwpGuardBandNotUsedForPredFlag[256];
+  uint8_t     rwpGuardBandType[4*256];
 }vvdecSEIRegionWisePacking;
 
 typedef struct vvdecOmniViewportRegion

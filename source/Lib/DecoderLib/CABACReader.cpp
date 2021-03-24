@@ -579,6 +579,16 @@ bool CABACReader::coding_tree( CodingStructure& cs, Partitioner& partitioner, CU
 
   CodingUnit& cu = cs.addCU( currArea, partitioner.chType, treeType, partitioner.modeType, partitioner.currPartLevel().cuLeft, partitioner.currPartLevel().cuAbove );
 
+#if ENABLE_TRACING && 0
+  if( cu.chType() == CHANNEL_TYPE_CHROMA )
+  {
+    DTRACE( g_trace_ctx, D_SYNTAX, "[chroma] CU x=%d, y=%d, w=%d, h=%d\n", cu.Cb().x, cu.Cb().y, cu.Cb().width, cu.Cb().height );
+  }
+  else
+    DTRACE( g_trace_ctx, D_SYNTAX, "CU x=%d, y=%d, w=%d, h=%d\n", cu.Y().x, cu.Y().y, cu.Y().width, cu.Y().height );
+
+#endif
+
   partitioner.setCUData( cu );
   cu.slice   = m_slice;
   cu.tileIdx = partitioner.currTileIdx;
