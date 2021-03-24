@@ -262,6 +262,7 @@ int VVDecImpl::decode( vvdecAccessUnit& rcAccessUnit, vvdecFrame** ppcFrame )
           {
             iAUEndPosVec.push_back(pos);
           }
+
           pos+=3;
         }
         else
@@ -273,11 +274,11 @@ int VVDecImpl::decode( vvdecAccessUnit& rcAccessUnit, vvdecFrame** ppcFrame )
 
             iStartCodePosVec.push_back( pos+3 );
             iStartCodeSizeVec.push_back( 3 );
-
             if( pos > 0 )
             {
               iAUEndPosVec.push_back(pos);
             }
+
             pos+=2;
           }
         }
