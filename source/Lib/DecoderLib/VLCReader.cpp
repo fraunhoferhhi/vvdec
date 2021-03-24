@@ -2122,7 +2122,7 @@ void HLSyntaxReader::parseVPS( VPS* pcVPS )
 #endif
   uint32_t  uiCode;
 
-  CHECK( true, "needs to be adjusted, e.g. sublayer and independent layer stuff -> see VTM-9.0" );
+  //CHECK( true, "needs to be adjusted, e.g. sublayer and independent layer stuff -> see VTM-9.0" );
 
   READ_CODE( 4, uiCode, "vps_video_parameter_set_id" );                      pcVPS->setVPSId( uiCode );
   CHECK( uiCode == 0, "vps_video_parameter_set_id equal to zero is reserved and shall not be used in a bitstream" );
@@ -4016,7 +4016,7 @@ void HLSyntaxReader::parsePicOrSliceHeaderRPL( HeaderT* header, const SPS* sps, 
     // RPL in picture header or SPS
     else if( sps->getNumRPL( listIdx ) == 0 )
     {
-      readExplicitRPL = false;
+      readExplicitRPL = true;
     }
     else
     {

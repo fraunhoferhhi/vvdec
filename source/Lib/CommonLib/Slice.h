@@ -115,7 +115,7 @@ public:
   int     getRefPicIdentifier(int idx) const;
   bool    isRefPicLongterm(int idx) const;
 
-  void    setRefPicLongterm(int idx,bool isLongterm) { m_isLongtermRefPic[idx] = isLongterm; }
+  void    setRefPicLongterm(int idx,bool isLongterm);
 
   void    setNumberOfShorttermPictures(int numberOfStrp);
   int     getNumberOfShorttermPictures() const;
@@ -135,16 +135,16 @@ public:
   int     getPOC(int idx) const;
 
   int     getDeltaPocMSBCycleLT(int i) const       { return m_deltaPOCMSBCycleLT[i]; }
-  void    setDeltaPocMSBCycleLT(int i, int x)      { m_deltaPOCMSBCycleLT[i] = x; }
+  void    setDeltaPocMSBCycleLT(int i, int x);
   bool    getDeltaPocMSBPresentFlag(int i) const   { return m_deltaPocMSBPresentFlag[i]; }
-  void    setDeltaPocMSBPresentFlag(int i, bool x) { m_deltaPocMSBPresentFlag[i] = x; }
+  void    setDeltaPocMSBPresentFlag(int i, bool x);
 
   void      printRefPicInfo() const;
   bool      getInterLayerPresentFlag()                   const { return m_interLayerPresentFlag; }
   void      setInterLayerPresentFlag( bool b )                 { m_interLayerPresentFlag = b; }
   bool      isInterLayerRefPic( int idx )                const { return m_isInterLayerRefPic[idx]; }
   int       getInterLayerRefPicIdx( int idx )            const { return m_interLayerRefPicIdx[idx]; }
-  void      setInterLayerRefPicIdx( int idx, int layerIdc )    { m_interLayerRefPicIdx[idx] = layerIdc; }
+  void      setInterLayerRefPicIdx( int idx, int layerIdc );
 
   static int calcLTRefPOC( int currPoc, int bitsForPoc, int refPicIdentifier, bool pocMSBPresent, int deltaPocMSBCycle );
          int calcLTRefPOC( int currPoc, int bitsForPoc, int refPicIdx ) const;
