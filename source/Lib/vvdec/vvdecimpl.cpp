@@ -294,6 +294,13 @@ int VVDecImpl::decode( vvdecAccessUnit& rcAccessUnit, vvdecFrame** ppcFrame )
         }
         iAUEndPosVec.push_back( iLastPos );
 
+        // check if first AU begins on begin of payload (otherwise wrong input)
+        if(!iStartCodePosVec.empty() && (iStartCodePosVec[0] != 3 && iStartCodePosVec[0] != 4 ))
+        {
+          m_cErrorString = "vvdecAccessUnit does not start with valid start code.";
+          return VVDEC_ERR_DEC_INPUT;
+        }
+
         // iterate over all AU´s
         for( size_t iAU = 0; iAU < iStartCodePosVec.size(); iAU++ )
         {
@@ -305,35 +312,38 @@ int VVDecImpl::decode( vvdecAccessUnit& rcAccessUnit, vvdecFrame** ppcFrame )
             uiNaluBytes++;
           }
 
-          InputBitstream& rBitstream = nalu.getBitstream();
-          // perform anti-emulation prevention
-          if( 0 != xConvertPayloadToRBSP(nalUnit, &rBitstream, (nalUnit[0] & 64) == 0) )
+          if( uiNaluBytes )
           {
-            return VVDEC_ERR_UNSPECIFIED;
-          }
+            InputBitstream& rBitstream = nalu.getBitstream();
+            // perform anti-emulation prevention
+            if( 0 != xConvertPayloadToRBSP(nalUnit, &rBitstream, (nalUnit[0] & 64) == 0) )
+            {
+              return VVDEC_ERR_UNSPECIFIED;
+            }
 
-          rBitstream.resetToStart();
+            rBitstream.resetToStart();
 
-          if( 0 != xReadNalUnitHeader(nalu) )
-          {
-            return VVDEC_ERR_UNSPECIFIED;
-          }
+            if( 0 != xReadNalUnitHeader(nalu) )
+            {
+              return VVDEC_ERR_UNSPECIFIED;
+            }
 
 
-          if ( NALUnit::isVclNalUnitType( nalu.m_nalUnitType ) )
-          {
-            iComrpPacketCnt++;
-          }
+            if ( NALUnit::isVclNalUnitType( nalu.m_nalUnitType ) )
+            {
+              iComrpPacketCnt++;
+            }
 
-          if( rcAccessUnit.ctsValid ){  nalu.m_cts = rcAccessUnit.cts; }
-          if( rcAccessUnit.dtsValid ){  nalu.m_dts = rcAccessUnit.dts; }
-          nalu.m_rap = rcAccessUnit.rap;
-          nalu.m_bits = uiNaluBytes*8;
+            if( rcAccessUnit.ctsValid ){  nalu.m_cts = rcAccessUnit.cts; }
+            if( rcAccessUnit.dtsValid ){  nalu.m_dts = rcAccessUnit.dts; }
+            nalu.m_rap = rcAccessUnit.rap;
+            nalu.m_bits = uiNaluBytes*8;
 
-          pcPic = m_cDecLib->decode( nalu );
-          if( 0 != xHandleOutput( pcPic ))
-          {
-            iRet = VVDEC_ERR_UNSPECIFIED;
+            pcPic = m_cDecLib->decode( nalu );
+            if( 0 != xHandleOutput( pcPic ))
+            {
+              iRet = VVDEC_ERR_UNSPECIFIED;
+            }
           }
 
           if( iAU != iStartCodePosVec.size() - 1 )
