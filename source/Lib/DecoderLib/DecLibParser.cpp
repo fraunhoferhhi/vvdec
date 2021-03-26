@@ -660,6 +660,34 @@ DecLibParser::SliceHeadResult DecLibParser::xDecodeSliceHead( InputNALUnit& nalu
 
   Slice* slice = xDecodeSliceMain( nalu );
 
+  if( m_uiSliceSegmentIdx == m_pcParsePic->numSlices )
+  {
+#if 0
+    if( sps->getVPSId() > 0 && not_in_output_layer_set )
+    {
+      m_pcParsePic->neededForOutput = false;
+    }
+    else
+#endif
+    {
+      const int  recoveryPointPocVal   = m_pcParsePic->poc + m_pcParsePic->picHeader->getRecoveryPocCnt();
+      const bool is_recovering_picture = m_associatedIRAPType == NAL_UNIT_CODED_SLICE_GDR && m_pcParsePic->poc < recoveryPointPocVal;
+      if( m_apcSlicePilot->getNalUnitType() == NAL_UNIT_CODED_SLICE_RASL && m_lastNoOutputBeforeRecoveryFlag[nalu.m_nuhLayerId] )
+      {
+        m_pcParsePic->neededForOutput = false;
+      }
+      else if( ( m_apcSlicePilot->getNalUnitType() == NAL_UNIT_CODED_SLICE_GDR || is_recovering_picture )
+               && m_pcParsePic->picHeader->getNoOutputBeforeRecoveryFlag() )
+      {
+        m_pcParsePic->neededForOutput = false;
+      }
+      else
+      {
+        m_pcParsePic->neededForOutput = m_pcParsePic->picHeader->getPicOutputFlag();
+      }
+    }
+  }
+
   if( slice->getNalUnitType() == NAL_UNIT_CODED_SLICE_GDR && !slice->getPic()->cs->pps->getMixedNaluTypesInPicFlag() )
   {
     m_prevGDRInSameLayerPOC = m_pcParsePic->getPOC();
@@ -1020,7 +1048,7 @@ Slice*  DecLibParser::xDecodeSliceMain( InputNALUnit &nalu )
 
 #endif
     m_parseFrameList.push_back( m_pcParsePic );
-  }
+  }  
 
   ITT_TASKEND( itt_domain_oth, itt_handle_start );
 
