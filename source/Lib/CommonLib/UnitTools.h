@@ -76,6 +76,7 @@ namespace CU
   bool isSameCtu                      (const CodingUnit &cu, const CodingUnit &cu2);
   bool isSameSlice                    (const CodingUnit &cu, const CodingUnit &cu2);
   bool isSameTile                     (const CodingUnit &cu, const CodingUnit &cu2);
+  bool isSameSliceAndTile             (const CodingUnit &cu, const CodingUnit &cu2);
   bool isSameSubPic                   (const CodingUnit &cu, const CodingUnit &cu2);
   bool isAvailable                    (const CodingUnit &cu, const CodingUnit &cu2, const bool bEnforceSliceRestriction, const bool bEnforceTileRestriction, const bool bEnforceSubPicRestriction);
 
