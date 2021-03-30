@@ -660,7 +660,7 @@ DecLibParser::SliceHeadResult DecLibParser::xDecodeSliceHead( InputNALUnit& nalu
 
   Slice* slice = xDecodeSliceMain( nalu );
 
-  if( m_uiSliceSegmentIdx == m_pcParsePic->numSlices )
+  if( m_pcParsePic->numSlices == 0 || m_uiSliceSegmentIdx == m_pcParsePic->numSlices )
   {
 #if 0
     if( sps->getVPSId() > 0 && not_in_output_layer_set )
