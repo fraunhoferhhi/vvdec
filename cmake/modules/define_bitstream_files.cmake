@@ -23,7 +23,7 @@ list( APPEND BITSTREAM_FILES
   AFF_B_HUAWEI_2.zip
   ALF_A_Huawei_3.zip
   ALF_B_Huawei_3.zip
-  ALF_C_KDDI_2.zip
+  ALF_C_KDDI_3.zip
   ALF_D_Qualcomm_2.zip
   AMVR_A_HHI_3.zip
   AMVR_B_HHI_3.zip
@@ -47,7 +47,7 @@ list( APPEND BITSTREAM_FILES
   CCALF_B_Sharp_3.zip
   CCALF_C_Sharp_3.zip
   CCALF_D_Sharp_3.zip
-  CCLM_A_KDDI_1.zip
+  CCLM_A_KDDI_2.zip
   CIIP_A_MediaTek_4.zip
   CodingToolsSets_A_Tencent_2.zip
   CodingToolsSets_B_Tencent_2.zip
@@ -71,7 +71,7 @@ list( APPEND BITSTREAM_FILES
   DEBLOCKING_E_Ericsson_3.zip
   DEBLOCKING_F_Ericsson_2.zip
   DMVR_A_Huawei_3.zip
-  DMVR_B_KDDI_3.zip
+  DMVR_B_KDDI_4.zip
   DPB_A_Sharplabs_2.zip
   DPB_B_Sharplabs_2.zip
   DQ_A_HHI_3.zip
@@ -93,19 +93,18 @@ list( APPEND BITSTREAM_FILES
   ENTMAINTIER_C_Sony_3.zip
   ENTMAINTIER_D_Sony_3.zip
   ENTROPY_A_Chipsnmedia_2.zip
-  ENTROPY_A_Qualcomm_2.zip
   ENTROPY_B_Sharp_2.zip
+  ENTROPY_C_Qualcomm_1.zip
   ERP_A_MediaTek_3.zip
   FIELD_A_Panasonic_4.zip
   FIELD_B_Panasonic_2.zip
   FILLER_A_Bytedance_1.zip
-  GDR_A_NOKIA_2.zip
   GDR_B_NOKIA_2.zip
   GDR_C_NOKIA_2.zip
   GPM_A_Alibaba_3.zip
   GPM_B_Alibaba_1.zip
-  HLG_A_NHK_3.zip
-  HLG_B_NHK_3.zip
+  HLG_A_NHK_4.zip
+  HLG_B_NHK_4.zip
   HRD_A_Fujitsu_3.zip
   HRD_B_Fujitsu_2.zip
   IBC_A_Tencent_2.zip
@@ -186,6 +185,7 @@ list( APPEND BITSTREAM_FILES
   RPR_A_Alibaba_4.zip
   RPR_B_Alibaba_3.zip
   RPR_C_Alibaba_3.zip
+  RPR_D_Qualcomm_1.zip
   SAO_A_SAMSUNG_3.zip
   SAO_B_SAMSUNG_3.zip
   SAO_C_SAMSUNG_3.zip
@@ -201,11 +201,15 @@ list( APPEND BITSTREAM_FILES
   SPS_A_Bytedance_1.zip
   SPS_B_Bytedance_1.zip
   SPS_C_Bytedance_1.zip
+  STILL444_A_KDDI_1.zip
+  STILL444_B_ERICSSON_1.zip
+  STILL_A_KDDI_1.zip
   SUBPIC_A_HUAWEI_3.zip
   SUBPIC_B_HUAWEI_3.zip
   SUBPIC_C_ERICSSON_1.zip
-  SUBPIC_D_MediaTek_1.zip
   SUBPIC_D_ERICSSON_1.zip
+  SUBPIC_E_MediaTek_1.zip
+  SUFAPS_A_HHI_1.zip
   TEMPSCAL_A_Panasonic_4.zip
   TEMPSCAL_B_Panasonic_5.zip
   TEMPSCAL_C_Panasonic_3.zip
@@ -222,6 +226,8 @@ list( APPEND BITSTREAM_FILES
   TMVP_D_Chipsnmedia_3.zip
   TRANS_A_Chipsnmedia_2.zip
   TRANS_B_Chipsnmedia_2.zip
+  TRANS_C_Chipsnmedia_2.zip
+  TRANS_D_Chipsnmedia_2.zip
   TREE_A_HHI_3.zip
   TREE_B_HHI_3.zip
   TREE_C_HHI_3.zip
@@ -240,9 +246,12 @@ list( APPEND BITSTREAM_FILES
 # put bitstreams from the conformance set that should be decodable but aren't
 list( APPEND BITSTREAM_FAULTY_FILES
   GDR_A_ERICSSON_2.zip
+  GDR_D_ERICSSON_1.zip
   POUT_A_Sharplabs_2.zip
-  TRANS_C_Chipsnmedia_2.zip # probably broken bitstreams. Also does not decode with VTM
-  TRANS_D_Chipsnmedia_2.zip # probably broken bitstreams. Also does not decode with VTM
+  QUANT_E_Interdigital_1.zip
+  STILL_B_ERICSSON_1.zip
+  TRANS_C_Chipsnmedia_2.zip             # probably broken bitstreams. Also does not decode with VTM
+  TRANS_D_Chipsnmedia_2.zip             # probably broken bitstreams. Also does not decode with VTM
 )
 
 # put bitstreams from the conformance set that are not supported (wrong profile/level etc)
@@ -258,6 +267,8 @@ list( APPEND BITSTREAM_NOT_MAIN10_FILES
   10b422_J_Sony_4.zip                               # palette mode is not yet supported
   10b422_K_Sony_4.zip                               # palette mode is not yet supported
   10b422_L_Sony_4.zip                               # palette mode is not yet supported
+  10b444_A_Kwai_3.zip
+  10b444_B_Kwai_3.zip
   8b422_A_Sony_4.zip                                # MAIN_10_444 and MAIN_10_444_STILL_PICTURE is still experimental.
   8b422_C_Sony_4.zip                                # MAIN_10_444 and MAIN_10_444_STILL_PICTURE is still experimental.
   8b422_D_Sony_4.zip                                # MAIN_10_444 and MAIN_10_444_STILL_PICTURE is still experimental.
@@ -269,21 +280,24 @@ list( APPEND BITSTREAM_NOT_MAIN10_FILES
   8b422_J_Sony_4.zip                                # palette mode is not yet supported
   8b422_K_Sony_4.zip                                # palette mode is not yet supported
   8b422_L_Sony_4.zip                                # palette mode is not yet supported
-  ACT_A_Kwai_2.zip                                  # palette mode is not yet supported
+  8b444_A_Kwai_2.zip
+  8b444_B_Kwai_2.zip
+  ACT_A_Kwai_3.zip                                  # palette mode is not yet supported
+  ACT_B_Kwai_3.zip
   ILRPL_A_Huawei_2.zip                              # multi-layer not supported
   OLS_A_Tencent_4.zip                               # TODO ERROR: In function "parseVPS" in ../../source/Lib/DecoderLib/VLCReader.cpp:2053: needs to be adjusted, e.g. sublayer and independent layer stuff -> see VTM-9.0
   OLS_B_Tencent_4.zip                               # TODO ERROR: In function "parseVPS" in ../../source/Lib/DecoderLib/VLCReader.cpp:2053: needs to be adjusted, e.g. sublayer and independent layer stuff -> see VTM-9.0
   OLS_C_Tencent_4.zip                               # TODO ERROR: In function "parseVPS" in ../../source/Lib/DecoderLib/VLCReader.cpp:2053: needs to be adjusted, e.g. sublayer and independent layer stuff -> see VTM-9.0
   OPI_A_Nokia_1.zip                                 # TODO ERROR: In function "parseVPS" in ../../source/Lib/DecoderLib/VLCReader.cpp:2053: needs to be adjusted, e.g. sublayer and independent layer stuff -> see VTM-9.0
-  OPI_B_Nokia_1.zip                                 # TODO ERROR: In function "parseVPS" in ../../source/Lib/DecoderLib/VLCReader.cpp:2053: needs to be adjusted, e.g. sublayer and independent layer stuff -> see VTM-9.0
+  OPI_B_Nokia_2.zip                                 # TODO ERROR: In function "parseVPS" in ../../source/Lib/DecoderLib/VLCReader.cpp:2053: needs to be adjusted, e.g. sublayer and independent layer stuff -> see VTM-9.0
   PALETTE_A_Alibaba_2.zip                           # palette mode is not yet supported
   PALETTE_B_Alibaba_2.zip                           # palette mode is not yet supported
   PALETTE_C_Alibaba_2.zip                           # palette mode is not yet supported
   PALETTE_D_Alibaba_2.zip                           # palette mode is not yet supported
-  PALETTE_E_Alibaba_1.zip                           # palette mode is not yet supported
-  SPALSCAL_A_Qualcomm_3.zip                         # TODO ERROR: In function "parseVPS" in ../../source/Lib/DecoderLib/VLCReader.cpp:2053: needs to be adjusted, e.g. sublayer and independent layer stuff -> see VTM-9.0
+  PALETTE_E_Alibaba_2.zip                           # palette mode is not yet supported
+  SPATSCAL444_A_Qualcomm_2.zip
+  SPATSCAL_A_Qualcomm_3.zip                         # TODO ERROR: In function "parseVPS" in ../../source/Lib/DecoderLib/VLCReader.cpp:2053: needs to be adjusted, e.g. sublayer and independent layer stuff -> see VTM-9.0
   VPS_A_INTEL_3.zip                                 # TODO ERROR: In function "parseVPS" in ../../source/Lib/DecoderLib/VLCReader.cpp:2053: needs to be adjusted, e.g. sublayer and independent layer stuff -> see VTM-9.0
   VPS_B_ERICSSON_1.zip                              # TODO ERROR: In function "parseVPS" in ../../source/Lib/DecoderLib/VLCReader.cpp:2053: needs to be adjusted, e.g. sublayer and independent layer stuff -> see VTM-9.0
   VPS_C_ERICSSON_1.zip                              # TODO ERROR: In function "parseVPS" in ../../source/Lib/DecoderLib/VLCReader.cpp:2053: needs to be adjusted, e.g. sublayer and independent layer stuff -> see VTM-9.0
 )
-
