@@ -1,11 +1,11 @@
 /* -----------------------------------------------------------------------------
 The copyright in this software is being made available under the BSD
-License, included below. No patent rights, trademark rights and/or 
-other Intellectual Property Rights other than the copyrights concerning 
+License, included below. No patent rights, trademark rights and/or
+other Intellectual Property Rights other than the copyrights concerning
 the Software are granted under this license.
 
-For any license concerning other Intellectual Property rights than the software, 
-especially patent licenses, a separate Agreement needs to be closed. 
+For any license concerning other Intellectual Property rights than the software,
+especially patent licenses, a separate Agreement needs to be closed.
 For more information please contact:
 
 Fraunhofer Heinrich Hertz Institute
@@ -14,7 +14,7 @@ Einsteinufer 37
 www.hhi.fraunhofer.de/vvc
 vvc@hhi.fraunhofer.de
 
-Copyright (c) 2018-2021, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. 
+Copyright (c) 2018-2021, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V.
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -70,12 +70,13 @@ namespace CU
   static inline bool isSepTree        (const CodingUnit &cu) { return cu.treeType() != TREE_D;     }
   static inline bool isConsInter      (const CodingUnit &cu) { return cu.modeType() == MODE_TYPE_INTER; }
   static inline bool isConsIntra      (const CodingUnit &cu) { return cu.modeType() == MODE_TYPE_INTRA; }
-  
+
   bool     isDualITree                (const CodingUnit &cu);
 
   bool isSameCtu                      (const CodingUnit &cu, const CodingUnit &cu2);
   bool isSameSlice                    (const CodingUnit &cu, const CodingUnit &cu2);
   bool isSameTile                     (const CodingUnit &cu, const CodingUnit &cu2);
+  bool isSameSliceAndTile             (const CodingUnit &cu, const CodingUnit &cu2);
   bool isSameSubPic                   (const CodingUnit &cu, const CodingUnit &cu2);
   bool isAvailable                    (const CodingUnit &cu, const CodingUnit &cu2, const bool bEnforceSliceRestriction, const bool bEnforceTileRestriction, const bool bEnforceSubPicRestriction);
 

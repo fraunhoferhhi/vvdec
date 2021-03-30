@@ -1,11 +1,11 @@
 /* -----------------------------------------------------------------------------
 The copyright in this software is being made available under the BSD
-License, included below. No patent rights, trademark rights and/or 
-other Intellectual Property Rights other than the copyrights concerning 
+License, included below. No patent rights, trademark rights and/or
+other Intellectual Property Rights other than the copyrights concerning
 the Software are granted under this license.
 
-For any license concerning other Intellectual Property rights than the software, 
-especially patent licenses, a separate Agreement needs to be closed. 
+For any license concerning other Intellectual Property rights than the software,
+especially patent licenses, a separate Agreement needs to be closed.
 For more information please contact:
 
 Fraunhofer Heinrich Hertz Institute
@@ -14,7 +14,7 @@ Einsteinufer 37
 www.hhi.fraunhofer.de/vvc
 vvc@hhi.fraunhofer.de
 
-Copyright (c) 2018-2021, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. 
+Copyright (c) 2018-2021, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V.
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -42,7 +42,7 @@ ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
 THE POSSIBILITY OF SUCH DAMAGE.
 
 
-------------------------------------------------------------------------------------------- */  
+------------------------------------------------------------------------------------------- */
 
 /** \file     UnitTool.cpp
  *  \brief    defines operations for basic units
@@ -103,7 +103,7 @@ bool CU::getRprScaling( const SPS* sps, const PPS* curPPS, const PPS* refPPS, in
   int curSeqMaxPicWidthY = sps->getMaxPicWidthInLumaSamples();                  // pic_width_max_in_luma_samples
   int curSeqMaxPicHeightY = sps->getMaxPicHeightInLumaSamples();                // pic_height_max_in_luma_samples
   int curPicWidthY = curPPS->getPicWidthInLumaSamples();                        // pic_width_in_luma_samples
-  int curPicHeightY = curPPS->getPicHeightInLumaSamples();                      // pic_height_in_luma_samples 
+  int curPicHeightY = curPPS->getPicHeightInLumaSamples();                      // pic_height_in_luma_samples
   int max8MinCbSizeY = std::max((int)8, (1<<sps->getLog2MinCodingBlockSize())); // Max(8, MinCbSizeY)
 
   CHECK((curPicWidth * curSeqMaxPicWidthY) < refPicWidth * (curPicWidthY - max8MinCbSizeY), "(curPicWidth * curSeqMaxPicWidthY) should be greater than or equal to refPicWidth * (curPicWidthY - max8MinCbSizeY))");
@@ -166,7 +166,7 @@ void CU::checkConformanceILRP(Slice *slice)
   }
 #endif
 
-  //constraint 1: The picture referred to by each active entry in RefPicList[ 0 ] or RefPicList[ 1 ] has the same subpicture layout as the current picture 
+  //constraint 1: The picture referred to by each active entry in RefPicList[ 0 ] or RefPicList[ 1 ] has the same subpicture layout as the current picture
   bool isAllRefSameSubpicLayout = true;
   for (int refList = 0; refList < numRefList; refList++) // loop over l0 and l1
   {
@@ -260,12 +260,18 @@ bool CU::isSameTile(const CodingUnit& cu, const CodingUnit& cu2)
 {
   return cu.tileIdx == cu2.tileIdx;
 }
+
+bool CU::isSameSliceAndTile(const CodingUnit& cu, const CodingUnit& cu2)
+{
+  return isSameSlice(cu, cu2) && isSameTile(cu, cu2);
+}
+
 #if JVET_O1143_SUBPIC_BOUNDARY
 bool CU::isSameSubPic(const CodingUnit& cu, const CodingUnit& cu2)
 {
   return (cu.slice->getPPS()->getSubPicFromCU(cu).getSubPicIdx() == cu2.slice->getPPS()->getSubPicFromCU(cu2).getSubPicIdx()) ;
 }
-#endif 
+#endif
 
 bool CU::isSameCtu(const CodingUnit& cu, const CodingUnit& cu2)
 {
@@ -291,18 +297,26 @@ uint32_t CU::getCtuAddr( const CodingUnit &cu )
 
 int CU::predictQP( const CodingUnit& cu, const int prevQP )
 {
-  const ChannelType chType   = cu.chType();
-  const CodingStructure &cs  = *cu.cs;
-  const CodingUnit*  cuAbove = cs.getCU( cu.blocks[chType].pos().offset( 0, -1 ), chType );
-    
-  if ( !cu.blocks[chType].x && !( cu.blocks[chType].y & ( cs.pcv->maxCUHeightMask >> getChannelTypeScaleY( chType, cu.chromaFormat ) ) ) && ( cs.getCU( cu.blocks[chType].pos().offset( 0, -1 ), chType) != NULL ) && ( cu.slice->getIndependentSliceIdx() == cuAbove->slice->getIndependentSliceIdx() ) && ( cu.tileIdx == cuAbove->tileIdx ) )
+  const ChannelType      chType  = cu.chType();
+  const CodingStructure& cs      = *cu.cs;
+  const CodingUnit*      cuAbove = cs.getCU( cu.blocks[chType].pos().offset( 0, -1 ), chType );
+  const CodingUnit*      cuLeft  = cs.getCU( cu.blocks[chType].pos().offset( -1, 0 ), chType );
+
+  uint32_t  ctuRsAddr       = getCtuAddr( cu );
+  uint32_t  ctuXPosInCtus   = ctuRsAddr % cs.pcv->widthInCtus;
+  uint32_t  tileColIdx      = cu.slice->getPPS()->ctuToTileCol( ctuXPosInCtus );
+  uint32_t  tileXPosInCtus  = cu.slice->getPPS()->getTileColumnBd( tileColIdx );
+  if( ctuXPosInCtus == tileXPosInCtus &&
+      !( cu.blocks[chType].x & ( cs.pcv->maxCUWidthMask  >> getChannelTypeScaleX( chType, cu.chromaFormat ) ) ) &&
+      !( cu.blocks[chType].y & ( cs.pcv->maxCUHeightMask >> getChannelTypeScaleY( chType, cu.chromaFormat ) ) ) &&
+       cuAbove != nullptr && CU::isSameSliceAndTile( *cuAbove, cu ) )
   {
     return cuAbove->qp;
   }
   else
   {
-    const int a = ( cu.blocks[chType].y & ( cs.pcv->maxCUHeightMask >> getChannelTypeScaleY( chType, cu.chromaFormat ) ) ) ?                                                      cuAbove->qp : prevQP;
-    const int b = ( cu.blocks[chType].x & ( cs.pcv->maxCUWidthMask  >> getChannelTypeScaleX( chType, cu.chromaFormat ) ) ) ? ( cs.getCU(cu.blocks[chType].pos().offset( -1, 0 ), chType))->qp : prevQP;
+    const int a = ( cu.blocks[chType].y & ( cs.pcv->maxCUHeightMask >> getChannelTypeScaleY( chType, cu.chromaFormat ) ) ) ? cuAbove->qp : prevQP;
+    const int b = ( cu.blocks[chType].x & ( cs.pcv->maxCUWidthMask  >> getChannelTypeScaleX( chType, cu.chromaFormat ) ) ) ? cuLeft->qp  : prevQP;
 
     return ( a + b + 1 ) >> 1;
   }
@@ -631,7 +645,7 @@ const PredictionUnit &PU::getCoLocatedLumaPU( const PredictionUnit &pu )
 {
   Position              topLeftPos = pu.blocks[pu.chType()].lumaPos ( pu.chromaFormat );
   Position refPos     = topLeftPos.offset( pu.blocks[pu.chType()].lumaSize( pu.chromaFormat ).width >> 1, pu.blocks[pu.chType()].lumaSize( pu.chromaFormat ).height >> 1 );
-  
+
   const PredictionUnit &lumaPU = CU::isSepTree( pu ) ? *pu.cs->getCU( refPos, CHANNEL_TYPE_LUMA ) : pu;
 
   return lumaPU;
@@ -1118,7 +1132,7 @@ void PU::getInterMergeCandidates( const PredictionUnit &pu, MergeCtx& mrgCtx, Mo
     {
       boundaryCond = ((posRB.x + pcv.minCUWidth) <= curSubPic.getSubPicRight() &&
                       (posRB.y + pcv.minCUHeight) <= curSubPic.getSubPicBottom());
-    }    
+    }
     if (boundaryCond)
 #else
     if (((posRB.x + pcv.minCUWidth) < pcv.lumaWidth) && ((posRB.y + pcv.minCUHeight) < pcv.lumaHeight))
@@ -1340,9 +1354,9 @@ bool PU::checkDMVRCondition( const PredictionUnit& pu )
         && pu.BcwIdx() == BCW_DEFAULT
         && !wp0[COMPONENT_Y].bPresentFlag
         && !wp1[COMPONENT_Y].bPresentFlag
-        && !wp0[COMPONENT_Cb].bPresentFlag 
-        && !wp0[COMPONENT_Cr].bPresentFlag 
-        && !wp1[COMPONENT_Cb].bPresentFlag 
+        && !wp0[COMPONENT_Cb].bPresentFlag
+        && !wp0[COMPONENT_Cr].bPresentFlag
+        && !wp1[COMPONENT_Cb].bPresentFlag
         && !wp1[COMPONENT_Cr].bPresentFlag
         && PU::isRefPicSameSize( pu )
         ;
@@ -1686,7 +1700,7 @@ void PU::fillMvpCand(PredictionUnit &pu, const RefPicList &eRefPicList, const in
     {
       boundaryCond = ((posRB.x + pcv.minCUWidth) <= curSubPic.getSubPicRight() &&
                       (posRB.y + pcv.minCUHeight) <= curSubPic.getSubPicBottom());
-    }    
+    }
     if( boundaryCond )
 #else
     if( ( ( posRB.x + pcv.minCUWidth ) < pcv.lumaWidth ) && ( ( posRB.y + pcv.minCUHeight ) < pcv.lumaHeight ) )
@@ -2817,7 +2831,7 @@ void PU::setAllAffineMv( PredictionUnit& pu, Mv affLT, Mv affRT, Mv affLB, RefPi
 
   width  >>= MIN_CU_LOG2;
   height >>= MIN_CU_LOG2;
-  
+
 #if ENABLE_SIMD_OPT && defined( TARGET_SIMD_X86 )
   __m128i xvbase = _mm_setr_epi32( mvScaleHor, mvScaleVer, mvScaleHor, mvScaleVer );
   __m128i xvdvxy = _mm_setr_epi32( deltaMvVerX, deltaMvVerY, deltaMvVerX, deltaMvVerY );
@@ -2837,7 +2851,7 @@ void PU::setAllAffineMv( PredictionUnit& pu, Mv affLT, Mv affRT, Mv affLB, RefPi
       for( int w = 0; w < width; w++ )
       {
         MotionInfo &mi = mb.at( w, h );
-        
+
         mi.mv[eRefList] = flbMv;
       }
     }
@@ -2847,7 +2861,7 @@ void PU::setAllAffineMv( PredictionUnit& pu, Mv affLT, Mv affRT, Mv affLB, RefPi
       for( int w = 0; w < width; w += 2 )
       {
         MotionInfo *mi = &mb.at( w, h );
-        
+
         __m128i
         xhoff = _mm_set1_epi32 ( 2 + ( w << MIN_CU_LOG2 ) );
         xhoff = _mm_add_epi32  ( xhoff, _mm_setr_epi32( 0, 0, 1 << MIN_CU_LOG2, 1 << MIN_CU_LOG2 ) );
@@ -3227,7 +3241,7 @@ void PU::applyImv( PredictionUnit& pu, MotionHist& hist )
       PU::fillIBCMvpCand( pu, amvpInfo, hist );
     else
       PU::fillMvpCand( pu, REF_PIC_LIST_0, pu.refIdx[0], amvpInfo, hist );
-    
+
     pu.mvpIdx[0]    = mvp_idx;
     pu.mv    [0][0] = amvpInfo.mvCand[mvp_idx] + mvd;
     pu.mv    [0][0] . mvCliptoStorageBitDepth();
