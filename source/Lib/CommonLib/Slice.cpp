@@ -1252,7 +1252,6 @@ void PPS::resetTileSliceInfo()
   m_tileRowBd.clear();
   m_ctuToTileCol.clear();
   m_ctuToTileRow.clear();
-  m_ctuToSubPicIdx.clear();
   m_rectSlices.clear();
   m_sliceMap.clear();
 }
@@ -1352,31 +1351,6 @@ void PPS::initRectSlices()
  */
 void PPS::initRectSliceMap(const SPS  *sps)
 {
-  if (sps)
-  {
-    m_ctuToSubPicIdx.resize(getPicWidthInCtu() * getPicHeightInCtu());
-    if (sps->getNumSubPics() > 1)
-    {
-      for (int i = 0; i <= sps->getNumSubPics() - 1; i++)
-      {
-        for (int y = sps->getSubPicCtuTopLeftY(i); y < sps->getSubPicCtuTopLeftY(i) + sps->getSubPicHeight(i); y++)
-        {
-          for (int x = sps->getSubPicCtuTopLeftX(i); x < sps->getSubPicCtuTopLeftX(i) + sps->getSubPicWidth(i); x++)
-          {
-            m_ctuToSubPicIdx[ x+ y * getPicWidthInCtu()] = i;
-          }
-        }
-      }
-    }
-    else
-    {
-      for (int i = 0; i < getPicWidthInCtu() * getPicHeightInCtu(); i++)
-      {
-        m_ctuToSubPicIdx[i] = 0;
-      }
-    }
-  }
-
   if( getSingleSlicePerSubPicFlag() )
   {
     CHECK (sps==nullptr, "RectSliceMap can only be initialized for slice_per_sub_pic_flag with a valid SPS");

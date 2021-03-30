@@ -2003,7 +2003,6 @@ private:
 
   bool                          m_rectSliceFlag             = true;
   bool                          m_singleSlicePerSubPicFlag  = false;          //!< single slice per sub-picture flag
-  std::vector<uint32_t>         m_ctuToSubPicIdx;               //!< mapping between CTU and Sub-picture index
   uint32_t                      m_numSlicesInPic            = 1;                    //!< number of rectangular slices in the picture (raster-scan slice specified at slice level)
   bool                          m_tileIdxDeltaPresentFlag   = false;           //!< tile index delta present flag
   std::vector<uint32_t>         m_tileColBd;                    //!< tile column left-boundaries in units of CTUs
@@ -2191,7 +2190,6 @@ public:
   void                   setRectSliceFlag(bool val)                                       { m_rectSliceFlag = val;                        }
   void                   setSingleSlicePerSubPicFlag( bool b )                            { m_singleSlicePerSubPicFlag = b;                                                                                                 }
   bool                   getSingleSlicePerSubPicFlag( ) const                             { return  m_singleSlicePerSubPicFlag;                                                                                             }
-  uint32_t               getCtuToSubPicIdx( int idx ) const                               { CHECK( idx >= m_ctuToSubPicIdx.size(), "CTU address index exceeds valid range" ); CHECK( getNumSubPics() < 1, "Number of subpicture cannot be 0" ); return  m_ctuToSubPicIdx[ idx ]; }
   void                   setNumSlicesInPic( uint32_t u )                                  { CHECK( u > MAX_SLICES, "Number of slices in picture exceeds valid range" ); m_numSlicesInPic = u;                               }
   uint32_t               getNumSlicesInPic( ) const                                       { return  m_numSlicesInPic;                                                                                                       }
   void                   setTileIdxDeltaPresentFlag( bool b )                             { m_tileIdxDeltaPresentFlag = b;                                                                                                  }
