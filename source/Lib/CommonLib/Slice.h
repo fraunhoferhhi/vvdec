@@ -1998,11 +1998,6 @@ private:
   uint32_t         m_numExpTileRows                    = 0;                    //!< number of explicitly specified tile rows
   uint32_t         m_numTileCols                       = 0;                       //!< number of tile columns
   uint32_t         m_numTileRows                       = 0;                       //!< number of tile rows
-  bool             m_TransquantBypassEnabledFlag       = false;   //!< Indicates presence of cu_transquant_bypass_flag in CUs.
-  int             m_log2MaxTransformSkipBlockSize     = 2;
-  bool             m_uniformSpacingFlag                = false;
-  int              m_numTileColumnsMinus1              = 0;
-  int              m_numTileRowsMinus1                 = 0;
   std::vector<int> m_tileColumnWidth;
   std::vector<int> m_tileRowHeight;
 
@@ -2018,12 +2013,6 @@ private:
   std::vector<RectSlice>        m_rectSlices;                  //!< list of rectangular slice signalling parameters
   std::vector<SliceMap>         m_sliceMap;                    //!< list of CTU maps for each slice in the picture
   std::vector<SubPic>           m_subPics;                   //!< list of subpictures in the picture
-  int                           m_numSlicesInPicMinus1      = 0;
-
-  int              m_numTilesInPic                       = 1;
-  bool             m_signalledSliceIdFlag                = false;
-  int              m_signalledSliceIdLengthMinus1        = 0;
-  std::vector<int> m_sliceId;
 
   bool             m_cabacInitPresentFlag                = false;
 
@@ -2183,20 +2172,9 @@ public:
   uint32_t               getNumTileRows( ) const                                          { return  m_numTileRows;                        }
   void                   addTileColumnWidth( uint32_t u )                                 { CHECK( m_tileColumnWidth.size()  >= MAX_TILE_COLS, "Number of tile columns exceeds valid range" ); m_tileColumnWidth.push_back(u);    }
   void                   addTileRowHeight( uint32_t u )                                   { m_tileRowHeight.push_back(u);   }
-  void                   setTransquantBypassEnabledFlag( bool b )                         { m_TransquantBypassEnabledFlag = b;            }
-  bool                   getTransquantBypassEnabledFlag() const                           { return m_TransquantBypassEnabledFlag;         }
 
-  uint32_t               getLog2MaxTransformSkipBlockSize() const                         { return m_log2MaxTransformSkipBlockSize; }
-  void                   setLog2MaxTransformSkipBlockSize(uint32_t u)                     { m_log2MaxTransformSkipBlockSize = u; }
-
-  void                   setTileUniformSpacingFlag(bool b)                                { m_uniformSpacingFlag = b;                     }
-  bool                   getTileUniformSpacingFlag() const                                { return m_uniformSpacingFlag;                  }
-  void                   setNumTileColumnsMinus1(int i)                                   { m_numTileColumnsMinus1 = i;                   }
-  int                    getNumTileColumnsMinus1() const                                  { return m_numTileColumnsMinus1;                }
   void                   setTileColumnWidth(const std::vector<int>& columnWidth )         { m_tileColumnWidth = columnWidth;              }
   uint32_t               getTileColumnWidth(uint32_t columnIdx) const                     { return  m_tileColumnWidth[columnIdx];         }
-  void                   setNumTileRowsMinus1(int i)                                      { m_numTileRowsMinus1 = i;                      }
-  int                    getNumTileRowsMinus1() const                                     { return m_numTileRowsMinus1;                   }
   void                   setTileRowHeight(const std::vector<int>& rowHeight)              { m_tileRowHeight = rowHeight;                  }
   uint32_t               getTileRowHeight(uint32_t rowIdx) const                          { return m_tileRowHeight[rowIdx];               }
   uint32_t               getNumTiles() const                                              { return m_numTileCols * m_numTileRows;        }
@@ -2230,16 +2208,6 @@ public:
   uint32_t               getSliceHeightInCtu( int idx ) const                             { CHECK( idx >= m_numSlicesInPic, "Slice index exceeds valid range" );    return  m_rectSlices[idx].getSliceHeightInCtu( );       }
   void                   setSliceTileIdx(  int idx, uint32_t u )                          { CHECK( idx >= m_numSlicesInPic, "Slice index exceeds valid range" );    m_rectSlices[idx].setTileIdx( u );                      }
   uint32_t               getSliceTileIdx( int idx ) const                                 { CHECK( idx >= m_numSlicesInPic, "Slice index exceeds valid range" );    return  m_rectSlices[idx].getTileIdx( );                }
-  int                    getNumSlicesInPicMinus1() const                                  { return m_numSlicesInPicMinus1;                }
-  void                   setNumSlicesInPicMinus1(int val)                                 { m_numSlicesInPicMinus1 = val;                 }
-  int                    getNumTilesInPic() const                                         { return m_numTilesInPic;                       }
-  void                   setNumTilesInPic(int val)                                        { m_numTilesInPic = val;                        }
-  bool                   getSignalledSliceIdFlag() const                                  { return m_signalledSliceIdFlag;                }
-  void                   setSignalledSliceIdFlag(bool val)                                { m_signalledSliceIdFlag = val;                 }
-  int                    getSignalledSliceIdLengthMinus1() const                          { return m_signalledSliceIdLengthMinus1;        }
-  void                   setSignalledSliceIdLengthMinus1(int val)                         { m_signalledSliceIdLengthMinus1 = val;         }
-  int                    getSliceId(uint32_t columnIdx) const                             { return  m_sliceId[columnIdx];                 }
-  void                   setSliceId(const std::vector<int>& val)                          { m_sliceId = val;                              }
   void                   resetTileSliceInfo();
   void                   initTiles();
   void                   initRectSlices();
