@@ -90,7 +90,7 @@ QpParam::QpParam( const TransformUnit& tu, const ComponentID &compIDX, const boo
     int
     chromaQpOffset  = pps.getQpOffset                    ( jCbCr );
     chromaQpOffset += tu.cu->slice->getSliceChromaQpDelta( jCbCr );
-    chromaQpOffset += pps.getPpsRangeExtension().getChromaQpOffsetListEntry( tu.cu->chromaQpAdj ).u.offset[int( jCbCr ) - 1];
+    chromaQpOffset += pps.getChromaQpOffsetListEntry( tu.cu->chromaQpAdj ).u.offset[int( jCbCr ) - 1];
 
     int qpi = Clip3( -qpBdOffset, MAX_QP, qpy );
     baseQp  = sps.getMappedChromaQpValue( jCbCr, qpi );
