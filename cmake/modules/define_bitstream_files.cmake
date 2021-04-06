@@ -177,6 +177,7 @@ list( APPEND BITSTREAM_FILES
   QUANT_B_Huawei_2.zip
   QUANT_C_Huawei_2.zip
   QUANT_D_Huawei_4.zip
+  QUANT_E_Interdigital_1.zip
   RAP_A_HHI_1.zip
   RAP_B_HHI_1.zip
   RAP_C_HHI_1.zip
@@ -246,7 +247,6 @@ list( APPEND BITSTREAM_FAULTY_FILES
   GDR_A_ERICSSON_2.zip
   GDR_D_ERICSSON_1.zip
   POUT_A_Sharplabs_2.zip
-  QUANT_E_Interdigital_1.zip
   STILL_B_ERICSSON_1.zip
   TRANS_C_Chipsnmedia_2.zip             # probably broken bitstreams. Also does not decode with VTM
   TRANS_D_Chipsnmedia_2.zip             # probably broken bitstreams. Also does not decode with VTM
