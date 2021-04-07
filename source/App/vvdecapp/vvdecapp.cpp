@@ -468,7 +468,7 @@ int main( int argc, char* argv[] )
 #if 1 //PIPE_OUTPUT
             else
             {
-              if( 0 != writeYUVToFile( outStream, pcFrame, true ) )
+              if( writeStdout && 0 != writeYUVToFile( outStream, pcFrame, true ) )
               {
                 std::cerr << "vvdecapp [error]: write of rec. yuv failed for picture seq. " <<  pcFrame->sequenceNumber << std::endl;
                 vvdec_accessUnit_free( accessUnit );
@@ -499,7 +499,7 @@ int main( int argc, char* argv[] )
 #if 1 //PIPE_OUTPUT
               else
               {
-                if( 0 != writeYUVToFileInterlaced( outStream, pcPrevField, pcFrame, true ) )
+                if( writeStdout && 0 != writeYUVToFileInterlaced( outStream, pcPrevField, pcFrame, true ) )
                 {
                   std::cerr << "vvdecapp [error]: write of rec. yuv failed for picture seq. " <<  pcFrame->sequenceNumber << std::endl;
                   vvdec_accessUnit_free( accessUnit );
@@ -601,7 +601,7 @@ int main( int argc, char* argv[] )
 #if 1 //PIPE_OUTPUT
           else
           {
-            if( 0 != writeYUVToFile( outStream, pcFrame, true ) )
+            if( writeStdout && 0 != writeYUVToFile( outStream, pcFrame, true ) )
             {
               std::cerr << "vvdecapp [error]: write of rec. yuv failed for picture seq. " << pcFrame->sequenceNumber << std::endl;
               vvdec_accessUnit_free( accessUnit );
@@ -632,7 +632,7 @@ int main( int argc, char* argv[] )
 #if 1 //PIPE_OUTPUT
             else
             {
-              if( 0 != writeYUVToFileInterlaced( outStream, pcPrevField, pcFrame ) )
+              if( writeStdout && 0 != writeYUVToFileInterlaced( outStream, pcPrevField, pcFrame ) )
               {
                 std::cerr << "vvdecapp [error]: write of rec. yuv failed for picture seq. " << pcFrame->sequenceNumber << std::endl;
                 vvdec_accessUnit_free( accessUnit );
