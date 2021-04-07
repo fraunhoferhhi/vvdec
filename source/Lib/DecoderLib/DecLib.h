@@ -142,7 +142,11 @@ private:
 #if JVET_R0270
   int      finishPicture    ( Picture* pcPic, MsgLevel msgl = INFO, bool associatedWithNewClvs );
 #else
+#if 1 //PIPE_OUTPUT
+  int      finishPicture    ( Picture* pcPic, MsgLevel msgl = ERROR );
+#else
   int      finishPicture    ( Picture* pcPic, MsgLevel msgl = INFO );
+#endif
 #endif
   Picture* getNextOutputPic ( bool bFlush = false );
   void     xCheckNalUnitConstraintFlags( const ConstraintInfo *cInfo, uint32_t naluType );
