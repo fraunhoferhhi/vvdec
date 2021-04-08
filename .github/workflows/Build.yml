@@ -32,7 +32,7 @@ jobs:
         mkdir build
         cd build
         call "C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\VC\Auxiliary\Build\vcvars64.bat"
-        cmake .. -DCMAKE_BUILD_TYPE=Release
-        msbuild vvdec.sln
+        cmake ..
+        msbuild /property:Configuration=Release vvdec.sln
       shell: cmd
       if: matrix.os == 'windows-2019'
