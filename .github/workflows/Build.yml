@@ -14,28 +14,26 @@ jobs:
         include:
           - os: ubuntu-16.04
             CMAKE_ADD: -DBUILD_SHARED_LIBS=0
-            OUTPUT_LIB:
           - os: ubuntu-18.04
             CMAKE_ADD: -DBUILD_SHARED_LIBS=0
-            OUTPUT_LIB:
           - os: ubuntu-20.04
             CMAKE_ADD: -DBUILD_SHARED_LIBS=1
             OUTPUT_LIB: vvdec.so
+            OUTPUT_LIB_PAHT: lib/release-shared
           - os: ubuntu-20.04
             CMAKE_ADD: -DBUILD_SHARED_LIBS=0
-            OUTPUT_LIB:
           - os: macos-10.15
             CMAKE_ADD: -DBUILD_SHARED_LIBS=1
-            OUTPUT_LIB: vvdec.dylib
+            OUTPUT_LIB: libvvdec.dylib
+            OUTPUT_LIB_PAHT: lib/release-shared
           - os: macos-10.15
             CMAKE_ADD: -DBUILD_SHARED_LIBS=0
-            OUTPUT_LIB:
           - os: windows-2019
             CMAKE_ADD: -DBUILD_SHARED_LIBS= 1
             OUTPUT_LIB: vvdec.dll
+            OUTPUT_LIB_PAHT: bin/release-shared
           - os: windows-2019
             CMAKE_ADD: -DBUILD_SHARED_LIBS= 0
-            OUTPUT_LIB:
     steps:
     - uses: actions/checkout@v2
     - run: git fetch --prune --unshallow
@@ -59,7 +57,7 @@ jobs:
       uses: actions/upload-artifact@v2
       with:
         name: ${{matrix.OUTPUT_LIB}}
-        path: lib/release-shared/${{matrix.OUTPUT_LIB}}
+        path: ${{matrix.OUTPUT_LIB_PAHT}}/${{matrix.OUTPUT_LIB}}
       if: matrix.OUTPUT_LIB != ''
     - name: Upload Release
       uses: actions/upload-release-asset@v1.0.1
