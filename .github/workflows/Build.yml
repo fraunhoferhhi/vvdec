@@ -56,16 +56,17 @@ jobs:
     - name: Upload Artifact
       uses: actions/upload-artifact@v2
       with:
-        name: ${{matrix.OUTPUT_LIB}}
-        path: ${{matrix.OUTPUT_LIB_PAHT}}/${{matrix.OUTPUT_LIB}}
-      if: matrix.OUTPUT_LIB != ''
+        name: ${{ env.name }}-name
+        path: |
+          bin
+          lib
     - name: Upload Release
       uses: actions/upload-release-asset@v1.0.1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ github.event.release.upload_url }}
-        asset_path: lib/release-shared/${{matrix.OUTPUT_LIB}}
+        asset_path: ${{matrix.OUTPUT_LIB_PAHT}}/${{matrix.OUTPUT_LIB}}
         asset_name: ${{matrix.OUTPUT_LIB}}
         asset_content_type: application/library
-      if: github.event_name == 'release'
+      if: github.event_name == 'release' && matrix.OUTPUT_LIB != ''
