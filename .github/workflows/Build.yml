@@ -60,7 +60,7 @@ jobs:
       with:
         name: ${{matrix.OUTPUT_LIB}}
         path: lib/release-shared/${{matrix.OUTPUT_LIB}}
-      if: matrix.OUTPUT_LIB != ""
+      if: matrix.OUTPUT_LIB != ''
     - name: Upload Release
       uses: actions/upload-release-asset@v1.0.1
       env:
