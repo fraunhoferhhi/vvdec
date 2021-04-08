@@ -13,10 +13,32 @@ jobs:
       matrix:
         include:
           - os: ubuntu-16.04
+            NAME_ADD: static
+            CMAKE_ADD: -DBUILD_SHARED_LIBS=0
           - os: ubuntu-18.04
+            NAME_ADD: static
+            CMAKE_ADD: -DBUILD_SHARED_LIBS=0
           - os: ubuntu-20.04
+            NAME_ADD: static
+            CMAKE_ADD: -DBUILD_SHARED_LIBS=0
+          - os: ubuntu-20.04
+            NAME_ADD: shared
+            CMAKE_ADD: -DBUILD_SHARED_LIBS=1
+            OUTPUT_LIB: libvvdec.so
           - os: macos-10.15
+            NAME_ADD: static
+            CMAKE_ADD: -DBUILD_SHARED_LIBS=0
+          - os: macos-10.15
+            NAME_ADD: shared
+            CMAKE_ADD: -DBUILD_SHARED_LIBS=1
+            OUTPUT_LIB: libvvdec.dylib
           - os: windows-2019
+            NAME_ADD: shared
+            CMAKE_ADD: -DBUILD_SHARED_LIBS=1
+            OUTPUT_LIB: vvdec.dll
+          - os: windows-2019
+            NAME_ADD: static
+            CMAKE_ADD: -DBUILD_SHARED_LIBS=0
     steps:
     - uses: actions/checkout@v2
     - run: git fetch --prune --unshallow
@@ -24,7 +46,7 @@ jobs:
       run: |
         mkdir build
         cd build
-        cmake .. -DCMAKE_BUILD_TYPE=Release
+        cmake ${{matrix.CMAKE_ADD}} -DCMAKE_BUILD_TYPE=Release ..
         make -j$(nproc)
       if: matrix.os != 'windows-2019'
     - name: Build Windows
@@ -32,7 +54,22 @@ jobs:
         mkdir build
         cd build
         call "C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\VC\Auxiliary\Build\vcvars64.bat"
-        cmake .. -DCMAKE_BUILD_TYPE=Release
-        msbuild vvdec.sln
+        cmake ${{matrix.CMAKE_ADD}} ..
+        msbuild /property:Configuration=Release vvdec.sln
       shell: cmd
       if: matrix.os == 'windows-2019'
+    - name: Upload Artifact
+      uses: actions/upload-artifact@v2
+      with:
+        name: ${{matrix.os}}-${{matrix.NAME_ADD}}
+        path: bin
+    - name: Upload Release
+      uses: actions/upload-release-asset@v1.0.1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ github.event.release.upload_url }}
+        asset_path: bin/release-shared/${{matrix.OUTPUT_LIB}}
+        asset_name: ${{matrix.OUTPUT_LIB}}
+        asset_content_type: application/library
+      if: github.event_name == 'release' && matrix.OUTPUT_LIB != ''
