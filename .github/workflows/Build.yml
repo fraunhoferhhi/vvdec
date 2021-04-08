@@ -65,9 +65,7 @@ jobs:
       uses: actions/upload-artifact@v2
       with:
         name: ${{matrix.os}}-${{matrix.NAME_ADD}}
-        path: |
-          bin
-          lib
+        path: bin
     - name: Upload Release
       uses: actions/upload-release-asset@v1.0.1
       env:
