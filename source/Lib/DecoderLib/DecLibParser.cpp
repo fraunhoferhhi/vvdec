@@ -425,9 +425,9 @@ DecLibParser::SliceHeadResult DecLibParser::xDecodeSliceHead( InputNALUnit& nalu
            "The value of NAL unit type shall be the same for all coded slice NAL units of a picture if pps_mixed_nalu_types_in_pic_flag is not set" )
     m_apcSlicePilot->copySliceInfo  ( m_pcParsePic->slices[m_uiSliceSegmentIdx-1] );
 
-    m_apcSlicePilot->setNalUnitType ( nalu.m_nalUnitType );
+    m_apcSlicePilot->setNalUnitType   ( nalu.m_nalUnitType );
     m_apcSlicePilot->setNalUnitLayerId( nalu.m_nuhLayerId );
-    m_apcSlicePilot->setTLayer      ( nalu.m_temporalId );
+    m_apcSlicePilot->setTLayer        ( nalu.m_temporalId );
 
     nalu.getBitstream().resetToStart();
     nalu.readNalUnitHeader();
@@ -499,6 +499,20 @@ DecLibParser::SliceHeadResult DecLibParser::xDecodeSliceHead( InputNALUnit& nalu
   }
 #endif
 
+  if( m_bFirstSliceInPicture )
+  {
+    const auto pictureType = m_apcSlicePilot->getNalUnitType();
+
+    if( ( pictureType == NAL_UNIT_CODED_SLICE_IDR_W_RADL || pictureType == NAL_UNIT_CODED_SLICE_IDR_N_LP || pictureType == NAL_UNIT_CODED_SLICE_CRA
+          || pictureType == NAL_UNIT_CODED_SLICE_GDR )
+        && !pps->getMixedNaluTypesInPicFlag() )
+    {
+      //m_associatedIRAPDecodingOrderNumber /*[m_pcParsePic->layerId]*/ = m_pcParsePic->getDecodingOrderNumber();
+      m_pocCRA                            /*[m_pcParsePic->layerId]*/ = m_apcSlicePilot->getPOC();
+      m_associatedIRAPType                /*[m_pcParsePic->layerId]*/ = pictureType;
+    }
+  }
+
   xUpdatePreviousTid0POC( m_apcSlicePilot );
 
   m_apcSlicePilot->setAssociatedIRAPPOC ( m_pocCRA );
@@ -564,19 +578,19 @@ DecLibParser::SliceHeadResult DecLibParser::xDecodeSliceHead( InputNALUnit& nalu
   {
     if( m_lastNoOutputBeforeRecoveryFlag[nalu.m_nuhLayerId] )
     {
-      m_picHeader->setPicOutputFlag(false);
+      m_picHeader->setPicOutputFlag( false );
     }
   }
 #if JVET_P0288_PIC_OUTPUT
   if( sps->getVPSId() > 0 )
   {
     VPS *vps = m_parameterSetManager.getVPS( sps->getVPSId() );
-    CHECK(vps == 0, "No VPS present");
+    CHECK( vps == 0, "No VPS present" );
     if( ( vps->getOlsModeIdc() == 0
-       && vps->getGeneralLayerIdx( nalu.m_nuhLayerId ) < ( vps->getMaxLayers() - 1 )
-       && vps->getOlsOutputLayerFlag( vps->m_iTargetLayer, vps->getMaxLayers() - 1 ) == 1 )
-     || ( vps->getOlsModeIdc() == 2
-       && vps->getOlsOutputLayerFlag( vps->m_iTargetLayer, vps->getGeneralLayerIdx( nalu.m_nuhLayerId ) ) == 0 ) )
+          && vps->getGeneralLayerIdx( nalu.m_nuhLayerId ) < ( vps->getMaxLayers() - 1 )
+          && vps->getOlsOutputLayerFlag( vps->m_iTargetLayer, vps->getMaxLayers() - 1 ) == 1 )
+        || ( vps->getOlsModeIdc() == 2
+             && vps->getOlsOutputLayerFlag( vps->m_iTargetLayer, vps->getGeneralLayerIdx( nalu.m_nuhLayerId ) ) == 0 ) )
     {
       m_picHeader->setPicOutputFlag( false );
     }
@@ -660,6 +674,7 @@ DecLibParser::SliceHeadResult DecLibParser::xDecodeSliceHead( InputNALUnit& nalu
 
   Slice* slice = xDecodeSliceMain( nalu );
 
+  m_pcParsePic->neededForOutput = m_pcParsePic->picHeader->getPicOutputFlag();
   if( m_pcParsePic->numSlices == 0 || m_uiSliceSegmentIdx == m_pcParsePic->numSlices )
   {
 #if 0
@@ -670,20 +685,24 @@ DecLibParser::SliceHeadResult DecLibParser::xDecodeSliceHead( InputNALUnit& nalu
     else
 #endif
     {
-      const int  recoveryPointPocVal   = m_pcParsePic->poc + m_pcParsePic->picHeader->getRecoveryPocCnt();
-      const bool is_recovering_picture = m_associatedIRAPType == NAL_UNIT_CODED_SLICE_GDR && m_pcParsePic->poc < recoveryPointPocVal;
-      if( m_apcSlicePilot->getNalUnitType() == NAL_UNIT_CODED_SLICE_RASL && m_lastNoOutputBeforeRecoveryFlag[nalu.m_nuhLayerId] )
+      if( slice->getNalUnitType() == NAL_UNIT_CODED_SLICE_GDR )
+      {
+        m_gdrRecoveryPointPocVal = m_pcParsePic->poc + m_pcParsePic->picHeader->getRecoveryPocCnt();
+      }
+
+      const bool is_recovering_picture = slice->getAssociatedIRAPType() == NAL_UNIT_CODED_SLICE_GDR && m_pcParsePic->poc < m_gdrRecoveryPointPocVal;
+      if( slice->getNalUnitType() == NAL_UNIT_CODED_SLICE_GDR && m_gdrRecoveryPointPocVal == 0 )
+      {
+        m_pcParsePic->neededForOutput = true;
+      }
+      else if( slice->getNalUnitType() == NAL_UNIT_CODED_SLICE_RASL && m_lastNoOutputBeforeRecoveryFlag[nalu.m_nuhLayerId] )
       {
         m_pcParsePic->neededForOutput = false;
       }
-      else if( ( m_apcSlicePilot->getNalUnitType() == NAL_UNIT_CODED_SLICE_GDR || is_recovering_picture )
-               && m_pcParsePic->picHeader->getNoOutputBeforeRecoveryFlag() )
+      else if( ( slice->getNalUnitType() == NAL_UNIT_CODED_SLICE_GDR && m_pcParsePic->picHeader->getNoOutputBeforeRecoveryFlag() )
+               || ( is_recovering_picture && m_lastNoOutputBeforeRecoveryFlag[nalu.m_nuhLayerId] ) )
       {
         m_pcParsePic->neededForOutput = false;
-      }
-      else
-      {
-        m_pcParsePic->neededForOutput = m_pcParsePic->picHeader->getPicOutputFlag();
       }
     }
   }

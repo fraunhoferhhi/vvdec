@@ -69,18 +69,19 @@ class PicListManager;
 class DecLibParser
 {
 private:
-  NalUnitType m_associatedIRAPType = NAL_UNIT_INVALID;   ///< NAL unit type of the associated IRAP picture
-  int         m_pocCRA            = 0;                  ///< POC number of the latest CRA picture
-  int         m_pocRandomAccess   = MAX_INT;            ///< POC number of the random access point (the first IDR or CRA picture)
-  int         m_lastRasPoc        = MAX_INT;
-  int         m_associatedIRAPDecodingOrderNumber = 0; ///< Decoding order number of the associated IRAP picture
-  int         m_decodingOrderCounter = 0;
-  uint32_t    m_prevLayerID       = MAX_INT;
+  NalUnitType m_associatedIRAPType                = NAL_UNIT_INVALID;   ///< NAL unit type of the associated IRAP picture
+  int         m_pocCRA                            = 0;                  ///< POC number of the latest CRA picture
+  int         m_pocRandomAccess                   = MAX_INT;            ///< POC number of the random access point (the first IDR or CRA picture)
+  int         m_lastRasPoc                        = MAX_INT;
+  int         m_associatedIRAPDecodingOrderNumber = 0;                  ///< Decoding order number of the associated IRAP picture
+  int         m_decodingOrderCounter              = 0;
+  uint32_t    m_prevLayerID                       = MAX_INT;
 
   bool        m_prevPicSkipped                = true;
   bool        m_gdrRecoveryPeriod             = false;
   int         m_prevGDRInSameLayerPOC         = 0;    ///< POC number of the latest GDR picture
   int         m_prevGDRInSameLayerRecoveryPOC = 0;    ///< Recovery POC number of the latest GDR picture
+  int         m_gdrRecoveryPointPocVal        = 0;
   
   int m_prevPOC                   = MAX_INT;
   int m_prevTid0POC               = 0;
