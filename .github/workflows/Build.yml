@@ -47,7 +47,7 @@ jobs:
         mkdir build
         cd build
         cmake ${{matrix.CMAKE_ADD}} -DCMAKE_BUILD_TYPE=Release ..
-        make -j$(nproc)
+        cmake --build . --config Release
       if: matrix.os != 'windows-2019'
     - name: Build Windows
       run: |
@@ -55,7 +55,7 @@ jobs:
         cd build
         call "C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\VC\Auxiliary\Build\vcvars64.bat"
         cmake ${{matrix.CMAKE_ADD}} ..
-        msbuild /property:Configuration=Release vvdec.sln
+        cmake --build . --config Release
       shell: cmd
       if: matrix.os == 'windows-2019'
     - name: Upload Artifact
