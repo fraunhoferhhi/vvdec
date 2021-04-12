@@ -77,12 +77,9 @@ private:
   int         m_decodingOrderCounter              = 0;
   uint32_t    m_prevLayerID                       = MAX_INT;
 
-  bool        m_prevPicSkipped                = true;
-  bool        m_gdrRecoveryPeriod             = false;
-  int         m_prevGDRInSameLayerPOC         = 0;    ///< POC number of the latest GDR picture
-  int         m_prevGDRInSameLayerRecoveryPOC = 0;    ///< Recovery POC number of the latest GDR picture
-  int         m_gdrRecoveryPointPocVal        = 0;
-  
+  int         m_gdrRecoveryPointPocVal[MAX_VPS_LAYERS] = { 0 };
+  bool        m_gdrRecovered          [MAX_VPS_LAYERS] = { false };
+
   int m_prevPOC                   = MAX_INT;
   int m_prevTid0POC               = 0;
 
@@ -189,12 +186,7 @@ public:
   void resetPictureUnitNals     ()                      { m_pictureUnitNals.clear(); }
 
   ParameterSetManager getParameterSetManager()          { return m_parameterSetManager; }
-  
-  bool getPrevPicSkipped()                              { return m_prevPicSkipped; }
-  void setPrevPicSkipped( bool val )                    { m_prevPicSkipped = val; }
-  bool getGdrRecoveryPeriod()                           { return m_gdrRecoveryPeriod; }
-  void setGdrRecoveryPeriod( bool val )                 { m_gdrRecoveryPeriod = val; }
-  
+
 private:
   enum SliceHeadResult { SkipPicture, NewPicture, ContinueParsing };
   SliceHeadResult xDecodeSliceHead( InputNALUnit& nalu, int* pSkipFrame );

@@ -203,25 +203,10 @@ Picture* DecLib::decode( InputNALUnit& nalu, int* pSkipFrame )
     pcParsedPic = m_decLibParser.parse( nalu, pSkipFrame );
 #endif
   }
-
-  if( m_decLibParser.getPrevPicSkipped() && nalu.m_nalUnitType == NAL_UNIT_CODED_SLICE_GDR )
-  {
-    m_decLibParser.setGdrRecoveryPeriod( true );
-  }
   
   if( pcParsedPic )
   {
     this->decompressPicture( pcParsedPic );
-  }
-
-  if( nalu.isSlice() )
-  {
-    m_decLibParser.setPrevPicSkipped( false );
-  }
-  if( m_decLibParser.getGdrRecoveryPeriod() )
-  {
-    // TODO: this breaks STILL_B_ERICSSON_1.bit and GDR_A_ERICSSON_2.bit, but is needed for GDR_{B,C}_NOKIA_2.bit
-//    m_picListManager.markNotNeededForOutput();
   }
   
   if( m_decLibParser.getParseNewPicture() &&
