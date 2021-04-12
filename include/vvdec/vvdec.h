@@ -259,7 +259,7 @@ typedef struct vvdecAccessUnit
    The payload memory must be allocated seperately by using vvdec_accessUnit_alloc_payload.
    To free the memory use vvdecAccessUnit_free.
 */
-VVDEC_DECL vvdecAccessUnit* vvdec_accessUnit_alloc();
+VVDEC_DECL vvdecAccessUnit* vvdec_accessUnit_alloc( void );
 
 /* vvdec_accessUnit_free:
    release storage of an vvdecAccessUnit instance.
@@ -401,7 +401,7 @@ VVDEC_DECL void vvdec_params_default(vvdecParams *param);
    Allocates an vvdec_params_alloc instance.
    The returned params struct is set to default values.
 */
-VVDEC_DECL vvdecParams* vvdec_params_alloc();
+VVDEC_DECL vvdecParams* vvdec_params_alloc( void );
 
 /* vvdec_params_free:
    release storage of an vvdec_params instance.
@@ -413,7 +413,7 @@ VVDEC_DECL void vvdec_params_free(vvdecParams *params );
   \param[in]  none
   \retval[ ]  const char* version number as string
 */
-VVDEC_DECL const char* vvdec_get_version();
+VVDEC_DECL const char* vvdec_get_version( void );
 
 /* vvdec_decoder_open
   This method initializes the decoder instance.
