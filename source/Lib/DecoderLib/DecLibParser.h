@@ -69,16 +69,12 @@ class PicListManager;
 class DecLibParser
 {
 private:
-  NalUnitType m_associatedIRAPType                = NAL_UNIT_INVALID;   ///< NAL unit type of the associated IRAP picture
-  int         m_pocCRA                            = 0;                  ///< POC number of the latest CRA picture
-  int         m_pocRandomAccess                   = MAX_INT;            ///< POC number of the random access point (the first IDR or CRA picture)
-  int         m_lastRasPoc                        = MAX_INT;
-  int         m_associatedIRAPDecodingOrderNumber = 0;                  ///< Decoding order number of the associated IRAP picture
-  int         m_decodingOrderCounter              = 0;
-  uint32_t    m_prevLayerID                       = MAX_INT;
-
-  int         m_gdrRecoveryPointPocVal[MAX_VPS_LAYERS] = { 0 };
-  bool        m_gdrRecovered          [MAX_VPS_LAYERS] = { false };
+  NalUnitType m_associatedIRAPType[MAX_VPS_LAYERS];   ///< NAL unit type of the associated IRAP picture
+  int         m_pocCRA            [MAX_VPS_LAYERS];   ///< POC number of the latest CRA picture
+  int         m_pocRandomAccess      = MAX_INT;       ///< POC number of the random access point (the first IDR or CRA picture)
+  int         m_lastRasPoc           = MAX_INT;
+  int         m_decodingOrderCounter = 0;
+  uint32_t    m_prevLayerID          = MAX_INT;
 
   int m_prevPOC                   = MAX_INT;
   int m_prevTid0POC               = 0;
@@ -92,9 +88,11 @@ private:
   bool m_bFirstSliceInBitstream   = true;
   bool m_parseNewPicture          = false;
 
-  int  m_lastPOCNoOutputPriorPics = -1;
-  bool m_isNoOutputPriorPics      = false;
-  bool m_lastNoOutputBeforeRecoveryFlag[MAX_VPS_LAYERS] = { false };    //value of variable NoOutputBeforeRecoveryFlag of the assocated CRA/GDR pic
+  int      m_lastPOCNoOutputPriorPics                       = -1;
+  bool     m_isNoOutputPriorPics                            = false;
+  bool     m_lastNoOutputBeforeRecoveryFlag[MAX_VPS_LAYERS] = { false };   // value of variable NoOutputBeforeRecoveryFlag of the assocated CRA/GDR pic
+  int      m_gdrRecoveryPointPocVal        [MAX_VPS_LAYERS];
+  bool     m_gdrRecovered                  [MAX_VPS_LAYERS] = { false };
   uint32_t m_uiSliceSegmentIdx    = 0;
 
   int m_iTargetLayer              = -1;   ///< target stream layer to be decoded

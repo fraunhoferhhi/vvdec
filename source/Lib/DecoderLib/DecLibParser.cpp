@@ -54,9 +54,15 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #include "Utilities/ThreadPool.h"
 
 #include <unordered_map>
+#include <utility>
 
 namespace vvdec
 {
+template<class TArr, class TElem = decltype( std::declval<TArr>()[0] )>
+void fill_array( TArr& array, const TElem& val )
+{
+  std::fill( std::begin( array ), std::end( array ), val );
+}
 
 #ifdef TRACE_ENABLE_ITT
 extern __itt_domain* itt_domain_prs;
@@ -72,7 +78,7 @@ extern __itt_string_handle* itt_handle_start;
 #define ITT_TASKEND( d, t )
 #endif
 
-static const int RECOVERY_POC_INIT = -MAX_INT;
+static const int INIT_POC = -MAX_INT;
 
 DecLibParser::~DecLibParser()
 {
@@ -92,8 +98,10 @@ void DecLibParser::create( ThreadPool* tp, int parserFrameDelay, int numReconIns
   m_picHeader         = std::make_shared<PicHeader>();
   m_uiSliceSegmentIdx = 0;
 
-  std::fill( std::begin( m_gdrRecoveryPointPocVal ), std::end( m_gdrRecoveryPointPocVal ), RECOVERY_POC_INIT );
-  std::fill( std::begin( m_gdrRecovered           ), std::end( m_gdrRecovered           ), false );
+  fill_array( m_associatedIRAPType,     NAL_UNIT_INVALID );
+  fill_array( m_pocCRA,                 INIT_POC );
+  fill_array( m_gdrRecoveryPointPocVal, INIT_POC );
+  fill_array( m_gdrRecovered,           false );
 
   m_cSliceDecoder.setContextStateVec( numDecThreads );
 }
@@ -244,17 +252,16 @@ Picture* DecLibParser::parse( InputNALUnit& nalu, int* pSkipFrame )
     return nullptr;
   }
   case NAL_UNIT_EOS:
-    m_associatedIRAPType    = NAL_UNIT_INVALID;
-    m_pocCRA                = 0;
-    m_pocRandomAccess       = MAX_INT;
-    m_prevPOC               = MAX_INT;
-    m_prevSliceSkipped      = false;
-    m_skippedPOC            = 0;
-    setFirstSliceInSequence ( true, nalu.m_nuhLayerId );
-    setFirstSliceInPicture  ( true );
-    std::fill( std::begin( m_gdrRecoveryPointPocVal ), std::end( m_gdrRecoveryPointPocVal ), RECOVERY_POC_INIT );
-    std::fill( std::begin( m_gdrRecovered           ), std::end( m_gdrRecovered           ), false );
-
+    m_associatedIRAPType    [nalu.m_nuhLayerId] = NAL_UNIT_INVALID;
+    m_pocCRA                [nalu.m_nuhLayerId] = INIT_POC;
+    m_gdrRecoveryPointPocVal[nalu.m_nuhLayerId] = INIT_POC;
+    m_gdrRecovered          [nalu.m_nuhLayerId] = false;
+    m_pocRandomAccess                           = MAX_INT;
+    m_prevPOC                                   = MAX_INT;
+    m_prevSliceSkipped                          = false;
+    m_skippedPOC                                = 0;
+    setFirstSliceInSequence( true, nalu.m_nuhLayerId );
+    setFirstSliceInPicture( true );
     m_picListManager.restart();
     return nullptr;
 
@@ -506,20 +513,21 @@ DecLibParser::SliceHeadResult DecLibParser::xDecodeSliceHead( InputNALUnit& nalu
   {
     const auto pictureType = m_apcSlicePilot->getNalUnitType();
 
-    if( ( pictureType == NAL_UNIT_CODED_SLICE_IDR_W_RADL || pictureType == NAL_UNIT_CODED_SLICE_IDR_N_LP || pictureType == NAL_UNIT_CODED_SLICE_CRA
-          || pictureType == NAL_UNIT_CODED_SLICE_GDR )
-        && !pps->getMixedNaluTypesInPicFlag() )
+    if( !pps->getMixedNaluTypesInPicFlag()
+        && ( pictureType == NAL_UNIT_CODED_SLICE_IDR_W_RADL
+             || pictureType == NAL_UNIT_CODED_SLICE_IDR_N_LP
+             || pictureType == NAL_UNIT_CODED_SLICE_CRA
+             || pictureType == NAL_UNIT_CODED_SLICE_GDR ) )
     {
-      //m_associatedIRAPDecodingOrderNumber /*[m_pcParsePic->layerId]*/ = m_pcParsePic->getDecodingOrderNumber();
-      m_pocCRA                            /*[m_pcParsePic->layerId]*/ = m_apcSlicePilot->getPOC();
-      m_associatedIRAPType                /*[m_pcParsePic->layerId]*/ = pictureType;
+      m_pocCRA            [nalu.m_nuhLayerId] = m_apcSlicePilot->getPOC();
+      m_associatedIRAPType[nalu.m_nuhLayerId] = pictureType;
     }
   }
 
   xUpdatePreviousTid0POC( m_apcSlicePilot );
 
-  m_apcSlicePilot->setAssociatedIRAPPOC ( m_pocCRA );
-  m_apcSlicePilot->setAssociatedIRAPType( m_associatedIRAPType );
+  m_apcSlicePilot->setAssociatedIRAPPOC ( m_pocCRA            [nalu.m_nuhLayerId] );
+  m_apcSlicePilot->setAssociatedIRAPType( m_associatedIRAPType[nalu.m_nuhLayerId] );
 
   // For inference of NoOutputOfPriorPicsFlag
   //
@@ -691,7 +699,7 @@ DecLibParser::SliceHeadResult DecLibParser::xDecodeSliceHead( InputNALUnit& nalu
     else
 #endif
     {
-      if( !m_gdrRecovered[nalu.m_nuhLayerId] && slice->getNalUnitType() == NAL_UNIT_CODED_SLICE_GDR && m_gdrRecoveryPointPocVal[nalu.m_nuhLayerId] == RECOVERY_POC_INIT )
+      if( !m_gdrRecovered[nalu.m_nuhLayerId] && slice->getNalUnitType() == NAL_UNIT_CODED_SLICE_GDR && m_gdrRecoveryPointPocVal[nalu.m_nuhLayerId] == INIT_POC )
       {
         m_gdrRecoveryPointPocVal[nalu.m_nuhLayerId] = m_pcParsePic->poc + m_pcParsePic->picHeader->getRecoveryPocCnt();
       }
@@ -700,7 +708,7 @@ DecLibParser::SliceHeadResult DecLibParser::xDecodeSliceHead( InputNALUnit& nalu
           && ( m_gdrRecoveryPointPocVal[nalu.m_nuhLayerId] == m_pcParsePic->poc || m_pcParsePic->picHeader->getRecoveryPocCnt() == 0 ) )
       {
         m_gdrRecovered          [nalu.m_nuhLayerId] = true;
-        m_gdrRecoveryPointPocVal[nalu.m_nuhLayerId] = RECOVERY_POC_INIT;
+        m_gdrRecoveryPointPocVal[nalu.m_nuhLayerId] = INIT_POC;
       }
 
       const bool is_recovering_picture = slice->getAssociatedIRAPType() == NAL_UNIT_CODED_SLICE_GDR && m_pcParsePic->poc < m_gdrRecoveryPointPocVal[nalu.m_nuhLayerId];
@@ -867,7 +875,7 @@ Slice*  DecLibParser::xDecodeSliceMain( InputNALUnit &nalu )
   // Now, having set up the maps, convert them to the correct form.
 
 #if !DISABLE_CONFROMANCE_CHECK
-  pcSlice->checkCRA( m_pocCRA, m_associatedIRAPType, m_picListManager.getPicListRange( m_pcParsePic ) );
+  pcSlice->checkCRA( m_pocCRA[nalu.m_nuhLayerId], m_associatedIRAPType[nalu.m_nuhLayerId], m_picListManager.getPicListRange( m_pcParsePic ) );
 #endif
   pcSlice->constructRefPicLists( m_picListManager.getPicListRange( m_pcParsePic ) );
 #if !DISABLE_CONFROMANCE_CHECK
@@ -1484,9 +1492,7 @@ Picture* DecLibParser::prepareLostPicture( int iLostPoc, const int layerId )
     m_apcSlicePilot->setAssociatedIRAPPOC( iLostPoc );
     m_apcSlicePilot->setAssociatedIRAPType( naluType );
 
-    m_pocCRA          = iLostPoc;
     m_pocRandomAccess = iLostPoc;
-    m_associatedIRAPDecodingOrderNumber = cFillPic->getDecodingOrderNumber();
   }
   return cFillPic;
 }
