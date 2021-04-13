@@ -2096,16 +2096,13 @@ void ReferencePictureList::setInterLayerRefPicIdx( int idx, int layerIdc )
 
 void ReferencePictureList::printRefPicInfo() const
 {
-  //DTRACE(g_trace_ctx, D_RPSINFO, "RefPics = { ");
-  printf("RefPics = { ");
+  DTRACE(g_trace_ctx, D_RPSINFO, "RefPics = { ");
   int numRefPic = getNumberOfShorttermPictures() + getNumberOfLongtermPictures();
   for (int ii = 0; ii < numRefPic; ii++)
   {
-    //DTRACE(g_trace_ctx, D_RPSINFO, "%d%s ", m_refPicIdentifier[ii], (m_isLongtermRefPic[ii] == 1) ? "[LT]" : "[ST]");
-    printf("%d%s ", m_refPicIdentifier[ii], (m_isLongtermRefPic[ii] == 1) ? "[LT]" : "[ST]");
+    DTRACE(g_trace_ctx, D_RPSINFO, "%d%s ", m_refPicIdentifier[ii], (m_isLongtermRefPic[ii] == 1) ? "[LT]" : "[ST]");
   }
-  //DTRACE(g_trace_ctx, D_RPSINFO, "}\n");
-  printf("}\n");
+  DTRACE(g_trace_ctx, D_RPSINFO, "}\n");
 }
 
 int ReferencePictureList::calcLTRefPOC( int currPoc, int bitsForPoc, int refPicIdentifier, bool pocMSBPresent, int deltaPocMSBCycle )
@@ -2170,8 +2167,8 @@ void ScalingList::setDefaultScalingList()
  */
 int ScalingList::lengthUvlc(int uiCode)
 {
-  if (uiCode < 0) printf("Error UVLC! \n");
-
+  CHECK( uiCode < 0, "Error UVLC!" )
+  
   int uiLength = 1;
   int uiTemp = ++uiCode;
 

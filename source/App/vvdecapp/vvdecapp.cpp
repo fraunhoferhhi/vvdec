@@ -68,6 +68,11 @@ void msgFnc( void *, int level, const char* fmt, va_list args )
   vfprintf( level == 1 ? stderr : stdout, fmt, args );
 }
 
+void msgFncErr( void *, int level, const char* fmt, va_list args )
+{
+  vfprintf( stderr, fmt, args );
+}
+
 int main( int argc, char* argv[] )
 {
   std::string cAppname = argv[0];
@@ -205,7 +210,7 @@ int main( int argc, char* argv[] )
       return -1;
     }
 
-    vvdec_set_logging_callback( dec, msgFnc );
+    vvdec_set_logging_callback( dec, writeStdout ? msgFncErr : msgFnc );
 
     if( iLoop == 0 )
     {
@@ -302,7 +307,7 @@ int main( int argc, char* argv[] )
         {
           if( !bMultipleSlices )
           {
-            if( params.logLevel >= VVDEC_VERBOSE ) std::cout << "more data needed to tune in" << std::endl;
+            if( params.logLevel >= VVDEC_VERBOSE ) *logStream << "more data needed to tune in" << std::endl;
             if( bTunedIn )
             {
               // after the first frame is returned, the decoder must always return a frame

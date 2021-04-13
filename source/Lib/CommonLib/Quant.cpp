@@ -523,7 +523,7 @@ void Quant::setScalingListDec( ScalingList &scalingList )
 #if !JVET_R0166_SCALING_LISTS_CHROMA_444
         if (largerSide == SCALING_LIST_64x64 && list % (SCALING_LIST_NUM / (NUMBER_OF_PREDICTION_MODES)) != 0) continue;
 #endif
-        if (largerSide < SCALING_LIST_4x4) printf("Rectangle Error !\n");
+        CHECK( largerSide < SCALING_LIST_4x4, "Rectangle Error!" );
 #if JVET_R0166_SCALING_LISTS_CHROMA_444
         recScalingListId = g_scalingListId[largerSide][list];
 #else

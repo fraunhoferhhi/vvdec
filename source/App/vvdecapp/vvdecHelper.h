@@ -327,12 +327,12 @@ static int readBitstreamFromFile( std::ifstream *f, vvdecAccessUnit* pcAccessUni
   else if (info2 == 1)
     iRewind = -3;
   else
-      printf("readBitstreamFromFile: Error in next start code search \n");
+    fprintf( stderr, "ERR: readBitstreamFromFile: Error in next start code search \n");
 
   f->seekg ( iRewind, f->cur);
   if(f->bad() || f->fail())
   {
-    printf("readBitstreamFromFile: Cannot seek %d in the bit stream file", iRewind );
+    fprintf( stderr, "ERR: readBitstreamFromFile: Cannot seek %d in the bit stream file", iRewind );
     return -1;
   }
 
