@@ -146,7 +146,6 @@ static int _writeComponentToFile( std::ostream *f, vvdecPlane *plane, vvdecPlane
        {
          tmp[x] = p[x];
        }
-
        f->write( (char*)&tmp[0], sizeof(std::vector<short>::value_type)*tmp.size());
        p += plane->stride;
 
@@ -156,7 +155,6 @@ static int _writeComponentToFile( std::ostream *f, vvdecPlane *plane, vvdecPlane
          {
            tmp2[x] = p2[x];
          }
-
          f->write( (char*)&tmp2[0], sizeof(std::vector<short>::value_type)*tmp2.size());
          p2 += planeField2->stride;
        }
@@ -329,12 +327,12 @@ static int readBitstreamFromFile( std::ifstream *f, vvdecAccessUnit* pcAccessUni
   else if (info2 == 1)
     iRewind = -3;
   else
-      printf("readBitstreamFromFile: Error in next start code search \n");
+    fprintf( stderr, "ERR: readBitstreamFromFile: Error in next start code search \n");
 
   f->seekg ( iRewind, f->cur);
   if(f->bad() || f->fail())
   {
-    printf("readBitstreamFromFile: Cannot seek %d in the bit stream file", iRewind );
+    fprintf( stderr, "ERR: readBitstreamFromFile: Cannot seek %d in the bit stream file", iRewind );
     return -1;
   }
 
