@@ -72,6 +72,8 @@ extern __itt_string_handle* itt_handle_start;
 #define ITT_TASKEND( d, t )
 #endif
 
+static const int RECOVERY_POC_INIT = -MAX_INT;
+
 DecLibParser::~DecLibParser()
 {
   m_prefixSEINALUs.clear();
@@ -89,7 +91,10 @@ void DecLibParser::create( ThreadPool* tp, int parserFrameDelay, int numReconIns
   m_apcSlicePilot     = new Slice;
   m_picHeader         = std::make_shared<PicHeader>();
   m_uiSliceSegmentIdx = 0;
-  
+
+  std::fill( std::begin( m_gdrRecoveryPointPocVal ), std::end( m_gdrRecoveryPointPocVal ), RECOVERY_POC_INIT );
+  std::fill( std::begin( m_gdrRecovered           ), std::end( m_gdrRecovered           ), false );
+
   m_cSliceDecoder.setContextStateVec( numDecThreads );
 }
 
@@ -247,6 +252,9 @@ Picture* DecLibParser::parse( InputNALUnit& nalu, int* pSkipFrame )
     m_skippedPOC            = 0;
     setFirstSliceInSequence ( true, nalu.m_nuhLayerId );
     setFirstSliceInPicture  ( true );
+    std::fill( std::begin( m_gdrRecoveryPointPocVal ), std::end( m_gdrRecoveryPointPocVal ), RECOVERY_POC_INIT );
+    std::fill( std::begin( m_gdrRecovered           ), std::end( m_gdrRecovered           ), false );
+
     m_picListManager.restart();
     return nullptr;
 
@@ -669,36 +677,34 @@ DecLibParser::SliceHeadResult DecLibParser::xDecodeSliceHead( InputNALUnit& nalu
 
   Slice* slice = xDecodeSliceMain( nalu );
 
+  // WARNING: don't use m_apcSlicePilot or m_picHeader after this point, because they have been reallocated
+
   m_pcParsePic->neededForOutput = m_pcParsePic->picHeader->getPicOutputFlag();
   if( m_pcParsePic->numSlices == 0 || m_uiSliceSegmentIdx == m_pcParsePic->numSlices )
   {
 #if 0
     // TODO for VPS support:
-    if( sps->getVPSId() > 0 && not_in_output_layer_set )
+    if( sps->getVPSId() > 0 && NOT IN OUTPUT LAYER SET )
     {
       m_pcParsePic->neededForOutput = false;
     }
     else
 #endif
     {
-      if( !m_gdrRecovered[nalu.m_nuhLayerId] && slice->getNalUnitType() == NAL_UNIT_CODED_SLICE_GDR && m_gdrRecoveryPointPocVal[nalu.m_nuhLayerId] == 0 )
+      if( !m_gdrRecovered[nalu.m_nuhLayerId] && slice->getNalUnitType() == NAL_UNIT_CODED_SLICE_GDR && m_gdrRecoveryPointPocVal[nalu.m_nuhLayerId] == RECOVERY_POC_INIT )
       {
         m_gdrRecoveryPointPocVal[nalu.m_nuhLayerId] = m_pcParsePic->poc + m_pcParsePic->picHeader->getRecoveryPocCnt();
       }
 
+      if( !m_gdrRecovered[nalu.m_nuhLayerId]
+          && ( m_gdrRecoveryPointPocVal[nalu.m_nuhLayerId] == m_pcParsePic->poc || m_pcParsePic->picHeader->getRecoveryPocCnt() == 0 ) )
+      {
+        m_gdrRecovered          [nalu.m_nuhLayerId] = true;
+        m_gdrRecoveryPointPocVal[nalu.m_nuhLayerId] = RECOVERY_POC_INIT;
+      }
+
       const bool is_recovering_picture = slice->getAssociatedIRAPType() == NAL_UNIT_CODED_SLICE_GDR && m_pcParsePic->poc < m_gdrRecoveryPointPocVal[nalu.m_nuhLayerId];
-
-      if( !m_gdrRecovered[nalu.m_nuhLayerId] && ( slice->getNalUnitType() == NAL_UNIT_CODED_SLICE_CRA || slice->isIDR() ) )
-      {
-        m_gdrRecovered[nalu.m_nuhLayerId] = true;
-      }
-      if( m_gdrRecoveryPointPocVal[nalu.m_nuhLayerId] == m_pcParsePic->poc )
-      {
-        m_gdrRecovered[nalu.m_nuhLayerId]           = true;
-        m_gdrRecoveryPointPocVal[nalu.m_nuhLayerId] = 0;
-      }
-
-      if( slice->getNalUnitType() == NAL_UNIT_CODED_SLICE_GDR && m_gdrRecoveryPointPocVal[nalu.m_nuhLayerId] == m_pcParsePic->poc )
+      if( slice->getNalUnitType() == NAL_UNIT_CODED_SLICE_GDR && m_gdrRecovered[nalu.m_nuhLayerId] )
       {
         m_pcParsePic->neededForOutput = true;
       }
