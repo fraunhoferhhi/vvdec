@@ -68,7 +68,7 @@ void msgFnc( void *, int level, const char* fmt, va_list args )
   vfprintf( level == 1 ? stderr : stdout, fmt, args );
 }
 
-void msgFncErr( void *, int level, const char* fmt, va_list args )
+void msgFncErr( void *, int, const char* fmt, va_list args )
 {
   vfprintf( stderr, fmt, args );
 }
