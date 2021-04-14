@@ -169,9 +169,7 @@ public:
   bool fieldPic                       = false;
   int  skippedDecCount                = 0;
   int  m_prevQP[MAX_NUM_CHANNEL_TYPE] = { -1, -1 };
-#if JVET_S0124_UNAVAILABLE_REFERENCE
   bool nonReferencePictureFlag        = false;
-#endif
   bool              picCheckedDPH     = false;
   std::vector<bool> subpicsCheckedDPH;
 

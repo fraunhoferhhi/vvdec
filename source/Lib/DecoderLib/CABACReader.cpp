@@ -2340,7 +2340,7 @@ void CABACReader::cu_qp_delta( CodingUnit& cu, int predQP, int8_t& qp )
 void CABACReader::cu_chroma_qp_offset( CodingUnit& cu )
 {
   // cu_chroma_qp_offset_flag
-  int       length  = cu.cs->pps->getPpsRangeExtension().getChromaQpOffsetListLen();
+  int       length  = cu.cs->pps->getChromaQpOffsetListLen();
   unsigned  qpAdj   = m_BinDecoder.decodeBin( Ctx::ChromaQpAdjFlag() );
   if( qpAdj && length > 1 )
   {

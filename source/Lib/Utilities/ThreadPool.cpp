@@ -270,9 +270,8 @@ bool ThreadPool::checkTaskReady( int threadId, CBarrierVec& barriers, ThreadPool
     {
       return false;
     }
+    barriers.clear();
   }
-  // don't clear the barriers, even if they are all unlocked, because exceptions could still be singalled through them
-  // barriers.clear();
 
   if( readyCheck && readyCheck( threadId, taskParam ) == false )
   {
