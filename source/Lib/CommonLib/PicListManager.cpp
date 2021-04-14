@@ -141,7 +141,7 @@ Picture* PicListManager::getNewPicBuffer( const SPS& sps,const PPS& pps, const u
   for( PicList::iterator itPic = m_cPicList.begin(); itPic != m_cPicList.end(); ++itPic )
   {
     Picture* pic = *itPic;
-    if( !pic->referenced && !pic->neededForOutput && !pic->lockedByApplication )
+    if( !pic->inProgress && !pic->referenced && !pic->neededForOutput && !pic->lockedByApplication )
     {
       // take the picture to be reused and move it to the end of the list
       if( pic->picHeader || pic->cs->picHeader )
