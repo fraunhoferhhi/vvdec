@@ -164,11 +164,11 @@ inline int64_t abs (int64_t x) { return _abs64(x); };
 // ====================================================================================================================
 // Common constants
 // ====================================================================================================================
-static const uint64_t   MAX_UINT64 =                  0xFFFFFFFFFFFFFFFFU;
-static const uint32_t   MAX_UINT =                            0xFFFFFFFFU; ///< max. value of unsigned 32-bit integer
-static const int        MAX_INT =                              2147483647; ///< max. value of signed 32-bit integer
-static const uint8_t    MAX_UCHAR =                                   255;
-static const uint8_t    MAX_SCHAR =                                   127;
+static const uint64_t MAX_UINT64 = std::numeric_limits<uint64_t>::max();
+static const uint32_t MAX_UINT   = std::numeric_limits<uint32_t>::max();
+static const int      MAX_INT    = std::numeric_limits<int>     ::max();
+static const uint8_t  MAX_UCHAR  = std::numeric_limits<int8_t>  ::max();
+static const uint8_t  MAX_SCHAR  = std::numeric_limits<uint8_t> ::max();
 
 // ====================================================================================================================
 // Coding tool configuration

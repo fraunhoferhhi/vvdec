@@ -203,24 +203,10 @@ Picture* DecLib::decode( InputNALUnit& nalu, int* pSkipFrame )
     pcParsedPic = m_decLibParser.parse( nalu, pSkipFrame );
 #endif
   }
-
-  if( m_decLibParser.getPrevPicSkipped() && nalu.m_nalUnitType == NAL_UNIT_CODED_SLICE_GDR )
-  {
-    m_decLibParser.setGdrRecoveryPeriod( true );
-  }
   
   if( pcParsedPic )
   {
     this->decompressPicture( pcParsedPic );
-  }
-
-  if( nalu.isSlice() )
-  {
-    m_decLibParser.setPrevPicSkipped( false );
-  }
-  if( m_decLibParser.getGdrRecoveryPeriod() )
-  {
-    m_picListManager.markNotNeededForOutput();
   }
   
   if( m_decLibParser.getParseNewPicture() &&
@@ -399,7 +385,7 @@ void DecLib::checkPictureHashSEI( Picture* pcPic )
 
   seiMessages pictureHashes = SEI_internal::getSeisByType( pcPic->seiMessageList, VVDEC_DECODED_PICTURE_HASH );
 
-  if( !pictureHashes.empty() && !pcPic->picCheckedDPH )
+  if( !pictureHashes.empty() && !pcPic->picCheckedDPH && pcPic->neededForOutput )
   {
     if( pictureHashes.size() > 1 )
     {
@@ -413,7 +399,7 @@ void DecLib::checkPictureHashSEI( Picture* pcPic )
     pcPic->picCheckedDPH = true;
     msg( INFO, "\n" );
   }
-  else
+  else if( pcPic->neededForOutput )
   {
     if( pcPic->subPictures.empty() )
     {
