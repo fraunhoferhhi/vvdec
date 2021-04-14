@@ -303,8 +303,11 @@ Slice* Picture::swapSliceObject( Slice* s, uint32_t i )
 
 void Picture::setPicHead( const std::shared_ptr<PicHeader>& ph )
 {
-  cs->picHeader   = ph.get();
   this->picHeader = ph;
+  if( cs )
+  {
+    cs->picHeader = ph.get();
+  }
 }
 
 void Picture::clearSliceBuffer()
