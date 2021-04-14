@@ -115,6 +115,7 @@ void Picture::resetForUse()
 {
   CHECK( lockedByApplication, "the picture can not be re-used, because it has not been unlocked by the application." );
 
+  setPicHead( nullptr );
   m_subPicRefBufs.clear();
 
   subPicExtStarted = false;
