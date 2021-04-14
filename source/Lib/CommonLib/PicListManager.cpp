@@ -168,7 +168,7 @@ Picture* PicListManager::getNewPicBuffer( const SPS& sps, const PPS& pps, const 
     return pcPic;
   }
 
-  if( Size( pcPic->Y() ) != Size( pps.getPicWidthInLumaSamples(), pps.getPicHeightInLumaSamples() )
+  if( pcPic->lumaSize() != Size( pps.getPicWidthInLumaSamples(), pps.getPicHeightInLumaSamples() )
       || pcPic->cs->pcv->maxCUWidth != sps.getMaxCUWidth()
       || pcPic->cs->pcv->maxCUHeight != sps.getMaxCUHeight()
 #if JVET_R0058
