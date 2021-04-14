@@ -10,7 +10,7 @@ if( NOT CMAKE_VERSION VERSION_LESS 3.12.0 )
 endif()
 
 # project name
-project( vvdec VERSION 1.0.1.0 )
+project( vvdec VERSION 1.1.0.0 )
 
 set( VVDEC_ENABLE_X86_SIMD TRUE )
 set( VVDEC_ENABLE_ARM_SIMD FALSE )
