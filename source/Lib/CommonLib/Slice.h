@@ -2039,64 +2039,6 @@ public:
 
 /// Reference Picture Lists class
 
-
-/// PPS RExt class
-class PPSRExt // Names aligned to text specification
-{
-private:
-  int              m_log2MaxTransformSkipBlockSize       = 2;
-  bool             m_crossComponentPredictionEnabledFlag = false;
-
-  // Chroma QP Adjustments
-  int              m_cuChromaQpOffsetSubdiv              = 0;
-  int              m_chromaQpOffsetListLen               = 0;                       // size (excludes the null entry used in the following array).
-  ChromaQpAdj      m_ChromaQpAdjTableIncludingNullEntry[1+MAX_QP_OFFSET_LIST_SIZE]; //!< Array includes entry [0] for the null offset used when cu_chroma_qp_offset_flag=0, and entries [cu_chroma_qp_offset_idx+1...] otherwise
-
-
-public:
-  PPSRExt()
-  {
-    // Array includes entry [0] for the null offset used when cu_chroma_qp_offset_flag=0. This is initialised here and
-    // never subsequently changed:
-    memset( m_ChromaQpAdjTableIncludingNullEntry, 0, sizeof( m_ChromaQpAdjTableIncludingNullEntry ) );
-  }
-
-  bool settingsDifferFromDefaults(const bool bTransformSkipEnabledFlag) const
-  {
-    return (bTransformSkipEnabledFlag && (getLog2MaxTransformSkipBlockSize() !=2))
-        || (getCrossComponentPredictionEnabledFlag() );
-  }
-
-  uint32_t               getLog2MaxTransformSkipBlockSize() const                         { return m_log2MaxTransformSkipBlockSize;         }
-  void                   setLog2MaxTransformSkipBlockSize( uint32_t u )                   { m_log2MaxTransformSkipBlockSize  = u;           }
-
-  bool                   getCrossComponentPredictionEnabledFlag() const                   { return m_crossComponentPredictionEnabledFlag;   }
-  void                   setCrossComponentPredictionEnabledFlag(bool value)               { m_crossComponentPredictionEnabledFlag = value;  }
-
-  void                   clearChromaQpOffsetList()                                        { m_chromaQpOffsetListLen = 0;                    }
-
-  uint32_t               getCuChromaQpOffsetSubdiv () const                               { return m_cuChromaQpOffsetSubdiv;                }
-  void                   setCuChromaQpOffsetSubdiv ( uint32_t u )                         { m_cuChromaQpOffsetSubdiv = u;                   }
-
-  bool                   getChromaQpOffsetListEnabledFlag() const                         { return getChromaQpOffsetListLen()>0;            }
-  int                    getChromaQpOffsetListLen() const                                 { return m_chromaQpOffsetListLen;                 }
-
-  const ChromaQpAdj&     getChromaQpOffsetListEntry( int cuChromaQpOffsetIdxPlus1 ) const
-  {
-    CHECK(cuChromaQpOffsetIdxPlus1 >= m_chromaQpOffsetListLen+1, "Invalid chroma QP offset");
-    return m_ChromaQpAdjTableIncludingNullEntry[cuChromaQpOffsetIdxPlus1]; // Array includes entry [0] for the null offset used when cu_chroma_qp_offset_flag=0, and entries [cu_chroma_qp_offset_idx+1...] otherwise
-  }
-
-  void                   setChromaQpOffsetListEntry( int cuChromaQpOffsetIdxPlus1, int cbOffset, int crOffset, int jointCbCrOffset )
-  {
-    CHECK(cuChromaQpOffsetIdxPlus1 == 0 || cuChromaQpOffsetIdxPlus1 > MAX_QP_OFFSET_LIST_SIZE, "Invalid chroma QP offset");
-    m_ChromaQpAdjTableIncludingNullEntry[cuChromaQpOffsetIdxPlus1].u.comp.CbOffset = cbOffset; // Array includes entry [0] for the null offset used when cu_chroma_qp_offset_flag=0, and entries [cu_chroma_qp_offset_idx+1...] otherwise
-    m_ChromaQpAdjTableIncludingNullEntry[cuChromaQpOffsetIdxPlus1].u.comp.CrOffset = crOffset;
-    m_ChromaQpAdjTableIncludingNullEntry[cuChromaQpOffsetIdxPlus1].u.comp.JointCbCrOffset = jointCbCrOffset;
-    m_chromaQpOffsetListLen = std::max(m_chromaQpOffsetListLen, cuChromaQpOffsetIdxPlus1);
-  }
-};
-
 struct CodingUnit;
 
 /// PPS class
@@ -2207,7 +2149,6 @@ private:
   bool             m_conformanceWindowPresentFlag        = false;
   Window           m_conformanceWindow;
   Window           m_scalingWindow;
-  PPSRExt          m_ppsRangeExtension;
 
 #if JVET_Q0764_WRAP_AROUND_WITH_RPR
   bool             m_useWrapAround                       = false;               //< reference wrap around enabled or not
@@ -2462,9 +2403,6 @@ public:
   void                   setScalingListPresentFlag( bool b )                              { m_scalingListPresentFlag  = b;                }
   ScalingList&           getScalingList()                                                 { return m_scalingList;                         }
   const ScalingList&     getScalingList() const                                           { return m_scalingList;                         }
-
-  const PPSRExt&         getPpsRangeExtension() const                                     { return m_ppsRangeExtension;                   }
-  PPSRExt&               getPpsRangeExtension()                                           { return m_ppsRangeExtension;                   }
 
   void                    setPicWidthInLumaSamples( uint32_t u )                          { m_picWidthInLumaSamples = u; }
   uint32_t                getPicWidthInLumaSamples() const                                { return  m_picWidthInLumaSamples; }
@@ -3016,11 +2954,11 @@ public:
 #else
   bool                        isClvssPu() const                                      { return m_eNalUnitType >= NAL_UNIT_CODED_SLICE_IDR_W_RADL && m_eNalUnitType <= NAL_UNIT_CODED_SLICE_GDR && !m_pcPPS->getMixedNaluTypesInPicFlag(); }
 #endif
-  bool                        isIDR() const                                          { return (getNalUnitType() == NAL_UNIT_CODED_SLICE_IDR_W_RADL) || (getNalUnitType() == NAL_UNIT_CODED_SLICE_IDR_N_LP); }
+  bool                        isIDR() const                                          { return m_eNalUnitType == NAL_UNIT_CODED_SLICE_IDR_W_RADL || m_eNalUnitType == NAL_UNIT_CODED_SLICE_IDR_N_LP; }
+  bool                        isCRAorGDR() const                                     { return m_eNalUnitType == NAL_UNIT_CODED_SLICE_CRA || m_eNalUnitType == NAL_UNIT_CODED_SLICE_GDR; }
   void                        checkCRA( int& pocCRA, NalUnitType& associatedIRAPType, const PicListRange& rcListPic );
   void                        checkSTSA( const PicListRange& rcListPic );
   void                        checkRPL(const ReferencePictureList* pRPL0, const ReferencePictureList* pRPL1, const int associatedIRAPDecodingOrderNumber, const PicListRange& rcListPic);
-  void                        decodingRefreshMarking(int& pocCRA, bool& bRefreshPending, PicList& rcListPic, const bool bEfficientFieldIRAPEnabled);
   void                        setSliceType( SliceType e )                            { m_eSliceType        = e;                                      }
   void                        setSliceQp( int i )                                    { m_iSliceQp          = i;                                      }
   void                        setSliceQpDelta( int i )                               { m_iSliceQpDelta     = i;                                      }
@@ -3079,11 +3017,11 @@ public:
   void                        setTLayer( uint32_t uiTLayer )                         { m_uiTLayer = uiTLayer;                                        }
 
   void                        checkLeadingPictureRestrictions( const PicListRange & rcListPic ) const;
-  int                         checkThatAllRefPicsAreAvailable( const PicListRange&         rcListPic,
+  bool                        checkThatAllRefPicsAreAvailable( const PicListRange&         rcListPic,
                                                                const ReferencePictureList* pRPL,
-                                                               bool                        printErrors,
-                                                               int*                        refPicIndex,
-                                                               int                         numActiveRefPics ) const;
+                                                               int                         numActiveRefPics,
+                                                               int*                        missingPOC,
+                                                               int*                        missingRefPicIndex ) const;
 
   void                        setNoRaslOutputFlag( bool val )                        { m_noRaslOutputFlag = val;                                     }
   bool                        getNoRaslOutputFlag() const                            { return m_noRaslOutputFlag;                                    }

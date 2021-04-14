@@ -44,17 +44,75 @@ THE POSSIBILITY OF SUCH DAMAGE.
 
 ------------------------------------------------------------------------------------------- */
 
-#if !defined( VVDEC_VERSION )
+#pragma once
 
-#define VVDEC_VERSION "${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}.${PROJECT_VERSION_PATCH}"
+#include "MD5.h"
 
-#define VVDEC_VERSION_MAJOR ${PROJECT_VERSION_MAJOR}
-#define VVDEC_VERSION_MINOR ${PROJECT_VERSION_MINOR}
-#define VVDEC_VERSION_PATCH ${PROJECT_VERSION_PATCH}
+#include <streambuf>
+#include <array>
+#include <vector>
 
-#ifdef _WIN32
-#define VVDEC_VS_VERSION      ${PROJECT_VERSION_MAJOR},${PROJECT_VERSION_MINOR},${PROJECT_VERSION_PATCH}
-#define VVDEC_VS_VERSION_STR "${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}.${PROJECT_VERSION_PATCH}"
-#endif
+namespace vvdecoderapp
+{
 
-#endif
+const int MD5_DIGEST_LENGTH = 128/8;
+
+static inline std::string MD5ToHexString(unsigned char hash[MD5_DIGEST_LENGTH])
+{
+  static const char* hex = "0123456789abcdef";
+  std::string result;
+
+  for(unsigned pos=0; pos < MD5_DIGEST_LENGTH; ++pos)
+  {
+    result += hex[hash[pos] >> 4];
+    result += hex[hash[pos] & 0xf];
+  }
+
+  return result;
+}
+
+class MD5StreamBuf : public std::streambuf
+{
+public:
+  explicit MD5StreamBuf( size_t buf_size = 64 )
+    : m_buffer( buf_size )
+  {
+    std::streambuf::setp( &m_buffer.front(), &m_buffer.back() + 1 );
+  }
+
+  int_type overflow(int_type ch) override
+  {
+    m_md5_ctx.update( (unsigned char*)m_buffer.data(), (unsigned int)m_buffer.size() );
+
+    // reset start & end-pointers
+    std::streambuf::setp( &m_buffer.front(), &m_buffer.back() + 1 );
+    return std::streambuf::sputc(ch);
+  }
+
+  int sync() override
+  {
+    const auto fillLen = std::streambuf::pptr() - std::streambuf::pbase();
+    if( fillLen )
+      m_md5_ctx.update( (unsigned char*)std::streambuf::pbase(), (unsigned int)fillLen );
+    return 0;
+  }
+
+  void finalize(unsigned char digest[16])
+  {
+    sync();
+    m_md5_ctx.finalize( digest);
+  }
+
+  std::string finalizeHex()
+  {
+    unsigned char digest[MD5_DIGEST_LENGTH];
+    finalize(digest);
+    return MD5ToHexString(digest);
+  }
+
+private:
+  vvdec::libmd5::MD5     m_md5_ctx;
+  std::vector<char_type> m_buffer;
+};
+
+}   // namespace vvdecoderapp

@@ -109,8 +109,6 @@ void Picture::create(const ChromaFormat &_chromaFormat, const Size &size, const 
   m_bufs[PIC_RECONSTRUCTION].create( _chromaFormat, size, _maxCUSize, _margin, MEMORY_ALIGN_DEF_SIZE );
   m_bufs[PIC_RECON_WRAP    ].create( _chromaFormat, size, _maxCUSize, _margin, MEMORY_ALIGN_DEF_SIZE );
   m_bufs[PIC_PREDICTION    ].create( _chromaFormat, size );
-
-  neededForOutput = true;
 }
 
 void Picture::resetForUse()
@@ -125,7 +123,7 @@ void Picture::resetForUse()
   wrapAroundValid  = false;
   wrapAroundOffset = 0;
 #endif
-  neededForOutput  = true;
+  neededForOutput  = false;
   reconstructed    = false;
   inProgress       = false;
   wasLost          = false;

@@ -69,19 +69,13 @@ class PicListManager;
 class DecLibParser
 {
 private:
-  NalUnitType m_associatedIRAPType = NAL_UNIT_INVALID;   ///< NAL unit type of the associated IRAP picture
-  int         m_pocCRA            = 0;                  ///< POC number of the latest CRA picture
-  int         m_pocRandomAccess   = MAX_INT;            ///< POC number of the random access point (the first IDR or CRA picture)
-  int         m_lastRasPoc        = MAX_INT;
-  int         m_associatedIRAPDecodingOrderNumber = 0; ///< Decoding order number of the associated IRAP picture
+  NalUnitType m_associatedIRAPType[MAX_VPS_LAYERS];   ///< NAL unit type of the associated IRAP picture
+  int         m_pocCRA            [MAX_VPS_LAYERS];   ///< POC number of the latest CRA picture
+  int         m_pocRandomAccess      = MAX_INT;       ///< POC number of the random access point (the first IDR or CRA picture)
+  int         m_lastRasPoc           = MAX_INT;
   int         m_decodingOrderCounter = 0;
-  uint32_t    m_prevLayerID       = MAX_INT;
+  uint32_t    m_prevLayerID          = MAX_INT;
 
-  bool        m_prevPicSkipped                = true;
-  bool        m_gdrRecoveryPeriod             = false;
-  int         m_prevGDRInSameLayerPOC         = 0;    ///< POC number of the latest GDR picture
-  int         m_prevGDRInSameLayerRecoveryPOC = 0;    ///< Recovery POC number of the latest GDR picture
-  
   int m_prevPOC                   = MAX_INT;
   int m_prevTid0POC               = 0;
 
@@ -94,9 +88,11 @@ private:
   bool m_bFirstSliceInBitstream   = true;
   bool m_parseNewPicture          = false;
 
-  int  m_lastPOCNoOutputPriorPics = -1;
-  bool m_isNoOutputPriorPics      = false;
-  bool m_lastNoOutputBeforeRecoveryFlag[MAX_VPS_LAYERS] = { false };    //value of variable NoOutputBeforeRecoveryFlag of the assocated CRA/GDR pic
+  int      m_lastPOCNoOutputPriorPics                       = -1;
+  bool     m_isNoOutputPriorPics                            = false;
+  bool     m_lastNoOutputBeforeRecoveryFlag[MAX_VPS_LAYERS] = { false };   // value of variable NoOutputBeforeRecoveryFlag of the assocated CRA/GDR pic
+  int      m_gdrRecoveryPointPocVal        [MAX_VPS_LAYERS];
+  bool     m_gdrRecovered                  [MAX_VPS_LAYERS] = { false };
   uint32_t m_uiSliceSegmentIdx    = 0;
 
   int m_iTargetLayer              = -1;   ///< target stream layer to be decoded
@@ -188,25 +184,16 @@ public:
   void resetPictureUnitNals     ()                      { m_pictureUnitNals.clear(); }
 
   ParameterSetManager getParameterSetManager()          { return m_parameterSetManager; }
-  
-  bool getPrevPicSkipped()                              { return m_prevPicSkipped; }
-  void setPrevPicSkipped( bool val )                    { m_prevPicSkipped = val; }
-  bool getGdrRecoveryPeriod()                           { return m_gdrRecoveryPeriod; }
-  void setGdrRecoveryPeriod( bool val )                 { m_gdrRecoveryPeriod = val; }
-  
+
 private:
   enum SliceHeadResult { SkipPicture, NewPicture, ContinueParsing };
   SliceHeadResult xDecodeSliceHead( InputNALUnit& nalu, int* pSkipFrame );
   Slice*          xDecodeSliceMain( InputNALUnit& nalu );
 
   Picture*        xActivateParameterSets   ( const int layerId );
-  void            prepareLostPicture       ( int iLostPOC, const int layerId );
-#if JVET_S0124_UNAVAILABLE_REFERENCE
+  Picture*        prepareLostPicture       ( int iLostPOC, const int layerId );
   void            prepareUnavailablePicture( const PPS *pps, int iUnavailablePoc, const int layerId, const bool longTermFlag, const int temporalId );
-#else
-  Picture*        prepareUnavailablePicture( int iUnavailablePoc, const int layerId, const bool longTermFlag );
-#endif
-  
+
   void xParsePrefixSEImessages();
   void xParsePrefixSEIsForUnknownVCLNal();
 

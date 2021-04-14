@@ -23,6 +23,7 @@ target_compile_options( ${EXE_NAME} PRIVATE $<$<OR:$<CXX_COMPILER_ID:Clang>,$<CX
                                             $<$<CXX_COMPILER_ID:GNU>:-Wall -Werror>
                                             $<$<CXX_COMPILER_ID:MSVC>:/W4 /WX /wd4244 /wd4456 >)
 target_link_libraries( ${EXE_NAME} Threads::Threads vvdec )
+target_include_directories( ${EXE_NAME} PRIVATE  ../../Lib/libmd5 )
 
 
 # example: place header files in different folders
