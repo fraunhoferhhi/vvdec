@@ -112,16 +112,18 @@ PicListRange PicListManager::getPicListRange( const Picture* pic ) const
 }
 
 #if JVET_Q0814_DPB
-Picture* PicListManager::getNewPicBuffer( const SPS& sps,const PPS& pps, const uint32_t temporalLayer, const int layerId, const VPS* vps )
+Picture* PicListManager::getNewPicBuffer( const SPS& sps, const PPS& pps, const uint32_t temporalLayer, const int layerId, const VPS* vps )
 #else
-Picture* PicListManager::getNewPicBuffer( const SPS& sps,const PPS& pps, const uint32_t temporalLayer, const int layerId )
+Picture* PicListManager::getNewPicBuffer( const SPS& sps, const PPS& pps, const uint32_t temporalLayer, const int layerId )
 #endif
 {
   CHECK( m_parseFrameDelay < 0, "Parser frame delay is invalid" );
 
   Picture*  pcPic         = nullptr;
 #if JVET_Q0814_DPB
-  const int iMaxRefPicNum = ( vps == nullptr || vps->m_numLayersInOls[vps->m_iTargetLayer] == 1 ) ? sps.getMaxDecPicBuffering( temporalLayer ) + 1 : vps->getMaxDecPicBuffering( temporalLayer );     // m_uiMaxDecPicBuffering has the space for the picture currently being decoded
+  const int iMaxRefPicNum = ( vps == nullptr || vps->m_numLayersInOls[vps->m_iTargetLayer] == 1 )
+                              ? sps.getMaxDecPicBuffering( temporalLayer ) + 1
+                              : vps->getMaxDecPicBuffering( temporalLayer );   // m_uiMaxDecPicBuffering has the space for the picture currently being decoded
 #else
   const int iMaxRefPicNum = sps.getMaxDecPicBuffering( temporalLayer ) + 1;   // m_uiMaxDecPicBuffering has the space for the picture currently being decoded
 #endif
@@ -141,17 +143,15 @@ Picture* PicListManager::getNewPicBuffer( const SPS& sps,const PPS& pps, const u
   for( PicList::iterator itPic = m_cPicList.begin(); itPic != m_cPicList.end(); ++itPic )
   {
     Picture* pic = *itPic;
-    if( !pic->referenced && !pic->neededForOutput && !pic->lockedByApplication )
+    if( pic->inProgress || pic->referenced || pic->neededForOutput || pic->lockedByApplication )
     {
-      // take the picture to be reused and move it to the end of the list
-      if( pic->picHeader || pic->cs->picHeader )
-      {
-        pic->setPicHead( nullptr );
-      }
-      move_to_end( itPic, m_cPicList );
-      pcPic = pic;
-      break;
+      continue;
     }
+
+    // take the picture to be reused and move it to the end of the list
+    move_to_end( itPic, m_cPicList );
+    pcPic = pic;
+    break;
   }
 
   if( !pcPic )
@@ -168,12 +168,13 @@ Picture* PicListManager::getNewPicBuffer( const SPS& sps,const PPS& pps, const u
     return pcPic;
   }
 
-  if( !pcPic->Y().Size::operator==( Size( pps.getPicWidthInLumaSamples(), pps.getPicHeightInLumaSamples() ) )
-      || pcPic->cs->pcv->maxCUWidth != sps.getMaxCUWidth() || pcPic->cs->pcv->maxCUHeight != sps.getMaxCUHeight()
+  if( pcPic->lumaSize() != Size( pps.getPicWidthInLumaSamples(), pps.getPicHeightInLumaSamples() )
+      || pcPic->cs->pcv->maxCUWidth != sps.getMaxCUWidth()
+      || pcPic->cs->pcv->maxCUHeight != sps.getMaxCUHeight()
 #if JVET_R0058
       || pcPic->layerId != layerId
 #endif
-    )
+  )
   {
     pcPic->destroy();
     pcPic->create( sps.getChromaFormatIdc(),
@@ -440,22 +441,6 @@ void PicListManager::releasePicture( Picture* pic )
   if( pic )
   {
     pic->lockedByApplication = false;
-  }
-}
-
-void PicListManager::markNotNeededForOutput()
-{
-  if( m_cPicList.empty() )
-  {
-    return;
-  }
-
-  PicList::iterator iterPic = m_cPicList.begin();
-  while (iterPic != m_cPicList.end())
-  {
-    
-    Picture *pcPic = *(iterPic++);
-    pcPic->neededForOutput = false;
   }
 }
 

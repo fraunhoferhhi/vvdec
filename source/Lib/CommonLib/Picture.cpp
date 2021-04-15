@@ -115,6 +115,7 @@ void Picture::resetForUse()
 {
   CHECK( lockedByApplication, "the picture can not be re-used, because it has not been unlocked by the application." );
 
+  setPicHead( nullptr );
   m_subPicRefBufs.clear();
 
   subPicExtStarted = false;
@@ -302,8 +303,11 @@ Slice* Picture::swapSliceObject( Slice* s, uint32_t i )
 
 void Picture::setPicHead( const std::shared_ptr<PicHeader>& ph )
 {
-  cs->picHeader   = ph.get();
   this->picHeader = ph;
+  if( cs )
+  {
+    cs->picHeader = ph.get();
+  }
 }
 
 void Picture::clearSliceBuffer()
