@@ -513,6 +513,9 @@ Picture* DecLib::getNextOutputPic( bool bFlush )
 
 void DecLib::decompressPicture( Picture* pcPic )
 {
+  CHECK( std::any_of( m_decLibRecon.begin(), m_decLibRecon.end(), [=]( auto& rec ) { return rec.getCurrPic() == pcPic; } ),
+         "(Reused) Picture structure is still in progress in decLibRecon." );
+
   DecLibRecon* decLibInstance = &m_decLibRecon.front();
   move_to_end( m_decLibRecon.begin(), m_decLibRecon );
 
