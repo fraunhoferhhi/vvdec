@@ -59,6 +59,11 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #include "vvdecHelper.h"
 #include "MD5StreamBuf.h"
 
+#if defined (_WIN32) || defined (WIN32) || defined (_WIN64) || defined (WIN64)
+#include <io.h>
+#include <fcntl.h>
+#endif
+
 /*! Prototypes */
 int writeYUVToFile( std::ostream *f, vvdecFrame *frame );
 int writeYUVToFileInterlaced( std::ostream *f, vvdecFrame *topField, vvdecFrame *botField = nullptr );
@@ -143,6 +148,13 @@ int main( int argc, char* argv[] )
     if( !strcmp( cOutputFile.c_str(), "-" ) )
     {
       writeStdout = true;
+#if defined (_WIN32) || defined (WIN32) || defined (_WIN64) || defined (WIN64)
+      if( _setmode( _fileno( stdout ), _O_BINARY ) == -1 )
+      {
+        std::cerr << "vvdecapp [error]: failed to set stdout to binary mode" << std::endl;
+        return -1;
+      }
+#endif
     }
     else
     {

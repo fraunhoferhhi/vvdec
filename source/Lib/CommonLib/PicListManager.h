@@ -49,7 +49,6 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #include "CommonDef.h"
 
 #include <list>
-#include <tuple>
 
 namespace vvdec
 {
@@ -96,16 +95,15 @@ public:
   const Picture* getFrontPic() const { return m_cPicList.empty() ? nullptr : m_cPicList.front(); }
   const Picture* getBackPic() const  { return m_cPicList.empty() ? nullptr : m_cPicList.back(); }
 #if JVET_Q0814_DPB
-  Picture*       getNewPicBuffer( const SPS& sps,const PPS& pps, const uint32_t temporalLayer, const int layerId, const VPS* vps );
+  Picture*       getNewPicBuffer( const SPS& sps, const PPS& pps, const uint32_t temporalLayer, const int layerId, const VPS* vps );
 #else
-  Picture*       getNewPicBuffer( const SPS& sps,const PPS& pps, const uint32_t temporalLayer, const int layerId );
+  Picture*       getNewPicBuffer( const SPS& sps, const PPS& pps, const uint32_t temporalLayer, const int layerId );
 #endif
   void           deleteBuffers();
   void           applyDoneReferencePictureMarking();
   Picture*       findClosestPic( int iLostPoc );
   Picture*       getNextOutputPic( uint32_t numReorderPicsHighestTid, uint32_t maxDecPicBufferingHighestTid, bool bFlush );
   void           releasePicture( Picture* pic );
-  void           markNotNeededForOutput();
 };
 
 }
