@@ -642,7 +642,7 @@ bool DecLibRecon::ctuTask( int tid, CtuTaskParam* param )
         memset( ctuData.motion, 0, sizeof( CtuData::motion ) );
         GCC_WARNING_RESET
 
-        if( !ctuData.cuPtr[0][0]->slice->isIntra() || cs.sps->getIBCFlag() )
+        if( !ctuData.slice->isIntra() || cs.sps->getIBCFlag() )
         {
           const UnitArea ctuArea = getCtuArea( cs, ctu, line, true );
           decLib.m_cCuDecoder[tid].TaskDeriveCtuMotionInfo( cs, ctuArea, param->common.perLineMiHist[line] );
@@ -702,7 +702,7 @@ bool DecLibRecon::ctuTask( int tid, CtuTaskParam* param )
 
         decLib.m_cCuDecoder[tid].TaskTrafoCtu( cs, ctuArea );
 
-        if( !ctuData.cuPtr[0][0]->slice->isIntra() )
+        if( !ctuData.slice->isIntra() )
         {
           decLib.m_cCuDecoder[tid].TaskInterCtu( cs, ctuArea );
         }
