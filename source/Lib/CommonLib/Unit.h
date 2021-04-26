@@ -317,7 +317,9 @@ struct CodingUnit : public UnitArea
 
   struct CtuData   *ctuData;
   CodingStructure  *cs;
-  Slice            *slice;
+  const Slice      *slice;
+  const PPS        *pps;
+  const SPS        *sps;
         CodingUnit *next;
   const CodingUnit *above;
   const CodingUnit *left;

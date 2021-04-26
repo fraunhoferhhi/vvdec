@@ -310,7 +310,7 @@ void TrQuant::invTransformNxN( TransformUnit &tu, const ComponentID &compID, Pel
 
   DTRACE_COEFF_BUF( D_TCOEFF, coeff, tu, tu.cu->predMode(), compID );
 
-  if( tu.cu->cs->sps->getUseLFNST() )
+  if( tu.cu->sps->getUseLFNST() )
   {
     xInvLfnst( tu, compID );
   }
@@ -341,7 +341,7 @@ void TrQuant::getTrTypes( const TransformUnit& tu, const ComponentID compID, int
 {
   const bool isCuIntra     = CU::isIntra( *tu.cu );
   const bool isCompLuma    = isLuma( compID );
-  const bool isImplicitMTS = isCuIntra && isCompLuma && tu.cu->cs->sps->getUseImplicitMTS() && tu.cu->lfnstIdx() == 0 && tu.cu->mipFlag() == 0;
+  const bool isImplicitMTS = isCuIntra && isCompLuma && tu.cu->sps->getUseImplicitMTS() && tu.cu->lfnstIdx() == 0 && tu.cu->mipFlag() == 0;
   const bool isISP         = isCuIntra && isCompLuma && tu.cu->ispMode();
 
   if( isISP && tu.cu->lfnstIdx() )
@@ -352,7 +352,7 @@ void TrQuant::getTrTypes( const TransformUnit& tu, const ComponentID compID, int
   const int lwidth  = tu.lwidth();
   const int lheight = tu.lheight();
 
-  if( !tu.cu->cs->sps->getUseMTS() )
+  if( !tu.cu->sps->getUseMTS() )
     return;
 
   if( isImplicitMTS || isISP )
@@ -369,7 +369,7 @@ void TrQuant::getTrTypes( const TransformUnit& tu, const ComponentID compID, int
   }
 
   const bool isCuInter     = CU::isInter( *tu.cu ) && isCompLuma;
-  const bool isExplicitMTS = isCuIntra ? tu.cu->cs->sps->getUseIntraMTS() && isCompLuma : tu.cu->cs->sps->getUseInterMTS() && isCuInter;
+  const bool isExplicitMTS = isCuIntra ? tu.cu->sps->getUseIntraMTS() && isCompLuma : tu.cu->sps->getUseInterMTS() && isCuInter;
   const bool isSBT         = isCuInter && tu.cu->sbtInfo();
 
   if( isSBT )
@@ -421,8 +421,8 @@ void TrQuant::xIT( const TransformUnit &tu, const ComponentID &compID, const CCo
 {
   const int      width                  = pCoeff.width;
   const int      height                 = pCoeff.height;
-  const unsigned maxLog2TrDynamicRange  = tu.cu->cs->sps->getMaxLog2TrDynamicRange( toChannelType( compID ) );
-  const unsigned bitDepth               = tu.cu->cs->sps->getBitDepth(              toChannelType( compID ) );
+  const unsigned maxLog2TrDynamicRange  = tu.cu->sps->getMaxLog2TrDynamicRange( toChannelType( compID ) );
+  const unsigned bitDepth               = tu.cu->sps->getBitDepth(              toChannelType( compID ) );
   const int      TRANSFORM_MATRIX_SHIFT = g_transformMatrixShift;
   const TCoeff   clipMinimum            = -( 1 << maxLog2TrDynamicRange );
   const TCoeff   clipMaximum            =  ( 1 << maxLog2TrDynamicRange ) - 1;

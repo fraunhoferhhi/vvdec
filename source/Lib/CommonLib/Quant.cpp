@@ -71,7 +71,7 @@ QpParam::QpParam( const TransformUnit& tu, const ComponentID &compIDX, const boo
 {
   const ComponentID compID = MAP_CHROMA( compIDX );
   const ChannelType chType = toChannelType( compID );
-  const SPS        &sps    = *tu.cu->cs->sps;
+  const SPS        &sps    = *tu.cu->sps;
   const int     qpBdOffset = sps.getQpBDOffset( chType );
   const bool useJQP        = isChroma( compID ) && TU::getICTMode( tu, false ) == 2;
   const ComponentID jCbCr  = useJQP ? JOINT_CbCr : compID;
@@ -86,7 +86,7 @@ QpParam::QpParam( const TransformUnit& tu, const ComponentID &compIDX, const boo
   }
   else
   {
-    const PPS &pps  = *tu.cu->slice->getPPS();
+    const PPS &pps  = *tu.cu->pps;
     int
     chromaQpOffset  = pps.getQpOffset                    ( jCbCr );
     chromaQpOffset += tu.cu->slice->getSliceChromaQpDelta( jCbCr );
@@ -248,7 +248,7 @@ void invResDPCM( const TransformUnit &tu, const ComponentID &compID, CoeffBuf &d
   const int      hgt = rect.height;
   const CCoeffSigBuf coeffs = tu.cu->cs->getRecoBuf( tu.block( compID ) );
 
-  const int      maxLog2TrDynamicRange = tu.cu->cs->sps->getMaxLog2TrDynamicRange(toChannelType(compID));
+  const int      maxLog2TrDynamicRange = tu.cu->sps->getMaxLog2TrDynamicRange(toChannelType(compID));
   const TCoeff   inputMinimum   = -(1 << maxLog2TrDynamicRange);
   const TCoeff   inputMaximum   =  (1 << maxLog2TrDynamicRange) - 1;
 
@@ -291,7 +291,7 @@ void Quant::dequant(   const TransformUnit &tu,
                        const ComponentID   &compID,
                        const QpParam       &cQP)
 {
-  const SPS            *sps                = tu.cu->cs->sps.get();
+  const SPS            *sps                = tu.cu->sps;
   const CompArea       &area               = tu.blocks[compID];
   const CCoeffSigBuf    coeffBuf           = tu.cu->cs->getRecoBuf( tu.block( compID ) );
   const TCoeffSig*const piQCoef            = coeffBuf.buf;
@@ -306,7 +306,7 @@ void Quant::dequant(   const TransformUnit &tu,
   const bool            disableSMForLFNST  = tu.cu->slice->getExplicitScalingListUsed() ? sps->getDisableScalingMatrixForLfnstBlks() : false;
   const bool            isLfnstApplied     = tu.cu->lfnstIdx() > 0 && ( CU::isSepTree( *tu.cu ) ? true : isLuma( compID ) );
 #if JVET_R0380_SCALING_MATRIX_DISABLE_YCC_OR_RGB
-  const bool            disableSMForACT    = tu.cu->cs->sps->getScalingMatrixForAlternativeColourSpaceDisabledFlag() && tu.cu->cs->sps->getScalingMatrixDesignatedColourSpaceFlag() == tu.cu->colorTransform();
+  const bool            disableSMForACT    = tu.cu->sps->getScalingMatrixForAlternativeColourSpaceDisabledFlag() && tu.cu->sps->getScalingMatrixDesignatedColourSpaceFlag() == tu.cu->colorTransform();
   const bool            enableScalingLists = getUseScalingList(isTransformSkip, isLfnstApplied, disableSMForLFNST, disableSMForACT);
 #else
   const bool            enableScalingLists = getUseScalingList(isTransformSkip, isLfnstApplied, disableSMForLFNST);
@@ -348,7 +348,6 @@ void Quant::dequant(   const TransformUnit &tu,
     const uint32_t uiLog2TrWidth  = getLog2(area.width);
     const uint32_t uiLog2TrHeight = getLog2(area.height);
 
-    int *piDequantCoef        = getDequantCoeff(scalingListType, QP_rem, uiLog2TrWidth, uiLog2TrHeight);
     int scale     = g_InvQuantScales[needSqrtAdjustment?1:0][QP_rem];
 
     const int scaleBits = ( IQUANT_SHIFT + 1 );
@@ -377,6 +376,8 @@ void Quant::dequant(   const TransformUnit &tu,
     }
     else
     {
+      int* piDequantCoef = getDequantCoeff( scalingListType, QP_rem, uiLog2TrWidth, uiLog2TrHeight );
+
       if( ( tu.cu->bdpcmMode() && isLuma(compID) ) || ( tu.cu->bdpcmModeChroma() && isChroma(compID) ) )
       {
         TCoeff* dst = &dstCoeff.buf[0];

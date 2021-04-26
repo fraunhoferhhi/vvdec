@@ -669,7 +669,7 @@ void PelStorage::create( const UnitArea &_UnitArea )
   create( _UnitArea.chromaFormat, _UnitArea.blocks[0] );
 }
 
-void PelStorage::create( const ChromaFormat _chromaFormat, const Size& _size, const unsigned _maxCUSize, const unsigned _margin, const unsigned _alignment, const bool _scaleChromaMargin )
+void PelStorage::create( const ChromaFormat _chromaFormat, const Size& _size, const unsigned _maxCUSize, const unsigned _margin, const unsigned _alignmentByte, const bool _scaleChromaMargin )
 {
   CHECK( !bufs.empty(), "Trying to re-create an already initialized buffer" );
 
@@ -686,6 +686,8 @@ void PelStorage::create( const ChromaFormat _chromaFormat, const Size& _size, co
     extWidth  = ( ( _size.width  + _maxCUSize - 1 ) / _maxCUSize ) * _maxCUSize;
   }
 
+  const unsigned _alignment = _alignmentByte / sizeof( Pel );
+
   for( uint32_t i = 0; i < numCh; i++ )
   {
     const ComponentID compID = ComponentID( i );
@@ -697,18 +699,20 @@ void PelStorage::create( const ChromaFormat _chromaFormat, const Size& _size, co
     unsigned ymargin      = _margin >> (_scaleChromaMargin?scaleY:0);
     unsigned xmargin      = _margin >> (_scaleChromaMargin?scaleX:0);
 
-    //if( _alignment && xmargin )
-    //{
-    //  xmargin = ( ( xmargin + _alignment - 1 ) / _alignment ) * _alignment;
-    //}
+#if 1
+    if( _alignment && xmargin )
+    {
+      xmargin = ( ( xmargin + _alignment - 1 ) / _alignment ) * _alignment;
+    }
 
-    unsigned totalWidth   = scaledWidth + 2*xmargin;
-    unsigned totalHeight  = scaledHeight +2*ymargin;
+#endif
+    unsigned totalWidth   = scaledWidth + 2 * xmargin;
+    unsigned totalHeight  = scaledHeight +2 * ymargin;
 
     if( _alignment )
     {
       // make sure buffer lines are align
-      CHECK( _alignment != MEMORY_ALIGN_DEF_SIZE, "Unsupported alignment" );
+      CHECK( _alignmentByte != MEMORY_ALIGN_DEF_SIZE, "Unsupported alignment" );
       totalWidth = ( ( totalWidth + _alignment - 1 ) / _alignment ) * _alignment;
     }
 

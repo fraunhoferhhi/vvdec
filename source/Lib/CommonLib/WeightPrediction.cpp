@@ -376,7 +376,7 @@ void  WeightPrediction::xWeightedPredictionBi(const PredictionUnit       &pu,
   WPScalingParam  pwp0[MAX_NUM_COMPONENT];
   WPScalingParam  pwp1[MAX_NUM_COMPONENT];
 
-  CHECK( !pu.cs->pps->getWPBiPred(), "Weighted Bi-prediction disabled" );
+  CHECK( !pu.pps->getWPBiPred(), "Weighted Bi-prediction disabled" );
 
   getWpScaling(pu.slice, iRefIdx0, iRefIdx1, pwp0, pwp1);
 
