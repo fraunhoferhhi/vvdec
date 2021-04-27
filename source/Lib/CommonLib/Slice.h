@@ -1476,11 +1476,7 @@ private:
   // Parameter
   BitDepths         m_bitDepths;
   bool              m_entropyCodingSyncEnabledFlag       = false;              //!< Flag for enabling WPP
-#if JVET_R0165_OPTIONAL_ENTRY_POINT
   bool              m_entryPointPresentFlag              = false;              //!< Flag for indicating the presence of entry points
-#else
-  bool              m_entropyCodingSyncEntryPointPresentFlag = false;          //!< Flag for indicating the presence of WPP entry points
-#endif
   int               m_qpBDOffset  [MAX_NUM_CHANNEL_TYPE] = { 0, 0 };
   int               m_internalMinusInputBitDepth[MAX_NUM_CHANNEL_TYPE] = {0, 0 }; //  max(0, internal bitdepth - input bitdepth);                                          }
   bool              m_sbtmvpEnabledFlag                  = false;
@@ -1770,17 +1766,12 @@ public:
   int                     getBitDepth(ChannelType type) const                                             { return m_bitDepths.recon[type];                                      }
   void                    setBitDepth(ChannelType type, int u )                                           { m_bitDepths.recon[type] = u;                                         }
   const BitDepths&        getBitDepths() const                                                            { return m_bitDepths;                                                  }
-  
+
   bool                    getEntropyCodingSyncEnabledFlag() const                                         { return m_entropyCodingSyncEnabledFlag;                               }
   void                    setEntropyCodingSyncEnabledFlag(bool val)                                       { m_entropyCodingSyncEnabledFlag = val;                                }
-#if JVET_R0165_OPTIONAL_ENTRY_POINT
   bool                    getEntryPointsPresentFlag() const                                               { return m_entryPointPresentFlag;                                      }
   void                    setEntryPointsPresentFlag(bool val)                                             { m_entryPointPresentFlag = val;                                       }
-#else
-  bool                    getEntropyCodingSyncEntryPointsPresentFlag() const                              { return m_entropyCodingSyncEntryPointPresentFlag;                     }
-  void                    setEntropyCodingSyncEntryPointsPresentFlag(bool val)                            { m_entropyCodingSyncEntryPointPresentFlag = val;                      }
-#endif
-  
+
   static constexpr int    getMaxLog2TrDynamicRange(ChannelType channelType) 			          { return 15; }
 
   int                     getDifferentialLumaChromaBitDepth() const                                       { return int(m_bitDepths.recon[CHANNEL_TYPE_LUMA]) - int(m_bitDepths.recon[CHANNEL_TYPE_CHROMA]); }

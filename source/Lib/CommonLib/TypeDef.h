@@ -89,7 +89,6 @@ namespace vvdec
 #define TBT                                               1
 #define TBC                                               0
 
-#define JVET_R0165_OPTIONAL_ENTRY_POINT                   TBT //to be tested // JVET-R0165: Optional entry point offset
 #define JVET_R0166_SCALING_LISTS_CHROMA_444               TBT //to be tested // JVET-R0166: Scaling list for Chroma 444
 #define JVET_R0191_ASPECT3                                TBT // JVET-R0191#3: Modify the upper range of vps_num_dpb_params and num_ols_hrd_params_minus1 to be total number of OLSs minus the number of single-layer OLSs
                                                               //               Constrain that each PTL, DPB, and HRD params in VPS are referred to at least once

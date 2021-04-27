@@ -1515,14 +1515,7 @@ void HLSyntaxReader::parseSPS( SPS* pcSPS, ParameterSetManager *parameterSetMana
   pcSPS->setQpBDOffset( CHANNEL_TYPE_CHROMA, (int) (6*uiCode) );
 
   READ_FLAG( uiCode, "sps_entropy_coding_sync_enabled_flag" );               pcSPS->setEntropyCodingSyncEnabledFlag( uiCode == 1 );
-#if JVET_R0165_OPTIONAL_ENTRY_POINT
   READ_FLAG( uiCode, "sps_entry_point_offsets_present_flag" );               pcSPS->setEntryPointsPresentFlag( uiCode == 1 );
-#else
-  if( pcSPS->getEntropyCodingSyncEnabledFlag() )
-  {
-    READ_FLAG( uiCode, "sps_wpp_entry_point_offsets_present_flag" );         pcSPS->setEntropyCodingSyncEntryPointsPresentFlag( uiCode == 1 );
-  }
-#endif
   READ_CODE( 4, uiCode, "sps_log2_max_pic_order_cnt_lsb_minus4" );           pcSPS->setBitsForPOC( 4 + uiCode );
   CHECK( uiCode > 12, "log2_max_pic_order_cnt_lsb_minus4 shall be in the range of 0 to 12" );
 
