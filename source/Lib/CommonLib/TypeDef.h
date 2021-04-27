@@ -89,8 +89,6 @@ namespace vvdec
 #define TBT                                               1
 #define TBC                                               0
 
-#define JVET_R0191_ASPECT3                                TBT // JVET-R0191#3: Modify the upper range of vps_num_dpb_params and num_ols_hrd_params_minus1 to be total number of OLSs minus the number of single-layer OLSs
-                                                              //               Constrain that each PTL, DPB, and HRD params in VPS are referred to at least once
 #define JVET_R0276_REORDERED_SUBPICS                      TBT // JVET-R0276: reference picture constraint for reordered sub-pictures
 #define JVET_R0350_MIP_CHROMA_444_SINGLETREE              TBT //to be tested // JVET-R0350: MIP for chroma in case of 4:4:4 format and single tree
 #define JVET_R0294_SUBPIC_HASH                            TBT //to be tested // JVET-R0294: Allow decoded picture hash SEI messages to be nested in subpicture context

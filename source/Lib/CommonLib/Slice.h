@@ -1067,10 +1067,8 @@ private:
 public:
   std::vector<std::vector<OlsHrdParams>> m_olsHrdParams;
   int                           m_totalNumOLSs                 = 0;
-#if JVET_R0191_ASPECT3
   int                           m_numMultiLayeredOlss          = 0;
   uint32_t                      m_multiLayerOlsIdx[MAX_NUM_OLSS];
-#endif
   int                           m_numDpbParams                 = 0;
   std::vector<DpbParameters>    m_dpbParameters;
   bool                          m_sublayerDpbParamsPresentFlag = false;
@@ -1182,9 +1180,7 @@ public:
   int               getMaxDecPicBuffering( int temporalId ) const        { return m_dpbParameters[m_olsDpbParamsIdx[m_iTargetLayer]].m_maxDecPicBuffering[temporalId]; }
   int               getNumReorderPics( int temporalId ) const            { return m_dpbParameters[m_olsDpbParamsIdx[m_iTargetLayer]].m_numReorderPics[temporalId];     }
   int               getTotalNumOLSs() const                              { return m_totalNumOLSs; }
-#if JVET_R0191_ASPECT3
   int               getNumMultiLayeredOlss() const                       { return m_numMultiLayeredOlss; }
-#endif
   Size              getOlsDpbPicSize( int olsIdx ) const                 { return m_olsDpbPicSize[olsIdx];          }
   void              setOlsDpbPicSize( int olsIdx, Size size )            { m_olsDpbPicSize[olsIdx] = size;          }
   void              setOlsDpbPicWidth( int olsIdx, int width )           { m_olsDpbPicSize[olsIdx].width = width;   }

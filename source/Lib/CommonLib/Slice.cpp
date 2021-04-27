@@ -177,11 +177,9 @@ void VPS::deriveOutputLayerSets()
     CHECK(layerUsedAsRefLayerFlag[i] == 0 && layerUsedAsOutputLayerFlag[i] == 0, "There shall be no layer that is neither an output layer nor a direct reference layer");
   }
 
-  m_numLayersInOls[0] = 1;
-  m_layerIdInOls[0][0] = m_vpsLayerId[0];
-#if JVET_R0191_ASPECT3
+  m_numLayersInOls[0]   = 1;
+  m_layerIdInOls[0][0]  = m_vpsLayerId[0];
   m_numMultiLayeredOlss = 0;
-#endif
 
   for( int i = 1; i < m_totalNumOLSs; i++ )
   {
@@ -211,13 +209,11 @@ void VPS::deriveOutputLayerSets()
 
       m_numLayersInOls[i] = j;
     }
-#if JVET_R0191_ASPECT3
     if( m_numLayersInOls[i] > 1 )
     {
       m_multiLayerOlsIdx[i] = m_numMultiLayeredOlss;
       m_numMultiLayeredOlss++;
     }
-#endif
   }
 #if JVET_S0100_ASPECT3
   m_multiLayerOlsIdxToOlsIdx.resize(m_numMultiLayeredOlss);
