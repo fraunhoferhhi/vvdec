@@ -944,10 +944,8 @@ private:
 
   bool             m_treatedAsPicFlag                  = false;  //!< whether the subpicture is treated as a picture in the decoding process excluding in-loop filtering operations
   bool             m_loopFilterAcrossSubPicEnabledFlag = false;  //!< whether in-loop filtering operations may be performed across the boundaries of the subpicture
-#if JVET_Q0044_SLICE_IDX_WITH_SUBPICS
   uint32_t         m_numSlicesInSubPic                 = 0;      //!< Number of slices contained in this subpicture
-#endif
-  
+
 public:
   SubPic() = default;
   ~SubPic() = default;
@@ -1015,8 +1013,7 @@ public:
   bool             getloopFilterAcrossSubPicEnabledFlag()  const { return  m_loopFilterAcrossSubPicEnabledFlag;     }
 
   bool             isFirstCTUinSubPic(uint32_t ctuAddr)    { return  ctuAddr == m_firstCtuInSubPic;  }
-  bool              isLastCTUinSubPic(uint32_t ctuAddr)    { return  ctuAddr == m_lastCtuInSubPic;   }
-#if JVET_Q0044_SLICE_IDX_WITH_SUBPICS
+  bool             isLastCTUinSubPic(uint32_t ctuAddr)     { return  ctuAddr == m_lastCtuInSubPic;   }
   void             setNumSlicesInSubPic( uint32_t val )    { m_numSlicesInSubPic = val; }
   uint32_t         getNumSlicesInSubPic() const            { return m_numSlicesInSubPic; }
   bool             containsCtu(const Position& pos) const
@@ -1024,7 +1021,6 @@ public:
     return pos.x >= m_subPicCtuTopLeftX && pos.x < m_subPicCtuTopLeftX + m_subPicWidth &&
            pos.y >= m_subPicCtuTopLeftY && pos.y < m_subPicCtuTopLeftY + m_subPicHeight;
   }
-#endif
 };
 
 
@@ -2247,9 +2243,7 @@ public:
   uint32_t               getSubPicIdLen() const                                           { return  m_subPicIdLen;                                                                          }
   void                   setSubPicId( int i, uint16_t u )                                 { CHECK( i >= MAX_NUM_SUB_PICS, "Sub-picture index exceeds valid range" ); m_subPicId[i] = u;     }
   uint16_t               getSubPicId( int i ) const                                       { CHECK( i >= MAX_NUM_SUB_PICS, "Sub-picture index exceeds valid range" ); return  m_subPicId[i]; }
-#if JVET_Q0044_SLICE_IDX_WITH_SUBPICS
   uint32_t               getSubPicIdxFromSubPicId( uint32_t subPicId ) const;
-#endif
   void                   setNoPicPartitionFlag( bool b )                                  { m_noPicPartitionFlag = b;                     }
   bool                   getNoPicPartitionFlag( ) const                                   { return  m_noPicPartitionFlag;                 }
   void                   setLog2CtuSize( uint8_t u )                                      { m_log2CtuSize = u; m_ctuSize = 1 << m_log2CtuSize;
@@ -2331,9 +2325,7 @@ public:
   void                   initRectSlices();
   void                   initRectSliceMap(const SPS *sps);
   std::vector<SubPic>    getSubPics()  const                                              { return m_subPics;      }
-#if JVET_Q0044_SLICE_IDX_WITH_SUBPICS
   const SubPic&          getSubPic(uint32_t idx) const                                    { return m_subPics[idx]; }
-#endif
   void                   initSubPic(const SPS &sps);
   const SubPic&          getSubPicFromPos(const Position& pos)  const;
   const SubPic&          getSubPicFromCU (const CodingUnit& cu) const;

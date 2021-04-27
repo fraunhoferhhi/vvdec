@@ -91,11 +91,6 @@ class DecLib
   std::list<InputNALUnit>  m_pictureSeiNalus;
 
 public:
-#if JVET_Q0044_SLICE_IDX_WITH_SUBPICS
-  int m_maxDecSubPicIdx         = 0;
-  int m_maxDecSliceAddrInSubPic = -1;
-#endif
-
   DecLib();
   ~DecLib() = default;
 

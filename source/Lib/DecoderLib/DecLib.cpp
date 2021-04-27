@@ -351,11 +351,6 @@ int DecLib::finishPicture( Picture* pcPic, MsgLevel msgl )
 
   m_picListManager.applyDoneReferencePictureMarking();
 
-#if JVET_Q0044_SLICE_IDX_WITH_SUBPICS
-  m_maxDecSubPicIdx = 0;
-  m_maxDecSliceAddrInSubPic = -1;
-#endif
-
   if( m_parseFrameDelay > 0 )
   {
     checkPictureHashSEI( pcPic );

@@ -1580,7 +1580,6 @@ void PPS::initSubPic( const SPS &sps )
   for( int i=0; i< getNumSubPics(); i++ )
   {
     m_subPics[i].setSubPicIdx(i);
-#if JVET_Q0044_SLICE_IDX_WITH_SUBPICS
     if( sps.getSubPicIdMappingExplicitlySignalledFlag() )
     {
       if( m_subPicIdMappingInPpsFlag )
@@ -1596,52 +1595,47 @@ void PPS::initSubPic( const SPS &sps )
     {
       m_subPics[i].setSubPicID(i);
     }
-#endif
     m_subPics[i].setSubPicCtuTopLeftX(sps.getSubPicCtuTopLeftX(i));
     m_subPics[i].setSubPicCtuTopLeftY(sps.getSubPicCtuTopLeftY(i));
     m_subPics[i].setSubPicWidthInCTUs(sps.getSubPicWidth(i));
     m_subPics[i].setSubPicHeightInCTUs(sps.getSubPicHeight(i));
-    
-    uint32_t firstCTU = sps.getSubPicCtuTopLeftY(i) * m_picWidthInCtu + sps.getSubPicCtuTopLeftX(i); 	
-    m_subPics[i].setFirstCTUInSubPic(firstCTU);  
+
+    uint32_t firstCTU = sps.getSubPicCtuTopLeftY(i) * m_picWidthInCtu + sps.getSubPicCtuTopLeftX(i);
+    m_subPics[i].setFirstCTUInSubPic(firstCTU);
     uint32_t lastCTU = (sps.getSubPicCtuTopLeftY(i) + sps.getSubPicHeight(i) - 1) * m_picWidthInCtu + sps.getSubPicCtuTopLeftX(i) + sps.getSubPicWidth(i) - 1;
     m_subPics[i].setLastCTUInSubPic(lastCTU);
-    
+
     uint32_t left = sps.getSubPicCtuTopLeftX(i) * m_ctuSize;
     m_subPics[i].setSubPicLeft(left);
-    
+
     uint32_t right = std::min(m_picWidthInLumaSamples - 1, (sps.getSubPicCtuTopLeftX(i) + sps.getSubPicWidth(i)) * m_ctuSize - 1);
     m_subPics[i].setSubPicRight(right);
-    
+
     m_subPics[i].setSubPicWidthInLumaSample(right - left + 1);
 
     uint32_t top = sps.getSubPicCtuTopLeftY(i) * m_ctuSize;
     m_subPics[i].setSubPicTop(top);
-    
+
     uint32_t bottom = std::min(m_picHeightInLumaSamples - 1, (sps.getSubPicCtuTopLeftY(i) + sps.getSubPicHeight(i)) * m_ctuSize - 1);
 
     m_subPics[i].setSubPicHeightInLumaSample(bottom - top + 1);
 
     m_subPics[i].setSubPicBottom(bottom);
-    
+
     m_subPics[i].clearCTUAddrList();
-    
+
     if( m_numSlicesInPic == 1 )
     {
       CHECK( getNumSubPics() != 1, "only one slice in picture, but number of subpic is not one" );
       m_subPics[i].addAllCtusInPicToSubPic(0, getPicWidthInCtu(), 0, getPicHeightInCtu(), getPicWidthInCtu());
-#if JVET_Q0044_SLICE_IDX_WITH_SUBPICS
       m_subPics[i].setNumSlicesInSubPic(1);
-#endif
     }
     else
     {
-#if JVET_Q0044_SLICE_IDX_WITH_SUBPICS
       int numSlicesInSubPic = 0;
 #if R0091_CONSTRAINT_SLICE_ORDER
       int idxLastSliceInSubpic = -1;
       int idxFirstSliceAfterSubpic = m_numSlicesInPic;
-#endif
 #endif
       for( int j = 0; j < m_numSlicesInPic; j++ )
       {
@@ -1655,11 +1649,9 @@ void PPS::initSubPic( const SPS &sps )
         {
           // add ctus in a slice to the subpicture it belongs to
           m_subPics[i].addCTUsToSubPic(m_sliceMap[j].getCtuAddrList());
-#if JVET_Q0044_SLICE_IDX_WITH_SUBPICS
           numSlicesInSubPic++;
 #if R0091_CONSTRAINT_SLICE_ORDER
           idxLastSliceInSubpic = j;
-#endif
 #endif
         }
 #if R0091_CONSTRAINT_SLICE_ORDER
@@ -1669,12 +1661,10 @@ void PPS::initSubPic( const SPS &sps )
         }
 #endif
       }
-#if JVET_Q0044_SLICE_IDX_WITH_SUBPICS
 #if R0091_CONSTRAINT_SLICE_ORDER
       CHECK( idxFirstSliceAfterSubpic < idxLastSliceInSubpic, "The signalling order of slices shall follow the coding order" );
 #endif
       m_subPics[i].setNumSlicesInSubPic(numSlicesInSubPic);
-#endif
     }
     m_subPics[i].setTreatedAsPicFlag(sps.getSubPicTreatedAsPicFlag(i));
     m_subPics[i].setloopFilterAcrossSubPicEnabledFlag(sps.getLoopFilterAcrossSubpicEnabledFlag(i));
@@ -1699,7 +1689,6 @@ const SubPic& PPS::getSubPicFromCU(const CodingUnit& cu) const
   return getSubPicFromPos(lumaPos);
 }
 
-#if JVET_Q0044_SLICE_IDX_WITH_SUBPICS
 uint32_t PPS::getSubPicIdxFromSubPicId( uint32_t subPicId ) const
 {
   for (int i = 0; i < m_numSubPics; i++)
@@ -1711,7 +1700,6 @@ uint32_t PPS::getSubPicIdxFromSubPicId( uint32_t subPicId ) const
   }
   return 0;
 }
-#endif
 
 void PPS::checkSliceMap()
 {
@@ -1765,14 +1753,12 @@ void PPS::finalizePPSPartitioning( const SPS* pcSPS )
     }
   }
 
-#if JVET_Q0044_SLICE_IDX_WITH_SUBPICS
   initSubPic( *pcSPS );
-#endif
 
   m_partitioningInitialized = true;
 }
 
-  
+
 SliceMap::SliceMap()
 //: m_sliceID              (0)
 //, m_numTilesInSlice      (0)

@@ -100,11 +100,6 @@ ParameterSetManager::ActivePSs ParameterSetManager::xActivateParameterSets( cons
     THROW( "Parameter set activation failed!" );
   }
 
-#if !JVET_Q0044_SLICE_IDX_WITH_SUBPICS
-    PPS* nonconstPPS = getPPS( picHeader->getPPSId() );
-    nonconstPPS->initSubPic( *sps );
-#endif
-
   m_alfAPSs.fill( nullptr );
   m_apsMap.clearActive();
   // luma APSs

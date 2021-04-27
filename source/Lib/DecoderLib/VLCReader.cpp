@@ -3317,23 +3317,14 @@ void HLSyntaxReader::parseSliceHeader( Slice*               pcSlice,
   else
   {
     // slice address is the index of the slice within the current sub-picture
-#if JVET_Q0044_SLICE_IDX_WITH_SUBPICS
     uint32_t      currSubPicIdx = pps->getSubPicIdxFromSubPicId( pcSlice->getSliceSubPicId() );
     const SubPic& currSubPic    = pps->getSubPic( currSubPicIdx );
     if( currSubPic.getNumSlicesInSubPic() > 1 )
-#else
-    if( pps->getNumSlicesInPic() > 1 )
-#endif
     {
-#if JVET_Q0044_SLICE_IDX_WITH_SUBPICS
       int bitsSliceAddress = (int)ceil( log2( currSubPic.getNumSlicesInSubPic() ) );
-#else
-      int bitsSliceAddress = (int)ceil( log2( pps->getNumSlicesInPic() ) );  // change to NumSlicesInSubPic when available
-#endif
       READ_CODE( bitsSliceAddress, uiCode, "slice_address" );
       sliceAddr = uiCode;
     }
-#if JVET_Q0044_SLICE_IDX_WITH_SUBPICS
     uint32_t picLevelSliceIdx = sliceAddr;
     for( int subpic = 0; subpic < currSubPicIdx; subpic++ )
     {
@@ -3341,10 +3332,6 @@ void HLSyntaxReader::parseSliceHeader( Slice*               pcSlice,
     }
     pcSlice->setSliceMap( pps->getSliceMap( picLevelSliceIdx ) );
     pcSlice->setSliceID( picLevelSliceIdx );
-#else
-    pcSlice->setSliceMap( pps->getSliceMap( sliceAddr ) );
-    pcSlice->setSliceID( sliceAddr );
-#endif
   }
 
   std::vector<bool> shExtraBitsPresent = sps->getExtraSHBitPresentFlags();
