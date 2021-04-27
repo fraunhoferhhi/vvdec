@@ -1542,9 +1542,6 @@ private:
   bool              m_useCCALF                           = false;
 
   bool              m_useWrapAround                      = false;
-#if !JVET_Q0764_WRAP_AROUND_WITH_RPR
-  unsigned          m_wrapAroundOffset                   = 0;
-#endif
   unsigned          m_IBCFlag                            = 0;
   bool              m_useColorTrans                      = false;
   bool              m_lumaReshapeEnable                  = false;
@@ -1897,10 +1894,6 @@ public:
 
   void                    setUseWrapAround(bool b)                                                        { m_useWrapAround = b;                                                 }
   bool                    getUseWrapAround() const                                                        { return m_useWrapAround;                                              }
-#if !JVET_Q0764_WRAP_AROUND_WITH_RPR
-  void                    setWrapAroundOffset(unsigned offset)                                            { m_wrapAroundOffset = offset;                                         }
-  unsigned                getWrapAroundOffset() const                                                     { return m_wrapAroundOffset;                                           }
-#endif
   void                    setUseReshaper(bool b)                                                          { m_lumaReshapeEnable = b;                                                   }
   bool                    getUseReshaper() const                                                          { return m_lumaReshapeEnable;                                                }
   void                    setIBCFlag(unsigned IBCFlag)                                                    { m_IBCFlag = IBCFlag; }
@@ -2110,11 +2103,9 @@ private:
   Window           m_conformanceWindow;
   Window           m_scalingWindow;
 
-#if JVET_Q0764_WRAP_AROUND_WITH_RPR
   bool             m_useWrapAround                       = false;               //< reference wrap around enabled or not
   unsigned         m_picWidthMinusWrapAroundOffset       = 0;          // <pic_width_in_minCbSizeY - wraparound_offset_in_minCbSizeY
   unsigned         m_wrapAroundOffset                    = 0;                    //< reference wrap around offset in luma samples
-#endif
 
 public:
   std::unique_ptr<PreCalcValues> pcv;
@@ -2199,14 +2190,12 @@ public:
   void                   setUseWP( bool b )                                               { m_bUseWeightPred = b;                         }
   void                   setWPBiPred( bool b )                                            { m_useWeightedBiPred = b;                      }
 
-#if JVET_Q0764_WRAP_AROUND_WITH_RPR
   void                   setUseWrapAround(bool b)                                         { m_useWrapAround = b;                          }
   bool                   getUseWrapAround() const                                         { return m_useWrapAround;                       }
   void                   setPicWidthMinusWrapAroundOffset(unsigned offset)                { m_picWidthMinusWrapAroundOffset = offset;     }
   unsigned               getPicWidthMinusWrapAroundOffset() const                         { return m_picWidthMinusWrapAroundOffset;       }
   void                   setWrapAroundOffset(unsigned offset)                             { m_wrapAroundOffset = offset;                  }
   unsigned               getWrapAroundOffset() const                                      { return m_wrapAroundOffset;                    }
-#endif
   void                   setOutputFlagPresentFlag( bool b )                               { m_OutputFlagPresentFlag = b;                  }
   bool                   getOutputFlagPresentFlag() const                                 { return m_OutputFlagPresentFlag;               }
   void                   setNumSubPics( uint8_t u )                                       { m_numSubPics = u;                             }

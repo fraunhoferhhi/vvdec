@@ -1347,16 +1347,11 @@ Picture * DecLibParser::xActivateParameterSets( const int layerId )
          "Coded frame width must be a multiple of Max(8, the minimum unit size)" );
   CHECK( ( pps->getPicHeightInLumaSamples() % ( std::max( 8, minCuSize) ) ) != 0,
          "Coded frame height must be a multiple of Max(8, the minimum unit size)" );
-  
+
   if( sps->getCTUSize() + 2 * ( 1 << sps->getLog2MinCodingBlockSize() ) > pps->getPicWidthInLumaSamples() )
   {
-#if JVET_Q0764_WRAP_AROUND_WITH_RPR
     CHECK( pps->getUseWrapAround(),
            "Wraparound shall be disabled when the value of ( CtbSizeY / MinCbSizeY + 1) is greater than or equal to ( pic_width_in_luma_samples / MinCbSizeY - 1 )" );
-#else
-    CHECK( sps->getUseWrapAround(),
-           "Wraparound shall be disabled when the value of ( CtbSizeY / MinCbSizeY + 1) is less than or equal to ( pic_width_in_luma_samples / MinCbSizeY - 1 )" );
-#endif
   }
 
   if( pSlice->getPicHeader()->getGdrOrIrapPicFlag() && !pSlice->getPicHeader()->getGdrPicFlag() && ( !vps || vps->getIndependentLayerFlag( vps->getGeneralLayerIdx( layerId ) ) ) )

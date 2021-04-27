@@ -120,10 +120,8 @@ void Picture::resetForUse()
 
   subPicExtStarted = false;
   borderExtStarted = false;
-#if JVET_Q0764_WRAP_AROUND_WITH_RPR
   wrapAroundValid  = false;
   wrapAroundOffset = 0;
-#endif
   neededForOutput  = false;
   reconstructed    = false;
   inProgress       = false;
@@ -322,11 +320,7 @@ void Picture::clearSliceBuffer()
 
 void Picture::extendPicBorder( bool top, bool bottom, bool leftrightT, bool leftrightB, ChannelType chType )
 {
-#if JVET_Q0764_WRAP_AROUND_WITH_RPR
   if( cs->pps->getUseWrapAround() )
-#else
-  if( cs->sps->getUseWrapAround() )
-#endif
   {
     extendPicBorderWrap( top, bottom, leftrightT, leftrightB, chType );
   }
@@ -348,11 +342,7 @@ void Picture::extendPicBorderWrap( bool top, bool bottom, bool leftrightT, bool 
     const int xmargin = margin >> getComponentScaleX( compID, cs->area.chromaFormat );
     const int ymargin = margin >> getComponentScaleY( compID, cs->area.chromaFormat );
 
-#if JVET_Q0764_WRAP_AROUND_WITH_RPR
     int xoffset = cs->pps->getWrapAroundOffset() >> getComponentScaleX( compID, cs->area.chromaFormat );
-#else
-    int xoffset = cs->sps->getWrapAroundOffset() >> getComponentScaleX( compID, cs->area.chromaFormat );
-#endif
     if( leftrightT )
     {
       Pel* piprw = prw.bufAt( 0, 1 );

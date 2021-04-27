@@ -151,10 +151,8 @@ public:
 
   bool subPicExtStarted               = false;
   bool borderExtStarted               = false;
-#if JVET_Q0764_WRAP_AROUND_WITH_RPR
   bool wrapAroundValid                = false;
   unsigned wrapAroundOffset           = 0;
-#endif
   bool referenced                     = false;
   bool reconstructed                  = false;
   bool inProgress                     = false;
@@ -245,9 +243,7 @@ public:
   std::shared_ptr<PicHeader> picHeader;
   void                       setPicHead( const std::shared_ptr<PicHeader>& ph );
 
-#if JVET_Q0764_WRAP_AROUND_WITH_RPR
   bool         isWrapAroundEnabled( const PPS* pps ) const  { return  pps->getUseWrapAround() && !isRefScaled( pps ); }
-#endif
 
   void         allocateNewSlice();
   Slice        *swapSliceObject(Slice * p, uint32_t i);

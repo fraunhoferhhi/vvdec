@@ -1737,12 +1737,6 @@ void HLSyntaxReader::parseSPS( SPS* pcSPS, ParameterSetManager *parameterSetMana
 
   {
     READ_FLAG( uiCode, "sps_ref_wraparound_enabled_flag" );                  pcSPS->setUseWrapAround( uiCode ? true : false );
-#if !JVET_Q0764_WRAP_AROUND_WITH_RPR
-    if( pcSPS->getUseWrapAround() )
-    {
-      READ_UVLC( uiCode, "sps_ref_wraparound_offset");                       pcSPS->setWrapAroundOffset( ( uiCode + 2 + pcSPS->getCTUSize() / ( 1 << pcSPS->getLog2MinCodingBlockSize() ) ) * ( 1 << pcSPS->getLog2MinCodingBlockSize() ) );
-    }
-#endif
   }
 
   READ_FLAG( uiCode, "sps_temporal_mvp_enabled_flag" );                      pcSPS->setSPSTemporalMVPEnabledFlag( uiCode );
@@ -2631,7 +2625,6 @@ void HLSyntaxReader::parsePictureHeader( PicHeader* picHeader, ParameterSetManag
 
   pps->checkPPSPartitioningFinalized();
 
-#if JVET_Q0764_WRAP_AROUND_WITH_RPR
   // set wraparound offset from PPS and SPS info
   int minCbSizeY = ( 1 << sps->getLog2MinCodingBlockSize() );
   CHECK( !sps->getUseWrapAround() && pps->getUseWrapAround(), "When sps_ref_wraparound_enabled_flag is equal to 0, the value of pps_ref_wraparound_enabled_flag shall be equal to 0." );
@@ -2645,7 +2638,6 @@ void HLSyntaxReader::parsePictureHeader( PicHeader* picHeader, ParameterSetManag
   {
     pps->setWrapAroundOffset( 0 );
   }
-#endif
 
 
   // virtual boundaries

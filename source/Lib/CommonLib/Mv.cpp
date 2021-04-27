@@ -126,21 +126,13 @@ bool wrapClipMv( Mv& rcMv, const Position& pos, const struct Size& size, const S
 
   if(mvX > iHorMax)
   {
-#if JVET_Q0764_WRAP_AROUND_WITH_RPR
     mvX -= ( pps.getWrapAroundOffset() << iMvShift );
-#else
-    mvX -= ( sps.getWrapAroundOffset() << iMvShift );
-#endif
     mvX = std::min( iHorMax, std::max( iHorMin, mvX ) );
     wrapRef = false;
   }
   if(mvX < iHorMin)
   {
-#if JVET_Q0764_WRAP_AROUND_WITH_RPR
     mvX += ( pps.getWrapAroundOffset() << iMvShift );
-#else
-    mvX += ( sps.getWrapAroundOffset() << iMvShift );
-#endif
     mvX = std::min( iHorMax, std::max( iHorMin, mvX ) );
     wrapRef = false;
   }
