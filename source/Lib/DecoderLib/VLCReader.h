@@ -144,46 +144,40 @@ public:
   HLSyntaxReader()          = default;
   virtual ~HLSyntaxReader() = default;
 
-protected:
-  void  copyRefPicList      ( SPS* pcSPS, ReferencePictureList* source_rpl, ReferencePictureList* dest_rpl );
-  void  parseRefPicList     (const SPS* pcSPS, ReferencePictureList* rpl, int rplIdx );
+  void  parseVPS                 ( VPS* pcVPS );
+  void  parseDCI                 ( DCI* dci );
+  void  parseSPS                 ( SPS* pcSPS, ParameterSetManager* parameterSetManager );
+  void  parsePPS                 ( PPS* pcPPS, ParameterSetManager* parameterSetManager );
+  void  parseAPS                 ( APS* pcAPS);
+  void  parsePictureHeader       ( PicHeader* picHeader, ParameterSetManager* parameterSetManager, bool readRbspTrailingBits );
+  void  parseSliceHeader         ( Slice* pcSlice, PicHeader* parsedPicHeader, ParameterSetManager* parameterSetManager, const int prevTid0POC, Picture* parsePic , bool& firstSliceInPic );
 
-public:
-  void  parseVPS            ( VPS* pcVPS );
-  void  parseDCI            ( DCI* dci );
-  void  parseSPS            ( SPS* pcSPS, ParameterSetManager *parameterSetManager );
-  void  parsePPS            ( PPS* pcPPS, ParameterSetManager *parameterSetManager );
-  void  parseAPS            ( APS* pcAPS);
-  void  parseAlfAps         ( APS* pcAPS );
-  void  parseLmcsAps        ( APS* pcAPS );
-  void  parseScalingListAps ( APS* pcAPS );
-  void  parseVUI            ( VUI* pcVUI, SPS* pcSPS );
-  void  parseConstraintInfo ( ConstraintInfo *cinfo );
-  void  parseProfileTierLevel( ProfileTierLevel *ptl, bool profileTierPresentFlag, int maxNumSubLayersMinus1 );
+private:
+  void  parseAlfAps              ( APS* pcAPS );
+  void  parseLmcsAps             ( APS* pcAPS );
+  void  parseScalingListAps      ( APS* pcAPS );
+  void  parseVUI                 ( VUI* pcVUI, SPS* pcSPS );
+  void  parseConstraintInfo      ( ConstraintInfo *cinfo );
+  void  parseProfileTierLevel    ( ProfileTierLevel *ptl, bool profileTierPresentFlag, int maxNumSubLayersMinus1 );
   void  parseOlsHrdParameters    ( GeneralHrdParams* generalHrd, OlsHrdParams *olsHrd, uint32_t firstSubLayer, uint32_t tempLevelHigh );
   void  parseGeneralHrdParameters( GeneralHrdParams *generalHrd );
-  void  parsePictureHeader  ( PicHeader* picHeader, ParameterSetManager *parameterSetManager, bool readRbspTrailingBits );
-  void  parseSliceHeader    ( Slice* pcSlice, PicHeader* parsedPicHeader, ParameterSetManager *parameterSetManager, const int prevTid0POC, Picture* parsePic , bool& firstSliceInPic );
   template<typename HeaderT>
-  void  parsePicOrSliceHeaderRPL( HeaderT* header, const SPS* sps, const PPS* pps );
-  void  checkAlfNaluTidAndPicTid( Slice* pcSlice, PicHeader* picHeader, ParameterSetManager *parameterSetManager);
-  void  getSlicePoc         ( Slice* pcSlice, PicHeader* picHeader, ParameterSetManager *parameterSetManager, const int prevTid0POC );
-  void  parseTerminatingBit ( uint32_t& ruiBit );
-  void  parseRemainingBytes ( bool noTrailingBytesExpected );
+  void  parsePicOrSliceHeaderRPL ( HeaderT* header, const SPS* sps, const PPS* pps );
+  void  parseRefPicList          ( ReferencePictureList* rpl, int rplIdx, const SPS* pcSPS );
+  void  copyRefPicList           ( const SPS* pcSPS, ReferencePictureList* source_rpl, ReferencePictureList* dest_rpl );
 
-  void  parsePredWeightTable( Slice* pcSlice, const SPS *sps );
-  void  parsePredWeightTable( PicHeader *picHeader, const SPS *sps );
-  void  parseScalingList    ( ScalingList *scalingList, bool aps_chromaPresentFlag );
-  void  decodeScalingList   ( ScalingList *scalingList, uint32_t scalingListId, bool isPredictor );
-  void  parseReshaper       ( SliceReshapeInfo& sliceReshaperInfo, const SPS* pcSPS, const bool isIntra );
-  void  alfFilter           ( AlfSliceParam& alfSliceParam, const bool isChroma, const int altIdx );
-  void  ccAlfFilter         ( Slice *pcSlice );
-  void  dpb_parameters      ( int maxSubLayersMinus1, bool subLayerInfoFlag, SPS *pcSPS );
-  void  parseExtraPHBitsStruct( SPS *sps, int numBytes );
-  void  parseExtraSHBitsStruct( SPS *sps, int numBytes );
-private:
+  void  checkAlfNaluTidAndPicTid ( const Slice* pcSlice, const PicHeader* picHeader, ParameterSetManager* parameterSetManager);
+  void  getSlicePoc              (       Slice* pcSlice, const PicHeader* picHeader, ParameterSetManager* parameterSetManager, const int prevTid0POC );
 
-protected:
+  void  parsePredWeightTable     ( Slice* pcSlice, const SPS *sps );
+  void  parsePredWeightTable     ( PicHeader *picHeader, const SPS *sps );
+  void  parseScalingList         ( ScalingList *scalingList, bool aps_chromaPresentFlag );
+  void  decodeScalingList        ( ScalingList *scalingList, uint32_t scalingListId, bool isPredictor );
+  void  alfFilter                ( AlfSliceParam& alfSliceParam, const bool isChroma, const int altIdx );
+  void  dpb_parameters           ( int maxSubLayersMinus1, bool subLayerInfoFlag, SPS *pcSPS );
+  void  parseExtraPHBitsStruct   ( SPS *sps, int numBytes );
+  void  parseExtraSHBitsStruct   ( SPS *sps, int numBytes );
+
   bool  xMoreRbspData();
 };
 

@@ -239,7 +239,7 @@ void FDReader::parseFillerData( InputBitstream* bs, uint32_t &fdSize )
 // Public member functions
 // ====================================================================================================================
 
-void HLSyntaxReader::copyRefPicList( SPS* sps, ReferencePictureList* source_rpl, ReferencePictureList* dest_rp )
+void HLSyntaxReader::copyRefPicList( const SPS* sps, ReferencePictureList* source_rpl, ReferencePictureList* dest_rp )
 {
   memcpy( dest_rp, source_rpl, sizeof( ReferencePictureList ) );
 
@@ -249,7 +249,7 @@ void HLSyntaxReader::copyRefPicList( SPS* sps, ReferencePictureList* source_rpl,
   }
 }
 
-void HLSyntaxReader::parseRefPicList( const SPS* sps, ReferencePictureList* rpl, int rplIdx )
+void HLSyntaxReader::parseRefPicList( ReferencePictureList* rpl, int rplIdx, const SPS* sps )
 {
   uint32_t code;
   READ_UVLC( code, "num_ref_entries[ listIdx ][ rplsIdx ]" );
@@ -1712,7 +1712,7 @@ void HLSyntaxReader::parseSPS( SPS* pcSPS, ParameterSetManager *parameterSetMana
   RPLList& rplList = pcSPS->getRPLList0();
   for( uint32_t ii = 0; ii < numberOfRPL; ii++ )
   {
-    parseRefPicList( pcSPS, &rplList[ii], ii );
+    parseRefPicList( &rplList[ii], ii, pcSPS );
   }
 
   //Read candidate for List1
@@ -1724,7 +1724,7 @@ void HLSyntaxReader::parseSPS( SPS* pcSPS, ParameterSetManager *parameterSetMana
     RPLList& rplList = pcSPS->getRPLList1();
     for( uint32_t ii = 0; ii < numberOfRPL; ii++ )
     {
-      parseRefPicList( pcSPS, &rplList[ii], ii );
+      parseRefPicList( &rplList[ii], ii, pcSPS );
     }
   }
   else
@@ -2315,7 +2315,6 @@ void HLSyntaxReader::parseVPS( VPS* pcVPS )
         pcVPS->m_dpbParameters[i].m_maxLatencyIncreasePlus1[j] = pcVPS->m_dpbParameters[i].m_maxLatencyIncreasePlus1[pcVPS->m_dpbMaxTemporalId[i]];
       }
     }
-
 
     for( int i = 0, j=0; i < pcVPS->getTotalNumOLSs(); i++ )
     {
@@ -3113,7 +3112,7 @@ void HLSyntaxReader::parsePictureHeader( PicHeader* picHeader, ParameterSetManag
   }
 }
 
-void HLSyntaxReader::checkAlfNaluTidAndPicTid( Slice* pcSlice, PicHeader* picHeader, ParameterSetManager *parameterSetManager )
+void HLSyntaxReader::checkAlfNaluTidAndPicTid( const Slice* pcSlice, const PicHeader* picHeader, ParameterSetManager *parameterSetManager )
 {
   SPS* sps = parameterSetManager->getSPS(picHeader->getSPSId());
   PPS* pps = parameterSetManager->getPPS(picHeader->getPPSId());
@@ -3966,7 +3965,7 @@ void HLSyntaxReader::parsePicOrSliceHeaderRPL( HeaderT* header, const SPS* sps, 
     if( readExplicitRPL )
     {
       header->clearRPL( listIdx );
-      parseRefPicList( sps, header->getRPL( listIdx ), -1 );
+      parseRefPicList( header->getRPL( listIdx ), -1, sps );
       header->setRPLIdx( listIdx, -1 );
     }
     // use list from SPS
@@ -4022,7 +4021,7 @@ void HLSyntaxReader::parsePicOrSliceHeaderRPL( HeaderT* header, const SPS* sps, 
   }
 }
 
-void HLSyntaxReader::getSlicePoc( Slice* pcSlice, PicHeader* picHeader, ParameterSetManager *parameterSetManager, const int prevTid0POC )
+void HLSyntaxReader::getSlicePoc( Slice* pcSlice, const PicHeader* picHeader, ParameterSetManager *parameterSetManager, const int prevTid0POC )
 {
   //TODO: check this, function gets never called
   uint32_t  uiCode;
@@ -4068,7 +4067,7 @@ void HLSyntaxReader::getSlicePoc( Slice* pcSlice, PicHeader* picHeader, Paramete
   {
     if (picHeader->getPocMsbPresentFlag())
     {
-      iPOCmsb = picHeader->getPocMsbVal()*iMaxPOClsb;
+      iPOCmsb = picHeader->getPocMsbVal() * iMaxPOClsb;
     }
     else
     {
@@ -4083,7 +4082,7 @@ void HLSyntaxReader::getSlicePoc( Slice* pcSlice, PicHeader* picHeader, Paramete
     int iPrevPOCmsb = iPrevPOC - iPrevPOClsb;
     if( picHeader->getPocMsbPresentFlag() )
     {
-      iPOCmsb = picHeader->getPocMsbVal()*iMaxPOClsb;
+      iPOCmsb = picHeader->getPocMsbVal() * iMaxPOClsb;
     }
     else
     {
@@ -4287,40 +4286,6 @@ void HLSyntaxReader::parseProfileTierLevel( ProfileTierLevel *ptl, bool profileT
     {
       READ_CODE( 32, symbol, "general_sub_profile_idc[i]" );
       ptl->setSubProfileIdc( i, symbol );
-    }
-  }
-}
-
-void HLSyntaxReader::parseTerminatingBit( uint32_t& ruiBit )
-{
-  ruiBit = false;
-  int iBitsLeft = m_pcBitstream->getNumBitsLeft();
-  if(iBitsLeft <= 8)
-  {
-    uint32_t uiPeekValue = m_pcBitstream->peekBits( iBitsLeft );
-    if( uiPeekValue == ( 1<<( iBitsLeft-1 ) ) )
-    {
-      ruiBit = true;
-    }
-  }
-}
-
-void HLSyntaxReader::parseRemainingBytes( bool noTrailingBytesExpected )
-{
-  if( noTrailingBytesExpected )
-  {
-    CHECK( 0 != m_pcBitstream->getNumBitsLeft(), "Bits left although no bits expected" );
-  }
-  else
-  {
-    while( m_pcBitstream->getNumBitsLeft() )
-    {
-      uint32_t trailingNullByte = m_pcBitstream->readByte();
-      if( trailingNullByte!=0 )
-      {
-        msg( ERROR, "Trailing byte should be 0, but has value %02x\n", trailingNullByte );
-        THROW( "Invalid trailing '0' byte" );
-      }
     }
   }
 }

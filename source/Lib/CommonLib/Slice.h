@@ -2546,13 +2546,13 @@ public:
                               PicHeader() = default;
                               ~PicHeader() { m_alfApsId.resize(0); }
 //  void                        initPicHeader();
-  bool                        isValid()                                                 { return m_valid;                                                                              }
+  bool                        isValid() const                                           { return m_valid;                                                                              }
   void                        setValid()                                                { m_valid = true;                                                                              }
   void                        setPic( Picture* p )                                      { m_pcPic = p;                                                                                 }
   Picture*                    getPic()                                                  { return m_pcPic;                                                                              }
   const Picture*              getPic() const                                            { return m_pcPic;                                                                              }
   void                        setPocLsb(int i)                                          { m_pocLsb = i;                                                                                }
-  int                         getPocLsb()                                               { return m_pocLsb;                                                                             }
+  int                         getPocLsb() const                                         { return m_pocLsb;                                                                             }
   void                        setNonReferencePictureFlag( bool b )                      { m_nonReferencePictureFlag = b;                                                               }
   bool                        getNonReferencePictureFlag() const                        { return m_nonReferencePictureFlag;                                                            }
   void                        setGdrOrIrapPicFlag( bool b )                             { m_gdrOrIrapPicFlag = b;                                                                      }
@@ -2568,7 +2568,7 @@ public:
   void                        setPocMsbPresentFlag(bool b)                              { m_pocMsbPresentFlag = b;                                                                     }
   bool                        getPocMsbPresentFlag() const                              { return m_pocMsbPresentFlag;                                                                  }
   void                        setPocMsbVal(int i)                                       { m_pocMsbVal = i;                                                                             }
-  int                         getPocMsbVal()                                            { return m_pocMsbVal;                                                                          }
+  int                         getPocMsbVal() const                                      { return m_pocMsbVal;                                                                          }
   void                        setVirtualBoundariesPresentFlag( bool b )                 { m_virtualBoundariesPresentFlag = b;                                                          }
   bool                        getVirtualBoundariesPresentFlag() const                   { return m_virtualBoundariesPresentFlag;                                                       }
   void                        setNumVerVirtualBoundaries(unsigned u)                    { m_numVerVirtualBoundaries = u;                                                               }
