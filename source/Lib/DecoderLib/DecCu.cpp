@@ -411,11 +411,7 @@ void DecCu::predAndReco( CodingUnit& cu, bool doCiipIntra )
       else if( CU::isIBC( cu ) )
       {
         const bool luma   = cu.Y ().valid();
-#if JVET_Q0438_MONOCHROME_BUGFIXES
         const bool chroma = isChromaEnabled(cu.chromaFormat) && cu.Cb().valid();
-#else
-        const bool chroma = cu.Cb().valid();
-#endif
         m_pcInterPred->motionCompensation( cu, predBuf, luma, chroma );
       }
     }
@@ -424,11 +420,7 @@ void DecCu::predAndReco( CodingUnit& cu, bool doCiipIntra )
     {
       m_pcIntraPred->geneWeightedPred( COMPONENT_Y, predBuf.Y(), cu, m_pcIntraPred->getPredictorPtr2( COMPONENT_Y ) );
 
-#if JVET_Q0438_MONOCHROME_BUGFIXES                                                                                     
       if( isChromaEnabled( cu.chromaFormat ) && cu.chromaSize().width > 2 )
-#else                                                                                                                  
-      if( cu.chromaSize().width > 2 )
-#endif                                                                                                                 
       {
         m_pcIntraPred->geneWeightedPred( COMPONENT_Cb, predBuf.Cb(), cu, m_pcIntraPred->getPredictorPtr2( COMPONENT_Cb ) );
         m_pcIntraPred->geneWeightedPred( COMPONENT_Cr, predBuf.Cr(), cu, m_pcIntraPred->getPredictorPtr2( COMPONENT_Cr ) );

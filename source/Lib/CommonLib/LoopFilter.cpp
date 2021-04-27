@@ -533,11 +533,7 @@ void LoopFilter::xDeblockCtuArea( CodingStructure& cs, const UnitArea& area, con
   const PreCalcValues& pcv = *cs.pcv;
   
   bool doLuma   =   chType == MAX_NUM_CHANNEL_TYPE || isLuma  ( chType );
-#if JVET_Q0438_MONOCHROME_BUGFIXES
   bool doChroma = ( chType == MAX_NUM_CHANNEL_TYPE || isChroma( chType ) ) && pcv.chrFormat != CHROMA_400 && area.blocks[COMPONENT_Cb].valid();
-#else
-  bool doChroma = ( chType == MAX_NUM_CHANNEL_TYPE || isChroma( chType ) ) && pcv.chrFormat != CHROMA_400;
-#endif
   static constexpr int incx = 4;
   static constexpr int incy = 4;
 

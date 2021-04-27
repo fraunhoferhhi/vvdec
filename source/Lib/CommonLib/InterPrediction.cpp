@@ -1490,9 +1490,7 @@ void InterPrediction::weightedGeoBlk( PredictionUnit &pu, const uint8_t splitDir
   else
   {
     m_if.weightedGeoBlk( pu, pu.lumaSize().width,   pu.lumaSize().height,   COMPONENT_Y,  splitDir, predDst, predSrc0, predSrc1, pu.slice->clpRngs() );
-#if JVET_Q0438_MONOCHROME_BUGFIXES
     if( isChromaEnabled( pu.chromaFormat ) )
-#endif
     {
       m_if.weightedGeoBlk( pu, pu.chromaSize().width, pu.chromaSize().height, COMPONENT_Cb, splitDir, predDst, predSrc0, predSrc1, pu.slice->clpRngs() );
       m_if.weightedGeoBlk( pu, pu.chromaSize().width, pu.chromaSize().height, COMPONENT_Cr, splitDir, predDst, predSrc0, predSrc1, pu.slice->clpRngs() );
@@ -1765,11 +1763,7 @@ void InterPrediction::xFinalPaddedMCForDMVR(PredictionUnit& pu, PelUnitBuf &pcYu
 
     Mv startMv = mergeMV[refId];
 
-#if JVET_Q0438_MONOCHROME_BUGFIXES
     for( int compID = 0; compID < numValidComp; compID++ )
-#else
-    for (int compID = 0; compID < MAX_NUM_COMPONENT; compID++)
-#endif
     {
       const int mvshiftTempHor = mvShift + getComponentScaleX( (ComponentID)compID, pu.chromaFormat );
       const int mvshiftTempVer = mvShift + getComponentScaleY( (ComponentID)compID, pu.chromaFormat );
@@ -1916,13 +1910,9 @@ void InterPrediction::xProcessDMVR( PredictionUnit& pu, PelUnitBuf &pcYuvDst, co
     m_pcRdCost->setDistParam( cDistParam, nullptr, nullptr, m_biLinearBufStride, m_biLinearBufStride, clpRngs.bd, dx, dy, 1 );
     
     PelUnitBuf subPredBuf = pcYuvDst.subBuf( UnitAreaRelative( pu, subPu ) );
-#if JVET_Q0438_MONOCHROME_BUGFIXES
     const ptrdiff_t dstStride[MAX_NUM_COMPONENT] = { pcYuvDst.bufs[COMPONENT_Y].stride,
                                                      isChromaEnabled(pu.chromaFormat) ? pcYuvDst.bufs[COMPONENT_Cb].stride : 0,
                                                      isChromaEnabled(pu.chromaFormat) ? pcYuvDst.bufs[COMPONENT_Cr].stride : 0};
-#else
-    const ptrdiff_t dstStride[MAX_NUM_COMPONENT] = { pcYuvDst.bufs[COMPONENT_Y].stride, pcYuvDst.bufs[COMPONENT_Cb].stride, pcYuvDst.bufs[COMPONENT_Cr].stride };
-#endif
     for( int y = puPos.y, yStart = 0; y < ( puPos.y + pu.lumaSize().height ); y = y + dy, yStart = yStart + dy )
     {
       for( int x = puPos.x, xStart = 0; x < ( puPos.x + pu.lumaSize().width ); x = x + dx, xStart = xStart + dx )
@@ -1984,9 +1974,7 @@ void InterPrediction::xProcessDMVR( PredictionUnit& pu, PelUnitBuf &pcYuvDst, co
           xPad     ( subPu, cYuvRefBuffDMVRL0, REF_PIC_LIST_0, true );
         }
 
-#if JVET_Q0438_MONOCHROME_BUGFIXES
         if( isChromaEnabled( pu.chromaFormat ) && ( ( mv0.hor >> mvShiftX ) != ( mergeMv[0].hor >> mvShiftX ) || ( mv0.ver >> mvShiftY ) != ( mergeMv[0].ver >> mvShiftY ) ) )
-#endif
         {
           xPrefetch( subPu, cYuvRefBuffDMVRL0, REF_PIC_LIST_0, false );
           xPad     ( subPu, cYuvRefBuffDMVRL0, REF_PIC_LIST_0, false );
@@ -1997,9 +1985,7 @@ void InterPrediction::xProcessDMVR( PredictionUnit& pu, PelUnitBuf &pcYuvDst, co
           xPrefetch( subPu, cYuvRefBuffDMVRL1, REF_PIC_LIST_1, true );
           xPad     ( subPu, cYuvRefBuffDMVRL1, REF_PIC_LIST_1, true );
         }
-#if JVET_Q0438_MONOCHROME_BUGFIXES
         if( isChromaEnabled( pu.chromaFormat ) && ( ( mv1.hor >> mvShiftX ) != ( mergeMv[1].hor >> mvShiftX ) || ( mv1.ver >> mvShiftY ) != ( mergeMv[1].ver >> mvShiftY ) ) )
-#endif
         {
           xPrefetch( subPu, cYuvRefBuffDMVRL1, REF_PIC_LIST_1, false );
           xPad     ( subPu, cYuvRefBuffDMVRL1, REF_PIC_LIST_1, false );
@@ -2010,9 +1996,7 @@ void InterPrediction::xProcessDMVR( PredictionUnit& pu, PelUnitBuf &pcYuvDst, co
 
         subPredBuf.bufs[COMPONENT_Y].buf    = pcYuvDst.bufs[COMPONENT_Y].buf  +   xStart +                 yStart             * dstStride[COMPONENT_Y];
 
-#if JVET_Q0438_MONOCHROME_BUGFIXES
         if( isChromaEnabled( pu.chromaFormat ) )
-#endif
         {
           subPredBuf.bufs[COMPONENT_Cb].buf = pcYuvDst.bufs[COMPONENT_Cb].buf + ( xStart >> scaleX ) + ( ( yStart >> scaleY ) * dstStride[COMPONENT_Cb] );
           subPredBuf.bufs[COMPONENT_Cr].buf = pcYuvDst.bufs[COMPONENT_Cr].buf + ( xStart >> scaleX ) + ( ( yStart >> scaleY ) * dstStride[COMPONENT_Cr] );

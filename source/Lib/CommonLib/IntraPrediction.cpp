@@ -965,16 +965,12 @@ void IntraPrediction::geneIntrainterPred( const CodingUnit &cu )
   PelUnitBuf predBuf;
   predBuf.bufs.resize( 3 );
 
-#if JVET_Q0438_MONOCHROME_BUGFIXES
   int maxCompID = 1;
   if( isChromaEnabled( pu.chromaFormat ) )
   {
     maxCompID = MAX_NUM_COMPONENT;
   }
   for( int currCompID = 0; currCompID < maxCompID; currCompID++ )
-#else
-  for( int currCompID = 0; currCompID < 3; currCompID++ )
-#endif
   {
     if( currCompID > 0 && pu.chromaSize().width <= 2 ) continue;
 
@@ -987,11 +983,7 @@ void IntraPrediction::geneIntrainterPred( const CodingUnit &cu )
   initIntraPatternChType( cu.firstTU, pu.Y(), isUseFilter );
   predIntraAng( COMPONENT_Y, predBuf.Y(), pu, isUseFilter );
 
-#if JVET_Q0438_MONOCHROME_BUGFIXES
   if( isChromaEnabled( pu.chromaFormat ) && pu.chromaSize().width > 2 )
-#else
-  if( pu.chromaSize().width > 2 )
-#endif
   {
     initIntraPatternChType( cu.firstTU, pu.Cb(), false );
     predIntraAng( COMPONENT_Cb, predBuf.Cb(), pu, false );
