@@ -1023,9 +1023,9 @@ LFCUParam LoopFilter::xGetLoopfilterParam( const CodingUnit& cu ) const
 
   const Position pos = cu.blocks[cu.chType()].pos();
 
-  const PPS& pps = *cu.cs->pps;
+  const PPS& pps = *cu.pps;
 #if JVET_O1143_LPF_ACROSS_SUBPIC_BOUNDARY
-  const SPS& sps                         = *cu.cs->sps;
+  const SPS& sps = *cu.sps;
 
   const CodingUnit& cuLeft  = ( pos.x > 0 && cu.left  == nullptr ) ? *cu.cs->getCU( pos.offset( -1, 0 ), cu.chType() ) : *cu.left;
   const CodingUnit& cuAbove = ( pos.y > 0 && cu.above == nullptr ) ? *cu.cs->getCU( pos.offset( 0, -1 ), cu.chType() ) : *cu.above;
@@ -1073,7 +1073,7 @@ void LoopFilter::xGetBoundaryStrengthSingle( LoopFilterParam& lfp, const CodingU
 
   if( hasChroma )
   {
-    const int qpBdOffset2     = cuQ.cs->sps->getQpBDOffset( CH_C ) << 1;
+    const int qpBdOffset2     = cuQ.sps->getQpBDOffset( CH_C ) << 1;
     const bool isPQDiffCh     = !chType && cuP.treeType() != TREE_D;
     const TransformUnit &tuQc = cuQ.ispMode() ? *cuQ.lastTU : tuQ;
     const Position      posPc = isPQDiffCh ? recalcPosition( cuQ.chromaFormat, chType, CH_C, posP ) : Position();
@@ -1636,7 +1636,7 @@ void LoopFilter::xEdgeFilterChroma( CodingStructure &cs, const Position &pos, co
 
       if( largeBoundary )
       {
-        const int iBitdepthScale = 1 << ( sps.getBitDepth( CHANNEL_TYPE_CHROMA ) - 8 );
+        const int iBitdepthScale = 1 << ( bitDepthChroma - 8 );
 
         const int indexB = Clip3<int>( 0, MAX_QP, iQP + ( betaOffsetDiv2[chromaIdx] << 1 ) );
         const int beta   = sm_betaTable[indexB] * iBitdepthScale;

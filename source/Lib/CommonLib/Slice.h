@@ -2887,6 +2887,8 @@ public:
   ReferencePictureList*       getRPL( RefPicList l )                                 { return &m_RPL[l];                                             }
   ReferencePictureList*       getRPL0()                                              { return &m_RPL[0];                                             }
   ReferencePictureList*       getRPL1()                                              { return &m_RPL[1];                                             }
+  const ReferencePictureList* getRPL0()                                      const   { return &m_RPL[0];                                             }
+  const ReferencePictureList* getRPL1()                                      const   { return &m_RPL[1];                                             }
   void                        setRPLIdx( RefPicList l, int RPLIdx )                  { m_RPLIdx[l] = RPLIdx;                                         }
   int                         getRPLIdx( RefPicList l ) const                        { return m_RPLIdx[l];                                           }
   void                        setLastIDR(int iIDRPOC)                                { m_iLastIDR = iIDRPOC;                                         }

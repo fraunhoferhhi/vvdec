@@ -166,6 +166,11 @@ void DecSlice::parseSlice( Slice* slice, InputBitstream* bitstream, int threadId
     }
 
     //memset( cs.getCtuData( ctuRsAddr ).cuPtr, 0, sizeof( CtuData::cuPtr ) );
+    CtuData& ctuData = cs.getCtuData( ctuRsAddr );
+    ctuData.slice = slice;
+    ctuData.pps   = slice->getPPS();
+    ctuData.sps   = slice->getSPS();
+    ctuData.ph    = slice->getPicHeader();
 
     cabacReader.coding_tree_unit( cs, slice, ctuArea, pic->m_prevQP, ctuRsAddr );
 

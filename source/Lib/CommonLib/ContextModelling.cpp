@@ -70,7 +70,7 @@ CoeffCodingContext::CoeffCodingContext( const TransformUnit& tu, ComponentID com
   , m_log2BlockSize             ((m_log2BlockWidth + m_log2BlockHeight)>>1)
   , m_maxNumCoeff               (m_width * m_height)
   , m_signHiding                (signHide)
-  , m_maxLog2TrDynamicRange     (tu.cu->cs->sps->getMaxLog2TrDynamicRange(m_chType))
+  , m_maxLog2TrDynamicRange     (tu.cu->sps->getMaxLog2TrDynamicRange(m_chType))
   , m_scanType                  (SCAN_DIAG)
   , m_scan                      (g_scanOrder     [SCAN_GROUPED_4x4][m_scanType][g_sizeIdxInfo.idxFrom(m_width        )][g_sizeIdxInfo.idxFrom(m_height        )])
   , m_scanCG                    (g_scanOrder     [SCAN_UNGROUPED  ][m_scanType][g_sizeIdxInfo.idxFrom(m_widthInGroups)][g_sizeIdxInfo.idxFrom(m_heightInGroups)])
