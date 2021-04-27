@@ -89,7 +89,6 @@ namespace vvdec
 #define TBT                                               1
 #define TBC                                               0
 
-#define JVET_Q0818_PT_SEI                                 TBT //to be tested // JVET-Q0818: add display_elemental_periods_minus1 to picture timing SEI message
 #define JVET_Q0814_DPB                                    TBT //to be tested // JVET-Q0814: DPB capacity is based on picture units regardless of the resoltuion
 
 #define JVET_R0058                                        TBT //to be tested // JVET-R0058: the combination of RPR, subpictures, and scalability

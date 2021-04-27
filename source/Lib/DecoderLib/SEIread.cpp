@@ -254,13 +254,11 @@ void SEIReader::xReadSEImessage( seiMessages& seiList, const NalUnitType nalUnit
         {
           s = SEI_internal::allocSEI( type ) ;
           xParseSEIPictureTiming(s, payloadSize, temporalId, *bp, pDecodedMessageOutputStream);
-#if JVET_Q0818_PT_SEI
           if( s )
           {
             vvdecSEIPictureTiming* picTiming= reinterpret_cast<vvdecSEIPictureTiming *>(s->payload);
             hrd.setPictureTimingSEI( picTiming );
           }
-#endif
         }
       }
       break;
@@ -1059,10 +1057,8 @@ void SEIReader::xParseSEIPictureTiming(vvdecSEI* s, uint32_t payloadSize, const 
       sei->duCommonCpbRemovalDelayFlag = 0;
     }
   }
-#if JVET_Q0818_PT_SEI
   sei_read_code( pDecodedMessageOutputStream, 8, symbol, "pt_display_elemental_periods_minus1" );
   sei->ptDisplayElementalPeriods = symbol+1;
-#endif
 }
 
 void SEIReader::xParseSEIFrameFieldinfo(vvdecSEI* s, const vvdecSEIPictureTiming& pt, uint32_t payloadSize, std::ostream *pDecodedMessageOutputStream)
