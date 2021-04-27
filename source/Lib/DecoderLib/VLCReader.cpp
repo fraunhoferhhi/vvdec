@@ -1203,7 +1203,6 @@ void HLSyntaxReader::parseOlsHrdParameters( GeneralHrdParams * generalHrd, OlsHr
   }
 }
 
-#if JVET_P0117_PTL_SCALABILITY
 void HLSyntaxReader::dpb_parameters( int maxSubLayersMinus1, bool subLayerInfoFlag, SPS *pcSPS )
 {
   uint32_t code;
@@ -1219,7 +1218,6 @@ void HLSyntaxReader::dpb_parameters( int maxSubLayersMinus1, bool subLayerInfoFl
     pcSPS->setMaxLatencyIncreasePlus1( code, i );
   }
 }
-#endif
 
 void HLSyntaxReader::parseExtraPHBitsStruct( SPS *sps, int numBytes )
 {
@@ -1277,9 +1275,7 @@ void HLSyntaxReader::parseSPS( SPS* pcSPS, ParameterSetManager *parameterSetMana
     CHECK( !pcSPS->getPtlDpbHrdParamsPresentFlag(), "When sps_video_parameter_set_id is equal to 0, the value of sps_ptl_dpb_hrd_params_present_flag shall be equal to 1" );
   }
 
-#if JVET_P0117_PTL_SCALABILITY
   if( pcSPS->getPtlDpbHrdParamsPresentFlag() )
-#endif
   {
 #if JVET_Q0786_PTL_only
     parseProfileTierLevel( pcSPS->getProfileTierLevel(), true, pcSPS->getMaxTLayers() - 1 );
@@ -1552,7 +1548,6 @@ void HLSyntaxReader::parseSPS( SPS* pcSPS, ParameterSetManager *parameterSetMana
   READ_CODE( 2, uiCode, "sps_num_extra_sh_bytes");                           pcSPS->setNumExtraSHBitsBytes( uiCode );
   parseExtraSHBitsStruct( pcSPS, uiCode );
 
-#if JVET_P0117_PTL_SCALABILITY
   if( pcSPS->getPtlDpbHrdParamsPresentFlag() )
   {
     if( pcSPS->getMaxTLayers() - 1 > 0 )
@@ -1561,39 +1556,6 @@ void HLSyntaxReader::parseSPS( SPS* pcSPS, ParameterSetManager *parameterSetMana
     }
     dpb_parameters( pcSPS->getMaxTLayers() - 1, pcSPS->getSubLayerDpbParamsFlag(), pcSPS );
   }
-#else
-  uint32_t subLayerOrderingInfoPresentFlag;
-
-  if (pcSPS->getMaxTLayers() > 1)
-  {
-    READ_FLAG(subLayerOrderingInfoPresentFlag, "sps_sub_layer_ordering_info_present_flag");
-  }
-  else
-  {
-    subLayerOrderingInfoPresentFlag = 0;
-  }
-
-  for(uint32_t i=0; i <= pcSPS->getMaxTLayers()-1; i++)
-  {
-    READ_UVLC ( uiCode, "max_dec_pic_buffering_minus1[i]");
-    pcSPS->setMaxDecPicBuffering( uiCode + 1, i);
-    READ_UVLC ( uiCode, "max_num_reorder_pics[i]" );
-    pcSPS->setNumReorderPics(uiCode, i);
-    READ_UVLC ( uiCode, "max_latency_increase_plus1[i]");
-    pcSPS->setMaxLatencyIncreasePlus1( uiCode, i );
-
-    if (!subLayerOrderingInfoPresentFlag)
-    {
-      for (i++; i <= pcSPS->getMaxTLayers()-1; i++)
-      {
-        pcSPS->setMaxDecPicBuffering(pcSPS->getMaxDecPicBuffering(0), i);
-        pcSPS->setNumReorderPics(pcSPS->getNumReorderPics(0), i);
-        pcSPS->setMaxLatencyIncreasePlus1(pcSPS->getMaxLatencyIncreasePlus1(0), i);
-      }
-      break;
-    }
-  }
-#endif
   unsigned  minQT[3]  = { 0, 0, 0 };
   unsigned  maxBTD[3] = { 0, 0, 0 };
 
@@ -2026,9 +1988,7 @@ void HLSyntaxReader::parseSPS( SPS* pcSPS, ParameterSetManager *parameterSetMana
     pcSPS->setVirtualBoundariesPresentFlag( false );
   }
 
-#if JVET_P0117_PTL_SCALABILITY
   if( pcSPS->getPtlDpbHrdParamsPresentFlag() )
-#endif
   {
     READ_FLAG( uiCode, "sps_timing_hrd_params_present_flag" );               pcSPS->setGeneralHrdParametersPresentFlag( uiCode );
     if( pcSPS->getGeneralHrdParametersPresentFlag() )

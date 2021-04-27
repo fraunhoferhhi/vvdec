@@ -182,9 +182,7 @@ public:
   void  parseReshaper       ( SliceReshapeInfo& sliceReshaperInfo, const SPS* pcSPS, const bool isIntra );
   void  alfFilter           ( AlfSliceParam& alfSliceParam, const bool isChroma, const int altIdx );
   void  ccAlfFilter         ( Slice *pcSlice );
-#if JVET_P0117_PTL_SCALABILITY
   void  dpb_parameters      ( int maxSubLayersMinus1, bool subLayerInfoFlag, SPS *pcSPS );
-#endif
   void  parseExtraPHBitsStruct( SPS *sps, int numBytes );
   void  parseExtraSHBitsStruct( SPS *sps, int numBytes );
 private:
