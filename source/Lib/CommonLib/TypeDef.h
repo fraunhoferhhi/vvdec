@@ -89,7 +89,6 @@ namespace vvdec
 #define TBT                                               1
 #define TBC                                               0
 
-#define JVET_R0203_IRAP_LEADING_CONSTRAINT                TBT //to be tested // JVET-R0203: Constraint that IRAP NAL unit type cannot be mixed with RASL_NUT / RADL_NUT
 #define JVET_Q0764_WRAP_AROUND_WITH_RPR                   TBT // JVET-Q0764: Combination of wrap around offset and RPR
 #define JVET_R0483_SH_TSRC_DISABLED_FLAG_CLEANUP          TBT //to be tested // JVET-R0483 Comb 4: R0049 + R0271, only R0049 method 3 aspect (Skip signaling sh_ts_residual_coding_disabled_flag when sps_transform_skip_enabled_flag = 0, also proposed in R0068, R0097, R0142, R0153) as R0271 has its own macro
 #define JVET_R0380_SCALING_MATRIX_DISABLE_YCC_OR_RGB      TBT //to be tested // JVET-R0380 solution3-3: Disable scaling matrix for blocks coded in alternative colour space.
