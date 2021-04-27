@@ -111,22 +111,14 @@ PicListRange PicListManager::getPicListRange( const Picture* pic ) const
   return PicListRange{ seqStart, m_cPicList.end() };
 }
 
-#if JVET_Q0814_DPB
 Picture* PicListManager::getNewPicBuffer( const SPS& sps, const PPS& pps, const uint32_t temporalLayer, const int layerId, const VPS* vps )
-#else
-Picture* PicListManager::getNewPicBuffer( const SPS& sps, const PPS& pps, const uint32_t temporalLayer, const int layerId )
-#endif
 {
   CHECK( m_parseFrameDelay < 0, "Parser frame delay is invalid" );
 
   Picture*  pcPic         = nullptr;
-#if JVET_Q0814_DPB
   const int iMaxRefPicNum = ( vps == nullptr || vps->m_numLayersInOls[vps->m_iTargetLayer] == 1 )
                               ? sps.getMaxDecPicBuffering( temporalLayer ) + 1
                               : vps->getMaxDecPicBuffering( temporalLayer );   // m_uiMaxDecPicBuffering has the space for the picture currently being decoded
-#else
-  const int iMaxRefPicNum = sps.getMaxDecPicBuffering( temporalLayer ) + 1;   // m_uiMaxDecPicBuffering has the space for the picture currently being decoded
-#endif
   if( m_cPicList.size() < (uint32_t)iMaxRefPicNum + m_parseFrameDelay )
   {
     pcPic = new Picture();

@@ -89,8 +89,6 @@ namespace vvdec
 #define TBT                                               1
 #define TBC                                               0
 
-#define JVET_Q0814_DPB                                    TBT //to be tested // JVET-Q0814: DPB capacity is based on picture units regardless of the resoltuion
-
 #define JVET_R0058                                        TBT //to be tested // JVET-R0058: the combination of RPR, subpictures, and scalability
 #define JVET_R0203_IRAP_LEADING_CONSTRAINT                TBT //to be tested // JVET-R0203: Constraint that IRAP NAL unit type cannot be mixed with RASL_NUT / RADL_NUT
 #define JVET_Q0764_WRAP_AROUND_WITH_RPR                   TBT // JVET-Q0764: Combination of wrap around offset and RPR

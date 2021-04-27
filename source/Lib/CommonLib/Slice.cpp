@@ -60,7 +60,6 @@ THE POSSIBILITY OF SUCH DAMAGE.
 namespace vvdec
 {
 
-#if JVET_Q0814_DPB
 void VPS::deriveOutputLayerSets()
 {
   if( m_uiMaxLayers == 1 )
@@ -268,7 +267,6 @@ void VPS::deriveTargetOutputLayerSet( int targetOlsIdx )
     m_targetLayerIdSet.push_back( m_layerIdInOls[m_iTargetLayer][i] );
   }
 }
-#endif
 
 Slice::Slice()
 {

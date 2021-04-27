@@ -83,14 +83,12 @@ static const uint32_t REF_PIC_LIST_NUM_IDX=32;
 // Class definition
 // ====================================================================================================================
 
-#if JVET_Q0814_DPB
 struct DpbParameters
 {
   int m_maxDecPicBuffering[MAX_TLAYER] = { 0 };
   int m_numReorderPics[MAX_TLAYER] = { 0 };
   int m_maxLatencyIncreasePlus1[MAX_TLAYER] = { 0 };
 };
-#endif
 
 class ReferencePictureList
 {
@@ -1030,7 +1028,6 @@ private:
   int                   m_VPSId            = 0;
   uint32_t              m_uiMaxLayers      = 1;
 
-#if JVET_Q0814_DPB
   uint32_t              m_vpsMaxSubLayers                  = 1;
   uint32_t              m_vpsLayerId[MAX_VPS_LAYERS];
   bool                  m_vpsAllLayersSameNumSubLayersFlag = true;
@@ -1046,7 +1043,6 @@ private:
   uint32_t              m_vpsNumOutputLayerSets            = 0;
   bool                  m_vpsOlsOutputLayerFlag[MAX_NUM_OLSS][MAX_VPS_LAYERS];
   uint32_t              m_directRefLayerIdx[MAX_VPS_LAYERS][MAX_VPS_LAYERS];
-#endif
   uint32_t              m_generalLayerIdx[MAX_VPS_LAYERS];
   uint32_t              m_vpsNumPtls                       = 1;
   bool                  m_ptPresentFlag[MAX_NUM_OLSS];
@@ -1067,7 +1063,6 @@ private:
                                                // m_multiLayerOlsIdxToOlsIdx[n] is the OLSidx of the n-th multi-layer OLS.
 #endif
 
-#if JVET_Q0814_DPB
   std::vector<Size>             m_olsDpbPicSize;
   std::vector<int>              m_olsDpbParamsIdx;
   std::vector<std::vector<int>> m_outputLayerIdInOls;
@@ -1090,9 +1085,6 @@ public:
   std::vector<std::vector<int>> m_layerIdInOls;
   std::vector<int>              m_olsDpbChromaFormatIdc;
   std::vector<int>              m_olsDpbBitDepthMinus8;
-#else
-  int                           m_iTargetLayer     = -1;
-#endif
 
 public:
   VPS()
@@ -1117,7 +1109,6 @@ public:
   void              setPredDirection(uint32_t tmplayer, uint32_t t)      { m_vpsCfgPredDirection[tmplayer] = t; }
 #endif
 
-#if JVET_Q0814_DPB
   uint32_t          getMaxSubLayers() const                              { return m_vpsMaxSubLayers;           }
   void              setMaxSubLayers(uint32_t value)                      { m_vpsMaxSubLayers = value;          }
   bool              getAllLayersSameNumSublayersFlag() const             { return m_vpsAllLayersSameNumSubLayersFlag; }
@@ -1155,7 +1146,6 @@ public:
 
   bool              getOlsOutputLayerFlag(uint32_t ols, uint32_t layer) const   { return m_vpsOlsOutputLayerFlag[ols][layer]; }
   void              setOlsOutputLayerFlag(uint32_t ols, uint32_t layer, bool t) { m_vpsOlsOutputLayerFlag[ols][layer] = t;    }
-#endif
 
   uint32_t          getGeneralLayerIdx(uint32_t layerId) const { return m_generalLayerIdx[layerId]; }
   void              setGeneralLayerIdx(uint32_t layerId, uint32_t layerIdc) { m_generalLayerIdx[layerId] = layerIdc; }
@@ -1195,7 +1185,6 @@ public:
   int                      getTargetLayer()                              { return m_iTargetLayer;              }
   void                     setTargetLayer(uint32_t t)                    { m_iTargetLayer = t;                 }
 
-#if JVET_Q0814_DPB
   int               getMaxDecPicBuffering( int temporalId ) const        { return m_dpbParameters[m_olsDpbParamsIdx[m_iTargetLayer]].m_maxDecPicBuffering[temporalId]; }
   int               getNumReorderPics( int temporalId ) const            { return m_dpbParameters[m_olsDpbParamsIdx[m_iTargetLayer]].m_numReorderPics[temporalId];     }
   int               getTotalNumOLSs() const                              { return m_totalNumOLSs; }
@@ -1216,7 +1205,6 @@ public:
 
   void              deriveOutputLayerSets();
   void              deriveTargetOutputLayerSet( int targetOlsIdx );
-#endif
 #if JVET_S0100_ASPECT3
   void              checkVPS();
 #endif

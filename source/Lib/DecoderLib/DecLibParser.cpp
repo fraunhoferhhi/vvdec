@@ -1152,11 +1152,7 @@ Picture * DecLibParser::xActivateParameterSets( const int layerId )
 #endif
 
     //  Get a new picture buffer. This will also set up m_pcPic, and therefore give us a SPS and PPS pointer that we can use.
-#if JVET_Q0814_DPB
     pcPic = m_picListManager.getNewPicBuffer( *sps, *pps, m_apcSlicePilot->getTLayer(), layerId, m_parameterSetManager.getVPS( sps->getVPSId() ) );
-#else
-    pcPic = m_picListManager.getNewPicBuffer( *sps, *pps, m_apcSlicePilot->getTLayer(), layerId );
-#endif
     // assign these fields already, because they are needed by PicListManager::getPicListRange() and Slice::applyReferencePictureSet()
     pcPic->poc          = m_apcSlicePilot->getPOC();
     pcPic->eNalUnitType = m_apcSlicePilot->getNalUnitType();
@@ -1280,7 +1276,6 @@ Picture * DecLibParser::xActivateParameterSets( const int layerId )
   }
   CHECK( !sps->getRprEnabledFlag() && pps->getScalingWindow().getWindowEnabledFlag(), "When res_change_in_clvs_allowed_flag is equal to 0, the value of scaling_window_flag shall be equal to 0." );
 #endif
-#if JVET_Q0814_DPB
   if( vps != nullptr && vps->m_numOutputLayersInOls[vps->m_iTargetLayer] > 1 )
   {
     CHECK( sps->getMaxPicWidthInLumaSamples( ) > vps->getOlsDpbPicSize( vps->m_iTargetLayer ).width,
@@ -1288,7 +1283,6 @@ Picture * DecLibParser::xActivateParameterSets( const int layerId )
     CHECK( sps->getMaxPicHeightInLumaSamples() > vps->getOlsDpbPicSize( vps->m_iTargetLayer ).height,
            "pic_height_max_in_luma_samples shall be less than or equal to the value of ols_dpb_pic_height[ i ]" );
   }
-#endif
 
   CHECK( sps->getProfileTierLevel()->getConstraintInfo()->getOneTilePerPicConstraintFlag() &&pps->getNumTiles() != 1,
          "When one_tile_per_pic_constraint_flag is equal to 1, each picture shall contain only one tile" );
@@ -1416,14 +1410,10 @@ Picture* DecLibParser::prepareLostPicture( int iLostPoc, const int layerId )
 {
   msg( INFO, "inserting lost poc : %d\n", iLostPoc );
 
-#if JVET_Q0814_DPB
   Picture* cFillPic = m_picListManager.getNewPicBuffer( *m_parameterSetManager.getFirstSPS(), *m_parameterSetManager.getFirstPPS(), 0, layerId, m_parameterSetManager.getVPS( m_parameterSetManager.getFirstSPS()->getVPSId() ) );
-#else
-  Picture* cFillPic = m_picListManager.getNewPicBuffer( *m_parameterSetManager.getFirstSPS(), *m_parameterSetManager.getFirstPPS(), 0, layerId );
-#endif
   cFillPic->finalInit( m_parameterSetManager.getFirstSPS(), m_parameterSetManager.getFirstPPS(), m_picHeader.get(), m_parameterSetManager.getAlfAPSs().data(), nullptr, nullptr, false ); //TODO: check this
   cFillPic->cs->initStructData();
-  
+
   int         iTLayer  = m_apcSlicePilot->getTLayer();   // TLayer needs to be <= TLayer of referencing frame
   bool        isIRAP   = false;
   NalUnitType naluType = NAL_UNIT_CODED_SLICE_TRAIL;
@@ -1488,11 +1478,7 @@ Picture* DecLibParser::prepareLostPicture( int iLostPoc, const int layerId )
 void DecLibParser::prepareUnavailablePicture( const PPS *pps, int iUnavailablePoc, const int layerId, const bool longTermFlag, const int temporalId )
 {
   msg( INFO, "inserting unavailable poc : %d\n", iUnavailablePoc );
-#if JVET_Q0814_DPB
   Picture* cFillPic = m_picListManager.getNewPicBuffer( *m_parameterSetManager.getFirstSPS(), *m_parameterSetManager.getFirstPPS(), 0, layerId, m_parameterSetManager.getVPS( m_parameterSetManager.getFirstSPS()->getVPSId() ) );
-#else
-  Picture* cFillPic = m_picListManager.getNewPicBuffer( *m_parameterSetManager.getFirstSPS(), *m_parameterSetManager.getFirstPPS(), 0, layerId );
-#endif
   APS* nullAlfApss[ALF_CTB_MAX_NUM_APS] = { nullptr, };
   cFillPic->finalInit( m_parameterSetManager.getFirstSPS(), m_parameterSetManager.getFirstPPS(), m_picHeader.get(), nullAlfApss, nullptr, nullptr, false ); //TODO: check this
   cFillPic->cs->initStructData();
