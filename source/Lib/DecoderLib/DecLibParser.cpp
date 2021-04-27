@@ -462,7 +462,6 @@ DecLibParser::SliceHeadResult DecLibParser::xDecodeSliceHead( InputNALUnit& nalu
                                                "when sps_video_parameter_set_id is equal to 0" );
   }
 
-#if JVET_P0101_POC_MULTILAYER
   CHECK( sps->getVPSId() > 0 && vps == 0, "Invalid VPS" );
 
   if( vps != nullptr && ( vps->getIndependentLayerFlag( nalu.m_nuhLayerId ) == 0 ) )
@@ -489,7 +488,6 @@ DecLibParser::SliceHeadResult DecLibParser::xDecodeSliceHead( InputNALUnit& nalu
     }
   }
 
-#endif
   // update independent slice index
   uint32_t uiIndependentSliceIdx = 0;
   if( !m_bFirstSliceInPicture )
@@ -615,14 +613,12 @@ DecLibParser::SliceHeadResult DecLibParser::xDecodeSliceHead( InputNALUnit& nalu
     xUpdatePreviousTid0POC ( m_apcSlicePilot );
   }
 
-#if JVET_P0101_POC_MULTILAYER
   AccessUnitPicInfo picInfo;
   picInfo.m_nalUnitType = nalu.m_nalUnitType;
   picInfo.m_nuhLayerId  = nalu.m_nuhLayerId;
   picInfo.m_temporalId  = nalu.m_temporalId;
   picInfo.m_POC         = m_apcSlicePilot->getPOC();
   m_accessUnitPicInfo.push_back( picInfo );
-#endif
 
   // Skip pictures due to random access
   if( isRandomAccessSkipPicture() )

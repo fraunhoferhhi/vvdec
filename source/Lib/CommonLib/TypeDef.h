@@ -89,7 +89,6 @@ namespace vvdec
 #define TBT                                               1
 #define TBC                                               0
 
-#define JVET_P0101_POC_MULTILAYER                         TBT //to be tested // POC derivation for pictures in dependent layers
 #define JVET_P0288_PIC_OUTPUT                             TBT //to be tested // JVET-P0288: Set the value of PictureOutputFlag
 
 #define JVET_Q0044_SLICE_IDX_WITH_SUBPICS                 TBT //to be tested // JVET-Q0044: slice index with subpictures
