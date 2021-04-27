@@ -89,7 +89,6 @@ namespace vvdec
 #define TBT                                               1
 #define TBC                                               0
 
-#define JVET_O1143_LPF_ACROSS_SUBPIC_BOUNDARY             1
 #define JVET_O1143_MV_ACROSS_SUBPIC_BOUNDARY              1
 
 #define JVET_P0365_SCALING_MATRIX_LFNST                   TBD //enc crash // JVET-P0365: Signal flag to indicate whether scaling matrices are used for LFNST-coded blocks
