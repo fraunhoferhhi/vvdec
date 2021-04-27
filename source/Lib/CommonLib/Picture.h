@@ -188,13 +188,11 @@ public:
   std::vector<SubPic> subPictures;
   int numSlices            = 1;
 #else
-#if JVET_R0058
   int  numSubpics          = 1;
   std::vector<int> subpicWidthInCTUs;
   std::vector<int> subpicHeightInCTUs;
   std::vector<int> subpicCtuTopLeftX;
   std::vector<int> subpicCtuTopLeftY;
-#endif
 #endif
   std::vector<PelStorage> m_subPicRefBufs;   // used as reference for subpictures, that are treated as pictures
 

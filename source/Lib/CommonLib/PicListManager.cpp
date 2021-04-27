@@ -163,9 +163,7 @@ Picture* PicListManager::getNewPicBuffer( const SPS& sps, const PPS& pps, const 
   if( pcPic->lumaSize() != Size( pps.getPicWidthInLumaSamples(), pps.getPicHeightInLumaSamples() )
       || pcPic->cs->pcv->maxCUWidth != sps.getMaxCUWidth()
       || pcPic->cs->pcv->maxCUHeight != sps.getMaxCUHeight()
-#if JVET_R0058
       || pcPic->layerId != layerId
-#endif
   )
   {
     pcPic->destroy();

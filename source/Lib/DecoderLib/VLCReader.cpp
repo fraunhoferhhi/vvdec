@@ -1286,7 +1286,6 @@ void HLSyntaxReader::parseSPS( SPS* pcSPS, ParameterSetManager *parameterSetMana
     CHECK( uiCode != 0, "When gci_no_gdr_constraint_flag equal to 1 , the value of sps_gdr_enabled_flag shall be equal to 0" );
   }
 
-#if JVET_R0058
   READ_FLAG( uiCode, "sps_ref_pic_resampling_enabled_flag" );                pcSPS->setRprEnabledFlag( uiCode );
   if( pcSPS->getProfileTierLevel()->getConstraintInfo()->getNoRprConstraintFlag() )
   {
@@ -1300,9 +1299,6 @@ void HLSyntaxReader::parseSPS( SPS* pcSPS, ParameterSetManager *parameterSetMana
   {
     pcSPS->setResChangeInClvsEnabledFlag( 0 );
   }
-#else
-  READ_FLAG( uiCode, "sps_res_change_in_clvs_allowed_flag" );                pcSPS->setRprEnabledFlag( uiCode );
-#endif
 
   if( pcSPS->getProfileTierLevel()->getConstraintInfo()->getNoResChangeInClvsConstraintFlag() )
   {

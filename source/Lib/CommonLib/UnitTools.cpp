@@ -140,7 +140,6 @@ bool CU::getRprScaling( const SPS* sps, const PPS* curPPS, const PPS* refPPS, in
   return false; // return whatever, because it's not used... to be changed
 }
 
-#if JVET_R0058
 void CU::checkConformanceILRP(Slice *slice)
 {
   const int numRefList = (slice->getSliceType() == B_SLICE) ? (2) : (1);
@@ -249,7 +248,6 @@ void CU::checkConformanceILRP(Slice *slice)
 
   return;
 }
-#endif
 
 bool CU::isSameSlice(const CodingUnit& cu, const CodingUnit& cu2)
 {

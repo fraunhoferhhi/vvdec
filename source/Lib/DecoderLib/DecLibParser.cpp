@@ -822,12 +822,11 @@ Slice*  DecLibParser::xDecodeSliceMain( InputNALUnit &nalu )
     }
   }
 
-#if JVET_R0058
   if( m_bFirstSliceInPicture )
   {
     m_pcParsePic->setDecodingOrderNumber( m_decodingOrderCounter );
     m_decodingOrderCounter++;
-    
+
 #if JVET_S0258_SUBPIC_CONSTRAINTS
     pcSlice->getPic()->subPictures.clear();
 
@@ -853,7 +852,6 @@ Slice*  DecLibParser::xDecodeSliceMain( InputNALUnit &nalu )
     }
 #endif
   }
-#endif
 
 #if JVET_S0258_SUBPIC_CONSTRAINTS
   pcSlice->getPic()->sliceSubpicIdx.push_back(pcSlice->getPPS()->getSubPicIdxFromSubPicId(pcSlice->getSliceSubPicId()));
@@ -877,13 +875,11 @@ Slice*  DecLibParser::xDecodeSliceMain( InputNALUnit &nalu )
   pcSlice->setPrevIRAPSubpicType(m_prevIRAPSubpicType[nalu.m_nuhLayerId][currSubPicIdx]);
   pcSlice->checkSubpicTypeConstraints(m_cListPic, pcSlice->getRPL0(), pcSlice->getRPL1(), m_prevIRAPSubpicDecOrderNo[nalu.m_nuhLayerId][currSubPicIdx]);
 #endif
-  
-#if JVET_R0058
+
   if( m_pcParsePic->cs->vps && !m_pcParsePic->cs->vps->getIndependentLayerFlag( m_pcParsePic->cs->vps->getGeneralLayerIdx( nalu.m_nuhLayerId ) ) && m_pcParsePic->cs->pps->getNumSubPics() > 1 )
   {
     CU::checkConformanceILRP(pcSlice);
   }
-#endif
 
   pcSlice->scaleRefPicList( m_pcParsePic->cs->picHeader, m_parameterSetManager.getAlfAPSs().data(), m_picHeader->getLmcsAPS().get(), m_picHeader->getScalingListAPS().get() );
 
@@ -1254,28 +1250,15 @@ Picture * DecLibParser::xActivateParameterSets( const int layerId )
          "When sps_weighted_pred_flag is equal to 0, the value of pps_weighted_pred_flag shall be equal to 0." );
   CHECK( !sps->getUseWPBiPred() && pps->getWPBiPred(),
          "When sps_weighted_bipred_flag is equal to 0, the value of pps_weighted_bipred_flag shall be equal to 0." );
-  
-#if JVET_R0058
+
   CHECK( !sps->getResChangeInClvsEnabledFlag() && pps->getPicWidthInLumaSamples() != sps->getMaxPicWidthInLumaSamples(),
          "When res_change_in_clvs_allowed_flag equal to 0, the value of pic_width_in_luma_samples shall be equal to pic_width_max_in_luma_samples." );
   CHECK( !sps->getResChangeInClvsEnabledFlag() && pps->getPicHeightInLumaSamples() != sps->getMaxPicHeightInLumaSamples(),
          "When res_change_in_clvs_allowed_flag equal to 0, the value of pic_height_in_luma_samples shall be equal to pic_height_max_in_luma_samples." );
   CHECK( sps->getResChangeInClvsEnabledFlag() &&sps->getSubPicInfoPresentFlag() != 0,
          "When res_change_in_clvs_allowed_flag is equal to 1, the value of subpic_info_present_flag shall be equal to 0.");
-  CHECK( sps->getResChangeInClvsEnabledFlag() && sps->getVirtualBoundariesEnabledFlag(), 
+  CHECK( sps->getResChangeInClvsEnabledFlag() && sps->getVirtualBoundariesEnabledFlag(),
          "when the value of res_change_in_clvs_allowed_flag is equal to 1, the value of sps_virtual_boundaries_present_flag shall be equal to 0" );
-#else
-  if( !sps->getRprEnabledFlag() )
-  {
-    CHECK( pps->getPicWidthInLumaSamples() != sps->getMaxPicWidthInLumaSamples(), "When res_change_in_clvs_allowed_flag equal to 0, the value of pic_width_in_luma_samples shall be equal to pic_width_max_in_luma_samples." );
-    CHECK( pps->getPicHeightInLumaSamples() != sps->getMaxPicHeightInLumaSamples(), "When res_change_in_clvs_allowed_flag equal to 0, the value of pic_height_in_luma_samples shall be equal to pic_height_max_in_luma_samples." );
-  }
-  if( sps->getRprEnabledFlag() )
-  {
-    CHECK( sps->getSubPicInfoPresentFlag() != 0, "When res_change_in_clvs_allowed_flag is equal to 1, the value of subpic_info_present_flag shall be equal to 0." );
-  }
-  CHECK( !sps->getRprEnabledFlag() && pps->getScalingWindow().getWindowEnabledFlag(), "When res_change_in_clvs_allowed_flag is equal to 0, the value of scaling_window_flag shall be equal to 0." );
-#endif
   if( vps != nullptr && vps->m_numOutputLayersInOls[vps->m_iTargetLayer] > 1 )
   {
     CHECK( sps->getMaxPicWidthInLumaSamples( ) > vps->getOlsDpbPicSize( vps->m_iTargetLayer ).width,

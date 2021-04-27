@@ -118,9 +118,7 @@ namespace CU
   PartSplit getSplitAtDepth           (const CodingUnit& cu, const unsigned depth);
   bool    checkCCLMAllowed            (const CodingUnit &cu);
   bool    getRprScaling               ( const SPS* sps, const PPS* curPPS, const PPS* refPPS, int& xScale, int& yScale );
-#if JVET_R0058
-  void    checkConformanceILRP        (Slice *slice);
-#endif
+  void    checkConformanceILRP        ( Slice *slice );
 }
 // PU tools
 namespace PU

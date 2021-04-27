@@ -286,9 +286,7 @@ InterPrediction::InterPrediction()
   , profGradFilter( gradFilterCore<false> )
   , roundIntVector( nullptr )
 {
-#if JVET_R0058
   clipMv = clipMvInPic;
-#endif
 
   m_currChromaFormat = NUM_CHROMA_FORMAT;
 }
@@ -602,11 +600,7 @@ void InterPrediction::xPredInterUni( const PredictionUnit &pu, const RefPicList 
 
     if( !isIBC && !scaled )
     {
-#if JVET_R0058
       clipMv( mv[0], m_currCuArea.lumaPos(), m_currCuArea.lumaSize(), sps, *pu.pps );
-#else
-      clipMv( mv[0], m_currCuArea.lumaPos(), sps, *pu.pps, pu.lwidth(), pu.lheight() );
-#endif
     }
   }
   
@@ -1142,14 +1136,10 @@ void InterPrediction::xPredAffineBlk( const ComponentID&    compID,
       if( sps.getUseWrapAround() )
 #endif
       {
-#if JVET_R0058
         Mv tmpMv(iMvScaleTmpHor, iMvScaleTmpVer);
         wrapRef = wrapClipMv( tmpMv, Position( pu.Y().x + ( w << iScaleX ), pu.Y().y + ( h << iScaleY ) ), Size( blockWidth << iScaleX, blockHeight << iScaleY ), sps, *pu.pps );
         iMvScaleTmpHor = tmpMv.getHor();
         iMvScaleTmpVer = tmpMv.getVer();
-#else
-        wrapRef = wrapClipMv( iMvScaleTmpHor, iMvScaleTmpVer, Position( pu.lx() + w, pu.ly() + h ), Size( blockWidth, blockHeight ), sps, *pu.pps );
-#endif
       }
       else
       {
@@ -1346,8 +1336,7 @@ void InterPrediction::motionCompensation( PredictionUnit &pu, PelUnitBuf &predBu
 {
   PROFILER_SCOPE_AND_STAGE_EXT( 1, g_timeProfiler, P_MOTCOMP, *pu.cs, luma ? CH_L: CH_C );
   m_currCuArea = pu;
-  
-#if JVET_R0058
+
   if( pu.slice->getSliceType() != I_SLICE && pu.slice->getRefPic( REF_PIC_LIST_0, 0 )->subPictures.size() > 1 )
   {
     clipMv = clipMvInSubpic;
@@ -1357,7 +1346,6 @@ void InterPrediction::motionCompensation( PredictionUnit &pu, PelUnitBuf &predBu
     clipMv = clipMvInPic;
   }
 
-#endif
   if( CU::isIBC( pu ) )
   {
     CHECK( !luma, "IBC only for Chroma is not allowed." );
@@ -1436,9 +1424,7 @@ void InterPrediction::motionCompensation( PredictionUnit &pu, PelUnitBuf &predBu
 void InterPrediction::motionCompensationGeo( PredictionUnit &pu, PelUnitBuf &predBuf )
 {
   PROFILER_SCOPE_AND_STAGE_EXT( 1, g_timeProfiler, P_MOTCOMP, *pu.cs, CH_L );
-  const uint8_t splitDir = pu.geoSplitDir;
-  
-#if JVET_R0058
+
   if( pu.slice->getSliceType() != I_SLICE && pu.slice->getRefPic( REF_PIC_LIST_0, 0 )->subPictures.size() > 1 )
   {
     clipMv = clipMvInSubpic;
@@ -1448,7 +1434,6 @@ void InterPrediction::motionCompensationGeo( PredictionUnit &pu, PelUnitBuf &pre
     clipMv = clipMvInPic;
   }
 
-#endif
   const UnitArea localUnitArea( pu.cs->area.chromaFormat, Area( 0, 0, pu.lwidth(), pu.lheight() ) );
 
   PelUnitBuf tmpGeoBuf0 = isChromaEnabled( pu.chromaFormat ) ? PelUnitBuf( pu.chromaFormat, PelBuf( m_geoPartBuf[0], localUnitArea.Y() ), PelBuf( m_geoPartBuf[1], localUnitArea.Cb() ), PelBuf( m_geoPartBuf[2], localUnitArea.Cr() ) ) : PelUnitBuf( pu.chromaFormat, PelBuf( m_geoPartBuf[0], localUnitArea.Y() ) );
@@ -1462,7 +1447,7 @@ void InterPrediction::motionCompensationGeo( PredictionUnit &pu, PelUnitBuf &pre
   pu.mvpIdx [REF_PIC_LIST_0] = NOT_VALID;
   pu.mvpIdx [REF_PIC_LIST_1] = NOT_VALID;
   motionCompensation( pu, tmpGeoBuf0, true, isChromaEnabled( pu.chromaFormat ) );
-    
+
   locInterDir = pu.interDirrefIdxGeo1() >> 4;
   CHECKD( !( locInterDir == 1 || locInterDir == 2 ), "Should not happen" );
   pu.mv  [REF_PIC_LIST_0][0] = locInterDir == 1 ? pu.mv[1][1] : Mv();
@@ -1473,6 +1458,7 @@ void InterPrediction::motionCompensationGeo( PredictionUnit &pu, PelUnitBuf &pre
   pu.mvpIdx [REF_PIC_LIST_1] = NOT_VALID;
   motionCompensation( pu, predBuf, true, isChromaEnabled( pu.chromaFormat ) );
 
+  const uint8_t splitDir = pu.geoSplitDir;
   weightedGeoBlk( pu, splitDir, isChromaEnabled( pu.chromaFormat ) ? MAX_NUM_CHANNEL_TYPE : CHANNEL_TYPE_LUMA, predBuf, tmpGeoBuf0, predBuf );
 }
 
@@ -1539,11 +1525,7 @@ void InterPrediction::xPrefetch( PredictionUnit& pu, PelUnitBuf &pcPad, RefPicLi
     }
     else
     {
-#if JVET_R0058
       clipMv( cMv, pu.lumaPos(), pu.lumaSize(), *pu.sps, *pu.pps );
-#else
-      clipMv( cMv, pu.lumaPos(), *pu.sps, *pu.pps );
-#endif
     }
     /* Pre-fetch similar to HEVC*/
     {
@@ -1750,11 +1732,7 @@ void InterPrediction::xFinalPaddedMCForDMVR(PredictionUnit& pu, PelUnitBuf &pcYu
     m_iRefListIdx = refId;
     const Picture* refPic = pu.slice->getRefPic( refId, pu.refIdx[refId] )->unscaledPic;
     Mv cMvClipped( cMv );
-#if JVET_R0058
     clipMv( cMvClipped, pu.lumaPos(), pu.lumaSize(), *pu.sps, *pu.pps );
-#else
-    clipMv( cMvClipped, pu.lumaPos(), *pu.sps, *pu.pps );
-#endif
 #if JVET_Q0764_WRAP_AROUND_WITH_RPR
     const bool wrapRef = pu.pps->getUseWrapAround() && wrapClipMv( cMvClipped, pu.lumaPos(), pu.lumaSize(), *pu.sps, *pu.pps );
 #else
@@ -1816,16 +1794,11 @@ void InterPrediction::xinitMC( PredictionUnit& pu, const ClpRngs &clpRngs )
   /*use merge MV as starting MV*/
   Mv mergeMVL0(pu.mv[REF_PIC_LIST_0][0]);
   Mv mergeMVL1(pu.mv[REF_PIC_LIST_1][0]);
-  
+
   /*Clip the starting MVs*/
-#if JVET_R0058
   clipMv( mergeMVL0, pu.lumaPos(), pu.lumaSize(), *pu.sps, *pu.pps );
   clipMv( mergeMVL1, pu.lumaPos(), pu.lumaSize(), *pu.sps, *pu.pps );
-#else
-  clipMv( mergeMVL0, pu.lumaPos(), *pu.sps, *pu.pps );
-  clipMv( mergeMVL1, pu.lumaPos(), *pu.sps, *pu.pps );
-#endif
-  
+
 #if JVET_Q0764_WRAP_AROUND_WITH_RPR
   const bool wrapRefL0 = pu.pps->getUseWrapAround() && wrapClipMv( mergeMVL0, pu.lumaPos(), pu.lumaSize(), *pu.sps, *pu.pps );
   const bool wrapRefL1 = pu.pps->getUseWrapAround() && wrapClipMv( mergeMVL1, pu.lumaPos(), pu.lumaSize(), *pu.sps, *pu.pps );

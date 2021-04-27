@@ -1032,9 +1032,7 @@ private:
   uint32_t              m_vpsLayerId[MAX_VPS_LAYERS];
   bool                  m_vpsAllLayersSameNumSubLayersFlag = true;
   bool                  m_vpsAllIndependentLayersFlag      = true;
-#if JVET_R0058
   uint32_t              m_vpsCfgPredDirection[MAX_VPS_SUBLAYERS];
-#endif
   bool                  m_vpsIndependentLayerFlag[MAX_VPS_LAYERS];
   bool                  m_vpsDirectRefLayerFlag[MAX_VPS_LAYERS][MAX_VPS_LAYERS];
   uint32_t              m_vpsMaxTidIlRefPicsPlus1[MAX_VPS_LAYERS];
@@ -1089,9 +1087,7 @@ public:
 public:
   VPS()
   {
-#if JVET_R0058
     memset( m_vpsCfgPredDirection, 0, sizeof( m_vpsCfgPredDirection ) );
-#endif
   }
   ~VPS() = default;
 
@@ -1104,10 +1100,8 @@ public:
   bool              getVPSExtensionFlag() const                          { return m_vpsExtensionFlag;          }
   void              setVPSExtensionFlag(bool t)                          { m_vpsExtensionFlag = t;             }
 
-#if JVET_R0058
   uint32_t          getPredDirection(uint32_t tmplayer) const            { return m_vpsCfgPredDirection[tmplayer]; }
   void              setPredDirection(uint32_t tmplayer, uint32_t t)      { m_vpsCfgPredDirection[tmplayer] = t; }
-#endif
 
   uint32_t          getMaxSubLayers() const                              { return m_vpsMaxSubLayers;           }
   void              setMaxSubLayers(uint32_t value)                      { m_vpsMaxSubLayers = value;          }
@@ -1583,9 +1577,7 @@ private:
   bool              m_GDREnabledFlag                     = false;
   bool              m_SubLayerCbpParametersPresentFlag   = false;
   bool              m_rprEnabledFlag                     = false;
-#if JVET_R0058
   bool              m_resChangeInClvsEnabledFlag         = false;
-#endif
   bool              m_interLayerPresentFlag              = false;
   uint32_t          m_log2ParallelMergeLevelMinus2       = 0;
   bool              m_ppsValidFlag[64];
@@ -1985,12 +1977,10 @@ public:
   bool      getSubLayerParametersPresentFlag()                            const     { return m_SubLayerCbpParametersPresentFlag;  }
   bool      getRprEnabledFlag()                                           const     { return m_rprEnabledFlag; }
   void      setRprEnabledFlag( bool flag )                                          { m_rprEnabledFlag = flag; }
-  bool      getInterLayerPresentFlag()                                        const { return m_interLayerPresentFlag; }
+  bool      getInterLayerPresentFlag()                                    const     { return m_interLayerPresentFlag; }
   void      setInterLayerPresentFlag( bool b )                                      { m_interLayerPresentFlag = b; }
-#if JVET_R0058
   bool      getResChangeInClvsEnabledFlag()                               const     { return m_resChangeInClvsEnabledFlag; }
   void      setResChangeInClvsEnabledFlag(bool flag)                                { m_resChangeInClvsEnabledFlag = flag; }
-#endif
 
   uint32_t  getLog2ParallelMergeLevelMinus2() const { return m_log2ParallelMergeLevelMinus2; }
   void      setLog2ParallelMergeLevelMinus2(uint32_t mrgLevel) { m_log2ParallelMergeLevelMinus2 = mrgLevel; }
