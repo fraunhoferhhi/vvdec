@@ -1539,7 +1539,6 @@ void PPS::initRectSliceMap(const SPS  *sps)
 /**
 - initialize mapping between subpicture and CTUs
 */
-#if JVET_O1143_SUBPIC_BOUNDARY
 void PPS::initSubPic( const SPS &sps )
 {
   if( getSubPicIdMappingInPpsFlag() )
@@ -1699,7 +1698,6 @@ const SubPic& PPS::getSubPicFromCU(const CodingUnit& cu) const
   const Position lumaPos = cu.Y().valid() ? cu.Y().pos() : recalcPosition(cu.chromaFormat, cu.chType(), CHANNEL_TYPE_LUMA, cu.blocks[cu.chType()].pos());
   return getSubPicFromPos(lumaPos);
 }
-#endif
 
 #if JVET_Q0044_SLICE_IDX_WITH_SUBPICS
 uint32_t PPS::getSubPicIdxFromSubPicId( uint32_t subPicId ) const
@@ -1755,10 +1753,8 @@ void PPS::finalizePPSPartitioning( const SPS* pcSPS )
     setTileIdxDeltaPresentFlag( 0 );
     setSliceTileIdx( 0, 0 );
     initRectSliceMap( pcSPS );
-#if JVET_O1143_SUBPIC_BOUNDARY
     // when no Pic partition, number of sub picture shall be less than 2
     CHECK( getNumSubPics() >= 2, "error, no picture partitions, but have equal to or more than 2 sub pictures" );
-#endif
   }
   else
   {

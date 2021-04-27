@@ -922,7 +922,6 @@ public:
   uint32_t         getTileIdx( ) const                  { return  m_tileIdx;            }
 };
 
-#if JVET_O1143_SUBPIC_BOUNDARY
 class SubPic
 {
 private:
@@ -952,7 +951,7 @@ private:
 public:
   SubPic() = default;
   ~SubPic() = default;
-  
+
   void             setSubPicID (uint32_t u)                {         m_subPicID = u;       }
   uint32_t         getSubPicID   ()                  const { return  m_subPicID;           }
   void             setSubPicIdx (uint32_t u)               {         m_subPicIdx = u;      }
@@ -993,7 +992,7 @@ public:
   void                  addCTUsToSubPic(std::vector<uint32_t> ctuAddrInSlice)
   {
     for (auto ctu:ctuAddrInSlice)
-      m_ctuAddrInSubPic.push_back(ctu);    
+      m_ctuAddrInSubPic.push_back(ctu);
   }
   void  addAllCtusInPicToSubPic(uint32_t startX, uint32_t stopX, uint32_t startY, uint32_t stopY, uint32_t picWidthInCtbsY)
   {
@@ -1027,7 +1026,6 @@ public:
   }
 #endif
 };
-#endif
 
 
 class VPS : public BasePS<VPS>
@@ -2105,16 +2103,14 @@ private:
   std::vector<uint32_t>         m_ctuToTileRow;                 //!< mapping between CTU vertical address and tile row index
   std::vector<RectSlice>        m_rectSlices;                  //!< list of rectangular slice signalling parameters
   std::vector<SliceMap>         m_sliceMap;                    //!< list of CTU maps for each slice in the picture
-#if JVET_O1143_SUBPIC_BOUNDARY
   std::vector<SubPic>           m_subPics;                   //!< list of subpictures in the picture
-#endif
   int                           m_numSlicesInPicMinus1      = 0;
 
   int              m_numTilesInPic                       = 1;
   bool             m_signalledSliceIdFlag                = false;
   int              m_signalledSliceIdLengthMinus1        = 0;
   std::vector<int> m_sliceId;
-  
+
   bool             m_cabacInitPresentFlag                = false;
 
   bool             m_pictureHeaderExtensionPresentFlag   = false;   //< picture header extension flags present in picture headers or not
@@ -2340,7 +2336,6 @@ public:
   void                   initTiles();
   void                   initRectSlices();
   void                   initRectSliceMap(const SPS *sps);
-#if JVET_O1143_SUBPIC_BOUNDARY
   std::vector<SubPic>    getSubPics()  const                                              { return m_subPics;      }
 #if JVET_Q0044_SLICE_IDX_WITH_SUBPICS
   const SubPic&          getSubPic(uint32_t idx) const                                    { return m_subPics[idx]; }
@@ -2348,11 +2343,10 @@ public:
   void                   initSubPic(const SPS &sps);
   const SubPic&          getSubPicFromPos(const Position& pos)  const;
   const SubPic&          getSubPicFromCU (const CodingUnit& cu) const;
-#endif
   void                   checkSliceMap();
 
   SliceMap               getSliceMap( int idx ) const                                     { CHECK( idx >= m_numSlicesInPic, "Slice index exceeds valid range" );    return m_sliceMap[idx];                             }
-  
+
   void                   setCabacInitPresentFlag( bool flag )                             { m_cabacInitPresentFlag = flag;                }
   bool                   getCabacInitPresentFlag() const                                  { return m_cabacInitPresentFlag;                }
   void                   setDeblockingFilterControlPresentFlag( bool val )                { m_deblockingFilterControlPresentFlag = val;   }

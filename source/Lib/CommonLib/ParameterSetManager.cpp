@@ -100,7 +100,7 @@ ParameterSetManager::ActivePSs ParameterSetManager::xActivateParameterSets( cons
     THROW( "Parameter set activation failed!" );
   }
 
-#if JVET_O1143_SUBPIC_BOUNDARY && !JVET_Q0044_SLICE_IDX_WITH_SUBPICS
+#if !JVET_Q0044_SLICE_IDX_WITH_SUBPICS
     PPS* nonconstPPS = getPPS( picHeader->getPPSId() );
     nonconstPPS->initSubPic( *sps );
 #endif

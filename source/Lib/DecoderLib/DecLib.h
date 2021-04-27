@@ -95,9 +95,6 @@ public:
   int m_maxDecSubPicIdx         = 0;
   int m_maxDecSliceAddrInSubPic = -1;
 #endif
-#if JVET_O1143_SUBPIC_BOUNDARY
-  int  m_targetSubPicIdx    = 0;
-#endif
 
   DecLib();
   ~DecLib() = default;
