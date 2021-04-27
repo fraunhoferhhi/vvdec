@@ -884,7 +884,6 @@ Slice*  DecLibParser::xDecodeSliceMain( InputNALUnit &nalu )
   pcSlice->scaleRefPicList( m_pcParsePic->cs->picHeader, m_parameterSetManager.getAlfAPSs().data(), m_picHeader->getLmcsAPS().get(), m_picHeader->getScalingListAPS().get() );
 
 #if !JVET_S0258_SUBPIC_CONSTRAINTS
-#if JVET_R0276_REORDERED_SUBPICS
   // For each value of i in the range of 0 to sps_num_subpics_minus1, inclusive, when the value of SubpicIdVal[ i ] of a current picture is not equal to the value of SubpicIdVal[ i ] of a reference picture,
   // the active entries of the RPLs of the coded slices in the i-th subpicture of the current picture shall not include that reference picture.
 
@@ -931,7 +930,6 @@ Slice*  DecLibParser::xDecodeSliceMain( InputNALUnit &nalu )
       }
     }
   }
-#endif
 #endif
 
     if (!pcSlice->isIntra())

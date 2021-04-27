@@ -204,9 +204,7 @@ public:
   const Picture*           unscaledPic;
 
 #if !JVET_S0258_SUBPIC_CONSTRAINTS
-#if JVET_R0276_REORDERED_SUBPICS
   std::vector<int> subPicIDs;
-#endif
 #endif
 
   WaitCounter     m_ctuTaskCounter;
