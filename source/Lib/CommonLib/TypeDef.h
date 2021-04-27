@@ -89,7 +89,6 @@ namespace vvdec
 #define TBT                                               1
 #define TBC                                               0
 
-#define JVET_R0483_SH_TSRC_DISABLED_FLAG_CLEANUP          TBT //to be tested // JVET-R0483 Comb 4: R0049 + R0271, only R0049 method 3 aspect (Skip signaling sh_ts_residual_coding_disabled_flag when sps_transform_skip_enabled_flag = 0, also proposed in R0068, R0097, R0142, R0153) as R0271 has its own macro
 #define JVET_R0380_SCALING_MATRIX_DISABLE_YCC_OR_RGB      TBT //to be tested // JVET-R0380 solution3-3: Disable scaling matrix for blocks coded in alternative colour space.
 #define R0091_CONSTRAINT_SLICE_ORDER                      TBT //to be tested // JVET-R0091: constraint slice signalling order to be the same as slice coding order
 #define JVET_R0165_OPTIONAL_ENTRY_POINT                   TBT //to be tested // JVET-R0165: Optional entry point offset
