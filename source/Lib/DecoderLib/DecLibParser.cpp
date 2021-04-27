@@ -157,11 +157,7 @@ void DecLibParser::recreateLostPicture( Picture* pcPic )
   }
 }
 
-#if JVET_P0288_PIC_OUTPUT
 Picture* DecLibParser::parse( InputNALUnit& nalu, int* pSkipFrame, int iTargetLayer )
-#else
-Picture* DecLibParser::parse( InputNALUnit& nalu, int* pSkipFrame )
-#endif
 {
   // ignore all NAL units of layers > 0
   if( m_iTargetLayer >= 0 && nalu.m_nuhLayerId != m_iTargetLayer )   // TBC: ignore bitstreams whose nuh_layer_id is not the target layer id
@@ -175,9 +171,7 @@ Picture* DecLibParser::parse( InputNALUnit& nalu, int* pSkipFrame )
   {
   case NAL_UNIT_VPS:
     xDecodeVPS( nalu );
-#if JVET_P0288_PIC_OUTPUT
     //    m_vps->m_iTargetLayer = iTargetOlsIdx;
-#endif
     return nullptr;
   case NAL_UNIT_DCI:
     xDecodeDCI( nalu );
@@ -590,7 +584,6 @@ DecLibParser::SliceHeadResult DecLibParser::xDecodeSliceHead( InputNALUnit& nalu
       m_picHeader->setPicOutputFlag( false );
     }
   }
-#if JVET_P0288_PIC_OUTPUT
   if( sps->getVPSId() > 0 )
   {
     VPS *vps = m_parameterSetManager.getVPS( sps->getVPSId() );
@@ -604,7 +597,6 @@ DecLibParser::SliceHeadResult DecLibParser::xDecodeSliceHead( InputNALUnit& nalu
       m_picHeader->setPicOutputFlag( false );
     }
   }
-#endif
 
   if( !pps->getMixedNaluTypesInPicFlag() && m_apcSlicePilot->isCRAorGDR() && m_lastNoOutputBeforeRecoveryFlag[nalu.m_nuhLayerId] )
   {

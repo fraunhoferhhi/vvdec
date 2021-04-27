@@ -159,11 +159,7 @@ public:
 
   void recreateLostPicture      (Picture* pcPic);
 
-#if JVET_P0288_PIC_OUTPUT
   Picture* parse                (InputNALUnit& nalu, int* pSkipFrame, int iTargetLayer = -1);
-#else
-  Picture* parse                (InputNALUnit& nalu, int* pSkipFrame);
-#endif
   Picture* getNextDecodablePicture();
 
   void setFirstSliceInPicture   (bool val)              { m_bFirstSliceInPicture = val; }

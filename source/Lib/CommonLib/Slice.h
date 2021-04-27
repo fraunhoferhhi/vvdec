@@ -1096,7 +1096,7 @@ public:
   std::vector<std::vector<int>> m_layerIdInOls;
   std::vector<int>              m_olsDpbChromaFormatIdc;
   std::vector<int>              m_olsDpbBitDepthMinus8;
-#elif JVET_P0288_PIC_OUTPUT
+#else
   int                           m_iTargetLayer     = -1;
 #endif
 
@@ -1199,10 +1199,9 @@ public:
 
   GeneralHrdParams*        getGeneralHrdParameters()                     { return &m_generalHrdParams; }
   const GeneralHrdParams*  getGeneralHrdParameters()               const { return &m_generalHrdParams; }
-#if JVET_P0288_PIC_OUTPUT
-  int               getTargetLayer()                                     { return m_iTargetLayer;              }
-  void              setTargetLayer(uint32_t t)                           { m_iTargetLayer = t;                 }
-#endif
+
+  int                      getTargetLayer()                              { return m_iTargetLayer;              }
+  void                     setTargetLayer(uint32_t t)                    { m_iTargetLayer = t;                 }
 
 #if JVET_Q0814_DPB
   int               getMaxDecPicBuffering( int temporalId ) const        { return m_dpbParameters[m_olsDpbParamsIdx[m_iTargetLayer]].m_maxDecPicBuffering[temporalId]; }

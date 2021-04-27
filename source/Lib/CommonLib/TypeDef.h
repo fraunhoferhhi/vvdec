@@ -89,8 +89,6 @@ namespace vvdec
 #define TBT                                               1
 #define TBC                                               0
 
-#define JVET_P0288_PIC_OUTPUT                             TBT //to be tested // JVET-P0288: Set the value of PictureOutputFlag
-
 #define JVET_Q0044_SLICE_IDX_WITH_SUBPICS                 TBT //to be tested // JVET-Q0044: slice index with subpictures
 #define JVET_Q0786_PTL_only                               TBT //to be tested // JVET-Q0786: modifications to VPS syntax - PTL part only (signal PTL for single layer OLSs)
 #define JVET_Q0438_MONOCHROME_BUGFIXES                    TBT //to be tested with 4:0:0 // JVET-Q0438: Monochrome bug fixes
