@@ -524,7 +524,6 @@ int PU::getIntraMPMs( const PredictionUnit &pu, unsigned* mpm, const ChannelType
 
 bool CU::isMIP( const CodingUnit &cu, const ChannelType &chType )
 {
-#if JVET_R0350_MIP_CHROMA_444_SINGLETREE
   if( chType == CHANNEL_TYPE_LUMA )
   {
     // Default case if chType is omitted.
@@ -534,17 +533,12 @@ bool CU::isMIP( const CodingUnit &cu, const ChannelType &chType )
   {
     return PU::isDMChromaMIP(cu) && (cu.intraDir[CHANNEL_TYPE_CHROMA] == DM_CHROMA_IDX);
   }
-#else
-  return ( chType == CHANNEL_TYPE_LUMA && cu.mipFlag() );
-#endif
 }
 
-#if JVET_R0350_MIP_CHROMA_444_SINGLETREE
 bool PU::isDMChromaMIP(const PredictionUnit &pu)
 {
   return !CU::isSepTree( pu ) && (pu.chromaFormat == CHROMA_444) && getCoLocatedLumaPU(pu).mipFlag();
 }
-#endif
 
 int PU::getMipSizeId(const PredictionUnit &pu)
 {
@@ -587,14 +581,12 @@ void PU::getIntraChromaCandModes( const PredictionUnit &pu, unsigned modeList[NU
   modeList[6] = MDLM_T_IDX;
   modeList[7] = DM_CHROMA_IDX;
 
-#if JVET_R0350_MIP_CHROMA_444_SINGLETREE
-    // If Direct Mode is MIP, mode cannot be already in the list.
-    if( isDMChromaMIP(pu) )
-    {
-      return;
-    }
+  // If Direct Mode is MIP, mode cannot be already in the list.
+  if( isDMChromaMIP(pu) )
+  {
+    return;
+  }
 
-#endif
   const uint32_t lumaMode = getCoLocatedIntraLumaMode( pu );
   for( int i = 0; i < 4; i++ )
   {
@@ -636,7 +628,6 @@ uint32_t PU::getFinalIntraMode( const PredictionUnit &pu, const ChannelType &chT
   return uiIntraMode;
 }
 
-#if JVET_R0350_MIP_CHROMA_444_SINGLETREE
 const PredictionUnit &PU::getCoLocatedLumaPU( const PredictionUnit &pu )
 {
   Position              topLeftPos = pu.blocks[pu.chType()].lumaPos ( pu.chromaFormat );
@@ -651,17 +642,6 @@ uint32_t PU::getCoLocatedIntraLumaMode( const PredictionUnit &pu )
 {
   return PU::getIntraDirLuma( PU::getCoLocatedLumaPU(pu) );
 }
-#else
-uint32_t PU::getCoLocatedIntraLumaMode( const PredictionUnit &pu )
-{
-  Position topLeftPos =                    pu.blocks[pu.chType()].lumaPos ( pu.chromaFormat );
-  Position refPos     = topLeftPos.offset( pu.blocks[pu.chType()].lumaSize( pu.chromaFormat ).width >> 1, pu.blocks[pu.chType()].lumaSize( pu.chromaFormat ).height >> 1 );
-
-  const PredictionUnit &lumaPU = CU::isSepTree( pu ) ? *pu.cs->getCU( refPos, CHANNEL_TYPE_LUMA ) : pu;
-
-  return PU::getIntraDirLuma( lumaPU );
-}
-#endif
 
 int PU::getWideAngIntraMode( const TransformUnit &tu, const uint32_t dirMode, const ComponentID compID )
 {

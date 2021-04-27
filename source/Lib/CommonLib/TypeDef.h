@@ -89,7 +89,6 @@ namespace vvdec
 #define TBT                                               1
 #define TBC                                               0
 
-#define JVET_R0350_MIP_CHROMA_444_SINGLETREE              TBT //to be tested // JVET-R0350: MIP for chroma in case of 4:4:4 format and single tree
 #define JVET_R0294_SUBPIC_HASH                            TBT //to be tested // JVET-R0294: Allow decoded picture hash SEI messages to be nested in subpicture context
 
 #define JVET_R0270                                        TBC // JVET-S0270: Treating picture with mixed RASL and RADL slices as RASL picture
