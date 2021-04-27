@@ -302,7 +302,6 @@ void Quant::dequant(   const TransformUnit &tu,
   const TCoeff          transformMaximum   =  (1 << maxLog2TrDynamicRange) - 1;
   const bool            isTransformSkip    = ( tu.mtsIdx[compID] == MTS_SKIP );
   setUseScalingList( tu.cu->slice->getExplicitScalingListUsed() );
-#if JVET_P0365_SCALING_MATRIX_LFNST
   const bool            disableSMForLFNST  = tu.cu->slice->getExplicitScalingListUsed() ? sps->getDisableScalingMatrixForLfnstBlks() : false;
   const bool            isLfnstApplied     = tu.cu->lfnstIdx() > 0 && ( CU::isSepTree( *tu.cu ) ? true : isLuma( compID ) );
 #if JVET_R0380_SCALING_MATRIX_DISABLE_YCC_OR_RGB
@@ -310,9 +309,6 @@ void Quant::dequant(   const TransformUnit &tu,
   const bool            enableScalingLists = getUseScalingList(isTransformSkip, isLfnstApplied, disableSMForLFNST, disableSMForACT);
 #else
   const bool            enableScalingLists = getUseScalingList(isTransformSkip, isLfnstApplied, disableSMForLFNST);
-#endif
-#else
-  const bool            enableScalingLists = getUseScalingList(isTransformSkip);
 #endif
   const int             scalingListType    = getScalingListType(tu.cu->predMode(), compID);
   const int             channelBitDepth    = sps->getBitDepth(toChannelType(compID));

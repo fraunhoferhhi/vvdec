@@ -89,7 +89,6 @@ namespace vvdec
 #define TBT                                               1
 #define TBC                                               0
 
-#define JVET_P0365_SCALING_MATRIX_LFNST                   TBD //enc crash // JVET-P0365: Signal flag to indicate whether scaling matrices are used for LFNST-coded blocks
 #define JVET_P0117_PTL_SCALABILITY                        TBT //to be tested // JVET-P0117: sps_ptl_dpb_hrd_params_present_flag related syntax change, others in JVET-Q0786
 #define JVET_P0101_POC_MULTILAYER                         TBT //to be tested // POC derivation for pictures in dependent layers
 #define JVET_P0288_PIC_OUTPUT                             TBT //to be tested // JVET-P0288: Set the value of PictureOutputFlag
