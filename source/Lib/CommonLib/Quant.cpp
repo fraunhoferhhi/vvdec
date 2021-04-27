@@ -484,56 +484,45 @@ void Quant::dequant( const TransformUnit& tu, CoeffBuf& dstCoeff, const Componen
  * \param scalingList quantized matrix address
  * \param format      chroma format
  */
-void Quant::setScalingListDec( ScalingList &scalingList )
+void Quant::setScalingListDec( ScalingList& scalingList )
 {
   const int minimumQp = 0;
   const int maximumQp = SCALING_LIST_REM_NUM;
 
-  int scalingListId = 0;
+  int scalingListId    = 0;
   int recScalingListId = 0;
-  for (uint32_t size = SCALING_LIST_FIRST_CODED; size <= SCALING_LIST_LAST_CODED; size++)
+  for( uint32_t size = SCALING_LIST_FIRST_CODED; size <= SCALING_LIST_LAST_CODED; size++ )
   {
-    for(uint32_t list = 0; list < SCALING_LIST_NUM; list++)
+    for( uint32_t list = 0; list < SCALING_LIST_NUM; list++ )
     {
-#if JVET_R0166_SCALING_LISTS_CHROMA_444
       if( size == SCALING_LIST_2x2 && list < 4 )   // skip 2x2 luma
-#else
-      if( (size == SCALING_LIST_2x2 && list < 4) || (size == SCALING_LIST_64x64 && list % (SCALING_LIST_NUM / (NUMBER_OF_PREDICTION_MODES)) != 0) )   // skip 2x2 luma
-#endif
+      {
         continue;
-#if JVET_R0166_SCALING_LISTS_CHROMA_444
+      }
       scalingListId = g_scalingListId[size][list];
-#endif
-        for( int qp = minimumQp; qp < maximumQp; qp++ )
-        {
-          xSetScalingListDec(scalingList, list, size, qp, scalingListId);
-        }
-#if !JVET_R0166_SCALING_LISTS_CHROMA_444
-      scalingListId++;
-#endif
+      for( int qp = minimumQp; qp < maximumQp; qp++ )
+      {
+        xSetScalingListDec( scalingList, list, size, qp, scalingListId );
+      }
     }
   }
-  //based on square result and apply downsample technology
-  for (uint32_t sizew = 0; sizew <= SCALING_LIST_LAST_CODED; sizew++) //7
+  // based on square result and apply downsample technology
+  for( uint32_t sizew = 0; sizew <= SCALING_LIST_LAST_CODED; sizew++ )   // 7
   {
-    for (uint32_t sizeh = 0; sizeh <= SCALING_LIST_LAST_CODED; sizeh++) //7
+    for( uint32_t sizeh = 0; sizeh <= SCALING_LIST_LAST_CODED; sizeh++ )   // 7
     {
-      if (sizew == sizeh || (sizew == SCALING_LIST_1x1 && sizeh<SCALING_LIST_4x4) || (sizeh == SCALING_LIST_1x1 && sizew<SCALING_LIST_4x4)) continue;
-      for (uint32_t list = 0; list < SCALING_LIST_NUM; list++) //9
+      if( sizew == sizeh || ( sizew == SCALING_LIST_1x1 && sizeh < SCALING_LIST_4x4 ) || ( sizeh == SCALING_LIST_1x1 && sizew < SCALING_LIST_4x4 ) )
       {
-        int largerSide = (sizew > sizeh) ? sizew : sizeh;
-#if !JVET_R0166_SCALING_LISTS_CHROMA_444
-        if (largerSide == SCALING_LIST_64x64 && list % (SCALING_LIST_NUM / (NUMBER_OF_PREDICTION_MODES)) != 0) continue;
-#endif
+        continue;
+      }
+      for( uint32_t list = 0; list < SCALING_LIST_NUM; list++ )   // 9
+      {
+        int largerSide = ( sizew > sizeh ) ? sizew : sizeh;
         CHECK( largerSide < SCALING_LIST_4x4, "Rectangle Error!" );
-#if JVET_R0166_SCALING_LISTS_CHROMA_444
         recScalingListId = g_scalingListId[largerSide][list];
-#else
-        recScalingListId = SCALING_LIST_NUM * (largerSide - 2) + 2 + (list / ((largerSide == SCALING_LIST_64x64) ? 3 : 1));
-#endif
-        for (int qp = minimumQp; qp < maximumQp; qp++)
+        for( int qp = minimumQp; qp < maximumQp; qp++ )
         {
-          xSetRecScalingListDec(scalingList, list, sizew, sizeh, qp, recScalingListId);
+          xSetRecScalingListDec( scalingList, list, sizew, sizeh, qp, recScalingListId );
         }
       }
     }
