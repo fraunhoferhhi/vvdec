@@ -1552,7 +1552,7 @@ void PPS::initSubPic( const SPS &sps )
 
   CHECK( getNumSubPics() > MAX_NUM_SUB_PICS, "Number of sub-pictures in picture exceeds valid range" );
   m_subPics.resize(getNumSubPics());
-  
+
   // Check that no subpicture is specified outside of the conformance cropping window
   for(int i = 0; i < sps.getNumSubPics(); i++)
   {
@@ -1631,10 +1631,8 @@ void PPS::initSubPic( const SPS &sps )
     else
     {
       int numSlicesInSubPic = 0;
-#if R0091_CONSTRAINT_SLICE_ORDER
       int idxLastSliceInSubpic = -1;
       int idxFirstSliceAfterSubpic = m_numSlicesInPic;
-#endif
       for( int j = 0; j < m_numSlicesInPic; j++ )
       {
         uint32_t ctu = m_sliceMap[j].getCtuAddrInSlice(0);
@@ -1643,25 +1641,19 @@ void PPS::initSubPic( const SPS &sps )
         if (ctu_x >= sps.getSubPicCtuTopLeftX(i) &&
           ctu_x < (sps.getSubPicCtuTopLeftX(i) + sps.getSubPicWidth(i)) &&
           ctu_y >= sps.getSubPicCtuTopLeftY(i) &&
-          ctu_y < (sps.getSubPicCtuTopLeftY(i) + sps.getSubPicHeight(i)))  
+          ctu_y < (sps.getSubPicCtuTopLeftY(i) + sps.getSubPicHeight(i)))
         {
           // add ctus in a slice to the subpicture it belongs to
           m_subPics[i].addCTUsToSubPic(m_sliceMap[j].getCtuAddrList());
           numSlicesInSubPic++;
-#if R0091_CONSTRAINT_SLICE_ORDER
           idxLastSliceInSubpic = j;
-#endif
         }
-#if R0091_CONSTRAINT_SLICE_ORDER
         else if (idxFirstSliceAfterSubpic == m_numSlicesInPic && idxLastSliceInSubpic != -1)
         {
           idxFirstSliceAfterSubpic = j;
         }
-#endif
       }
-#if R0091_CONSTRAINT_SLICE_ORDER
       CHECK( idxFirstSliceAfterSubpic < idxLastSliceInSubpic, "The signalling order of slices shall follow the coding order" );
-#endif
       m_subPics[i].setNumSlicesInSubPic(numSlicesInSubPic);
     }
     m_subPics[i].setTreatedAsPicFlag(sps.getSubPicTreatedAsPicFlag(i));
