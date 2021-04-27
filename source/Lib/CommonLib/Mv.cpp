@@ -177,8 +177,7 @@ void clipMv( int &mvx, int &mvy, const Position& pos, const SPS& sps, const PPS&
 
   int iVerMax = ( pps.getPicHeightInLumaSamples() + iOffset - ( int ) pos.y - 1 ) << iMvShift;
   int iVerMin = ( -( int ) sps.getMaxCUHeight()   - iOffset - ( int ) pos.y + 1 ) << iMvShift;
-#if JVET_O1143_MV_ACROSS_SUBPIC_BOUNDARY 
-  
+
   if (sps.getSubPicInfoPresentFlag())
   {
     const SubPic& curSubPic = pps.getSubPicFromPos(pos);
@@ -191,7 +190,6 @@ void clipMv( int &mvx, int &mvy, const Position& pos, const SPS& sps, const PPS&
       iVerMin = (-(int)sps.getMaxCUHeight() - iOffset - ((int)pos.y - curSubPic.getSubPicTop()) + 1) << iMvShift;
     }
   }
-#endif
   mvx = std::min( iHorMax, std::max( iHorMin, mvx ) );
   mvy = std::min( iVerMax, std::max( iVerMin, mvy ) );
 }

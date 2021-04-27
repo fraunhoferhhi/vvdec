@@ -75,7 +75,7 @@ struct Picture : public UnitArea
   void create(const ChromaFormat &_chromaFormat, const Size &size, const unsigned _maxCUSize, const unsigned margin, const int layerId);
   void resetForUse();
   void destroy();
-  
+
          Pel*      getRecoBufPtr   (const ComponentID compID, bool wrap=false)       { return m_bufs[wrap ? PIC_RECON_WRAP : PIC_RECONSTRUCTION].bufs[compID].buf; }
   const  Pel*      getRecoBufPtr   (const ComponentID compID, bool wrap=false) const { return m_bufs[wrap ? PIC_RECON_WRAP : PIC_RECONSTRUCTION].bufs[compID].buf; }
          ptrdiff_t getRecoBufStride(const ComponentID compID, bool wrap=false)       { return m_bufs[wrap ? PIC_RECON_WRAP : PIC_RECONSTRUCTION].bufs[compID].stride; }
@@ -141,10 +141,6 @@ public:
   bool getMixedNaluTypesInPicFlag()           const { return slices[0]->getPPS()->getMixedNaluTypesInPicFlag(); }
 
 public:
-#if JVET_O1143_MV_ACROSS_SUBPIC_BOUNDARY
-  std::vector<PelStorage> m_subPicRefBufs;   // used as reference for subpictures, that are treated as pictures
-#endif
-
   void startProcessingTimer();
   void stopProcessingTimer();
   void resetProcessingTime() { m_dProcessingTime = 0; }
@@ -152,7 +148,7 @@ public:
 
   std::chrono::time_point<std::chrono::steady_clock> m_processingStartTime;
   double                                             m_dProcessingTime = 0;
-  
+
   bool subPicExtStarted               = false;
   bool borderExtStarted               = false;
 #if JVET_Q0764_WRAP_AROUND_WITH_RPR
@@ -200,6 +196,7 @@ public:
   std::vector<int> subpicCtuTopLeftY;
 #endif
 #endif
+  std::vector<PelStorage> m_subPicRefBufs;   // used as reference for subpictures, that are treated as pictures
 
   bool        subLayerNonReferencePictureDueToSTSA = 0;
 
@@ -275,7 +272,7 @@ public:
       m_ccAlfFilterControl[compIdx].assign( numEntries, 0 );
     }
   }
-  
+
   std::vector<uint8_t>  m_alfCtuEnableFlag[MAX_NUM_COMPONENT];
   uint8_t*              getAlfCtuEnableFlag( int compIdx ) { return m_alfCtuEnableFlag[compIdx].data(); }
   std::vector<uint8_t>* getAlfCtuEnableFlag()              { return m_alfCtuEnableFlag; }
