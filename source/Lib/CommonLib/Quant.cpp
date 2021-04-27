@@ -67,15 +67,15 @@ namespace vvdec
 // QpParam constructor
 // ====================================================================================================================
 
-QpParam::QpParam( const TransformUnit& tu, const ComponentID &compIDX, const bool allowACTQpoffset )
+QpParam::QpParam( const TransformUnit& tu, const ComponentID& compIDX, const bool allowACTQpoffset )
 {
-  const ComponentID compID = MAP_CHROMA( compIDX );
-  const ChannelType chType = toChannelType( compID );
-  const SPS        &sps    = *tu.cu->sps;
-  const int     qpBdOffset = sps.getQpBDOffset( chType );
-  const bool useJQP        = isChroma( compID ) && TU::getICTMode( tu, false ) == 2;
-  const ComponentID jCbCr  = useJQP ? JOINT_CbCr : compID;
-  
+  const ComponentID compID     = MAP_CHROMA( compIDX );
+  const ChannelType chType     = toChannelType( compID );
+  const SPS&        sps        = *tu.cu->sps;
+  const int         qpBdOffset = sps.getQpBDOffset( chType );
+  const bool        useJQP     = isChroma( compID ) && TU::getICTMode( tu, false ) == 2;
+  const ComponentID jCbCr      = useJQP ? JOINT_CbCr : compID;
+
   int baseQp;
   int qpy        = tu.cu->qp;
   //bool skip      = tu.mtsIdx[compID] == MTS_SKIP;
@@ -125,12 +125,19 @@ QpParam::QpParam( const TransformUnit& tu, const ComponentID &compIDX, const boo
 // Quant class member functions
 // ====================================================================================================================
 
-static void DeQuantCore(const int maxX,const int restX,const int maxY,const int scale,const TCoeffSig*const piQCoef,const size_t piQCfStride,TCoeff   *const piCoef,const int rightShift,const int inputMaximum,const TCoeff transformMaximum)
+static void DeQuantCore( const int              maxX,
+                         const int              restX,
+                         const int              maxY,
+                         const int              scale,
+                         const TCoeffSig* const piQCoef,
+                         const size_t           piQCfStride,
+                               TCoeff* const    piCoef,
+                         const int              rightShift,
+                         const int              inputMaximum,
+                         const TCoeff           transformMaximum )
 {
-
-
-  const int inputMinimum = -(inputMaximum+1);
-  const TCoeff transformMinimum = -(transformMaximum);
+  const int    inputMinimum     = -( inputMaximum + 1 );
+  const TCoeff transformMinimum = -( transformMaximum );
 
   if (rightShift>0)
   {
@@ -174,14 +181,21 @@ static void DeQuantCore(const int maxX,const int restX,const int maxY,const int 
     }
 
   }
-
 }
 
-static void DeQuantPCMCore(const int maxX,const int restX,const int maxY,const int scale,TCoeff   *const piQCoef,const size_t piQCfStride,TCoeff   *const piCoef,const int rightShift,const int inputMaximum,const TCoeff transformMaximum)
+static void DeQuantPCMCore( const int     maxX,
+                            const int     restX,
+                            const int     maxY,
+                            const int     scale,
+                            TCoeff* const piQCoef,
+                            const size_t  piQCfStride,
+                            TCoeff* const piCoef,
+                            const int     rightShift,
+                            const int     inputMaximum,
+                            const TCoeff  transformMaximum )
 {
-  const int inputMinimum = -(inputMaximum+1);
-  const TCoeff transformMinimum = -(transformMaximum);
-
+  const int    inputMinimum     = -( inputMaximum + 1 );
+  const TCoeff transformMinimum = -( transformMaximum );
 
   if (rightShift > 0)
   {
@@ -223,8 +237,6 @@ static void DeQuantPCMCore(const int maxX,const int restX,const int maxY,const i
   }
 }
 
-
-
 Quant::Quant()
 {
   xInitScalingList( nullptr );
@@ -243,17 +255,17 @@ Quant::~Quant()
 
 void invResDPCM( const TransformUnit &tu, const ComponentID &compID, CoeffBuf &dstBuf )
 {
-  const CompArea &rect = tu.blocks[compID];
-  const int      wdt = rect.width;
-  const int      hgt = rect.height;
+  const CompArea&    rect   = tu.blocks[compID];
+  const int          wdt    = rect.width;
+  const int          hgt    = rect.height;
   const CCoeffSigBuf coeffs = tu.cu->cs->getRecoBuf( tu.block( compID ) );
 
-  const int      maxLog2TrDynamicRange = tu.cu->sps->getMaxLog2TrDynamicRange(toChannelType(compID));
-  const TCoeff   inputMinimum   = -(1 << maxLog2TrDynamicRange);
-  const TCoeff   inputMaximum   =  (1 << maxLog2TrDynamicRange) - 1;
+  const int    maxLog2TrDynamicRange = tu.cu->sps->getMaxLog2TrDynamicRange(toChannelType(compID));
+  const TCoeff inputMinimum          = -(1 << maxLog2TrDynamicRange);
+  const TCoeff inputMaximum          =  (1 << maxLog2TrDynamicRange) - 1;
 
   const TCoeffSig* coef = &coeffs.buf[0];
-  TCoeff* dst = &dstBuf.buf[0];
+  TCoeff*          dst  = &dstBuf.buf[0];
 
   if( isLuma( compID ) ? tu.cu->bdpcmMode() == 1 : tu.cu->bdpcmModeChroma() == 1 )
   {
@@ -286,32 +298,25 @@ void invResDPCM( const TransformUnit &tu, const ComponentID &compID, CoeffBuf &d
   }
 }
 
-void Quant::dequant(   const TransformUnit &tu,
-                             CoeffBuf      &dstCoeff,
-                       const ComponentID   &compID,
-                       const QpParam       &cQP)
+void Quant::dequant( const TransformUnit& tu, CoeffBuf& dstCoeff, const ComponentID& compID, const QpParam& cQP )
 {
-  const SPS            *sps                = tu.cu->sps;
-  const CompArea       &area               = tu.blocks[compID];
-  const CCoeffSigBuf    coeffBuf           = tu.cu->cs->getRecoBuf( tu.block( compID ) );
-  const TCoeffSig*const piQCoef            = coeffBuf.buf;
-  const size_t          piQCfStride        = coeffBuf.stride;
-        TCoeff   *const piCoef             = dstCoeff.buf;
-  const int             maxLog2TrDynamicRange = sps->getMaxLog2TrDynamicRange(toChannelType(compID));
-  const TCoeff          transformMinimum   = -(1 << maxLog2TrDynamicRange);
-  const TCoeff          transformMaximum   =  (1 << maxLog2TrDynamicRange) - 1;
-  const bool            isTransformSkip    = ( tu.mtsIdx[compID] == MTS_SKIP );
+  const SPS*             sps                   = tu.cu->sps;
+  const CompArea&        area                  = tu.blocks[compID];
+  const CCoeffSigBuf     coeffBuf              = tu.cu->cs->getRecoBuf( tu.block( compID ) );
+  const TCoeffSig* const piQCoef               = coeffBuf.buf;
+  const size_t           piQCfStride           = coeffBuf.stride;
+        TCoeff* const    piCoef                = dstCoeff.buf;
+  const int              maxLog2TrDynamicRange = sps->getMaxLog2TrDynamicRange( toChannelType( compID ) );
+  const TCoeff           transformMinimum      = -( 1 << maxLog2TrDynamicRange );
+  const TCoeff           transformMaximum      = ( 1 << maxLog2TrDynamicRange ) - 1;
+  const bool             isTransformSkip       = ( tu.mtsIdx[compID] == MTS_SKIP );
   setUseScalingList( tu.cu->slice->getExplicitScalingListUsed() );
-  const bool            disableSMForLFNST  = tu.cu->slice->getExplicitScalingListUsed() ? sps->getDisableScalingMatrixForLfnstBlks() : false;
-  const bool            isLfnstApplied     = tu.cu->lfnstIdx() > 0 && ( CU::isSepTree( *tu.cu ) ? true : isLuma( compID ) );
-#if JVET_R0380_SCALING_MATRIX_DISABLE_YCC_OR_RGB
-  const bool            disableSMForACT    = tu.cu->sps->getScalingMatrixForAlternativeColourSpaceDisabledFlag() && tu.cu->sps->getScalingMatrixDesignatedColourSpaceFlag() == tu.cu->colorTransform();
-  const bool            enableScalingLists = getUseScalingList(isTransformSkip, isLfnstApplied, disableSMForLFNST, disableSMForACT);
-#else
-  const bool            enableScalingLists = getUseScalingList(isTransformSkip, isLfnstApplied, disableSMForLFNST);
-#endif
-  const int             scalingListType    = getScalingListType(tu.cu->predMode(), compID);
-  const int             channelBitDepth    = sps->getBitDepth(toChannelType(compID));
+  const bool             disableSMForLFNST     = tu.cu->slice->getExplicitScalingListUsed() ? sps->getDisableScalingMatrixForLfnstBlks() : false;
+  const bool             isLfnstApplied        = tu.cu->lfnstIdx() > 0 && ( CU::isSepTree( *tu.cu ) ? true : isLuma( compID ) );
+  const bool             disableSMForACT       = tu.cu->sps->getScalingMatrixForAlternativeColourSpaceDisabledFlag() && tu.cu->sps->getScalingMatrixDesignatedColourSpaceFlag() == tu.cu->colorTransform();
+  const bool             enableScalingLists    = getUseScalingList( isTransformSkip, isLfnstApplied, disableSMForLFNST, disableSMForACT );
+  const int              scalingListType       = getScalingListType( tu.cu->predMode(), compID );
+  const int              channelBitDepth       = sps->getBitDepth( toChannelType( compID ) );
 
   int maxX, maxY;
 

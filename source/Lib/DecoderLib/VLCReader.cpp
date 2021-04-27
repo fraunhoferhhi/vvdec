@@ -1902,7 +1902,6 @@ void HLSyntaxReader::parseSPS( SPS* pcSPS, ParameterSetManager *parameterSetMana
     READ_FLAG( uiCode, "sps_scaling_matrix_for_lfnst_disabled_flag" );       pcSPS->setDisableScalingMatrixForLfnstBlks( uiCode ? true : false );
   }
 
-#if JVET_R0380_SCALING_MATRIX_DISABLE_YCC_OR_RGB
   if( pcSPS->getUseColorTrans() && pcSPS->getScalingListFlag() )
   {
     READ_FLAG( uiCode, "sps_scaling_matrix_for_alternative_colour_space_disabled_flag");
@@ -1912,7 +1911,6 @@ void HLSyntaxReader::parseSPS( SPS* pcSPS, ParameterSetManager *parameterSetMana
   {
     READ_FLAG(uiCode, "sps_scaling_matrix_designated_colour_space_flag");    pcSPS->setScalingMatrixDesignatedColourSpaceFlag( uiCode );
   }
-#endif
   READ_FLAG( uiCode, "sps_dep_quant_enabled_flag" );                         pcSPS->setDepQuantEnabledFlag( uiCode );
 
   READ_FLAG( uiCode, "sps_sign_data_hiding_enabled_flag" );                pcSPS->setSignDataHidingEnabledFlag( uiCode );

@@ -100,20 +100,13 @@ public:
 class Quant
 {
 public:
-  int* getDequantCoeff           ( uint32_t list, int qp, uint32_t sizeX, uint32_t sizeY ) { return m_dequantCoef          [sizeX][sizeY][list][qp]; };  //!< get DeQuant Coefficent
+  int* getDequantCoeff           ( uint32_t list, int qp, uint32_t sizeX, uint32_t sizeY ) { return m_dequantCoef[sizeX][sizeY][list][qp]; };  //!< get DeQuant Coefficent
 
   void setUseScalingList         ( bool bUseScalingList ) { m_scalingListEnabledFlag = bUseScalingList; };
-#if JVET_R0380_SCALING_MATRIX_DISABLE_YCC_OR_RGB
   bool getUseScalingList         ( bool isTransformSkip, const bool lfnstApplied, const bool disableScalingMatrixForLFNSTBlks, const bool disableSMforACT)
   {
     return( m_scalingListEnabledFlag && !isTransformSkip && (!lfnstApplied || !disableScalingMatrixForLFNSTBlks) && !disableSMforACT);
   }
-#else
-  bool getUseScalingList         ( bool isTransformSkip, const bool lfnstApplied, const bool disableScalingMatrixForLFNSTBlks) 
-  { 
-    return( m_scalingListEnabledFlag && !isTransformSkip && (!lfnstApplied || !disableScalingMatrixForLFNSTBlks) );
-  }
-#endif
   void setScalingListDec         ( ScalingList &scalingList);
   void processScalingListDec     ( const int *coeff, int *dequantcoeff, int qpMod6, uint32_t height, uint32_t width, uint32_t ratio, int sizuNum, uint32_t dc);
 

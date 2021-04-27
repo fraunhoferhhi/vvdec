@@ -89,7 +89,6 @@ namespace vvdec
 #define TBT                                               1
 #define TBC                                               0
 
-#define JVET_R0380_SCALING_MATRIX_DISABLE_YCC_OR_RGB      TBT //to be tested // JVET-R0380 solution3-3: Disable scaling matrix for blocks coded in alternative colour space.
 #define R0091_CONSTRAINT_SLICE_ORDER                      TBT //to be tested // JVET-R0091: constraint slice signalling order to be the same as slice coding order
 #define JVET_R0165_OPTIONAL_ENTRY_POINT                   TBT //to be tested // JVET-R0165: Optional entry point offset
 #define JVET_R0166_SCALING_LISTS_CHROMA_444               TBT //to be tested // JVET-R0166: Scaling list for Chroma 444

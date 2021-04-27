@@ -1579,10 +1579,8 @@ private:
   uint32_t          m_log2ParallelMergeLevelMinus2       = 0;
   bool              m_ppsValidFlag[64];
   Size              m_scalingWindowSizeInPPS[64];
-#if JVET_R0380_SCALING_MATRIX_DISABLE_YCC_OR_RGB
   bool              m_scalingMatrixAlternativeColourSpaceDisabledFlag = false;
   bool              m_scalingMatrixDesignatedColourSpaceFlag          = true;
-#endif
   bool              m_disableScalingMatrixForLfnstBlks                = true;
 public:
 
@@ -1981,12 +1979,10 @@ public:
   bool          getPPSValidFlag(int i)         { return m_ppsValidFlag[i]; }
   void          setScalingWindowSizeInPPS(int i, int scWidth, int scHeight) { m_scalingWindowSizeInPPS[i].width = scWidth; m_scalingWindowSizeInPPS[i].height = scHeight;}
   const Size&   getScalingWindowSizeInPPS(int i)                            { return m_scalingWindowSizeInPPS[i]; }
-#if JVET_R0380_SCALING_MATRIX_DISABLE_YCC_OR_RGB
   void      setScalingMatrixForAlternativeColourSpaceDisabledFlag(bool b)           { m_scalingMatrixAlternativeColourSpaceDisabledFlag = b; }
   bool      getScalingMatrixForAlternativeColourSpaceDisabledFlag()           const { return m_scalingMatrixAlternativeColourSpaceDisabledFlag; }
   void      setScalingMatrixDesignatedColourSpaceFlag(bool b)                       { m_scalingMatrixDesignatedColourSpaceFlag = b; }
   bool      getScalingMatrixDesignatedColourSpaceFlag()                       const { return m_scalingMatrixDesignatedColourSpaceFlag; }
-#endif
   bool       getDisableScalingMatrixForLfnstBlks()                            const { return m_disableScalingMatrixForLfnstBlks; }
   void       setDisableScalingMatrixForLfnstBlks(bool flag)                         { m_disableScalingMatrixForLfnstBlks = flag; }
 };
