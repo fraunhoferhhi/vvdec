@@ -159,11 +159,7 @@ public:
   void  parseScalingListAps ( APS* pcAPS );
   void  parseVUI            ( VUI* pcVUI, SPS* pcSPS );
   void  parseConstraintInfo ( ConstraintInfo *cinfo );
-#if JVET_Q0786_PTL_only
   void  parseProfileTierLevel( ProfileTierLevel *ptl, bool profileTierPresentFlag, int maxNumSubLayersMinus1 );
-#else
-  void  parseProfileTierLevel( ProfileTierLevel *ptl, int maxNumSubLayersMinus1 );
-#endif
   void  parseOlsHrdParameters    ( GeneralHrdParams* generalHrd, OlsHrdParams *olsHrd, uint32_t firstSubLayer, uint32_t tempLevelHigh );
   void  parseGeneralHrdParameters( GeneralHrdParams *generalHrd );
   void  parsePictureHeader  ( PicHeader* picHeader, ParameterSetManager *parameterSetManager, bool readRbspTrailingBits );

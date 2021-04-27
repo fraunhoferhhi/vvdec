@@ -1277,11 +1277,7 @@ void HLSyntaxReader::parseSPS( SPS* pcSPS, ParameterSetManager *parameterSetMana
 
   if( pcSPS->getPtlDpbHrdParamsPresentFlag() )
   {
-#if JVET_Q0786_PTL_only
     parseProfileTierLevel( pcSPS->getProfileTierLevel(), true, pcSPS->getMaxTLayers() - 1 );
-#else
-    parseProfileTierLevel( pcSPS->getProfileTierLevel(), pcSPS->getMaxTLayers() - 1 );
-#endif
   }
 
   READ_FLAG( uiCode, "sps_gdr_enabled_flag" );                               pcSPS->setGDREnabledFlag( uiCode );
@@ -2199,7 +2195,6 @@ void HLSyntaxReader::parseVPS( VPS* pcVPS )
   }
 #endif
 
-#if JVET_Q0786_PTL_only
   pcVPS->deriveOutputLayerSets();
 #if !JVET_S0063_VPS_SIGNALLING
   READ_CODE( 8, uiCode, "vps_num_ptls_minus1" );                             pcVPS->setNumPtls( uiCode + 1) ;
@@ -2268,7 +2263,6 @@ void HLSyntaxReader::parseVPS( VPS* pcVPS )
     CHECK( !isPTLReferred[i],"Each profile_tier_level( ) syntax structure in the VPS shall be referred to by at least one value of vps_ols_ptl_idx[i] for i in the range of 0 to TotalNumOlss ? 1, inclusive" );
   }
 #endif
-#endif
 
 #if JVET_Q0814_DPB
   if( !pcVPS->getEachLayerIsAnOlsFlag() )
@@ -2322,9 +2316,6 @@ void HLSyntaxReader::parseVPS( VPS* pcVPS )
       }
     }
 
-#if !JVET_Q0786_PTL_only
-    pcVPS->deriveOutputLayerSets();
-#endif
 
     for( int i = 0, j=0; i < pcVPS->getTotalNumOLSs(); i++ )
     {
@@ -4219,25 +4210,14 @@ void HLSyntaxReader::parseConstraintInfo( ConstraintInfo *cinfo )
 }
 
 
-#if JVET_Q0786_PTL_only
 void HLSyntaxReader::parseProfileTierLevel( ProfileTierLevel *ptl, bool profileTierPresentFlag, int maxNumSubLayersMinus1 )
-#else
-void HLSyntaxReader::parseProfileTierLevel( ProfileTierLevel *ptl, int maxNumSubLayersMinus1 )
-#endif
 {
   uint32_t symbol;
-#if JVET_Q0786_PTL_only
   if( profileTierPresentFlag )
   {
     READ_CODE( 7, symbol, "general_profile_idc" );                           ptl->setProfileIdc( Profile::Name( symbol ) );
     READ_FLAG( symbol, "general_tier_flag" );                                ptl->setTierFlag( symbol ? Tier::HIGH : Tier::MAIN );
   }
-#else
-  READ_CODE( 7, symbol, "general_profile_idc" );                             ptl->setProfileIdc( Profile::Name( symbol )  );
-  READ_FLAG( symbol, "general_tier_flag" );                                  ptl->setTierFlag( symbol ? Tier::HIGH : Tier::MAIN );
-
-  parseConstraintInfo( ptl->getConstraintInfo() );
-#endif
 
   READ_CODE( 8, symbol, "general_level_idc" );                               ptl->setLevelIdc( vvdecLevel( symbol ) );
 
@@ -4260,20 +4240,10 @@ void HLSyntaxReader::parseProfileTierLevel( ProfileTierLevel *ptl, int maxNumSub
     msg( WARNING, "Warning: MAIN_10_444 and MAIN_10_444_STILL_PICTURE is still experimental.\n" );
   }
 
-#if JVET_Q0786_PTL_only
   if( profileTierPresentFlag )
   {
     parseConstraintInfo( ptl->getConstraintInfo() );
   }
-#else
-  READ_CODE( 8, symbol, "num_sub_profiles" );
-  uint8_t numSubProfiles = symbol;
-  ptl->setNumSubProfile( numSubProfiles );
-  for (int i = 0; i < numSubProfiles; i++)
-  {
-    READ_CODE( 32, symbol, "general_sub_profile_idc[i]" );                   ptl->setSubProfileIdc( i, symbol );
-  }
-#endif
 
   for( int i = maxNumSubLayersMinus1 - 1; i >= 0; i-- )
   {

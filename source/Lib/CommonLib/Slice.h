@@ -1048,13 +1048,11 @@ private:
   uint32_t              m_directRefLayerIdx[MAX_VPS_LAYERS][MAX_VPS_LAYERS];
 #endif
   uint32_t              m_generalLayerIdx[MAX_VPS_LAYERS];
-#if JVET_Q0786_PTL_only
   uint32_t              m_vpsNumPtls                       = 1;
   bool                  m_ptPresentFlag[MAX_NUM_OLSS];
   uint32_t              m_ptlMaxTemporalId[MAX_NUM_OLSS];
   std::vector<ProfileTierLevel> m_vpsProfileTierLevel;
   uint32_t              m_olsPtlIdx[MAX_NUM_OLSS];
-#endif
   uint32_t              m_interLayerRefIdx[MAX_VPS_LAYERS][MAX_VPS_LAYERS];
   bool                  m_vpsExtensionFlag = false;
   bool                  m_vpsGeneralHrdParamsPresentFlag   = 0;
@@ -1162,7 +1160,6 @@ public:
   uint32_t          getGeneralLayerIdx(uint32_t layerId) const { return m_generalLayerIdx[layerId]; }
   void              setGeneralLayerIdx(uint32_t layerId, uint32_t layerIdc) { m_generalLayerIdx[layerId] = layerIdc; }
 
-#if JVET_Q0786_PTL_only
   uint32_t          getNumPtls()                                   const { return m_vpsNumPtls; }
   void              setNumPtls(uint32_t val)                             { m_vpsNumPtls = val;  }
 
@@ -1177,14 +1174,13 @@ public:
 
   uint32_t          getOlsPtlIdx(int idx)                          const { return m_olsPtlIdx[idx]; }
   void              setOlsPtlIdx(int idx, uint32_t val)                  { m_olsPtlIdx[idx] = val;  }
-#endif
   bool              getVPSGeneralHrdParamsPresentFlag()            const { return m_vpsGeneralHrdParamsPresentFlag; }
   void              setVPSGeneralHrdParamsPresentFlag(bool t)            { m_vpsGeneralHrdParamsPresentFlag = t; }
   bool              getVPSSublayerCpbParamsPresentFlag()           const { return m_vpsSublayerCpbParamsPresentFlag; }
   void              setVPSSublayerCpbParamsPresentFlag(bool t)           { m_vpsSublayerCpbParamsPresentFlag = t; }
   uint32_t          getNumOlsHrdParamsMinus1()                     const { return m_numOlsHrdParamsMinus1; }
   void              setNumOlsHrdParamsMinus1(uint32_t val)               { m_numOlsHrdParamsMinus1 = val; }
-  
+
   uint32_t          getHrdMaxTid(int olsIdx)                       const { return m_hrdMaxTid[olsIdx]; }
   void              setHrdMaxTid(int olsIdx, uint32_t val)               { m_hrdMaxTid[olsIdx] = val; }
   uint32_t          getOlsHrdIdx(int olsIdx)                       const { return m_olsHrdIdx[olsIdx]; }
@@ -1217,7 +1213,7 @@ public:
 
   int               getOlsDpbParamsIdx( int olsIdx ) const               { return m_olsDpbParamsIdx[olsIdx];        }
   void              setOlsDpbParamsIdx( int olsIdx, int paramIdx )       { m_olsDpbParamsIdx[olsIdx] = paramIdx;    }
-  
+
   void              deriveOutputLayerSets();
   void              deriveTargetOutputLayerSet( int targetOlsIdx );
 #endif
