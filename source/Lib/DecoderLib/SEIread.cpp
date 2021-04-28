@@ -823,7 +823,6 @@ void SEIReader::xParseSEIPictureTiming(vvdecSEI* s, uint32_t payloadSize, const 
   ::memset(sei, 0, sizeof(vvdecSEIPictureTiming));
 
   uint32_t symbol;
-#if JVET_S0185_PROPOSAl1_PICTURE_TIMING_CLEANUP
   sei_read_code( pDecodedMessageOutputStream, bp.cpbRemovalDelayLength, symbol, "pt_cpb_removal_delay_minus1[bp_max_sub_layers_minus1]" );
   sei->auCpbRemovalDelay[bp.bpMaxSubLayers - 1] = symbol + 1;
   for (int i = temporalId; i < bp.bpMaxSubLayers - 1; i++)
@@ -862,10 +861,6 @@ void SEIReader::xParseSEIPictureTiming(vvdecSEI* s, uint32_t payloadSize, const 
   }
   sei_read_code(pDecodedMessageOutputStream, bp.dpbOutputDelayLength, symbol, "pt_dpb_output_delay");
   sei->picDpbOutputDelay = symbol;
-#else
-  sei_read_code( pDecodedMessageOutputStream, bp.cpbRemovalDelayLength, symbol, "cpb_removal_delay_minus1[bp_max_sub_layers_minus1]" );
-  sei->auCpbRemovalDelay[bp.bpMaxSubLayers - 1] = symbol + 1;
-#endif
 
   if( bp.altCpbParamsPresentFlag )
   {
@@ -920,43 +915,6 @@ void SEIReader::xParseSEIPictureTiming(vvdecSEI* s, uint32_t payloadSize, const 
     sei->cpbAltTimingInfoPresentFlag = false;
   }
 
-#if !JVET_S0185_PROPOSAl1_PICTURE_TIMING_CLEANUP
-  for( int i = temporalId; i < bp.bpMaxSubLayers - 1; i ++ )
-  {
-    sei_read_flag( pDecodedMessageOutputStream,    symbol, "pt_sub_layer_delays_present_flag[i]" );    sei->ptSubLayerDelaysPresentFlag[i] = (symbol == 1);
-    if( sei->ptSubLayerDelaysPresentFlag[ i ] )
-    {
-      if( bp.cpbRemovalDelayDeltasPresentFlag )
-      {
-        sei_read_flag( pDecodedMessageOutputStream,    symbol, "cpb_removal_delay_delta_enabled_flag[i]" );         
-        sei->cpbRemovalDelayDeltaEnabledFlag[i]        = (symbol == 1);
-      }
-      else
-      {
-        sei->cpbRemovalDelayDeltaEnabledFlag[i] = false;
-      }
-      if( sei->cpbRemovalDelayDeltaEnabledFlag[ i ] )
-      {
-        if( ( bp.numCpbRemovalDelayDeltas - 1) > 0 )
-        {
-          sei_read_code( pDecodedMessageOutputStream, (int)ceil(log2(bp.numCpbRemovalDelayDeltas)), symbol, "cpb_removal_delay_delta_idx[i]" );
-          sei->cpbRemovalDelayDeltaIdx[ i ] = symbol;
-        }
-        else
-        {
-          sei->cpbRemovalDelayDeltaIdx[i] = 0;
-        }
-      }
-      else
-      {
-        sei_read_code( pDecodedMessageOutputStream, bp.cpbRemovalDelayLength, symbol, "cpb_removal_delay_minus1[i]" );
-        sei->auCpbRemovalDelay[ i ] = symbol + 1;
-      }
-    }
-  }
-  sei_read_code( pDecodedMessageOutputStream, bp.dpbOutputDelayLength,  symbol, "dpb_output_delay" );
-  sei->picDpbOutputDelay = symbol;
-#endif
   if ( bp.bpDecodingUnitHrdParamsPresentFlag && bp.decodingUnitDpbDuParamsInPicTimingSeiFlag )
   {
     sei_read_code( pDecodedMessageOutputStream, bp.dpbOutputDelayDuLength, symbol, "pic_dpb_output_du_delay" );
