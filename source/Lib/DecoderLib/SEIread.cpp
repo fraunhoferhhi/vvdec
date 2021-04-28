@@ -794,7 +794,6 @@ void SEIReader::xParseSEIBufferingPeriod(vvdecSEI* s, uint32_t payloadSize, std:
   sei_read_code( pDecodedMessageOutputStream, 3, code, "bp_max_sub_layers_minus1" );     sei->bpMaxSubLayers = code + 1;
 #endif
   sei_read_uvlc( pDecodedMessageOutputStream, code, "bp_cpb_cnt_minus1" ); sei->bpCpbCnt = code + 1;
-#if JVET_S0181_PROPOSAL1
   if (sei->bpMaxSubLayers - 1 > 0)
   {
     sei_read_flag(pDecodedMessageOutputStream, code, "bp_sublayer_initial_cpb_removal_delay_present_flag");
@@ -804,10 +803,6 @@ void SEIReader::xParseSEIBufferingPeriod(vvdecSEI* s, uint32_t payloadSize, std:
   {
     sei->sublayerInitialCpbRemovalDelayPresentFlag = false;
   }
-#else
-  sei_read_flag(pDecodedMessageOutputStream, code, "sublayer_initial_cpb_removal_delay_present_flag");
-  sei->sublayerInitialCpbRemovalDelayPresentFlag = code;
-#endif
   for (i = (sei->sublayerInitialCpbRemovalDelayPresentFlag ? 0 : sei->bpMaxSubLayers - 1); i < sei->bpMaxSubLayers; i++)
   {
     for( nalOrVcl = 0; nalOrVcl < 2; nalOrVcl ++ )
