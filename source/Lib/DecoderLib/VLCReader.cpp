@@ -1934,9 +1934,7 @@ void HLSyntaxReader::parseSPS( SPS* pcSPS, ParameterSetManager *parameterSetMana
   }
 
   READ_FLAG( uiCode, "sps_field_seq_flag");                                  pcSPS->setFieldSeqFlag( uiCode );
-#if JVET_S0138_GCI_PTL
   CHECK( pcSPS->getProfileTierLevel()->getFrameOnlyConstraintFlag() && uiCode, "When ptl_frame_only_constraint_flag equal to 1 , the value of sps_field_seq_flag shall be equal to 0" );
-#endif
 
   READ_FLAG( uiCode, "sps_vui_parameters_present_flag" );                    pcSPS->setVuiParametersPresentFlag( uiCode );
 
@@ -4108,7 +4106,6 @@ void HLSyntaxReader::parseProfileTierLevel( ProfileTierLevel *ptl, bool profileT
 
   READ_CODE( 8, symbol, "general_level_idc" );                               ptl->setLevelIdc( vvdecLevel( symbol ) );
 
-#if JVET_S0138_GCI_PTL
   READ_FLAG( symbol, "ptl_frame_only_constraint_flag" );                     ptl->setFrameOnlyConstraintFlag( symbol );
   READ_FLAG( symbol, "ptl_multilayer_enabled_flag" );                        ptl->setMultiLayerEnabledFlag( symbol );
   CHECK( ( ptl->getProfileIdc() == Profile::MAIN_10 || ptl->getProfileIdc() == Profile::MAIN_10_444
@@ -4116,7 +4113,6 @@ void HLSyntaxReader::parseProfileTierLevel( ProfileTierLevel *ptl, bool profileT
         || ptl->getProfileIdc() == Profile::MAIN_10_444_STILL_PICTURE )
           && symbol,
         "ptl_multilayer_enabled_flag shall be equal to 0 for non-multilayer profiles");
-#endif
 
   CHECK( ptl->getProfileIdc() == Profile::MULTILAYER_MAIN_10 || ptl->getProfileIdc() == Profile::MULTILAYER_MAIN_10_STILL_PICTURE ||
          ptl->getProfileIdc() == Profile::MULTILAYER_MAIN_10_444 || ptl->getProfileIdc() == Profile::MULTILAYER_MAIN_10_444_STILL_PICTURE,
@@ -4139,13 +4135,8 @@ void HLSyntaxReader::parseProfileTierLevel( ProfileTierLevel *ptl, bool profileT
 
   while( !isByteAligned() )
   {
-#if JVET_S0138_GCI_PTL
     READ_FLAG( symbol, "ptl_reserved_zero_bit" );
     CHECK( symbol != 0, "ptl_reserved_zero_bit not equal to zero" );
-#else
-    READ_FLAG( symbol, "ptl_alignment_zero_bit" );
-    CHECK( symbol != 0, "ptl_alignment_zero_bit not equal to zero" );
-#endif
   }
 
   for( int i = maxNumSubLayersMinus1 - 1; i >= 0; i-- )

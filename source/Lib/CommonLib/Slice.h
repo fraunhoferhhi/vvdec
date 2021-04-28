@@ -207,18 +207,12 @@ class ConstraintInfo
   bool         m_noRectSliceConstraintFlag                    = false;
   bool         m_oneSlicePerSubpicConstraintFlag              = false;
   bool         m_noSubpicInfoConstraintFlag                   = false;
-#if !JVET_S0138_GCI_PTL
-  bool         m_frameOnlyConstraintFlag                      = false;
-#endif
   bool         m_intraOnlyConstraintFlag                      = false;
   uint32_t     m_maxBitDepthConstraintIdc                     = 16;
   ChromaFormat m_maxChromaFormatConstraintIdc                 = CHROMA_444;
   bool         m_onePictureOnlyConstraintFlag                 = false;
   bool         m_lowerBitRateConstraintFlag                   = false;
 
-#if !JVET_S0138_GCI_PTL
-  bool         m_singleLayerConstraintFlag                    = false;
-#endif
   bool         m_allLayersIndependentConstraintFlag           = false;
   bool         m_noMrlConstraintFlag                          = false;
   bool         m_noIspConstraintFlag                          = false;
@@ -280,10 +274,6 @@ public:
   bool          getGciPresentFlag() const { return m_gciPresentFlag; }
   void          setGciPresentFlag(bool b) { m_gciPresentFlag = b; }
 
-#if !JVET_S0138_GCI_PTL
-  bool          getFrameOnlyConstraintFlag() const { return m_frameOnlyConstraintFlag; }
-  void          setFrameOnlyConstraintFlag(bool b) { m_frameOnlyConstraintFlag = b; }
-#endif
   uint32_t      getMaxBitDepthConstraintIdc() const { return m_maxBitDepthConstraintIdc; }
   void          setMaxBitDepthConstraintIdc(uint32_t bitDepth) { m_maxBitDepthConstraintIdc = bitDepth; }
 
@@ -324,10 +314,6 @@ public:
 
   bool          getLowerBitRateConstraintFlag() const { return m_lowerBitRateConstraintFlag; }
   void          setLowerBitRateConstraintFlag(bool b) { m_lowerBitRateConstraintFlag = b; }
-#if !JVET_S0138_GCI_PTL
-  bool          getSingleLayerConstraintFlag() const { return m_singleLayerConstraintFlag; }
-  void          setSingleLayerConstraintFlag(bool b) { m_singleLayerConstraintFlag = b; }
-#endif
   bool          getAllLayersIndependentConstraintFlag() const { return m_allLayersIndependentConstraintFlag; }
   void          setAllLayersIndependentConstraintFlag(bool b) { m_allLayersIndependentConstraintFlag = b; }
   bool          getNoMrlConstraintFlag() const { return m_noMrlConstraintFlag; }
@@ -441,61 +427,57 @@ public:
 
 class ProfileTierLevel
 {
-  Tier              m_tierFlag      = Tier::MAIN;
-  Profile::Name     m_profileIdc    = Profile::NONE;
-  uint8_t           m_numSubProfile = 0;
+  Tier                  m_tierFlag      = Tier::MAIN;
+  Profile::Name         m_profileIdc    = Profile::NONE;
+  uint8_t               m_numSubProfile = 0;
   std::vector<uint32_t> m_subProfileIdc;
-  vvdecLevel        m_levelIdc      = vvdecLevel::VVDEC_LEVEL_NONE;
-#if JVET_S0138_GCI_PTL
-  bool              m_frameOnlyConstraintFlag = true;
-  bool              m_multiLayerEnabledFlag   = false;
-#endif
-  ConstraintInfo    m_constraintInfo;
-  bool              m_subLayerLevelPresentFlag[MAX_TLAYER - 1]; // init in constructor
-  vvdecLevel        m_subLayerLevelIdc        [MAX_TLAYER]; // init in constructor
+  vvdecLevel            m_levelIdc                = vvdecLevel::VVDEC_LEVEL_NONE;
+  bool                  m_frameOnlyConstraintFlag = true;
+  bool                  m_multiLayerEnabledFlag   = false;
+  ConstraintInfo        m_constraintInfo;
+  bool                  m_subLayerLevelPresentFlag[MAX_TLAYER - 1];   // init in constructor
+  vvdecLevel            m_subLayerLevelIdc[MAX_TLAYER];               // init in constructor
+
 public:
   ProfileTierLevel()
   {
-    ::memset(m_subLayerLevelPresentFlag,   0, sizeof(m_subLayerLevelPresentFlag  ));
-    ::memset(m_subLayerLevelIdc, vvdecLevel::VVDEC_LEVEL_NONE, sizeof(m_subLayerLevelIdc    ));
+    ::memset( m_subLayerLevelPresentFlag, 0, sizeof( m_subLayerLevelPresentFlag ) );
+    ::memset( m_subLayerLevelIdc, vvdecLevel::VVDEC_LEVEL_NONE, sizeof( m_subLayerLevelIdc ) );
   }
 
-  Tier          getTierFlag() const                         { return m_tierFlag;                    }
-  void          setTierFlag(Tier x)                         { m_tierFlag = x;                       }
+  Tier                    getTierFlag() const                         { return m_tierFlag;                    }
+  void                    setTierFlag(Tier x)                         { m_tierFlag = x;                       }
 
-  Profile::Name getProfileIdc() const                       { return m_profileIdc;                  }
-  void          setProfileIdc(Profile::Name x)              { m_profileIdc = x;                     }
+  Profile::Name           getProfileIdc() const                       { return m_profileIdc;                  }
+  void                    setProfileIdc(Profile::Name x)              { m_profileIdc = x;                     }
 
-  uint8_t       getNumSubProfile() const                    { return m_numSubProfile; }
-  void          setNumSubProfile(uint8_t x)                 { m_numSubProfile = x; m_subProfileIdc.resize(m_numSubProfile); }
-  
-  uint32_t      getSubProfileIdc(int i) const               { return m_subProfileIdc[i]; }
-  void          setSubProfileIdc(int i, uint32_t x)         { m_subProfileIdc[i] = x; }
+  uint8_t                 getNumSubProfile() const                    { return m_numSubProfile; }
+  void                    setNumSubProfile(uint8_t x)                 { m_numSubProfile = x; m_subProfileIdc.resize(m_numSubProfile); }
 
-  vvdecLevel    getLevelIdc() const                         { return m_levelIdc;                    }
-  void          setLevelIdc(vvdecLevel x)                   { m_levelIdc = x;                       }
+  uint32_t                getSubProfileIdc(int i) const               { return m_subProfileIdc[i]; }
+  void                    setSubProfileIdc(int i, uint32_t x)         { m_subProfileIdc[i] = x; }
 
-#if JVET_S0138_GCI_PTL
-  bool                    getFrameOnlyConstraintFlag() const { return m_frameOnlyConstraintFlag; }
-  void                    setFrameOnlyConstraintFlag(bool x) { m_frameOnlyConstraintFlag = x; }
+  vvdecLevel              getLevelIdc() const                         { return m_levelIdc;                    }
+  void                    setLevelIdc(vvdecLevel x)                   { m_levelIdc = x;                       }
 
-  bool                    getMultiLayerEnabledFlag() const { return m_multiLayerEnabledFlag; }
-  void                    setMultiLayerEnabledFlag(bool x) { m_multiLayerEnabledFlag = x; }
-#endif
+  bool                    getFrameOnlyConstraintFlag() const          { return m_frameOnlyConstraintFlag; }
+  void                    setFrameOnlyConstraintFlag(bool x)          { m_frameOnlyConstraintFlag = x;    }
 
-  ConstraintInfo*         getConstraintInfo()              { return &m_constraintInfo; }
-  const ConstraintInfo*   getConstraintInfo() const        { return &m_constraintInfo; }
+  bool                    getMultiLayerEnabledFlag() const           { return m_multiLayerEnabledFlag; }
+  void                    setMultiLayerEnabledFlag(bool x)           { m_multiLayerEnabledFlag = x;    }
 
-  bool                    getSubLayerLevelPresentFlag(int i) const     { return m_subLayerLevelPresentFlag[i];   }
-  void                    setSubLayerLevelPresentFlag(int i, bool x)   { m_subLayerLevelPresentFlag[i] = x;      }
+  ConstraintInfo*         getConstraintInfo()                        { return &m_constraintInfo; }
+  const ConstraintInfo*   getConstraintInfo() const                  { return &m_constraintInfo; }
 
-  vvdecLevel              getSubLayerLevelIdc(int i) const             { return m_subLayerLevelIdc[i];   }
-  void                    setSubLayerLevelIdc(int i, vvdecLevel x)     { m_subLayerLevelIdc[i] = x;      }
+  bool                    getSubLayerLevelPresentFlag(int i) const   { return m_subLayerLevelPresentFlag[i];   }
+  void                    setSubLayerLevelPresentFlag(int i, bool x) { m_subLayerLevelPresentFlag[i] = x;      }
+
+  vvdecLevel              getSubLayerLevelIdc(int i) const           { return m_subLayerLevelIdc[i];   }
+  void                    setSubLayerLevelIdc(int i, vvdecLevel x)   { m_subLayerLevelIdc[i] = x;      }
+
   friend bool             operator == (const ProfileTierLevel& op1, const ProfileTierLevel& op2);
   friend bool             operator != (const ProfileTierLevel& op1, const ProfileTierLevel& op2);
 };
-
-
 
 struct HrdSubLayerInfo
 {
