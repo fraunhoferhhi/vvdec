@@ -2097,11 +2097,7 @@ void HLSyntaxReader::parseVPS( VPS* pcVPS )
       }
       if( pcVPS->getOlsModeIdc() == 2 )
       {
-#if JVET_S0183_VPS_INFORMATION_SIGNALLING
         READ_CODE( 8, uiCode, "vps_num_output_layer_sets_minus2" );          pcVPS->setNumOutputLayerSets( uiCode + 2 );
-#else
-        READ_CODE( 8, uiCode, "vps_num_output_layer_sets_minus1" );          pcVPS->setNumOutputLayerSets( uiCode + 1 );
-#endif
         for( uint32_t i = 1; i <= pcVPS->getNumOutputLayerSets() - 1; i++ )
         {
           for( uint32_t j = 0; j < pcVPS->getMaxLayers(); j++ )
