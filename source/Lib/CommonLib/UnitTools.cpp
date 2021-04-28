@@ -144,7 +144,6 @@ void CU::checkConformanceILRP(Slice *slice)
 {
   const int numRefList = (slice->getSliceType() == B_SLICE) ? (2) : (1);
 
-#if JVET_S0258_SUBPIC_CONSTRAINTS
   int currentSubPicIdx = NOT_VALID;
 
   // derive sub-picture index for the current slice
@@ -163,7 +162,6 @@ void CU::checkConformanceILRP(Slice *slice)
   {
     return;
   }
-#endif
 
   //constraint 1: The picture referred to by each active entry in RefPicList[ 0 ] or RefPicList[ 1 ] has the same subpicture layout as the current picture
   bool isAllRefSameSubpicLayout = true;
@@ -172,15 +170,9 @@ void CU::checkConformanceILRP(Slice *slice)
     RefPicList  eRefPicList = (refList ? REF_PIC_LIST_1 : REF_PIC_LIST_0);
     for (int refIdx = 0; refIdx < slice->getNumRefIdx(eRefPicList); refIdx++)
     {
-#if JVET_S0258_SUBPIC_CONSTRAINTS
       const Picture* refPic = slice->getRefPic( eRefPicList, refIdx );
 
       if( refPic->subPictures.size() != slice->getPic()->cs->pps->getNumSubPics() )
-#else
-      const Picture* refPic = slice->getRefPic(eRefPicList, refIdx)->unscaledPic;
-
-      if (refPic->numSubpics != slice->getPic()->cs->pps->getNumSubPics())
-#endif
       {
         isAllRefSameSubpicLayout = false;
         refList = numRefList;
@@ -188,7 +180,6 @@ void CU::checkConformanceILRP(Slice *slice)
       }
       else
       {
-#if JVET_S0258_SUBPIC_CONSTRAINTS
         for( int i = 0; i < refPic->subPictures.size(); i++ )
         {
           const SubPic& refSubPic = refPic->subPictures[i];
@@ -200,14 +191,6 @@ void CU::checkConformanceILRP(Slice *slice)
             || refSubPic.getSubPicCtuTopLeftY() != curSubPic.getSubPicCtuTopLeftY()
             || ( refPic->layerId != slice->getPic()->layerId && refSubPic.getSubPicID() != curSubPic.getSubPicID() )
             || refSubPic.getTreatedAsPicFlag() != curSubPic.getTreatedAsPicFlag())
-#else
-        for (int i = 0; i < refPic->numSubpics; i++)
-        {
-          if (refPic->subpicWidthInCTUs[i] != slice->getPic()->cs->pps->getSubPic(i).getSubPicWidthInCTUs()
-            || refPic->subpicHeightInCTUs[i] != slice->getPic()->cs->pps->getSubPic(i).getSubPicHeightInCTUs()
-            || refPic->subpicCtuTopLeftX[i] != slice->getPic()->cs->pps->getSubPic(i).getSubPicCtuTopLeftX()
-            || refPic->subpicCtuTopLeftY[i] != slice->getPic()->cs->pps->getSubPic(i).getSubPicCtuTopLeftY())
-#endif
           {
             isAllRefSameSubpicLayout = false;
             refIdx = slice->getNumRefIdx(eRefPicList);
@@ -216,13 +199,11 @@ void CU::checkConformanceILRP(Slice *slice)
           }
         }
 
-#if JVET_S0258_SUBPIC_CONSTRAINTS
         // A picture with different sub-picture ID of the collocated sub-picture cannot be used as an active reference picture in the same layer
         if( refPic->layerId == slice->getPic()->layerId )
         {
           isAllRefSameSubpicLayout = isAllRefSameSubpicLayout && refPic->subPictures[currentSubPicIdx].getSubPicID() == slice->getSliceSubPicId();
         }
-#endif
       }
     }
   }
@@ -235,13 +216,8 @@ void CU::checkConformanceILRP(Slice *slice)
       RefPicList  eRefPicList = (refList ? REF_PIC_LIST_1 : REF_PIC_LIST_0);
       for (int refIdx = 0; refIdx < slice->getNumRefIdx(eRefPicList); refIdx++)
       {
-#if JVET_S0258_SUBPIC_CONSTRAINTS
         const Picture* refPic = slice->getRefPic( eRefPicList, refIdx );
         CHECK( refPic->layerId == slice->getPic()->layerId || refPic->subPictures.size() > 1, "The inter-layer reference shall contain a single subpicture or have same subpicture layout with the current picture" );
-#else
-        const Picture* refPic = slice->getRefPic(eRefPicList, refIdx)->unscaledPic;
-        CHECK(!(refPic->layerId != slice->getPic()->layerId && refPic->numSubpics == 1), "The inter-layer reference shall contain a single subpicture or have same subpicture layout with the current picture");
-#endif
       }
     }
   }

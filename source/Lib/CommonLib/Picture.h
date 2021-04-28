@@ -181,17 +181,9 @@ public:
   uint64_t    bits         = 0;   // input nal bit count
   bool        rap          = 0;   // random access point flag
   int         decodingOrderNumber = 0;
-#if JVET_S0258_SUBPIC_CONSTRAINTS
-  std::vector<int> sliceSubpicIdx;
-  std::vector<SubPic> subPictures;
-  int numSlices            = 1;
-#else
-  int  numSubpics          = 1;
-  std::vector<int> subpicWidthInCTUs;
-  std::vector<int> subpicHeightInCTUs;
-  std::vector<int> subpicCtuTopLeftX;
-  std::vector<int> subpicCtuTopLeftY;
-#endif
+
+  std::vector<int>        sliceSubpicIdx;
+  std::vector<SubPic>     subPictures;
   std::vector<PelStorage> m_subPicRefBufs;   // used as reference for subpictures, that are treated as pictures
 
   bool        subLayerNonReferencePictureDueToSTSA = 0;
@@ -199,13 +191,9 @@ public:
   int*        m_spliceIdx  = nullptr;
   int         m_ctuNums    = 0;
 
-  PelStorage  m_bufs[NUM_PIC_TYPES];
-  uint32_t    margin       = 0;
-  const Picture*           unscaledPic;
-
-#if !JVET_S0258_SUBPIC_CONSTRAINTS
-  std::vector<int> subPicIDs;
-#endif
+  PelStorage     m_bufs[NUM_PIC_TYPES];
+  uint32_t       margin = 0;
+  const Picture* unscaledPic;
 
   WaitCounter     m_ctuTaskCounter;
   WaitCounter     m_dmvrTaskCounter;
@@ -220,8 +208,9 @@ public:
 #endif
   Barrier         parseDone;
 
-  CodingStructure*   cs    = nullptr;
+  CodingStructure*    cs = nullptr;
   std::vector<Slice*> slices;
+  int                 numSlices = 1;
 
   seiMessages        seiMessageList;
 
