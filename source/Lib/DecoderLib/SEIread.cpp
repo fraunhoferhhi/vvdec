@@ -362,12 +362,10 @@ void SEIReader::xReadSEImessage( seiMessages& seiList, const NalUnitType nalUnit
         s = SEI_internal::allocSEI( type ) ;
         xParseSEIDecodedPictureHash(s, payloadSize, pDecodedMessageOutputStream);
         break;
-#if JVET_R0294_SUBPIC_HASH
       case VVDEC_SCALABLE_NESTING:
         s = SEI_internal::allocSEI( type ) ;
         xParseSEIScalableNesting(s, nalUnitType, nuh_layer_id, payloadSize, vps, sps, pDecodedMessageOutputStream);
         break;
-#endif
       default:
         for (uint32_t i = 0; i < payloadSize; i++)
         {

@@ -89,8 +89,6 @@ namespace vvdec
 #define TBT                                               1
 #define TBC                                               0
 
-#define JVET_R0294_SUBPIC_HASH                            TBT //to be tested // JVET-R0294: Allow decoded picture hash SEI messages to be nested in subpicture context
-
 #define JVET_R0270                                        TBC // JVET-S0270: Treating picture with mixed RASL and RADL slices as RASL picture
 #define JVET_S0258_SUBPIC_CONSTRAINTS                     TBT //to be tested // JVET-S0258: sub-picture constraints
 #define JVET_S0234_ACT_CRS_FIX                            TBT //to be tested // JVET-S0234: perform chroma residual scaling in RGB domain when ACT is on
