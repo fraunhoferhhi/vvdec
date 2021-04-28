@@ -1662,9 +1662,7 @@ void SEIReader::xParseSEISubpictureLevelInfo(vvdecSEI* s, uint32_t payloadSize, 
   {
     for (int i = 0; i < sei->numRefLevels; i++)
     {
-#if JVET_S0098_SLI_FRACTION
       sei_read_code(pDecodedMessageOutputStream, 8, val, "sli_non_subpic_layers_fraction[i][k]");    sei->nonSubpicLayersFraction[i][k] = (vvdecLevel) val;
-#endif
       sei_read_code(pDecodedMessageOutputStream, 8, val, "sli_ref_level_idc[i][k]");                 sei->refLevelIdc[i][k] = (vvdecLevel) val;
 
       if (sei->explicitFractionPresentFlag)
@@ -1684,10 +1682,8 @@ void SEIReader::xParseSEISubpictureLevelInfo(vvdecSEI* s, uint32_t payloadSize, 
     {
       for (int i = 0; i < sei->numRefLevels; i++)
       {
-#if JVET_S0098_SLI_FRACTION
         sei->nonSubpicLayersFraction[i][k] = sei->nonSubpicLayersFraction[i][sei->sliMaxSublayers - 1];
-#endif
-        sei->refLevelIdc[i][k] = sei->refLevelIdc[i][sei->sliMaxSublayers - 1];
+        sei->refLevelIdc            [i][k] = sei->refLevelIdc            [i][sei->sliMaxSublayers - 1];
         if (sei->explicitFractionPresentFlag)
         {
           for (int j = 0; j < sei->numSubpics; j++)
