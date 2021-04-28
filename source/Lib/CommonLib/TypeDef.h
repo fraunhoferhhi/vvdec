@@ -92,7 +92,6 @@ namespace vvdec
 #define JVET_R0270                                        TBC // JVET-S0270: Treating picture with mixed RASL and RADL slices as RASL picture
 #define JVET_S0155_EOS_NALU_CHECK                         TBC // JVET-S0155: Constraints on EOS NAL units
 
-#define JVET_S0064_SEI_BUFFERING_PERIOD_CLEANUP           TBT //to be tested // JVET-S0064: Conditionally signal bp_sublayer_dpb_output_offsets_present_flag
 #define JVET_S0185_PROPOSAL2_SEI_CLEANUP                  TBT //to be tested // JVET-S0185_PROPOSAL2: Move signalling of syntax element bp_alt_cpb_params_present_flag
 #define JVET_S0181_PROPOSAL1                              TBT //to be tested // JVET-0181_Proposal1: Conditionally signal bp_sublayer_initial_cpb_removal_delay_present_flag
 #define JVET_S0177_SCALABLE_NESTING_SEI                   TBT //to be tested // JVET-S0177: Constraints on the scalable nesting SEI message

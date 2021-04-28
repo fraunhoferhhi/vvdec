@@ -828,7 +828,6 @@ void SEIReader::xParseSEIBufferingPeriod(vvdecSEI* s, uint32_t payloadSize, std:
       }
     }
   }
-#if JVET_S0064_SEI_BUFFERING_PERIOD_CLEANUP
   if (sei->bpMaxSubLayers-1 > 0)
   {
     sei_read_flag(pDecodedMessageOutputStream, code, "bp_sublayer_dpb_output_offsets_present_flag");
@@ -838,10 +837,6 @@ void SEIReader::xParseSEIBufferingPeriod(vvdecSEI* s, uint32_t payloadSize, std:
   {
     sei->sublayerDpbOutputOffsetsPresentFlag = false;
   }
-#else
-  sei_read_flag( pDecodedMessageOutputStream, code, "sublayer_dpb_output_offsets_present_flag" );
-  sei->sublayerDpbOutputOffsetsPresentFlag = code;
-#endif
   if(sei->sublayerDpbOutputOffsetsPresentFlag)
   {
     for(int i = 0; i < sei->bpMaxSubLayers - 1; i++)
