@@ -2165,21 +2165,14 @@ void HLSyntaxReader::parseVPS( VPS* pcVPS )
         }
       }
     }
-#if JVET_S0063_VPS_SIGNALLING
     READ_CODE( 8, uiCode, "vps_num_ptls_minus1" );                           pcVPS->setNumPtls( uiCode + 1 );
-#endif
   }
-#if JVET_S0063_VPS_SIGNALLING
   else
   {
     pcVPS->setNumPtls( 1 );
   }
-#endif
 
   pcVPS->deriveOutputLayerSets();
-#if !JVET_S0063_VPS_SIGNALLING
-  READ_CODE( 8, uiCode, "vps_num_ptls_minus1" );                             pcVPS->setNumPtls( uiCode + 1) ;
-#endif
   CHECK( uiCode >= pcVPS->getTotalNumOLSs(), "The value of vps_num_ptls_minus1 shall be less than TotalNumOlss" );
 
   std::vector<bool> isPTLReferred( pcVPS->getNumPtls(), false );

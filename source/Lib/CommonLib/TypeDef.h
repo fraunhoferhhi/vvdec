@@ -91,7 +91,6 @@ namespace vvdec
 
 #define JVET_R0270                                        TBC // JVET-S0270: Treating picture with mixed RASL and RADL slices as RASL picture
 
-#define JVET_S0063_VPS_SIGNALLING                         TBT //to be tested // Modifications to VPS signalling - conditionally signal vps_num_ptls_minus1
 #define JVET_S0155_EOS_NALU_CHECK                         TBC // JVET-S0155: Constraints on EOS NAL units
 #define JVET_S0071_SAME_SIZE_SUBPIC_LAYOUT                TBT //to be tested // JVET-S0071 : shortcut when all subpictures have the same size
 #define JVET_S0098_SLI_FRACTION                           TBT //to be tested // JVET-S0098 Item 3: Add non_subpic_layers_fraction syntax element
