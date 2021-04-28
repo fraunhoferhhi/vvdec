@@ -84,12 +84,8 @@ public:
   int8_t pers[2];
   int8_t rems[2];
 
-private:
-  
-public:
-
   QpParam(const TransformUnit& tu, const ComponentID &compID, const bool allowACTQpoffset = true);
-  
+
   int Qp ( const bool ts ) const { return Qps [ts?1:0]; }
   int per( const bool ts ) const { return pers[ts?1:0]; }
   int rem( const bool ts ) const { return rems[ts?1:0]; }

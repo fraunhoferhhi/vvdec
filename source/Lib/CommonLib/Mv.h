@@ -235,13 +235,6 @@ void clipMvInPic     ( Mv& rcMv, const Position& pos, const struct Size& size, c
 void clipMvInSubpic  ( Mv& rcMv, const Position& pos, const struct Size& size, const SPS& sps, const PPS& pps );
 bool wrapClipMv      ( Mv& rcMv, const Position& pos, const struct Size& size, const SPS& sps, const PPS& pps );
 
-//#if JVET_O1164_PS
-//bool wrapClipMv( Mv& rcMv, const Position& pos, const Size& size, const SPS& sps, const PPS& pps );
-//bool wrapClipMv( int& mvx, int& mvy, const Position& pos, const Size& size, const SPS& sps, const PPS& pps );
-//#else
-//bool wrapClipMv( Mv& rcMv, const Position& pos, const Size& size, const SPS& sps );
-//#endif
-
 void roundAffineMv( int& mvx, int& mvy, int nShift );
 
 }

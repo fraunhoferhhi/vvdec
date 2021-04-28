@@ -85,8 +85,6 @@ namespace vvdec
 #define GDR_ADJ                                           1
 #define ALF_FIX                                           1
 
-#define TBD                                               1
-#define TBT                                               1
 #define TBC                                               0
 
 #define JVET_R0270                                        TBC // JVET-S0270: Treating picture with mixed RASL and RADL slices as RASL picture
