@@ -753,9 +753,7 @@ void SEIReader::xParseSEIBufferingPeriod(vvdecSEI* s, uint32_t payloadSize, std:
     sei->decodingUnitDpbDuParamsInPicTimingSeiFlag = false;
   }
 
-#if JVET_S0248_HRD_CLEANUP
   CHECK(sei->altCpbParamsPresentFlag && sei->bpDecodingUnitHrdParamsPresentFlag,"When bp_alt_cpb_params_present_flag is equal to 1, the value of bp_du_hrd_params_present_flag shall be equal to 0");
-#endif
 
   sei_read_flag( pDecodedMessageOutputStream, code, "concatenation_flag");
   sei->concatenationFlag = code;
