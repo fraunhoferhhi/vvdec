@@ -92,7 +92,6 @@ namespace vvdec
 #define JVET_R0270                                        TBC // JVET-S0270: Treating picture with mixed RASL and RADL slices as RASL picture
 #define JVET_S0155_EOS_NALU_CHECK                         TBC // JVET-S0155: Constraints on EOS NAL units
 
-#define JVET_S0176_SLI_SEI                                TBT //to be tested // JVET-S0176: On the subpicture level information SEI message
 #define JVET_S0181_PROPOSAL2_BUFFERING_PERIOD_CLEANUP     TBT //to be tested // JVET-S0181 Proposal2: Move signalling of bp_max_sublayers_minus1 and conditionally signal bp_cpb_removal_delay_deltas_present_flag, bp_num_cpb_removal_delay_deltas_minus1, and bp_cpb_removal_delay
 #define JVET_S0138_GCI_PTL                                TBT //to be tested // JVET-S_Notes_d9: move frame_only_constraint_flag and single_layer_constraint_flag into PTL for easy access
 #define JVET_S0185_PROPOSAl1_PICTURE_TIMING_CLEANUP       TBT //to be tested // JVET-S0185: Proposal 1, put syntax element pt_cpb_removal_delay_minus1[] first, followed by similar information for sub-layers, followed by pt_dpb_output_delay

@@ -1577,19 +1577,16 @@ void SEIReader::xParseSEISubpictureLevelInfo(vvdecSEI* s, uint32_t payloadSize, 
   {
     sei_read_uvlc(pDecodedMessageOutputStream,      val,    "sli_nusubpics_minus1");                  sei->numSubpics = val + 1;
     CHECK( sei->numSubpics > 64, "sli_nusubpics_minus1 must be < 64 in vvdecSEISubpictureLevelInfo" );
-#if JVET_S0176_SLI_SEI
     sei_read_code(pDecodedMessageOutputStream,  3,  val,    "sli_max_sublayers_minus1"  );            sei->sliMaxSublayers = val + 1;
     CHECK( sei->sliMaxSublayers > 6, "sli_max_sublayers_minus1 must be < 6 in vvdecSEISubpictureLevelInfo" );
 
     sei_read_flag(pDecodedMessageOutputStream,      val,    "sli_sublayer_info_present_flag");        sei->sliSublayerInfoPresentFlag = val;
-#endif
     while (!isByteAligned())
     {
       sei_read_flag( pDecodedMessageOutputStream,   val,    "sli_alignment_zero_bit" );           CHECK (val != 0, "sli_alignment_zero_bit not equal to zero" );
     }
   }
 
-#if JVET_S0176_SLI_SEI
   // sei parameters initialization
   for (int i = 0; i < sei->numRefLevels; i++)
   {
@@ -1649,23 +1646,6 @@ void SEIReader::xParseSEISubpictureLevelInfo(vvdecSEI* s, uint32_t payloadSize, 
       }
     }
   }
-#else
-  if (sei->explicitFractionPresentFlag)
-  {
-    sei->refLevelFraction.resize(sei->numRefLevels);
-  }
-  for( int i = 0; i  <  sei->numRefLevels; i++ )
-  {
-    sei_read_code( pDecodedMessageOutputStream,   8,  val,    "sli_ref_level_idc[i]" );         sei->refLevelIdc[i]  = (Level::Name) val;
-    if( sei->explicitFractionPresentFlag )
-    {
-      for( int j = 0; j  <  sei->numSubpics; j++ )
-      {
-        sei_read_code( pDecodedMessageOutputStream,   8,  val,    "sli_ref_level_fraction_minus1[i][j]" );  sei->refLevelFraction[i][j]= val;
-      }
-    }
-  }
-#endif
 }
 
 void SEIReader::xParseSEISampleAspectRatioInfo(vvdecSEI* s, uint32_t payloadSize, std::ostream *pDecodedMessageOutputStream)
