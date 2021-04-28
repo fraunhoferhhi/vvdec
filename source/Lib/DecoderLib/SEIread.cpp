@@ -594,7 +594,6 @@ void SEIReader::xParseSEIScalableNesting(vvdecSEI* s, const NalUnitType nalUnitT
 
 void SEIReader::xCheckScalableNestingConstraints(const vvdecSEIScalableNesting* sei, const NalUnitType nalUnitType, const VPS* vps)
 {
-#if JVET_S0177_SCALABLE_NESTING_SEI
   const std::vector<int> vclAssociatedSeiList { 3, 19, 45, 129, 137, 144, 145, 147, 148, 149, 150, 153, 154, 155, 156, 168, 204 };
 
   bool containBPorPTorDUIorSLI = false;
@@ -640,25 +639,6 @@ void SEIReader::xCheckScalableNestingConstraints(const vvdecSEIScalableNesting* 
     }
   }
   CHECK(containBPorPTorDUIorSLI && containNoBPorPTorDUIorSLI, "When a scalable nesting SEI message contains a BP, PT, DUI, or SLI SEI message, the scalable nesting SEI message shall not contain any other SEI message with payloadType not equal to BP, PT, DUI, or SLI");
-#else
-  bool containBPorPTorDUI   = false;
-  bool containNoBPorPTorDUI = false;
-  for (auto nestedsei : sei->nestedSEIs)
-  {
-#if JVET_S0178_GENERAL_SEI_CHECK
-    CHECK(vps->getGeneralHrdParameters()->getGeneralSamePicTimingInAllOlsFlag() && nestedsei->payloadType() == PICTURE_TIMING, "When general_same_pic_timing_in_all_ols_flag is equal to 1, there shall be no SEI NAL unit that contain a scalable-nested SEI message with payloadType equal to PT");
-#endif
-    if (nestedsei->payloadType() == VVDEC_BUFFERING_PERIOD || nestedsei->payloadType() == VVDEC_PICTURE_TIMING || nestedsei->payloadType() == VVDEC_DECODING_UNIT_INFO)
-    {
-      containBPorPTorDUI = true;
-  }
-    if (!(nestedsei->payloadType() == VVDEC_BUFFERING_PERIOD || nestedsei->payloadType() == VVDEC_PICTURE_TIMING || nestedsei->payloadType() == VVDEC_DECODING_UNIT_INFO))
-    {
-      containNoBPorPTorDUI = true;
-    }
-  }
-  CHECK(containBPorPTorDUI && containNoBPorPTorDUI, "Scalable Nesting SEI cannot contain timing-related SEI and none-timing-related SEIs at the same time");
-#endif
 }
 
 void SEIReader::xParseSEIDecodingUnitInfo(vvdecSEI* s, uint32_t payloadSize, const vvdecSEIBufferingPeriod& bp, const uint32_t temporalId, std::ostream *pDecodedMessageOutputStream)
