@@ -1442,9 +1442,7 @@ private:
   bool              m_conformanceWindowPresentFlag       = false;
   Window            m_conformanceWindow;
   bool              m_independentSubPicsFlag             = false;
-#if JVET_S0071_SAME_SIZE_SUBPIC_LAYOUT
   bool              m_subPicSameSizeFlag                 = false;
-#endif
 
   RPLList           m_RPLList0;
   RPLList           m_RPLList1;
@@ -1617,17 +1615,15 @@ public:
   Window&                 getConformanceWindow()                                                          { return  m_conformanceWindow;                                         }
   const Window&           getConformanceWindow() const                                                    { return  m_conformanceWindow;                                         }
   void                    setConformanceWindow(Window& conformanceWindow )                                { m_conformanceWindow = conformanceWindow;                             }
-  
+
   void                    setSubPicInfoPresentFlag(bool b)                                                { m_subPicInfoPresentFlag = b;            }
   bool                    getSubPicInfoPresentFlag() const                                                { return m_subPicInfoPresentFlag;         }
-  
+
   void                    setNumSubPics( uint8_t u )                                                      { m_numSubPics = u;                           }
   void                    setIndependentSubPicsFlag(bool b)                                               { m_independentSubPicsFlag = b;                    }
   bool                    getIndependentSubPicsFlag() const                                               { return m_independentSubPicsFlag;                 }
-#if JVET_S0071_SAME_SIZE_SUBPIC_LAYOUT
   void                    setSubPicSameSizeFlag(bool b)                                                   { m_subPicSameSizeFlag = b;                       }
   bool                    getSubPicSameSizeFlag() const                                                   { return m_subPicSameSizeFlag;                    }
-#endif
   uint8_t                 getNumSubPics( ) const                                                          { return  m_numSubPics;            }
   void                    setSubPicCtuTopLeftX( int i, uint32_t u )                                       { CHECK( i >= MAX_NUM_SUB_PICS, "Sub-picture index exceeds valid range" ); m_subPicCtuTopLeftX[i] = u;                     }
   uint32_t                getSubPicCtuTopLeftX( int i ) const                                             { CHECK( i >= MAX_NUM_SUB_PICS, "Sub-picture index exceeds valid range" ); return  m_subPicCtuTopLeftX[i];                 }
