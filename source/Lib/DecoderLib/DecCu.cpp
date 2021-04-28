@@ -432,12 +432,6 @@ void DecCu::predAndReco( CodingUnit& cu, bool doCiipIntra )
 
     if( cu.rootCbf() )
     {
-#if !JVET_S0234_ACT_CRS_FIX
-      if( cu.colorTransform() && !doCiipIntra )
-      {
-        recoBuf.colorSpaceConvert( recoBuf, cu.slice->clpRng( COMPONENT_Y ) );
-      }
-#endif
       if( cu.slice->getLmcsEnabledFlag() && m_pcReshape->getCTUFlag( *cu.slice ) && !doCiipIntra )
       {
         predBuf.Y().rspSignal( m_pcReshape->getFwdLUT() );
@@ -469,14 +463,6 @@ void DecCu::finishLMCSAndReco( CodingUnit &cu )
   const uint32_t uiNumVaildComp = getNumberValidComponents( cu.chromaFormat );
   const bool     doCS           = cs.picHeader->getLmcsEnabledFlag() && cs.picHeader->getLmcsChromaResidualScaleFlag() && cu.slice->getLmcsEnabledFlag();
   const PelUnitBuf predUnitBuf  = cs.getPredBuf( cu );
-
-#if !JVET_S0234_ACT_CRS_FIX
-  if( cu.colorTransform() )
-  {
-    PelUnitBuf recBuf = cs.getRecoBuf( cu );
-    recBuf.colorSpaceConvert( recBuf, cu.slice->clpRng( COMPONENT_Y ) );
-  }
-#endif
 
   for( auto& currTU : TUTraverser( &cu.firstTU, cu.lastTU->next ) )
   {
@@ -590,9 +576,7 @@ void DecCu::xIntraRecACT( CodingUnit &cu )
 
   for( TransformUnit &tu : TUTraverser( &cu.firstTU, cu.lastTU->next ) )
   {
-#if JVET_S0234_ACT_CRS_FIX
     cs.getRecoBuf( tu ).colorSpaceConvert( cs.getRecoBuf( tu ), slice.clpRng( COMPONENT_Y ) );
-#endif
 
     for( const CompArea &area : tu.blocks )
     {
@@ -619,10 +603,7 @@ void DecCu::xIntraRecACT( CodingUnit &cu )
         piReco.scaleSignal( chromaResScaleInv, slice.clpRng( compID ) );
       }
     }
-#if !JVET_S0234_ACT_CRS_FIX
-    cs.getRecoBuf( tu ).colorSpaceConvert( cs.getRecoBuf( tu ), slice.clpRng( COMPONENT_Y ) );
-#endif
-    
+
     for( const CompArea &area : tu.blocks )
     {
       if( !area.valid() )

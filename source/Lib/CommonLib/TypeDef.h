@@ -91,7 +91,6 @@ namespace vvdec
 
 #define JVET_R0270                                        TBC // JVET-S0270: Treating picture with mixed RASL and RADL slices as RASL picture
 
-#define JVET_S0234_ACT_CRS_FIX                            TBT //to be tested // JVET-S0234: perform chroma residual scaling in RGB domain when ACT is on
 #define JVET_S0123_IDR_UNAVAILABLE_REFERENCE              TBT //to be tested // JVET-S0123: Invoke the generation of unavailable reference picture for an IDR picture that has RPLs.
                                                               //             Change the process for deriving empty RPLs when sps_idr_rpl_present_flag is equal to 0 and nal_unit_type is equal to IDR_W_RADL or IDR_N_LP to involve pps_rpl_info_in_ph_flag.
 #define JVET_S0063_VPS_SIGNALLING                         TBT //to be tested // Modifications to VPS signalling - conditionally signal vps_num_ptls_minus1
