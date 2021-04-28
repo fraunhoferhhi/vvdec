@@ -735,9 +735,6 @@ void SEIReader::xParseSEIBufferingPeriod(vvdecSEI* s, uint32_t payloadSize, std:
   sei_read_code( pDecodedMessageOutputStream, 5, code, "initial_cpb_removal_delay_length_minus1" );     sei->initialCpbRemovalDelayLength = code + 1;
   sei_read_code( pDecodedMessageOutputStream, 5, code, "cpb_removal_delay_length_minus1" );             sei->cpbRemovalDelayLength        = code + 1;
   sei_read_code( pDecodedMessageOutputStream, 5, code, "dpb_output_delay_length_minus1" );              sei->dpbOutputDelayLength         = code + 1;
-#if !JVET_S0185_PROPOSAL2_SEI_CLEANUP
-  sei_read_flag( pDecodedMessageOutputStream, code, "alt_cpb_params_present_flag");                     sei->altCpbParamsPresentFlag      = code;
-#endif
   sei_read_flag( pDecodedMessageOutputStream, code, "bp_decoding_unit_hrd_params_present_flag" );       sei->bpDecodingUnitHrdParamsPresentFlag = code;
   if( sei->bpDecodingUnitHrdParamsPresentFlag )
   {
@@ -846,10 +843,8 @@ void SEIReader::xParseSEIBufferingPeriod(vvdecSEI* s, uint32_t payloadSize, std:
     }
     sei->dpbOutputTidOffset[sei->bpMaxSubLayers-1] = 0;
   }
-#if JVET_S0185_PROPOSAL2_SEI_CLEANUP
   sei_read_flag(pDecodedMessageOutputStream, code, "bp_alt_cpb_params_present_flag");
   sei->altCpbParamsPresentFlag = code;
-#endif
   if (sei->altCpbParamsPresentFlag)
   {
     sei_read_flag(pDecodedMessageOutputStream, code, "use_alt_cpb_params_flag"); sei->useAltCpbParamsFlag = code;
