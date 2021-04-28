@@ -1056,10 +1056,8 @@ private:
   uint32_t              m_olsHrdIdx[MAX_NUM_OLSS];
   GeneralHrdParams      m_generalHrdParams;
 
-#if JVET_S0100_ASPECT3
   std::vector<int> m_multiLayerOlsIdxToOlsIdx; // mapping from multi-layer OLS index to OLS index. Initialized in deriveOutputLayerSets()
                                                // m_multiLayerOlsIdxToOlsIdx[n] is the OLSidx of the n-th multi-layer OLS.
-#endif
 
   std::vector<Size>             m_olsDpbPicSize;
   std::vector<int>              m_olsDpbParamsIdx;
@@ -1195,9 +1193,7 @@ public:
 
   void              deriveOutputLayerSets();
   void              deriveTargetOutputLayerSet( int targetOlsIdx );
-#if JVET_S0100_ASPECT3
   void              checkVPS();
-#endif
 
   void              setNumLayersInOls(int olsIdx, int numLayers)         { m_numLayersInOls[olsIdx]  = numLayers; }
   int               getNumLayersInOls(int olsIdx)      const             { return m_numLayersInOls[olsIdx]; }
