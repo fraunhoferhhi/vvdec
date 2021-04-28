@@ -186,10 +186,7 @@ public:
   std::vector<SubPic>     subPictures;
   std::vector<PelStorage> m_subPicRefBufs;   // used as reference for subpictures, that are treated as pictures
 
-  bool        subLayerNonReferencePictureDueToSTSA = 0;
-
-  int*        m_spliceIdx  = nullptr;
-  int         m_ctuNums    = 0;
+  bool subLayerNonReferencePictureDueToSTSA = 0;
 
   PelStorage     m_bufs[NUM_PIC_TYPES];
   uint32_t       margin = 0;

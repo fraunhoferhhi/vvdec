@@ -170,12 +170,6 @@ void Picture::destroy()
 
   SEI_internal::deleteSEIs( seiMessageList );
 
-  if (m_spliceIdx)
-  {
-    delete[] m_spliceIdx;
-    m_spliceIdx = NULL;
-  }
-
   subpicsCheckedDPH.clear();
 
   m_ctuTaskCounter      .clearException();
@@ -243,13 +237,6 @@ void Picture::finalInit( const SPS *sps, const PPS *pps, PicHeader* picHeader, A
   cs->pcv     = pps->pcv.get();
 
   cs->rebindPicBufs();
-
-  if( m_spliceIdx == NULL )
-  {
-    m_ctuNums   = cs->pcv->sizeInCtus;
-    m_spliceIdx = new int[m_ctuNums];
-    memset( m_spliceIdx, 0, m_ctuNums * sizeof( int ) );
-  }
 
   resetProcessingTime();
 
