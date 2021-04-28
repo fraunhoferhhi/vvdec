@@ -1,9 +1,9 @@
 if( VVDEC_ENABLE_LOCAL_BITSTREAM_DOWNLOAD )
   # get bitstreams
-  set( BITSTREAM_URL_BASE "https://visvn.fe.hhi.de/download/VVC/under_test/VTM-12.0" )
+  set( BITSTREAM_URL_BASE "https://visvn.fe.hhi.de/download/VVC/draft_conformance/draft6/" )
 else()
   # get bitstreams
-  set( BITSTREAM_URL_BASE "https://www.itu.int/wftp3/av-arch/jvet-site/bitstream_exchange/VVC/under_test/VTM-12.0" )
+  set( BITSTREAM_URL_BASE "https://www.itu.int/wftp3/av-arch/jvet-site/bitstream_exchange/VVC/draft_conformance/draft6/" )
 endif()
 
 # put bitstreams from the conformance set that are should be decodable and are working
@@ -231,6 +231,8 @@ list( APPEND BITSTREAM_FILES
   TMVP_D_Chipsnmedia_3.zip
   TRANS_A_Chipsnmedia_2.zip
   TRANS_B_Chipsnmedia_2.zip
+  TRANS_C_Chipsnmedia_4.zip
+  TRANS_D_Chipsnmedia_4.zip
   TREE_A_HHI_3.zip
   TREE_B_HHI_3.zip
   TREE_C_HHI_3.zip
@@ -248,8 +250,6 @@ list( APPEND BITSTREAM_FILES
 
 # put bitstreams from the conformance set that should be decodable but aren't
 list( APPEND BITSTREAM_FAULTY_FILES
-  TRANS_C_Chipsnmedia_2.zip             # probably broken bitstreams. Also does not decode with VTM
-  TRANS_D_Chipsnmedia_2.zip             # probably broken bitstreams. Also does not decode with VTM
 )
 
 # put bitstreams from the conformance set that are not supported (wrong profile/level etc)
