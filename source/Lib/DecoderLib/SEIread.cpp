@@ -143,28 +143,22 @@ void SEIReader::parseSEImessage(InputBitstream* bs, seiMessages& seiList,
                                 const NalUnitType nalUnitType, const uint32_t nuh_layer_id, const uint32_t temporalId,
                                 const VPS *vps, const SPS *sps, HRD &hrd, std::ostream *pDecodedMessageOutputStream )
 {
-#if JVET_S0178_GENERAL_SEI_CHECK
-  seiMessages seiListInCurNalu;
-#endif
   setBitstream(bs);
   CHECK(m_pcBitstream->getNumBitsUntilByteAligned(), "Bitstream not aligned");
 
+  seiMessages seiListInCurNalu;
   do
   {
     xReadSEImessage( seiList, nalUnitType, nuh_layer_id, temporalId, vps, sps, hrd, pDecodedMessageOutputStream);
-#if JVET_S0178_GENERAL_SEI_CHECK
     if( !seiList.empty() ){  seiListInCurNalu.push_back(seiList.back()); }
-#endif
     /* SEI messages are an integer number of bytes, something has failed
     * in the parsing if bitstream not byte-aligned */
     CHECK(m_pcBitstream->getNumBitsUntilByteAligned(), "Bitstream not aligned");
   }
   while (m_pcBitstream->getNumBitsLeft() > 8);
 
-#if JVET_S0178_GENERAL_SEI_CHECK
   seiMessages fillerData = SEI_internal::getSeisByType(seiListInCurNalu, VVDEC_FILLER_PAYLOAD);
   CHECK(fillerData.size() > 0 && fillerData.size() != seiListInCurNalu.size(), "When an SEI NAL unit contains an SEI message with payloadType equal to filler payload, the SEI NAL unit shall not contain any other SEI message with payloadType not equal to filler payload");
-#endif
 
   xReadRbspTrailingBits();
 }
@@ -615,13 +609,11 @@ void SEIReader::xCheckScalableNestingConstraints(const vvdecSEIScalableNesting* 
 
     CHECK(nestedsei->payloadType == VVDEC_SUBPICTURE_LEVEL_INFO && sei->snSubpicFlag, "When the scalable nesting SEI message contains an SEI message that has payloadType equal to SLI, the value of sn_subpic_flag shall be equal to 0");
 
-#if JVET_S0178_GENERAL_SEI_CHECK
     if( vps )
     {
       CHECK( vps->getGeneralHrdParameters()->getGeneralSamePicTimingInAllOlsFlag() && nestedsei->payloadType == VVDEC_PICTURE_TIMING,
              "When general_same_pic_timing_in_all_ols_flag is equal to 1, there shall be no SEI NAL unit that contain a scalable-nested SEI message with payloadType equal to PT" );
     }
-#endif
 
     for (int i = 0; i < (int)vclAssociatedSeiList.size(); i++)
     {
