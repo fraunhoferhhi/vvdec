@@ -676,7 +676,7 @@ DecLibParser::SliceHeadResult DecLibParser::xDecodeSliceHead( InputNALUnit& nalu
   // WARNING: don't use m_apcSlicePilot or m_picHeader after this point, because they have been reallocated
 
   m_pcParsePic->neededForOutput = m_pcParsePic->picHeader->getPicOutputFlag();
-  if( m_pcParsePic->numSlices == 0 || m_uiSliceSegmentIdx == m_pcParsePic->numSlices )
+  if( m_pcParsePic->numSlices == 0 || m_uiSliceSegmentIdx == m_pcParsePic->numSlices - 1 )
   {
 #if 0
     // TODO for VPS support:
@@ -741,6 +741,7 @@ DecLibParser::SliceHeadResult DecLibParser::xDecodeSliceHead( InputNALUnit& nalu
     xUpdateRasInit( slice );
   }
 
+  ++m_uiSliceSegmentIdx;
   m_bFirstSliceInPicture                     = false;
   m_bFirstSliceInSequence[nalu.m_nuhLayerId] = false;
   m_bFirstSliceInBitstream                   = false;
@@ -1051,8 +1052,6 @@ Slice*  DecLibParser::xDecodeSliceMain( InputNALUnit &nalu )
       while( !m_threadPool->processTasksOnMainThread() );
     }
   }
-
-  m_uiSliceSegmentIdx++;
 
   return pcSlice;
 }

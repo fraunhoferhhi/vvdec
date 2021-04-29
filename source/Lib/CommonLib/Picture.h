@@ -207,7 +207,7 @@ public:
 
   CodingStructure*    cs = nullptr;
   std::vector<Slice*> slices;
-  int                 numSlices = 1;
+  unsigned int        numSlices = 1;
 
   seiMessages        seiMessageList;
 
