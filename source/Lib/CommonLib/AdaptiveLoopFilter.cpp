@@ -174,13 +174,11 @@ bool AdaptiveLoopFilter::isCrossedByVirtualBoundaries( const CodingStructure& cs
   int               ctuSize = sps->getCTUSize();
   const Position    currCtuPos( area.x, area.y );
   const CodingUnit* currCtu = cs.getCU( currCtuPos, CHANNEL_TYPE_LUMA );
-#if JVET_O1143_LPF_ACROSS_SUBPIC_BOUNDARY
   bool loopFilterAcrossSubPicEnabledFlag = 1;
   if( sps->getSubPicInfoPresentFlag() )
   {
     loopFilterAcrossSubPicEnabledFlag = pps->getSubPicFromPos( currCtuPos ).getloopFilterAcrossSubPicEnabledFlag();
   }
-#endif
 
   // top
   if( area.y >= ctuSize && clipTop == false )

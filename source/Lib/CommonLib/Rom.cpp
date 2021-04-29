@@ -557,7 +557,6 @@ const int g_quantInterDefault8x8[8 * 8] =
 
 const uint32_t g_vvcScalingListSizeX[SCALING_LIST_SIZE_NUM] = { 1, 2,  4,  8,  16,   32,   64 };
 
-#if JVET_R0166_SCALING_LISTS_CHROMA_444
 const uint32_t g_scalingListId[SCALING_LIST_SIZE_NUM][SCALING_LIST_NUM] =
 {
   {  0,  0,  0,  0,  0,  0},  // SCALING_LIST_1x1
@@ -568,7 +567,6 @@ const uint32_t g_scalingListId[SCALING_LIST_SIZE_NUM][SCALING_LIST_NUM] =
   { 20, 21, 22, 23, 24, 25},  // SCALING_LIST_32x32
   { 26, 21, 22, 27, 24, 25},  // SCALING_LIST_64x64
 };
-#endif
 
 
 

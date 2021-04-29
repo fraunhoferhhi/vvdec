@@ -75,7 +75,7 @@ struct Picture : public UnitArea
   void create(const ChromaFormat &_chromaFormat, const Size &size, const unsigned _maxCUSize, const unsigned margin, const int layerId);
   void resetForUse();
   void destroy();
-  
+
          Pel*      getRecoBufPtr   (const ComponentID compID, bool wrap=false)       { return m_bufs[wrap ? PIC_RECON_WRAP : PIC_RECONSTRUCTION].bufs[compID].buf; }
   const  Pel*      getRecoBufPtr   (const ComponentID compID, bool wrap=false) const { return m_bufs[wrap ? PIC_RECON_WRAP : PIC_RECONSTRUCTION].bufs[compID].buf; }
          ptrdiff_t getRecoBufStride(const ComponentID compID, bool wrap=false)       { return m_bufs[wrap ? PIC_RECON_WRAP : PIC_RECONSTRUCTION].bufs[compID].stride; }
@@ -141,10 +141,6 @@ public:
   bool getMixedNaluTypesInPicFlag()           const { return slices[0]->getPPS()->getMixedNaluTypesInPicFlag(); }
 
 public:
-#if JVET_O1143_MV_ACROSS_SUBPIC_BOUNDARY
-  std::vector<PelStorage> m_subPicRefBufs;   // used as reference for subpictures, that are treated as pictures
-#endif
-
   void startProcessingTimer();
   void stopProcessingTimer();
   void resetProcessingTime() { m_dProcessingTime = 0; }
@@ -152,13 +148,11 @@ public:
 
   std::chrono::time_point<std::chrono::steady_clock> m_processingStartTime;
   double                                             m_dProcessingTime = 0;
-  
+
   bool subPicExtStarted               = false;
   bool borderExtStarted               = false;
-#if JVET_Q0764_WRAP_AROUND_WITH_RPR
   bool wrapAroundValid                = false;
   unsigned wrapAroundOffset           = 0;
-#endif
   bool referenced                     = false;
   bool reconstructed                  = false;
   bool inProgress                     = false;
@@ -187,34 +181,16 @@ public:
   uint64_t    bits         = 0;   // input nal bit count
   bool        rap          = 0;   // random access point flag
   int         decodingOrderNumber = 0;
-#if JVET_S0258_SUBPIC_CONSTRAINTS
-  std::vector<int> sliceSubpicIdx;
-  std::vector<SubPic> subPictures;
-  int numSlices            = 1;
-#else
-#if JVET_R0058
-  int  numSubpics          = 1;
-  std::vector<int> subpicWidthInCTUs;
-  std::vector<int> subpicHeightInCTUs;
-  std::vector<int> subpicCtuTopLeftX;
-  std::vector<int> subpicCtuTopLeftY;
-#endif
-#endif
 
-  bool        subLayerNonReferencePictureDueToSTSA = 0;
+  std::vector<int>        sliceSubpicIdx;
+  std::vector<SubPic>     subPictures;
+  std::vector<PelStorage> m_subPicRefBufs;   // used as reference for subpictures, that are treated as pictures
 
-  int*        m_spliceIdx  = nullptr;
-  int         m_ctuNums    = 0;
+  bool subLayerNonReferencePictureDueToSTSA = 0;
 
-  PelStorage  m_bufs[NUM_PIC_TYPES];
-  uint32_t    margin       = 0;
-  const Picture*           unscaledPic;
-
-#if !JVET_S0258_SUBPIC_CONSTRAINTS
-#if JVET_R0276_REORDERED_SUBPICS
-  std::vector<int> subPicIDs;
-#endif
-#endif
+  PelStorage     m_bufs[NUM_PIC_TYPES];
+  uint32_t       margin = 0;
+  const Picture* unscaledPic;
 
   WaitCounter     m_ctuTaskCounter;
   WaitCounter     m_dmvrTaskCounter;
@@ -229,8 +205,9 @@ public:
 #endif
   Barrier         parseDone;
 
-  CodingStructure*   cs    = nullptr;
+  CodingStructure*    cs = nullptr;
   std::vector<Slice*> slices;
+  int                 numSlices = 1;
 
   seiMessages        seiMessageList;
 
@@ -250,9 +227,7 @@ public:
   std::shared_ptr<PicHeader> picHeader;
   void                       setPicHead( const std::shared_ptr<PicHeader>& ph );
 
-#if JVET_Q0764_WRAP_AROUND_WITH_RPR
   bool         isWrapAroundEnabled( const PPS* pps ) const  { return  pps->getUseWrapAround() && !isRefScaled( pps ); }
-#endif
 
   void         allocateNewSlice();
   Slice        *swapSliceObject(Slice * p, uint32_t i);
@@ -275,7 +250,7 @@ public:
       m_ccAlfFilterControl[compIdx].assign( numEntries, 0 );
     }
   }
-  
+
   std::vector<uint8_t>  m_alfCtuEnableFlag[MAX_NUM_COMPONENT];
   uint8_t*              getAlfCtuEnableFlag( int compIdx ) { return m_alfCtuEnableFlag[compIdx].data(); }
   std::vector<uint8_t>* getAlfCtuEnableFlag()              { return m_alfCtuEnableFlag; }

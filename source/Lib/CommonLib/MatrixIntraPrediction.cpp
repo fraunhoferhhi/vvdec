@@ -346,28 +346,16 @@ MatrixIntraPrediction::MatrixIntraPrediction()
 {
 }
 
-#if JVET_R0350_MIP_CHROMA_444_SINGLETREE
 void MatrixIntraPrediction::prepareInputForPred(const CPelBuf &src, const Area& puArea, const int bitDepth, const ComponentID compId)
-#else
-void MatrixIntraPrediction::prepareInputForPred(const CPelBuf &src, const Area& puArea, const int bitDepth)
-#endif
 {
-#if JVET_R0350_MIP_CHROMA_444_SINGLETREE
   m_component = compId;
-#endif
 
   m_predictorMip.deriveBoundaryData(src, puArea, bitDepth);
 }
 
-#if JVET_R0350_MIP_CHROMA_444_SINGLETREE
 void MatrixIntraPrediction::predBlock( const Size &puSize, const int intraMode, PelBuf& dst, const bool transpose, const int bitDepth, const ComponentID compId )
-#else
-void MatrixIntraPrediction::predBlock( const Size &puSize, const int intraMode, PelBuf& dst, const bool transpose, const int bitDepth )
-#endif
 {
-#if JVET_R0350_MIP_CHROMA_444_SINGLETREE
   CHECK( m_component != compId, "Boundary has not been prepared for this component." );
-#endif
   int* const resultMip = m_mipResult;
 
   m_predictorMip.getPrediction( resultMip, intraMode, transpose, bitDepth );

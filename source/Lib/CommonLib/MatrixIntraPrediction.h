@@ -97,7 +97,7 @@ namespace Mip
     const uint8_t* getMatrixData(const int modeIdx) const;
 
 
-    void computeReducedPred( int*const result, const int* const input, 
+    void computeReducedPred( int* const result, const int* const input,
                              const uint8_t* matrix,
                              const bool transpose, const int bitDepth );
   };
@@ -109,17 +109,10 @@ public:
   MatrixIntraPrediction();
 
   Mip::PredictorMIP m_predictorMip;
-#if JVET_R0350_MIP_CHROMA_444_SINGLETREE
   void prepareInputForPred( const CPelBuf &src, const Area& puArea, const int bitDepth, const ComponentID compId );
   void predBlock( const Size &puSize, const int modeIdx, PelBuf &dst, const bool transpose, const int bitDepth, const ComponentID compId );
-#else
-  void prepareInputForPred(const CPelBuf &src, const Area& puArea, const int bitDepth);
-  void predBlock( const Size &puSize, const int modeIdx, PelBuf &dst, const bool transpose, const int bitDepth );
-#endif
 private:
-#if JVET_R0350_MIP_CHROMA_444_SINGLETREE
     ComponentID m_component = MAX_NUM_COMPONENT;
-#endif
 
   int m_mipResult[MIP_MAX_WIDTH * MIP_MAX_HEIGHT];
 };

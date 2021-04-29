@@ -79,8 +79,6 @@ namespace vvdec
 
 #define DEFAULT_INTRA_TC_OFFSET 2 ///< Default intra TC offset
 
-//#undef JVET_O1143_LPF_ACROSS_SUBPIC_BOUNDARY
-//#define JVET_O1143_LPF_ACROSS_SUBPIC_BOUNDARY 0
 // ====================================================================================================================
 // Tables
 // ====================================================================================================================
@@ -535,11 +533,7 @@ void LoopFilter::xDeblockCtuArea( CodingStructure& cs, const UnitArea& area, con
   const PreCalcValues& pcv = *cs.pcv;
   
   bool doLuma   =   chType == MAX_NUM_CHANNEL_TYPE || isLuma  ( chType );
-#if JVET_Q0438_MONOCHROME_BUGFIXES
   bool doChroma = ( chType == MAX_NUM_CHANNEL_TYPE || isChroma( chType ) ) && pcv.chrFormat != CHROMA_400 && area.blocks[COMPONENT_Cb].valid();
-#else
-  bool doChroma = ( chType == MAX_NUM_CHANNEL_TYPE || isChroma( chType ) ) && pcv.chrFormat != CHROMA_400;
-#endif
   static constexpr int incx = 4;
   static constexpr int incy = 4;
 
@@ -1024,7 +1018,6 @@ LFCUParam LoopFilter::xGetLoopfilterParam( const CodingUnit& cu ) const
   const Position pos = cu.blocks[cu.chType()].pos();
 
   const PPS& pps = *cu.pps;
-#if JVET_O1143_LPF_ACROSS_SUBPIC_BOUNDARY
   const SPS& sps = *cu.sps;
 
   const CodingUnit& cuLeft  = ( pos.x > 0 && cu.left  == nullptr ) ? *cu.cs->getCU( pos.offset( -1, 0 ), cu.chType() ) : *cu.left;
@@ -1040,11 +1033,6 @@ LFCUParam LoopFilter::xGetLoopfilterParam( const CodingUnit& cu ) const
   LFCUParam stLFCUParam;   ///< status structure
   stLFCUParam.leftEdge = ( pos.x > 0 ) && CU::isAvailable( cu, cuLeft,  !pps.getLoopFilterAcrossSlicesEnabledFlag(), !pps.getLoopFilterAcrossTilesEnabledFlag(), !loopFilterAcrossSubPicEnabledFlagLeft );
   stLFCUParam.topEdge  = ( pos.y > 0 ) && CU::isAvailable( cu, cuAbove, !pps.getLoopFilterAcrossSlicesEnabledFlag(), !pps.getLoopFilterAcrossTilesEnabledFlag(), !loopFilterAcrossSubPicEnabledFlagTop );
-#else
-  LFCUParam stLFCUParam;   ///< status structure
-  stLFCUParam.leftEdge = ( 0 < pos.x ) && isAvailable( cu, *cu.left,  !pps.getLoopFilterAcrossSlicesEnabledFlag(), !pps.getLoopFilterAcrossTilesEnabledFlag() );
-  stLFCUParam.topEdge  = ( 0 < pos.y ) && isAvailable( cu, *cu.above, !pps.getLoopFilterAcrossSlicesEnabledFlag(), !pps.getLoopFilterAcrossTilesEnabledFlag() );
-#endif
   return stLFCUParam;
 }
 

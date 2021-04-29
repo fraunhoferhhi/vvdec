@@ -168,11 +168,7 @@ void Partitioner::initCtu( const UnitArea& ctuArea, const ChannelType _chType, c
   currSubdiv  = 0;
   chType      = _chType;
   currQgPos   = ctuArea.lumaPos();
-#if JVET_Q0438_MONOCHROME_BUGFIXES
   currQgChromaPos = ctuArea.chromaFormat != CHROMA_400 ? ctuArea.chromaPos() : Position();
-#else
-  currQgChromaPos = ctuArea.chromaPos();
-#endif
   currImplicitBtDepth = 0;
 
   currSliceIdx = slice.getIndependentSliceIdx();
@@ -315,11 +311,7 @@ void Partitioner::canSplit( const CodingStructure &cs, bool& canNo, bool& canQt,
 
   // the minimal and maximal sizes are given in luma samples
   const CompArea&  area  = currArea().Y();
-#if JVET_Q0438_MONOCHROME_BUGFIXES
   const CompArea  *areaC = (chType == CHANNEL_TYPE_CHROMA) ? &(currArea().Cb()) : nullptr;
-#else
-  const CompArea&  areaC = currArea().Cb();
-#endif
   const PartLevel& level = m_partStack.back();
 
   if( isDualITree && ( area.width > 64 || area.height > 64 ) )
@@ -347,11 +339,7 @@ void Partitioner::canSplit( const CodingStructure &cs, bool& canNo, bool& canQt,
   const unsigned minQTThreshold = minQtSize;
   if( area.width <= minQTThreshold )                         canQt = false;
 
-#if JVET_Q0438_MONOCHROME_BUGFIXES
   if( areaC && areaC->width <= MIN_DUALTREE_CHROMA_WIDTH ) canQt = false;
-#else
-  if( chType == CHANNEL_TYPE_CHROMA && areaC.width <= MIN_DUALTREE_CHROMA_WIDTH ) canQt = false;
-#endif
   if( isImplicit )
   {
     const bool isBtAllowed = area.width <= maxBtSize && area.height <= maxBtSize && area.width <= MAX_TB_SIZEY && area.height <= MAX_TB_SIZEY;
@@ -360,11 +348,7 @@ void Partitioner::canSplit( const CodingStructure &cs, bool& canNo, bool& canQt,
     canQt |= !isBtAllowed;
     canBh  =  isBtAllowed && !isBlInPic && ( isTrInPic || !canQt );
     canBv  =  isBtAllowed &&  isBlInPic &&  !isTrInPic;
-#if JVET_Q0438_MONOCHROME_BUGFIXES
     canBv &= ( !areaC || areaC->width > 4 );
-#else
-    if( chType == CHANNEL_TYPE_CHROMA && areaC.width == 4 ) canBv = false;
-#endif
     canQt |= !canBh && !canBv;
     return;
   }
@@ -414,8 +398,7 @@ void Partitioner::canSplit( const CodingStructure &cs, bool& canNo, bool& canQt,
     canTh &= !( area.height <= 2 * minTtSize );
     canTv &= !( area.width  <= 2 * minTtSize );
   }
-  
-#if JVET_Q0438_MONOCHROME_BUGFIXES
+
   if( areaC )
   {
     canBh &=  ( areaC->width * areaC->height > MIN_DUALTREE_CHROMA_SIZE );
@@ -423,15 +406,6 @@ void Partitioner::canSplit( const CodingStructure &cs, bool& canNo, bool& canQt,
     canBv &=  ( areaC->width * areaC->height > MIN_DUALTREE_CHROMA_SIZE   && areaC->width > 4 );
     canTv &=  ( areaC->width * areaC->height > MIN_DUALTREE_CHROMA_SIZE*2 && areaC->width > 8 );
   }
-#else
-  if( chType == CHANNEL_TYPE_CHROMA )
-  {
-    canBh &=  ( areaC.width * areaC.height > MIN_DUALTREE_CHROMA_SIZE );
-    canTh &=  ( areaC.width * areaC.height > MIN_DUALTREE_CHROMA_SIZE*2 );
-    canBv &=  ( areaC.width * areaC.height > MIN_DUALTREE_CHROMA_SIZE   && areaC.width > 4 );
-    canTv &=  ( areaC.width * areaC.height > MIN_DUALTREE_CHROMA_SIZE*2 && areaC.width > 8 );
-  }
-#endif
 }
 
 bool Partitioner::canSplit( const PartSplit split, const CodingStructure &cs, bool isISP ) const
@@ -468,11 +442,7 @@ void Partitioner::exitCurrSplit( const CodingStructure& cs )
 
   if( currQgEnable() )
     currQgPos = currArea().lumaPos();
-#if JVET_Q0438_MONOCHROME_BUGFIXES
   if( currArea().chromaFormat != CHROMA_400 && currQgChromaEnable() )
-#else
-  if( currQgChromaEnable() )
-#endif
     currQgChromaPos = currArea().chromaPos();
 
 #if _DEBUG
@@ -720,11 +690,7 @@ void PartitionerImpl::getTUIntraSubPartitions( const UnitArea &tuArea, const Cod
     THROW( "Unknown TU sub-partitioning" );
   }
   //we only partition luma, so there is going to be only one chroma tu at the end (unless it is dual tree, in which case there won't be any chroma components)
-#if JVET_Q0438_MONOCHROME_BUGFIXES
   uint32_t partitionsWithoutChroma = (cs.area.chromaFormat == CHROMA_400) ? 0 : (isDualTree ? nPartitions : nPartitions - 1);
-#else
-  uint32_t partitionsWithoutChroma = isDualTree ? nPartitions : nPartitions - 1;
-#endif
   for( uint32_t i = 0; i < partitionsWithoutChroma; i++ )
   {
     CompArea& blkCb = sub[i].blocks[COMPONENT_Cb];

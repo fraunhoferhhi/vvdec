@@ -120,10 +120,8 @@ void Picture::resetForUse()
 
   subPicExtStarted = false;
   borderExtStarted = false;
-#if JVET_Q0764_WRAP_AROUND_WITH_RPR
   wrapAroundValid  = false;
   wrapAroundOffset = 0;
-#endif
   neededForOutput  = false;
   reconstructed    = false;
   inProgress       = false;
@@ -171,12 +169,6 @@ void Picture::destroy()
   slices.clear();
 
   SEI_internal::deleteSEIs( seiMessageList );
-
-  if (m_spliceIdx)
-  {
-    delete[] m_spliceIdx;
-    m_spliceIdx = NULL;
-  }
 
   subpicsCheckedDPH.clear();
 
@@ -245,13 +237,6 @@ void Picture::finalInit( const SPS *sps, const PPS *pps, PicHeader* picHeader, A
   cs->pcv     = pps->pcv.get();
 
   cs->rebindPicBufs();
-
-  if( m_spliceIdx == NULL )
-  {
-    m_ctuNums   = cs->pcv->sizeInCtus;
-    m_spliceIdx = new int[m_ctuNums];
-    memset( m_spliceIdx, 0, m_ctuNums * sizeof( int ) );
-  }
 
   resetProcessingTime();
 
@@ -322,11 +307,7 @@ void Picture::clearSliceBuffer()
 
 void Picture::extendPicBorder( bool top, bool bottom, bool leftrightT, bool leftrightB, ChannelType chType )
 {
-#if JVET_Q0764_WRAP_AROUND_WITH_RPR
   if( cs->pps->getUseWrapAround() )
-#else
-  if( cs->sps->getUseWrapAround() )
-#endif
   {
     extendPicBorderWrap( top, bottom, leftrightT, leftrightB, chType );
   }
@@ -348,11 +329,7 @@ void Picture::extendPicBorderWrap( bool top, bool bottom, bool leftrightT, bool 
     const int xmargin = margin >> getComponentScaleX( compID, cs->area.chromaFormat );
     const int ymargin = margin >> getComponentScaleY( compID, cs->area.chromaFormat );
 
-#if JVET_Q0764_WRAP_AROUND_WITH_RPR
     int xoffset = cs->pps->getWrapAroundOffset() >> getComponentScaleX( compID, cs->area.chromaFormat );
-#else
-    int xoffset = cs->sps->getWrapAroundOffset() >> getComponentScaleX( compID, cs->area.chromaFormat );
-#endif
     if( leftrightT )
     {
       Pel* piprw = prw.bufAt( 0, 1 );
