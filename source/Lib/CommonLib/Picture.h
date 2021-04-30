@@ -229,8 +229,7 @@ public:
 
   bool         isWrapAroundEnabled( const PPS* pps ) const  { return  pps->getUseWrapAround() && !isRefScaled( pps ); }
 
-  void         allocateNewSlice();
-  Slice        *swapSliceObject(Slice * p, uint32_t i);
+  Slice*       allocateNewSlice( Slice** pilot = nullptr );
   void         clearSliceBuffer();
 
 #if TRACE_ENABLE_ITT

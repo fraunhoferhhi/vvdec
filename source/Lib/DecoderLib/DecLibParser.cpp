@@ -1115,13 +1115,9 @@ Picture * DecLibParser::xActivateParameterSets( const int layerId )
     pcPic = m_pcParsePic;
   }
 
-  pcPic->allocateNewSlice();
   // make the slice-pilot a real slice, and set up the slice-pilot for the next slice
+  Slice* pSlice = pcPic->allocateNewSlice( &m_apcSlicePilot );
   CHECK( pcPic->slices.size() != ( m_uiSliceSegmentIdx + 1 ), "Invalid number of slices" );
-  m_apcSlicePilot = pcPic->swapSliceObject( m_apcSlicePilot, m_uiSliceSegmentIdx );
-
-  Slice* pSlice = pcPic->slices[m_uiSliceSegmentIdx];   // we now have a real slice.
-  pSlice->setPic( pcPic );
 
   if( m_bFirstSliceInPicture )
   {
@@ -1356,10 +1352,6 @@ Picture* DecLibParser::prepareLostPicture( int iLostPoc, const int layerId )
     cFillPic->allocateNewSlice();
   }
   cFillPic->slices[0]->initSlice();
-  cFillPic->slices[0]->setPPS( cFillPic->cs->pps.get() );
-  cFillPic->slices[0]->setSPS( cFillPic->cs->sps.get() );
-  cFillPic->slices[0]->setVPS( cFillPic->cs->vps.get() );
-  cFillPic->slices[0]->setPic( cFillPic );
   cFillPic->slices[0]->setPOC( iLostPoc );
   cFillPic->slices[0]->setTLayer( iTLayer );
   cFillPic->slices[0]->setNalUnitType( naluType );
