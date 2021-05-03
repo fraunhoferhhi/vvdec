@@ -420,11 +420,24 @@ void AdaptiveLoopFilter::create( const PicHeader* picHeader, const SPS* sps, con
       }
     }
   }
+
+  classifier.resize( std::max( 1, numThreads ) );
+  for( auto& buf : classifier )
+  {
+    buf = ( AlfClassifier* ) malloc( ( MAX_CU_SIZE * MAX_CU_SIZE >> ( 2 + 2 ) ) * sizeof( AlfClassifier ) );
+  }
 }
 
 void AdaptiveLoopFilter::destroy()
 {
   m_tempBuf.clear();
+
+  for( auto& buf : classifier )
+  {
+    free( buf );
+  }
+
+  classifier.clear();
 }
 
 void AdaptiveLoopFilter::preparePic( CodingStructure & cs )
@@ -518,11 +531,10 @@ void AdaptiveLoopFilter::filterAreaLuma( const CPelUnitBuf& srcBuf,
                                          const Slice*       slice,
                                          const APS* const*  aps,
                                          const short        filterSetIndex,
-                                         const ClpRngs&     clpRngs )
+                                         const ClpRngs&     clpRngs,
+                                         const int          tId )
 
 {
-  AlfClassifier classifier[MAX_CU_SIZE * MAX_CU_SIZE >> ( 2 + 2 )];
-  deriveClassification( classifier, srcBuf.Y(), blk );
   const short* coeff = nullptr;
   const short* clip  = nullptr;
   if( filterSetIndex >= NUM_FIXED_FILTER_SETS )
@@ -542,7 +554,21 @@ void AdaptiveLoopFilter::filterAreaLuma( const CPelUnitBuf& srcBuf,
     clip  = m_clipDefault;
   }
 
-  m_filter7x7Blk( classifier, dstBuf, srcBuf, blk, COMPONENT_Y, coeff, clip, clpRngs, m_alfVBLumaCTUHeight, m_alfVBLumaPos );
+  const int bottom = blk.y + blk.height;
+  const int right = blk.x + blk.width;
+
+  for( int i = blk.y; i < bottom; i += m_CLASSIFICATION_BLK_SIZE )
+  {
+    int nHeight = std::min( i + m_CLASSIFICATION_BLK_SIZE, bottom ) - i;
+
+    for( int j = blk.x; j < right; j += m_CLASSIFICATION_BLK_SIZE )
+    {
+      int nWidth = std::min( j + m_CLASSIFICATION_BLK_SIZE, right ) - j;
+      
+      m_deriveClassificationBlk( classifier[tId], srcBuf.Y(),     Area( j, i, nWidth, nHeight ), m_inputBitDepth[CHANNEL_TYPE_LUMA] + 4, m_alfVBLumaCTUHeight, m_alfVBLumaPos );
+      m_filter7x7Blk           ( classifier[tId], dstBuf, srcBuf, Area( j, i, nWidth, nHeight ), COMPONENT_Y, coeff, clip, clpRngs,      m_alfVBLumaCTUHeight, m_alfVBLumaPos );
+    }
+  }
 }
 
 void AdaptiveLoopFilter::filterAreaChroma( const CPelUnitBuf& srcBuf,
@@ -664,7 +690,7 @@ void AdaptiveLoopFilter::filterCTU( const CPelUnitBuf&     srcBuf,
       {
         const Area blk( Position( 0, 0 ), Size( srcBuf.get( compID ) ) );
 
-        filterAreaLuma( srcBuf, dstBuf, blk, slice, aps, filterSetIndex, clpRngs );
+        filterAreaLuma( srcBuf, dstBuf, blk, slice, aps, filterSetIndex, clpRngs, tid );
       }
       else
       {
@@ -747,7 +773,7 @@ void AdaptiveLoopFilter::filterCTU( const CPelUnitBuf&     srcBuf,
           {
             const Area blk( xInSrc, yInSrc, w, h );
 
-            filterAreaLuma( m_tempBuf[tid], dstBuf, blk, slice, aps, filterSetIndex, clpRngs );
+            filterAreaLuma( m_tempBuf[tid], dstBuf, blk, slice, aps, filterSetIndex, clpRngs, tid );
           }
           else
           {
@@ -876,30 +902,6 @@ void AdaptiveLoopFilter::reconstructCoeff( AlfSliceParam& alfSliceParam, Channel
   }
 
   alfSliceParam.lumaFinalDone = true;
-}
-
-void AdaptiveLoopFilter::deriveClassification( AlfClassifier *classifier, const CPelBuf& srcLuma, const Area& blk ) const
-{
-  const int bottom = blk.y + blk.height;
-  const int right  = blk.x + blk.width;
-
-  for( int i = blk.y; i < bottom; i += m_CLASSIFICATION_BLK_SIZE )
-  {
-    int nHeight = std::min( i + m_CLASSIFICATION_BLK_SIZE, bottom ) - i;
-
-    for( int j = blk.x; j < right; j += m_CLASSIFICATION_BLK_SIZE )
-    {
-      int nWidth = std::min( j + m_CLASSIFICATION_BLK_SIZE, right ) - j;
-
-      m_deriveClassificationBlk( classifier,
-                                 srcLuma,
-                                 Area( j, i, nWidth, nHeight ),
-                                 m_inputBitDepth[CHANNEL_TYPE_LUMA] + 4,
-                                 m_alfVBLumaCTUHeight,
-                                 m_alfVBLumaPos
-                                );
-    }
-  }
 }
 
 void AdaptiveLoopFilter::deriveClassificationBlk( AlfClassifier *classifier, const CPelBuf& srcLuma, const Area& blk, const int shift, int vbCTUHeight, int vbPos )
@@ -1103,7 +1105,7 @@ void AdaptiveLoopFilter::deriveClassificationBlk( AlfClassifier *classifier, con
       static const int transposeTable[8] = { 0, 1, 0, 2, 2, 3, 1, 3 };
       int transposeIdx = transposeTable[mainDirection * 2 + ( secondaryDirection >> 1 )];
 
-      classifier[( i / 4 ) * ( MAX_CU_SIZE / 4 ) + j / 4] = AlfClassifier( classIdx, transposeIdx );
+      classifier[( i / 4 ) * ( AdaptiveLoopFilter::m_CLASSIFICATION_BLK_SIZE / 4 ) + j / 4] = AlfClassifier( classIdx, transposeIdx );
     }
   }
 }
@@ -1175,7 +1177,7 @@ void AdaptiveLoopFilter::filterBlk( const AlfClassifier* classifier,
     {
       if( !bChroma )
       {
-        const AlfClassifier &cl = classifier[( i / 4 ) * ( MAX_CU_SIZE / 4 ) + j / 4];
+        const AlfClassifier &cl = classifier[( i / 4 ) * ( AdaptiveLoopFilter::m_CLASSIFICATION_BLK_SIZE / 4 ) + j / 4];
         filterCoeff = filterSet + cl.classIdx * MAX_NUM_ALF_LUMA_COEFF + cl.transposeIdx * MAX_NUM_ALF_LUMA_COEFF * MAX_NUM_ALF_CLASSES;
         filterClipp = fClipSet  + cl.classIdx * MAX_NUM_ALF_LUMA_COEFF + cl.transposeIdx * MAX_NUM_ALF_LUMA_COEFF * MAX_NUM_ALF_CLASSES;
       }
