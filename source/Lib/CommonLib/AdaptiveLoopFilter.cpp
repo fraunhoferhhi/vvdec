@@ -424,7 +424,7 @@ void AdaptiveLoopFilter::create( const PicHeader* picHeader, const SPS* sps, con
   classifier.resize( std::max( 1, numThreads ) );
   for( auto& buf : classifier )
   {
-    buf = ( AlfClassifier* ) malloc( ( MAX_CU_SIZE * MAX_CU_SIZE >> ( 2 + 2 ) ) * sizeof( AlfClassifier ) );
+    buf = ( AlfClassifier* ) malloc( ( AdaptiveLoopFilter::m_CLASSIFICATION_BLK_SIZE * AdaptiveLoopFilter::m_CLASSIFICATION_BLK_SIZE >> ( 2 + 2 ) ) * sizeof( AlfClassifier ) );
   }
 }
 
