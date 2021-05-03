@@ -2707,7 +2707,6 @@ private:
   SliceMap                   m_sliceMap;                     //!< list of CTUs in current slice - raster scan CTU addresses
 
   uint32_t                   m_sliceSubPicId                 = false;
-  SliceType                  m_encCABACTableIdx              = I_SLICE;   // Used to transmit table selection across slices.
 
   int                        m_numCus                        = 0;
   int                        m_numIntraCus                   = 0;
@@ -2937,9 +2936,6 @@ public:
   int                         getCabacWinUpdateMode()                          const { return m_cabacWinUpdateMode;                                  }
   void                        setSliceSubPicId(int i)                               { m_sliceSubPicId = i;   }
   uint32_t                    getSliceSubPicId() const                              { return m_sliceSubPicId; }
-  void                        setEncCABACTableIdx( SliceType idx )                   { m_encCABACTableIdx = idx;                                     }
-  SliceType                   getEncCABACTableIdx() const                            { return m_encCABACTableIdx;                                    }
-
 
   void                        setSliceQpBase( int i )                                { m_iSliceQpBase = i;                                           }
   int                         getSliceQpBase()                                 const { return m_iSliceQpBase;                                        }

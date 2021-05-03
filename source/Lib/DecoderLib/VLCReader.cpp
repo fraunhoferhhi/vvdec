@@ -3485,7 +3485,6 @@ void HLSyntaxReader::parseSliceHeader( Slice*               pcSlice,
   {
     READ_FLAG( uiCode, "sh_cabac_init_flag" );
     pcSlice->setCabacInitFlag( uiCode ? true : false );
-    pcSlice->setEncCABACTableIdx( pcSlice->getSliceType() == B_SLICE ? ( uiCode ? P_SLICE : B_SLICE ) : ( uiCode ? B_SLICE : P_SLICE ) );
   }
 
   if( picHeader->getEnableTMVPFlag() )
