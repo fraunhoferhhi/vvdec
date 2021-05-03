@@ -838,10 +838,6 @@ private:
   std::vector<uint32_t>  m_ctuAddrInSlice;                    //!< raster-scan addresses of all the CTUs in the slice
 
 public:
-//  SliceMap() = default;
-////  virtual ~SliceMap();
-//  ~SliceMap() = default;
-
   SliceMap();
   virtual ~SliceMap();
 
@@ -2565,7 +2561,6 @@ public:
   bool                        getExplicitScalingListEnabledFlag()                       { return m_explicitScalingListEnabledFlag;                                                     }
   const bool                  getExplicitScalingListEnabledFlag() const                 { return m_explicitScalingListEnabledFlag;                                                     }
   unsigned*                   getMinQTSizes() const                                     { return (unsigned *)m_minQT;                                                                  }
-//  unsigned*                   getMaxMTTHierarchyDepths() const                          { return (unsigned *)m_maxMTTHierarchyDepth;                                                   }
   unsigned*                   getMaxBTSizes() const                                     { return (unsigned *)m_maxBTSize;                                                              }
   unsigned*                   getMaxTTSizes() const                                     { return (unsigned *)m_maxTTSize;                                                              }
 
@@ -2682,9 +2677,6 @@ private:
   PicHeader*                 m_pcPicHeader                   = nullptr;    //!< pointer to picture header structure
   bool                       m_colFromL0Flag                 = true;   // collocated picture from List0 flag
 
-  bool                       m_noRaslOutputFlag              = false;
-  bool                       m_handleCraAsBlaFlag            = false;
-
   uint32_t                   m_colRefIdx                     = 0;
   double                     m_lambdas[MAX_NUM_COMPONENT]    = { 0.0, 0.0, 0.0 };
   uint32_t                   m_maxNumIBCMergeCand            = 0;
@@ -2695,15 +2687,12 @@ private:
 
   uint32_t                   m_independentSliceIdx           = 0;
 
-  bool                       m_bTestWeightPred               = false;
-  bool                       m_bTestWeightBiPred             = false;
   WPScalingParam             m_weightPredTable[NUM_REF_PIC_LIST_01][MAX_NUM_REF][MAX_NUM_COMPONENT];   // [REF_PIC_LIST_0 or REF_PIC_LIST_1][refIdx][0:Y, 1:U, 2:V]
   WPACDCParam                m_weightACDCParam[MAX_NUM_COMPONENT];
   ClpRngs                    m_clpRngs;
   std::vector<uint32_t>      m_substreamSizes;
   uint32_t                   m_numEntryPoints                = 0;
   bool                       m_cabacInitFlag                 = false;
-  int                        m_cabacWinUpdateMode            = 0;
   SliceMap                   m_sliceMap;                     //!< list of CTUs in current slice - raster scan CTU addresses
 
   uint32_t                   m_sliceSubPicId                 = false;
@@ -2771,7 +2760,6 @@ public:
   bool                        getNoOutputOfPriorPicsFlag() const                     { return m_noOutputOfPriorPicsFlag;                             }
   int                         getPOC() const                                         { return m_iPOC;                                                }
   int                         getSliceQp() const                                     { return m_iSliceQp;                                            }
-  bool                        getUseWeightedPrediction() const                       { return( (m_eSliceType==P_SLICE && testWeightPred()) || (m_eSliceType==B_SLICE && testWeightBiPred()) ); }
   int                         getSliceQpDelta() const                                { return m_iSliceQpDelta;                                       }
   int                         getSliceChromaQpDelta(ComponentID compID) const        { return isLuma(compID) ? 0 : m_iSliceChromaQpDelta[compID];    }
   bool                        getUseChromaQpAdj() const                              { return m_ChromaQpAdjEnabled;                                  }
@@ -2883,12 +2871,6 @@ public:
                                                                int*                        missingPOC,
                                                                int*                        missingRefPicIndex ) const;
 
-  void                        setNoRaslOutputFlag( bool val )                        { m_noRaslOutputFlag = val;                                     }
-  bool                        getNoRaslOutputFlag() const                            { return m_noRaslOutputFlag;                                    }
-
-  void                        setHandleCraAsBlaFlag( bool val )                      { m_handleCraAsBlaFlag = val;                                   }
-  bool                        getHandleCraAsBlaFlag() const                          { return m_handleCraAsBlaFlag;                                  }
-
   void                        setSliceMap( SliceMap map )                            { m_sliceMap = map;                                                         }
   uint32_t                    getFirstCtuRsAddrInSlice() const                       { return m_sliceMap.getCtuAddrInSlice(0);                                   }
   void                        setSliceID( uint32_t u )                               { m_sliceMap.setSliceID( u );                                               }
@@ -2902,10 +2884,6 @@ public:
   void                        setIndependentSliceIdx( uint32_t i)                    { m_independentSliceIdx = i;                                    }
   uint32_t                    getIndependentSliceIdx() const                         { return  m_independentSliceIdx;                                }
   void                        copySliceInfo(Slice *pcSliceSrc, bool cpyAlmostAll = true);
-  bool                        testWeightPred( ) const                                { return m_bTestWeightPred;                                     }
-  void                        setTestWeightPred( bool bValue )                       { m_bTestWeightPred = bValue;                                   }
-  bool                        testWeightBiPred( ) const                              { return m_bTestWeightBiPred;                                   }
-  void                        setTestWeightBiPred( bool bValue )                     { m_bTestWeightBiPred = bValue;                                 }
   void                        setWpScaling( WPScalingParam  wp[NUM_REF_PIC_LIST_01][MAX_NUM_REF][MAX_NUM_COMPONENT] )
   {
     memcpy(m_weightPredTable, wp, sizeof(WPScalingParam)*NUM_REF_PIC_LIST_01*MAX_NUM_REF*MAX_NUM_COMPONENT);
@@ -2932,10 +2910,8 @@ public:
 
   void                        setCabacInitFlag( bool val )                           { m_cabacInitFlag = val;                                        } //!< set CABAC initial flag
   bool                        getCabacInitFlag()                               const { return m_cabacInitFlag;                                       } //!< get CABAC initial flag
-  void                        setCabacWinUpdateMode( int mode )                      { m_cabacWinUpdateMode = mode;                                  }
-  int                         getCabacWinUpdateMode()                          const { return m_cabacWinUpdateMode;                                  }
-  void                        setSliceSubPicId(int i)                               { m_sliceSubPicId = i;   }
-  uint32_t                    getSliceSubPicId() const                              { return m_sliceSubPicId; }
+  void                        setSliceSubPicId(int i)                                { m_sliceSubPicId = i;   }
+  uint32_t                    getSliceSubPicId() const                               { return m_sliceSubPicId; }
 
   void                        setSliceQpBase( int i )                                { m_iSliceQpBase = i;                                           }
   int                         getSliceQpBase()                                 const { return m_iSliceQpBase;                                        }

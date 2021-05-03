@@ -309,7 +309,6 @@ void Slice::initSlice()
 
   m_substreamSizes.clear();
   m_cabacInitFlag        = false;
-  m_cabacWinUpdateMode   = 0;
   resetTileGroupAlfEnabledFlag();
   resetTileGroupCcAlfEnabledFlags();
   m_sliceMap.initSliceMap();
@@ -813,7 +812,6 @@ void Slice::copySliceInfo(Slice *pSrc, bool cpyAlmostAll)
   }
 
   m_cabacInitFlag                 = pSrc->m_cabacInitFlag;
-  m_cabacWinUpdateMode            = pSrc->m_cabacWinUpdateMode;
   memcpy( m_alfApss,                 pSrc->m_alfApss,                 sizeof( m_alfApss ) );
   memcpy( m_tileGroupAlfEnabledFlag, pSrc->m_tileGroupAlfEnabledFlag, sizeof(m_tileGroupAlfEnabledFlag));
   m_tileGroupNumAps               = pSrc->m_tileGroupNumAps;
