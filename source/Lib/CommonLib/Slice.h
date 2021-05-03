@@ -2693,13 +2693,7 @@ private:
   uint32_t                   m_uiTLayer                      = false;
   bool                       m_bTLayerSwitchingFlag          = false;
 
-  uint32_t                   m_sliceCurStartCtuTsAddr        = 0;
-  uint32_t                   m_sliceCurEndCtuTsAddr          = 0;
   uint32_t                   m_independentSliceIdx           = 0;
-  uint32_t                   m_sliceBits                     = 0;
-  bool                       m_nextSlice                     = false;
-
-  uint32_t                   m_sliceIdx                      = 0;
 
   bool                       m_bTestWeightPred               = false;
   bool                       m_bTestWeightBiPred             = false;
@@ -2896,10 +2890,6 @@ public:
   void                        setHandleCraAsBlaFlag( bool val )                      { m_handleCraAsBlaFlag = val;                                   }
   bool                        getHandleCraAsBlaFlag() const                          { return m_handleCraAsBlaFlag;                                  }
 
-  void                        setSliceCurStartCtuTsAddr( uint32_t ctuTsAddr )        { m_sliceCurStartCtuTsAddr = ctuTsAddr;                         } // CTU Tile-scan address (as opposed to raster-scan)
-  uint32_t                    getSliceCurStartCtuTsAddr() const                      { return m_sliceCurStartCtuTsAddr;                              } // CTU Tile-scan address (as opposed to raster-scan)
-  void                        setSliceCurEndCtuTsAddr( uint32_t ctuTsAddr )          { m_sliceCurEndCtuTsAddr = ctuTsAddr;                           } // CTU Tile-scan address (as opposed to raster-scan)
-  uint32_t                    getSliceCurEndCtuTsAddr() const                        { return m_sliceCurEndCtuTsAddr;                                } // CTU Tile-scan address (as opposed to raster-scan)
   void                        setSliceMap( SliceMap map )                            { m_sliceMap = map;                                                         }
   uint32_t                    getFirstCtuRsAddrInSlice() const                       { return m_sliceMap.getCtuAddrInSlice(0);                                   }
   void                        setSliceID( uint32_t u )                               { m_sliceMap.setSliceID( u );                                               }
@@ -2913,10 +2903,6 @@ public:
   void                        setIndependentSliceIdx( uint32_t i)                    { m_independentSliceIdx = i;                                    }
   uint32_t                    getIndependentSliceIdx() const                         { return  m_independentSliceIdx;                                }
   void                        copySliceInfo(Slice *pcSliceSrc, bool cpyAlmostAll = true);
-  void                        setSliceBits( uint32_t uiVal )                         { m_sliceBits = uiVal;                                          }
-  uint32_t                    getSliceBits() const                                   { return m_sliceBits;                                           }
-  void                        setSliceIndex(uint32_t idx)                            { m_sliceIdx = idx;                                             }
-  uint32_t                    getSliceIndex() const                                  { return m_sliceIdx;                                            }
   bool                        testWeightPred( ) const                                { return m_bTestWeightPred;                                     }
   void                        setTestWeightPred( bool bValue )                       { m_bTestWeightPred = bValue;                                   }
   bool                        testWeightBiPred( ) const                              { return m_bTestWeightBiPred;                                   }

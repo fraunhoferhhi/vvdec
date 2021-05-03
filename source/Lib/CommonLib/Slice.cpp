@@ -795,7 +795,6 @@ void Slice::copySliceInfo(Slice *pSrc, bool cpyAlmostAll)
 //  m_sliceCurEndCtuTsAddr          = pSrc->m_sliceCurEndCtuTsAddr;
   m_sliceMap                      = pSrc->m_sliceMap;
   m_independentSliceIdx           = pSrc->m_independentSliceIdx;
-  m_nextSlice                     = pSrc->m_nextSlice;
   m_clpRngs                       = pSrc->m_clpRngs;
   m_lmcsEnabledFlag               = pSrc->m_lmcsEnabledFlag;
   m_pendingRasInit                = pSrc->m_pendingRasInit;
