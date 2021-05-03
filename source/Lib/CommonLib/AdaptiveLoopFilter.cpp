@@ -422,21 +422,11 @@ void AdaptiveLoopFilter::create( const PicHeader* picHeader, const SPS* sps, con
   }
 
   classifier.resize( std::max( 1, numThreads ) );
-  for( auto& buf : classifier )
-  {
-    buf = ( AlfClassifier* ) malloc( ( AdaptiveLoopFilter::m_CLASSIFICATION_BLK_SIZE * AdaptiveLoopFilter::m_CLASSIFICATION_BLK_SIZE >> ( 2 + 2 ) ) * sizeof( AlfClassifier ) );
-  }
 }
 
 void AdaptiveLoopFilter::destroy()
 {
   m_tempBuf.clear();
-
-  for( auto& buf : classifier )
-  {
-    free( buf );
-  }
-
   classifier.clear();
 }
 
@@ -565,8 +555,8 @@ void AdaptiveLoopFilter::filterAreaLuma( const CPelUnitBuf& srcBuf,
     {
       int nWidth = std::min( j + m_CLASSIFICATION_BLK_SIZE, right ) - j;
       
-      m_deriveClassificationBlk( classifier[tId], srcBuf.Y(),     Area( j, i, nWidth, nHeight ), m_inputBitDepth[CHANNEL_TYPE_LUMA] + 4, m_alfVBLumaCTUHeight, m_alfVBLumaPos );
-      m_filter7x7Blk           ( classifier[tId], dstBuf, srcBuf, Area( j, i, nWidth, nHeight ), COMPONENT_Y, coeff, clip, clpRngs,      m_alfVBLumaCTUHeight, m_alfVBLumaPos );
+      m_deriveClassificationBlk( classifier[tId].data(), srcBuf.Y(),     Area( j, i, nWidth, nHeight ), m_inputBitDepth[CHANNEL_TYPE_LUMA] + 4, m_alfVBLumaCTUHeight, m_alfVBLumaPos );
+      m_filter7x7Blk           ( classifier[tId].data(), dstBuf, srcBuf, Area( j, i, nWidth, nHeight ), COMPONENT_Y, coeff, clip, clpRngs,      m_alfVBLumaCTUHeight, m_alfVBLumaPos );
     }
   }
 }
