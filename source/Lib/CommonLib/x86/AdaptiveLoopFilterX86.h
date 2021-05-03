@@ -146,8 +146,8 @@ void simdDeriveClassificationBlk(AlfClassifier *classifier, const CPelBuf &srcLu
   {
     const int yOffset1 = ( i << 1 );
     const int yOffset2 = yOffset1 + 4;
-    AlfClassifier* clPtr1 = &classifier[( yOffset1 / 4 ) * ( MAX_CU_SIZE / 4 )];
-    AlfClassifier* clPtr2 = &classifier[( yOffset2 / 4 ) * ( MAX_CU_SIZE / 4 )];
+    AlfClassifier* clPtr1 = &classifier[( yOffset1 / 4 ) * ( AdaptiveLoopFilter::m_CLASSIFICATION_BLK_SIZE / 4 )];
+    AlfClassifier* clPtr2 = &classifier[( yOffset2 / 4 ) * ( AdaptiveLoopFilter::m_CLASSIFICATION_BLK_SIZE / 4 )];
 
     for (int j = 0; j < blk.width; j += 8)
     {
@@ -417,8 +417,8 @@ void simdDeriveClassificationBlk<AVX2>(AlfClassifier *classifier, const CPelBuf 
   {
     const int yOffset1 = ( i << 1 );
     const int yOffset2 = yOffset1 + 4;
-    AlfClassifier* clPtr1 = &classifier[( yOffset1 / 4 ) * ( MAX_CU_SIZE / 4 )];
-    AlfClassifier* clPtr2 = &classifier[( yOffset2 / 4 ) * ( MAX_CU_SIZE / 4 )];
+    AlfClassifier* clPtr1 = &classifier[( yOffset1 / 4 ) * ( AdaptiveLoopFilter::m_CLASSIFICATION_BLK_SIZE / 4 )];
+    AlfClassifier* clPtr2 = &classifier[( yOffset2 / 4 ) * ( AdaptiveLoopFilter::m_CLASSIFICATION_BLK_SIZE / 4 )];
 
     for (int j = 0; j < blk.width; j += 16)
     {
@@ -1038,7 +1038,7 @@ static void simdFilter7x7Blk( const AlfClassifier*   classifier,
 
       for (int k = 0; k < 2; ++k)
       {
-        const AlfClassifier &cl = classifier[( i / 4 ) * ( MAX_CU_SIZE / 4 ) + ( j / 4 ) + k];
+        const AlfClassifier &cl = classifier[( i / 4 ) * ( AdaptiveLoopFilter::m_CLASSIFICATION_BLK_SIZE / 4 ) + ( j / 4 ) + k];
         const short *coef = filterSet + cl.classIdx * MAX_NUM_ALF_LUMA_COEFF + cl.transposeIdx * MAX_NUM_ALF_LUMA_COEFF * MAX_NUM_ALF_CLASSES;
         const short *clip = fClipSet  + cl.classIdx * MAX_NUM_ALF_LUMA_COEFF + cl.transposeIdx * MAX_NUM_ALF_LUMA_COEFF * MAX_NUM_ALF_CLASSES;
 
@@ -1263,7 +1263,7 @@ void simdFilter7x7Blk<AVX2>( const AlfClassifier* classifier,
 
       for (int k = 0; k < 2; ++k)
       {
-        const AlfClassifier &cl0 = classifier[( i / 4 ) * ( MAX_CU_SIZE / 4 ) + ( j / 4 ) + k];
+        const AlfClassifier &cl0 = classifier[( i / 4 ) * ( AdaptiveLoopFilter::m_CLASSIFICATION_BLK_SIZE / 4 ) + ( j / 4 ) + k];
         const short *coef0 = filterSet + cl0.classIdx * MAX_NUM_ALF_LUMA_COEFF + cl0.transposeIdx * MAX_NUM_ALF_LUMA_COEFF * MAX_NUM_ALF_CLASSES;
         const short *clip0 = fClipSet  + cl0.classIdx * MAX_NUM_ALF_LUMA_COEFF + cl0.transposeIdx * MAX_NUM_ALF_LUMA_COEFF * MAX_NUM_ALF_CLASSES;
 
@@ -1272,7 +1272,7 @@ void simdFilter7x7Blk<AVX2>( const AlfClassifier* classifier,
         const __m128i rawClipLo0  = _mm_loadu_si128( ( const __m128i * ) ( clip0 ) );
         const __m128i rawClipHi0  = _mm_loadl_epi64( ( const __m128i * ) ( clip0 + 8 ) );
         
-        const AlfClassifier &cl1 = classifier[( i / 4 ) * ( MAX_CU_SIZE / 4 ) + ( j / 4 ) + k + 2];
+        const AlfClassifier &cl1 = classifier[( i / 4 ) * ( AdaptiveLoopFilter::m_CLASSIFICATION_BLK_SIZE / 4 ) + ( j / 4 ) + k + 2];
         const short *coef1 = filterSet + cl1.classIdx * MAX_NUM_ALF_LUMA_COEFF + cl1.transposeIdx * MAX_NUM_ALF_LUMA_COEFF * MAX_NUM_ALF_CLASSES;
         const short *clip1 = fClipSet  + cl1.classIdx * MAX_NUM_ALF_LUMA_COEFF + cl1.transposeIdx * MAX_NUM_ALF_LUMA_COEFF * MAX_NUM_ALF_CLASSES;
 
