@@ -768,8 +768,8 @@ private:
 // if a check fails with THROW or CHECK, please check if ported correctly from assert in revision 1196)
 #define THROW(x)            throw( Exception( "\nERROR: In function \"" ) << __FUNCTION__ << "\" in " << __FILE__ << ":" << __LINE__ << ": " << x )
 //#define THROW(x)            { std::cerr << "\nERROR: In function \"" << __FUNCTION__ << "\" in " << __FILE__ << ":" << __LINE__ << ": " << x << std::endl; abort(); }
-#define CHECK(c,x)          if(c){ THROW(x); }
-#define CHECK_WARN(c,x)     if(c){ std::cerr << "\nWARNING: In function \"" << __FUNCTION__ << "\" in " << __FILE__ << ":" << __LINE__ << ": " << x << std::endl; }
+#define CHECK(c,x)          if(c){ THROW( x << "\nERROR CONDITION: " << #c ); }
+#define CHECK_WARN(c,x)     if(c){ std::cerr << "\nWARNING: In function \"" << __FUNCTION__ << "\" in " << __FILE__ << ":" << __LINE__ << ": " << x << "\nERROR CONDITION: " << #c << std::endl; }
 #define EXIT(x)             throw( Exception( "\n" ) << x << "\n" )
 #define CHECK_NULLPTR(_ptr) CHECK( !( _ptr ), "Accessing an empty pointer!" )
 

@@ -249,41 +249,41 @@ void Picture::finalInit( const SPS *sps, const PPS *pps, PicHeader* picHeader, A
 #endif
 }
 
-void Picture::allocateNewSlice()
+Slice* Picture::allocateNewSlice( Slice** pilot )
 {
-  slices.push_back(new Slice);
-  Slice& slice = *slices.back();
-  for( int i=0; i<ALF_CTB_MAX_NUM_APS; ++i )
+  if( pilot )
   {
-    slice.getAlfAPSs()[i] = cs->alfApss[i].get();
+    slices.push_back( *pilot );
+    *pilot = new Slice;
+    if( slices.size() >= 2 )
+    {
+      ( *pilot )->copySliceInfo( slices[slices.size() - 2] );
+      ( *pilot )->initSlice();
+    }
+    ( *pilot )->setSPS( 0 );
+    ( *pilot )->setPPS( 0 );
+    ( *pilot )->setVPS( 0 );
+    ( *pilot )->clearAlfAPSs();
+  }
+  else
+  {
+    slices.push_back( new Slice );
+    if( slices.size() >= 2 )
+    {
+      slices.back()->copySliceInfo( slices[slices.size() - 2] );
+      slices.back()->initSlice();
+    }
   }
 
+  Slice* slice = slices.back();
 
-  slice.setPPS( cs->pps.get() );
-  slice.setSPS( cs->sps.get() );
-  slice.setVPS( cs->vps.get() );
-  if(slices.size()>=2)
-  {
-    slice.copySliceInfo( slices[slices.size()-2] );
-    slice.initSlice();
-  }
-}
+  slice->setPPS( cs->pps.get() );
+  slice->setSPS( cs->sps.get() );
+  slice->setVPS( cs->vps.get() );
+  slice->setAlfAPSs( cs->alfApss );
+  slice->setPic( this );
 
-Slice* Picture::swapSliceObject( Slice* s, uint32_t i )
-{
-  s->setSPS( cs->sps.get() );
-  s->setPPS( cs->pps.get() );
-  s->setVPS( cs->vps.get() );
-  s->setAlfAPSs( cs->alfApss );
-
-  Slice * pTmp = slices[i];
-  slices[i] = s;
-  pTmp->setSPS( nullptr );
-  pTmp->setPPS( nullptr );
-  pTmp->setVPS( nullptr );
-  memset( pTmp->getAlfAPSs(), 0, sizeof( pTmp->getAlfAPSs()[0] ) * ALF_CTB_MAX_NUM_APS );
-
-  return pTmp;
+  return slice;
 }
 
 void Picture::setPicHead( const std::shared_ptr<PicHeader>& ph )

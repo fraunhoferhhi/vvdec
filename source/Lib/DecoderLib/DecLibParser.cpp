@@ -676,7 +676,7 @@ DecLibParser::SliceHeadResult DecLibParser::xDecodeSliceHead( InputNALUnit& nalu
   // WARNING: don't use m_apcSlicePilot or m_picHeader after this point, because they have been reallocated
 
   m_pcParsePic->neededForOutput = m_pcParsePic->picHeader->getPicOutputFlag();
-  if( m_pcParsePic->numSlices == 0 || m_uiSliceSegmentIdx == m_pcParsePic->numSlices )
+  if( m_pcParsePic->numSlices == 0 || m_uiSliceSegmentIdx == m_pcParsePic->numSlices - 1 )
   {
 #if 0
     // TODO for VPS support:
@@ -741,6 +741,7 @@ DecLibParser::SliceHeadResult DecLibParser::xDecodeSliceHead( InputNALUnit& nalu
     xUpdateRasInit( slice );
   }
 
+  ++m_uiSliceSegmentIdx;
   m_bFirstSliceInPicture                     = false;
   m_bFirstSliceInSequence[nalu.m_nuhLayerId] = false;
   m_bFirstSliceInBitstream                   = false;
@@ -1052,8 +1053,6 @@ Slice*  DecLibParser::xDecodeSliceMain( InputNALUnit &nalu )
     }
   }
 
-  m_uiSliceSegmentIdx++;
-
   return pcSlice;
 }
 
@@ -1116,13 +1115,9 @@ Picture * DecLibParser::xActivateParameterSets( const int layerId )
     pcPic = m_pcParsePic;
   }
 
-  pcPic->allocateNewSlice();
   // make the slice-pilot a real slice, and set up the slice-pilot for the next slice
+  Slice* pSlice = pcPic->allocateNewSlice( &m_apcSlicePilot );
   CHECK( pcPic->slices.size() != ( m_uiSliceSegmentIdx + 1 ), "Invalid number of slices" );
-  m_apcSlicePilot = pcPic->swapSliceObject( m_apcSlicePilot, m_uiSliceSegmentIdx );
-
-  Slice* pSlice = pcPic->slices[m_uiSliceSegmentIdx];   // we now have a real slice.
-  pSlice->setPic( pcPic );
 
   if( m_bFirstSliceInPicture )
   {
@@ -1357,10 +1352,6 @@ Picture* DecLibParser::prepareLostPicture( int iLostPoc, const int layerId )
     cFillPic->allocateNewSlice();
   }
   cFillPic->slices[0]->initSlice();
-  cFillPic->slices[0]->setPPS( cFillPic->cs->pps.get() );
-  cFillPic->slices[0]->setSPS( cFillPic->cs->sps.get() );
-  cFillPic->slices[0]->setVPS( cFillPic->cs->vps.get() );
-  cFillPic->slices[0]->setPic( cFillPic );
   cFillPic->slices[0]->setPOC( iLostPoc );
   cFillPic->slices[0]->setTLayer( iTLayer );
   cFillPic->slices[0]->setNalUnitType( naluType );

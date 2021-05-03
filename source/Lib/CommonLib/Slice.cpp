@@ -309,7 +309,6 @@ void Slice::initSlice()
 
   m_substreamSizes.clear();
   m_cabacInitFlag        = false;
-  m_cabacWinUpdateMode   = 0;
   resetTileGroupAlfEnabledFlag();
   resetTileGroupCcAlfEnabledFlags();
   m_sliceMap.initSliceMap();
@@ -795,7 +794,6 @@ void Slice::copySliceInfo(Slice *pSrc, bool cpyAlmostAll)
 //  m_sliceCurEndCtuTsAddr          = pSrc->m_sliceCurEndCtuTsAddr;
   m_sliceMap                      = pSrc->m_sliceMap;
   m_independentSliceIdx           = pSrc->m_independentSliceIdx;
-  m_nextSlice                     = pSrc->m_nextSlice;
   m_clpRngs                       = pSrc->m_clpRngs;
   m_lmcsEnabledFlag               = pSrc->m_lmcsEnabledFlag;
   m_pendingRasInit                = pSrc->m_pendingRasInit;
@@ -814,14 +812,11 @@ void Slice::copySliceInfo(Slice *pSrc, bool cpyAlmostAll)
   }
 
   m_cabacInitFlag                 = pSrc->m_cabacInitFlag;
-  m_cabacWinUpdateMode            = pSrc->m_cabacWinUpdateMode;
   memcpy( m_alfApss,                 pSrc->m_alfApss,                 sizeof( m_alfApss ) );
   memcpy( m_tileGroupAlfEnabledFlag, pSrc->m_tileGroupAlfEnabledFlag, sizeof(m_tileGroupAlfEnabledFlag));
   m_tileGroupNumAps               = pSrc->m_tileGroupNumAps;
   m_tileGroupLumaApsId            = pSrc->m_tileGroupLumaApsId;
   m_tileGroupChromaApsId          = pSrc->m_tileGroupChromaApsId;
-
-  if( cpyAlmostAll ) m_encCABACTableIdx  = pSrc->m_encCABACTableIdx;
 
   m_tileGroupCcAlfEnabledFlags[0]          = pSrc->m_tileGroupCcAlfEnabledFlags[0];
   m_tileGroupCcAlfEnabledFlags[1]          = pSrc->m_tileGroupCcAlfEnabledFlags[1];
@@ -1252,7 +1247,6 @@ void PPS::resetTileSliceInfo()
   m_tileRowBd.clear();
   m_ctuToTileCol.clear();
   m_ctuToTileRow.clear();
-  m_ctuToSubPicIdx.clear();
   m_rectSlices.clear();
   m_sliceMap.clear();
 }
@@ -1352,31 +1346,6 @@ void PPS::initRectSlices()
  */
 void PPS::initRectSliceMap(const SPS  *sps)
 {
-  if (sps)
-  {
-    m_ctuToSubPicIdx.resize(getPicWidthInCtu() * getPicHeightInCtu());
-    if (sps->getNumSubPics() > 1)
-    {
-      for (int i = 0; i <= sps->getNumSubPics() - 1; i++)
-      {
-        for (int y = sps->getSubPicCtuTopLeftY(i); y < sps->getSubPicCtuTopLeftY(i) + sps->getSubPicHeight(i); y++)
-        {
-          for (int x = sps->getSubPicCtuTopLeftX(i); x < sps->getSubPicCtuTopLeftX(i) + sps->getSubPicWidth(i); x++)
-          {
-            m_ctuToSubPicIdx[ x+ y * getPicWidthInCtu()] = i;
-          }
-        }
-      }
-    }
-    else
-    {
-      for (int i = 0; i < getPicWidthInCtu() * getPicHeightInCtu(); i++)
-      {
-        m_ctuToSubPicIdx[i] = 0;
-      }
-    }
-  }
-
   if( getSingleSlicePerSubPicFlag() )
   {
     CHECK (sps==nullptr, "RectSliceMap can only be initialized for slice_per_sub_pic_flag with a valid SPS");

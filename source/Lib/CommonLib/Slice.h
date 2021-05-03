@@ -838,10 +838,6 @@ private:
   std::vector<uint32_t>  m_ctuAddrInSlice;                    //!< raster-scan addresses of all the CTUs in the slice
 
 public:
-//  SliceMap() = default;
-////  virtual ~SliceMap();
-//  ~SliceMap() = default;
-
   SliceMap();
   virtual ~SliceMap();
 
@@ -1998,17 +1994,11 @@ private:
   uint32_t         m_numExpTileRows                    = 0;                    //!< number of explicitly specified tile rows
   uint32_t         m_numTileCols                       = 0;                       //!< number of tile columns
   uint32_t         m_numTileRows                       = 0;                       //!< number of tile rows
-  bool             m_TransquantBypassEnabledFlag       = false;   //!< Indicates presence of cu_transquant_bypass_flag in CUs.
-  int             m_log2MaxTransformSkipBlockSize     = 2;
-  bool             m_uniformSpacingFlag                = false;
-  int              m_numTileColumnsMinus1              = 0;
-  int              m_numTileRowsMinus1                 = 0;
   std::vector<int> m_tileColumnWidth;
   std::vector<int> m_tileRowHeight;
 
   bool                          m_rectSliceFlag             = true;
   bool                          m_singleSlicePerSubPicFlag  = false;          //!< single slice per sub-picture flag
-  std::vector<uint32_t>         m_ctuToSubPicIdx;               //!< mapping between CTU and Sub-picture index
   uint32_t                      m_numSlicesInPic            = 1;                    //!< number of rectangular slices in the picture (raster-scan slice specified at slice level)
   bool                          m_tileIdxDeltaPresentFlag   = false;           //!< tile index delta present flag
   std::vector<uint32_t>         m_tileColBd;                    //!< tile column left-boundaries in units of CTUs
@@ -2018,12 +2008,6 @@ private:
   std::vector<RectSlice>        m_rectSlices;                  //!< list of rectangular slice signalling parameters
   std::vector<SliceMap>         m_sliceMap;                    //!< list of CTU maps for each slice in the picture
   std::vector<SubPic>           m_subPics;                   //!< list of subpictures in the picture
-  int                           m_numSlicesInPicMinus1      = 0;
-
-  int              m_numTilesInPic                       = 1;
-  bool             m_signalledSliceIdFlag                = false;
-  int              m_signalledSliceIdLengthMinus1        = 0;
-  std::vector<int> m_sliceId;
 
   bool             m_cabacInitPresentFlag                = false;
 
@@ -2183,20 +2167,9 @@ public:
   uint32_t               getNumTileRows( ) const                                          { return  m_numTileRows;                        }
   void                   addTileColumnWidth( uint32_t u )                                 { CHECK( m_tileColumnWidth.size()  >= MAX_TILE_COLS, "Number of tile columns exceeds valid range" ); m_tileColumnWidth.push_back(u);    }
   void                   addTileRowHeight( uint32_t u )                                   { m_tileRowHeight.push_back(u);   }
-  void                   setTransquantBypassEnabledFlag( bool b )                         { m_TransquantBypassEnabledFlag = b;            }
-  bool                   getTransquantBypassEnabledFlag() const                           { return m_TransquantBypassEnabledFlag;         }
 
-  uint32_t               getLog2MaxTransformSkipBlockSize() const                         { return m_log2MaxTransformSkipBlockSize; }
-  void                   setLog2MaxTransformSkipBlockSize(uint32_t u)                     { m_log2MaxTransformSkipBlockSize = u; }
-
-  void                   setTileUniformSpacingFlag(bool b)                                { m_uniformSpacingFlag = b;                     }
-  bool                   getTileUniformSpacingFlag() const                                { return m_uniformSpacingFlag;                  }
-  void                   setNumTileColumnsMinus1(int i)                                   { m_numTileColumnsMinus1 = i;                   }
-  int                    getNumTileColumnsMinus1() const                                  { return m_numTileColumnsMinus1;                }
   void                   setTileColumnWidth(const std::vector<int>& columnWidth )         { m_tileColumnWidth = columnWidth;              }
   uint32_t               getTileColumnWidth(uint32_t columnIdx) const                     { return  m_tileColumnWidth[columnIdx];         }
-  void                   setNumTileRowsMinus1(int i)                                      { m_numTileRowsMinus1 = i;                      }
-  int                    getNumTileRowsMinus1() const                                     { return m_numTileRowsMinus1;                   }
   void                   setTileRowHeight(const std::vector<int>& rowHeight)              { m_tileRowHeight = rowHeight;                  }
   uint32_t               getTileRowHeight(uint32_t rowIdx) const                          { return m_tileRowHeight[rowIdx];               }
   uint32_t               getNumTiles() const                                              { return m_numTileCols * m_numTileRows;        }
@@ -2213,7 +2186,6 @@ public:
   void                   setRectSliceFlag(bool val)                                       { m_rectSliceFlag = val;                        }
   void                   setSingleSlicePerSubPicFlag( bool b )                            { m_singleSlicePerSubPicFlag = b;                                                                                                 }
   bool                   getSingleSlicePerSubPicFlag( ) const                             { return  m_singleSlicePerSubPicFlag;                                                                                             }
-  uint32_t               getCtuToSubPicIdx( int idx ) const                               { CHECK( idx >= m_ctuToSubPicIdx.size(), "CTU address index exceeds valid range" ); CHECK( getNumSubPics() < 1, "Number of subpicture cannot be 0" ); return  m_ctuToSubPicIdx[ idx ]; }
   void                   setNumSlicesInPic( uint32_t u )                                  { CHECK( u > MAX_SLICES, "Number of slices in picture exceeds valid range" ); m_numSlicesInPic = u;                               }
   uint32_t               getNumSlicesInPic( ) const                                       { return  m_numSlicesInPic;                                                                                                       }
   void                   setTileIdxDeltaPresentFlag( bool b )                             { m_tileIdxDeltaPresentFlag = b;                                                                                                  }
@@ -2230,16 +2202,6 @@ public:
   uint32_t               getSliceHeightInCtu( int idx ) const                             { CHECK( idx >= m_numSlicesInPic, "Slice index exceeds valid range" );    return  m_rectSlices[idx].getSliceHeightInCtu( );       }
   void                   setSliceTileIdx(  int idx, uint32_t u )                          { CHECK( idx >= m_numSlicesInPic, "Slice index exceeds valid range" );    m_rectSlices[idx].setTileIdx( u );                      }
   uint32_t               getSliceTileIdx( int idx ) const                                 { CHECK( idx >= m_numSlicesInPic, "Slice index exceeds valid range" );    return  m_rectSlices[idx].getTileIdx( );                }
-  int                    getNumSlicesInPicMinus1() const                                  { return m_numSlicesInPicMinus1;                }
-  void                   setNumSlicesInPicMinus1(int val)                                 { m_numSlicesInPicMinus1 = val;                 }
-  int                    getNumTilesInPic() const                                         { return m_numTilesInPic;                       }
-  void                   setNumTilesInPic(int val)                                        { m_numTilesInPic = val;                        }
-  bool                   getSignalledSliceIdFlag() const                                  { return m_signalledSliceIdFlag;                }
-  void                   setSignalledSliceIdFlag(bool val)                                { m_signalledSliceIdFlag = val;                 }
-  int                    getSignalledSliceIdLengthMinus1() const                          { return m_signalledSliceIdLengthMinus1;        }
-  void                   setSignalledSliceIdLengthMinus1(int val)                         { m_signalledSliceIdLengthMinus1 = val;         }
-  int                    getSliceId(uint32_t columnIdx) const                             { return  m_sliceId[columnIdx];                 }
-  void                   setSliceId(const std::vector<int>& val)                          { m_sliceId = val;                              }
   void                   resetTileSliceInfo();
   void                   initTiles();
   void                   initRectSlices();
@@ -2599,7 +2561,6 @@ public:
   bool                        getExplicitScalingListEnabledFlag()                       { return m_explicitScalingListEnabledFlag;                                                     }
   const bool                  getExplicitScalingListEnabledFlag() const                 { return m_explicitScalingListEnabledFlag;                                                     }
   unsigned*                   getMinQTSizes() const                                     { return (unsigned *)m_minQT;                                                                  }
-//  unsigned*                   getMaxMTTHierarchyDepths() const                          { return (unsigned *)m_maxMTTHierarchyDepth;                                                   }
   unsigned*                   getMaxBTSizes() const                                     { return (unsigned *)m_maxBTSize;                                                              }
   unsigned*                   getMaxTTSizes() const                                     { return (unsigned *)m_maxTTSize;                                                              }
 
@@ -2716,9 +2677,6 @@ private:
   PicHeader*                 m_pcPicHeader                   = nullptr;    //!< pointer to picture header structure
   bool                       m_colFromL0Flag                 = true;   // collocated picture from List0 flag
 
-  bool                       m_noRaslOutputFlag              = false;
-  bool                       m_handleCraAsBlaFlag            = false;
-
   uint32_t                   m_colRefIdx                     = 0;
   double                     m_lambdas[MAX_NUM_COMPONENT]    = { 0.0, 0.0, 0.0 };
   uint32_t                   m_maxNumIBCMergeCand            = 0;
@@ -2727,27 +2685,17 @@ private:
   uint32_t                   m_uiTLayer                      = false;
   bool                       m_bTLayerSwitchingFlag          = false;
 
-  uint32_t                   m_sliceCurStartCtuTsAddr        = 0;
-  uint32_t                   m_sliceCurEndCtuTsAddr          = 0;
   uint32_t                   m_independentSliceIdx           = 0;
-  uint32_t                   m_sliceBits                     = 0;
-  bool                       m_nextSlice                     = false;
 
-  uint32_t                   m_sliceIdx                      = 0;
-
-  bool                       m_bTestWeightPred               = false;
-  bool                       m_bTestWeightBiPred             = false;
   WPScalingParam             m_weightPredTable[NUM_REF_PIC_LIST_01][MAX_NUM_REF][MAX_NUM_COMPONENT];   // [REF_PIC_LIST_0 or REF_PIC_LIST_1][refIdx][0:Y, 1:U, 2:V]
   WPACDCParam                m_weightACDCParam[MAX_NUM_COMPONENT];
   ClpRngs                    m_clpRngs;
   std::vector<uint32_t>      m_substreamSizes;
   uint32_t                   m_numEntryPoints                = 0;
   bool                       m_cabacInitFlag                 = false;
-  int                        m_cabacWinUpdateMode            = 0;
   SliceMap                   m_sliceMap;                     //!< list of CTUs in current slice - raster scan CTU addresses
 
   uint32_t                   m_sliceSubPicId                 = false;
-  SliceType                  m_encCABACTableIdx              = I_SLICE;   // Used to transmit table selection across slices.
 
   int                        m_numCus                        = 0;
   int                        m_numIntraCus                   = 0;
@@ -2778,6 +2726,7 @@ public:
   const PPS*                  getPPS() const                                         { return m_pcPPS;                                               }
 
   void                        setAlfAPSs( std::shared_ptr<APS> apss[ALF_CTB_MAX_NUM_APS] ) { for( int i=0; i<ALF_CTB_MAX_NUM_APS; ++i ) { m_alfApss[i] = apss[i].get(); }  }
+  void                        clearAlfAPSs()                                         { memset( m_alfApss, 0, sizeof( m_alfApss ) );                  }
   APS**                       getAlfAPSs()                                           { return m_alfApss;                                             }
   const APS* const*           getAlfAPSs() const                                     { return m_alfApss;                                             }
   void                        setSaoEnabledFlag(ChannelType chType, bool s)          { m_saoEnabledFlag[chType] = s;                                 }
@@ -2811,7 +2760,6 @@ public:
   bool                        getNoOutputOfPriorPicsFlag() const                     { return m_noOutputOfPriorPicsFlag;                             }
   int                         getPOC() const                                         { return m_iPOC;                                                }
   int                         getSliceQp() const                                     { return m_iSliceQp;                                            }
-  bool                        getUseWeightedPrediction() const                       { return( (m_eSliceType==P_SLICE && testWeightPred()) || (m_eSliceType==B_SLICE && testWeightBiPred()) ); }
   int                         getSliceQpDelta() const                                { return m_iSliceQpDelta;                                       }
   int                         getSliceChromaQpDelta(ComponentID compID) const        { return isLuma(compID) ? 0 : m_iSliceChromaQpDelta[compID];    }
   bool                        getUseChromaQpAdj() const                              { return m_ChromaQpAdjEnabled;                                  }
@@ -2923,16 +2871,6 @@ public:
                                                                int*                        missingPOC,
                                                                int*                        missingRefPicIndex ) const;
 
-  void                        setNoRaslOutputFlag( bool val )                        { m_noRaslOutputFlag = val;                                     }
-  bool                        getNoRaslOutputFlag() const                            { return m_noRaslOutputFlag;                                    }
-
-  void                        setHandleCraAsBlaFlag( bool val )                      { m_handleCraAsBlaFlag = val;                                   }
-  bool                        getHandleCraAsBlaFlag() const                          { return m_handleCraAsBlaFlag;                                  }
-
-  void                        setSliceCurStartCtuTsAddr( uint32_t ctuTsAddr )        { m_sliceCurStartCtuTsAddr = ctuTsAddr;                         } // CTU Tile-scan address (as opposed to raster-scan)
-  uint32_t                    getSliceCurStartCtuTsAddr() const                      { return m_sliceCurStartCtuTsAddr;                              } // CTU Tile-scan address (as opposed to raster-scan)
-  void                        setSliceCurEndCtuTsAddr( uint32_t ctuTsAddr )          { m_sliceCurEndCtuTsAddr = ctuTsAddr;                           } // CTU Tile-scan address (as opposed to raster-scan)
-  uint32_t                    getSliceCurEndCtuTsAddr() const                        { return m_sliceCurEndCtuTsAddr;                                } // CTU Tile-scan address (as opposed to raster-scan)
   void                        setSliceMap( SliceMap map )                            { m_sliceMap = map;                                                         }
   uint32_t                    getFirstCtuRsAddrInSlice() const                       { return m_sliceMap.getCtuAddrInSlice(0);                                   }
   void                        setSliceID( uint32_t u )                               { m_sliceMap.setSliceID( u );                                               }
@@ -2946,14 +2884,6 @@ public:
   void                        setIndependentSliceIdx( uint32_t i)                    { m_independentSliceIdx = i;                                    }
   uint32_t                    getIndependentSliceIdx() const                         { return  m_independentSliceIdx;                                }
   void                        copySliceInfo(Slice *pcSliceSrc, bool cpyAlmostAll = true);
-  void                        setSliceBits( uint32_t uiVal )                         { m_sliceBits = uiVal;                                          }
-  uint32_t                    getSliceBits() const                                   { return m_sliceBits;                                           }
-  void                        setSliceIndex(uint32_t idx)                            { m_sliceIdx = idx;                                             }
-  uint32_t                    getSliceIndex() const                                  { return m_sliceIdx;                                            }
-  bool                        testWeightPred( ) const                                { return m_bTestWeightPred;                                     }
-  void                        setTestWeightPred( bool bValue )                       { m_bTestWeightPred = bValue;                                   }
-  bool                        testWeightBiPred( ) const                              { return m_bTestWeightBiPred;                                   }
-  void                        setTestWeightBiPred( bool bValue )                     { m_bTestWeightBiPred = bValue;                                 }
   void                        setWpScaling( WPScalingParam  wp[NUM_REF_PIC_LIST_01][MAX_NUM_REF][MAX_NUM_COMPONENT] )
   {
     memcpy(m_weightPredTable, wp, sizeof(WPScalingParam)*NUM_REF_PIC_LIST_01*MAX_NUM_REF*MAX_NUM_COMPONENT);
@@ -2980,13 +2910,8 @@ public:
 
   void                        setCabacInitFlag( bool val )                           { m_cabacInitFlag = val;                                        } //!< set CABAC initial flag
   bool                        getCabacInitFlag()                               const { return m_cabacInitFlag;                                       } //!< get CABAC initial flag
-  void                        setCabacWinUpdateMode( int mode )                      { m_cabacWinUpdateMode = mode;                                  }
-  int                         getCabacWinUpdateMode()                          const { return m_cabacWinUpdateMode;                                  }
-  void                        setSliceSubPicId(int i)                               { m_sliceSubPicId = i;   }
-  uint32_t                    getSliceSubPicId() const                              { return m_sliceSubPicId; }
-  void                        setEncCABACTableIdx( SliceType idx )                   { m_encCABACTableIdx = idx;                                     }
-  SliceType                   getEncCABACTableIdx() const                            { return m_encCABACTableIdx;                                    }
-
+  void                        setSliceSubPicId(int i)                                { m_sliceSubPicId = i;   }
+  uint32_t                    getSliceSubPicId() const                               { return m_sliceSubPicId; }
 
   void                        setSliceQpBase( int i )                                { m_iSliceQpBase = i;                                           }
   int                         getSliceQpBase()                                 const { return m_iSliceQpBase;                                        }
