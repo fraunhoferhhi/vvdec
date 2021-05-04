@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <AutoVisualizer xmlns="http://schemas.microsoft.com/vstudio/debugger/natvis/2010">
 
-  <Type Name="static_vector&lt;*&gt;">
+  <Type Name="vvdec::static_vector&lt;*&gt;">
     <DisplayString>{{size = {_size}}}</DisplayString>
     <Expand>
       <Item Name="[size]">_size</Item>
