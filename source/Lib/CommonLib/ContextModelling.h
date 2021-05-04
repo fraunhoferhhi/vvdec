@@ -389,8 +389,8 @@ private:
   const unsigned            m_maxNumCoeff;
   const bool                m_signHiding;
   const int                 m_maxLog2TrDynamicRange;
-  const unsigned*           m_scan;
-  const unsigned*           m_scanCG;
+  const uint16_t*           m_scan;
+  const uint16_t*           m_scanCG;
   const CtxSet              m_CtxSetLastX;
   const CtxSet              m_CtxSetLastY;
   const unsigned            m_maxLastPosX;

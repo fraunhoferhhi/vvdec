@@ -192,7 +192,7 @@ int8_t getBcwWeight(uint8_t bcwIdx, uint8_t uhRefFrmList)
   return (uhRefFrmList == REF_PIC_LIST_0 ? g_BcwWeightBase - g_BcwWeights[bcwIdx] : g_BcwWeights[bcwIdx]);
 }
 
-const uint32_t g_log2SbbSize[MAX_LOG2_TU_SIZE_PLUS_ONE][MAX_LOG2_TU_SIZE_PLUS_ONE][2] =
+const uint16_t g_log2SbbSize[MAX_LOG2_TU_SIZE_PLUS_ONE][MAX_LOG2_TU_SIZE_PLUS_ONE][2] =
 //===== luma/chroma =====
 {
   { { 0,0 },{ 0,1 },{ 0,2 },{ 0,3 },{ 0,4 },{ 0,4 },{ 0,4 } },
@@ -450,7 +450,7 @@ const UnitScale g_miScaling( MIN_CU_LOG2, MIN_CU_LOG2 );
 
 // scanning order table
 
-const uint32_t* g_scanOrder[SCAN_NUMBER_OF_GROUP_TYPES][MAX_TU_SIZE_IDX][MAX_TU_SIZE_IDX] =
+const uint16_t* g_scanOrder[SCAN_NUMBER_OF_GROUP_TYPES][MAX_TU_SIZE_IDX][MAX_TU_SIZE_IDX] =
 {
   {
     { g_scanOrderBuf + 0, g_scanOrderBuf + 1, g_scanOrderBuf + 3, g_scanOrderBuf + 7, g_scanOrderBuf + 15, g_scanOrderBuf + 31, g_scanOrderBuf + 63, },
@@ -472,7 +472,7 @@ const uint32_t* g_scanOrder[SCAN_NUMBER_OF_GROUP_TYPES][MAX_TU_SIZE_IDX][MAX_TU_
   }
 };
 
-const uint32_t g_coefTopLeftDiagScan8x8[MAX_TU_SIZE_IDX][64] =
+const uint16_t g_coefTopLeftDiagScan8x8[MAX_TU_SIZE_IDX][64] =
 {
   {0, 1, 1, 2, 2, 2, 3, 3, 3, 3, 4, 4, 4, 5, 5, 6, 4, 5, 5, 6, 6, 6, 7, 7, 7, 7, 8, 8, 8, 9, 9, 10, 4, 5, 5, 6, 6, 6, 7, 7, 7, 7, 8, 8, 8, 9, 9, 10, 8, 9, 9, 10, 10, 10, 11, 11, 11, 11, 12, 12, 12, 13, 13, 14, },
   {0, 2, 1, 4, 3, 2, 6, 5, 4, 3, 7, 6, 5, 8, 7, 9, 8, 10, 9, 12, 11, 10, 14, 13, 12, 11, 15, 14, 13, 16, 15, 17, 4, 6, 5, 8, 7, 6, 10, 9, 8, 7, 11, 10, 9, 12, 11, 13, 12, 14, 13, 16, 15, 14, 18, 17, 16, 15, 19, 18, 17, 20, 19, 21, },
@@ -625,7 +625,7 @@ const int8_t    g_angle2mask  [GEO_NUM_ANGLES] = { 0, -1, 1, 2, 3, 4, -1, -1, 5,
 const int8_t    g_Dis         [GEO_NUM_ANGLES] = { 8, 8, 8, 8, 4, 4, 2, 1, 0, -1, -2, -4, -4, -8, -8, -8, -8, -8, -8, -8, -4, -4, -2, -1, 0, 1, 2, 4, 4, 8, 8, 8 };
 const int8_t    g_angle2mirror[GEO_NUM_ANGLES] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 2, 2, 2, 2 };
 
-const uint32_t g_scanOrderBuf[32258] = {
+const uint16_t g_scanOrderBuf[32258] = {
   0, 0, 1, 0, 1, 2, 3, 0, 1, 2, 3, 4, 5, 6, 7, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18,
   19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36,
   37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 0, 1, 0, 2, 1, 3, 0, 2, 1, 4, 3, 6, 5, 7, 0, 2, 1, 4, 3, 6, 5, 8, 7,
