@@ -371,13 +371,6 @@ enum MvpDir : int8_t
   MD_ABOVE_LEFT         ///< MVP of above left block
 };
 
-/// coefficient scanning type used in ACS
-enum CoeffScanType
-{
-  SCAN_DIAG = 0,        ///< up-right diagonal scan
-  SCAN_NUMBER_OF_TYPES
-};
-
 enum CoeffScanGroupType
 {
   SCAN_UNGROUPED   = 0,
