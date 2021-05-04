@@ -450,7 +450,7 @@ const UnitScale g_miScaling( MIN_CU_LOG2, MIN_CU_LOG2 );
 
 // scanning order table
 
-const uint16_t* g_scanOrder[SCAN_NUMBER_OF_GROUP_TYPES][MAX_TU_SIZE_IDX][MAX_TU_SIZE_IDX] =
+const uint16_t* g_scanOrder[SCAN_NUMBER_OF_GROUP_TYPES][MAX_LOG2_TU_SIZE_PLUS_ONE][MAX_LOG2_TU_SIZE_PLUS_ONE] =
 {
   {
     { g_scanOrderBuf + 0, g_scanOrderBuf + 1, g_scanOrderBuf + 3, g_scanOrderBuf + 7, g_scanOrderBuf + 15, g_scanOrderBuf + 31, g_scanOrderBuf + 63, },
@@ -472,7 +472,7 @@ const uint16_t* g_scanOrder[SCAN_NUMBER_OF_GROUP_TYPES][MAX_TU_SIZE_IDX][MAX_TU_
   }
 };
 
-const uint16_t g_coefTopLeftDiagScan8x8[MAX_TU_SIZE_IDX][64] =
+const uint16_t g_coefTopLeftDiagScan8x8[MAX_LOG2_TU_SIZE_PLUS_ONE][64] =
 {
   {0, 1, 1, 2, 2, 2, 3, 3, 3, 3, 4, 4, 4, 5, 5, 6, 4, 5, 5, 6, 6, 6, 7, 7, 7, 7, 8, 8, 8, 9, 9, 10, 4, 5, 5, 6, 6, 6, 7, 7, 7, 7, 8, 8, 8, 9, 9, 10, 8, 9, 9, 10, 10, 10, 11, 11, 11, 11, 12, 12, 12, 13, 13, 14, },
   {0, 2, 1, 4, 3, 2, 6, 5, 4, 3, 7, 6, 5, 8, 7, 9, 8, 10, 9, 12, 11, 10, 14, 13, 12, 11, 15, 14, 13, 16, 15, 17, 4, 6, 5, 8, 7, 6, 10, 9, 8, 7, 11, 10, 9, 12, 11, 13, 12, 14, 13, 16, 15, 14, 18, 17, 16, 15, 19, 18, 17, 20, 19, 21, },

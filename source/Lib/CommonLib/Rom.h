@@ -82,11 +82,10 @@ extern std::atomic<int> romInitialized;
 
 // flexible conversion from relative to absolute index
 extern const uint16_t   g_log2SbbSize   [MAX_LOG2_TU_SIZE_PLUS_ONE][MAX_LOG2_TU_SIZE_PLUS_ONE][2];
-//extern       uint32_t*  g_scanOrder     [SCAN_NUMBER_OF_GROUP_TYPES][SCAN_NUMBER_OF_TYPES][MAX_LOG2_TU_SIZE_PLUS_ONE][MAX_LOG2_TU_SIZE_PLUS_ONE];
 extern const uint16_t   g_scanOrderBuf  [32258];
-extern const uint16_t*  g_scanOrder     [SCAN_NUMBER_OF_GROUP_TYPES][MAX_TU_SIZE_IDX][MAX_TU_SIZE_IDX];
+extern const uint16_t*  g_scanOrder     [SCAN_NUMBER_OF_GROUP_TYPES][MAX_LOG2_TU_SIZE_PLUS_ONE][MAX_LOG2_TU_SIZE_PLUS_ONE];
 
-extern const uint16_t   g_coefTopLeftDiagScan8x8[MAX_TU_SIZE_IDX][64];
+extern const uint16_t   g_coefTopLeftDiagScan8x8[MAX_LOG2_TU_SIZE_PLUS_ONE][64];
 
 extern const int g_InvQuantScales[2/*0=4^n blocks, 1=2*4^n blocks*/][SCALING_LIST_REM_NUM];          // IQ(QP%6)
 
@@ -156,8 +155,8 @@ extern const int       g_ictModes[2][4];
 class SizeIndexInfoLog2
 {
 public:
-  constexpr inline SizeType numAllWidths()            const { return MAX_TU_SIZE_IDX; }
-  constexpr inline SizeType numAllHeights()           const { return MAX_TU_SIZE_IDX; }
+  constexpr inline SizeType numAllWidths()            const { return MAX_LOG2_TU_SIZE_PLUS_ONE; }
+  constexpr inline SizeType numAllHeights()           const { return MAX_LOG2_TU_SIZE_PLUS_ONE; }
   constexpr inline SizeType sizeFrom( SizeType idx )  const { return (1 << idx); }
             inline SizeType idxFrom( SizeType size )  const { return getLog2(size); }
 };
