@@ -82,10 +82,11 @@ extern std::atomic<int> romInitialized;
 
 // flexible conversion from relative to absolute index
 extern const uint32_t   g_log2SbbSize   [MAX_LOG2_TU_SIZE_PLUS_ONE][MAX_LOG2_TU_SIZE_PLUS_ONE][2];
-extern       uint32_t*  g_scanOrder     [SCAN_NUMBER_OF_GROUP_TYPES][SCAN_NUMBER_OF_TYPES][MAX_LOG2_TU_SIZE_PLUS_ONE][MAX_LOG2_TU_SIZE_PLUS_ONE];
+//extern       uint32_t*  g_scanOrder     [SCAN_NUMBER_OF_GROUP_TYPES][SCAN_NUMBER_OF_TYPES][MAX_LOG2_TU_SIZE_PLUS_ONE][MAX_LOG2_TU_SIZE_PLUS_ONE];
+extern const uint32_t   g_scanOrderBuf  [32258];
+extern const uint32_t*  g_scanOrder     [SCAN_NUMBER_OF_GROUP_TYPES][MAX_TU_SIZE_IDX][MAX_TU_SIZE_IDX];
 
-extern       uint32_t*  g_coefTopLeftDiagScan8x8   [ MAX_CU_SIZE / 2 + 1 ];
-extern       uint8_t*   g_coefTopLeftDiagScan8x8pos[ MAX_CU_SIZE / 2 + 1 ];
+extern const uint32_t   g_coefTopLeftDiagScan8x8[MAX_TU_SIZE_IDX][64];
 
 extern const int g_InvQuantScales[2/*0=4^n blocks, 1=2*4^n blocks*/][SCALING_LIST_REM_NUM];          // IQ(QP%6)
 
@@ -155,8 +156,8 @@ extern const int       g_ictModes[2][4];
 class SizeIndexInfoLog2
 {
 public:
-  constexpr inline SizeType numAllWidths()            const { return 7; }
-  constexpr inline SizeType numAllHeights()           const { return 7; }
+  constexpr inline SizeType numAllWidths()            const { return MAX_TU_SIZE_IDX; }
+  constexpr inline SizeType numAllHeights()           const { return MAX_TU_SIZE_IDX; }
   constexpr inline SizeType sizeFrom( SizeType idx )  const { return (1 << idx); }
             inline SizeType idxFrom( SizeType size )  const { return getLog2(size); }
 };
@@ -220,11 +221,11 @@ extern const int g_alfNumCoeff[ALF_NUM_OF_FILTER_TYPES];
 const int g_IBCBufferSize = 256 * 128;
 
 void initGeoTemplate();
-extern int16_t** g_GeoParams;
-extern int16_t*  g_globalGeoWeights   [GEO_NUM_PRESTORED_MASK];
-extern int16_t   g_weightOffset       [GEO_NUM_PARTITION_MODE][GEO_NUM_CU_SIZE][GEO_NUM_CU_SIZE][2];
-extern int8_t    g_angle2mask         [GEO_NUM_ANGLES];
-extern int8_t    g_Dis[GEO_NUM_ANGLES];
-extern int8_t    g_angle2mirror[GEO_NUM_ANGLES];
 
+extern int16_t         g_weightOffset       [GEO_NUM_PARTITION_MODE][GEO_NUM_CU_SIZE][GEO_NUM_CU_SIZE][2];
+extern int16_t         g_GeoParams          [GEO_NUM_PARTITION_MODE][2];
+extern int16_t         g_globalGeoWeights   [GEO_NUM_PRESTORED_MASK][GEO_WEIGHT_MASK_SIZE * GEO_WEIGHT_MASK_SIZE];
+extern const int8_t    g_angle2mask         [GEO_NUM_ANGLES];
+extern const int8_t    g_Dis                [GEO_NUM_ANGLES];
+extern const int8_t    g_angle2mirror       [GEO_NUM_ANGLES];
 }

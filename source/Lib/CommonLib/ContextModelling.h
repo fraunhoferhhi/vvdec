@@ -100,7 +100,6 @@ public:
   bool            signHiding      ()                        const { return m_signHiding; }
   bool            hideSign        ( int       posFirst,
                                     int       posLast   )   const { return ( m_signHiding && ( posLast - posFirst >= SBH_THRESHOLD ) ); }
-  CoeffScanType   scanType        ()                        const { return m_scanType; }
   unsigned        blockPos        ( int       scanPos   )   const { return m_scan[ scanPos ]; }
   unsigned        posX            ( int       blkPos    )   const { return blkPos & ( ( 1 << m_log2BlockWidth ) - 1 ); }
   unsigned        posY            ( int       blkPos    )   const { return blkPos >> m_log2BlockWidth; }
@@ -390,7 +389,6 @@ private:
   const unsigned            m_maxNumCoeff;
   const bool                m_signHiding;
   const int                 m_maxLog2TrDynamicRange;
-  CoeffScanType             m_scanType;
   const unsigned*           m_scan;
   const unsigned*           m_scanCG;
   const CtxSet              m_CtxSetLastX;

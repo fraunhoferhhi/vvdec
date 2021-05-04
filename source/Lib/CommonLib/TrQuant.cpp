@@ -218,7 +218,7 @@ void TrQuant::xInvLfnst( TransformUnit &tu, const ComponentID& compID )
   if( lfnstIdx && tu.mtsIdx[compID] != MTS_SKIP && ( CU::isSepTree( *tu.cu ) ? true : isLuma( compID ) ) )
   {
     const bool whge3     = width >= 8 && height >= 8;
-    const uint32_t* scan = whge3 ? g_coefTopLeftDiagScan8x8[ g_sizeIdxInfo.idxFrom( width ) ] : g_scanOrder[ SCAN_GROUPED_4x4 ][ SCAN_DIAG ][ g_sizeIdxInfo.idxFrom( width ) ][ g_sizeIdxInfo.idxFrom( height ) ];
+    const uint32_t* scan = whge3 ? g_coefTopLeftDiagScan8x8[ g_sizeIdxInfo.idxFrom( width ) ] : g_scanOrder[ SCAN_GROUPED_4x4 ][ g_sizeIdxInfo.idxFrom( width ) ][ g_sizeIdxInfo.idxFrom( height ) ];
     uint32_t intraMode   = 0;
 
     if( CU::isMIP( *tu.cu, toChannelType( compID ) ) )

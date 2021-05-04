@@ -307,6 +307,7 @@ static const int MIN_TU_SIZE =                                      4;
 static const int MAX_LOG2_TU_SIZE_PLUS_ONE =                        7; ///< log2(MAX_TU_SIZE) + 1
 static const int MAX_NUM_PARTS_IN_CTU =                         ( ( MAX_CU_SIZE * MAX_CU_SIZE ) >> ( MIN_CU_LOG2 << 1 ) );
 static const int MAX_TU_SIZE_FOR_PROFILE =                         64;
+static const int MAX_TU_SIZE_IDX =                                  7;
 static const int MAX_LOG2_DIFF_CU_TR_SIZE =                         3;
 static const int MAX_CU_TILING_PARTITIONS = 1 << ( MAX_LOG2_DIFF_CU_TR_SIZE << 1 );
 
