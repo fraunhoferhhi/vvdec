@@ -79,8 +79,6 @@ namespace vvdec
 
 #define DEFAULT_INTRA_TC_OFFSET 2 ///< Default intra TC offset
 
-//#undef JVET_O1143_LPF_ACROSS_SUBPIC_BOUNDARY
-//#define JVET_O1143_LPF_ACROSS_SUBPIC_BOUNDARY 0
 // ====================================================================================================================
 // Tables
 // ====================================================================================================================
@@ -535,11 +533,7 @@ void LoopFilter::xDeblockCtuArea( CodingStructure& cs, const UnitArea& area, con
   const PreCalcValues& pcv = *cs.pcv;
   
   bool doLuma   =   chType == MAX_NUM_CHANNEL_TYPE || isLuma  ( chType );
-#if JVET_Q0438_MONOCHROME_BUGFIXES
   bool doChroma = ( chType == MAX_NUM_CHANNEL_TYPE || isChroma( chType ) ) && pcv.chrFormat != CHROMA_400 && area.blocks[COMPONENT_Cb].valid();
-#else
-  bool doChroma = ( chType == MAX_NUM_CHANNEL_TYPE || isChroma( chType ) ) && pcv.chrFormat != CHROMA_400;
-#endif
   static constexpr int incx = 4;
   static constexpr int incy = 4;
 
@@ -1023,9 +1017,8 @@ LFCUParam LoopFilter::xGetLoopfilterParam( const CodingUnit& cu ) const
 
   const Position pos = cu.blocks[cu.chType()].pos();
 
-  const PPS& pps = *cu.cs->pps;
-#if JVET_O1143_LPF_ACROSS_SUBPIC_BOUNDARY
-  const SPS& sps                         = *cu.cs->sps;
+  const PPS& pps = *cu.pps;
+  const SPS& sps = *cu.sps;
 
   const CodingUnit& cuLeft  = ( pos.x > 0 && cu.left  == nullptr ) ? *cu.cs->getCU( pos.offset( -1, 0 ), cu.chType() ) : *cu.left;
   const CodingUnit& cuAbove = ( pos.y > 0 && cu.above == nullptr ) ? *cu.cs->getCU( pos.offset( 0, -1 ), cu.chType() ) : *cu.above;
@@ -1040,11 +1033,6 @@ LFCUParam LoopFilter::xGetLoopfilterParam( const CodingUnit& cu ) const
   LFCUParam stLFCUParam;   ///< status structure
   stLFCUParam.leftEdge = ( pos.x > 0 ) && CU::isAvailable( cu, cuLeft,  !pps.getLoopFilterAcrossSlicesEnabledFlag(), !pps.getLoopFilterAcrossTilesEnabledFlag(), !loopFilterAcrossSubPicEnabledFlagLeft );
   stLFCUParam.topEdge  = ( pos.y > 0 ) && CU::isAvailable( cu, cuAbove, !pps.getLoopFilterAcrossSlicesEnabledFlag(), !pps.getLoopFilterAcrossTilesEnabledFlag(), !loopFilterAcrossSubPicEnabledFlagTop );
-#else
-  LFCUParam stLFCUParam;   ///< status structure
-  stLFCUParam.leftEdge = ( 0 < pos.x ) && isAvailable( cu, *cu.left,  !pps.getLoopFilterAcrossSlicesEnabledFlag(), !pps.getLoopFilterAcrossTilesEnabledFlag() );
-  stLFCUParam.topEdge  = ( 0 < pos.y ) && isAvailable( cu, *cu.above, !pps.getLoopFilterAcrossSlicesEnabledFlag(), !pps.getLoopFilterAcrossTilesEnabledFlag() );
-#endif
   return stLFCUParam;
 }
 
@@ -1073,7 +1061,7 @@ void LoopFilter::xGetBoundaryStrengthSingle( LoopFilterParam& lfp, const CodingU
 
   if( hasChroma )
   {
-    const int qpBdOffset2     = cuQ.cs->sps->getQpBDOffset( CH_C ) << 1;
+    const int qpBdOffset2     = cuQ.sps->getQpBDOffset( CH_C ) << 1;
     const bool isPQDiffCh     = !chType && cuP.treeType() != TREE_D;
     const TransformUnit &tuQc = cuQ.ispMode() ? *cuQ.lastTU : tuQ;
     const Position      posPc = isPQDiffCh ? recalcPosition( cuQ.chromaFormat, chType, CH_C, posP ) : Position();
@@ -1636,7 +1624,7 @@ void LoopFilter::xEdgeFilterChroma( CodingStructure &cs, const Position &pos, co
 
       if( largeBoundary )
       {
-        const int iBitdepthScale = 1 << ( sps.getBitDepth( CHANNEL_TYPE_CHROMA ) - 8 );
+        const int iBitdepthScale = 1 << ( bitDepthChroma - 8 );
 
         const int indexB = Clip3<int>( 0, MAX_QP, iQP + ( betaOffsetDiv2[chromaIdx] << 1 ) );
         const int beta   = sm_betaTable[indexB] * iBitdepthScale;

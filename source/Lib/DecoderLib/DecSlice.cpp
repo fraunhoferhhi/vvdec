@@ -87,11 +87,7 @@ void DecSlice::parseSlice( Slice* slice, InputBitstream* bitstream, int threadId
   const int       startCtuTsAddr              = slice->getFirstCtuRsAddrInSlice();
   const unsigned  widthInCtus                 = cs.pcv->widthInCtus;
   const bool      wavefrontsEnabled           = cs.sps->getEntropyCodingSyncEnabledFlag();
-#if JVET_R0165_OPTIONAL_ENTRY_POINT
   const bool      entryPointPresent           = cs.sps->getEntryPointsPresentFlag();
-#else
-  const bool      wavefrontsEntryPointPresent = cs.sps->getEntropyCodingSyncEntryPointsPresentFlag();
-#endif
 
   if( startCtuTsAddr == 0 )
   {
@@ -102,9 +98,9 @@ void DecSlice::parseSlice( Slice* slice, InputBitstream* bitstream, int threadId
   }
 
   AdaptiveLoopFilter::reconstructCoeffAPSs( *slice );
-                                              
+
   CABACDecoder cabacDecoder;
-  CABACReader&  cabacReader  = *cabacDecoder.getCABACReader();
+  CABACReader& cabacReader = *cabacDecoder.getCABACReader();
   cabacReader.initBitstream( ppcSubstreams[0].get() );
   cabacReader.initCtxModels( *slice );
 
@@ -166,6 +162,11 @@ void DecSlice::parseSlice( Slice* slice, InputBitstream* bitstream, int threadId
     }
 
     //memset( cs.getCtuData( ctuRsAddr ).cuPtr, 0, sizeof( CtuData::cuPtr ) );
+    CtuData& ctuData = cs.getCtuData( ctuRsAddr );
+    ctuData.slice = slice;
+    ctuData.pps   = slice->getPPS();
+    ctuData.sps   = slice->getSPS();
+    ctuData.ph    = slice->getPicHeader();
 
     cabacReader.coding_tree_unit( cs, slice, ctuArea, pic->m_prevQP, ctuRsAddr );
 
@@ -189,13 +190,8 @@ void DecSlice::parseSlice( Slice* slice, InputBitstream* bitstream, int threadId
       // (end of slice-segment, end of tile, end of wavefront-CTU-row)
       unsigned binVal = cabacReader.terminating_bit();
       CHECK( !binVal, "Expecting a terminating bit" );
-      
-#if JVET_R0165_OPTIONAL_ENTRY_POINT
+
       if( entryPointPresent )
-#else
-      bool isLastTileCtu = (ctuXPosInCtus + 1 == tileXPosInCtus + tileColWidth) && (ctuYPosInCtus + 1 == tileYPosInCtus + tileRowHeight);
-      if( isLastTileCtu || wavefrontsEntryPointPresent )
-#endif
       {
 #if DECODER_CHECK_SUBSTREAM_AND_SLICE_TRAILING_BYTES
         cabacReader.remaining_bytes( true );

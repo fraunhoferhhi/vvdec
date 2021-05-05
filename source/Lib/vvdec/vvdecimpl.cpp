@@ -806,8 +806,9 @@ int VVDecImpl::xAddPicture( Picture* pcPic )
 //                                  : Window();
   const Window  defDisp =  Window();
 
-  int confLeft   = conf.getWindowLeftOffset()   * SPS::getWinUnitY(pcPic->cs->sps->getChromaFormatIdc())  + defDisp.getWindowLeftOffset();
-  int confRight  = conf.getWindowRightOffset()  * SPS::getWinUnitY(pcPic->cs->sps->getChromaFormatIdc())  + defDisp.getWindowRightOffset();
+
+  int confLeft   = conf.getWindowLeftOffset()   * SPS::getWinUnitX(pcPic->cs->sps->getChromaFormatIdc())  + defDisp.getWindowLeftOffset();
+  int confRight  = conf.getWindowRightOffset()  * SPS::getWinUnitX(pcPic->cs->sps->getChromaFormatIdc())  + defDisp.getWindowRightOffset();
   int confTop    = conf.getWindowTopOffset()    * SPS::getWinUnitY(pcPic->cs->sps->getChromaFormatIdc())  + defDisp.getWindowTopOffset();
   int confBottom = conf.getWindowBottomOffset() * SPS::getWinUnitY(pcPic->cs->sps->getChromaFormatIdc())  + defDisp.getWindowBottomOffset();
 
@@ -883,7 +884,7 @@ int VVDecImpl::xAddPicture( Picture* pcPic )
         
         copyComp(  pucOrigin + planeOffset,
                  cFrame.planes[comp].ptr,
-                 area.width, area.height,
+                 cFrame.planes[comp].width, cFrame.planes[comp].height,
                  area.stride<<1, cFrame.planes[comp].stride, uiBytesPerSample  );
       }
 
@@ -909,10 +910,10 @@ int VVDecImpl::xAddPicture( Picture* pcPic )
   
         const ptrdiff_t   planeOffset = (confLeft >> csx) + (confTop >> csy) * area.stride;
         const unsigned char* pucOrigin   = (const unsigned char*)area.buf;
-  
+
        copyComp(  pucOrigin + planeOffset,
            cFrame.planes[comp].ptr,
-           area.width, area.height,
+           cFrame.planes[comp].width, cFrame.planes[comp].height,
            area.stride<<1, cFrame.planes[comp].stride, uiBytesPerSample  );
       }
     }

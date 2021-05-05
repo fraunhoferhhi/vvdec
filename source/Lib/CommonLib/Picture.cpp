@@ -120,10 +120,8 @@ void Picture::resetForUse()
 
   subPicExtStarted = false;
   borderExtStarted = false;
-#if JVET_Q0764_WRAP_AROUND_WITH_RPR
   wrapAroundValid  = false;
   wrapAroundOffset = 0;
-#endif
   neededForOutput  = false;
   reconstructed    = false;
   inProgress       = false;
@@ -171,12 +169,6 @@ void Picture::destroy()
   slices.clear();
 
   SEI_internal::deleteSEIs( seiMessageList );
-
-  if (m_spliceIdx)
-  {
-    delete[] m_spliceIdx;
-    m_spliceIdx = NULL;
-  }
 
   subpicsCheckedDPH.clear();
 
@@ -246,13 +238,6 @@ void Picture::finalInit( const SPS *sps, const PPS *pps, PicHeader* picHeader, A
 
   cs->rebindPicBufs();
 
-  if( m_spliceIdx == NULL )
-  {
-    m_ctuNums   = cs->pcv->sizeInCtus;
-    m_spliceIdx = new int[m_ctuNums];
-    memset( m_spliceIdx, 0, m_ctuNums * sizeof( int ) );
-  }
-
   resetProcessingTime();
 
   paddPicBorderBot       = paddPicBorderBotCore;
@@ -264,41 +249,41 @@ void Picture::finalInit( const SPS *sps, const PPS *pps, PicHeader* picHeader, A
 #endif
 }
 
-void Picture::allocateNewSlice()
+Slice* Picture::allocateNewSlice( Slice** pilot )
 {
-  slices.push_back(new Slice);
-  Slice& slice = *slices.back();
-  for( int i=0; i<ALF_CTB_MAX_NUM_APS; ++i )
+  if( pilot )
   {
-    slice.getAlfAPSs()[i] = cs->alfApss[i].get();
+    slices.push_back( *pilot );
+    *pilot = new Slice;
+    if( slices.size() >= 2 )
+    {
+      ( *pilot )->copySliceInfo( slices[slices.size() - 2] );
+      ( *pilot )->initSlice();
+    }
+    ( *pilot )->setSPS( 0 );
+    ( *pilot )->setPPS( 0 );
+    ( *pilot )->setVPS( 0 );
+    ( *pilot )->clearAlfAPSs();
+  }
+  else
+  {
+    slices.push_back( new Slice );
+    if( slices.size() >= 2 )
+    {
+      slices.back()->copySliceInfo( slices[slices.size() - 2] );
+      slices.back()->initSlice();
+    }
   }
 
+  Slice* slice = slices.back();
 
-  slice.setPPS( cs->pps.get() );
-  slice.setSPS( cs->sps.get() );
-  slice.setVPS( cs->vps.get() );
-  if(slices.size()>=2)
-  {
-    slice.copySliceInfo( slices[slices.size()-2] );
-    slice.initSlice();
-  }
-}
+  slice->setPPS( cs->pps.get() );
+  slice->setSPS( cs->sps.get() );
+  slice->setVPS( cs->vps.get() );
+  slice->setAlfAPSs( cs->alfApss );
+  slice->setPic( this );
 
-Slice* Picture::swapSliceObject( Slice* s, uint32_t i )
-{
-  s->setSPS( cs->sps.get() );
-  s->setPPS( cs->pps.get() );
-  s->setVPS( cs->vps.get() );
-  s->setAlfAPSs( cs->alfApss );
-
-  Slice * pTmp = slices[i];
-  slices[i] = s;
-  pTmp->setSPS( nullptr );
-  pTmp->setPPS( nullptr );
-  pTmp->setVPS( nullptr );
-  memset( pTmp->getAlfAPSs(), 0, sizeof( pTmp->getAlfAPSs()[0] ) * ALF_CTB_MAX_NUM_APS );
-
-  return pTmp;
+  return slice;
 }
 
 void Picture::setPicHead( const std::shared_ptr<PicHeader>& ph )
@@ -322,11 +307,7 @@ void Picture::clearSliceBuffer()
 
 void Picture::extendPicBorder( bool top, bool bottom, bool leftrightT, bool leftrightB, ChannelType chType )
 {
-#if JVET_Q0764_WRAP_AROUND_WITH_RPR
   if( cs->pps->getUseWrapAround() )
-#else
-  if( cs->sps->getUseWrapAround() )
-#endif
   {
     extendPicBorderWrap( top, bottom, leftrightT, leftrightB, chType );
   }
@@ -348,11 +329,7 @@ void Picture::extendPicBorderWrap( bool top, bool bottom, bool leftrightT, bool 
     const int xmargin = margin >> getComponentScaleX( compID, cs->area.chromaFormat );
     const int ymargin = margin >> getComponentScaleY( compID, cs->area.chromaFormat );
 
-#if JVET_Q0764_WRAP_AROUND_WITH_RPR
     int xoffset = cs->pps->getWrapAroundOffset() >> getComponentScaleX( compID, cs->area.chromaFormat );
-#else
-    int xoffset = cs->sps->getWrapAroundOffset() >> getComponentScaleX( compID, cs->area.chromaFormat );
-#endif
     if( leftrightT )
     {
       Pel* piprw = prw.bufAt( 0, 1 );

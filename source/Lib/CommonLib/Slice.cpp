@@ -60,7 +60,6 @@ THE POSSIBILITY OF SUCH DAMAGE.
 namespace vvdec
 {
 
-#if JVET_Q0814_DPB
 void VPS::deriveOutputLayerSets()
 {
   if( m_uiMaxLayers == 1 )
@@ -178,11 +177,9 @@ void VPS::deriveOutputLayerSets()
     CHECK(layerUsedAsRefLayerFlag[i] == 0 && layerUsedAsOutputLayerFlag[i] == 0, "There shall be no layer that is neither an output layer nor a direct reference layer");
   }
 
-  m_numLayersInOls[0] = 1;
-  m_layerIdInOls[0][0] = m_vpsLayerId[0];
-#if JVET_R0191_ASPECT3
+  m_numLayersInOls[0]   = 1;
+  m_layerIdInOls[0][0]  = m_vpsLayerId[0];
   m_numMultiLayeredOlss = 0;
-#endif
 
   for( int i = 1; i < m_totalNumOLSs; i++ )
   {
@@ -212,15 +209,12 @@ void VPS::deriveOutputLayerSets()
 
       m_numLayersInOls[i] = j;
     }
-#if JVET_R0191_ASPECT3
     if( m_numLayersInOls[i] > 1 )
     {
       m_multiLayerOlsIdx[i] = m_numMultiLayeredOlss;
       m_numMultiLayeredOlss++;
     }
-#endif
   }
-#if JVET_S0100_ASPECT3
   m_multiLayerOlsIdxToOlsIdx.resize(m_numMultiLayeredOlss);
 
   for (int i=0, j=0; i<m_totalNumOLSs; i++)
@@ -230,10 +224,8 @@ void VPS::deriveOutputLayerSets()
       m_multiLayerOlsIdxToOlsIdx[j] = i;
     }
   }
-#endif
 }
 
-#if JVET_S0100_ASPECT3
 void VPS::checkVPS()
 {
   for (int multiLayerOlsIdx=0; multiLayerOlsIdx < m_numMultiLayeredOlss; multiLayerOlsIdx++)
@@ -250,7 +242,6 @@ void VPS::checkVPS()
                                                                      "NumMultiLayerOlss - 1, inclusive, and n being the OLS index of the m-th multi-layer OLS among all OLSs.");
   }
 }
-#endif
 
 void VPS::deriveTargetOutputLayerSet( int targetOlsIdx )
 {
@@ -268,7 +259,6 @@ void VPS::deriveTargetOutputLayerSet( int targetOlsIdx )
     m_targetLayerIdSet.push_back( m_layerIdInOls[m_iTargetLayer][i] );
   }
 }
-#endif
 
 Slice::Slice()
 {
@@ -319,7 +309,6 @@ void Slice::initSlice()
 
   m_substreamSizes.clear();
   m_cabacInitFlag        = false;
-  m_cabacWinUpdateMode   = 0;
   resetTileGroupAlfEnabledFlag();
   resetTileGroupCcAlfEnabledFlags();
   m_sliceMap.initSliceMap();
@@ -381,12 +370,10 @@ void  Slice::setNumEntryPoints( const SPS *sps, const PPS *pps )
   uint32_t ctuAddr, ctuX, ctuY;
   m_numEntryPoints = 0;
 
-#if JVET_R0165_OPTIONAL_ENTRY_POINT
   if( !sps->getEntryPointsPresentFlag() )
   {
     return;
   }
-#endif
 
   // count the number of CTUs that align with either the start of a tile, or with an entropy coding sync point
   // ignore the first CTU since it doesn't count as an entry point
@@ -398,12 +385,8 @@ void  Slice::setNumEntryPoints( const SPS *sps, const PPS *pps )
     uint32_t prevCtuAddr = m_sliceMap.getCtuAddrInSlice(i - 1);
     uint32_t prevCtuX    = (prevCtuAddr % pps->getPicWidthInCtu());
     uint32_t prevCtuY    = (prevCtuAddr / pps->getPicWidthInCtu());
-    
-#if JVET_R0165_OPTIONAL_ENTRY_POINT
+
     if( pps->ctuToTileRowBd(ctuY) != pps->ctuToTileRowBd(prevCtuY) || pps->ctuToTileColBd(ctuX) != pps->ctuToTileColBd(prevCtuX) || (ctuY != prevCtuY && sps->getEntropyCodingSyncEnabledFlag()) )
-#else
-    if( pps->ctuToTileRowBd(ctuY) != pps->ctuToTileRowBd(prevCtuY) || pps->ctuToTileColBd(ctuX) != pps->ctuToTileColBd(prevCtuX) || (ctuY != prevCtuY && sps->getEntropyCodingSyncEntryPointsPresentFlag()) )
-#endif
 
     {
       m_numEntryPoints++;
@@ -811,7 +794,6 @@ void Slice::copySliceInfo(Slice *pSrc, bool cpyAlmostAll)
 //  m_sliceCurEndCtuTsAddr          = pSrc->m_sliceCurEndCtuTsAddr;
   m_sliceMap                      = pSrc->m_sliceMap;
   m_independentSliceIdx           = pSrc->m_independentSliceIdx;
-  m_nextSlice                     = pSrc->m_nextSlice;
   m_clpRngs                       = pSrc->m_clpRngs;
   m_lmcsEnabledFlag               = pSrc->m_lmcsEnabledFlag;
   m_pendingRasInit                = pSrc->m_pendingRasInit;
@@ -830,14 +812,11 @@ void Slice::copySliceInfo(Slice *pSrc, bool cpyAlmostAll)
   }
 
   m_cabacInitFlag                 = pSrc->m_cabacInitFlag;
-  m_cabacWinUpdateMode            = pSrc->m_cabacWinUpdateMode;
   memcpy( m_alfApss,                 pSrc->m_alfApss,                 sizeof( m_alfApss ) );
   memcpy( m_tileGroupAlfEnabledFlag, pSrc->m_tileGroupAlfEnabledFlag, sizeof(m_tileGroupAlfEnabledFlag));
   m_tileGroupNumAps               = pSrc->m_tileGroupNumAps;
   m_tileGroupLumaApsId            = pSrc->m_tileGroupLumaApsId;
   m_tileGroupChromaApsId          = pSrc->m_tileGroupChromaApsId;
-
-  if( cpyAlmostAll ) m_encCABACTableIdx  = pSrc->m_encCABACTableIdx;
 
   m_tileGroupCcAlfEnabledFlags[0]          = pSrc->m_tileGroupCcAlfEnabledFlags[0];
   m_tileGroupCcAlfEnabledFlags[1]          = pSrc->m_tileGroupCcAlfEnabledFlags[1];
@@ -1268,7 +1247,6 @@ void PPS::resetTileSliceInfo()
   m_tileRowBd.clear();
   m_ctuToTileCol.clear();
   m_ctuToTileRow.clear();
-  m_ctuToSubPicIdx.clear();
   m_rectSlices.clear();
   m_sliceMap.clear();
 }
@@ -1368,31 +1346,6 @@ void PPS::initRectSlices()
  */
 void PPS::initRectSliceMap(const SPS  *sps)
 {
-  if (sps)
-  {
-    m_ctuToSubPicIdx.resize(getPicWidthInCtu() * getPicHeightInCtu());
-    if (sps->getNumSubPics() > 1)
-    {
-      for (int i = 0; i <= sps->getNumSubPics() - 1; i++)
-      {
-        for (int y = sps->getSubPicCtuTopLeftY(i); y < sps->getSubPicCtuTopLeftY(i) + sps->getSubPicHeight(i); y++)
-        {
-          for (int x = sps->getSubPicCtuTopLeftX(i); x < sps->getSubPicCtuTopLeftX(i) + sps->getSubPicWidth(i); x++)
-          {
-            m_ctuToSubPicIdx[ x+ y * getPicWidthInCtu()] = i;
-          }
-        }
-      }
-    }
-    else
-    {
-      for (int i = 0; i < getPicWidthInCtu() * getPicHeightInCtu(); i++)
-      {
-        m_ctuToSubPicIdx[i] = 0;
-      }
-    }
-  }
-
   if( getSingleSlicePerSubPicFlag() )
   {
     CHECK (sps==nullptr, "RectSliceMap can only be initialized for slice_per_sub_pic_flag with a valid SPS");
@@ -1539,7 +1492,6 @@ void PPS::initRectSliceMap(const SPS  *sps)
 /**
 - initialize mapping between subpicture and CTUs
 */
-#if JVET_O1143_SUBPIC_BOUNDARY
 void PPS::initSubPic( const SPS &sps )
 {
   if( getSubPicIdMappingInPpsFlag() )
@@ -1555,7 +1507,7 @@ void PPS::initSubPic( const SPS &sps )
 
   CHECK( getNumSubPics() > MAX_NUM_SUB_PICS, "Number of sub-pictures in picture exceeds valid range" );
   m_subPics.resize(getNumSubPics());
-  
+
   // Check that no subpicture is specified outside of the conformance cropping window
   for(int i = 0; i < sps.getNumSubPics(); i++)
   {
@@ -1581,7 +1533,6 @@ void PPS::initSubPic( const SPS &sps )
   for( int i=0; i< getNumSubPics(); i++ )
   {
     m_subPics[i].setSubPicIdx(i);
-#if JVET_Q0044_SLICE_IDX_WITH_SUBPICS
     if( sps.getSubPicIdMappingExplicitlySignalledFlag() )
     {
       if( m_subPicIdMappingInPpsFlag )
@@ -1597,53 +1548,46 @@ void PPS::initSubPic( const SPS &sps )
     {
       m_subPics[i].setSubPicID(i);
     }
-#endif
     m_subPics[i].setSubPicCtuTopLeftX(sps.getSubPicCtuTopLeftX(i));
     m_subPics[i].setSubPicCtuTopLeftY(sps.getSubPicCtuTopLeftY(i));
     m_subPics[i].setSubPicWidthInCTUs(sps.getSubPicWidth(i));
     m_subPics[i].setSubPicHeightInCTUs(sps.getSubPicHeight(i));
-    
-    uint32_t firstCTU = sps.getSubPicCtuTopLeftY(i) * m_picWidthInCtu + sps.getSubPicCtuTopLeftX(i); 	
-    m_subPics[i].setFirstCTUInSubPic(firstCTU);  
+
+    uint32_t firstCTU = sps.getSubPicCtuTopLeftY(i) * m_picWidthInCtu + sps.getSubPicCtuTopLeftX(i);
+    m_subPics[i].setFirstCTUInSubPic(firstCTU);
     uint32_t lastCTU = (sps.getSubPicCtuTopLeftY(i) + sps.getSubPicHeight(i) - 1) * m_picWidthInCtu + sps.getSubPicCtuTopLeftX(i) + sps.getSubPicWidth(i) - 1;
     m_subPics[i].setLastCTUInSubPic(lastCTU);
-    
+
     uint32_t left = sps.getSubPicCtuTopLeftX(i) * m_ctuSize;
     m_subPics[i].setSubPicLeft(left);
-    
+
     uint32_t right = std::min(m_picWidthInLumaSamples - 1, (sps.getSubPicCtuTopLeftX(i) + sps.getSubPicWidth(i)) * m_ctuSize - 1);
     m_subPics[i].setSubPicRight(right);
-    
+
     m_subPics[i].setSubPicWidthInLumaSample(right - left + 1);
 
     uint32_t top = sps.getSubPicCtuTopLeftY(i) * m_ctuSize;
     m_subPics[i].setSubPicTop(top);
-    
+
     uint32_t bottom = std::min(m_picHeightInLumaSamples - 1, (sps.getSubPicCtuTopLeftY(i) + sps.getSubPicHeight(i)) * m_ctuSize - 1);
 
     m_subPics[i].setSubPicHeightInLumaSample(bottom - top + 1);
 
     m_subPics[i].setSubPicBottom(bottom);
-    
+
     m_subPics[i].clearCTUAddrList();
-    
+
     if( m_numSlicesInPic == 1 )
     {
       CHECK( getNumSubPics() != 1, "only one slice in picture, but number of subpic is not one" );
       m_subPics[i].addAllCtusInPicToSubPic(0, getPicWidthInCtu(), 0, getPicHeightInCtu(), getPicWidthInCtu());
-#if JVET_Q0044_SLICE_IDX_WITH_SUBPICS
       m_subPics[i].setNumSlicesInSubPic(1);
-#endif
     }
     else
     {
-#if JVET_Q0044_SLICE_IDX_WITH_SUBPICS
       int numSlicesInSubPic = 0;
-#if R0091_CONSTRAINT_SLICE_ORDER
       int idxLastSliceInSubpic = -1;
       int idxFirstSliceAfterSubpic = m_numSlicesInPic;
-#endif
-#endif
       for( int j = 0; j < m_numSlicesInPic; j++ )
       {
         uint32_t ctu = m_sliceMap[j].getCtuAddrInSlice(0);
@@ -1652,30 +1596,20 @@ void PPS::initSubPic( const SPS &sps )
         if (ctu_x >= sps.getSubPicCtuTopLeftX(i) &&
           ctu_x < (sps.getSubPicCtuTopLeftX(i) + sps.getSubPicWidth(i)) &&
           ctu_y >= sps.getSubPicCtuTopLeftY(i) &&
-          ctu_y < (sps.getSubPicCtuTopLeftY(i) + sps.getSubPicHeight(i)))  
+          ctu_y < (sps.getSubPicCtuTopLeftY(i) + sps.getSubPicHeight(i)))
         {
           // add ctus in a slice to the subpicture it belongs to
           m_subPics[i].addCTUsToSubPic(m_sliceMap[j].getCtuAddrList());
-#if JVET_Q0044_SLICE_IDX_WITH_SUBPICS
           numSlicesInSubPic++;
-#if R0091_CONSTRAINT_SLICE_ORDER
           idxLastSliceInSubpic = j;
-#endif
-#endif
         }
-#if R0091_CONSTRAINT_SLICE_ORDER
         else if (idxFirstSliceAfterSubpic == m_numSlicesInPic && idxLastSliceInSubpic != -1)
         {
           idxFirstSliceAfterSubpic = j;
         }
-#endif
       }
-#if JVET_Q0044_SLICE_IDX_WITH_SUBPICS
-#if R0091_CONSTRAINT_SLICE_ORDER
       CHECK( idxFirstSliceAfterSubpic < idxLastSliceInSubpic, "The signalling order of slices shall follow the coding order" );
-#endif
       m_subPics[i].setNumSlicesInSubPic(numSlicesInSubPic);
-#endif
     }
     m_subPics[i].setTreatedAsPicFlag(sps.getSubPicTreatedAsPicFlag(i));
     m_subPics[i].setloopFilterAcrossSubPicEnabledFlag(sps.getLoopFilterAcrossSubpicEnabledFlag(i));
@@ -1699,9 +1633,7 @@ const SubPic& PPS::getSubPicFromCU(const CodingUnit& cu) const
   const Position lumaPos = cu.Y().valid() ? cu.Y().pos() : recalcPosition(cu.chromaFormat, cu.chType(), CHANNEL_TYPE_LUMA, cu.blocks[cu.chType()].pos());
   return getSubPicFromPos(lumaPos);
 }
-#endif
 
-#if JVET_Q0044_SLICE_IDX_WITH_SUBPICS
 uint32_t PPS::getSubPicIdxFromSubPicId( uint32_t subPicId ) const
 {
   for (int i = 0; i < m_numSubPics; i++)
@@ -1713,7 +1645,6 @@ uint32_t PPS::getSubPicIdxFromSubPicId( uint32_t subPicId ) const
   }
   return 0;
 }
-#endif
 
 void PPS::checkSliceMap()
 {
@@ -1755,10 +1686,8 @@ void PPS::finalizePPSPartitioning( const SPS* pcSPS )
     setTileIdxDeltaPresentFlag( 0 );
     setSliceTileIdx( 0, 0 );
     initRectSliceMap( pcSPS );
-#if JVET_O1143_SUBPIC_BOUNDARY
     // when no Pic partition, number of sub picture shall be less than 2
     CHECK( getNumSubPics() >= 2, "error, no picture partitions, but have equal to or more than 2 sub pictures" );
-#endif
   }
   else
   {
@@ -1769,14 +1698,12 @@ void PPS::finalizePPSPartitioning( const SPS* pcSPS )
     }
   }
 
-#if JVET_Q0044_SLICE_IDX_WITH_SUBPICS
   initSubPic( *pcSPS );
-#endif
 
   m_partitioningInitialized = true;
 }
 
-  
+
 SliceMap::SliceMap()
 //: m_sliceID              (0)
 //, m_numTilesInSlice      (0)
@@ -2132,17 +2059,11 @@ bool Slice::checkRPR()
 
 bool             operator == (const ConstraintInfo& op1, const ConstraintInfo& op2)
 {
-#if !JVET_S0138_GCI_PTL
-  if( op1.m_frameOnlyConstraintFlag                      != op2.m_frameOnlyConstraintFlag                        ) return false;
-#endif
   if( op1.m_intraOnlyConstraintFlag                      != op2.m_intraOnlyConstraintFlag                        ) return false;
   if( op1.m_maxBitDepthConstraintIdc                     != op2.m_maxBitDepthConstraintIdc                       ) return false;
   if( op1.m_maxChromaFormatConstraintIdc                 != op2.m_maxChromaFormatConstraintIdc                   ) return false;
   if( op1.m_onePictureOnlyConstraintFlag                 != op2.m_onePictureOnlyConstraintFlag                   ) return false;
   if( op1.m_lowerBitRateConstraintFlag                   != op2.m_lowerBitRateConstraintFlag                     ) return false;
-#if !JVET_S0138_GCI_PTL
-  if (op1.m_singleLayerConstraintFlag                    != op2.m_singleLayerConstraintFlag                      ) return false;
-#endif
   if (op1.m_allLayersIndependentConstraintFlag           != op2.m_allLayersIndependentConstraintFlag             ) return false;
   if (op1.m_noMrlConstraintFlag                          != op2.m_noMrlConstraintFlag                            ) return false;
   if (op1.m_noIspConstraintFlag                          != op2.m_noIspConstraintFlag                            ) return false;
@@ -2207,10 +2128,8 @@ bool             operator == (const ProfileTierLevel& op1, const ProfileTierLeve
   if (op1.m_profileIdc      != op2.m_profileIdc) return false;
   if (op1.m_numSubProfile   != op2.m_numSubProfile) return false;
   if (op1.m_levelIdc        != op2.m_levelIdc) return false;
-#if JVET_S0138_GCI_PTL
   if (op1.m_frameOnlyConstraintFlag != op2.m_frameOnlyConstraintFlag) return false;
   if (op1.m_multiLayerEnabledFlag   != op2.m_multiLayerEnabledFlag) return false;
-#endif
   if (op1.m_constraintInfo  != op2.m_constraintInfo) return false;
   if (op1.m_subProfileIdc   != op2.m_subProfileIdc) return false;
 

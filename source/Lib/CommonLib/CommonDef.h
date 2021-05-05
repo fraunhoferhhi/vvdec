@@ -202,9 +202,7 @@ static const int MAX_NESTING_NUM_LAYER =                           64;
 
 static const int MAX_VPS_NUM_HRD_PARAMETERS =                       1;
 static const int MAX_VPS_LAYERS =                                  64;
-#if JVET_R0058
 static const int MAX_VPS_SUBLAYERS =                                7;
-#endif
 static const int MAX_NUM_OLSS =                                   256;
 static const int MAX_VPS_OLS_MODE_IDC =                             2;
 

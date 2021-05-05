@@ -84,12 +84,12 @@ void DecCu::TaskDeriveCtuMotionInfo( CodingStructure &cs, const UnitArea &ctuAre
     CHECK( !ctuArea.blocks[currCU.chType()].contains( currCU.blocks[currCU.chType()] ), "Should never happen!" );
 
 #if JVET_O1170_CHECK_BV_AT_DECODER
-    if( currCU.Y().valid() && currCU.slice->getSPS()->getIBCFlag() )
+    if( currCU.Y().valid() && currCU.sps->getIBCFlag() )
     {
-      const int vSize = cs.slice->getSPS()->getMaxCUHeight() > 64 ? 64 : cs.slice->getSPS()->getMaxCUHeight();
+      const int vSize = cs.sps->getMaxCUHeight() > 64 ? 64 : cs.sps->getMaxCUHeight();
       if( ( currCU.Y().x % vSize ) == 0 && ( currCU.Y().y % vSize ) == 0 )
       {
-        m_pcInterPred->resetVPDUforIBC( cs.pcv->chrFormat, cs.slice->getSPS()->getMaxCUHeight(), vSize, currCU.Y().x  + g_IBCBufferSize / cs.slice->getSPS()->getMaxCUHeight() / 2, currCU.Y().y );
+        m_pcInterPred->resetVPDUforIBC( cs.pcv->chrFormat, cs.sps->getMaxCUHeight(), vSize, currCU.Y().x  + g_IBCBufferSize / cs.sps->getMaxCUHeight() / 2, currCU.Y().y );
       }
     }
 #endif
@@ -411,11 +411,7 @@ void DecCu::predAndReco( CodingUnit& cu, bool doCiipIntra )
       else if( CU::isIBC( cu ) )
       {
         const bool luma   = cu.Y ().valid();
-#if JVET_Q0438_MONOCHROME_BUGFIXES
         const bool chroma = isChromaEnabled(cu.chromaFormat) && cu.Cb().valid();
-#else
-        const bool chroma = cu.Cb().valid();
-#endif
         m_pcInterPred->motionCompensation( cu, predBuf, luma, chroma );
       }
     }
@@ -424,11 +420,7 @@ void DecCu::predAndReco( CodingUnit& cu, bool doCiipIntra )
     {
       m_pcIntraPred->geneWeightedPred( COMPONENT_Y, predBuf.Y(), cu, m_pcIntraPred->getPredictorPtr2( COMPONENT_Y ) );
 
-#if JVET_Q0438_MONOCHROME_BUGFIXES                                                                                     
       if( isChromaEnabled( cu.chromaFormat ) && cu.chromaSize().width > 2 )
-#else                                                                                                                  
-      if( cu.chromaSize().width > 2 )
-#endif                                                                                                                 
       {
         m_pcIntraPred->geneWeightedPred( COMPONENT_Cb, predBuf.Cb(), cu, m_pcIntraPred->getPredictorPtr2( COMPONENT_Cb ) );
         m_pcIntraPred->geneWeightedPred( COMPONENT_Cr, predBuf.Cr(), cu, m_pcIntraPred->getPredictorPtr2( COMPONENT_Cr ) );
@@ -440,12 +432,6 @@ void DecCu::predAndReco( CodingUnit& cu, bool doCiipIntra )
 
     if( cu.rootCbf() )
     {
-#if !JVET_S0234_ACT_CRS_FIX
-      if( cu.colorTransform() && !doCiipIntra )
-      {
-        recoBuf.colorSpaceConvert( recoBuf, cu.slice->clpRng( COMPONENT_Y ) );
-      }
-#endif
       if( cu.slice->getLmcsEnabledFlag() && m_pcReshape->getCTUFlag( *cu.slice ) && !doCiipIntra )
       {
         predBuf.Y().rspSignal( m_pcReshape->getFwdLUT() );
@@ -477,14 +463,6 @@ void DecCu::finishLMCSAndReco( CodingUnit &cu )
   const uint32_t uiNumVaildComp = getNumberValidComponents( cu.chromaFormat );
   const bool     doCS           = cs.picHeader->getLmcsEnabledFlag() && cs.picHeader->getLmcsChromaResidualScaleFlag() && cu.slice->getLmcsEnabledFlag();
   const PelUnitBuf predUnitBuf  = cs.getPredBuf( cu );
-
-#if !JVET_S0234_ACT_CRS_FIX
-  if( cu.colorTransform() )
-  {
-    PelUnitBuf recBuf = cs.getRecoBuf( cu );
-    recBuf.colorSpaceConvert( recBuf, cu.slice->clpRng( COMPONENT_Y ) );
-  }
-#endif
 
   for( auto& currTU : TUTraverser( &cu.firstTU, cu.lastTU->next ) )
   {
@@ -598,9 +576,7 @@ void DecCu::xIntraRecACT( CodingUnit &cu )
 
   for( TransformUnit &tu : TUTraverser( &cu.firstTU, cu.lastTU->next ) )
   {
-#if JVET_S0234_ACT_CRS_FIX
     cs.getRecoBuf( tu ).colorSpaceConvert( cs.getRecoBuf( tu ), slice.clpRng( COMPONENT_Y ) );
-#endif
 
     for( const CompArea &area : tu.blocks )
     {
@@ -627,10 +603,7 @@ void DecCu::xIntraRecACT( CodingUnit &cu )
         piReco.scaleSignal( chromaResScaleInv, slice.clpRng( compID ) );
       }
     }
-#if !JVET_S0234_ACT_CRS_FIX
-    cs.getRecoBuf( tu ).colorSpaceConvert( cs.getRecoBuf( tu ), slice.clpRng( COMPONENT_Y ) );
-#endif
-    
+
     for( const CompArea &area : tu.blocks )
     {
       if( !area.valid() )
@@ -751,7 +724,7 @@ void DecCu::xDeriveCUMV( CodingUnit &cu, MotionHist& hist )
     {
       AffineMergeCtx affineMergeCtx;
 
-      if( pu.cs->sps->getSBTMVPEnabledFlag() )
+      if( pu.sps->getSBTMVPEnabledFlag() )
       {
         mrgCtx.subPuMvpMiBuf  = cu.getMotionBuf();
         affineMergeCtx.mrgCtx = &mrgCtx;
@@ -889,7 +862,7 @@ void DecCu::xDeriveCUMV( CodingUnit &cu, MotionHist& hist )
   bool isIbcSmallBlk = CU::isIBC( cu ) && ( cu.lwidth() * cu.lheight() <= 16 );
   if( !pu.affineFlag() && !pu.geoFlag() && !isIbcSmallBlk )
   {
-    const unsigned log2ParallelMergeLevel = (pu.cs->sps->getLog2ParallelMergeLevelMinus2() + 2);
+    const unsigned log2ParallelMergeLevel = (pu.sps->getLog2ParallelMergeLevelMinus2() + 2);
     const unsigned xBr = pu.Y().width  + pu.Y().x;
     const unsigned yBr = pu.Y().height + pu.Y().y;
     bool enableHmvp      = ((xBr >> log2ParallelMergeLevel) > (pu.Y().x >> log2ParallelMergeLevel)) && ((yBr >> log2ParallelMergeLevel) > (pu.Y().y >> log2ParallelMergeLevel));
