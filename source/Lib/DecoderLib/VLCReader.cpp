@@ -378,6 +378,10 @@ void HLSyntaxReader::parsePPS( PPS* pcPPS, ParameterSetManager *parameterSetMana
     READ_SVLC( iCode, "pps_scaling_win_top_offset" );                       scalingWindow.setWindowTopOffset( iCode );
     READ_SVLC( iCode, "pps_scaling_win_bottom_offset" );                    scalingWindow.setWindowBottomOffset( iCode );
   }
+  else
+  {
+    pcPPS->setScalingWindow( pcPPS->getConformanceWindow() );
+  }
 
   READ_FLAG( uiCode, "pps_output_flag_present_flag" );                      pcPPS->setOutputFlagPresentFlag( uiCode==1 );
 
@@ -2521,6 +2525,21 @@ void HLSyntaxReader::parsePictureHeader( PicHeader* picHeader, ParameterSetManag
   else
   {
     picHeader->setExplicitScalingListEnabledFlag( false );
+  }
+
+  if( pps->getPicWidthInLumaSamples() == sps->getMaxPicWidthInLumaSamples() && pps->getPicHeightInLumaSamples() == sps->getMaxPicHeightInLumaSamples() )
+  {
+    CHECK( pps->getConformanceWindowPresentFlag(),
+           "When pps_pic_width_in_luma_samples is equal to sps_pic_width_max_in_luma_samples and "
+           "pps_pic_height_in_luma_samples is equal to sps_pic_height_max_in_luma_samples, the value of "
+           "pps_conformance_window_flag shall be equal to 0" );
+
+    pps->setConformanceWindow( sps->getConformanceWindow() );
+
+    if( !pps->getScalingWindow().getWindowEnabledFlag() )
+    {
+      pps->setScalingWindow( pps->getConformanceWindow() );
+    }
   }
 
   pps->checkPPSPartitioningFinalized();
