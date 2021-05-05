@@ -285,7 +285,7 @@ int  Reshape::calculateChromaAdjVpduNei(TransformUnit &tu, const Position pos)
     Pel* recSrc0 = piRecoY.bufAt(0, 0);
     const uint32_t picH = tu.cu->cs->picture->lheight();
     const uint32_t picW = tu.cu->cs->picture->lwidth();
-    const Pel   valueDC = 1 << (tu.cu->cs->sps->getBitDepth(CHANNEL_TYPE_LUMA) - 1);
+    const Pel   valueDC = 1 << (tu.cu->sps->getBitDepth(CHANNEL_TYPE_LUMA) - 1);
     int32_t recLuma = 0;
     int pelnum = 0;
     if (cuLeft != nullptr)

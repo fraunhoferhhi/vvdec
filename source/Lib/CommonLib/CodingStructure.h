@@ -77,7 +77,11 @@ extern ThreadSafeCUCache g_globalUnitCache;
 
 struct CtuData
 {
-  SAOBlkParam          saoParam;
+  SAOBlkParam       saoParam;
+  const Slice*      slice;
+  const PPS*        pps;
+  const SPS*        sps;
+  const PicHeader*  ph;
 
   CodingUnit*     cuPtr  [MAX_NUM_CHANNEL_TYPE][NUM_PARTS_IN_CTU];
   LoopFilterParam lfParam[NUM_EDGE_DIR]        [NUM_PARTS_IN_CTU];

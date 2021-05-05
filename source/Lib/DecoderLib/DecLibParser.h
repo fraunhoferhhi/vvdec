@@ -101,9 +101,7 @@ private:
   Slice*   m_apcSlicePilot        = nullptr;
 
   DCI*     m_dci                  = nullptr;
-  std::list<InputNALUnit>  m_prefixSEINALUs;   /// Buffered up prefix SEI NAL Units.
 
-#if JVET_P0101_POC_MULTILAYER
   struct AccessUnitPicInfo
   {
     NalUnitType m_nalUnitType; ///< nal_unit_type
@@ -112,7 +110,7 @@ private:
     int         m_POC;
   };
   std::vector<AccessUnitPicInfo> m_accessUnitPicInfo;
-#endif
+
   struct NalUnitInfo
   {
     NalUnitType m_nalUnitType; ///< nal_unit_type
@@ -121,9 +119,10 @@ private:
     int         m_POC;             /// the picture order
   };
   std::vector<NalUnitInfo>  m_nalUnitInfo[MAX_VPS_LAYERS];
-  
+
   std::vector<NalUnitType>  m_pictureUnitNals;
   std::list<InputNALUnit>   m_pictureSeiNalus;
+  std::list<InputNALUnit>   m_prefixSEINALUs;   /// Buffered up prefix SEI NAL Units.
 
   std::ostream*             m_pDecodedSEIOutputStream = nullptr;
 
@@ -131,7 +130,7 @@ private:
                                                     ///< excluding prefix SEIs...
 
   HRD                       m_HRD;
-  
+
   ThreadPool*               m_threadPool = nullptr;
 
   // functional classes
@@ -160,11 +159,7 @@ public:
 
   void recreateLostPicture      (Picture* pcPic);
 
-#if JVET_P0288_PIC_OUTPUT
   Picture* parse                (InputNALUnit& nalu, int* pSkipFrame, int iTargetLayer = -1);
-#else
-  Picture* parse                (InputNALUnit& nalu, int* pSkipFrame);
-#endif
   Picture* getNextDecodablePicture();
 
   void setFirstSliceInPicture   (bool val)              { m_bFirstSliceInPicture = val; }

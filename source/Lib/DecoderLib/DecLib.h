@@ -91,14 +91,6 @@ class DecLib
   std::list<InputNALUnit>  m_pictureSeiNalus;
 
 public:
-#if JVET_Q0044_SLICE_IDX_WITH_SUBPICS
-  int m_maxDecSubPicIdx         = 0;
-  int m_maxDecSliceAddrInSubPic = -1;
-#endif
-#if JVET_O1143_SUBPIC_BOUNDARY
-  int  m_targetSubPicIdx    = 0;
-#endif
-
   DecLib();
   ~DecLib() = default;
 
@@ -114,11 +106,7 @@ public:
   void     setTargetDecLayer  ( int layer ) { m_decLibParser.setTargetDecLayer( layer ); }
   void     setMaxTemporalLayer( int layer ) { m_iMaxTemporalLayer = layer; }
 
-#if JVET_P0288_PIC_OUTPUT
   Picture* decode( InputNALUnit& nalu, int* pSkipFrame = nullptr, int iTargetLayer = -1 );
-#else
-  Picture* decode( InputNALUnit& nalu, int* pSkipFrame = nullptr );
-#endif
   Picture* flushPic();
   void     releasePicture   ( Picture* pcPic ) { m_picListManager.releasePicture( pcPic ); }   // notify the decoder-lib that the picture buffers can be reused
 

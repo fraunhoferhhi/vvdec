@@ -183,11 +183,7 @@ void DecLib::destroy()
   m_picListManager.deleteBuffers();
 }
 
-#if JVET_P0288_PIC_OUTPUT
 Picture* DecLib::decode( InputNALUnit& nalu, int* pSkipFrame, int iTargetLayer )
-#else
-Picture* DecLib::decode( InputNALUnit& nalu, int* pSkipFrame )
-#endif
 {
   PROFILER_SCOPE_AND_STAGE( 1, g_timeProfiler, P_NALU_SLICE_PIC_HL );
   Picture * pcParsedPic = nullptr;
@@ -197,18 +193,14 @@ Picture* DecLib::decode( InputNALUnit& nalu, int* pSkipFrame )
   }
   else
   {
-#if JVET_P0288_PIC_OUTPUT
     pcParsedPic = m_decLibParser.parse( nalu, pSkipFrame, iTargetLayer );
-#else
-    pcParsedPic = m_decLibParser.parse( nalu, pSkipFrame );
-#endif
   }
-  
+
   if( pcParsedPic )
   {
     this->decompressPicture( pcParsedPic );
   }
-  
+
   if( m_decLibParser.getParseNewPicture() &&
       ( pcParsedPic || nalu.isSlice() || nalu.m_nalUnitType == NAL_UNIT_EOS ) )
   {
@@ -358,11 +350,6 @@ int DecLib::finishPicture( Picture* pcPic, MsgLevel msgl )
 #endif
 
   m_picListManager.applyDoneReferencePictureMarking();
-
-#if JVET_Q0044_SLICE_IDX_WITH_SUBPICS
-  m_maxDecSubPicIdx = 0;
-  m_maxDecSliceAddrInSubPic = -1;
-#endif
 
   if( m_parseFrameDelay > 0 )
   {

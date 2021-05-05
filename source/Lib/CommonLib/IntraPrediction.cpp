@@ -67,7 +67,7 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #include "CommonLib/TimeProfiler.h"
 
 namespace vvdec
-{ 
+{
 
 // ====================================================================================================================
 // Tables
@@ -222,7 +222,7 @@ void  IntraPredSampleFilterCore(Pel *ptrSrc,const ptrdiff_t  srcStride,PelBuf &p
 
   const int scale = ((getLog2(iWidth) - 2 + getLog2(iHeight) - 2 + 2) >> 2);
   CHECK(scale < 0 || scale > 31, "PDPC: scale < 0 || scale > 31");
-  
+
 #if 1
   if( uiDirMode == PLANAR_IDX || uiDirMode == DC_IDX )
   {
@@ -482,25 +482,23 @@ void IntraPrediction::predIntraAng( const ComponentID compId, PelBuf &piPred, co
   const int            iWidth       = piPred.width;
   const int            iHeight      = piPred.height;
   const Size           cuSize       = Size( pu.blocks[compId].width, pu.blocks[compId].height );
-#if JVET_R0350_MIP_CHROMA_444_SINGLETREE
   CHECK( CU::isMIP(pu, toChannelType(compId)), "We should not get here for MIP." );
-#endif
   const uint32_t       uiDirMode    = isLuma( compId ) && pu.bdpcmMode() ? BDPCM_IDX : !isLuma(compId) && pu.bdpcmModeChroma() ? BDPCM_IDX : PU::getFinalIntraMode(pu, channelType);
-  
+
   CHECKD( iWidth == 2, "Width of 2 is not supported" );
 
-  const int  multiRefIdx = ( compID == COMPONENT_Y ) ? pu.multiRefIdx() : 0;
-  const bool useISP      = pu.ispMode() && isLuma( compID );
-  const int srcStride    = m_topRefLength  + 1 + multiRefIdx;
-  const int srcHStride   = m_leftRefLength + 1 + multiRefIdx;
-  const ClpRng& clpRng   ( pu.slice->clpRng( compID ) );
-        bool doPDPC      = ( iWidth >= MIN_TB_SIZEY && iHeight >= MIN_TB_SIZEY ) && multiRefIdx == 0;
+  const int     multiRefIdx = ( compID == COMPONENT_Y ) ? pu.multiRefIdx() : 0;
+  const bool    useISP      = pu.ispMode() && isLuma( compID );
+  const int     srcStride   = m_topRefLength  + 1 + multiRefIdx;
+  const int     srcHStride  = m_leftRefLength + 1 + multiRefIdx;
+  const ClpRng& clpRng      ( pu.slice->clpRng( compID ) );
+        bool    doPDPC      = ( iWidth >= MIN_TB_SIZEY && iHeight >= MIN_TB_SIZEY ) && multiRefIdx == 0;
 
   const PelBuf& srcBuf = pu.ispMode() && isLuma(compID) ? getISPBuffer( useFilteredPredSamples ) : PelBuf(getPredictorPtr(compID, useFilteredPredSamples), srcStride, srcHStride);
 
   switch (uiDirMode)
   {
-    case(PLANAR_IDX): xPredIntraPlanar(srcBuf, piPred, *pu.cs->sps); break;
+    case(PLANAR_IDX): xPredIntraPlanar(srcBuf, piPred, *pu.sps); break;
     case(DC_IDX):     xPredIntraDc    (srcBuf, piPred, channelType, false, multiRefIdx); break;
     case(BDPCM_IDX):  xPredIntraBDPCM(srcBuf, piPred, isLuma(compID) ? pu.bdpcmMode() : pu.bdpcmModeChroma(), clpRng); break;
     case(2):
@@ -508,10 +506,10 @@ void IntraPrediction::predIntraAng( const ComponentID compId, PelBuf &piPred, co
     case(VDIA_IDX):
       if (getWideAngle(useISP ? cuSize.width : iWidth, useISP ? cuSize.height : iHeight, uiDirMode) == static_cast<int>(uiDirMode)) // check if uiDirMode is not wide-angle
       {
-        xPredIntraAng(srcBuf, piPred, channelType, uiDirMode, clpRng, *pu.cs->sps, multiRefIdx, useFilteredPredSamples, doPDPC, useISP, cuSize );
+        xPredIntraAng(srcBuf, piPred, channelType, uiDirMode, clpRng, *pu.sps, multiRefIdx, useFilteredPredSamples, doPDPC, useISP, cuSize );
         break;
       }
-    default:          xPredIntraAng(srcBuf, piPred, channelType, uiDirMode, clpRng, *pu.cs->sps, multiRefIdx, useFilteredPredSamples, doPDPC, useISP, cuSize); break;
+    default:          xPredIntraAng(srcBuf, piPred, channelType, uiDirMode, clpRng, *pu.sps, multiRefIdx, useFilteredPredSamples, doPDPC, useISP, cuSize); break;
   }
 
   if( doPDPC && (uiDirMode == PLANAR_IDX || uiDirMode == DC_IDX ) )
@@ -522,6 +520,7 @@ void IntraPrediction::predIntraAng( const ComponentID compId, PelBuf &piPred, co
       IntraPredSampleFilter8(srcBuf.buf,srcBuf.stride,piPred,uiDirMode,clpRng);
   }
 }
+
 void IntraPrediction::predIntraChromaLM( const ComponentID compID, PelBuf& piPred, const PredictionUnit& pu, const CompArea& chromaArea, int intraDir )
 {
   int  iLumaStride = 0;
@@ -965,16 +964,12 @@ void IntraPrediction::geneIntrainterPred( const CodingUnit &cu )
   PelUnitBuf predBuf;
   predBuf.bufs.resize( 3 );
 
-#if JVET_Q0438_MONOCHROME_BUGFIXES
   int maxCompID = 1;
   if( isChromaEnabled( pu.chromaFormat ) )
   {
     maxCompID = MAX_NUM_COMPONENT;
   }
   for( int currCompID = 0; currCompID < maxCompID; currCompID++ )
-#else
-  for( int currCompID = 0; currCompID < 3; currCompID++ )
-#endif
   {
     if( currCompID > 0 && pu.chromaSize().width <= 2 ) continue;
 
@@ -987,11 +982,7 @@ void IntraPrediction::geneIntrainterPred( const CodingUnit &cu )
   initIntraPatternChType( cu.firstTU, pu.Y(), isUseFilter );
   predIntraAng( COMPONENT_Y, predBuf.Y(), pu, isUseFilter );
 
-#if JVET_Q0438_MONOCHROME_BUGFIXES
   if( isChromaEnabled( pu.chromaFormat ) && pu.chromaSize().width > 2 )
-#else
-  if( pu.chromaSize().width > 2 )
-#endif
   {
     initIntraPatternChType( cu.firstTU, pu.Cb(), false );
     predIntraAng( COMPONENT_Cb, predBuf.Cb(), pu, false );
@@ -1359,8 +1350,8 @@ void IntraPrediction::xFillReferenceSamples( const CPelBuf &recoBuf, Pel* refBuf
       lastAvailUnit = currUnit;
       currUnit++;
     }
-}
-  
+  }
+
 }
 
 void IntraPrediction::xFilterReferenceSamples( const Pel* refBufUnfiltered, Pel* refBufFiltered, const CompArea &area, const SPS &sps, int multiRefIdx, ptrdiff_t stride ) const
@@ -1415,7 +1406,7 @@ bool IntraPrediction::getUseFilterRef( const int predMode, const int dirMode )
 
 bool IntraPrediction::useFilteredIntraRefSamples( const ComponentID &compID, const PredictionUnit &pu, const UnitArea &tuArea )
 {
-  //const SPS         &sps    = *pu.cs->sps;
+  //const SPS         &sps    = *pu.sps;
   const ChannelType  chType = toChannelType( compID );
 
   // high level conditions
@@ -1714,7 +1705,7 @@ void IntraPrediction::xGetLumaRecPixels(const PredictionUnit &pu, CompArea chrom
   Pel*       pDst  = nullptr;
   Pel const* piSrc = nullptr;
 
-  bool isFirstRowOfCtu            = ( lumaArea.y & ((pu.cs->sps)->getCTUSize() - 1) ) == 0;
+  bool isFirstRowOfCtu            = ( lumaArea.y & ( pu.sps->getCTUSize() - 1) ) == 0;
   const ptrdiff_t strOffset       = ( CHROMA_444 == pu.chromaFormat ) ? 0 : iRecStride;
 
   int c0_3tap = 2, c1_3tap = 1, c2_3tap = 1,                                        offset_3tap = 2, shift_3tap = 2; //sum = 4
@@ -1762,7 +1753,7 @@ void IntraPrediction::xGetLumaRecPixels(const PredictionUnit &pu, CompArea chrom
           pDst[i] = (piSrc[mult * i] * c0_3tap + piSrc[mult * i - 1] * c1_3tap + piSrc[mult * i + 1] * c2_3tap + offset_3tap) >> shift_3tap;
         }
       }
-      else if( pu.cs->sps->getCclmCollocatedChromaFlag() )
+      else if( pu.sps->getCclmCollocatedChromaFlag() )
       {
         piSrc = pRecSrc0 - iRecStride2;
 
@@ -1814,7 +1805,7 @@ void IntraPrediction::xGetLumaRecPixels(const PredictionUnit &pu, CompArea chrom
     }
     for (int j = 0; j < uiCHeight + addedLeftBelow; j++)
     {
-      if( pu.cs->sps->getCclmCollocatedChromaFlag() )
+      if( pu.sps->getCclmCollocatedChromaFlag() )
       {
         if ((j == 0 && !bAboveAvaillable) || (j == uiCHeight + addedLeftBelow - 1 + logSubWidthC))
         {
@@ -1843,7 +1834,7 @@ void IntraPrediction::xGetLumaRecPixels(const PredictionUnit &pu, CompArea chrom
     }
   }
 
-  if( pu.cs->sps->getCclmCollocatedChromaFlag() )
+  if( pu.sps->getCclmCollocatedChromaFlag() )
   {
     // TODO: unroll loop
     for( int j = 0; j < uiCHeight; j++ )
@@ -2175,31 +2166,19 @@ void IntraPrediction::initIntraMip( const PredictionUnit &pu, const CompArea &ar
 
   // prepare input (boundary) data for prediction
 //  CHECK( m_ipaParam.refFilterFlag, "ERROR: unfiltered refs expected for MIP" );
-#if JVET_R0350_MIP_CHROMA_444_SINGLETREE
   Pel *ptrSrc = getPredictorPtr( area.compID );
-#else
-  Pel *ptrSrc = getPredictorPtr( COMPONENT_Y );
-#endif
   const int srcStride  = m_topRefLength  + 1; //TODO: check this if correct
   const int srcHStride = m_leftRefLength + 1;
 
-#if JVET_R0350_MIP_CHROMA_444_SINGLETREE
-  m_matrixIntraPred.prepareInputForPred( CPelBuf( ptrSrc, srcStride, srcHStride ), area, pu.slice->getSPS()->getBitDepth( toChannelType( area.compID ) ), area.compID );
-#else
-  m_matrixIntraPred.prepareInputForPred( CPelBuf( ptrSrc, srcStride, srcHStride ), area, pu.slice->getSPS()->getBitDepth( CHANNEL_TYPE_LUMA ) );
-#endif
+  m_matrixIntraPred.prepareInputForPred( CPelBuf( ptrSrc, srcStride, srcHStride ), area, pu.sps->getBitDepth( toChannelType( area.compID ) ), area.compID );
 }
 
 void IntraPrediction::predIntraMip( const ComponentID compId, PelBuf &piPred, const PredictionUnit &pu )
 {
-#if !JVET_R0350_MIP_CHROMA_444_SINGLETREE
-  CHECK( compId != COMPONENT_Y, "Error: chroma not supported" );
-#endif
   CHECK( piPred.width > MIP_MAX_WIDTH || piPred.height > MIP_MAX_HEIGHT, "Error: block size not supported for MIP" );
   CHECK( piPred.width != (1 << getLog2(piPred.width)) || piPred.height != (1 << getLog2(piPred.height)), "Error: expecting blocks of size 2^M x 2^N" );
 
   // generate mode-specific prediction
-#if JVET_R0350_MIP_CHROMA_444_SINGLETREE
   uint32_t modeIdx       = MAX_NUM_MIP_MODE;
   bool     transposeFlag = false;
   if( compId == COMPONENT_Y )
@@ -2220,12 +2199,8 @@ void IntraPrediction::predIntraMip( const ComponentID compId, PelBuf &piPred, co
 
   CHECK(modeIdx >= getNumModesMip(piPred), "Error: Wrong MIP mode index");
 
-  const int bitDepth = pu.slice->getSPS()->getBitDepth( toChannelType( compId ) );
+  const int bitDepth = pu.sps->getBitDepth( toChannelType( compId ) );
   m_matrixIntraPred.predBlock( piPred, modeIdx, piPred, transposeFlag, bitDepth, compId );
-#else
-  const int bitDepth = pu.slice->getSPS()->getBitDepth( CHANNEL_TYPE_LUMA );
-  m_matrixIntraPred.predBlock( piPred, pu.intraDir[CHANNEL_TYPE_LUMA], piPred, pu.mipTransposedFlag(), bitDepth );
-#endif
 }
 
 }
