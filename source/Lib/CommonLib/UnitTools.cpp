@@ -91,10 +91,10 @@ UnitArea getArea( const Slice &slice, const UnitArea &area, const ChannelType ch
 bool CU::getRprScaling( const SPS* sps, const PPS* curPPS, const PPS* refPPS, int& xScale, int& yScale )
 {
   const Window& curScalingWindow = curPPS->getScalingWindow();
-  int curPicWidth = curPPS->getPicWidthInLumaSamples() - (curScalingWindow.getWindowLeftOffset() + curScalingWindow.getWindowRightOffset()) * SPS::getWinUnitY(sps->getChromaFormatIdc());
+  int curPicWidth = curPPS->getPicWidthInLumaSamples() - (curScalingWindow.getWindowLeftOffset() + curScalingWindow.getWindowRightOffset()) * SPS::getWinUnitX(sps->getChromaFormatIdc());
   int curPicHeight = curPPS->getPicHeightInLumaSamples() - (curScalingWindow.getWindowTopOffset() + curScalingWindow.getWindowBottomOffset()) * SPS::getWinUnitY(sps->getChromaFormatIdc());
   const Window& refScalingWindow = refPPS->getScalingWindow();
-  int refPicWidth = refPPS->getPicWidthInLumaSamples() - (refScalingWindow.getWindowLeftOffset() + refScalingWindow.getWindowRightOffset()) * SPS::getWinUnitY(sps->getChromaFormatIdc());
+  int refPicWidth = refPPS->getPicWidthInLumaSamples() - (refScalingWindow.getWindowLeftOffset() + refScalingWindow.getWindowRightOffset()) * SPS::getWinUnitX(sps->getChromaFormatIdc());
   int refPicHeight = refPPS->getPicHeightInLumaSamples() - (refScalingWindow.getWindowTopOffset() + refScalingWindow.getWindowBottomOffset()) * SPS::getWinUnitY(sps->getChromaFormatIdc());
 
   xScale = ( ( refPicWidth << SCALE_RATIO_BITS ) + ( curPicWidth >> 1 ) ) / curPicWidth;
