@@ -880,10 +880,11 @@ int VVDecImpl::xAddPicture( Picture* pcPic )
         
         const ptrdiff_t   planeOffset = (confLeft >> csx) + (confTop >> csy) * area.stride;
         const unsigned char* pucOrigin   = (const unsigned char*)area.buf;
+        const unsigned int width = std::min( area.width, cFrame.planes[comp].width );
+        const unsigned int height = std::min( area.height, cFrame.planes[comp].height );
         
         copyComp(  pucOrigin + planeOffset,
-                 cFrame.planes[comp].ptr,
-                 area.width, area.height,
+                 cFrame.planes[comp].ptr, width, height,
                  area.stride<<1, cFrame.planes[comp].stride, uiBytesPerSample  );
       }
 
@@ -909,10 +910,11 @@ int VVDecImpl::xAddPicture( Picture* pcPic )
   
         const ptrdiff_t   planeOffset = (confLeft >> csx) + (confTop >> csy) * area.stride;
         const unsigned char* pucOrigin   = (const unsigned char*)area.buf;
-  
+        const unsigned int width = std::min( area.width, cFrame.planes[comp].width );
+        const unsigned int height = std::min( area.height, cFrame.planes[comp].height );
+
        copyComp(  pucOrigin + planeOffset,
-           cFrame.planes[comp].ptr,
-           area.width, area.height,
+           cFrame.planes[comp].ptr, width, height,
            area.stride<<1, cFrame.planes[comp].stride, uiBytesPerSample  );
       }
     }
