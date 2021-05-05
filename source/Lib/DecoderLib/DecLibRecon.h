@@ -164,9 +164,7 @@ public:
 
 private:
   void borderExtPic ( Picture* pic );
-#if JVET_O1143_MV_ACROSS_SUBPIC_BOUNDARY
   void createSubPicRefBufs( Picture* pic );
-#endif
 
   template<bool checkReadyState=false>
   static bool ctuTask( int tid, CtuTaskParam* param );

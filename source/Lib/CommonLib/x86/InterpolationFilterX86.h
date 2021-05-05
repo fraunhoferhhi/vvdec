@@ -284,8 +284,16 @@ void fullPelCopyDMVR_SSE( const int16_t* src, ptrdiff_t srcStride, int16_t* dst,
 #if USE_AVX2
   if( vext >= AVX2 && ( ( width - 4 ) & 15 ) == 0 )
   {
+    const ptrdiff_t halfLine = width >> 1;
+
+    _mm_prefetch( (const char*) &src[0], _MM_HINT_T0 );
+    _mm_prefetch( (const char*) &src[0 + halfLine], _MM_HINT_T0 );
+
     for( int row = 0; row < height; row++ )
     {
+      _mm_prefetch( ( const char* ) &src[srcStride], _MM_HINT_T0 );
+      _mm_prefetch( ( const char* ) &src[srcStride + halfLine], _MM_HINT_T0 );
+
       int x = 0;
       for( ; x < width - 4; x += 16 )
       {
@@ -1434,8 +1442,12 @@ static void simdInterpolateN2_10BIT_M4(const int16_t* src, ptrdiff_t srcStride, 
 {
   CHECK( isLast, "Not Supported" );
 
+  const ptrdiff_t halfLine = width >> 1;
+
   _mm_prefetch( ( const char * ) &src[0 * srcStride + 0 * cStride], _MM_HINT_T0 );
   _mm_prefetch( ( const char * ) &src[0 * srcStride + 1 * cStride], _MM_HINT_T0 );
+  _mm_prefetch( ( const char * ) &src[0 * srcStride + 0 * cStride + halfLine], _MM_HINT_T0 );
+  _mm_prefetch( ( const char * ) &src[0 * srcStride + 1 * cStride + halfLine], _MM_HINT_T0 );
 
   int row;
   width -= 4;
@@ -1450,6 +1462,8 @@ static void simdInterpolateN2_10BIT_M4(const int16_t* src, ptrdiff_t srcStride, 
     {
       _mm_prefetch( ( const char * ) &src[1 * srcStride + 0 * cStride], _MM_HINT_T0 );
       _mm_prefetch( ( const char * ) &src[1 * srcStride + 1 * cStride], _MM_HINT_T0 );
+      _mm_prefetch( ( const char * ) &src[1 * srcStride + 0 * cStride + halfLine], _MM_HINT_T0 );
+      _mm_prefetch( ( const char * ) &src[1 * srcStride + 1 * cStride + halfLine], _MM_HINT_T0 );
 
       // multiple of 16
       for( int x = 0; x < width; x += 16 )
@@ -1490,6 +1504,8 @@ static void simdInterpolateN2_10BIT_M4(const int16_t* src, ptrdiff_t srcStride, 
     {
       _mm_prefetch( ( const char * ) &src[1 * srcStride + 0 * cStride], _MM_HINT_T0 );
       _mm_prefetch( ( const char * ) &src[1 * srcStride + 1 * cStride], _MM_HINT_T0 );
+      _mm_prefetch( ( const char * ) &src[1 * srcStride + 0 * cStride + halfLine], _MM_HINT_T0 );
+      _mm_prefetch( ( const char * ) &src[1 * srcStride + 1 * cStride + halfLine], _MM_HINT_T0 );
 
       for( int x = 0; x < width; x += 8 )
       {

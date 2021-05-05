@@ -302,12 +302,12 @@ void paddingSimd1( Pel *dst, ptrdiff_t stride, int width, int height )
     temp = temp - 4;
   }
   while( temp > 0 )
-    {
+  {
     dst[j - 1 * stride] = dst[j];
     dst[j + ( height - 1 + 1 )*stride] = dst[j + ( height - 1 )*stride];
     j++;
     temp--;
-    }
+  }
 
   static constexpr int padSize = 1;
 
@@ -331,27 +331,35 @@ void reco_SSE( const int16_t* src0, ptrdiff_t src0Stride, const int16_t* src1, p
   if( W == 8 )
   {
 #if USE_AVX2
-    if( vext >= AVX2 && ( width & 15 ) == 0 )
+    if( vext >= AVX2 && (width & 15) == 0 )
     {
       __m256i vbdmin = _mm256_set1_epi16( clpRng.min() );
       __m256i vbdmax = _mm256_set1_epi16( clpRng.max() );
 
+      _mm_prefetch( ( const char* ) src0, _MM_HINT_T0 );
+      _mm_prefetch( ( const char* ) src1, _MM_HINT_T0 );
+      _mm_prefetch( ( const char* ) ( src0 + src0Stride ), _MM_HINT_T0 );
+      _mm_prefetch( ( const char* ) ( src1 + src1Stride ), _MM_HINT_T0 );
+
       for( int row = 0; row < height; row++ )
       {
+        _mm_prefetch( ( const char* ) ( src0 + 2 * src0Stride ), _MM_HINT_T0 );
+        _mm_prefetch( ( const char* ) ( src1 + 2 * src1Stride ), _MM_HINT_T0 );
+
         for( int col = 0; col < width; col += 16 )
         {
-          __m256i vdest = _mm256_loadu_si256( ( const __m256i * )&src0[col] );
-          __m256i vsrc1 = _mm256_loadu_si256( ( const __m256i * )&src1[col] );
+          __m256i vdest = _mm256_loadu_si256( (const __m256i*) & src0[col] );
+          __m256i vsrc1 = _mm256_loadu_si256( (const __m256i*) & src1[col] );
 
           vdest = _mm256_add_epi16( vdest, vsrc1 );
           vdest = _mm256_min_epi16( vbdmax, _mm256_max_epi16( vbdmin, vdest ) );
 
-          _mm256_storeu_si256( ( __m256i * )&dst[col], vdest );
+          _mm256_storeu_si256( (__m256i*) & dst[col], vdest );
         }
 
         src0 += src0Stride;
         src1 += src1Stride;
-        dst  += dstStride;
+        dst += dstStride;
       }
     }
     else
