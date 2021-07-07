@@ -92,6 +92,7 @@ public:
           "\n"
           "\t\t [--loops,-L  <int>         ] : number of decoder loops (default: 0, -1 endless)\n"
           "\t\t [--verbosity,-v  <int>     ] : verbosity level (0: silent, 1: error, 2: warning, 3: info, 4: notice: 5, verbose, 6: debug) (default: " << (int)rcParams.logLevel << ")\n"
+          "\t\t [--version                 ] : show version\n"
           "\t\t [--help,-h                 ] : show help\n"
           "\n" ;
       std::cout << std::endl;
@@ -138,6 +139,12 @@ public:
       {
         i_arg++;
         iRet = 2;
+        return iRet;
+      }
+      else if( !strcmp( (const char*)argv[i_arg], "--version" ) )
+      {
+        i_arg++;
+        iRet = 3;
         return iRet;
       }
       else
@@ -259,6 +266,11 @@ public:
         i_arg++;
       }
       else if( (!strcmp( (const char*)argv[i_arg], "-h" )) || !strcmp( (const char*)argv[i_arg], "--help" ) )
+      {
+        // already processed
+        i_arg++;
+      }
+      else if( !strcmp( (const char*)argv[i_arg], "--version" ) )
       {
         // already processed
         i_arg++;
