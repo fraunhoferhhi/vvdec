@@ -119,6 +119,11 @@ int main( int argc, char* argv[] )
       vvdecoderapp::CmdLineParser::print_usage( cAppname, params);
       return 0;
     }
+    else if( iRet == 3 )
+    {
+      std::cout << cAppname  << " version " << vvdec_get_version()<< std::endl;
+      return 0;
+    }
 
     std::cerr << "vvdecapp [error]: cannot parse command line. run vvdecapp --help to see available options" << std::endl;
     return -1;

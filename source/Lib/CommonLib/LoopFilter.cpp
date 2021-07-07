@@ -630,7 +630,7 @@ void LoopFilter::calcFilterStrengths( const CodingUnit& cu ) const
 
   for( auto currTU = &cu.firstTU; currTU; currTU = currTU->next )
   {
-    const Area& areaTu = currTU->blocks[currTU->chType];
+    const Area& areaTu = currTU->blocks[currTU->chType()];
 
     verEdgeFilter = ( areaTu.x & maskBlkX ) == area.x ? stLFCUParam.leftEdge : true;
     horEdgeFilter = ( areaTu.y & maskBlkY ) == area.y ? stLFCUParam.topEdge  : true;

@@ -59,28 +59,19 @@ THE POSSIBILITY OF SUCH DAMAGE.
 namespace vvdec
 {
 
-BinDecoderBase::BinDecoderBase()
-  : Ctx         ()
-  , m_Bitstream ( 0 )
-  , m_Range     ( 0 )
-  , m_Value     ( 0 )
-  , m_bitsNeeded( 0 )
-{}
-
-
-void BinDecoderBase::init( InputBitstream* bitstream )
+void BinDecoder::init( InputBitstream* bitstream )
 {
   m_Bitstream = bitstream;
 }
 
 
-void BinDecoderBase::uninit()
+void BinDecoder::uninit()
 {
   m_Bitstream = 0;
 }
 
 
-void BinDecoderBase::start()
+void BinDecoder::start()
 {
   CHECK( m_Bitstream->getNumBitsUntilByteAligned(), "Bitstream is not byte aligned." );
   m_Range       = 510;
@@ -89,7 +80,7 @@ void BinDecoderBase::start()
 }
 
 
-void BinDecoderBase::finish()
+void BinDecoder::finish()
 {
   unsigned lastByte;
   m_Bitstream->peekPreviousByte( lastByte );
@@ -98,14 +89,14 @@ void BinDecoderBase::finish()
 }
 
 
-void BinDecoderBase::reset( int qp, int initId )
+void BinDecoder::reset( int qp, int initId )
 {
-  Ctx::init( qp, initId );
+  m_Ctx.init( qp, initId );
   start();
 }
 
 
-unsigned BinDecoderBase::decodeBinEP()
+unsigned BinDecoder::decodeBinEP()
 {
   m_Value            += m_Value;
   if( ++m_bitsNeeded >= 0 )
@@ -126,7 +117,7 @@ unsigned BinDecoderBase::decodeBinEP()
 }
 
 
-unsigned BinDecoderBase::decodeBinsEP( unsigned numBins )
+unsigned BinDecoder::decodeBinsEP( unsigned numBins )
 {
 #if ENABLE_TRACING
   int numBinsOrig = numBins;
@@ -181,7 +172,7 @@ unsigned BinDecoderBase::decodeBinsEP( unsigned numBins )
   return bins;
 }
 
-unsigned BinDecoderBase::decodeRemAbsEP(unsigned goRicePar, unsigned cutoff, int maxLog2TrDynamicRange)
+unsigned BinDecoder::decodeRemAbsEP(unsigned goRicePar, unsigned cutoff, int maxLog2TrDynamicRange)
 {
   unsigned prefix = 0;
   {
@@ -210,7 +201,7 @@ unsigned BinDecoderBase::decodeRemAbsEP(unsigned goRicePar, unsigned cutoff, int
   return offset + decodeBinsEP(length);
 }
 
-unsigned BinDecoderBase::decodeBinTrm()
+unsigned BinDecoder::decodeBinTrm()
 {
   m_Range    -= 2;
   unsigned SR = m_Range << 7;
@@ -238,15 +229,13 @@ unsigned BinDecoderBase::decodeBinTrm()
 }
 
 
-
-
-void BinDecoderBase::align()
+void BinDecoder::align()
 {
   m_Range = 256;
 }
 
 
-unsigned BinDecoderBase::decodeAlignedBinsEP( unsigned numBins )
+unsigned BinDecoder::decodeAlignedBinsEP( unsigned numBins )
 {
 #if ENABLE_TRACING
   int numBinsOrig = numBins;
@@ -284,14 +273,6 @@ unsigned BinDecoderBase::decodeAlignedBinsEP( unsigned numBins )
 #endif
   return bins;
 }
-
-
-
-
-BinDecoder::BinDecoder()
-  : BinDecoderBase()
-  , m_Ctx         ( static_cast<CtxStore&>( *this   ) )
-{}
 
 
 unsigned BinDecoder::decodeBin( unsigned ctxId )

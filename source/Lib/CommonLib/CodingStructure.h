@@ -67,7 +67,6 @@ enum PictureType
 {
   PIC_RECONSTRUCTION,
   PIC_RECON_WRAP,
-  PIC_PREDICTION,
   NUM_PIC_TYPES
 };
 
@@ -169,8 +168,9 @@ private:
   void createInternals(const UnitArea& _unit);
 
 private:
-
-  Pel*            m_predBuf    [MAX_NUM_COMPONENT];
+  std::unique_ptr<Pel[], AlignedDeleter<Pel>> m_predBuf;
+  ptrdiff_t                                   m_predBufOffset;
+  ptrdiff_t                                   m_predBufSize;
 
   Mv*             m_dmvrMvCache;
   size_t          m_dmvrMvCacheSize;
@@ -234,8 +234,8 @@ public:
 
 public:
 
-         PelBuf       getRecoBuf(const CompArea &blk)        { return m_reco.bufs[blk.compID].subBuf( blk ); }
-  const CPelBuf       getRecoBuf(const CompArea &blk) const  { return m_reco.bufs[blk.compID].subBuf( blk ); }
+         PelBuf       getRecoBuf(const CompArea &blk)        { return m_reco.bufs[blk.compID()].subBuf( blk ); }
+  const CPelBuf       getRecoBuf(const CompArea &blk) const  { return m_reco.bufs[blk.compID()].subBuf( blk ); }
          PelUnitBuf   getRecoBuf(const UnitArea &unit)       { return m_reco.subBuf( unit ); }
   const CPelUnitBuf   getRecoBuf(const UnitArea &unit) const { return m_reco.subBuf( unit ); }
 

@@ -66,10 +66,10 @@ namespace vvdec
 
 Position CompArea::chromaPos( const ChromaFormat chromaFormat ) const
 {
-  if (isLuma(compID))
+  if (isLuma(compID()))
   {
-    uint32_t scaleX = getComponentScaleX(compID, chromaFormat);
-    uint32_t scaleY = getComponentScaleY(compID, chromaFormat);
+    uint32_t scaleX = getComponentScaleX(compID(), chromaFormat);
+    uint32_t scaleY = getComponentScaleY(compID(), chromaFormat);
 
     return Position(x >> scaleX, y >> scaleY);
   }
@@ -81,10 +81,10 @@ Position CompArea::chromaPos( const ChromaFormat chromaFormat ) const
 
 Size CompArea::lumaSize( const ChromaFormat chromaFormat ) const
 {
-  if( isChroma( compID ) )
+  if( isChroma( compID() ) )
   {
-    uint32_t scaleX = getComponentScaleX( compID, chromaFormat );
-    uint32_t scaleY = getComponentScaleY( compID, chromaFormat );
+    uint32_t scaleX = getComponentScaleX( compID(), chromaFormat );
+    uint32_t scaleY = getComponentScaleY( compID(), chromaFormat );
 
     return Size( width << scaleX, height << scaleY );
   }
@@ -96,10 +96,10 @@ Size CompArea::lumaSize( const ChromaFormat chromaFormat ) const
 
 Size CompArea::chromaSize( const ChromaFormat chromaFormat ) const
 {
-  if( isLuma( compID ) )
+  if( isLuma( compID() ) )
   {
-    uint32_t scaleX = getComponentScaleX( compID, chromaFormat );
-    uint32_t scaleY = getComponentScaleY( compID, chromaFormat );
+    uint32_t scaleX = getComponentScaleX( compID(), chromaFormat );
+    uint32_t scaleY = getComponentScaleY( compID(), chromaFormat );
 
     return Size( width >> scaleX, height >> scaleY );
   }
@@ -111,10 +111,10 @@ Size CompArea::chromaSize( const ChromaFormat chromaFormat ) const
 
 Position CompArea::lumaPos( const ChromaFormat chromaFormat ) const
 {
-  if( isChroma( compID ) )
+  if( isChroma( compID() ) )
   {
-    uint32_t scaleX = getComponentScaleX( compID, chromaFormat );
-    uint32_t scaleY = getComponentScaleY( compID, chromaFormat );
+    uint32_t scaleX = getComponentScaleX( compID(), chromaFormat );
+    uint32_t scaleY = getComponentScaleY( compID(), chromaFormat );
 
     return Position( x << scaleX, y << scaleY );
   }
@@ -148,7 +148,7 @@ UnitArea::UnitArea(const ChromaFormat _chromaFormat, const Area &_area) : chroma
 
   if( !numCh ) return;
 
-  blocks[0].compID       = COMPONENT_Y;
+  blocks[0]._compID      = COMPONENT_Y;
   blocks[0].x            = _area.x;
   blocks[0].y            = _area.y;
   blocks[0].width        = _area.width;
@@ -159,8 +159,8 @@ UnitArea::UnitArea(const ChromaFormat _chromaFormat, const Area &_area) : chroma
   const int csx = getChannelTypeScaleX( CH_C, chromaFormat );
   const int csy = getChannelTypeScaleY( CH_C, chromaFormat );
   
-  blocks[1].compID       = COMPONENT_Cb;
-  blocks[2].compID       = COMPONENT_Cr;
+  blocks[1]._compID      = COMPONENT_Cb;
+  blocks[2]._compID      = COMPONENT_Cr;
   blocks[1].x            = blocks[2].x            = ( _area.x >> csx );
   blocks[1].y            = blocks[2].y            = ( _area.y >> csy );
   blocks[1].width        = blocks[2].width        = ( _area.width  >> csx );
@@ -241,7 +241,7 @@ const UnitArea UnitArea::singleComp(const ComponentID compID) const
 
   for( auto &blk : ret.blocks )
   {
-    if( blk.compID != compID )
+    if( blk.compID() != compID )
     {
       new ( &blk ) CompArea();
     }
@@ -257,7 +257,7 @@ const UnitArea UnitArea::singleChan(const ChannelType chType) const
 
   for (const auto &blk : blocks)
   {
-    if (toChannelType(blk.compID) == chType)
+    if (toChannelType( blk.compID() ) == chType)
     {
       ret.blocks.push_back(blk);
     }

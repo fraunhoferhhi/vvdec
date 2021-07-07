@@ -56,45 +56,39 @@ THE POSSIBILITY OF SUCH DAMAGE.
 namespace vvdec
 {
 
-class BinDecoderBase : public Ctx
+class BinDecoder
 {
-protected:
-  BinDecoderBase ();
 public:
-  ~BinDecoderBase() {}
-public:
+  BinDecoder()  = default;
+  ~BinDecoder() = default;
+
   void      init    ( InputBitstream* bitstream );
   void      uninit  ();
   void      start   ();
   void      finish  ();
   void      reset   ( int qp, int initId );
 
-public:
+  const Ctx& getCtx() const           { return m_Ctx; }
+  void       setCtx( const Ctx& ctx ) { m_Ctx = ctx; }
+
+  unsigned          decodeBin           ( unsigned ctxId );
   unsigned          decodeBinEP         ();
   unsigned          decodeBinsEP        ( unsigned numBins  );
   unsigned          decodeRemAbsEP      ( unsigned goRicePar, unsigned cutoff, int maxLog2TrDynamicRange );
   unsigned          decodeBinTrm        ();
   void              align               ();
   unsigned          getNumBitsRead      () { return m_Bitstream->getNumBitsRead() + m_bitsNeeded; }
+
 private:
   unsigned          decodeAlignedBinsEP ( unsigned numBins  );
+
+  Ctx m_Ctx;
+
 protected:
-  InputBitstream*   m_Bitstream;
-  uint32_t          m_Range;
-  uint32_t          m_Value;
-  int32_t           m_bitsNeeded;
-};
-
-
-
-class BinDecoder : public BinDecoderBase
-{
-public:
-  BinDecoder ();
-  ~BinDecoder() {}
-  unsigned decodeBin ( unsigned ctxId );
-private:
-  CtxStore& m_Ctx;
+  InputBitstream* m_Bitstream  = nullptr;
+  uint32_t        m_Range      = 0;
+  uint32_t        m_Value      = 0;
+  int32_t         m_bitsNeeded = 0;
 };
 
 }

@@ -71,41 +71,15 @@ PartLevel::PartLevel()
 {
 }
 
-PartLevel::PartLevel( const PartSplit _split, const Partitioning& _parts )
-: split               ( _split        )
-, parts               ( _parts        )
-, idx                 ( 0u            )
-, cuAbove             ( nullptr       )
-, cuLeft              ( nullptr       )
-, modeType            ( MODE_TYPE_ALL )
-, qgEnable            ( true          )
-, qgChromaEnable      ( true          )
-{
-}
-
-PartLevel::PartLevel( const PartSplit _split, Partitioning&& _parts )
-: split               ( _split                               )
-, parts               ( std::forward<Partitioning>( _parts ) )
-, idx                 ( 0u                                   )
-, cuAbove             ( nullptr                              )
-, cuLeft              ( nullptr                              )
-, modeType            ( MODE_TYPE_ALL                        )
-, qgEnable            ( true                                 )
-, qgChromaEnable      ( true                                 )
-{
-}
-
-
 void PartLevel::init()
 {
-  split = CU_DONT_SPLIT;
-  idx = 0u;
-  cuAbove = nullptr;
-  cuLeft = nullptr;
-  modeType = MODE_TYPE_ALL;
-  qgEnable = true;
-  qgChromaEnable = true;
-  parts.clear();
+  split           = CU_DONT_SPLIT;
+  idx             = 0u;
+  cuAbove         = nullptr;
+  cuLeft          = nullptr;
+  modeType        = MODE_TYPE_ALL;
+  qgEnable        = true;
+  qgChromaEnable  = true;
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -174,10 +148,12 @@ void Partitioner::initCtu( const UnitArea& ctuArea, const ChannelType _chType, c
   currSliceIdx = slice.getIndependentSliceIdx();
   currTileIdx  = cs.pps->getTileIdx( ctuArea.lumaPos() );
 
+  m_partBufIdx = 1;
   m_partStack.resize_noinit( 1 );
   m_partStack.back().split = CTU_LEVEL;
-  m_partStack.back().parts.resize( 1 );
+  m_partStack.back().parts = m_partBuf;
   m_partStack.back().parts[0] = ctuArea;
+  m_partStack.back().numParts = 1;
   treeType = TREE_D;
   modeType = MODE_TYPE_ALL;
 
@@ -232,15 +208,22 @@ void Partitioner::splitCurrArea( const PartSplit split, const CodingStructure& c
   m_partStack.resize_noinit( m_partStack.size() + 1 );
   PartLevel& back = m_partStack.back();
   back.init();
+  back.parts = &m_partBuf[m_partBufIdx];
+  int numParts;
 
   if     ( split <= CU_TRIV_SPLIT )
-    PartitionerImpl::getCUSubPartitions     ( area, cs, split, back.parts );
+    numParts = PartitionerImpl::getCUSubPartitions     ( area, cs, split, back.parts );
   else if( split == TU_MAX_TR_SPLIT )
-    PartitionerImpl::getMaxTuTiling         ( area, cs,        back.parts );
+    numParts = PartitionerImpl::getMaxTuTiling         ( area, cs,        back.parts );
   else if( split >= SBT_VER_HALF_POS0_SPLIT && split <= SBT_HOR_QUAD_POS1_SPLIT )
-    PartitionerImpl::getSbtTuTiling         ( area, cs, split, back.parts );
+    numParts = PartitionerImpl::getSbtTuTiling         ( area, cs, split, back.parts );
   else /* if( split == TU_1D_HORZ_SPLIT || split == TU_1D_VERT_SPLIT ) */
-    PartitionerImpl::getTUIntraSubPartitions( area, cs, isDualITree, split, back.parts, treeType );
+    numParts = PartitionerImpl::getTUIntraSubPartitions( area, cs, isDualITree, split, back.parts, treeType );
+
+  back.numParts = numParts;
+  m_partBufIdx += numParts;
+
+  CHECK( m_partBufIdx > partBufSize, "Partition buffer overflow" );
 
   switch( split )
   {
@@ -300,7 +283,7 @@ void Partitioner::splitCurrArea( const PartSplit split, const CodingStructure& c
 
 #if _DEBUG
 
-  m_currArea = m_partStack.back().parts.front();
+  m_currArea = m_partStack.back().parts[0];
 #endif
 }
 
@@ -430,8 +413,10 @@ void Partitioner::exitCurrSplit( const CodingStructure& cs )
 {
   const PartSplit currSplit = m_partStack.back().split;
   const int       currIndex = m_partStack.back().idx;
+  const int       numParts  = m_partStack.back().numParts;
 
   m_partStack.pop_back();
+  m_partBufIdx -= numParts;
 
   const bool isImplicit     = !cs.picture->Y().contains( currArea().Y().bottomRight() );
 
@@ -493,7 +478,7 @@ bool Partitioner::nextPart( const CodingStructure &cs, bool autoPop /*= false*/ 
   const unsigned currIdx  = ++back.idx;
   const PartSplit currSpl =   back.split;
 
-  if( currIdx < back.parts.size() )
+  if( currIdx < back.numParts )
   {
 #if _DEBUG
     m_currArea = back.parts[currIdx];
@@ -528,14 +513,14 @@ void Partitioner::updateNeighbors( const CodingStructure& cs )
 
 bool Partitioner::hasNextPart() const
 {
-  return ( ( m_partStack.back().idx + 1 ) < m_partStack.back().parts.size() );
+  return ( ( m_partStack.back().idx + 1 ) < m_partStack.back().numParts );
 }
 
 //////////////////////////////////////////////////////////////////////////
 // Partitioner methods describing the actual partitioning logic
 //////////////////////////////////////////////////////////////////////////
 
-void PartitionerImpl::getCUSubPartitions( const UnitArea &cuArea, const CodingStructure &cs, const PartSplit _splitType, Partitioning& dst )
+int PartitionerImpl::getCUSubPartitions( const UnitArea &cuArea, const CodingStructure &cs, const PartSplit _splitType, Partitioning& dst )
 {
   const PartSplit splitType = _splitType;
 
@@ -543,10 +528,10 @@ void PartitionerImpl::getCUSubPartitions( const UnitArea &cuArea, const CodingSt
   {
     Partitioning& sub = dst;
 
-    sub.resize( 4, cuArea );
-
     for( uint32_t i = 0; i < 4; i++ )
     {
+      sub[i] = cuArea;
+
       for( auto &blk : sub[i].blocks )
       {
         blk.height >>= 1;
@@ -558,16 +543,16 @@ void PartitionerImpl::getCUSubPartitions( const UnitArea &cuArea, const CodingSt
       CHECK( sub[i].lumaSize().height < MIN_TU_SIZE, "the split causes the block to be smaller than the minimal TU size" );
     }
 
-    return;
+    return 4;
   }
   else if( splitType == CU_HORZ_SPLIT )
   {
     Partitioning& sub = dst;
 
-    sub.resize(2, cuArea);
-
     for (uint32_t i = 0; i < 2; i++)
     {
+      sub[i] = cuArea;
+
       for (auto &blk : sub[i].blocks)
       {
         blk.height >>= 1;
@@ -577,16 +562,16 @@ void PartitionerImpl::getCUSubPartitions( const UnitArea &cuArea, const CodingSt
       CHECK(sub[i].lumaSize().height < MIN_TU_SIZE, "the cs split causes the block to be smaller than the minimal TU size");
     }
 
-    return;
+    return 2;
   }
   else if( splitType == CU_VERT_SPLIT )
   {
     Partitioning& sub = dst;
 
-    sub.resize( 2, cuArea );
-
     for( uint32_t i = 0; i < 2; i++ )
     {
+      sub[i] = cuArea;
+
       for( auto &blk : sub[i].blocks )
       {
         blk.width >>= 1;
@@ -596,16 +581,16 @@ void PartitionerImpl::getCUSubPartitions( const UnitArea &cuArea, const CodingSt
       CHECK( sub[i].lumaSize().width < MIN_TU_SIZE, "the split causes the block to be smaller than the minimal TU size" );
     }
 
-    return;
+    return 2;
   }
   else if( splitType == CU_TRIH_SPLIT )
   {
     Partitioning& sub = dst;
 
-    sub.resize( 3, cuArea );
-
     for( int i = 0; i < 3; i++ )
     {
+      sub[i] = cuArea;
+
       for( auto &blk : sub[i].blocks )
       {
         blk.height >>= 1;
@@ -617,16 +602,16 @@ void PartitionerImpl::getCUSubPartitions( const UnitArea &cuArea, const CodingSt
       CHECK( sub[i].lumaSize().height < MIN_TU_SIZE, "the cs split causes the block to be smaller than the minimal TU size" );
     }
 
-    return;
+    return 3;
   }
   else if( splitType == CU_TRIV_SPLIT )
   {
     Partitioning& sub = dst;
 
-    sub.resize( 3, cuArea );
-
     for( int i = 0; i < 3; i++ )
     {
+      sub[i] = cuArea;
+
       for( auto &blk : sub[i].blocks )
       {
         blk.width >>= 1;
@@ -639,7 +624,7 @@ void PartitionerImpl::getCUSubPartitions( const UnitArea &cuArea, const CodingSt
       CHECK( sub[i].lumaSize().width < MIN_TU_SIZE, "the cs split causes the block to be smaller than the minimal TU size" );
     }
 
-    return;
+    return 3;
   }
   else
   {
@@ -647,7 +632,7 @@ void PartitionerImpl::getCUSubPartitions( const UnitArea &cuArea, const CodingSt
   }
 }
 
-void PartitionerImpl::getTUIntraSubPartitions( const UnitArea &tuArea, const CodingStructure &cs, const bool isDualTree, const PartSplit splitType, Partitioning &sub, const TreeType treeType )
+int PartitionerImpl::getTUIntraSubPartitions( const UnitArea &tuArea, const CodingStructure &cs, const bool isDualTree, const PartSplit splitType, Partitioning &sub, const TreeType treeType )
 {
   uint32_t nPartitions;
   uint32_t splitDimensionSize = CU::getISPSplitDim( tuArea.lumaSize().width, tuArea.lumaSize().height, splitType );
@@ -655,8 +640,6 @@ void PartitionerImpl::getTUIntraSubPartitions( const UnitArea &tuArea, const Cod
   if( splitType == TU_1D_HORZ_SPLIT )
   {
     nPartitions = tuArea.lumaSize().height >> getLog2(splitDimensionSize);
-
-    sub.resize( nPartitions );
 
     for( uint32_t i = 0; i < nPartitions; i++ )
     {
@@ -672,8 +655,6 @@ void PartitionerImpl::getTUIntraSubPartitions( const UnitArea &tuArea, const Cod
   else if( splitType == TU_1D_VERT_SPLIT )
   {
     nPartitions = tuArea.lumaSize().width >> getLog2(splitDimensionSize);
-
-    sub.resize( nPartitions );
 
     for( uint32_t i = 0; i < nPartitions; i++ )
     {
@@ -698,66 +679,59 @@ void PartitionerImpl::getTUIntraSubPartitions( const UnitArea &tuArea, const Cod
     blkCb = CompArea();
     blkCr = CompArea();
   }
+
+  return nPartitions;
 }
 
-static const int g_maxRtGridSize = 3;
 
-static const int g_zScanToX[1 << ( g_maxRtGridSize << 1 )] =
+static const int g_rsScanToZ_w4[16] =
 {
-   0,  1,  0,  1,  2,  3,  2,  3,
-   0,  1,  0,  1,  2,  3,  2,  3,
-   4,  5,  4,  5,  6,  7,  6,  7,
-   4,  5,  4,  5,  6,  7,  6,  7,
-   0,  1,  0,  1,  2,  3,  2,  3,
-   0,  1,  0,  1,  2,  3,  2,  3,
-   4,  5,  4,  5,  6,  7,  6,  7,
-   4,  5,  4,  5,  6,  7,  6,  7,
-};
-static const int g_zScanToY[1 << ( g_maxRtGridSize << 1 )] =
-{
-   0,  0,  1,  1,  0,  0,  1,  1,
-   2,  2,  3,  3,  2,  2,  3,  3,
-   0,  0,  1,  1,  0,  0,  1,  1,
-   2,  2,  3,  3,  2,  2,  3,  3,
-   4,  4,  5,  5,  4,  4,  5,  5,
-   6,  6,  7,  7,  6,  6,  7,  7,
-   4,  4,  5,  5,  4,  4,  5,  5,
-   6,  6,  7,  7,  6,  6,  7,  7,
-};
-static const int g_rsScanToZ[1 << ( g_maxRtGridSize << 1 )] =
-{
-   0,  1,  4,  5, 16, 17, 20, 21,
-   2,  3,  6,  7, 18, 19, 22, 23,
-   8,  9, 12, 13, 24, 25, 28, 29,
-  10, 11, 14, 15, 26, 27, 30, 31,
-  32, 33, 36, 37, 48, 49, 52, 53,
-  34, 35, 38, 39, 50, 51, 54, 55,
-  40, 41, 44, 45, 56, 57, 60, 61,
-  42, 43, 46, 47, 58, 59, 62, 63,
+   0,  1,  4,  5, // wouldn't work for 128x32 blocks, but those are forbidden bcs of VPDU constraints
+   2,  3,  6,  7, // correct ordering for 128x64 (TU32)
+   8,  9, 12, 13,
+  10, 11, 14, 15, // correct ordering for 128x128 (TU32)
 };
 
-void PartitionerImpl::getMaxTuTiling( const UnitArea &cuArea, const CodingStructure &cs, Partitioning& dst )
+static const int g_rsScanToZ_w2[8] =
 {
-  static_assert( MAX_LOG2_DIFF_CU_TR_SIZE <= g_maxRtGridSize, "Z-scan tables are only provided for MAX_LOG2_DIFF_CU_TR_SIZE for up to 3 (8x8 tiling)!" );
+   0,  1, // correct ordering for 64x32 (TU32) and 128x64 (TU64)
+   2,  3, // correct ordering for 64x64 (TU32) and 128x128 (TU64)
+   4,  5,
+   6,  7, // correct ordering for 32x64 (TU32) and 64x128 (TU64)
+};
 
+static const int g_rsScanToZ_w1[4] =
+{
+   0, // no tiling, never used
+   1, // correct ordering for 64x32 (TU32) and 128x64 (TU64)
+   2,
+   3, // correct ordering for 128x32 (TU32)
+};
+
+static const int* g_rsScanToZ[3] = { g_rsScanToZ_w1, g_rsScanToZ_w2, g_rsScanToZ_w4 };
+
+int PartitionerImpl::getMaxTuTiling( const UnitArea &cuArea, const CodingStructure &cs, Partitioning& dst )
+{
   const Size area     = cuArea.lumaSize();
-  const int maxTrSize = ( area.width > 64 || area.height > 64 ) ? 64 : cs.sps->getMaxTbSize();
+  const int maxTrSize = cs.sps->getMaxTbSize();
   const int numTilesH = std::max<int>( 1, area.width  / maxTrSize );
   const int numTilesV = std::max<int>( 1, area.height / maxTrSize );
   const int numTiles  = numTilesH * numTilesV;
+  const int numLog2H  = getLog2( numTilesH );
+  const int* rsScanToZ = g_rsScanToZ[numLog2H];
 
   CHECK( numTiles > MAX_CU_TILING_PARTITIONS, "CU partitioning requires more partitions than available" );
 
   Partitioning& ret = dst;
-  ret.resize( numTiles, cuArea );
 
   for( int i = 0; i < numTiles; i++ )
   {
-    const int rsy = i / numTilesH;
-    const int rsx = i % numTilesH;
+    ret[i] = cuArea;
 
-    const int x = g_zScanToX[g_rsScanToZ[( rsy << g_maxRtGridSize ) + rsx]];
-    const int y = g_zScanToY[g_rsScanToZ[( rsy << g_maxRtGridSize ) + rsx]];
+    const int zid = rsScanToZ[i];
+
+    const int y = zid >>         numLog2H;
+    const int x = zid & ( ( 1 << numLog2H) - 1 );
 
     UnitArea& tile = ret[i];
 
@@ -773,10 +747,10 @@ void PartitionerImpl::getMaxTuTiling( const UnitArea &cuArea, const CodingStruct
     }
   }
 
-  return;
+  return numTiles;
 }
 
-void PartitionerImpl::getSbtTuTiling( const UnitArea& cuArea, const CodingStructure &cs, const PartSplit splitType, Partitioning& dst )
+int PartitionerImpl::getSbtTuTiling( const UnitArea& cuArea, const CodingStructure &cs, const PartSplit splitType, Partitioning& dst )
 {
   Partitioning& ret = dst;
   int numTiles      = 2;
@@ -784,10 +758,10 @@ void PartitionerImpl::getSbtTuTiling( const UnitArea& cuArea, const CodingStruct
 
   CHECK( !(splitType >= SBT_VER_HALF_POS0_SPLIT && splitType <= SBT_HOR_QUAD_POS1_SPLIT), "wrong" );
 
-  ret.resize( numTiles, cuArea );
-
   for( int i = 0; i < numTiles; i++ )
   {
+    ret[i] = cuArea;
+
     if( splitType >= SBT_VER_QUAD_POS0_SPLIT )
     {
       if( splitType == SBT_HOR_QUAD_POS0_SPLIT || splitType == SBT_HOR_QUAD_POS1_SPLIT )
@@ -836,7 +810,7 @@ void PartitionerImpl::getSbtTuTiling( const UnitArea& cuArea, const CodingStruct
     }
   }
 
-  return;
+  return numTiles;
 }
 
 }

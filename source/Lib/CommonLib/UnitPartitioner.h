@@ -57,7 +57,7 @@ THE POSSIBILITY OF SUCH DAMAGE.
 namespace vvdec
 {
 
-typedef std::vector<UnitArea> Partitioning;
+typedef UnitArea* Partitioning;
 
 //////////////////////////////////////////////////////////////////////////
 // PartManager class - manages the partitioning tree
@@ -97,6 +97,7 @@ struct PartLevel
 {
   PartSplit         split;
   Partitioning      parts;
+  unsigned          numParts;
   unsigned          idx;
   const CodingUnit *cuAbove;
   const CodingUnit *cuLeft;
@@ -105,8 +106,7 @@ struct PartLevel
   bool              qgChromaEnable;
 
   PartLevel();
-  PartLevel( const PartSplit _split, const Partitioning&  _parts );
-  PartLevel( const PartSplit _split,       Partitioning&& _parts );
+  PartLevel( const PartSplit _split, const Partitioning _parts );
 
   void init();
 };
@@ -121,6 +121,9 @@ protected:
 #if _DEBUG
   UnitArea          m_currArea;
 #endif
+  static const size_t partBufSize = 128;
+  UnitArea          m_partBuf[partBufSize];
+  ptrdiff_t         m_partBufIdx;
 
 public:
 
@@ -179,10 +182,10 @@ public:
 
 namespace PartitionerImpl
 {
-  void getCUSubPartitions     ( const UnitArea &area, const CodingStructure &cs, const PartSplit splitType, Partitioning& dst );
-  void getMaxTuTiling         ( const UnitArea &area, const CodingStructure &cs,                            Partitioning& dst );
-  void getTUIntraSubPartitions( const UnitArea &area, const CodingStructure &cs, const bool isDualITree,    const PartSplit splitType, Partitioning &sub, const TreeType treeType );
-  void getSbtTuTiling         ( const UnitArea &area, const CodingStructure &cs, const PartSplit splitType, Partitioning& dst );
+  int getCUSubPartitions     ( const UnitArea &area, const CodingStructure &cs, const PartSplit splitType, Partitioning& dst );
+  int getMaxTuTiling         ( const UnitArea &area, const CodingStructure &cs,                            Partitioning& dst );
+  int getTUIntraSubPartitions( const UnitArea &area, const CodingStructure &cs, const bool isDualITree,    const PartSplit splitType, Partitioning &sub, const TreeType treeType );
+  int getSbtTuTiling         ( const UnitArea &area, const CodingStructure &cs, const PartSplit splitType, Partitioning& dst );
 };
 
 }

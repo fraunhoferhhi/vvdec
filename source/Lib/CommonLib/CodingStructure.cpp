@@ -78,6 +78,7 @@ CodingStructure::CodingStructure(std::shared_ptr<CUCache> cuCache, std::shared_p
   , picture   ( nullptr )
   , m_ctuData ( nullptr )
   , m_ctuDataSize( 0 )
+  , m_predBufSize ( 0 )
   , m_dmvrMvCache ( nullptr )
   , m_dmvrMvCacheSize( 0 )
   , m_cuCache ( cuCache )
@@ -113,6 +114,12 @@ void CodingStructure::destroy()
     m_ctuData = nullptr;
     m_ctuDataSize = 0;
   }
+
+  if( m_predBuf )
+  {
+    m_predBuf.reset();
+    m_predBufSize = 0;
+  }
 }
 
 CodingUnit& CodingStructure::addCU( const UnitArea &unit, const ChannelType chType, const TreeType treeType, const ModeType modeType, const CodingUnit *cuLeft, const CodingUnit *cuAbove )
@@ -146,6 +153,8 @@ CodingUnit& CodingStructure::addCU( const UnitArea &unit, const ChannelType chTy
   CtuData& ctuData = getCtuData( currRsAddr );
   cu->ctuData = &ctuData;
 
+  cu->predBuf = m_predBuf.get() + m_predBufOffset;
+
   for( uint32_t i = 0; i < numCh; i++ )
   {
     if( !cu->blocks[i].valid() )
@@ -157,15 +166,11 @@ CodingUnit& CodingStructure::addCU( const UnitArea &unit, const ChannelType chTy
 
     if( i )
     {
-      cu->predBuf[1]  = m_predBuf[1];
-      m_predBuf  [1] += cuArea;
-      cu->predBuf[2]  = m_predBuf[2];
-      m_predBuf  [2] += cuArea;
+      m_predBufOffset += ( cuArea << 1 );
     }
     else
     {
-      cu->predBuf[0]  = m_predBuf[0];
-      m_predBuf  [0] += cuArea;
+      m_predBufOffset += cuArea;
     }
 
     const ptrdiff_t  stride = ptrdiff_t( 1 ) << m_ctuWidthLog2[i];
@@ -218,7 +223,7 @@ TransformUnit& CodingStructure::addTU( const UnitArea &unit, const ChannelType c
 
   tu->idx               = ++m_numTUs;
   tu->cu                =  &cu;
-  tu->chType            =   chType;
+  tu->setChType         (   chType );
   tu->UnitArea::operator=(  unit );
 
   return *tu;
@@ -299,6 +304,13 @@ void CodingStructure::createInternals( const UnitArea& _unit )
     m_dmvrMvCacheSize = _maxNumDmvrMvs;
     m_dmvrMvCache = ( Mv* ) malloc( sizeof( Mv ) * _maxNumDmvrMvs );
   }
+
+  size_t predBufSize = area.Y().area() + ( isChromaEnabled( _unit.chromaFormat ) ? ( area.Cb().area() + area.Cr().area() ) : 0 );
+  if( predBufSize != m_predBufSize )
+  {
+    m_predBuf.reset( (Pel*) xMalloc( Pel, predBufSize ) );
+    m_predBufSize = predBufSize;
+  }
 }
 
 
@@ -308,8 +320,6 @@ void CodingStructure::rebindPicBufs()
   else                                                    m_reco.destroy();
   if( !picture->m_bufs[PIC_RECON_WRAP    ].bufs.empty() ) m_rec_wrap.createFromBuf( picture->m_bufs[PIC_RECON_WRAP] );
   else                                                    m_rec_wrap.destroy();
-  if( !picture->m_bufs[PIC_PREDICTION    ].bufs.empty() ) m_pred.createFromBuf( picture->m_bufs[PIC_PREDICTION] );
-  else                                                    m_pred.destroy();
 }
 
 void CodingStructure::initStructData()
@@ -344,12 +354,7 @@ void CodingStructure::initStructData()
 
   m_dmvrMvCacheOffset = 0;
 
-  m_predBuf[0]   = m_pred.bufs[0].buf;
-  if( isChromaEnabled( area.chromaFormat ) )
-  {
-    m_predBuf[1] = m_pred.bufs[1].buf;
-    m_predBuf[2] = m_pred.bufs[2].buf;
-  }
+  m_predBufOffset = 0;
 }
 
 MotionBuf CodingStructure::getMotionBuf( const Area& _area )
@@ -380,28 +385,28 @@ PelUnitBuf CodingStructure::getPredBuf(const CodingUnit &unit)
 
   if( unit.Y().valid() )
   {
-    ret.bufs[0].buf    = unit.predBuf[0];
-    ret.bufs[0].stride = unit.blocks [0].width;
-    ret.bufs[0].width  = unit.blocks [0].width;
-    ret.bufs[0].height = unit.blocks [0].height;
+    ret.bufs[0].buf    = unit.predBuf;
+    ret.bufs[0].stride = unit.blocks[0].width;
+    ret.bufs[0].width  = unit.blocks[0].width;
+    ret.bufs[0].height = unit.blocks[0].height;
   }
 
   if( isChromaEnabled( unit.chromaFormat ) )
   {
     if( unit.Cb().valid() )
     {
-      ret.bufs[1].buf    = unit.predBuf[1];
-      ret.bufs[1].stride = unit.blocks [1].width;
-      ret.bufs[1].width  = unit.blocks [1].width;
-      ret.bufs[1].height = unit.blocks [1].height;
+      ret.bufs[1].buf    = unit.predBuf + unit.Y().area();
+      ret.bufs[1].stride = unit.blocks[1].width;
+      ret.bufs[1].width  = unit.blocks[1].width;
+      ret.bufs[1].height = unit.blocks[1].height;
     }
 
     if( unit.Cr().valid() )
     {
-      ret.bufs[2].buf    = unit.predBuf[2];
-      ret.bufs[2].stride = unit.blocks [2].width;
-      ret.bufs[2].width  = unit.blocks [2].width;
-      ret.bufs[2].height = unit.blocks [2].height;
+      ret.bufs[2].buf    = unit.predBuf + unit.Y().area() + unit.Cb().area();
+      ret.bufs[2].stride = unit.blocks[2].width;
+      ret.bufs[2].width  = unit.blocks[2].width;
+      ret.bufs[2].height = unit.blocks[2].height;
     }
   }
 
@@ -416,7 +421,7 @@ const CPelUnitBuf CodingStructure::getPredBuf(const CodingUnit &unit) const
 
   if( unit.Y().valid() )
   {
-    ret.bufs[0].buf    = unit.predBuf[0];
+    ret.bufs[0].buf    = unit.predBuf;
     ret.bufs[0].stride = unit.blocks[0].width;
     ret.bufs[0].width  = unit.blocks[0].width;
     ret.bufs[0].height = unit.blocks[0].height;
@@ -424,7 +429,7 @@ const CPelUnitBuf CodingStructure::getPredBuf(const CodingUnit &unit) const
 
   if( unit.Cb().valid() )
   {
-    ret.bufs[1].buf    = unit.predBuf[1];
+    ret.bufs[1].buf    = unit.predBuf + unit.Y().area();
     ret.bufs[1].stride = unit.blocks[1].width;
     ret.bufs[1].width  = unit.blocks[1].width;
     ret.bufs[1].height = unit.blocks[1].height;
@@ -432,7 +437,7 @@ const CPelUnitBuf CodingStructure::getPredBuf(const CodingUnit &unit) const
 
   if( unit.Cr().valid() )
   {
-    ret.bufs[2].buf    = unit.predBuf[2];
+    ret.bufs[2].buf    = unit.predBuf + unit.Y().area() + unit.Cb().area();
     ret.bufs[2].stride = unit.blocks[2].width;
     ret.bufs[2].width  = unit.blocks[2].width;
     ret.bufs[2].height = unit.blocks[2].height;
@@ -527,12 +532,12 @@ void CodingStructure::fillIBCbuffer( CodingUnit &cu, int lineIdx )
         continue;
 
       const unsigned int lcuWidth = sps->getMaxCUWidth();
-      const int shiftSampleHor = getComponentScaleX(area.compID, cu.chromaFormat);
-      const int shiftSampleVer = getComponentScaleY(area.compID, cu.chromaFormat);
+      const int shiftSampleHor = getComponentScaleX(area.compID(), cu.chromaFormat);
+      const int shiftSampleVer = getComponentScaleY(area.compID(), cu.chromaFormat);
       const int ctuSizeVerLog2 = getLog2(lcuWidth) - shiftSampleVer;
       const int pux = area.x & ((m_IBCBufferWidth >> shiftSampleHor) - 1);
       const int puy = area.y & (( 1 << ctuSizeVerLog2 ) - 1);
-      const CompArea dstArea = CompArea(area.compID, Position(pux, puy), Size(area.width, area.height));
+      const CompArea dstArea = CompArea(area.compID(), Position(pux, puy), Size(area.width, area.height));
       CPelBuf srcBuf = getRecoBuf(area);
       PelBuf dstBuf = m_virtualIBCbuf[lineIdx].getBuf(dstArea);
 

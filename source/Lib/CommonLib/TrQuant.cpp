@@ -215,7 +215,7 @@ void TrQuant::xInvLfnst( TransformUnit &tu, const ComponentID& compID )
   const uint32_t  height   = area.height;
   const uint32_t  lfnstIdx = tu.cu->lfnstIdx();
 
-  if( lfnstIdx && tu.mtsIdx[compID] != MTS_SKIP && ( CU::isSepTree( *tu.cu ) ? true : isLuma( compID ) ) )
+  if( lfnstIdx && tu.mtsIdx( compID ) != MTS_SKIP && ( CU::isSepTree( *tu.cu ) ? true : isLuma( compID ) ) )
   {
     const bool whge3     = width >= 8 && height >= 8;
     const uint16_t* scan = whge3 ? g_coefTopLeftDiagScan8x8[ g_sizeIdxInfo.idxFrom( width ) ] : g_scanOrder[ SCAN_GROUPED_4x4 ][ g_sizeIdxInfo.idxFrom( width ) ][ g_sizeIdxInfo.idxFrom( height ) ];
@@ -315,7 +315,7 @@ void TrQuant::invTransformNxN( TransformUnit &tu, const ComponentID &compID, Pel
     xInvLfnst( tu, compID );
   }
 
-  if( tu.mtsIdx[compID] == 1 )
+  if( tu.mtsIdx( compID )== 1 )
   {
     xITransformSkip( coeff, pResi, tu, compID );
   }
@@ -407,10 +407,10 @@ void TrQuant::getTrTypes( const TransformUnit& tu, const ComponentID compID, int
   }
   else if( isExplicitMTS )
   {
-    if (tu.mtsIdx[compID] > MTS_SKIP)
+    if (tu.mtsIdx( compID ) > MTS_SKIP)
     {
-      int indHor = (tu.mtsIdx[compID] - MTS_DST7_DST7) & 1;
-      int indVer = (tu.mtsIdx[compID] - MTS_DST7_DST7) >> 1;
+      int indHor = (tu.mtsIdx( compID ) - MTS_DST7_DST7) & 1;
+      int indVer = (tu.mtsIdx( compID ) - MTS_DST7_DST7) >> 1;
       trTypeHor = indHor ? DCT8 : DST7;
       trTypeVer = indVer ? DCT8 : DST7;
     }

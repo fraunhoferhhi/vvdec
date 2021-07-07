@@ -387,23 +387,26 @@ static void simdFilterCopy( const ClpRng& clpRng, const Pel* src, const ptrdiff_
 template<X86_VEXT vext, int N, bool shiftBack>
 static void simdInterpolateHorM4( const int16_t* src, ptrdiff_t srcStride, int16_t *dst, ptrdiff_t dstStride, int width, int height, int shift, int offset, const ClpRng& clpRng, int16_t const *coeff )
 {
-  _mm_prefetch( (const char*)src + srcStride, _MM_HINT_T0 );
-  __m128i voffset = _mm_set1_epi32( offset );
-  __m128i vibdimin = _mm_set1_epi16( clpRng.min() );
-  __m128i vibdimax = _mm_set1_epi16( clpRng.max() );
-  __m128i vcoeffh = _mm_loadu_si128( ( __m128i const * )coeff );
+  _mm_prefetch( (const char*) src + srcStride, _MM_HINT_T0 );
 
-  __m128i vzero, vshufc0, vshufc1;
+  const __m128i voffset  = _mm_set1_epi32( offset );
+  const __m128i vibdimin = _mm_set1_epi16( clpRng.min() );
+  const __m128i vibdimax = _mm_set1_epi16( clpRng.max() );
+  const __m128i vzero    = _mm_setzero_si128();
+
+  __m128i vcoeffh;
+  __m128i vshufc0, vshufc1;
   __m128i vsum;
-
-  if( N != 8 ){
-    vcoeffh = _mm_shuffle_epi32( vcoeffh, 0x44 );
-    vzero = _mm_setzero_si128();
+  if( N == 8 )
+  {
+    vcoeffh = _mm_loadu_si128( (__m128i const*) coeff );
+  }
+  else
+  {
+    vcoeffh = _mm_set1_epi64x( *(int64_t const*) coeff );
     vshufc0 = _mm_set_epi8( 0x9, 0x8, 0x7, 0x6, 0x5, 0x4, 0x3, 0x2, 0x7, 0x6, 0x5, 0x4, 0x3, 0x2, 0x1, 0x0 );
     vshufc1 = _mm_set_epi8( 0xd, 0xc, 0xb, 0xa, 0x9, 0x8, 0x7, 0x6, 0xb, 0xa, 0x9, 0x8, 0x7, 0x6, 0x5, 0x4 );
   }
-
-  vzero = _mm_setzero_si128();
 
   for( int row = 0; row < height; row++ )
   {
@@ -460,16 +463,21 @@ static void simdInterpolateHorM8( const int16_t* src, ptrdiff_t srcStride, int16
   _mm_prefetch( (const char*)src + ( width >> 1 ) + srcStride, _MM_HINT_T0 );
   _mm_prefetch( (const char*)src + width + filterSpan + srcStride, _MM_HINT_T0 );
 
-  __m128i voffset  = _mm_set1_epi32( offset );
-  __m128i vibdimin = _mm_set1_epi16( clpRng.min() );
-  __m128i vibdimax = _mm_set1_epi16( clpRng.max() );
-  __m128i vcoeffh  = _mm_loadu_si128( ( __m128i const * )coeff );
+  const __m128i voffset  = _mm_set1_epi32( offset );
+  const __m128i vibdimin = _mm_set1_epi16( clpRng.min() );
+  const __m128i vibdimax = _mm_set1_epi16( clpRng.max() );
 
+  __m128i vcoeffh;
   __m128i vshufc0, vshufc1;
   __m128i vsum, vsuma, vsumb;
 
-  if( N != 8 ){
-    vcoeffh = _mm_shuffle_epi32( vcoeffh, 0x44 );
+  if( N == 8 )
+  {
+    vcoeffh = _mm_loadu_si128( (__m128i const*) coeff );
+  }
+  else
+  {
+    vcoeffh = _mm_set1_epi64x( *(int64_t const*) coeff );
     vshufc0 = _mm_set_epi8( 0x9, 0x8, 0x7, 0x6, 0x5, 0x4, 0x3, 0x2, 0x7, 0x6, 0x5, 0x4, 0x3, 0x2, 0x1, 0x0 );
     vshufc1 = _mm_set_epi8( 0xd, 0xc, 0xb, 0xa, 0x9, 0x8, 0x7, 0x6, 0xb, 0xa, 0x9, 0x8, 0x7, 0x6, 0x5, 0x4 );
   }

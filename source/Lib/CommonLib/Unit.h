@@ -132,12 +132,10 @@ inline Size recalcSize( const ChromaFormat _cf, const ChannelType srcCHt, const 
 
 struct CompArea : public Area
 {
-  CompArea() : Area(), compID(MAX_NUM_TBLOCKS)                                                                                                            { }
-  CompArea(const ComponentID _compID, const Area &_area)                                                          : Area(_area),          compID(_compID) { }
-  CompArea(const ComponentID _compID, const Position& _pos, const Size& _size)                                    : Area(_pos, _size),    compID(_compID) { }
-  CompArea(const ComponentID _compID, const uint32_t _x, const uint32_t _y, const uint32_t _w, const uint32_t _h) : Area(_x, _y, _w, _h), compID(_compID) { }
-
-  ComponentID compID;
+  CompArea() : Area()                                                                                                                                                          { }
+  CompArea(const ComponentID _compID, const Area &_area)                                                          : Area(_area.x, _area.y, _area.width, _area.height, _compID) { }
+  CompArea(const ComponentID _compID, const Position& _pos, const Size& _size)                                    : Area(_pos, Size( _size.width, _size.height, _compID))      { }
+  CompArea(const ComponentID _compID, const uint32_t _x, const uint32_t _y, const uint32_t _w, const uint32_t _h) : Area(_x, _y, _w, _h, _compID)                              { }
 
   Position chromaPos(const ChromaFormat chromaFormat) const;
   Position lumaPos(const ChromaFormat chromaFormat)   const;
@@ -148,16 +146,16 @@ struct CompArea : public Area
   Position compPos(const ChromaFormat chromaFormat, const ComponentID compID) const;
   Position chanPos(const ChromaFormat chromaFormat, const ChannelType chType) const;
 
-  Position topLeftComp    (const ChromaFormat chromaFormat, const ComponentID _compID) const { return recalcPosition(chromaFormat, compID, _compID, *this);                                                     }
-  Position topRightComp   (const ChromaFormat chromaFormat, const ComponentID _compID) const { return recalcPosition(chromaFormat, compID, _compID, { (PosType) (x + width - 1), y                          }); }
-  Position bottomLeftComp (const ChromaFormat chromaFormat, const ComponentID _compID) const { return recalcPosition(chromaFormat, compID, _compID, { x                        , (PosType) (y + height - 1 )}); }
-  Position bottomRightComp(const ChromaFormat chromaFormat, const ComponentID _compID) const { return recalcPosition(chromaFormat, compID, _compID, { (PosType) (x + width - 1), (PosType) (y + height - 1 )}); }
+  Position topLeftComp    (const ChromaFormat chromaFormat, const ComponentID _compID) const { return recalcPosition(chromaFormat, compID(), _compID, *this);                                                     }
+  Position topRightComp   (const ChromaFormat chromaFormat, const ComponentID _compID) const { return recalcPosition(chromaFormat, compID(), _compID, { (PosType) (x + width - 1), y                          }); }
+  Position bottomLeftComp (const ChromaFormat chromaFormat, const ComponentID _compID) const { return recalcPosition(chromaFormat, compID(), _compID, { x                        , (PosType) (y + height - 1 )}); }
+  Position bottomRightComp(const ChromaFormat chromaFormat, const ComponentID _compID) const { return recalcPosition(chromaFormat, compID(), _compID, { (PosType) (x + width - 1), (PosType) (y + height - 1 )}); }
 
-  bool valid() const { return compID < MAX_NUM_TBLOCKS && width != 0 && height != 0; }
+  bool valid() const { return compID() < MAX_NUM_TBLOCKS && width != 0 && height != 0; }
 
   bool operator==(const CompArea &other) const
   {
-    if (compID       != other.compID)       return false;
+    if (compID()       != other.compID())       return false;
 
     return Position::operator==(other) && Size::operator==(other);
   }
@@ -170,7 +168,7 @@ struct CompArea : public Area
 
 inline CompArea clipArea(const CompArea &compArea, const Area &boundingBox)
 {
-  return CompArea(compArea.compID, clipArea((const Area&) compArea, boundingBox));
+  return CompArea(compArea.compID(), clipArea((const Area&) compArea, boundingBox));
 }
 
 // ---------------------------------------------------------------------------
@@ -290,18 +288,23 @@ struct TransformUnit : public UnitArea
 {
   CodingUnit     *cu;
   TransformUnit  *next;
+  unsigned        idx;
 
   uint8_t         maxScanPosX  [MAX_NUM_TBLOCKS];
   uint8_t         maxScanPosY  [MAX_NUM_TBLOCKS];
-  uint8_t         mtsIdx       [MAX_NUM_TBLOCKS];
   int8_t          chromaQp     [2];
   
-  unsigned        idx;
-  ChannelType     chType;
-  uint8_t         jointCbCr;
-  int8_t          cbf;
+  uint8_t         _chType    : 2;
+  uint8_t         jointCbCr  : 2;
+  uint8_t         cbf        : 3;
+  uint8_t         _mtsIdxL   : 3;
+  uint8_t         _mtsIdxU   : 1;
+  uint8_t         _mtsIdxV   : 1;
 
-  TransformUnit() : chType( CH_L ) {}
+  ChannelType     chType()                const { return ChannelType( _chType ); }
+  void            setChType( ChannelType ch )   { _chType = ch; }
+  uint8_t         mtsIdx   ( int c )      const { return !c ? _mtsIdxL :             c == 1 ? _mtsIdxU :         _mtsIdxV; }
+  void            setMtsIdx( int c, uint8_t v ) { if   ( !c ) _mtsIdxL = v; else if( c == 1 ) _mtsIdxU = v; else _mtsIdxV = v; }
 };
 
 // ---------------------------------------------------------------------------
@@ -324,13 +327,9 @@ struct CodingUnit : public UnitArea
   const CodingUnit *above;
   const CodingUnit *left;
   Mv               *mvdL0SubPu; // 7 ptr (8 byte)
-  Pel              *predBuf[MAX_NUM_COMPONENT];
-  unsigned          idx;
+  Pel              *predBuf;
+  uint32_t          idx;
   uint32_t          tileIdx;
-  int32_t           flags2;
-  int32_t           flags0; // 4 int (4 byte)
-
-  bool              planeCbf[MAX_NUM_COMPONENT];
   
   Mv                mv       [NUM_REF_PIC_LIST_01][3];
 
@@ -340,88 +339,130 @@ struct CodingUnit : public UnitArea
 
   SplitSeries       splitSeries;
 
-  int16_t           flags1;
   uint8_t           geoSplitDir;
   uint8_t           mmvdIdx;
   
-  uint8_t           qtDepth; // number of applied quad-splits, before switching to the multi-type-tree (mtt)
   int8_t            chromaQpAdj;
   int8_t            qp;
-  uint8_t           depth;   // number of all splits, applied with generalized splits
 
-  ChannelType       chType()                 const        { return ChannelType( ( flags2 >>  0 ) &   1 ); }
-  bool              rootCbf()                const        { return bool       ( ( flags2 >>  1 ) &   1 ); }
-  bool              skip()                   const        { return bool       ( ( flags2 >>  2 ) &   1 ); }
-  bool              colorTransform()         const        { return bool       ( ( flags2 >>  3 ) &   1 ); }
-  TreeType          treeType()               const        { return TreeType   ( ( flags2 >>  4 ) &   3 ); }
-  ModeType          modeType()               const        { return ModeType   ( ( flags2 >>  6 ) &   3 ); }
-  PredMode          predMode()               const        { return PredMode   ( ( flags2 >>  8 ) &   3 ); }
-  int               ispMode()                const        { return int        ( ( flags2 >> 10 ) &   3 ); }
-  int               bdpcmMode()              const        { return int        ( ( flags2 >> 12 ) &   3 ); }
-  int               bdpcmModeChroma()        const        { return int        ( ( flags2 >> 14 ) &   3 ); }
-  int               lfnstIdx()               const        { return int        ( ( flags2 >> 16 ) &   3 ); }
-  uint8_t           sbtInfo()                const        { return uint8_t    ( ( flags2 >> 18 ) & 255 ); }
+  uint8_t           _sbtInfo;
+  uint8_t           qtDepth         : 3;
+  uint8_t           depth           : 4;
+  uint8_t           _chType         : 1;
+                                     
+  bool              _rootCbf        : 1;
+  bool              _skip           : 1;
+  bool              _colorTransform : 1;
+  bool              _mipTranspose   : 1;
+  uint8_t           _treeType       : 2;
+  uint8_t           _modeType       : 2;
+                                    
+  uint8_t           _predMode       : 2;
+  uint8_t           _bdpcmL         : 2;
+  uint8_t           _bdpcmC         : 2;
+  uint8_t           _lfnstIdx       : 2;
+                                    
+  uint8_t           _ispIdx         : 2;                                 
+  bool              _dmvrCond       : 1;
+  bool              _ciipFlag       : 1;
+  bool              _mergeFlag      : 1;
+  bool              _mmvdFlag       : 1;
+  bool              _affineFlag     : 1;
+  bool              _geoFlag        : 1;
+                                    
+  uint8_t           _mergeType      : 2;
+  uint8_t           _mrgIdx         : 3;
+  uint8_t           _geoMrgIdx0     : 3;
+                                    
+  uint8_t           _geoMrgIdx1     : 3;
+  uint8_t           _affineType     : 2;
+  uint8_t           _interDir       : 2;
+  bool              _mipFlag        : 1;
+                                    
+  uint8_t           _bcw            : 3;
+  uint8_t           _multiRefIdx    : 2;
+  bool              planeCbfY       : 1;
+  bool              planeCbfU       : 1;
+  bool              planeCbfV       : 1;
+  
+  uint8_t           _imv            : 2;
+  uint8_t           _smvd           : 2;
 
-  void              setChType( ChannelType ch )           { flags2 = ( flags2 & ~(   1 <<  0 ) ) | ( ch <<  0 ); }
-  void              setRootCbf( bool b )                  { flags2 = ( flags2 & ~(   1 <<  1 ) ) | (  b <<  1 ); }
-  void              setSkip( bool b )                     { flags2 = ( flags2 & ~(   1 <<  2 ) ) | (  b <<  2 ); }
-  void              setColorTransform( bool b )           { flags2 = ( flags2 & ~(   1 <<  3 ) ) | (  b <<  3 ); }
-  void              setTreeType( TreeType n )             { flags2 = ( flags2 & ~(   3 <<  4 ) ) | (  n <<  4 ); }
-  void              setModeType( ModeType n )             { flags2 = ( flags2 & ~(   3 <<  6 ) ) | (  n <<  6 ); }
-  void              setPredMode( PredMode n )             { flags2 = ( flags2 & ~(   3 <<  8 ) ) | (  n <<  8 ); }
-  void              setIspMode( int n )                   { flags2 = ( flags2 & ~(   3 << 10 ) ) | (  n << 10 ); }
-  void              setBdpcmMode( int n )                 { flags2 = ( flags2 & ~(   3 << 12 ) ) | (  n << 12 ); }
-  void              setBdpcmModeChroma( int n )           { flags2 = ( flags2 & ~(   3 << 14 ) ) | (  n << 14 ); }
-  void              setLfnstIdx( int n )                  { flags2 = ( flags2 & ~(   3 << 16 ) ) | (  n << 16 ); }
-  void              setSbtInfo( int n )                   { flags2 = ( flags2 & ~( 255 << 18 ) ) | (  n << 18 ); }
+  uint8_t            _geoDir0, _geoDir1;
+  
+  uint8_t           sbtInfo()                const        { return _sbtInfo; }
+  ChannelType       chType()                 const        { return ChannelType( _chType ); }
+  bool              rootCbf()                const        { return _rootCbf; }
+  bool              skip()                   const        { return _skip; }
+  bool              colorTransform()         const        { return _colorTransform; }
+  TreeType          treeType()               const        { return TreeType( _treeType ); }
+  ModeType          modeType()               const        { return ModeType( _modeType ); }
+  PredMode          predMode()               const        { return PredMode( _predMode ); }
+  uint8_t           ispMode()                const        { return _ispIdx; }
+  uint8_t           bdpcmMode()              const        { return _bdpcmL; }
+  uint8_t           bdpcmModeChroma()        const        { return _bdpcmC; }
+  uint8_t           lfnstIdx()               const        { return _lfnstIdx; }
+  bool              planeCbf( int c )        const        { return !c ? planeCbfY : c == 1 ? planeCbfU : planeCbfV; }
+
+  void              setChType( ChannelType ch )           { _chType         = ch ; }
+  void              setRootCbf( bool b )                  { _rootCbf        =  b ; }
+  void              setSkip( bool b )                     { _skip           =  b ; }
+  void              setColorTransform( bool b )           { _colorTransform =  b ; }
+  void              setTreeType( TreeType n )             { _treeType       =  n ; }
+  void              setModeType( ModeType n )             { _modeType       =  n ; }
+  void              setPredMode( PredMode n )             { _predMode       =  n ; }
+  void              setIspMode( uint8_t n )               { _ispIdx         =  n ; }
+  void              setBdpcmMode( uint8_t n )             { _bdpcmL         =  n ; }
+  void              setBdpcmModeChroma( uint8_t n )       { _bdpcmC         =  n ; }
+  void              setLfnstIdx( uint8_t n )              { _lfnstIdx       =  n ; }
+  void              setSbtInfo( uint8_t n )               { _sbtInfo        =  n ; }
+  void              setPlaneCbf( int c, bool b )          { if( !c ) planeCbfY = b; else if( c == 1 ) planeCbfU = b; else planeCbfV = b; }
 
   // Prediction Unit Part
   
-  bool              dmvrCondition()          const         { return bool       ( ( flags0 >>  0 ) &  1 ); }
-  bool              mipTransposedFlag()      const         { return bool       ( ( flags0 >>  1 ) &  1 ); }
-  bool              ciipFlag()               const         { return bool       ( ( flags0 >>  2 ) &  1 ); }
-  bool              mergeFlag()              const         { return bool       ( ( flags0 >>  3 ) &  1 ); }
-  bool              mmvdFlag()               const         { return bool       ( ( flags0 >>  5 ) &  1 ); }
-  bool              affineFlag()             const         { return bool       ( ( flags0 >>  6 ) &  1 ); }
-  MergeType         mergeType()              const         { return MergeType  ( ( flags0 >>  7 ) &  3 ); }
-  AffineModel       affineType()             const         { return AffineModel( ( flags0 >>  9 ) &  1 ); }
-  bool              geoFlag()                const         { return bool       ( ( flags0 >> 10 ) &  1 ); }
-  int               mergeIdx()               const         { return int        ( ( flags0 >> 11 ) &  7 ); }
-  int               geoMergeIdx0()           const         { return int        ( ( flags0 >> 11 ) &  7 ); }
-  int               geoMergeIdx1()           const         { return int        ( ( flags0 >> 14 ) &  7 ); }
-  int               interDir()               const         { return int        ( ( flags0 >> 17 ) &  3 ); }
-  int               multiRefIdx()            const         { return int        ( ( flags0 >> 19 ) &  3 ); }
-  bool              mipFlag()                const         { return bool       ( ( flags0 >> 21 ) &  1 ); }
-  int               imv()                    const         { return int        ( ( flags0 >> 22 ) &  3 ); }
-  int               smvdMode()               const         { return int        ( ( flags0 >> 24 ) &  3 ); }
-  int               BcwIdx()                 const         { return int        ( ( flags0 >> 26 ) &  7 ); }
+  bool              dmvrCondition()          const         { return _dmvrCond; }
+  bool              mipTransposedFlag()      const         { return _mipTranspose; }
+  bool              ciipFlag()               const         { return _ciipFlag; }
+  bool              mergeFlag()              const         { return _mergeFlag; }
+  bool              mmvdFlag()               const         { return _mmvdFlag; }
+  bool              affineFlag()             const         { return _affineFlag; }
+  MergeType         mergeType()              const         { return MergeType( _mergeType ); }
+  AffineModel       affineType()             const         { return AffineModel( _affineType ); }
+  bool              geoFlag()                const         { return _geoFlag; }
+  uint8_t           mergeIdx()               const         { return _mrgIdx; }
+  uint8_t           geoMergeIdx0()           const         { return _geoMrgIdx0; }
+  uint8_t           geoMergeIdx1()           const         { return _geoMrgIdx1; }
+  uint8_t           interDir()               const         { return _interDir; }
+  uint8_t           multiRefIdx()            const         { return _multiRefIdx; }
+  bool              mipFlag()                const         { return _mipFlag; }
+  uint8_t           imv()                    const         { return _imv; }
+  uint8_t           smvdMode()               const         { return _smvd; }
+  uint8_t           BcwIdx()                 const         { return _bcw; }
                     
-  int               interDirrefIdxGeo0()     const         { return int        ( ( flags1 >>  0 ) & 255 ); }
-  int               interDirrefIdxGeo1()     const         { return int        ( ( flags1 >>  8 ) & 255 ); }
+  uint8_t           interDirrefIdxGeo0()     const         { return _geoDir0; }
+  uint8_t           interDirrefIdxGeo1()     const         { return _geoDir1; }
 
-  void              setDmvrCondition( bool b )             { flags0 = ( flags0 & ~(  1 <<  0 ) ) | ( b  <<  0 ); }
-  void              setMipTransposedFlag( bool b )         { flags0 = ( flags0 & ~(  1 <<  1 ) ) | ( b  <<  1 ); }
-  void              setCiipFlag( bool b )                  { flags0 = ( flags0 & ~(  1 <<  2 ) ) | ( b  <<  2 ); }
-  void              setMergeFlag( bool b )                 { flags0 = ( flags0 & ~(  1 <<  3 ) ) | ( b  <<  3 ); }
-  void              setMmvdFlag( bool b )                  { flags0 = ( flags0 & ~(  1 <<  5 ) ) | ( b  <<  5 ); }
-  void              setAffineFlag( bool b )                { flags0 = ( flags0 & ~(  1 <<  6 ) ) | ( b  <<  6 ); }
-  void              setMergeType( MergeType mt )           { flags0 = ( flags0 & ~(  3 <<  7 ) ) | ( mt <<  7 ); }
-  void              setAffineType( AffineModel at )        { flags0 = ( flags0 & ~(  1 <<  9 ) ) | ( at <<  9 ); CHECKD( at >= AFFINE_MODEL_NUM, "Needs to be '0' or '1'!" ); }
-  void              setGeoFlag( bool b )                   { flags0 = ( flags0 & ~(  1 << 10 ) ) | ( b  << 10 ); }
-  void              setMergeIdx( int id )                  { flags0 = ( flags0 & ~(  7 << 11 ) ) | ( id << 11 ); CHECKD( id >=  8, "Merge index needs to be smaller than '8'!"); }
-  void              setGeoMergeIdx0( int id )              { flags0 = ( flags0 & ~(  7 << 11 ) ) | ( id << 11 ); CHECKD( id >=  8, "Merge index needs to be smaller than '8'!"); }
-  void              setGeoMergeIdx1( int id )              { flags0 = ( flags0 & ~(  7 << 14 ) ) | ( id << 14 ); CHECKD( id >=  8, "Merge index needs to be smaller than '8'!"); }
-  void              setInterDir( int id )                  { flags0 = ( flags0 & ~(  3 << 17 ) ) | ( id << 17 ); CHECKD( id >=  4, "Inter dir needs to be smaller than '4'!"); }
-  void              setMultiRefIdx( int id )               { flags0 = ( flags0 & ~(  3 << 19 ) ) | ( id << 19 ); CHECKD( id >=  3, "Multi-ref. index needs to be smaller than '3'!"); }
-  void              setMipFlag( bool b )                   { flags0 = ( flags0 & ~(  1 << 21 ) ) | ( b  << 21 ); }
-  void              setImv( int id )                       { flags0 = ( flags0 & ~(  3 << 22 ) ) | ( id << 22 ); CHECKD( id >=  4, "IMV needs to be smaller than '4'!"); }
-  void              setSmvdMode( int id )                  { flags0 = ( flags0 & ~(  3 << 24 ) ) | ( id << 24 ); CHECKD( id >=  4, "SMVD mode needs to be smaller than '4'!"); }
-  void              setBcwIdx( int id )                    { flags0 = ( flags0 & ~(  7 << 26 ) ) | ( id << 26 ); CHECKD( id >=  5, "BCW idx needs to be smaller than '5'!"); }
+  void              setDmvrCondition( bool b )             { _dmvrCond      = b ; }
+  void              setMipTransposedFlag( bool b )         { _mipTranspose  = b ; }
+  void              setCiipFlag( bool b )                  { _ciipFlag      = b ; }
+  void              setMergeFlag( bool b )                 { _mergeFlag     = b ; }
+  void              setMmvdFlag( bool b )                  { _mmvdFlag      = b ; }
+  void              setAffineFlag( bool b )                { _affineFlag    = b ; }
+  void              setMergeType( MergeType mt )           { _mergeType     = mt; }
+  void              setAffineType( AffineModel at )        { _affineType    = at; CHECKD( at >= AFFINE_MODEL_NUM, "Needs to be '0' or '1'!" ); }
+  void              setGeoFlag( bool b )                   { _geoFlag       = b ; }
+  void              setMergeIdx( uint8_t id )              { _mrgIdx        = id; CHECKD( id >=  8, "Merge index needs to be smaller than '8'!"); }
+  void              setGeoMergeIdx0( uint8_t id )          { _geoMrgIdx0    = id; CHECKD( id >=  8, "Merge index needs to be smaller than '8'!"); }
+  void              setGeoMergeIdx1( uint8_t id )          { _geoMrgIdx1    = id; CHECKD( id >=  8, "Merge index needs to be smaller than '8'!"); }
+  void              setInterDir( uint8_t id )              { _interDir      = id; CHECKD( id >=  4, "Inter dir needs to be smaller than '4'!"); }
+  void              setMultiRefIdx( uint8_t id )           { _multiRefIdx   = id; CHECKD( id >=  3, "Multi-ref. index needs to be smaller than '3'!"); }
+  void              setMipFlag( bool b )                   { _mipFlag       = b ; }
+  void              setImv( uint8_t id )                   { _imv           = id; CHECKD( id >=  4, "IMV needs to be smaller than '4'!"); }
+  void              setSmvdMode( uint8_t id )              { _smvd          = id; CHECKD( id >=  4, "SMVD mode needs to be smaller than '4'!"); }
+  void              setBcwIdx( uint8_t id )                { _bcw           = id; CHECKD( id >=  5, "BCW idx needs to be smaller than '5'!"); }
                     
-  void              setInterDirrefIdxGeo0( int id )        { flags1 = ( flags1 & ~( 255 <<  0 ) ) | ( id <<  0 ); CHECKD( id >= 256, "Inter dir needs to be smaller than '256'!"); }
-  void              setInterDirrefIdxGeo1( int id )        { flags1 = ( flags1 & ~( 255 <<  8 ) ) | ( id <<  8 ); CHECKD( id >= 256, "Inter dir needs to be smaller than '256'!"); }
-
-  CodingUnit() : flags2( 0 ), flags0( 0 ), flags1( 0 ) { }
+  void              setInterDirrefIdxGeo0( uint8_t id )    { _geoDir0       = id; }
+  void              setInterDirrefIdxGeo1( uint8_t id )    { _geoDir1       = id; }
 
   CodingUnit& operator=(const MotionInfo& mi);
 

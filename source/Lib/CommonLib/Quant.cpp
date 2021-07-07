@@ -309,7 +309,7 @@ void Quant::dequant( const TransformUnit& tu, CoeffBuf& dstCoeff, const Componen
   const int              maxLog2TrDynamicRange = sps->getMaxLog2TrDynamicRange( toChannelType( compID ) );
   const TCoeff           transformMinimum      = -( 1 << maxLog2TrDynamicRange );
   const TCoeff           transformMaximum      = ( 1 << maxLog2TrDynamicRange ) - 1;
-  const bool             isTransformSkip       = ( tu.mtsIdx[compID] == MTS_SKIP );
+  const bool             isTransformSkip       = ( tu.mtsIdx( compID ) == MTS_SKIP );
   setUseScalingList( tu.cu->slice->getExplicitScalingListUsed() );
   const bool             disableSMForLFNST     = tu.cu->slice->getExplicitScalingListUsed() ? sps->getDisableScalingMatrixForLfnstBlks() : false;
   const bool             isLfnstApplied        = tu.cu->lfnstIdx() > 0 && ( CU::isSepTree( *tu.cu ) ? true : isLuma( compID ) );
@@ -340,7 +340,7 @@ void Quant::dequant( const TransformUnit& tu, CoeffBuf& dstCoeff, const Componen
   const int  originalTransformShift = getTransformShift(channelBitDepth, area.size(), maxLog2TrDynamicRange);
   const bool needSqrtAdjustment     = TU::needsBlockSizeTrafoScale( tu, compID );
   const int  iTransformShift        = (bClipTransformShiftTo0 ? std::max<int>(0, originalTransformShift) : originalTransformShift) + (needSqrtAdjustment?-1:0);
-  const bool depQuant = tu.cu->slice->getDepQuantEnabledFlag() && ( tu.mtsIdx[compID] != MTS_SKIP );
+  const bool depQuant = tu.cu->slice->getDepQuantEnabledFlag() && ( tu.mtsIdx( compID ) != MTS_SKIP );
   const int  QP_per   = depQuant ? ( ( cQP.Qp( isTransformSkip ) + 1 ) / 6 )        : cQP.per( isTransformSkip );
   const int  QP_rem   = depQuant ? (   cQP.Qp( isTransformSkip ) + 1 - 6 * QP_per ) : cQP.rem( isTransformSkip );
   const int  rightShift = (IQUANT_SHIFT + ( depQuant ? 1 : 0 ) - ((isTransformSkip ? 0 : iTransformShift) + QP_per)) + (enableScalingLists ? LOG2_SCALING_LIST_NEUTRAL_VALUE : 0);

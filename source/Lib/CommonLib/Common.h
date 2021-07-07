@@ -55,7 +55,7 @@ THE POSSIBILITY OF SUCH DAMAGE.
 namespace vvdec
 {
 
-typedef int PosType;
+typedef int32_t PosType;
 typedef uint32_t SizeType;
 struct Position
 {
@@ -78,22 +78,25 @@ struct Position
 
 struct Size
 {
-  SizeType width;
-  SizeType height;
+  SizeType width   : 32;
+  SizeType height  : 30;
+  uint8_t  _compID : 2;
 
-  constexpr Size()                                              : width(0),      height(0)       { }
-  constexpr Size(const SizeType _width, const SizeType _height) : width(_width), height(_height) { }
+  constexpr Size(const ComponentID c = MAX_NUM_COMPONENT)                                                 : width(0),      height(0)      , _compID(c) { }
+  constexpr Size(const SizeType _width, const SizeType _height, const ComponentID c = MAX_NUM_COMPONENT ) : width(_width), height(_height), _compID(c) { }
 
   constexpr bool operator!=(const Size &other)      const { return (width != other.width) || (height != other.height); }
   constexpr bool operator==(const Size &other)      const { return (width == other.width) && (height == other.height); }
-  constexpr uint32_t area()                             const { return (uint32_t) width * (uint32_t) height; }
+  constexpr uint32_t area()                         const { return (uint32_t) width * (uint32_t) height; }
+
+  const     ComponentID compID()                    const { return ComponentID( _compID ); }
 };
 
 struct Area : public Position, public Size
 {
-  constexpr Area()                                                                         : Position(),       Size()       { }
-  constexpr Area(const Position &_pos, const Size &_size)                                  : Position(_pos),   Size(_size)  { }
-  constexpr Area(const PosType _x, const PosType _y, const SizeType _w, const SizeType _h) : Position(_x, _y), Size(_w, _h) { }
+  constexpr Area()                                                                                                                   : Position(),       Size()          { }
+  constexpr Area(const Position &_pos, const Size &_size)                                                                            : Position(_pos),   Size(_size)     { }
+  constexpr Area(const PosType _x, const PosType _y, const SizeType _w, const SizeType _h, const ComponentID c = MAX_NUM_COMPONENT ) : Position(_x, _y), Size(_w, _h, c) { }
 
                   Position& pos()                           { return *this; }
   constexpr const Position& pos()                     const { return *this; }
@@ -128,12 +131,12 @@ struct UnitScale
   int posy = 0;
   int area = 0;
 
-  template<typename T> constexpr T scaleHor ( const T &in ) const { return in >> posx; }
-  template<typename T> constexpr T scaleVer ( const T &in ) const { return in >> posy; }
-  template<typename T> constexpr T scaleArea( const T &in ) const { return in >> area; }
+  template<typename T> constexpr T scaleHor ( const T &in ) const { return in >> T( posx ); }
+  template<typename T> constexpr T scaleVer ( const T &in ) const { return in >> T( posy ); }
+  template<typename T> constexpr T scaleArea( const T &in ) const { return in >> T( area ); }
 
-  constexpr Position scale( const Position &pos  ) const { return { pos.x >> posx, pos.y >> posy }; }
-  constexpr Size     scale( const Size     &size ) const { return { size.width >> posx, size.height >> posy }; }
+  constexpr Position scale( const Position &pos  ) const { return { pos.x >> PosType( posx ), pos.y >> PosType( posy ) }; }
+  constexpr Size     scale( const Size     &size ) const { return { SizeType( size.width >> posx ), SizeType( size.height >> posy ) }; }
   constexpr Area     scale( const Area    &_area ) const { return Area{ scale( _area.pos() ), scale( _area.size() ) }; }
 };
 

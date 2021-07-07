@@ -706,8 +706,8 @@ void PelStorage::create( const ChromaFormat _chromaFormat, const Size& _size, co
     }
 
 #endif
-    unsigned totalWidth   = scaledWidth + 2 * xmargin;
-    unsigned totalHeight  = scaledHeight +2 * ymargin;
+    SizeType totalWidth   = scaledWidth + 2 * xmargin;
+    SizeType totalHeight  = scaledHeight +2 * ymargin;
 
     if( _alignment )
     {
@@ -784,7 +784,7 @@ const CPelBuf PelStorage::getBuf( const ComponentID CompID ) const
 
 PelBuf PelStorage::getBuf( const CompArea &blk )
 {
-  const PelBuf& r = bufs[blk.compID];
+  const PelBuf& r = bufs[blk.compID()];
 
   CHECKD( rsAddr( blk.bottomRight(), r.stride ) >= ( ( r.height - 1 ) * r.stride + r.width ), "Trying to access a buf outside of bound!" );
 
@@ -793,7 +793,7 @@ PelBuf PelStorage::getBuf( const CompArea &blk )
 
 const CPelBuf PelStorage::getBuf( const CompArea &blk ) const
 {
-  const PelBuf& r = bufs[blk.compID];
+  const PelBuf& r = bufs[blk.compID()];
   return CPelBuf( r.buf + rsAddr( blk, r.stride ), r.stride, blk );
 }
 
