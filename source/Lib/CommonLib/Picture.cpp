@@ -108,7 +108,6 @@ void Picture::create(const ChromaFormat &_chromaFormat, const Size &size, const 
   margin            = _margin;
   m_bufs[PIC_RECONSTRUCTION].create( _chromaFormat, size, _maxCUSize, _margin, MEMORY_ALIGN_DEF_SIZE );
   m_bufs[PIC_RECON_WRAP    ].create( _chromaFormat, size, _maxCUSize, _margin, MEMORY_ALIGN_DEF_SIZE );
-  m_bufs[PIC_PREDICTION    ].create( _chromaFormat, size );
 }
 
 void Picture::resetForUse()

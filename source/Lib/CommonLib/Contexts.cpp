@@ -82,25 +82,18 @@ void BinProbModel::init( int qp, int initId )
   m_state[1]      = p1 & MASK_1;
 }
 
-
-
-
 CtxSet::CtxSet( std::initializer_list<CtxSet> ctxSets )
 {
-  uint16_t  minOffset = std::numeric_limits<uint16_t>::max();
-  uint16_t  maxOffset = 0;
-  for( auto iter = ctxSets.begin(); iter != ctxSets.end(); iter++ )
+  uint16_t minOffset = std::numeric_limits<uint16_t>::max();
+  uint16_t maxOffset = 0;
+  for( auto& set: ctxSets )
   {
-    minOffset = std::min<uint16_t>( minOffset, (*iter).Offset              );
-    maxOffset = std::max<uint16_t>( maxOffset, (*iter).Offset+(*iter).Size );
+    minOffset = std::min<uint16_t>( minOffset, set.Offset );
+    maxOffset = std::max<uint16_t>( maxOffset, set.Offset + set.Size );
   }
-  Offset  = minOffset;
-  Size    = maxOffset - minOffset;
+  Offset = minOffset;
+  Size   = maxOffset - minOffset;
 }
-
-
-
-
 
 const std::vector<uint8_t>& ContextSetCfg::getInitTable( unsigned initId )
 {
@@ -115,25 +108,26 @@ CtxSet ContextSetCfg::addCtxSet( std::initializer_list<std::initializer_list<uin
   const std::size_t startIdx  = sm_InitTables[0].size();
   const std::size_t numValues = ( *initSet2d.begin() ).size();
         std::size_t setId     = 0;
-  for( auto setIter = initSet2d.begin(); setIter != initSet2d.end() && setId < sm_InitTables.size(); setIter++, setId++ )
+  for( auto& initSet: initSet2d )
   {
-    const std::initializer_list<uint8_t>& initSet   = *setIter;
-    std::vector<uint8_t>&           initTable = sm_InitTables[setId];
+    if( setId >= sm_InitTables.size() )
+      break;
+
     CHECK( initSet.size() != numValues,
            "Number of init values do not match for all sets (" << initSet.size() << " != " << numValues << ")." );
-    initTable.resize( startIdx + numValues );
-    std::size_t elemId = startIdx;
-    for( auto elemIter = ( *setIter ).begin(); elemIter != ( *setIter ).end(); elemIter++, elemId++ )
+
+    for( auto& elemIter: initSet )
     {
-      initTable[elemId] = *elemIter;
+      sm_InitTables[setId].push_back( elemIter );
     }
+
+    setId++;
   }
   return CtxSet( (uint16_t)startIdx, (uint16_t)numValues );
 }
 
 
-#define CNU 35
-std::vector<std::vector<uint8_t>> ContextSetCfg::sm_InitTables(NUMBER_OF_SLICE_TYPES + 1);
+std::array<std::vector<uint8_t>, NUMBER_OF_SLICE_TYPES + 1> ContextSetCfg::sm_InitTables;
 
 // clang-format off
 const CtxSet ContextSetCfg::SplitFlag = ContextSetCfg::addCtxSet
@@ -263,7 +257,7 @@ const CtxSet ContextSetCfg::IPredMode[] =
     {  25, },
     {  34, },
     {   5, },
-  })  
+  })
 };
 
 const CtxSet ContextSetCfg::IntraLumaPlanarFlag = ContextSetCfg::addCtxSet
@@ -673,14 +667,6 @@ const CtxSet ContextSetCfg::SbtPosFlag = ContextSetCfg::addCtxSet
   {  13, },
 });
 
-const CtxSet ContextSetCfg::CrossCompPred = ContextSetCfg::addCtxSet
-({
-  { CNU, CNU, CNU, CNU, CNU, CNU, CNU, CNU, CNU, CNU, },
-  { CNU, CNU, CNU, CNU, CNU, CNU, CNU, CNU, CNU, CNU, },
-  { CNU, CNU, CNU, CNU, CNU, CNU, CNU, CNU, CNU, CNU, },
-  { DWS, DWS, DWS, DWS, DWS, DWS, DWS, DWS, DWS, DWS, },
-});
-
 const CtxSet ContextSetCfg::ChromaQpAdjFlag = ContextSetCfg::addCtxSet
 ({
   { CNU, },
@@ -812,53 +798,28 @@ const CtxSet ContextSetCfg::TsResidualSign = ContextSetCfg::addCtxSet
 
 const unsigned ContextSetCfg::NumberOfContexts = (unsigned)ContextSetCfg::sm_InitTables[0].size();
 
-
 // combined sets
 const CtxSet ContextSetCfg::Sao = { ContextSetCfg::SaoMergeFlag, ContextSetCfg::SaoTypeIdx };
 
 const CtxSet ContextSetCfg::Alf = { ContextSetCfg::ctbAlfFlag, ContextSetCfg::ctbAlfAlternative, ContextSetCfg::AlfUseTemporalFilt };
 
-CtxStore::CtxStore()
-  : m_CtxBuffer ()
-  , m_Ctx       ( nullptr )
-{}
 
-CtxStore::CtxStore( bool dummy )
-  : m_CtxBuffer ( ContextSetCfg::NumberOfContexts )
-  , m_Ctx       ( m_CtxBuffer.data() )
-{}
-
-CtxStore::CtxStore( const CtxStore& ctxStore )
-  : m_CtxBuffer ( ctxStore.m_CtxBuffer )
-  , m_Ctx       ( m_CtxBuffer.data() )
-{}
-
-void CtxStore::init( int qp, int initId )
+void Ctx::init(int qp, int initId)
 {
-  const std::vector<uint8_t>& initTable = ContextSetCfg::getInitTable( initId );
+  const auto& initTable = ContextSetCfg::getInitTable( initId );
   CHECK( m_CtxBuffer.size() != initTable.size(),
-        "Size of init table (" << initTable.size() << ") does not match size of context buffer (" << m_CtxBuffer.size() << ")." );
-  const std::vector<uint8_t> &rateInitTable = ContextSetCfg::getInitTable(NUMBER_OF_SLICE_TYPES);
-  CHECK(m_CtxBuffer.size() != rateInitTable.size(),
-        "Size of rate init table (" << rateInitTable.size() << ") does not match size of context buffer ("
-                                    << m_CtxBuffer.size() << ").");
-  int clippedQP = Clip3( 0, MAX_QP, qp );
+         "Size of init table (" << initTable.size() << ") does not match size of context buffer (" << m_CtxBuffer.size() << ")." );
+
+  const auto& rateInitTable = ContextSetCfg::getInitTable( NUMBER_OF_SLICE_TYPES );
+  CHECK( m_CtxBuffer.size() != rateInitTable.size(),
+         "Size of rate init table (" << rateInitTable.size() << ") does not match size of context buffer (" << m_CtxBuffer.size() << ")." );
+
+  const int clippedQP = Clip3( 0, MAX_QP, qp );
   for( std::size_t k = 0; k < m_CtxBuffer.size(); k++ )
   {
     m_CtxBuffer[k].init( clippedQP, initTable[k] );
-    m_CtxBuffer[k].setLog2WindowSize(rateInitTable[k]);
+    m_CtxBuffer[k].setLog2WindowSize( rateInitTable[k] );
   }
 }
-
-Ctx::Ctx() : m_CtxStore_Std( true ) {}
-Ctx::Ctx( const Ctx& ctx ) : m_CtxStore_Std( ctx.m_CtxStore_Std ) {}
-
-#if defined( __INTEL_COMPILER )
-Ctx::operator explicit const CtxStore&()         const { return m_CtxStore_Std; }
-Ctx::operator explicit       CtxStore&()               { return m_CtxStore_Std; }
-#else
-Ctx::operator const CtxStore&()         const { return m_CtxStore_Std; }
-Ctx::operator       CtxStore&()               { return m_CtxStore_Std; }
-#endif
 
 }

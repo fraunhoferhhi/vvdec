@@ -394,8 +394,8 @@ void InterPrediction::xSubPuMC( PredictionUnit& pu, PelUnitBuf& predBuf )
   const Position puPos    = pu.lumaPos();
   const Size puSize       = pu.lumaSize();
 
-  const int numPartLine   = std::max( puSize.width  >> ATMVP_SUB_BLOCK_SIZE, 1u );
-  const int numPartCol    = std::max( puSize.height >> ATMVP_SUB_BLOCK_SIZE, 1u );
+  const int numPartLine   = std::max<SizeType>( puSize.width  >> ATMVP_SUB_BLOCK_SIZE, 1u );
+  const int numPartCol    = std::max<SizeType>( puSize.height >> ATMVP_SUB_BLOCK_SIZE, 1u );
   const int puHeight      = numPartCol  == 1 ? puSize.height : 1 << ATMVP_SUB_BLOCK_SIZE;
   const int puWidth       = numPartLine == 1 ? puSize.width  : 1 << ATMVP_SUB_BLOCK_SIZE;
 
@@ -412,6 +412,7 @@ void InterPrediction::xSubPuMC( PredictionUnit& pu, PelUnitBuf& predBuf )
 
   subPu.setMergeType ( MRG_TYPE_DEFAULT_N );
   subPu.setAffineFlag( false );
+  subPu.setGeoFlag   ( false );
   subPu.setBcwIdx    ( pu.BcwIdx() );
   subPu.setImv       ( pu.imv() );
   subPu.setSmvdMode  ( pu.smvdMode() );
@@ -520,6 +521,7 @@ void InterPrediction::xSubPuBio(PredictionUnit& pu, PelUnitBuf& predBuf )
   subPu.setMmvdFlag  ( pu.mmvdFlag() );
   subPu.setMergeFlag ( pu.mergeFlag() );
   subPu.setCiipFlag  ( pu.ciipFlag() );
+  subPu.setGeoFlag   ( pu.geoFlag() );
 //  subPu.mvRefine = pu.mvRefine;
   subPu.setAffineFlag( pu.affineFlag() );
   subPu.refIdx[0]    = pu.refIdx[0];
@@ -1975,11 +1977,11 @@ void InterPrediction::xFillIBCBuffer(CodingUnit &cu)
         continue;
 
       const unsigned int lcuWidth = cu.sps->getMaxCUWidth();
-      const int shiftSample = getComponentScaleX(area.compID, cu.chromaFormat);
+      const int shiftSample = getComponentScaleX(area.compID(), cu.chromaFormat);
       const int ctuSizeLog2 = getLog2(lcuWidth) - shiftSample;
       const int pux = area.x & ((m_IBCBufferWidth >> shiftSample) - 1);
       const int puy = area.y & (( 1 << ctuSizeLog2 ) - 1);
-      const CompArea dstArea = CompArea(area.compID, Position(pux, puy), Size(area.width, area.height));
+      const CompArea dstArea = CompArea(area.compID(), Position(pux, puy), Size(area.width, area.height));
       CPelBuf srcBuf = cu.cs->getRecoBuf(area);
       PelBuf dstBuf = m_IBCBuffer.getBuf(dstArea);
 

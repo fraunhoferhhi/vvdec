@@ -103,7 +103,7 @@ CoeffCodingContext::CoeffCodingContext( const TransformUnit& tu, ComponentID com
   , m_sigCoeffGroupFlag         ()
   , m_bdpcm                     (isLuma(component) ? tu.cu->bdpcmMode() : tu.cu->bdpcmModeChroma())
   , m_regBinLimit               ( ( TU::getTbAreaAfterCoefZeroOut( tu, component ) * ( isLuma( component ) ? MAX_TU_LEVEL_CTX_CODED_BIN_CONSTRAINT_LUMA : MAX_TU_LEVEL_CTX_CODED_BIN_CONSTRAINT_CHROMA ) ) >> 4 )
-  , m_ts                        (tu.mtsIdx[component] == MTS_SKIP)
+  , m_ts                        (tu.mtsIdx( component ) == MTS_SKIP)
 {
   if (m_chType == CHANNEL_TYPE_CHROMA)
   {

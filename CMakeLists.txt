@@ -10,7 +10,7 @@ if( NOT CMAKE_VERSION VERSION_LESS 3.12.0 )
 endif()
 
 # project name
-project( vvdec VERSION 1.1.1 )
+project( vvdec VERSION 1.1.2 )
 
 set( VVDEC_ENABLE_X86_SIMD TRUE )
 set( VVDEC_ENABLE_ARM_SIMD FALSE )
@@ -137,7 +137,7 @@ set( CMAKE_RUNTIME_OUTPUT_DIRECTORY_MINSIZEREL     "${CMAKE_SOURCE_DIR}/bin/mins
 #if( CMAKE_BUILD_TYPE STREQUAL "RelWithDebInfo" )
 #    set( VVDEC_ENABLE_ITT ON CACHE BOOL "Enable Intel Runtime Support for Profiling" )
 #else()
-#    set( VVDEC_ENABLE_ITT OFF CACHE BOOL "Enable Intel Runtime Support for Profiling" )
+    set( VVDEC_ENABLE_ITT OFF CACHE BOOL "Enable Intel Runtime Support for Profiling" )
 #endif()
 
 # set default CMAKE_BUILD_TYPE to Release if not set
@@ -206,36 +206,37 @@ if( CCACHE_FOUND )
 endif()
 
 if( VVDEC_ENABLE_ITT )
+  # search for Intel VTune
   if( MSVC )
-    set( ITT_PATH "c:/Program Files (x86)/IntelSWTools/VTune Amplifier/" CACHE STRING "Path to the installation directory of Intel VTunes" )
+    set( VVDEC_ITT_PATH "c:/Program Files (x86)/IntelSWTools/VTune Amplifier/" CACHE STRING "Path to the installation directory of Intel VTunes" )
   elseif( APPLE )
     message( WARNING "Not yet supported on Mac OS X" )
   elseif( UNIX OR MINGW )
     if( EXISTS "/opt/intel/vtune_profiler" )
-      set( ITT_PATH "/opt/intel/vtune_profiler" CACHE STRING "Path to the installation directory of Intel VTunes" )
+      set( VVDEC_ITT_PATH "/opt/intel/vtune_profiler" CACHE STRING "Path to the installation directory of Intel VTunes" )
     else()
-      set( ITT_PATH "/opt/intel/vtune_amplifier" CACHE STRING "Path to the installation directory of Intel VTunes" )
+      set( VVDEC_ITT_PATH "/opt/intel/vtune_amplifier" CACHE STRING "Path to the installation directory of Intel VTunes" )
     endif()
   endif()
 
-  if( EXISTS ${ITT_PATH} )
-    set( LIB_NAME INTEL_ITT )
-    add_library( ${LIB_NAME} STATIC IMPORTED GLOBAL )
+  if( EXISTS ${VVDEC_ITT_PATH}/lib64 AND EXISTS ${VVDEC_ITT_PATH}/include )
+    set( INTEL_ITT_LINK_TARGET INTEL_ITT )
+    add_library( ${INTEL_ITT_LINK_TARGET} STATIC IMPORTED GLOBAL )
     if( MSVC )
-      set_target_properties( ${LIB_NAME} PROPERTIES IMPORTED_LOCATION        ${ITT_PATH}/lib64/libittnotify.lib )
+      set_target_properties( ${INTEL_ITT_LINK_TARGET} PROPERTIES IMPORTED_LOCATION        ${VVDEC_ITT_PATH}/lib64/libittnotify.lib )
     elseif( APPLE )
       # not supported
     elseif( UNIX OR MINGW )
-      set_target_properties( ${LIB_NAME} PROPERTIES IMPORTED_LOCATION        ${ITT_PATH}/lib64/libittnotify.a )
-      set_target_properties( ${LIB_NAME} PROPERTIES INTERFACE_LINK_LIBRARIES dl )
+      set_target_properties( ${INTEL_ITT_LINK_TARGET} PROPERTIES IMPORTED_LOCATION        ${VVDEC_ITT_PATH}/lib64/libittnotify.a )
+      set_target_properties( ${INTEL_ITT_LINK_TARGET} PROPERTIES INTERFACE_LINK_LIBRARIES dl )
     endif()
 
     # set include directory. relative paths do not work.
-    set_target_properties( ${LIB_NAME} PROPERTIES INTERFACE_INCLUDE_DIRECTORIES ${ITT_PATH}/include )
+    set_target_properties( ${INTEL_ITT_LINK_TARGET} PROPERTIES INTERFACE_INCLUDE_DIRECTORIES ${VVDEC_ITT_PATH}/include )
     set( CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DTRACE_ENABLE_ITT" )
     set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DTRACE_ENABLE_ITT" )
   else()
-    message( WARNING "ITT_PATH ${ITT_PATH} not found, ignoring option VVCLib_ENABLE_ITT" )
+    message( WARNING "VVDEC_ITT_PATH ${VVDEC_ITT_PATH} not found, ignoring option VVDEC_ENABLE_ITT" )
   endif()
 endif()
 

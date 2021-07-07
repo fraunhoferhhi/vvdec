@@ -77,8 +77,8 @@ void DecSlice::parseSlice( Slice* slice, InputBitstream* bitstream, int threadId
                                                                                    : bitstream->getNumBitsLeft() ) );
   }
 
-  const SPS*     sps          = slice->getSPS();
-  Picture*       pic          = slice->getPic();
+  const SPS* sps = slice->getSPS();
+  Picture*   pic = slice->getPic();
 
   // setup coding structure
   CodingStructure& cs = *pic->cs;
@@ -99,8 +99,7 @@ void DecSlice::parseSlice( Slice* slice, InputBitstream* bitstream, int threadId
 
   AdaptiveLoopFilter::reconstructCoeffAPSs( *slice );
 
-  CABACDecoder cabacDecoder;
-  CABACReader& cabacReader = *cabacDecoder.getCABACReader();
+  CABACReader cabacReader;
   cabacReader.initBitstream( ppcSubstreams[0].get() );
   cabacReader.initCtxModels( *slice );
 
@@ -156,7 +155,7 @@ void DecSlice::parseSlice( Slice* slice, InputBitstream* bitstream, int threadId
       }
       if( cs.getCURestricted( pos.offset(0, -1), pos, slice->getIndependentSliceIdx(), tileIdx, CH_L ) )
       {
-        cabacReader.getCtx() = m_entropyCodingSyncContextState[threadId]; // TODO: sync this
+        cabacReader.setCtx( m_entropyCodingSyncContextState[threadId] );
       }
       pic->m_prevQP[0] = pic->m_prevQP[1] = slice->getSliceQp();
     }
@@ -172,7 +171,7 @@ void DecSlice::parseSlice( Slice* slice, InputBitstream* bitstream, int threadId
 
     if( ctuXPosInCtus == tileXPosInCtus && wavefrontsEnabled )
     {
-      m_entropyCodingSyncContextState[threadId] = cabacReader.getCtx();  // TODO: sync this
+      m_entropyCodingSyncContextState[threadId] = cabacReader.getCtx();
     }
 
     if( ctuIdx == slice->getNumCtuInSlice()-1 )

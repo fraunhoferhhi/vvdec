@@ -262,7 +262,7 @@ void DecCu::predAndReco( CodingUnit& cu, bool doCiipIntra )
           continue;
         }
 
-        const ComponentID compID = area.compID;
+        const ComponentID compID = area.compID();
         const ChannelType chType = toChannelType( compID );
 
         PelBuf piPred;
@@ -354,7 +354,7 @@ void DecCu::predAndReco( CodingUnit& cu, bool doCiipIntra )
 
         if( doChrScale )
         {
-          const Area area       = tu.Y().valid() ? tu.Y() : Area(recalcPosition(tu.chromaFormat, tu.chType, CHANNEL_TYPE_LUMA, tu.blocks[tu.chType].pos()), recalcSize(tu.chromaFormat, tu.chType, CHANNEL_TYPE_LUMA, tu.blocks[tu.chType].size()));
+          const Area area       = tu.Y().valid() ? tu.Y() : Area(recalcPosition(tu.chromaFormat, tu.chType(), CHANNEL_TYPE_LUMA, tu.blocks[tu.chType()].pos()), recalcSize(tu.chromaFormat, tu.chType(), CHANNEL_TYPE_LUMA, tu.blocks[tu.chType()].size()));
           int chromaResScaleInv = m_pcReshape->calculateChromaAdjVpduNei( tu, area.pos() );
           piReco.scaleSignal( chromaResScaleInv, slice.clpRng( compID ) );
         }
@@ -382,9 +382,9 @@ void DecCu::predAndReco( CodingUnit& cu, bool doCiipIntra )
     {
       for( const auto &blk : cu.blocks )
       {
-        if( blk.valid() && !cu.planeCbf[blk.compID] )
+        if( blk.valid() && !cu.planeCbf( blk.compID() ) )
         {
-          predBuf.bufs[blk.compID] = recoBuf.bufs[blk.compID];
+          predBuf.bufs[blk.compID()] = recoBuf.bufs[blk.compID()];
         }
       }
     }
@@ -499,7 +499,7 @@ void DecCu::finishLMCSAndReco( CodingUnit &cu )
         {
           recoBuf.reconstruct( predBuf, recoBuf, cu.slice->clpRngs() );
         }
-        else if( cu.planeCbf[compID] )
+        else if( cu.planeCbf( compID ) )
         {
           recoBuf.copyFrom( predBuf );
         }
@@ -521,7 +521,7 @@ void DecCu::reconstructResi( CodingUnit &cu )
         continue;
       }
 
-      const ComponentID compID = area.compID;
+      const ComponentID compID = area.compID();
 
       //===== inverse transform =====
       PelBuf piResi = cs.getRecoBuf( area );
@@ -580,7 +580,7 @@ void DecCu::xIntraRecACT( CodingUnit &cu )
 
     for( const CompArea &area : tu.blocks )
     {
-      const ComponentID compID = area.compID;
+      const ComponentID compID = area.compID();
 
       if( compID == COMPONENT_Y )
       {
@@ -598,7 +598,7 @@ void DecCu::xIntraRecACT( CodingUnit &cu )
 
       if( doChrScale )
       {
-        const Area area       = tu.Y().valid() ? tu.Y() : Area(recalcPosition(tu.chromaFormat, tu.chType, CHANNEL_TYPE_LUMA, tu.blocks[tu.chType].pos()), recalcSize(tu.chromaFormat, tu.chType, CHANNEL_TYPE_LUMA, tu.blocks[tu.chType].size()));
+        const Area area       = tu.Y().valid() ? tu.Y() : Area(recalcPosition(tu.chromaFormat, tu.chType(), CHANNEL_TYPE_LUMA, tu.blocks[tu.chType()].pos()), recalcSize(tu.chromaFormat, tu.chType(), CHANNEL_TYPE_LUMA, tu.blocks[tu.chType()].size()));
         int chromaResScaleInv = m_pcReshape->calculateChromaAdjVpduNei( tu, area.pos() );
         piReco.scaleSignal( chromaResScaleInv, slice.clpRng( compID ) );
       }
@@ -611,7 +611,7 @@ void DecCu::xIntraRecACT( CodingUnit &cu )
         continue;
       }
 
-      const ComponentID compID = area.compID;
+      const ComponentID compID = area.compID();
       const ChannelType chType = toChannelType( compID );
 
       PelBuf piPred;

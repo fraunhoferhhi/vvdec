@@ -63,17 +63,16 @@ namespace vvdec
 class CABACReader
 {
 public:
-  CABACReader( BinDecoder& binDecoder ) : m_BinDecoder( binDecoder ), m_Bitstream( 0 ) {}
-  virtual ~CABACReader() {}
+  CABACReader()  = default;
+  ~CABACReader() = default;
 
 public:
 
   void        initCtxModels             ( Slice&                        slice );
   void        initBitstream             ( InputBitstream*               bitstream )           { m_Bitstream = bitstream; m_BinDecoder.init( m_Bitstream ); }
   const Ctx&  getCtx                    ()                                            const   { return m_BinDecoder.getCtx();  }
-  Ctx&        getCtx                    ()                                                    { return m_BinDecoder.getCtx();  }
+  void        setCtx                    ( const Ctx& ctx )                                    { m_BinDecoder.setCtx( ctx );    }
 
-public:
   // slice segment data (clause 7.3.8.1)
   bool        terminating_bit           ();
   void        remaining_bytes           ( bool                          noTrailingBytesExpected );
@@ -163,7 +162,6 @@ private:
 
   void        xReadTruncBinCode         ( uint32_t &symbol, uint32_t maxSymbol );
 
-public:
 private:
   TCoeffSig       m_cffTmp  [( MAX_TU_SIZE_FOR_PROFILE + 2 ) * ( MAX_TU_SIZE_FOR_PROFILE + 2 )];
 
@@ -171,24 +169,10 @@ private:
   int             m_numSig [256];
   unsigned        m_sub1   [256];
   int             m_blkPos [MAX_TU_SIZE_FOR_PROFILE*MAX_TU_SIZE_FOR_PROFILE];
-  BinDecoder&     m_BinDecoder;
-  InputBitstream* m_Bitstream;
-  Slice*          m_slice;
+  BinDecoder      m_BinDecoder;
+  InputBitstream* m_Bitstream = nullptr;
+  Slice*          m_slice     = nullptr;
 };
 
-
-class CABACDecoder
-{
-public:
-  CABACDecoder()
-    : m_CABACReaderStd  ( m_BinDecoderStd )
-  {}
-
-  CABACReader*                getCABACReader    ()       { return &m_CABACReaderStd; }
-
-private:
-  BinDecoder              m_BinDecoderStd;
-  CABACReader             m_CABACReaderStd;
-};
 
 }

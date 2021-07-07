@@ -307,7 +307,7 @@ static const int MIN_TU_SIZE =                                      4;
 static const int MAX_LOG2_TU_SIZE_PLUS_ONE =                        7; ///< log2(MAX_TU_SIZE) + 1
 static const int MAX_NUM_PARTS_IN_CTU =                         ( ( MAX_CU_SIZE * MAX_CU_SIZE ) >> ( MIN_CU_LOG2 << 1 ) );
 static const int MAX_TU_SIZE_FOR_PROFILE =                         64;
-static const int MAX_LOG2_DIFF_CU_TR_SIZE =                         3;
+static const int MAX_LOG2_DIFF_CU_TR_SIZE =                         2;
 static const int MAX_CU_TILING_PARTITIONS = 1 << ( MAX_LOG2_DIFF_CU_TR_SIZE << 1 );
 
 static const int JVET_C0024_ZERO_OUT_TH =                          32;
@@ -499,6 +499,11 @@ T* aligned_malloc(size_t len, size_t alignement) {
 #define xFree( ptr )                free     ( ptr )
 #endif //#if ALIGNED_MALLOC
 
+template<class T> struct AlignedDeleter
+{
+  void operator()( T* p ) const { xFree( p ); };
+};
+
 #if defined _MSC_VER
 #define ALIGN_DATA(nBytes,v) __declspec(align(nBytes)) v
 #else
@@ -531,7 +536,7 @@ T* aligned_malloc(size_t len, size_t alignement) {
 #if ENABLE_SIMD_OPT
 
 #ifdef TARGET_SIMD_X86
-typedef enum{
+typedef enum {
   SCALAR = 0,
   SSE41,
   SSE42,

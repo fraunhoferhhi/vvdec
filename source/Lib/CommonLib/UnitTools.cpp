@@ -3741,7 +3741,7 @@ int TU::getICTMode( const TransformUnit& tu, bool sign )
 bool TU::needsSqrt2Scale( const TransformUnit &tu, const ComponentID &compID )
 {
   const Size &size            = tu.blocks[compID];
-  const bool  isTransformSkip = tu.mtsIdx[compID] == 1;
+  const bool  isTransformSkip = tu.mtsIdx( compID ) == 1;
   return !isTransformSkip && ( ( getLog2( size.width ) + getLog2( size.height ) ) & 1 ) == 1;
 }
 
@@ -3796,7 +3796,7 @@ int TU::getTbAreaAfterCoefZeroOut(const TransformUnit &tu, const ComponentID com
   int tbZeroOutWidth  = tu.blocks[compID].width;
   int tbZeroOutHeight = tu.blocks[compID].height;
 
-  if( compID == COMPONENT_Y && ( tu.mtsIdx[compID] > MTS_SKIP || ( tu.cu->sps->getUseMTS() && tu.cu->sbtInfo() != 0 && tbZeroOutWidth <= 32 && tbZeroOutHeight <= 32 ) ) )
+  if( compID == COMPONENT_Y && ( tu.mtsIdx( compID ) > MTS_SKIP || ( tu.cu->sps->getUseMTS() && tu.cu->sbtInfo() != 0 && tbZeroOutWidth <= 32 && tbZeroOutHeight <= 32 ) ) )
   {
     tbZeroOutWidth  = (tbZeroOutWidth  == 32) ? 16 : tbZeroOutWidth;
     tbZeroOutHeight = (tbZeroOutHeight == 32) ? 16 : tbZeroOutHeight;

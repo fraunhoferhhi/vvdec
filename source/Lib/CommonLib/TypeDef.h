@@ -220,7 +220,7 @@ enum ApsTypeValues
 };
 
 // EMT transform tags
-enum TransType : int8_t
+enum TransType : uint8_t
 {
   DCT2           = 0,
   DCT8           = 1,
@@ -228,7 +228,7 @@ enum TransType : int8_t
   NUM_TRANS_TYPE
 };
 
-enum MTSIdx
+enum MTSIdx : uint8_t
 {
   MTS_DCT2_DCT2 = 0,
   MTS_SKIP = 1,
@@ -238,7 +238,7 @@ enum MTSIdx
   MTS_DCT8_DCT8 = 5
 };
 
-enum ISPType : int8_t
+enum ISPType : uint8_t
 {
   NOT_INTRA_SUBPARTITIONS = 0,
   HOR_INTRA_SUBPARTITIONS = 1,
@@ -246,7 +246,7 @@ enum ISPType : int8_t
   NUM_INTRA_SUBPARTITIONS_MODES
 };
 
-enum SbtIdx : int8_t
+enum SbtIdx : uint8_t
 {
   SBT_OFF_DCT  = 0,
   SBT_VER_HALF = 1,
@@ -256,7 +256,7 @@ enum SbtIdx : int8_t
   NUMBER_SBT_IDX
 };
 
-enum SbtPos : int8_t
+enum SbtPos : uint8_t
 {
   SBT_POS0 = 0,
   SBT_POS1 = 1,
@@ -273,7 +273,7 @@ enum SliceType
 };
 
 /// chroma formats (according to semantics of chroma_format_idc)
-enum ChromaFormat : int8_t
+enum ChromaFormat : uint8_t
 {
   CHROMA_400        = 0,
   CHROMA_420        = 1,
@@ -282,21 +282,21 @@ enum ChromaFormat : int8_t
   NUM_CHROMA_FORMAT
 };
 
-enum ChannelType : int8_t
+enum ChannelType : uint8_t
 {
   CHANNEL_TYPE_LUMA    = 0,
   CHANNEL_TYPE_CHROMA  = 1,
   MAX_NUM_CHANNEL_TYPE
 };
 
-enum TreeType : int8_t
+enum TreeType : uint8_t
 {
   TREE_D = 0, //default tree status (for single-tree slice, TREE_D means joint tree; for dual-tree I slice, TREE_D means TREE_L for luma and TREE_C for chroma)
   TREE_L = 1, //separate tree only contains luma (may split)
   TREE_C = 2, //separate tree only contains chroma (not split), to avoid small chroma block
 };
 
-enum ModeType : int8_t
+enum ModeType : uint8_t
 {
   MODE_TYPE_ALL = 0, //all modes can try
   MODE_TYPE_INTER = 1, //can try inter
@@ -306,7 +306,7 @@ enum ModeType : int8_t
 #define CH_L CHANNEL_TYPE_LUMA
 #define CH_C CHANNEL_TYPE_CHROMA
 
-enum ComponentID : int8_t
+enum ComponentID : uint8_t
 {
   COMPONENT_Y         = 0,
   COMPONENT_Cb        = 1,
@@ -318,7 +318,7 @@ enum ComponentID : int8_t
 
 #define MAP_CHROMA(c) (ComponentID(c))
 
-enum DeblockEdgeDir : int8_t
+enum DeblockEdgeDir : uint8_t
 {
   EDGE_VER     = 0,
   EDGE_HOR     = 1,
@@ -326,7 +326,7 @@ enum DeblockEdgeDir : int8_t
 };
 
 /// supported prediction type
-enum PredMode : int8_t
+enum PredMode : uint8_t
 {
   MODE_INTER                 = 0,     ///< inter-prediction mode
   MODE_INTRA                 = 1,     ///< intra-prediction mode
@@ -335,7 +335,7 @@ enum PredMode : int8_t
 };
 
 /// reference list index
-enum RefPicList : int8_t
+enum RefPicList : uint8_t
 {
   REF_PIC_LIST_0               = 0,   ///< reference list 0
   REF_PIC_LIST_1               = 1,   ///< reference list 1
@@ -362,7 +362,7 @@ enum DFunc
 };
 
 /// motion vector predictor direction used in AMVP
-enum MvpDir : int8_t
+enum MvpDir : uint8_t
 {
   MD_LEFT = 0,          ///< MVP of left block
   MD_ABOVE,             ///< MVP of above block
@@ -533,7 +533,7 @@ enum NalUnitType
   NAL_UNIT_INVALID
 };
 
-enum MergeType : int8_t
+enum MergeType : uint8_t
 {
   MRG_TYPE_DEFAULT_N        = 0, // 0
   MRG_TYPE_SUBPU_ATMVP,
@@ -541,21 +541,21 @@ enum MergeType : int8_t
   NUM_MRG_TYPE                   // 5
 };
 
-enum TriangleSplit : int8_t
+enum TriangleSplit : uint8_t
 {
   TRIANGLE_DIR_135 = 0,
   TRIANGLE_DIR_45,
   TRIANGLE_DIR_NUM
 };
 
-enum AffineModel : int8_t
+enum AffineModel : uint8_t
 {
   AFFINEMODEL_4PARAM,
   AFFINEMODEL_6PARAM,
   AFFINE_MODEL_NUM
 };
 
-enum ImvMode : int8_t
+enum ImvMode : uint8_t
 {
   IMV_OFF = 0,
   IMV_FPEL,
@@ -805,7 +805,7 @@ public:
   static const size_type max_num_elements = N;
 
   static_vector() : _size( 0 )                                 { }
-  static_vector( size_t N_ ) : _size( N_ )                     { }
+  static_vector( size_t N_ ) : _size( N_ )                     { CHECKD( _size > N, "capacity exceeded" ); }
   static_vector( size_t N_, const T& _val ) : _size( 0 )       { resize( N_, _val ); }
   template<typename It>
   static_vector( It _it1, It _it2 ) : _size( 0 )               { while( _it1 < _it2 ) _arr[ _size++ ] = *_it1++; }

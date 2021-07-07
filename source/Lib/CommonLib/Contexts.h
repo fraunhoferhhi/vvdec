@@ -64,11 +64,7 @@ static constexpr int     PROB_BITS_1 = 14;   // Number of bits to represent 2nd 
 static constexpr int     MASK_0      = ~(~0u << PROB_BITS_0) << (PROB_BITS - PROB_BITS_0);
 static constexpr int     MASK_1      = ~(~0u << PROB_BITS_1) << (PROB_BITS - PROB_BITS_1);
 static constexpr uint8_t DWS         = 8;   // 0x47 Default window sizes
-
-struct BinFracBits
-{
-  uint32_t intBits[2];
-};
+static constexpr uint8_t CNU         = 35;
 
 class ProbModelTables
 {
@@ -151,32 +147,27 @@ private:
 };
 
 
-
-
-
-
 class CtxSet
 {
 public:
   CtxSet( uint16_t offset, uint16_t size ) : Offset( offset ), Size( size ) {}
-  CtxSet( const CtxSet& ctxSet ) : Offset( ctxSet.Offset ), Size( ctxSet.Size ) {}
   CtxSet( std::initializer_list<CtxSet> ctxSets );
-public:
-  uint16_t  operator()  ()  const
+
+  uint16_t operator()() const
   {
     return Offset;
   }
-  uint16_t  operator()  ( uint16_t inc )  const
+  uint16_t operator()( uint16_t inc ) const
   {
     CHECKD( inc >= Size, "Specified context increment (" << inc << ") exceed range of context set [0;" << Size - 1 << "]." );
 
     return Offset + inc;
   }
-public:
-  uint16_t  Offset;
-  uint16_t  Size;
-};
 
+private:
+  uint16_t Offset;
+  uint16_t Size;
+};
 
 
 class ContextSetCfg
@@ -198,7 +189,6 @@ public:
   static const CtxSet   CclmModeFlag;
   static const CtxSet   CclmModeIdx;
   static const CtxSet   IPredMode       [2];    // [ ChannelType ]
-  static const CtxSet   PdpcFlag;
   static const CtxSet   MipFlag;
   static const CtxSet   DeltaQP;
   static const CtxSet   InterDir;
@@ -212,7 +202,6 @@ public:
   static const CtxSet   AffMergeIdx;
   static const CtxSet   Mvd;
   static const CtxSet   BDPCMMode;
-  static const CtxSet   TransSubdivFlag;
   static const CtxSet   QtRootCbf;
   static const CtxSet   ACTFlag;
   static const CtxSet   QtCbf           [3];    // [ channel ]
@@ -239,7 +228,6 @@ public:
   static const CtxSet   SbtQuadFlag;
   static const CtxSet   SbtHorFlag;
   static const CtxSet   SbtPosFlag;
-  static const CtxSet   CrossCompPred;
   static const CtxSet   ChromaQpAdjFlag;
   static const CtxSet   ChromaQpAdjIdc;
   static const CtxSet   ImvFlag;
@@ -249,7 +237,6 @@ public:
   static const CtxSet   ctbAlfAlternative;
   static const CtxSet   AlfUseTemporalFilt;
   static const CtxSet   CiipFlag;
-  static const CtxSet   TriangleIdx;
   static const CtxSet   SmvdFlag;
   static const CtxSet   IBCFlag;
   static const CtxSet   ISPMode;
@@ -264,49 +251,24 @@ public:
 
 public:
   static const std::vector<uint8_t>&  getInitTable( unsigned initId );
+
 private:
-  static std::vector<std::vector<uint8_t> > sm_InitTables;
+  static std::array<std::vector<uint8_t>, NUMBER_OF_SLICE_TYPES + 1> sm_InitTables;
   static CtxSet addCtxSet( std::initializer_list<std::initializer_list<uint8_t> > initSet2d );
-};
-
-class CtxStore
-{
-public:
-  CtxStore();
-  CtxStore( bool dummy );
-  CtxStore( const CtxStore& ctxStore );
-public:
-  void init       ( int qp, int initId );
-
-  const BinProbModel& operator[]      ( unsigned  ctxId  )  const { return m_Ctx[ctxId]; }
-  BinProbModel&       operator[]      ( unsigned  ctxId  )        { return m_Ctx[ctxId]; }
-private:
-  std::vector<BinProbModel> m_CtxBuffer;
-  BinProbModel*             m_Ctx;
 };
 
 class Ctx : public ContextSetCfg
 {
 public:
-  Ctx();
-  Ctx( const Ctx&                 ctx   );
+  Ctx() = default;
 
-public:
+  void init( int qp, int initId );
 
-  void  init ( int qp, int initId )
-  {
-    m_CtxStore_Std.init( qp, initId );
-  }
-
-public:
-  const Ctx&          getCtx          ()                        const { return *this; }
-  Ctx&                getCtx          ()                              { return *this; }
-
-  explicit operator const CtxStore&()         const;
-  explicit operator       CtxStore&();
+  const BinProbModel& operator[]( unsigned ctxId ) const { return m_CtxBuffer[ctxId]; }
+        BinProbModel& operator[]( unsigned ctxId )       { return m_CtxBuffer[ctxId]; }
 
 private:
-  CtxStore m_CtxStore_Std;
+  static_vector<BinProbModel, 372> m_CtxBuffer{ ContextSetCfg::NumberOfContexts };
 };
 
 }
