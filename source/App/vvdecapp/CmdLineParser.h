@@ -91,7 +91,7 @@ public:
           "\t General Options\n"
           "\n"
           "\t\t [--loops,-L  <int>         ] : number of decoder loops (default: 0, -1 endless)\n"
-          "\t\t [--verbosity,-v  <int>     ] : verbosity level (0: silent, 1: error, 2: warning, 3: info, 4: notice: 5, verbose, 6: debug) (default: " << (int)rcParams.logLevel << ")\n"
+          "\t\t [--verbosity,-v  <int>     ] : verbosity level (0: silent, 1: error, 2: warning, 3: info, 4: notice, 5: verbose, 6: debug) (default: " << (int)rcParams.logLevel << ")\n"
           "\t\t [--version                 ] : show version\n"
           "\t\t [--help,-h                 ] : show help\n"
           "\n" ;
