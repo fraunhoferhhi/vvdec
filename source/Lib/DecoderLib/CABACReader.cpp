@@ -1225,7 +1225,7 @@ void CABACReader::cu_bcw_flag(CodingUnit& cu)
   }
 
   uint8_t bcwIdx = ( uint8_t ) g_BcwParsingOrder[idx];
-  CU::setBcwIdx( cu, bcwIdx );
+  CU::setBcwIdx( cu, g_BcwInternFwd[bcwIdx] );
 
   DTRACE(g_trace_ctx, D_SYNTAX, "cu_bcw_flag() bcw_idx=%d\n", cu.BcwIdx() ? 1 : 0);
 }

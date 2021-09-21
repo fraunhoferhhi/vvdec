@@ -664,7 +664,7 @@ void AdaptiveLoopFilter::filterCTU( const CPelUnitBuf&     srcBuf,
     if( chType < MAX_NUM_CHANNEL_TYPE && toChannelType( compID ) != chType )
       continue;
 #if ALF_FIX
-    if( !ctuEnableFlag[compIdx] && !slice->getTileGroupCcAlfEnabledFlag( compIdx-1 ) )
+    if( !ctuEnableFlag[compIdx] && ( compIdx == 0 || !slice->getTileGroupCcAlfEnabledFlag( compIdx-1 ) ) )
 #else
     if( !ctuEnableFlag[compIdx] )
 #endif

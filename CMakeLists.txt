@@ -10,10 +10,10 @@ if( NOT CMAKE_VERSION VERSION_LESS 3.12.0 )
 endif()
 
 # project name
-project( vvdec VERSION 1.1.2 )
+project( vvdec VERSION 1.2.0 )
 
-set( VVDEC_ENABLE_X86_SIMD TRUE )
-set( VVDEC_ENABLE_ARM_SIMD FALSE )
+set( VVDEC_ENABLE_X86_SIMD TRUE  CACHE BOOL "enable x86 intrinsics" )
+set( VVDEC_ENABLE_ARM_SIMD FALSE CACHE BOOL "enable arm intrinsics" )
 
 if( APPLE )
   if( DEFINED CMAKE_OSX_ARCHITECTURES )
@@ -48,6 +48,37 @@ if( VVDEC_ENABLE_ARM_SIMD )
   set( CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DTARGET_SIMD_ARM" )
   set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DTARGET_SIMD_ARM" )
 endif()
+
+if( ${CMAKE_SYSTEM_NAME} STREQUAL "Emscripten" )
+  set( VVDEC_TARGET_WASM TRUE )
+  # make Emscripten output a html wrapper
+  #set( CMAKE_EXECUTABLE_SUFFIX  ".html" )
+
+  add_compile_definitions( TARGET_SIMD_WASM )
+  add_compile_options( -msimd128 ) # currently breaks running in nodejs (firefox & chrome work)
+
+  add_compile_options( -pthread )
+
+  add_link_options(
+    --bind
+    -sWASM_BIGINT
+    -sTOTAL_MEMORY=2000MB # this should be enough for FullHD decoding
+    -sINVOKE_RUN=0        # don't call main() automatically
+    -sUSE_PTHREADS
+    -sPROXY_TO_PTHREAD
+    #-sPTHREAD_POOL_SIZE=20
+    -sMINIFY_HTML=0
+    -sMODULARIZE
+    -sEXPORT_NAME=CreateVVdeC
+    -sEXPORTED_RUNTIME_METHODS=[ccall,cwrap,getValue,setValue,_malloc,callMain,FS]
+    -sEXPORTED_FUNCTIONS=@${CMAKE_CURRENT_SOURCE_DIR}/source/Lib/vvdec/wasm_exported_functions.json
+#    --shell-file=${CMAKE_CURRENT_SOURCE_DIR}/web_player/shell.html
+#    --preload-file=${CMAKE_CURRENT_SOURCE_DIR}/ext/bitstreams/AMVR_B_HHI_3/AMVR_B_HHI_3.bit@in.bit
+#    --pre-js=${CMAKE_CURRENT_SOURCE_DIR}/pre.js
+  )
+endif()
+
+
 
 list( APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake/modules" )
 message( STATUS "CMAKE_MODULE_PATH: updating module path to: ${CMAKE_MODULE_PATH}" )

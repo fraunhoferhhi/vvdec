@@ -6,6 +6,13 @@
 namespace vvdec
 {
 
+#ifndef HAVE_INITIN_mm_storeu_si16
+static inline void _mm_storeu_si16( void* p, __m128i a )
+{
+  ( void ) ( *( short* ) ( p ) = ( short ) _mm_cvtsi128_si32( a ) );
+}
+#endif
+
 #ifndef HAVE_INITIN_mm_storeu_si32
 static inline void _mm_storeu_si32( void* p, __m128i a )
 {

@@ -1,11 +1,11 @@
 /* -----------------------------------------------------------------------------
 The copyright in this software is being made available under the BSD
-License, included below. No patent rights, trademark rights and/or 
-other Intellectual Property Rights other than the copyrights concerning 
+License, included below. No patent rights, trademark rights and/or
+other Intellectual Property Rights other than the copyrights concerning
 the Software are granted under this license.
 
-For any license concerning other Intellectual Property rights than the software, 
-especially patent licenses, a separate Agreement needs to be closed. 
+For any license concerning other Intellectual Property rights than the software,
+especially patent licenses, a separate Agreement needs to be closed.
 For more information please contact:
 
 Fraunhofer Heinrich Hertz Institute
@@ -14,7 +14,7 @@ Einsteinufer 37
 www.hhi.fraunhofer.de/vvc
 vvc@hhi.fraunhofer.de
 
-Copyright (c) 2018-2021, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. 
+Copyright (c) 2018-2021, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V.
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -50,27 +50,42 @@ THE POSSIBILITY OF SUCH DAMAGE.
  * \brief   This file contains the SIMD x86 common used functions.
  */
 
-#include <sstream>
 #include <map>
-#include <iostream>
-#include <stdint.h>
+#include <cstdint>
 #include <string>
 #include "CommonLib/CommonDef.h"
 
+
+#if defined( TARGET_SIMD_X86 ) && !defined( TARGET_SIMD_WASM )
+# if defined( _WIN32 ) && !defined( __MINGW32__ )
+#  include <intrin.h>
+# else
+#  include <immintrin.h>
+#  include <cpuid.h>
+# endif
+#endif
+
 namespace vvdec
 {
+static const std::map<std::string, X86_VEXT> vext_names{ { "SCALAR", SCALAR }, { "SSE41", SSE41 }, { "SSE42", SSE42 }, { "AVX", AVX }, { "AVX2", AVX2 }, { "AVX512", AVX512 } };
 
-#ifdef TARGET_SIMD_X86
+#if defined( TARGET_SIMD_WASM )
 
+X86_VEXT read_x86_extension_flags( const std::string& )
+{
+  return SSE42;
+}
 
-#if __GNUC__ // valid for GCC and clang
-#define NO_USE_SIMD __attribute__((optimize("no-tree-vectorize")))
+#elif defined( TARGET_SIMD_X86 )
+
+#if __GNUC__   // valid for GCC and clang
+# define NO_USE_SIMD __attribute__( ( optimize( "no-tree-vectorize" ) ) )
 #else
-#define NO_USE_SIMD
+# define NO_USE_SIMD
 #endif
 
 
-#if defined ( __MINGW32__ ) && !defined (  __MINGW64__ )
+#if defined( __MINGW32__ ) && !defined( __MINGW64__ )
 # define SIMD_UP_TO_SSE42 1
 #else
 # define SIMD_UP_TO_SSE42 0
@@ -78,50 +93,52 @@ namespace vvdec
 
 /* use __cpuid for windows or inline assembler for gcc and clang */
 #if defined( _WIN32 ) && !defined( __MINGW32__ )
+# define doCpuid   __cpuid
+# define doCpuidex __cpuidex
+#else   // !_WIN32
+static inline void doCpuid( int CPUInfo[4], int InfoType )
+{
+  __get_cpuid( (unsigned) InfoType, (unsigned*) &CPUInfo[0], (unsigned*) &CPUInfo[1], (unsigned*) &CPUInfo[2], (unsigned*) &CPUInfo[3] );
 }
-#include <intrin.h>
-namespace vvdec {
-#define doCpuid    __cpuid
-#define doCpuidex  __cpuidex
+# if !SIMD_UP_TO_SSE42
+static inline void doCpuidex( int CPUInfo[4], int InfoType0, int InfoType1 )
+{
+  __cpuid_count( InfoType0, InfoType1, CPUInfo[0], CPUInfo[1], CPUInfo[2], CPUInfo[3] );
+}
+# endif  // !SIMD_UP_TO_SSE42
+#endif  // !_WIN32
+
+static inline int64_t xgetbv( int ctr )
+{
+#if( defined( _MSC_FULL_VER ) && _MSC_FULL_VER >= 160040000 )    \
+  || ( defined( __INTEL_COMPILER ) && __INTEL_COMPILER >= 1200 ) \
+  || GCC_VERSION_AT_LEAST( 8, 0 )                                \
+  || CLANG_VERSION_AT_LEAST( 9, 0 )   // Microsoft, Intel, newer GCC or newer Clang compiler supporting _xgetbv intrinsic
+
+  return _xgetbv( ctr );   // intrinsic function for XGETBV
+
+#elif defined( __GNUC__ )   // use inline assembly, Gnu/AT&T syntax
+
+  uint32_t a, d;
+#if GCC_VERSION_AT_LEAST( 4, 4 ) || CLANG_VERSION_AT_LEAST( 3, 3 )
+  __asm( "xgetbv" : "=a"( a ), "=d"( d ) : "c"( ctr ) : );
 #else
-}
-#include <cpuid.h>
-namespace vvdec {
-void doCpuid(int CPUInfo[4], int InfoType){
-    __get_cpuid( (unsigned)InfoType, (unsigned*)&CPUInfo[0], (unsigned*)&CPUInfo[1], (unsigned*)&CPUInfo[2], (unsigned*)&CPUInfo[3] );
-}
-#if !SIMD_UP_TO_SSE42
-#define doCpuidex(cd, v0, v1) __cpuid_count(v0, v1, cd[0], cd[1], cd[2], cd[3])
+  __asm( ".byte 0x0f, 0x01, 0xd0" : "=a"( a ), "=d"( d ) : "c"( ctr ) : );
 #endif
-#endif
-
-static inline int64_t xgetbv (int ctr) {
-#if (defined (_MSC_FULL_VER) && _MSC_FULL_VER >= 160040000) || (defined (__INTEL_COMPILER) && __INTEL_COMPILER >= 1200) // Microsoft or Intel compiler supporting _xgetbv intrinsic
-
-    return _xgetbv(ctr);                                   // intrinsic function for XGETBV
-
-#elif defined(__GNUC__)                                    // use inline assembly, Gnu/AT&T syntax
-
-   uint32_t a, d;
-#if GCC_VERSION_AT_LEAST(4,4) || CLANG_VERSION_AT_LEAST(3,3)
-   __asm("xgetbv" : "=a"(a),"=d"(d) : "c"(ctr) : );
-#else
-   __asm(".byte 0x0f, 0x01, 0xd0" : "=a"(a),"=d"(d) : "c"(ctr) : );
-#endif
-   return a | (uint64_t(d) << 32);
+  return a | ( uint64_t( d ) << 32 );
 
 #else  // #elif defined (_MSC_FULL_VER) || (defined (__INTEL_COMPILER)...) // other compiler. try inline assembly with masm/intel/MS syntax
 
-   uint32_t a, d;
-    __asm {
+  uint32_t a, d;
+  __asm {
         mov ecx, ctr
         _emit 0x0f
         _emit 0x01
         _emit 0xd0 ; // xgetbv
         mov a, eax
         mov d, edx
-    }
-   return a | (uint64_t(d) << 32);
+  }
+  return a | ( uint64_t( d ) << 32 );
 
 #endif
 }
@@ -153,95 +170,112 @@ static inline int64_t xgetbv (int ctr) {
 NO_USE_SIMD
 X86_VEXT _Get_x86_extensions()
 {
-    int regs[4] = {0, 0, 0, 0};
-    X86_VEXT ext;
-    ext = SCALAR;
+  int regs[4] = { 0, 0, 0, 0 };
+  X86_VEXT ext;
+  ext = SCALAR;
 
-    doCpuid( regs, 0 );
-    if( regs[0] == 0 ) return ext;
-    doCpuid( regs, 1 );
-    if (!(regs[2] & BIT_HAS_SSE41)) return ext;
-    ext = SSE41;
-    if (!(regs[2] & BIT_HAS_SSE42)) return ext;
-    ext = SSE42;
-#if !SIMD_UP_TO_SSE42
-    doCpuidex( regs, 1, 1 );
-    if (!((regs[2] & BIT_HAS_AVX) == BIT_HAS_AVX ))   return ext; // first check if the cpu supports avx
-    if ((xgetbv(0) & 6) != 6)       return ext; // then see if the os uses YMM state management via XSAVE etc...
+  doCpuid( regs, 0 );
+  if( regs[0] == 0 )
+    return ext;
+
+  doCpuid( regs, 1 );
+  if( !( regs[2] & BIT_HAS_SSE41 ) )
+    return ext;
+  ext = SSE41;
+
+  if( !( regs[2] & BIT_HAS_SSE42 ) )
+    return ext;
+  ext = SSE42;
+
+#if SIMD_UP_TO_SSE42
+  return ext;
+#else   //  !SIMD_UP_TO_SSE42
+
+  doCpuidex( regs, 1, 1 );
+  if( !( ( regs[2] & BIT_HAS_AVX ) == BIT_HAS_AVX ) )
+    return ext;   // first check if the cpu supports avx
+  if( ( xgetbv( 0 ) & 6 ) != 6 )
+    return ext;   // then see if the os uses YMM state management via XSAVE etc...
 #if 0
     // don't detect AVX, as there are problems with MSVC production illegal ops for AVX
     ext = AVX;
 #endif
-// #ifdef USE_AVX2
-    doCpuidex( regs, 7, 0 );
-    if (!(regs[1] & BIT_HAS_AVX2))  return ext;
-    ext = AVX2;
-// #endif
-#ifdef USE_AVX512
-    if ((xgetbv(0) & 0xE0) != 0xE0) return ext; // see if OPMASK state and ZMM are availabe and enabled
-    doCpuidex( regs, 7, 0 );
-    if (!(regs[1] & BIT_HAS_AVX512F ))  return ext;
-    if (!(regs[1] & BIT_HAS_AVX512DQ))  return ext;
-    if (!(regs[1] & BIT_HAS_AVX512BW))  return ext;
-    ext = AVX512;
-#endif
-#endif
 
+// #ifdef USE_AVX2
+  doCpuidex( regs, 7, 0 );
+  if( !( regs[1] & BIT_HAS_AVX2 ) )
     return ext;
+  ext = AVX2;
+// #endif
+
+#ifdef USE_AVX512
+  if( ( xgetbv( 0 ) & 0xE0 ) != 0xE0 )
+    return ext;   // see if OPMASK state and ZMM are availabe and enabled
+  doCpuidex( regs, 7, 0 );
+  if( !( regs[1] & BIT_HAS_AVX512F ) )
+    return ext;
+  if( !( regs[1] & BIT_HAS_AVX512DQ ) )
+    return ext;
+  if( !( regs[1] & BIT_HAS_AVX512BW ) )
+    return ext;
+  ext = AVX512;
+#endif   //  USE_AVX512
+#endif   // !SIMD_UP_TO_SSE42
+
+  return ext;
 }
 
-typedef std::map<std::string, X86_VEXT> translate;
-static translate m
-{ { "SCALAR", SCALAR },{ "SSE41", SSE41 },{ "SSE42", SSE42 },
-  { "AVX", AVX },{ "AVX2", AVX2 },{ "AVX512", AVX512 } };
-
 NO_USE_SIMD
-X86_VEXT read_x86_extension_flags(const std::string &extStrId)
+X86_VEXT read_x86_extension_flags( const std::string& extStrId )
 {
-  //static std::atomic<bool> b_detection_finished(false);
-  static bool b_detection_finished( false );
+  static bool     b_detection_finished( false );
   static X86_VEXT ext_flags = SCALAR;
 
+  if( b_detection_finished )
   {
-    if( !b_detection_finished )
-    {
-      if( !extStrId.empty() )
-      {
-        translate::iterator search = m.find( extStrId );
-        if( search != m.end() )
-        {
-          ext_flags = search->second;
-        }
-        else
-        {
-          EXIT( "Mode not supported: " << ext_flags << "\n" );
-        }
-      }
-      else
-      {
-        ext_flags = _Get_x86_extensions();
-      }
+    return ext_flags;
+  }
 
-      b_detection_finished = true;
+  if( !extStrId.empty() )
+  {
+    auto search = vext_names.find( extStrId );
+    if( search != vext_names.end() )
+    {
+      ext_flags = search->second;
+    }
+    else
+    {
+      EXIT( "Mode not supported: " << ext_flags << "\n" );
     }
   }
+  else
+  {
+    ext_flags = _Get_x86_extensions();
+  }
+
+  b_detection_finished = true;
 
   return ext_flags;
 }
 
-const char* read_x86_extension(const std::string &extStrId)
+#endif   // TARGET_SIMD_X86
+
+
+#if defined( TARGET_SIMD_X86 ) || defined( TARGET_SIMD_WASM )
+
+const char* read_x86_extension( const std::string& extStrId )
 {
   static const char extension_not_available[] = "NA";
 
-  X86_VEXT vext = read_x86_extension_flags(extStrId);
+  X86_VEXT vext = read_x86_extension_flags( extStrId );
 
-  for( translate::const_iterator it = m.begin(); it != m.end(); ++it )
+  for( auto it = vext_names.begin(); it != vext_names.end(); ++it )
     if( it->second == vext )
       return it->first.c_str();
 
   return extension_not_available;
 }
 
-#endif // __x86_64
+#endif   // TARGET_SIMD_X86 || TARGET_SIMD_WASM
 
-}
+}   // namespace vvdec

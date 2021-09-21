@@ -1255,12 +1255,12 @@ void simdFilter7x7Blk<AVX2>( const AlfClassifier* classifier,
   const __m256i mmMin    = _mm256_set1_epi16( clpRng.min() );
   const __m256i mmMax    = _mm256_set1_epi16( clpRng.max() );
 
+  __m256i params[2][2][6];
+
   for (size_t i = 0; i < height; i += STEP_Y)
   {
     for (size_t j = 0; j < width; j += STEP_X)
     {
-      __m256i params[2][2][6];
-
       for (int k = 0; k < 2; ++k)
       {
         const AlfClassifier &cl0 = classifier[( i / 4 ) * ( AdaptiveLoopFilter::m_CLASSIFICATION_BLK_SIZE / 4 ) + ( j / 4 ) + k];
@@ -1281,19 +1281,25 @@ void simdFilter7x7Blk<AVX2>( const AlfClassifier* classifier,
         const __m128i rawClipLo1  = _mm_loadu_si128( ( const __m128i * ) ( clip1 ) );
         const __m128i rawClipHi1  = _mm_loadl_epi64( ( const __m128i * ) ( clip1 + 8 ) );
 
-        params[k][0][0] = _mm256_inserti128_si256( _mm256_castsi128_si256( _mm_shuffle_epi32(rawCoeffLo0, 0x00) ), _mm_shuffle_epi32(rawCoeffLo1, 0x00), 1 );
-        params[k][0][1] = _mm256_inserti128_si256( _mm256_castsi128_si256( _mm_shuffle_epi32(rawCoeffLo0, 0x55) ), _mm_shuffle_epi32(rawCoeffLo1, 0x55), 1 );
-        params[k][0][2] = _mm256_inserti128_si256( _mm256_castsi128_si256( _mm_shuffle_epi32(rawCoeffLo0, 0xaa) ), _mm_shuffle_epi32(rawCoeffLo1, 0xaa), 1 );
-        params[k][0][3] = _mm256_inserti128_si256( _mm256_castsi128_si256( _mm_shuffle_epi32(rawCoeffLo0, 0xff) ), _mm_shuffle_epi32(rawCoeffLo1, 0xff), 1 );
-        params[k][0][4] = _mm256_inserti128_si256( _mm256_castsi128_si256( _mm_shuffle_epi32(rawCoeffHi0, 0x00) ), _mm_shuffle_epi32(rawCoeffHi1, 0x00), 1 );
-        params[k][0][5] = _mm256_inserti128_si256( _mm256_castsi128_si256( _mm_shuffle_epi32(rawCoeffHi0, 0x55) ), _mm_shuffle_epi32(rawCoeffHi1, 0x55), 1 );
+        const __m256i rawCoeffLo = _mm256_inserti128_si256( _mm256_castsi128_si256( rawCoeffLo0 ), rawCoeffLo1, 1 );
+        const __m256i rawCoeffHi = _mm256_inserti128_si256( _mm256_castsi128_si256( rawCoeffHi0 ), rawCoeffHi1, 1 );
 
-        params[k][1][0] = _mm256_inserti128_si256( _mm256_castsi128_si256( _mm_shuffle_epi32(rawClipLo0,  0x00) ), _mm_shuffle_epi32(rawClipLo1,  0x00), 1 );
-        params[k][1][1] = _mm256_inserti128_si256( _mm256_castsi128_si256( _mm_shuffle_epi32(rawClipLo0,  0x55) ), _mm_shuffle_epi32(rawClipLo1,  0x55), 1 );
-        params[k][1][2] = _mm256_inserti128_si256( _mm256_castsi128_si256( _mm_shuffle_epi32(rawClipLo0,  0xaa) ), _mm_shuffle_epi32(rawClipLo1,  0xaa), 1 );
-        params[k][1][3] = _mm256_inserti128_si256( _mm256_castsi128_si256( _mm_shuffle_epi32(rawClipLo0,  0xff) ), _mm_shuffle_epi32(rawClipLo1,  0xff), 1 );
-        params[k][1][4] = _mm256_inserti128_si256( _mm256_castsi128_si256( _mm_shuffle_epi32(rawClipHi0,  0x00) ), _mm_shuffle_epi32(rawClipHi1,  0x00), 1 );
-        params[k][1][5] = _mm256_inserti128_si256( _mm256_castsi128_si256( _mm_shuffle_epi32(rawClipHi0,  0x55) ), _mm_shuffle_epi32(rawClipHi1,  0x55), 1 );
+        const __m256i rawClipLo = _mm256_inserti128_si256( _mm256_castsi128_si256( rawClipLo0 ), rawClipLo1, 1 );
+        const __m256i rawClipHi = _mm256_inserti128_si256( _mm256_castsi128_si256( rawClipHi0 ), rawClipHi1, 1 );
+
+        params[k][0][0] = _mm256_shuffle_epi32( rawCoeffLo, 0x00 );
+        params[k][0][1] = _mm256_shuffle_epi32( rawCoeffLo, 0x55 );
+        params[k][0][2] = _mm256_shuffle_epi32( rawCoeffLo, 0xaa );
+        params[k][0][3] = _mm256_shuffle_epi32( rawCoeffLo, 0xff );
+        params[k][0][4] = _mm256_shuffle_epi32( rawCoeffHi, 0x00 );
+        params[k][0][5] = _mm256_shuffle_epi32( rawCoeffHi, 0x55 );
+
+        params[k][1][0] = _mm256_shuffle_epi32( rawClipLo, 0x00 );
+        params[k][1][1] = _mm256_shuffle_epi32( rawClipLo, 0x55 );
+        params[k][1][2] = _mm256_shuffle_epi32( rawClipLo, 0xaa );
+        params[k][1][3] = _mm256_shuffle_epi32( rawClipLo, 0xff );
+        params[k][1][4] = _mm256_shuffle_epi32( rawClipHi, 0x00 );
+        params[k][1][5] = _mm256_shuffle_epi32( rawClipHi, 0x55 );
       }
 
       {

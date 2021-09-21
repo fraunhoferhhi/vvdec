@@ -61,6 +61,7 @@ VVDEC_DECL void vvdec_params_default(vvdecParams *params)
   params->upscaleOutput                = VVDEC_UPSCALING_OFF;  // do internal upscaling of rpr pictures to dest. resolution ( default: off )
   params->logLevel                     = VVDEC_WARNING;        // verbosity level
   params->verifyPictureHash            = false;                // verify picture, if digest is available, true: check hash in SEI messages if available, false: ignore SEI message
+  params->removePadding                = false;                // copy output pictures to new buffer to remove padding (stride==width)
   params->simd                         = VVDEC_SIMD_DEFAULT;   // set specific simd optimization (default: max. availalbe)
 }
 
@@ -338,5 +339,3 @@ VVDEC_NAMESPACE_END
 #ifdef __cplusplus
 };
 #endif
-
-

@@ -4,8 +4,6 @@ set( LIB_NAME vvdec )
 # create upper case name
 string( TOUPPER ${LIB_NAME} LIB_NAME_UC )
 
-include( check_missing_intrinsics )
-
 # create file version.h
 configure_file( version.h.in "${CMAKE_BINARY_DIR}/${LIB_NAME}/version.h" )
 
@@ -17,25 +15,29 @@ file( GLOB BASE_INC_FILES "*.h" "../CommonLib/*.h"  "../Utilities/*.h" "../Decod
 
 
 if( NOT DEFINED VVDEC_ENABLE_X86_SIMD )
-  message( FATAL_ERROR "VVDEC_ENABLE_X86_SIMD is not defined. Please include TopLevel CmakeLists.txt file of vvdec to set all dependencies!" )
+  message( FATAL_ERROR "VVDEC_ENABLE_X86_SIMD is not defined. Please include TopLevel CMakeLists.txt file of vvdec to set all dependencies!" )
 endif()
 
 if( VVDEC_ENABLE_X86_SIMD )
+  include( check_missing_intrinsics )
+
   # get x86 source files
   file( GLOB X86_SRC_FILES "../CommonLib/x86/*.cpp" )
-  
+
   # get x86 include files
   file( GLOB X86_INC_FILES "../CommonLib/x86/*.h" )
-  
+
   # get avx source files
   file( GLOB AVX_SRC_FILES "../CommonLib/x86/avx/*.cpp" )
-  
-  # get avx2 source files
-  file( GLOB AVX2_SRC_FILES "../CommonLib/x86/avx2/*.cpp" )
-  
+
+  if( NOT VVDEC_TARGET_WASM )
+    # get avx2 source files
+    file( GLOB AVX2_SRC_FILES "../CommonLib/x86/avx2/*.cpp" )
+  endif()
+
   # get sse4.1 source files
   file( GLOB SSE41_SRC_FILES "../CommonLib/x86/sse41/*.cpp" )
-  
+
   # get sse4.2 source files
   file( GLOB SSE42_SRC_FILES "../CommonLib/x86/sse42/*.cpp" )
 endif()
@@ -79,6 +81,9 @@ if( VVDEC_ENABLE_X86_SIMD )
     set_property( SOURCE ${AVX_SRC_FILES}   APPEND PROPERTY COMPILE_FLAGS "/arch:AVX" )
     set_property( SOURCE ${AVX2_SRC_FILES}  APPEND PROPERTY COMPILE_FLAGS "/arch:AVX2" )
   elseif( UNIX OR MINGW )
+    if( NOT VVDEC_TARGET_WASM )
+      set_property( SOURCE ${X86_SRC_FILES} APPEND PROPERTY COMPILE_FLAGS "-mxsave" )
+    endif()
     set_property( SOURCE ${SSE41_SRC_FILES} APPEND PROPERTY COMPILE_FLAGS "-msse4.1" )
     set_property( SOURCE ${SSE42_SRC_FILES} APPEND PROPERTY COMPILE_FLAGS "-msse4.2" )
     set_property( SOURCE ${AVX_SRC_FILES}   APPEND PROPERTY COMPILE_FLAGS "-mavx" )

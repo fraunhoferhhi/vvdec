@@ -127,6 +127,7 @@ int VVDecImpl::init( const vvdecParams& params )
 
   m_sDecoderCapabilities = m_cDecLib->getDecoderCapabilities();
 
+  m_bRemovePadding = params.removePadding;
   m_uiSeqNumber    = 0;
   m_uiSeqNumOutput = 0;
   m_bInitialized   = true;
@@ -814,13 +815,13 @@ int VVDecImpl::xAddPicture( Picture* pcPic )
 
   const CPelUnitBuf& cPicBuf =  pcPic->getRecoBuf();
 
-  const CPelBuf areaY     = cPicBuf.get(COMPONENT_Y);
-  const uint32_t uiWidth  = areaY.width - confLeft - confRight;
-  const uint32_t uiHeight = areaY.height -  confTop  - confBottom;
+  const CPelBuf  areaY    = cPicBuf.get( COMPONENT_Y );
+  const uint32_t uiWidth  = areaY.width  - confLeft - confRight;
+  const uint32_t uiHeight = areaY.height - confTop  - confBottom;
 
 #if RPR_YUV_OUTPUT
-  const uint32_t orgWidth  = pcPic->cs->sps->getMaxPicWidthInLumaSamples() - confLeft - confRight;
-  const uint32_t orgHeight = pcPic->cs->sps->getMaxPicHeightInLumaSamples() -  confTop  - confBottom;
+  const uint32_t orgWidth  = pcPic->cs->sps->getMaxPicWidthInLumaSamples()  - confLeft - confRight;
+  const uint32_t orgHeight = pcPic->cs->sps->getMaxPicHeightInLumaSamples() - confTop  - confBottom;
 #endif
 
   const BitDepths &bitDepths= pcPic->cs->sps->getBitDepths(); // use bit depths of first reconstructed picture.
@@ -832,6 +833,7 @@ int VVDecImpl::xAddPicture( Picture* pcPic )
   }
 
   bool bCreateStorage = (bitDepths.recon[0] == 8) ? true : false; // for 8bit output we need to copy the lib picture from unsigned short into unsigned char buffer
+  bCreateStorage = bCreateStorage || m_bRemovePadding;
 
   // create a brand new picture object
   vvdecFrame cFrame;

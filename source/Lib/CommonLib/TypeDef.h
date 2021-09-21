@@ -152,7 +152,7 @@ namespace vvdec
 #if ENABLE_SIMD_OPT_BUFFER
 #define ENABLE_SIMD_OPT_GBI                               1                                                 ///< SIMD optimization for GBi
 #endif
-#define ENABLE_SIMD_OPT_BIO                             ( 1 && ENABLE_SIMD_OPT )                            ///< SIMD optimization for BIO
+#define ENABLE_SIMD_OPT_INTER                           ( 1 && ENABLE_SIMD_OPT )                            ///< SIMD optimization for BIO
 #define ENABLE_SIMD_OPT_PICTURE                         ( 1 && ENABLE_SIMD_OPT )                            ///< SIMD optimization for Picture Padding
 #define ENABLE_SIMD_OPT_SAO                             ( 1 && ENABLE_SIMD_OPT )                            ///< SIMD optimization for BIO
 #define ENABLE_SIMD_TCOEFF_OPS                          ( 1 && ENABLE_SIMD_OPT )
@@ -349,16 +349,10 @@ enum RefPicList : uint8_t
 /// distortion function index
 enum DFunc
 {
-  DF_SAD             = 8,             ///< general size SAD
-  DF_SAD2            = DF_SAD+1,      ///<   2xM SAD
-  DF_SAD4            = DF_SAD+2,      ///<   4xM SAD
-  DF_SAD8            = DF_SAD+3,      ///<   8xM SAD
-  DF_SAD16           = DF_SAD+4,      ///<  16xM SAD
-  DF_SAD32           = DF_SAD+5,      ///<  32xM SAD
-  DF_SAD64           = DF_SAD+6,      ///<  64xM SAD
-  DF_SAD16N          = DF_SAD+7,      ///< 16NxM SAD
+  DF_SAD8            = 0,      ///<   8xM SAD
+  DF_SAD16           = 1,      ///<  16xM SAD
 
-  DF_TOTAL_FUNCTIONS = DF_SAD16N + 1
+  DF_TOTAL_FUNCTIONS = DF_SAD16 + 1
 };
 
 /// motion vector predictor direction used in AMVP

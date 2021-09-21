@@ -196,6 +196,7 @@ private:
   typedef frameStorageMap::value_type        frameStorageMapType;
 public:
    bool                                    m_bInitialized = false;
+   bool                                    m_bRemovePadding = false; // copy picture before output to remove padding
    VVDecInternalState                      m_eState       = INTERNAL_STATE_UNINITIALIZED;
 
    DecLib*                                 m_cDecLib;
@@ -203,8 +204,8 @@ public:
    std::list<vvdecFrame>                   m_rcFrameList;
    std::list<vvdecFrame>::iterator         m_pcFrameNext = m_rcFrameList.begin();
 
-   std::list<Picture*>                     m_pcLibPictureList;  // internal picture list
-   frameStorageMap                         m_cFrameStorageMap;  // map of frame storage class( converted frames)
+   std::list<Picture*>                     m_pcLibPictureList;       // internal picture list
+   frameStorageMap                         m_cFrameStorageMap;       // map of frame storage class( converted frames)
 
    std::string                             m_sDecoderInfo;
    std::string                             m_sDecoderCapabilities;

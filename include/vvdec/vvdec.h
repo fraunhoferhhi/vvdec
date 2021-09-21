@@ -389,6 +389,7 @@ typedef struct vvdecParams
   vvdecRPRUpscaling   upscaleOutput;     // do internal upscaling of rpl pictures to dest. resolution ( default: 0 )
   vvdecLogLevel       logLevel;          // verbosity level
   bool                verifyPictureHash; // verify picture, if digest is available, true: check hash in SEI messages if available, false: ignore SEI message
+  bool                removePadding;     // copy output pictures to new buffer to remove padding (stride==width) ( default: false )
   vvdecSIMD_Extension simd;              // set specific simd optimization (default: max. availalbe)
 } vvdecParams;
 

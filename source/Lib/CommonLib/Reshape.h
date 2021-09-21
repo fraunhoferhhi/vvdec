@@ -72,8 +72,8 @@ protected:
   uint16_t                m_initCW;
   std::vector<Pel>        m_reshapePivot;
   std::vector<Pel>        m_inputPivot;
-  std::vector<int32_t>    m_fwdScaleCoef;
-  std::vector<int32_t>    m_invScaleCoef;
+  std::vector<Pel>        m_fwdScaleCoef;
+  std::vector<Pel>        m_invScaleCoef;
   int                     m_lumaBD;
   int                     m_reshapeLUTSize;
   int                     m_chromaScale;
@@ -87,8 +87,9 @@ public:
   void destroy();
 
   void initSlice( int nalUnitLayerId, const PicHeader& picHeader, const VPS& vps );
-  void rspLine( CodingStructure &cs, int ln, const int offset ) const;
-  void rspCtu ( CodingStructure &cs, int col, int ln, const int offset ) const;
+  void rspLine  ( CodingStructure &cs, int ln, const int offset ) const;
+  void rspCtu   ( CodingStructure &cs, int col, int ln, const int offset ) const;
+  void rspBufFwd( PelBuf& buf ) const;
 
   const Pel* getFwdLUT() const { return m_fwdLUT; }
   const Pel* getInvLUT() const { return m_invLUT; }

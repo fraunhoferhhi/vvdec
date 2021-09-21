@@ -531,6 +531,9 @@ void LoopFilter::xDeblockCtuArea( CodingStructure& cs, const UnitArea& area, con
   }
 
   const PreCalcValues& pcv = *cs.pcv;
+
+  const CtuData& ctuData       = cs.getCtuData( cs.ctuRsAddr( area.lumaPos(), CH_L ) );
+  const Slice& slice           = *ctuData.slice;
   
   bool doLuma   =   chType == MAX_NUM_CHANNEL_TYPE || isLuma  ( chType );
   bool doChroma = ( chType == MAX_NUM_CHANNEL_TYPE || isChroma( chType ) ) && pcv.chrFormat != CHROMA_400 && area.blocks[COMPONENT_Cb].valid();
@@ -561,7 +564,7 @@ void LoopFilter::xDeblockCtuArea( CodingStructure& cs, const UnitArea& area, con
       }
       else
       {
-        xEdgeFilterLuma<edgeDir>( cs, { lumaPos.x + dx, lumaPos.y + dy }, *lineLfpPtr );
+        xEdgeFilterLuma<edgeDir>( cs, { lumaPos.x + dx, lumaPos.y + dy }, *lineLfpPtr, slice );
       }
         
       const int dxInCtu = ( chrmPos.x + cdx ) & ( pcv.maxCUWidthMask >> csx );
@@ -570,7 +573,7 @@ void LoopFilter::xDeblockCtuArea( CodingStructure& cs, const UnitArea& area, con
           && ( ( ( edgeDir == EDGE_VER ? dxInCtu : dyInCtu ) & ( DEBLOCK_SMALLEST_BLOCK - 1 ) ) == 0 )
           && ( BsGet( bs, COMPONENT_Cb ) | BsGet( bs, COMPONENT_Cr ) ) )
       {
-        xEdgeFilterChroma<edgeDir>( cs, { chrmPos.x + cdx, chrmPos.y + cdy }, *lineLfpPtr );
+        xEdgeFilterChroma<edgeDir>( cs, { chrmPos.x + cdx, chrmPos.y + cdy }, *lineLfpPtr, slice );
       }
 
       OFFSETX( lineLfpPtr, lfpStride, 1 );
@@ -1393,15 +1396,14 @@ static inline bool xUseStrongFiltering( const Pel* piSrc, const ptrdiff_t iOffse
 }
 
 template<DeblockEdgeDir edgeDir>
-void LoopFilter::xEdgeFilterLuma( CodingStructure& cs, const Position& pos, const LoopFilterParam& lfp ) const
+void LoopFilter::xEdgeFilterLuma( CodingStructure& cs, const Position& pos, const LoopFilterParam& lfp, const Slice &slice ) const
 {
   PelBuf          picYuvRec    = cs.getRecoBuf( COMPONENT_Y );
   Pel *           piSrc        = picYuvRec.bufAt( pos );
   const ptrdiff_t iStride      = picYuvRec.stride;
-  const SPS &     sps          = *cs.sps;
-  const Slice &   slice        = *cs.m_ctuData[cs.ctuRsAddr( pos, CH_L )].cuPtr[0][0]->slice;
-  const int       bitDepthLuma = sps.getBitDepth( CHANNEL_TYPE_LUMA );
-  const ClpRng &  clpRng       = slice.clpRng( COMPONENT_Y );
+  
+  const int       bitDepthLuma = slice.getSPS()->getBitDepth( CHANNEL_TYPE_LUMA );
+  const ClpRng&         clpRng = slice.clpRng( COMPONENT_Y );
 
   const int  betaOffsetDiv2    = slice.getDeblockingFilterBetaOffsetDiv2();
   const int  tcOffsetDiv2      = slice.getDeblockingFilterTcOffsetDiv2();
@@ -1449,10 +1451,10 @@ void LoopFilter::xEdgeFilterLuma( CodingStructure& cs, const Position& pos, cons
 
   int iQP = lfp.qp[0];
 #if LUMA_ADAPTIVE_DEBLOCKING_FILTER_QP_OFFSET
-  if ( sps.getLadfEnabled() )
+  if ( slice.getSPS()->getLadfEnabled() )
   {
     int iShift = 0;
-    deriveLADFShift( piSrc, iStride, iShift, edgeDir, sps );
+    deriveLADFShift( piSrc, iStride, iShift, edgeDir, *slice.getSPS() );
     iQP += iShift;
   }
 
@@ -1550,7 +1552,7 @@ void LoopFilter::xEdgeFilterLuma( CodingStructure& cs, const Position& pos, cons
 }
 
 template<DeblockEdgeDir edgeDir>
-void LoopFilter::xEdgeFilterChroma( CodingStructure &cs, const Position &pos, const LoopFilterParam& lfp ) const
+void LoopFilter::xEdgeFilterChroma( CodingStructure &cs, const Position &pos, const LoopFilterParam& lfp, const Slice& slice ) const
 {
   const PreCalcValues &pcv               = *cs.pcv;
 
@@ -1565,7 +1567,6 @@ void LoopFilter::xEdgeFilterChroma( CodingStructure &cs, const Position &pos, co
   Pel *              piSrcCr             = picYuvRecCr.bufAt( pos );
   const ptrdiff_t    iStride             = picYuvRecCb.stride;
   const SPS &        sps                 = *cs.sps;
-  const Slice &      slice               = *cs.m_ctuData[cs.ctuRsAddr( pos, CH_C )].cuPtr[1][0]->slice;
   const int          bitDepthChroma      = sps.getBitDepth( CHANNEL_TYPE_CHROMA );
 
   const int tcOffsetDiv2[2]              = { slice.getDeblockingFilterCbTcOffsetDiv2(),   slice.getDeblockingFilterCrTcOffsetDiv2() };

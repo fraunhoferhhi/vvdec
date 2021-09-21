@@ -166,7 +166,7 @@ CodingUnit& CodingStructure::addCU( const UnitArea &unit, const ChannelType chTy
 
     if( i )
     {
-      m_predBufOffset += ( cuArea << 1 );
+      m_predBufOffset += (cuArea << 1);
     }
     else
     {
@@ -174,10 +174,14 @@ CodingUnit& CodingStructure::addCU( const UnitArea &unit, const ChannelType chTy
     }
 
     const ptrdiff_t  stride = ptrdiff_t( 1 ) << m_ctuWidthLog2[i];
-    const Area      &_blk   = cu-> blocks[i];
+    const Area&      _blk   = cu->blocks[i];
     const UnitScale  scale  = unitScale[i];
+    const int        sclX   = scale.scaleHor( _blk.x );
+    const int        sclY   = scale.scaleVer( _blk.y );
+    const int        sclW   = scale.scaleHor( _blk.width );
+    const int        sclH   = scale.scaleVer( _blk.height );
 
-    g_pelBufOP.fillN_CU( ctuData.cuPtr[i] + inCtuPos( _blk, ChannelType( i ) ), stride, scale.scaleHor( _blk.width ), scale.scaleVer( _blk.height ), cu );
+    g_pelBufOP.fillN_CU( ctuData.cuPtr[i] + ( sclX & m_ctuSizeMask[i] ) + ( ( sclY & m_ctuSizeMask[i] ) << m_ctuWidthLog2[i] ), stride, sclW, sclH, cu );
 
     if( i == chType )
     {
@@ -488,18 +492,27 @@ const CodingUnit* CodingStructure::getCURestricted( const Position &pos, const P
 {
   const int yshift     = pcv->maxCUWidthLog2 - getChannelTypeScaleY( _chType, area.chromaFormat );
   const int ydiff      = ( pos.y >> yshift ) - ( curPos.y >> yshift ); // ( a <= b ) ==> a - b <= 0
-  const CodingUnit* cu = ydiff <= 0 ? getCU( pos, _chType ) : nullptr;
   const int xshift     = pcv->maxCUWidthLog2 - getChannelTypeScaleX( _chType, area.chromaFormat );
   const int xdiff      = ( pos.x >> xshift ) - ( curPos.x >> xshift );
   const bool sameCTU   = !ydiff && !xdiff;
 
-  if( cu && ( sameCTU || ( cu->slice->getIndependentSliceIdx() == curSliceIdx && cu->tileIdx == curTileIdx ) ) )
+  const CodingUnit* cu = nullptr;
+  
+  if( sameCTU )
   {
-    if( xdiff > 0 && sps->getEntropyCodingSyncEnabledFlag() )
-    {
-      return nullptr;
-    }
+    return getCU( pos, _chType );
+  }
+  else if( ydiff > 0 || xdiff > ( 1 - sps->getEntropyCodingSyncEnabledFlag() ) )
+  {
+    return nullptr;
+  }
+  else
+  {
+    cu = getCU( pos, _chType );
+  }
 
+  if( cu && cu->slice->getIndependentSliceIdx() == curSliceIdx && cu->tileIdx == curTileIdx )
+  {
     return cu;
   }
   else
