@@ -170,27 +170,6 @@ bool Reshape::getCTUFlag( const Slice& slice ) const
   }
 }
 
-void Reshape::rspLine( CodingStructure &cs, int ln, const int offset ) const
-{
-  if( !( cs.sps->getUseReshaper() && m_sliceReshapeInfo.sliceReshaperEnableFlag ) )
-  {
-    return;
-  }
-  PROFILER_SCOPE_AND_STAGE_EXT( 1, g_timeProfiler, P_RESHAPER, cs, CH_L );
-
-  const PreCalcValues &pcv = *cs.pcv;
-
-  const bool firstLine = ln == 0;
-
-//  const int lh = frstLine ? pcv.maxCUHeight + ( offset ) : pcv.maxCUHeight;
-
-  int lw   = pcv.lumaWidth;
-  int yPos = firstLine ? 0 : ln * pcv.maxCUHeight + offset;
-  int lh   = firstLine ? pcv.maxCUHeight + offset : std::min( pcv.lumaHeight - yPos, pcv.maxCUHeight );
-  PelBuf picYuvRec = cs.getRecoBuf( COMPONENT_Y ).subBuf( Position( 0, yPos ), Size( lw, lh ) );
-  picYuvRec.rspSignal( m_invLUT );
-}
-
 void Reshape::rspCtu( CodingStructure &cs, int col, int ln, const int offset ) const
 {
   if( !( cs.sps->getUseReshaper() && m_sliceReshapeInfo.sliceReshaperEnableFlag ) )
@@ -220,7 +199,13 @@ void Reshape::rspCtu( CodingStructure &cs, int col, int ln, const int offset ) c
   int lh   = firstLine ? pcv.maxCUHeight + offset : std::min( pcv.lumaHeight - yPos, pcv.maxCUHeight );
 
   PelBuf picYuvRec = cs.getRecoBuf( COMPONENT_Y ).subBuf( Position( xPos, yPos ), Size( lw, lh ) );
-  picYuvRec.rspSignal( m_invLUT );
+
+#if 1
+  if( g_pelBufOP.rspBcw )
+    g_pelBufOP.rspBcw( picYuvRec.buf, picYuvRec.stride, picYuvRec.width, picYuvRec.height, m_lumaBD, m_sliceReshapeInfo.reshaperModelMinBinIdx, m_sliceReshapeInfo.reshaperModelMaxBinIdx, m_reshapePivot.data(), m_invScaleCoef.data(), m_inputPivot.data() );
+  else
+#endif
+    g_pelBufOP.applyLut( picYuvRec.buf, picYuvRec.stride, picYuvRec.width, picYuvRec.height, m_invLUT );
 }
 
 
@@ -389,6 +374,7 @@ void Reshape::constructReshaper()
     }
     else
     {
+      CHECK( m_initCW * (1 << FP_PREC) / m_binCW[i] > (1 << 15) - 1, "Inverse scale coeff doesn't fit in a short!" );
       m_invScaleCoef[i] = (int32_t)(m_initCW * (1 << FP_PREC) / m_binCW[i]);
       m_chromaAdjHelpLUT[i] = (int32_t)(m_initCW * (1 << FP_PREC) / ( m_binCW[i] + m_sliceReshapeInfo.chrResScalingOffset ) );
     }
@@ -402,6 +388,23 @@ void Reshape::constructReshaper()
     int idxYInv = getPWLIdxInv(lumaSample);
     int invSample = m_inputPivot[idxYInv] + ((m_invScaleCoef[idxYInv] * (lumaSample - m_reshapePivot[idxYInv]) + (1 << (FP_PREC - 1))) >> FP_PREC);
     m_invLUT[lumaSample] = Clip3((Pel)0, (Pel)((1 << m_lumaBD) - 1), (Pel)(invSample));
+  }
+}
+
+void Reshape::rspBufFwd( PelBuf& buf ) const
+{
+  if( g_pelBufOP.rspFwd )
+  {
+    g_pelBufOP.rspFwd( buf.buf, buf.stride, buf.width, buf.height, m_lumaBD, m_initCW, m_reshapePivot.data(), m_fwdScaleCoef.data(), m_inputPivot.data() );
+  }
+  else
+  {
+#if ENABLE_SIMD_OPT_BUFFER && defined( TARGET_SIMD_X86 )
+    _mm_prefetch( ( const char* ) m_fwdLUT, _MM_HINT_T0 );
+    _mm_prefetch( ( const char* ) &m_fwdLUT[ptrdiff_t( 1 ) << (m_lumaBD - 1)], _MM_HINT_T0 );
+
+#endif
+    g_pelBufOP.applyLut( buf.buf, buf.stride, buf.width, buf.height, m_fwdLUT );
   }
 }
 

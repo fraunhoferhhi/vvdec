@@ -185,6 +185,9 @@ const int8_t g_BcwWeightBase = (1 << g_BcwLog2WeightBase);
 const int8_t g_BcwWeights[BCW_NUM] = { -2, 3, 4, 5, 10 };
 const int8_t g_BcwParsingOrder[BCW_NUM] = { 2, 3, 1, 4, 0 };
 
+const int8_t g_BcwInternFwd[BCW_NUM] = { 1, 2, 0, 3, 4 };
+const int8_t g_BcwInternBcw[BCW_NUM] = { 2, 0, 1, 3, 4 };
+
 int8_t getBcwWeight(uint8_t bcwIdx, uint8_t uhRefFrmList)
 {
   // Weghts for the model: P0 + w * (P1 - P0) = (1-w) * P0 + w * P1

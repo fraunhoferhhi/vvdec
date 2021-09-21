@@ -413,12 +413,13 @@ void SampleAdaptiveOffset::SAOPrepareCTULine( CodingStructure &cs, const UnitAre
   PelUnitBuf           rec = cs.getRecoBuf();
 
   const int height = lineArea.lumaSize().height;
-  const int y = lineArea.lumaPos().y;
+  const int y      = lineArea.lumaPos().y;
 
-  const int cpyY = y == 0 ? 0 : y + 2;
-  const int cpyHeight = std::min<int>( y == 0 ? height + 2 : height, pcv.lumaHeight - cpyY );
-
-  bool anySaoBlk = false;
+  const int cpyY       = y == 0 ? 0 : y + 2;
+        int cpyHeight  = height;
+            cpyHeight -= y == 0 ? 0 : 2;
+            cpyHeight -= cpyY + cpyHeight >= pcv.lumaHeight ? 0 : 2;
+            cpyHeight  = std::min<int>( cpyHeight, pcv.lumaHeight - cpyY );
 
   for( int x = 0; x < pcv.lumaWidth; x += pcv.maxCUWidth )
   {
@@ -428,34 +429,60 @@ void SampleAdaptiveOffset::SAOPrepareCTULine( CodingStructure &cs, const UnitAre
     getMergeList( cs, ctuRsAddr, mergeList );
 
     reconstructBlkSAOParam( cs.m_ctuData[ctuRsAddr].saoParam, mergeList );
+  }
 
-    for( int i = 0; i < MAX_NUM_COMPONENT; i++ )
+  const int numComp = getNumberValidComponents( pcv.chrFormat );
+
+  for( int i = 0; i < numComp; i++ )
+  {
+    const ComponentID compID = ComponentID( i );
+
+    const int currCpyY =   cpyY            >> getComponentScaleY( compID, pcv.chrFormat );
+    const int currCpyH =   cpyHeight       >> getComponentScaleY( compID, pcv.chrFormat );
+    const int currCtuW =   pcv.maxCUWidth  >> getComponentScaleX( compID, pcv.chrFormat );
+    const int currPicW =   pcv.lumaWidth   >> getComponentScaleX( compID, pcv.chrFormat );
+    
+    const ptrdiff_t src_stride =       rec.bufs  [ compID ].stride;
+    const ptrdiff_t dst_stride = m_tempBuf.getBuf( compID ).stride;
+
+    const Pel* src =       rec.bufs  [ compID ].bufAt( 0, currCpyY );
+          Pel* dst = m_tempBuf.getBuf( compID ).bufAt( 0, currCpyY );
+
+    for( int j = currCpyY; j < ( currCpyY + currCpyH ); j++, src += src_stride, dst += dst_stride )
     {
-      if( cs.m_ctuData[ctuRsAddr].saoParam[i].modeIdc != SAO_MODE_OFF )
+      int numCpy   = 0;
+      int cpyStart = 0;
+
+      int ctuRsAddr = getCtuAddr( Position( 0, y ), *cs.pcv );
+
+      for( int x = 0, currCpyX = 0; x <= pcv.widthInCtus; x++, currCpyX += currCtuW, ctuRsAddr++ )
       {
-        anySaoBlk = true;
+        if( x < pcv.widthInCtus && cs.m_ctuData[ctuRsAddr].saoParam[i].modeIdc != SAO_MODE_OFF )
+        {
+          if( !numCpy ) cpyStart = currCpyX - !!x;
+          numCpy++;
+        }
+        else if( numCpy )
+        {
+          // copy
+          int cpyLen = numCpy * currCtuW + !!cpyStart + 1;
+          if( cpyStart + cpyLen > currPicW ) cpyLen = currPicW - cpyStart;
+          memcpy( dst + cpyStart, src + cpyStart, cpyLen * sizeof( Pel ) );
+          numCpy = 0;
+        }
       }
     }
   }
 
-  if( !anySaoBlk )
+  const int cpyY2      = cpyY + cpyHeight;
+  const int cpyHeight2 = 4;
+  
+  if( cpyY2 < pcv.lumaHeight )
   {
-    const int cpyY2 = cpyY + cpyHeight - 4;
-    const int cpyHeight2 = 4;
-
-    if( cpyY2 < pcv.lumaHeight )
-    {
-      const UnitArea cpyLine2( pcv.chrFormat, Area( 0, cpyY2, pcv.lumaWidth, cpyHeight2 ) );
-
-      m_tempBuf.subBuf( cpyLine2 ).copyFrom( rec.subBuf( cpyLine2 ) );
-    }
-
-    return;
+    const UnitArea cpyLine2( pcv.chrFormat, Area( 0, cpyY2, pcv.lumaWidth, cpyHeight2 ) );
+  
+    m_tempBuf.subBuf( cpyLine2 ).copyFrom( rec.subBuf( cpyLine2 ) );
   }
-
-  const UnitArea cpyLine( pcv.chrFormat, Area( 0, cpyY, pcv.lumaWidth, cpyHeight ) );
-
-  m_tempBuf.subBuf( cpyLine ).copyFrom( rec.subBuf( cpyLine ) );
 }
 
 void SampleAdaptiveOffset::SAOProcessCTULine( CodingStructure &cs, const UnitArea &lineArea )

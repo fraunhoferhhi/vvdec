@@ -336,8 +336,8 @@ void Partitioner::canSplit( const CodingStructure &cs, bool& canNo, bool& canQt,
     return;
   }
 
-  canBtt &= !( area.width <= minBtSize && area.height <= minBtSize && ( ( area.width <= minTtSize && area.height <= minTtSize ) ) );
-  canBtt &= !( ( area.width > maxBtSize || area.height > maxBtSize ) && ( area.width > maxTtSize || area.height > maxTtSize ) );
+  canBtt &=   area.width >  minBtSize || area.height >  minBtSize   ||   area.width >  minTtSize || area.height >  minTtSize;
+  canBtt &= ( area.width <= maxBtSize && area.height <= maxBtSize ) || ( area.width <= maxTtSize && area.height <= maxTtSize );
 
   if( !canBtt )
   {

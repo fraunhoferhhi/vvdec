@@ -64,12 +64,11 @@ THE POSSIBILITY OF SUCH DAMAGE.
 namespace vvdec
 {
 
-#if ENABLE_SIMD_OPT_BUFFER
 struct PelBufferOps
 {
   PelBufferOps();
 
-#ifdef TARGET_SIMD_X86
+#if defined( TARGET_SIMD_X86 ) && ENABLE_SIMD_OPT_BUFFER
   void initPelBufOpsX86();
   template<X86_VEXT vext>
   void _initPelBufOpsX86();
@@ -85,11 +84,11 @@ struct PelBufferOps
   void ( *wghtAvg4 )      ( const Pel* src0, ptrdiff_t src0Stride, const Pel* src1, ptrdiff_t src1Stride, Pel *dst, ptrdiff_t dstStride, int width, int height, int shift, int offset, int w0, int w1, const ClpRng& clpRng );
   void ( *wghtAvg8 )      ( const Pel* src0, ptrdiff_t src0Stride, const Pel* src1, ptrdiff_t src1Stride, Pel *dst, ptrdiff_t dstStride, int width, int height, int shift, int offset, int w0, int w1, const ClpRng& clpRng );
   void ( *copyBuffer )    ( const char*src,  ptrdiff_t srcStride,        char* dst, ptrdiff_t  dstStride,                                int width, int height );
-  void ( *padding1 )      (       Pel *dst,  ptrdiff_t stride,                                                                           int width, int height );
-  void ( *padding2 )      (       Pel *dst,  ptrdiff_t stride,                                                                           int width, int height );
   void ( *transpose4x4 )  ( const Pel* src,  ptrdiff_t srcStride, Pel* dst, ptrdiff_t dstStride );
   void ( *transpose8x8 )  ( const Pel* src,  ptrdiff_t srcStride, Pel* dst, ptrdiff_t dstStride );
   void ( *applyLut )      (       Pel* ptr,  ptrdiff_t ptrStride, int width, int height, const Pel* lut );
+  void ( *rspFwd )        (       Pel* ptr,  ptrdiff_t ptrStride, int width, int height, const int bd,                   const Pel OrgCW,  const Pel* LmcsPivot, const Pel* ScaleCoeff, const Pel* InputPivot );
+  void ( *rspBcw )        (       Pel* ptr,  ptrdiff_t ptrStride, int width, int height, const int bd, const int minBin, const int maxBin, const Pel* LmcsPivot, const Pel* InvScCoeff, const Pel* InputPivot );
   void ( *fillN_CU )      (       CodingUnit** ptr, ptrdiff_t ptrStride, int width, int height, CodingUnit* cuPtr );
 
   void (*sampleRateConv)  ( const std::pair<int, int> scalingRatio, const std::pair<int, int> compScale,
@@ -99,7 +98,6 @@ struct PelBufferOps
                             const int afterScaleLeftOffset, const int afterScaleTopOffset,
                             const int bitDepth, const bool useLumaFilter, const bool horCollocatedPositionFlag, const bool verCollocatedPositionFlag );
 };
-#endif
 
 extern PelBufferOps g_pelBufOP;
 
@@ -146,8 +144,7 @@ struct AreaBuf : public Size
 
   void transposedFrom       ( const AreaBuf<const T> &other );
 
-  void rspSignal            ( const Pel *lut );
-  void scaleSignal          ( const int scale, const ClpRng& clpRng);
+  void scaleSignal          ( const int scale, const ClpRng& clpRng );
 
   void rescaleBuf           ( const AreaBuf<const T>& beforeScaling, const ComponentID compID, const std::pair<int, int> scalingRatio, const Window& confBefore, const Window& confAfter, const ChromaFormat chromaFormatIDC, const BitDepths& bitDepths, const bool horCollocatedChromaFlag = false, const bool verCollocatedChromaFlag = false );
 

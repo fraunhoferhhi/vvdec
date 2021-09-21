@@ -434,7 +434,7 @@ void DecCu::predAndReco( CodingUnit& cu, bool doCiipIntra )
     {
       if( cu.slice->getLmcsEnabledFlag() && m_pcReshape->getCTUFlag( *cu.slice ) && !doCiipIntra )
       {
-        predBuf.Y().rspSignal( m_pcReshape->getFwdLUT() );
+         m_pcReshape->rspBufFwd( predBuf.Y() );
       }
 
       if( ( cu.ciipFlag() && doCiipIntra ) || CU::isIBC( cu ) )
@@ -446,7 +446,7 @@ void DecCu::predAndReco( CodingUnit& cu, bool doCiipIntra )
     {
       if( cu.slice->getLmcsEnabledFlag() && m_pcReshape->getCTUFlag( *cu.slice ) && !CU::isIBC( cu ) )
       {
-        predBuf.Y().rspSignal( m_pcReshape->getFwdLUT() );
+        m_pcReshape->rspBufFwd( predBuf.Y() );
       }
     }
 

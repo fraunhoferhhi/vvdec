@@ -178,151 +178,6 @@ void addAvg_SSE( const int16_t* src0, ptrdiff_t src0Stride, const int16_t* src1,
 #endif
 }
 
-template<X86_VEXT vext>
-void paddingSimd2( Pel *dst, ptrdiff_t stride, int width, int height )
-{
-  __m128i x;
-#ifdef USE_AVX2
-  __m256i x16;
-#endif
-  int temp = width, j = 0;
-#ifdef USE_AVX2
-    while ((temp >> 4) > 0)
-    {
-
-      x16 = _mm256_loadu_si256((const __m256i*)(&(dst[j])));
-    _mm256_storeu_si256( ( __m256i* )( dst + j - 1 * stride ), x16 );                     // top
-    _mm256_storeu_si256( ( __m256i* )( dst + j - 2 * stride ), x16 );                     // top
-
-      x16 = _mm256_loadu_si256((const __m256i*)(dst + j + (height - 1)*stride));
-    _mm256_storeu_si256( ( __m256i* )( dst + j + ( height - 1 + 1 )*stride ), x16 );      // bottom
-    _mm256_storeu_si256( ( __m256i* )( dst + j + ( height - 1 + 2 )*stride ), x16 );      // bottom
-
-
-      j = j + 16;
-      temp = temp - 16;
-    }
-#endif
-    while ((temp >> 3) > 0)
-    {
-      x = _mm_loadu_si128((const __m128i*)(&(dst[j])));
-    _mm_storeu_si128( ( __m128i* )( dst + j - 1 * stride ), x );
-    _mm_storeu_si128( ( __m128i* )( dst + j - 2 * stride ), x );
-
-      x = _mm_loadu_si128((const __m128i*)(dst + j + (height - 1)*stride));
-    _mm_storeu_si128( ( __m128i* )( dst + j + ( height - 1 + 1 )*stride ), x );
-    _mm_storeu_si128( ( __m128i* )( dst + j + ( height - 1 + 2 )*stride ), x );
-
-      j = j + 8;
-      temp = temp - 8;
-    }
-    while ((temp >> 2) > 0)
-    {
-      x = _mm_loadl_epi64((const __m128i*)(&dst[j]));
-    _mm_storel_epi64( ( __m128i* )( dst + j - 1 * stride ), x );
-    _mm_storel_epi64( ( __m128i* )( dst + j - 2 * stride ), x );
-
-      x = _mm_loadl_epi64((const __m128i*)(dst + j + (height - 1)*stride));
-    _mm_storel_epi64( ( __m128i* )( dst + j + ( height - 1 + 1 )*stride ), x );
-    _mm_storel_epi64( ( __m128i* )( dst + j + ( height - 1 + 2 )*stride ), x );
-
-      j = j + 4;
-      temp = temp - 4;
-    }
-    while (temp > 0)
-    {
-    dst[j - 2 * stride] = dst[j];
-    dst[j - 1 * stride] = dst[j];
-    dst[j + ( height - 1 + 1 )*stride] = dst[j + ( height - 1 )*stride];
-    dst[j + ( height - 1 + 2 )*stride] = dst[j + ( height - 1 )*stride];
-      j++;
-      temp--;
-    }
-
-  static constexpr int padSize = 2;
-
-  //Left and Right Padding
-  Pel* ptr1 = dst - padSize*stride;
-  Pel* ptr2 = dst - padSize*stride + width - 1;
-  ptrdiff_t offset = 0;
-  for (int i = 0; i < height + 2 * padSize; i++)
-  {
-    offset = stride * i;
-
-    *( ptr1 - 2 + offset ) = *( ptr1 + offset );      // left
-    *( ptr1 - 1 + offset ) = *( ptr1 + offset );      // left
-    *( ptr2 + 1 + offset ) = *( ptr2 + offset );      // right
-    *( ptr2 + 2 + offset ) = *( ptr2 + offset );      // right
-  }
-}
-
-template<X86_VEXT vext>
-void paddingSimd1( Pel *dst, ptrdiff_t stride, int width, int height )
-    {
-  __m128i x;
-#ifdef USE_AVX2
-  __m256i x16;
-#endif
-  int temp = width, j = 0;
-#ifdef USE_AVX2
-  while( ( temp >> 4 ) > 0 )
-  {
-
-    x16 = _mm256_loadu_si256( ( const __m256i* )( &( dst[j] ) ) );
-    _mm256_storeu_si256( ( __m256i* )( dst + j - 1 * stride ), x16 );                     // top
-
-    x16 = _mm256_loadu_si256( ( const __m256i* )( dst + j + ( height - 1 )*stride ) );
-    _mm256_storeu_si256( ( __m256i* )( dst + j + ( height - 1 + 1 )*stride ), x16 );      // bottom
-
-
-    j = j + 16;
-    temp = temp - 16;
-  }
-#endif
-  while( ( temp >> 3 ) > 0 )
-  {
-    x = _mm_loadu_si128( ( const __m128i* )( &( dst[j] ) ) );
-    _mm_storeu_si128( ( __m128i* )( dst + j - 1 * stride ), x );
-
-    x = _mm_loadu_si128( ( const __m128i* )( dst + j + ( height - 1 )*stride ) );
-    _mm_storeu_si128( ( __m128i* )( dst + j + ( height - 1 + 1 )*stride ), x );
-
-    j = j + 8;
-    temp = temp - 8;
-  }
-  while( ( temp >> 2 ) > 0 )
-  {
-    x = _mm_loadl_epi64( ( const __m128i* )( &dst[j] ) );
-    _mm_storel_epi64( ( __m128i* )( dst + j - 1 * stride ), x );
-
-    x = _mm_loadl_epi64( ( const __m128i* )( dst + j + ( height - 1 )*stride ) );
-    _mm_storel_epi64( ( __m128i* )( dst + j + ( height - 1 + 1 )*stride ), x );
-
-    j = j + 4;
-    temp = temp - 4;
-  }
-  while( temp > 0 )
-  {
-    dst[j - 1 * stride] = dst[j];
-    dst[j + ( height - 1 + 1 )*stride] = dst[j + ( height - 1 )*stride];
-    j++;
-    temp--;
-  }
-
-  static constexpr int padSize = 1;
-
-  //Left and Right Padding
-  Pel* ptr1 = dst - stride;
-  Pel* ptr2 = dst - stride + width - 1;
-  ptrdiff_t offset = 0;
-  for( int i = 0; i < height + 2 * padSize; i++ )
-  {
-    offset = stride * i;
-    *( ptr1 - 1 + offset ) = *( ptr1 + offset );      // left
-    *( ptr2 + 1 + offset ) = *( ptr2 + offset );      // right
-  }
-}
-
 template< X86_VEXT vext, int W >
 void reco_SSE( const int16_t* src0, ptrdiff_t src0Stride, const int16_t* src1, ptrdiff_t src1Stride, int16_t *dst, ptrdiff_t dstStride, int width, int height, const ClpRng& clpRng )
 {
@@ -765,8 +620,8 @@ void applyLut_SIMD( Pel* ptr, ptrdiff_t ptrStride, int width, int height, const 
 
       for( int x = 0; x < width; x += 16 )
       {
-        __m256i vin16    = _mm256_loadu_si256       ( ( const __m256i * ) &ptr[x] );
-        __m256i vin16x   = _mm256_loadu_si256       ( ( const __m256i * ) &ptr[x + ptrStride] );
+        __m256i vin16    = _mm256_load_si256        ( ( const __m256i * ) &ptr[x] );
+        __m256i vin16x   = _mm256_load_si256        ( ( const __m256i * ) &ptr[x + ptrStride] );
                                                     
         __m256i vin32_1  = _mm256_unpacklo_epi16    ( vin16,  _mm256_setzero_si256() );
         __m256i vin32_2  = _mm256_unpackhi_epi16    ( vin16,  _mm256_setzero_si256() );
@@ -786,8 +641,8 @@ void applyLut_SIMD( Pel* ptr, ptrdiff_t ptrStride, int width, int height, const 
         __m256i vout16   = _mm256_unpacklo_epi64    ( vout32_1,  vout32_2 );
         __m256i vout16x  = _mm256_unpacklo_epi64    ( vout32_1x, vout32_2x );
 
-        _mm256_storeu_si256( ( __m256i * ) &ptr[x],             vout16 );
-        _mm256_storeu_si256( ( __m256i * ) &ptr[x + ptrStride], vout16x );
+        _mm256_store_si256( ( __m256i * ) &ptr[x],             vout16 );
+        _mm256_store_si256( ( __m256i * ) &ptr[x + ptrStride], vout16x );
       }
 
       ptr += ( ptrStride << 1 );
@@ -808,6 +663,491 @@ void applyLut_SIMD( Pel* ptr, ptrdiff_t ptrStride, int width, int height, const 
   }
 }
 
+template<X86_VEXT vext>
+void rspBcwCore_SIMD( Pel* ptr, ptrdiff_t ptrStride, int width, int height, const int bd, const int minBin, const int maxBin, const Pel* LmcsPivot, const Pel* InvScCoeff, const Pel* InputPivot )
+{
+  const int effMaxBin = maxBin < PIC_CODE_CW_BINS - 1 ? maxBin + 1 : maxBin;
+
+  _mm_prefetch( ( const char* ) ( ptr + 0 * ptrStride ), _MM_HINT_T0 );
+  _mm_prefetch( ( const char* ) ( ptr + 1 * ptrStride ), _MM_HINT_T0 );
+  _mm_prefetch( ( const char* ) ( ptr + 2 * ptrStride ), _MM_HINT_T0 );
+  _mm_prefetch( ( const char* ) ( ptr + 3 * ptrStride ), _MM_HINT_T0 );
+
+#if USE_AVX2
+  if( ( width & 15 ) == 0 )
+  {
+    __m128i xtmp1, xtmp2, xtmp3, xtmp4;
+    xtmp1 = _mm_loadu_si128( ( const __m128i* ) &InputPivot[0] );
+    xtmp2 = _mm_loadu_si128( ( const __m128i* ) &InputPivot[8] );
+    xtmp3 = _mm_shuffle_epi8( xtmp1, _mm_setr_epi8( 0, 2, 4, 6, 8, 10, 12, 14, 1, 3, 5, 7, 9, 11, 13, 15 ) );
+    xtmp4 = _mm_shuffle_epi8( xtmp2, _mm_setr_epi8( 0, 2, 4, 6, 8, 10, 12, 14, 1, 3, 5, 7, 9, 11, 13, 15 ) );
+    xtmp1 = _mm_unpacklo_epi64( xtmp3, xtmp4 );
+    xtmp2 = _mm_unpackhi_epi64( xtmp3, xtmp4 );
+
+    const __m256i mInputPivotLo = _mm256_inserti128_si256( _mm256_castsi128_si256( xtmp1 ), xtmp1, 1 );
+    const __m256i mInputPivotHi = _mm256_inserti128_si256( _mm256_castsi128_si256( xtmp2 ), xtmp2, 1 );
+
+    xtmp1 = _mm_loadu_si128( ( const __m128i* ) & InvScCoeff[0] );
+    xtmp2 = _mm_loadu_si128( ( const __m128i* ) & InvScCoeff[8] );
+    xtmp3 = _mm_shuffle_epi8( xtmp1, _mm_setr_epi8( 0, 2, 4, 6, 8, 10, 12, 14, 1, 3, 5, 7, 9, 11, 13, 15 ) );
+    xtmp4 = _mm_shuffle_epi8( xtmp2, _mm_setr_epi8( 0, 2, 4, 6, 8, 10, 12, 14, 1, 3, 5, 7, 9, 11, 13, 15 ) );
+    xtmp1 = _mm_unpacklo_epi64( xtmp3, xtmp4 );
+    xtmp2 = _mm_unpackhi_epi64( xtmp3, xtmp4 );
+
+    const __m256i mScaleCoeffLo = _mm256_inserti128_si256( _mm256_castsi128_si256( xtmp1 ), xtmp1, 1 );
+    const __m256i mScaleCoeffHi = _mm256_inserti128_si256( _mm256_castsi128_si256( xtmp2 ), xtmp2, 1 );
+
+    const __m256i mMin = _mm256_setzero_si256();
+    const __m256i mMax = _mm256_set1_epi16( ( 1 << bd ) - 1 );
+
+    for( int y = 0; y < height; y += 4 )
+    {
+      _mm_prefetch( ( const char* ) ( ptr + 4 * ptrStride ), _MM_HINT_T0 );
+      _mm_prefetch( ( const char* ) ( ptr + 5 * ptrStride ), _MM_HINT_T0 );
+      _mm_prefetch( ( const char* ) ( ptr + 6 * ptrStride ), _MM_HINT_T0 );
+      _mm_prefetch( ( const char* ) ( ptr + 7 * ptrStride ), _MM_HINT_T0 );
+
+      for( int x = 0; x < width; x += 16 )
+      {
+        const __m256i xsrc0 = _mm256_load_si256( ( const __m256i* ) ( ptr + x + 0 * ptrStride ) );
+        const __m256i xsrc1 = _mm256_load_si256( ( const __m256i* ) ( ptr + x + 1 * ptrStride ) );
+        const __m256i xsrc2 = _mm256_load_si256( ( const __m256i* ) ( ptr + x + 2 * ptrStride ) );
+        const __m256i xsrc3 = _mm256_load_si256( ( const __m256i* ) ( ptr + x + 3 * ptrStride ) );
+
+        __m256i diff0 = _mm256_min_epi16( xsrc0, xsrc1 );
+        __m256i diff2 = _mm256_min_epi16( xsrc2, xsrc3 );
+        __m256i diff1, diff3;
+
+        diff0 = _mm256_min_epi16( diff0, diff2 );
+
+        const Pel min = _mm_extract_epi16( _mm_minpos_epu16( _mm_min_epi16( _mm256_castsi256_si128( diff0 ), _mm256_extracti128_si256( diff0, 1 ) ) ), 0 );
+
+        int i = minBin;
+
+        while( i != effMaxBin && min >= LmcsPivot[i + 1] ) i++;
+
+        __m256i xidx0 = _mm256_set1_epi16( i );
+        __m256i xidx1 = xidx0;
+        __m256i xidx2 = xidx0;
+        __m256i xidx3 = xidx0;
+
+        __m256i xlmcs = _mm256_set1_epi16( LmcsPivot[i] );
+
+        diff0 = _mm256_sub_epi16( xsrc0, xlmcs );
+        diff1 = _mm256_sub_epi16( xsrc1, xlmcs );
+        diff2 = _mm256_sub_epi16( xsrc2, xlmcs );
+        diff3 = _mm256_sub_epi16( xsrc3, xlmcs );
+
+        for( i++; i <= effMaxBin; i++ )
+        {
+          xlmcs         = _mm256_set1_epi16( LmcsPivot[i] );
+
+          __m256i currd = _mm256_sub_epi16( xsrc0, xlmcs );
+          diff0         = _mm256_min_epu16( diff0, currd );
+          __m256i chnd0 = _mm256_cmpeq_epi16( currd, diff0 );
+          
+          currd         = _mm256_sub_epi16( xsrc1, xlmcs );
+          diff1         = _mm256_min_epu16( diff1, currd );
+          __m256i chnd1 = _mm256_cmpeq_epi16( currd, diff1 );
+          
+          currd         = _mm256_sub_epi16( xsrc2, xlmcs );
+          diff2         = _mm256_min_epu16( diff2, currd );
+          __m256i chnd2 = _mm256_cmpeq_epi16( currd, diff2 );
+          
+          currd         = _mm256_sub_epi16( xsrc3, xlmcs );
+          diff3         = _mm256_min_epu16( diff3, currd );
+          __m256i chnd3 = _mm256_cmpeq_epi16( currd, diff3 );
+
+          xidx0         = _mm256_sub_epi16( xidx0, chnd0 );
+          xidx1         = _mm256_sub_epi16( xidx1, chnd1 );
+          xidx2         = _mm256_sub_epi16( xidx2, chnd2 );
+          xidx3         = _mm256_sub_epi16( xidx3, chnd3 );
+
+          chnd0         = _mm256_or_si256( chnd0, chnd1 );
+          chnd2         = _mm256_or_si256( chnd2, chnd3 );
+          chnd0         = _mm256_or_si256( chnd0, chnd2 );
+
+          if( _mm256_testz_si256( chnd0, chnd0 ) ) break;
+        }
+
+        xidx0 = _mm256_packs_epi16( xidx0, _mm256_set1_epi8( -1 ) );
+        xidx1 = _mm256_packs_epi16( xidx1, _mm256_set1_epi8( -1 ) );
+        xidx2 = _mm256_packs_epi16( xidx2, _mm256_set1_epi8( -1 ) );
+        xidx3 = _mm256_packs_epi16( xidx3, _mm256_set1_epi8( -1 ) );
+
+        __m256i xinp = _mm256_unpacklo_epi8( _mm256_shuffle_epi8( mInputPivotLo, xidx0 ), _mm256_shuffle_epi8( mInputPivotHi, xidx0 ) );
+        __m256i xscl = _mm256_unpacklo_epi8( _mm256_shuffle_epi8( mScaleCoeffLo, xidx0 ), _mm256_shuffle_epi8( mScaleCoeffHi, xidx0 ) );
+        
+        __m256i
+        xtmp1 = _mm256_slli_epi16( diff0, 4 );
+        xtmp1 = _mm256_mulhrs_epi16( xtmp1, xscl );
+                   
+        xtmp1 = _mm256_add_epi16( xinp, xtmp1 );
+
+        xtmp1 = _mm256_min_epi16( xtmp1, mMax );
+        xtmp1 = _mm256_max_epi16( xtmp1, mMin );
+
+        _mm256_store_si256( ( __m256i * ) &ptr[x], xtmp1 );
+
+        xinp = _mm256_unpacklo_epi8( _mm256_shuffle_epi8( mInputPivotLo, xidx1 ), _mm256_shuffle_epi8( mInputPivotHi, xidx1 ) );
+        xscl = _mm256_unpacklo_epi8( _mm256_shuffle_epi8( mScaleCoeffLo, xidx1 ), _mm256_shuffle_epi8( mScaleCoeffHi, xidx1 ) );
+
+        xtmp1 = _mm256_slli_epi16( diff1, 4 );
+        xtmp1 = _mm256_mulhrs_epi16( xtmp1, xscl );
+
+        xtmp1 = _mm256_add_epi16( xinp, xtmp1 );
+
+        xtmp1 = _mm256_min_epi16( xtmp1, mMax );
+        xtmp1 = _mm256_max_epi16( xtmp1, mMin );
+
+        _mm256_store_si256( (__m256i*) & ptr[x+ptrStride], xtmp1 );
+
+        xinp = _mm256_unpacklo_epi8( _mm256_shuffle_epi8( mInputPivotLo, xidx2 ), _mm256_shuffle_epi8( mInputPivotHi, xidx2 ) );
+        xscl = _mm256_unpacklo_epi8( _mm256_shuffle_epi8( mScaleCoeffLo, xidx2 ), _mm256_shuffle_epi8( mScaleCoeffHi, xidx2 ) );
+
+        xtmp1 = _mm256_slli_epi16( diff2, 4 );
+        xtmp1 = _mm256_mulhrs_epi16( xtmp1, xscl );
+
+        xtmp1 = _mm256_add_epi16( xinp, xtmp1 );
+
+        xtmp1 = _mm256_min_epi16( xtmp1, mMax );
+        xtmp1 = _mm256_max_epi16( xtmp1, mMin );
+
+        _mm256_store_si256( (__m256i*) & ptr[x+2*ptrStride], xtmp1 );
+
+        xinp = _mm256_unpacklo_epi8( _mm256_shuffle_epi8( mInputPivotLo, xidx3 ), _mm256_shuffle_epi8( mInputPivotHi, xidx3 ) );
+        xscl = _mm256_unpacklo_epi8( _mm256_shuffle_epi8( mScaleCoeffLo, xidx3 ), _mm256_shuffle_epi8( mScaleCoeffHi, xidx3 ) );
+
+        xtmp1 = _mm256_slli_epi16( diff3, 4 );
+        xtmp1 = _mm256_mulhrs_epi16( xtmp1, xscl );
+
+        xtmp1 = _mm256_add_epi16( xinp, xtmp1 );
+
+        xtmp1 = _mm256_min_epi16( xtmp1, mMax );
+        xtmp1 = _mm256_max_epi16( xtmp1, mMin );
+
+        _mm256_store_si256( (__m256i*) & ptr[x+3*ptrStride], xtmp1 );
+      }
+
+      ptr += ( ptrStride << 2 );
+    }
+    
+    _mm256_zeroupper();
+  }
+  else
+#endif
+  if( ( width & 7 ) == 0 )
+  {
+    __m128i xtmp1, xtmp2;
+
+    xtmp1 = _mm_loadu_si128( ( const __m128i* ) &InputPivot[0] );
+    xtmp2 = _mm_loadu_si128( ( const __m128i* ) &InputPivot[8] );
+    xtmp1 = _mm_shuffle_epi8( xtmp1, _mm_setr_epi8( 0, 2, 4, 6, 8, 10, 12, 14, 1, 3, 5, 7, 9, 11, 13, 15 ) );
+    xtmp2 = _mm_shuffle_epi8( xtmp2, _mm_setr_epi8( 0, 2, 4, 6, 8, 10, 12, 14, 1, 3, 5, 7, 9, 11, 13, 15 ) );
+
+    const __m128i mInputPivotLo = _mm_unpacklo_epi64( xtmp1, xtmp2 );
+    const __m128i mInputPivotHi = _mm_unpackhi_epi64( xtmp1, xtmp2 );
+    
+
+    xtmp1 = _mm_loadu_si128( ( const __m128i* ) &InvScCoeff[0] );
+    xtmp2 = _mm_loadu_si128( ( const __m128i* ) &InvScCoeff[8] );
+    xtmp1 = _mm_shuffle_epi8( xtmp1, _mm_setr_epi8( 0, 2, 4, 6, 8, 10, 12, 14, 1, 3, 5, 7, 9, 11, 13, 15 ) );
+    xtmp2 = _mm_shuffle_epi8( xtmp2, _mm_setr_epi8( 0, 2, 4, 6, 8, 10, 12, 14, 1, 3, 5, 7, 9, 11, 13, 15 ) );
+
+    const __m128i mScaleCoeffLo = _mm_unpacklo_epi64( xtmp1, xtmp2 );
+    const __m128i mScaleCoeffHi = _mm_unpackhi_epi64( xtmp1, xtmp2 );
+
+    const __m128i mMin    = _mm_setzero_si128();
+    const __m128i mMax    = _mm_set1_epi16( ( 1 << bd ) - 1 );
+
+    for( int y = 0; y < height; y += 4 )
+    {
+      _mm_prefetch( ( const char* ) ( ptr + 4 * ptrStride ), _MM_HINT_T0 );
+      _mm_prefetch( ( const char* ) ( ptr + 5 * ptrStride ), _MM_HINT_T0 );
+      _mm_prefetch( ( const char* ) ( ptr + 6 * ptrStride ), _MM_HINT_T0 );
+      _mm_prefetch( ( const char* ) ( ptr + 7 * ptrStride ), _MM_HINT_T0 );
+
+      for( int x = 0; x < width; x += 8 )
+      {
+        const __m128i xsrc0 = _mm_load_si128( ( const __m128i* ) ( ptr + x + 0 * ptrStride ) );
+        const __m128i xsrc1 = _mm_load_si128( ( const __m128i* ) ( ptr + x + 1 * ptrStride ) );
+        const __m128i xsrc2 = _mm_load_si128( ( const __m128i* ) ( ptr + x + 2 * ptrStride ) );
+        const __m128i xsrc3 = _mm_load_si128( ( const __m128i* ) ( ptr + x + 3 * ptrStride ) );
+
+        const Pel min = _mm_extract_epi16( _mm_minpos_epu16( _mm_min_epi16( _mm_min_epi16( xsrc0, xsrc1 ), _mm_min_epi16( xsrc2, xsrc3 ) ) ), 0 );
+        
+        int i = minBin;
+
+        while( i != effMaxBin && min >= LmcsPivot[i + 1] ) i++;
+
+        __m128i xidx0 = _mm_set1_epi16( i );
+        __m128i xidx1 = xidx0;
+        __m128i xidx2 = xidx0;
+        __m128i xidx3 = xidx0;
+
+        __m128i xlmcs = _mm_set1_epi16( LmcsPivot[i] );
+
+        __m128i diff0 = _mm_sub_epi16( xsrc0, xlmcs );
+        __m128i diff1 = _mm_sub_epi16( xsrc1, xlmcs );
+        __m128i diff2 = _mm_sub_epi16( xsrc2, xlmcs );
+        __m128i diff3 = _mm_sub_epi16( xsrc3, xlmcs );
+
+        for( i++; i <= effMaxBin; i++ )
+        {
+          xlmcs         = _mm_set1_epi16( LmcsPivot[i] );
+
+          __m128i currd = _mm_sub_epi16( xsrc0, xlmcs );
+          diff0         = _mm_min_epu16( diff0, currd );
+          __m128i chnd0 = _mm_cmpeq_epi16( currd, diff0 );
+          
+          currd         = _mm_sub_epi16( xsrc1, xlmcs );
+          diff1         = _mm_min_epu16( diff1, currd );
+          __m128i chnd1 = _mm_cmpeq_epi16( currd, diff1 );
+          
+          currd         = _mm_sub_epi16( xsrc2, xlmcs );
+          diff2         = _mm_min_epu16( diff2, currd );
+          __m128i chnd2 = _mm_cmpeq_epi16( currd, diff2 );
+          
+          currd         = _mm_sub_epi16( xsrc3, xlmcs );
+          diff3         = _mm_min_epu16( diff3, currd );
+          __m128i chnd3 = _mm_cmpeq_epi16( currd, diff3 );
+          
+          xidx0         = _mm_sub_epi16( xidx0, chnd0 );
+          xidx1         = _mm_sub_epi16( xidx1, chnd1 );
+          xidx2         = _mm_sub_epi16( xidx2, chnd2 );
+          xidx3         = _mm_sub_epi16( xidx3, chnd3 );
+
+          chnd0         = _mm_or_si128( chnd0, chnd1 );
+          chnd2         = _mm_or_si128( chnd2, chnd3 );
+          chnd0         = _mm_or_si128( chnd0, chnd2 );
+
+          if( _mm_testz_si128( chnd0, chnd0 ) ) break;
+        }
+
+        xidx0 = _mm_packs_epi16( xidx0, _mm_set1_epi8( -1 ) );
+        xidx1 = _mm_packs_epi16( xidx1, _mm_set1_epi8( -1 ) );
+        xidx2 = _mm_packs_epi16( xidx2, _mm_set1_epi8( -1 ) );
+        xidx3 = _mm_packs_epi16( xidx3, _mm_set1_epi8( -1 ) );
+
+        __m128i xinp = _mm_unpacklo_epi8( _mm_shuffle_epi8( mInputPivotLo, xidx0 ), _mm_shuffle_epi8( mInputPivotHi, xidx0 ) );
+        __m128i xscl = _mm_unpacklo_epi8( _mm_shuffle_epi8( mScaleCoeffLo, xidx0 ), _mm_shuffle_epi8( mScaleCoeffHi, xidx0 ) );
+        
+        xtmp1 = _mm_slli_epi16( diff0, 4 );
+        xtmp1 = _mm_mulhrs_epi16( xtmp1, xscl );
+
+        xtmp1 = _mm_add_epi16( xinp, xtmp1 );
+
+        xtmp1 = _mm_min_epi16( xtmp1, mMax );
+        xtmp1 = _mm_max_epi16( xtmp1, mMin );
+
+        _mm_store_si128( ( __m128i * ) &ptr[x], xtmp1 );
+
+        xinp = _mm_unpacklo_epi8( _mm_shuffle_epi8( mInputPivotLo, xidx1 ), _mm_shuffle_epi8( mInputPivotHi, xidx1 ) );
+        xscl = _mm_unpacklo_epi8( _mm_shuffle_epi8( mScaleCoeffLo, xidx1 ), _mm_shuffle_epi8( mScaleCoeffHi, xidx1 ) );
+        
+        xtmp1 = _mm_slli_epi16( diff1, 4 );
+        xtmp1 = _mm_mulhrs_epi16( xtmp1, xscl );
+        
+        xtmp1 = _mm_add_epi16( xinp, xtmp1 );
+        
+        xtmp1 = _mm_min_epi16( xtmp1, mMax );
+        xtmp1 = _mm_max_epi16( xtmp1, mMin );
+        
+        _mm_store_si128( (__m128i*) & ptr[x+ptrStride], xtmp1 );
+
+        xinp = _mm_unpacklo_epi8( _mm_shuffle_epi8( mInputPivotLo, xidx2 ), _mm_shuffle_epi8( mInputPivotHi, xidx2 ) );
+        xscl = _mm_unpacklo_epi8( _mm_shuffle_epi8( mScaleCoeffLo, xidx2 ), _mm_shuffle_epi8( mScaleCoeffHi, xidx2 ) );
+        
+        xtmp1 = _mm_slli_epi16( diff2, 4 );
+        xtmp1 = _mm_mulhrs_epi16( xtmp1, xscl );
+        
+        xtmp1 = _mm_add_epi16( xinp, xtmp1 );
+        
+        xtmp1 = _mm_min_epi16( xtmp1, mMax );
+        xtmp1 = _mm_max_epi16( xtmp1, mMin );
+        
+        _mm_store_si128( (__m128i*) & ptr[x + 2 * ptrStride], xtmp1 );
+        
+        xinp = _mm_unpacklo_epi8( _mm_shuffle_epi8( mInputPivotLo, xidx3 ), _mm_shuffle_epi8( mInputPivotHi, xidx3 ) );
+        xscl = _mm_unpacklo_epi8( _mm_shuffle_epi8( mScaleCoeffLo, xidx3 ), _mm_shuffle_epi8( mScaleCoeffHi, xidx3 ) );
+        
+        xtmp1 = _mm_slli_epi16( diff3, 4 );
+        xtmp1 = _mm_mulhrs_epi16( xtmp1, xscl );
+        
+        xtmp1 = _mm_add_epi16( xinp, xtmp1 );
+        
+        xtmp1 = _mm_min_epi16( xtmp1, mMax );
+        xtmp1 = _mm_max_epi16( xtmp1, mMin );
+        
+        _mm_store_si128( (__m128i*) & ptr[x + 3 * ptrStride], xtmp1 );
+      }
+
+      ptr += ptrStride << 2;
+    }
+  }
+  else
+  {
+    THROW( "Unsupported size!" );
+  }
+}
+
+template<X86_VEXT vext>
+void rspFwdCore_SIMD( Pel* ptr, ptrdiff_t ptrStride, int width, int height, const int bd, const Pel OrgCW, const Pel* LmcsPivot, const Pel* ScaleCoeff, const Pel* InputPivot )
+{
+  _mm_prefetch( ( const char* ) (ptr + 0 * ptrStride), _MM_HINT_T0 );
+  _mm_prefetch( ( const char* ) (ptr + 1 * ptrStride), _MM_HINT_T0 );
+
+  int shift = getLog2( OrgCW );
+
+#if USE_AVX2
+  if( ( width & 15 ) == 0 )
+  {
+    __m128i xtmp1, xtmp2, xtmp3, xtmp4;
+    xtmp1 = _mm_loadu_si128( ( const __m128i* ) &LmcsPivot[0] );
+    xtmp2 = _mm_loadu_si128( ( const __m128i* ) &LmcsPivot[8] );
+    xtmp3 = _mm_shuffle_epi8( xtmp1, _mm_setr_epi8( 0, 2, 4, 6, 8, 10, 12, 14, 1, 3, 5, 7, 9, 11, 13, 15 ) );
+    xtmp4 = _mm_shuffle_epi8( xtmp2, _mm_setr_epi8( 0, 2, 4, 6, 8, 10, 12, 14, 1, 3, 5, 7, 9, 11, 13, 15 ) );
+    xtmp1 = _mm_unpacklo_epi64( xtmp3, xtmp4 );
+    xtmp2 = _mm_unpackhi_epi64( xtmp3, xtmp4 );
+
+    const __m256i mLmcsPivotLo = _mm256_inserti128_si256( _mm256_castsi128_si256( xtmp1 ), xtmp1, 1 );
+    const __m256i mLmcsPivotHi = _mm256_inserti128_si256( _mm256_castsi128_si256( xtmp2 ), xtmp2, 1 );
+
+    xtmp1 = _mm_loadu_si128( ( const __m128i* ) &InputPivot[0] );
+    xtmp2 = _mm_loadu_si128( ( const __m128i* ) &InputPivot[8] );
+    xtmp3 = _mm_shuffle_epi8( xtmp1, _mm_setr_epi8( 0, 2, 4, 6, 8, 10, 12, 14, 1, 3, 5, 7, 9, 11, 13, 15 ) );
+    xtmp4 = _mm_shuffle_epi8( xtmp2, _mm_setr_epi8( 0, 2, 4, 6, 8, 10, 12, 14, 1, 3, 5, 7, 9, 11, 13, 15 ) );
+    xtmp1 = _mm_unpacklo_epi64( xtmp3, xtmp4 );
+    xtmp2 = _mm_unpackhi_epi64( xtmp3, xtmp4 );
+
+    const __m256i mInputPivotLo = _mm256_inserti128_si256( _mm256_castsi128_si256( xtmp1 ), xtmp1, 1 );
+    const __m256i mInputPivotHi = _mm256_inserti128_si256( _mm256_castsi128_si256( xtmp2 ), xtmp2, 1 );
+
+    xtmp1 = _mm_loadu_si128( ( const __m128i* ) &ScaleCoeff[0] );
+    xtmp2 = _mm_loadu_si128( ( const __m128i* ) &ScaleCoeff[8] );
+    xtmp3 = _mm_shuffle_epi8( xtmp1, _mm_setr_epi8( 0, 2, 4, 6, 8, 10, 12, 14, 1, 3, 5, 7, 9, 11, 13, 15 ) );
+    xtmp4 = _mm_shuffle_epi8( xtmp2, _mm_setr_epi8( 0, 2, 4, 6, 8, 10, 12, 14, 1, 3, 5, 7, 9, 11, 13, 15 ) );
+    xtmp1 = _mm_unpacklo_epi64( xtmp3, xtmp4 );
+    xtmp2 = _mm_unpackhi_epi64( xtmp3, xtmp4 );
+
+    const __m256i mScaleCoeffLo = _mm256_inserti128_si256( _mm256_castsi128_si256( xtmp1 ), xtmp1, 1 );
+    const __m256i mScaleCoeffHi = _mm256_inserti128_si256( _mm256_castsi128_si256( xtmp2 ), xtmp2, 1 );
+
+    const __m256i mMin    = _mm256_setzero_si256();
+    const __m256i mMax    = _mm256_set1_epi16( ( 1 << bd ) - 1 );
+
+    //#define RSP_FWD_OP( ADDR ) { idxY = ( ptr[ADDR] >> shift ); ptr[ADDR] = static_cast<Pel>( ClipBD<int>( LmcsPivot[idxY] + ( ( ScaleCoeff[idxY] * ( ptr[ADDR] - InputPivot[idxY] ) + ( 1 << 10 ) ) >> 11 ), bd ) ); }
+
+    while( height-- )
+    {
+      _mm_prefetch( ( const char* ) ( ptr + ptrStride ), _MM_HINT_T0 );
+
+      for( int x = 0; x < width; x += 16 )
+      {
+        const __m256i xsrc = _mm256_loadu_si256( ( const __m256i* ) &ptr[x] );
+        const __m256i xidx = _mm256_packs_epi16( _mm256_srai_epi16 ( xsrc, shift ), _mm256_set1_epi8( -1 ) );
+
+        const __m256i xinp = _mm256_unpacklo_epi8( _mm256_shuffle_epi8( mInputPivotLo, xidx ), _mm256_shuffle_epi8( mInputPivotHi, xidx ) );
+        const __m256i xscl = _mm256_unpacklo_epi8( _mm256_shuffle_epi8( mScaleCoeffLo, xidx ), _mm256_shuffle_epi8( mScaleCoeffHi, xidx ) );
+        const __m256i xlmc = _mm256_unpacklo_epi8( _mm256_shuffle_epi8( mLmcsPivotLo,  xidx ), _mm256_shuffle_epi8( mLmcsPivotHi,  xidx ) );
+
+        __m256i
+        vtmp1 = _mm256_slli_epi16( _mm256_subs_epi16( xsrc, xinp ), 4 );
+        vtmp1 = _mm256_mulhrs_epi16( vtmp1, xscl );
+
+        vtmp1 = _mm256_add_epi16( xlmc, vtmp1 );
+
+        vtmp1 = _mm256_min_epi16( vtmp1, mMax );
+        vtmp1 = _mm256_max_epi16( vtmp1, mMin );
+
+        _mm256_storeu_si256( ( __m256i * ) &ptr[x], vtmp1 );
+      }
+
+      ptr += ptrStride;
+    }
+
+    _mm256_zeroupper();
+  }
+  else
+#endif
+  if( ( width & 7 ) == 0 )
+  {
+    __m128i xtmp1, xtmp2, xtmp3, xtmp4;
+    xtmp1 = _mm_loadu_si128( ( const __m128i* ) &LmcsPivot[0] );
+    xtmp2 = _mm_loadu_si128( ( const __m128i* ) &LmcsPivot[8] );
+    xtmp3 = _mm_shuffle_epi8( xtmp1, _mm_setr_epi8( 0, 2, 4, 6, 8, 10, 12, 14, 1, 3, 5, 7, 9, 11, 13, 15 ) );
+    xtmp4 = _mm_shuffle_epi8( xtmp2, _mm_setr_epi8( 0, 2, 4, 6, 8, 10, 12, 14, 1, 3, 5, 7, 9, 11, 13, 15 ) );
+
+    const __m128i mLmcsPivotLo = _mm_unpacklo_epi64( xtmp3, xtmp4 );
+    const __m128i mLmcsPivotHi = _mm_unpackhi_epi64( xtmp3, xtmp4 );
+
+    xtmp1 = _mm_loadu_si128( ( const __m128i* ) &InputPivot[0] );
+    xtmp2 = _mm_loadu_si128( ( const __m128i* ) &InputPivot[8] );
+    xtmp3 = _mm_shuffle_epi8( xtmp1, _mm_setr_epi8( 0, 2, 4, 6, 8, 10, 12, 14, 1, 3, 5, 7, 9, 11, 13, 15 ) );
+    xtmp4 = _mm_shuffle_epi8( xtmp2, _mm_setr_epi8( 0, 2, 4, 6, 8, 10, 12, 14, 1, 3, 5, 7, 9, 11, 13, 15 ) );
+
+    const __m128i mInputPivotLo = _mm_unpacklo_epi64( xtmp3, xtmp4 );
+    const __m128i mInputPivotHi = _mm_unpackhi_epi64( xtmp3, xtmp4 );
+    
+
+    xtmp1 = _mm_loadu_si128( ( const __m128i* ) &ScaleCoeff[0] );
+    xtmp2 = _mm_loadu_si128( ( const __m128i* ) &ScaleCoeff[8] );
+    xtmp3 = _mm_shuffle_epi8( xtmp1, _mm_setr_epi8( 0, 2, 4, 6, 8, 10, 12, 14, 1, 3, 5, 7, 9, 11, 13, 15 ) );
+    xtmp4 = _mm_shuffle_epi8( xtmp2, _mm_setr_epi8( 0, 2, 4, 6, 8, 10, 12, 14, 1, 3, 5, 7, 9, 11, 13, 15 ) );
+
+    const __m128i mScaleCoeffLo = _mm_unpacklo_epi64( xtmp3, xtmp4 );
+    const __m128i mScaleCoeffHi = _mm_unpackhi_epi64( xtmp3, xtmp4 );
+
+    const __m128i mMin    = _mm_setzero_si128();
+    const __m128i mMax    = _mm_set1_epi16( ( 1 << bd ) - 1 );
+
+    while( height-- )
+    {
+      _mm_prefetch( ( const char* ) ( ptr + ptrStride ), _MM_HINT_T0 );
+
+      for( int x = 0; x < width; x += 8 )
+      {
+        const __m128i xsrc = _mm_loadu_si128( ( const __m128i* ) &ptr[x] );
+        const __m128i xidx = _mm_packs_epi16( _mm_srai_epi16 ( xsrc, shift ), _mm_set1_epi8( -1 ) );
+
+        const __m128i xlmc = _mm_unpacklo_epi8( _mm_shuffle_epi8( mLmcsPivotLo,  xidx ), _mm_shuffle_epi8( mLmcsPivotHi,  xidx ) );
+        const __m128i xinp = _mm_unpacklo_epi8( _mm_shuffle_epi8( mInputPivotLo, xidx ), _mm_shuffle_epi8( mInputPivotHi, xidx ) );
+        const __m128i xscl = _mm_unpacklo_epi8( _mm_shuffle_epi8( mScaleCoeffLo, xidx ), _mm_shuffle_epi8( mScaleCoeffHi, xidx ) );
+        
+        xtmp1 = _mm_slli_epi16( _mm_subs_epi16( xsrc, xinp ), 4 );
+        xtmp1 = _mm_mulhrs_epi16( xtmp1, xscl );
+
+        xtmp1 = _mm_add_epi16( xlmc, xtmp1 );
+
+        xtmp1 = _mm_min_epi16( xtmp1, mMax );
+        xtmp1 = _mm_max_epi16( xtmp1, mMin );
+
+        _mm_storeu_si128( ( __m128i * ) &ptr[x], xtmp1 );
+      }
+
+      ptr += ptrStride;
+    }
+  }
+  else
+  {
+    int idxY;
+
+    //    const auto rsp_sgnl_op  = [=, &dst]( int ADDR ){ idxY = ( dst[ADDR] >> shift ); dst[ADDR] = static_cast<Pel>( ClipBD<int>( LmcsPivot[idxY] + ( ( ScaleCoeff[idxY] * ( dst[ADDR] - InputPivot[idxY] ) + ( 1 << 10 ) ) >> 11 ), bd ) ); };
+    //    const auto rsp_sgnl_inc = [=, &dst]            { dst += stride; };
+
+    //    size_aware_pel_op( rsp_sgnl_op, rsp_sgnl_inc, width, height );
+
+#define RSP_FWD_OP( ADDR ) { idxY = ( ptr[ADDR] >> shift ); ptr[ADDR] = static_cast<Pel>( ClipBD<int>( LmcsPivot[idxY] + ( ( ScaleCoeff[idxY] * ( ptr[ADDR] - InputPivot[idxY] ) + ( 1 << 10 ) ) >> 11 ), bd ) ); }
+#define RSP_FWD_INC        ptr      += ptrStride;
+
+    SIZE_AWARE_PER_EL_OP( RSP_FWD_OP, RSP_FWD_INC )
+
+#undef RSP_FWD_OP
+#undef RSP_FWD_INC
+  }
+}
+
+#ifndef TARGET_SIMD_WASM
 template<X86_VEXT vext>
 void fillN_CU_SIMD( CodingUnit** ptr, ptrdiff_t ptrStride, int width, int height, CodingUnit* cuPtr )
 {
@@ -857,6 +1197,7 @@ void fillN_CU_SIMD( CodingUnit** ptr, ptrdiff_t ptrStride, int width, int height
     }
   }
 }
+#endif  // !TARGET_SIMD_WASM
 
 template<X86_VEXT vext>
 void sampleRateConvSIMD_8tap( const std::pair<int, int> scalingRatio, const std::pair<int, int> compScale,
@@ -1355,9 +1696,6 @@ void PelBufferOps::_initPelBufOpsX86()
   addAvg8  = addAvg_SSE<vext,  8>;
   addAvg4  = addAvg_SSE<vext,  4>;
 
-  padding1 = paddingSimd1<vext>;
-  padding2 = paddingSimd2<vext>;
-
   reco8 = reco_SSE<vext, 8>;
   reco4 = reco_SSE<vext, 4>;
 
@@ -1374,10 +1712,17 @@ void PelBufferOps::_initPelBufOpsX86()
   transpose4x4 = transposePel_SSE<vext, 4>;
   transpose8x8 = transposePel_SSE<vext, 8>;
 
+  // for modern CPUs and fast memory chips, applyLut using igather32 outperfoms the loop-based interval index estimation
   if( vext >= AVX2 )
     applyLut = applyLut_SIMD<vext>;
+  else
+    rspBcw = rspBcwCore_SIMD<vext>;
 
+  rspFwd = rspFwdCore_SIMD<vext>;
+
+#ifndef TARGET_SIMD_WASM
   fillN_CU = fillN_CU_SIMD<vext>;
+#endif  // !TARGET_SIMD_WASM
 
   sampleRateConv = sampleRateConvSIMD<vext>;
 }

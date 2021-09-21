@@ -275,6 +275,42 @@ void PaddBIOCore(const Pel* refPel,Pel* dstPel,unsigned width,const int shift)
 
 }
 
+template<int padSize>
+void paddingCore(Pel *ptr, ptrdiff_t stride, int width, int height)
+{
+  /*left and right padding*/
+  Pel *ptrTemp1 = ptr;
+  Pel *ptrTemp2 = ptr + (width - 1);
+  ptrdiff_t offset = 0;
+  for (int i = 0; i < height; i++)
+  {
+    offset = stride * i;
+    for (int j = 1; j <= padSize; j++)
+    {
+      *(ptrTemp1 - j + offset) = *(ptrTemp1 + offset);
+      *(ptrTemp2 + j + offset) = *(ptrTemp2 + offset);
+    }
+  }
+  /*Top and Bottom padding*/
+  int numBytes = (width + padSize + padSize) * sizeof(Pel);
+  ptrTemp1 = (ptr - padSize);
+  ptrTemp2 = (ptr + (stride * (height - 1)) - padSize);
+  for (int i = 1; i <= padSize; i++)
+  {
+    memcpy(ptrTemp1 - (i * stride), (ptrTemp1), numBytes);
+    memcpy(ptrTemp2 + (i * stride), (ptrTemp2), numBytes);
+  }
+}
+
+void prefetchPadCore( const Pel* src, const ptrdiff_t srcStride, Pel* dst, const ptrdiff_t dstStride, int width, int height, int padSize )
+{
+  g_pelBufOP.copyBuffer( ( const char* ) src, srcStride * sizeof( Pel ), ( char* ) dst, dstStride * sizeof( Pel ), width * sizeof( Pel ), height );
+  if( padSize == 1 )
+    paddingCore<1>( dst, dstStride, width, height );
+  else
+    paddingCore<2>( dst, dstStride, width, height );
+}
+
 // ====================================================================================================================
 // Constructor / destructor / initialize
 // ====================================================================================================================
@@ -337,7 +373,8 @@ void InterPrediction::init( RdCost* pcRdCost, ChromaFormat chromaFormatIDC, cons
     applyPROF[0] = applyPROFCore<0>;
     applyPROF[1] = applyPROFCore<1>;
     PaddBIO      = PaddBIOCore;
-#if ENABLE_SIMD_OPT_BIO && defined( TARGET_SIMD_X86 )
+    prefetchPad  = prefetchPadCore;
+#if ENABLE_SIMD_OPT_INTER && defined( TARGET_SIMD_X86 )
     initInterPredictionX86();
 #endif
   }
@@ -1313,7 +1350,7 @@ void InterPrediction::xWeightedAverage(const PredictionUnit& pu, const PelUnitBu
   if( pu.BcwIdx() != BCW_DEFAULT && !pu.ciipFlag() )
   {
     CHECK( bioApplied, "Bcw is disallowed with BIO" );
-    pcYuvDst.addWeightedAvg( pcYuvSrc0, pcYuvSrc1, clpRngs, pu.BcwIdx() );
+    pcYuvDst.addWeightedAvg( pcYuvSrc0, pcYuvSrc1, clpRngs, g_BcwInternBcw[pu.BcwIdx()] );
     return;
   }
 
@@ -1479,7 +1516,7 @@ void InterPrediction::weightedGeoBlk( PredictionUnit &pu, const uint8_t splitDir
 }
 
 
-void InterPrediction::xPrefetch( PredictionUnit& pu, PelUnitBuf &pcPad, RefPicList refId, bool forLuma )
+void InterPrediction::xPrefetchPad( PredictionUnit& pu, PelUnitBuf &pcPad, RefPicList refId, bool forLuma )
 {
   ptrdiff_t offset;
   int width, height;
@@ -1489,86 +1526,57 @@ void InterPrediction::xPrefetch( PredictionUnit& pu, PelUnitBuf &pcPad, RefPicLi
 
   static constexpr int mvShift = MV_FRACTIONAL_BITS_INTERNAL;
 
+  const bool wrapRefEnbld = refPic->isWrapAroundEnabled( pu.pps );
+  const bool subPicAsPic  = pu.pps->getNumSubPics() > 1 && pu.pps->getSubPicFromCU( pu ).getTreatedAsPicFlag();
+
   const int start = forLuma ? 0 : 1;
   const int end   = forLuma ? 1 : MAX_NUM_COMPONENT;
 
+  const ChannelType chType = forLuma ? CHANNEL_TYPE_LUMA : CHANNEL_TYPE_CHROMA;
+
+  const int padsize = DMVR_NUM_ITERATION >> getChannelTypeScaleY( chType, pu.chromaFormat );
+
+  int filtersize = isLuma( chType ) ? NTAPS_LUMA : NTAPS_CHROMA;
+  cMv = pu.mv[refId][0];
+  
+  const int mvshiftTempHor        = mvShift + getChannelTypeScaleX( chType, pu.chromaFormat );
+  const int mvshiftTempVer        = mvShift + getChannelTypeScaleY( chType, pu.chromaFormat );
+  cMv                      += Mv( -( ( ( filtersize >> 1 ) - 1 ) << mvshiftTempHor ),
+                                  -( ( ( filtersize >> 1 ) - 1 ) << mvshiftTempVer ) );
+  bool wrapRef = false;
+
+  if( wrapRefEnbld )
+  {
+    wrapRef = wrapClipMv( cMv, pu.lumaPos(), pu.lumaSize(), *pu.sps, *pu.pps );
+  }
+  else
+  {
+    clipMv( cMv, pu.lumaPos(), pu.lumaSize(), *pu.sps, *pu.pps );
+  }
+
+  cMv.hor >>= mvshiftTempHor;
+  cMv.ver >>= mvshiftTempVer;
+
   for( int compID = start; compID < end; compID++ )
   {
-    int filtersize            = compID == COMPONENT_Y ? NTAPS_LUMA : NTAPS_CHROMA;
-    cMv                       = pu.mv[refId][0];
     pcPad.bufs[compID].stride = pcPad.bufs[compID].width + ( 2 * DMVR_NUM_ITERATION ) + filtersize;
     width                     = pcPad.bufs[compID].width;
     height                    = pcPad.bufs[compID].height;
     offset                    = DMVR_NUM_ITERATION * ( pcPad.bufs[compID].stride + 1 );
 
-    int mvshiftTempHor        = mvShift + getComponentScaleX( ( ComponentID ) compID, pu.chromaFormat );
-    int mvshiftTempVer        = mvShift + getComponentScaleY( ( ComponentID ) compID, pu.chromaFormat );
-
     width                    += filtersize - 1;
     height                   += filtersize - 1;
-    cMv                      += Mv( -( ( ( filtersize >> 1 ) - 1 ) << mvshiftTempHor ),
-                                    -( ( ( filtersize >> 1 ) - 1 ) << mvshiftTempVer ) );
-    bool wrapRef = false;
-    if( refPic->isWrapAroundEnabled( pu.pps ) )
-    {
-      wrapRef = wrapClipMv( cMv, pu.lumaPos(), pu.lumaSize(), *pu.sps, *pu.pps );
-    }
-    else
-    {
-      clipMv( cMv, pu.lumaPos(), pu.lumaSize(), *pu.sps, *pu.pps );
-    }
-    /* Pre-fetch similar to HEVC*/
-    {
-      CPelBuf refBuf;
-      if( pu.pps->getNumSubPics() > 1 && pu.pps->getSubPicFromCU( pu ).getTreatedAsPicFlag() )
-      {
-        refBuf = refPic->getSubPicBuf( pu.pps->getSubPicFromCU( pu ).getSubPicIdx(), ComponentID( compID ), wrapRef );
-      }
-      else
-      {
-        refBuf = refPic->getRecoBuf( ComponentID( compID ), wrapRef );
-      }
-      Position   Rec_offset = pu.blocks[compID].pos().offset( cMv.getHor() >> mvshiftTempHor, cMv.getVer() >> mvshiftTempVer );
-      const Pel* refBufPtr  = refBuf.bufAt( Rec_offset );
 
-      PelBuf& dstBuf = pcPad.bufs[compID];
-      g_pelBufOP.copyBuffer( (const char*)refBufPtr,
-                             refBuf.stride * sizeof( Pel ),
-                             ( (char*)dstBuf.buf ) + offset * sizeof( Pel ),
-                             dstBuf.stride * sizeof( Pel ),
-                             width * sizeof( Pel ),
-                             height );
-    }
+    CPelBuf refBuf = subPicAsPic ? refPic->getSubPicBuf( pu.pps->getSubPicFromCU( pu ).getSubPicIdx(), ComponentID( compID ), wrapRef ) : refPic->getRecoBuf( ComponentID( compID ), wrapRef );
+
+    Position   Rec_offset = pu.blocks[compID].pos().offset( cMv.hor, cMv.ver );
+    const Pel* refBufPtr  = refBuf.bufAt( Rec_offset );
+
+    PelBuf& dstBuf = pcPad.bufs[compID];
+    prefetchPad( refBufPtr, refBuf.stride, dstBuf.buf + offset, dstBuf.stride, width, height, padsize );
   }
 }
 
-void InterPrediction::xPad( PredictionUnit& pu, PelUnitBuf &pcPad, RefPicList refId, bool forLuma )
-{
-  ptrdiff_t offset;
-  int width, height;
-  int padsize;
-  Mv cMv;
-
-  const int start = forLuma ? 0 : 1;
-  const int end   = forLuma ? 1 : MAX_NUM_COMPONENT;
-
-  for( int compID = start; compID < end; compID++ )
-  {
-    const int filtersize = compID == COMPONENT_Y ? NTAPS_LUMA : NTAPS_CHROMA;
-    width                = pcPad.bufs[compID].width;
-    height               = pcPad.bufs[compID].height;
-    offset               = DMVR_NUM_ITERATION * ( pcPad.bufs[compID].stride + 1 );
-    padsize              = DMVR_NUM_ITERATION >> getComponentScaleY( ( ComponentID ) compID, pu.chromaFormat );
-    width               += filtersize - 1;
-    height              += filtersize - 1;
-    
-    /*padding on all side of size DMVR_PAD_LENGTH*/
-    if( padsize == 2 )
-      g_pelBufOP.padding2( pcPad.bufs[compID].buf + offset, pcPad.bufs[compID].stride, width, height );
-    else
-      g_pelBufOP.padding1( pcPad.bufs[compID].buf + offset, pcPad.bufs[compID].stride, width, height );
-  }
-}
 inline int32_t div_for_maxq7(int64_t N, int64_t D)
 {
   int32_t sign, q;
@@ -1924,25 +1932,21 @@ void InterPrediction::xProcessDMVR( PredictionUnit& pu, PelUnitBuf &pcYuvDst, co
 
         if( ( mv0.hor >> mvShift ) != ( mergeMv[0].hor >> mvShift ) || ( mv0.ver >> mvShift ) != ( mergeMv[0].ver >> mvShift ) )
         {
-          xPrefetch( subPu, cYuvRefBuffDMVRL0, REF_PIC_LIST_0, true );
-          xPad     ( subPu, cYuvRefBuffDMVRL0, REF_PIC_LIST_0, true );
+          xPrefetchPad( subPu, cYuvRefBuffDMVRL0, REF_PIC_LIST_0, true );
         }
 
         if( isChromaEnabled( pu.chromaFormat ) && ( ( mv0.hor >> mvShiftX ) != ( mergeMv[0].hor >> mvShiftX ) || ( mv0.ver >> mvShiftY ) != ( mergeMv[0].ver >> mvShiftY ) ) )
         {
-          xPrefetch( subPu, cYuvRefBuffDMVRL0, REF_PIC_LIST_0, false );
-          xPad     ( subPu, cYuvRefBuffDMVRL0, REF_PIC_LIST_0, false );
+          xPrefetchPad( subPu, cYuvRefBuffDMVRL0, REF_PIC_LIST_0, false );
         }
 
         if( ( mv1.hor >> mvShift ) != ( mergeMv[1].hor >> mvShift ) || ( mv1.ver >> mvShift ) != ( mergeMv[1].ver >> mvShift ) )
         {
-          xPrefetch( subPu, cYuvRefBuffDMVRL1, REF_PIC_LIST_1, true );
-          xPad     ( subPu, cYuvRefBuffDMVRL1, REF_PIC_LIST_1, true );
+          xPrefetchPad( subPu, cYuvRefBuffDMVRL1, REF_PIC_LIST_1, true );
         }
         if( isChromaEnabled( pu.chromaFormat ) && ( ( mv1.hor >> mvShiftX ) != ( mergeMv[1].hor >> mvShiftX ) || ( mv1.ver >> mvShiftY ) != ( mergeMv[1].ver >> mvShiftY ) ) )
         {
-          xPrefetch( subPu, cYuvRefBuffDMVRL1, REF_PIC_LIST_1, false );
-          xPad     ( subPu, cYuvRefBuffDMVRL1, REF_PIC_LIST_1, false );
+          xPrefetchPad( subPu, cYuvRefBuffDMVRL1, REF_PIC_LIST_1, false );
         }
 
         subPu.mv[0][0] = mv0;

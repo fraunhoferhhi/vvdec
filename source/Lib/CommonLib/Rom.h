@@ -197,6 +197,8 @@ extern const int8_t g_BcwLog2WeightBase;
 extern const int8_t g_BcwWeightBase;
 extern const int8_t g_BcwWeights[BCW_NUM];
 extern const int8_t g_BcwParsingOrder[BCW_NUM];
+extern const int8_t g_BcwInternFwd[BCW_NUM];
+extern const int8_t g_BcwInternBcw[BCW_NUM];
 
 int8_t getBcwWeight(uint8_t bcwIdx, uint8_t uhRefFrmList);
 

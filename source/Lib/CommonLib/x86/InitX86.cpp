@@ -77,8 +77,10 @@ void InterpolationFilter::initInterpolationFilterX86( /*int iBitDepthY, int iBit
   switch (vext){
   case AVX512:
   case AVX2:
+#ifndef TARGET_SIMD_WASM
     _initInterpolationFilterX86<AVX2>(/*iBitDepthY, iBitDepthC*/);
     break;
+#endif  // !TARGET_SIMD_WASM
   case AVX:
     _initInterpolationFilterX86<AVX>(/*iBitDepthY, iBitDepthC*/);
     break;
@@ -99,8 +101,10 @@ void PelBufferOps::initPelBufOpsX86()
   switch (vext){
     case AVX512:
     case AVX2:
+#ifndef TARGET_SIMD_WASM
       _initPelBufOpsX86<AVX2>();
       break;
+#endif  // !TARGET_SIMD_WASM
     case AVX:
       _initPelBufOpsX86<AVX>();
       break;
@@ -124,8 +128,10 @@ void RdCost::initRdCostX86()
   switch (vext){
     case AVX512:
     case AVX2:
+#ifndef TARGET_SIMD_WASM
       _initRdCostX86<AVX2>();
       break;
+#endif  // !TARGET_SIMD_WASM
     case AVX:
       _initRdCostX86<AVX>();
       break;
@@ -147,8 +153,10 @@ void AdaptiveLoopFilter::initAdaptiveLoopFilterX86()
   {
   case AVX512:
   case AVX2:
+#ifndef TARGET_SIMD_WASM
     _initAdaptiveLoopFilterX86<AVX2>();
     break;
+#endif  // !TARGET_SIMD_WASM
   case AVX:
     _initAdaptiveLoopFilterX86<AVX>();
     break;
@@ -170,8 +178,10 @@ void LoopFilter::initLoopFilterX86()
   {
   case AVX512:
   case AVX2:
+#ifndef TARGET_SIMD_WASM
     _initLoopFilterX86<AVX2>();
     break;
+#endif  // !TARGET_SIMD_WASM
   case AVX:
     _initLoopFilterX86<AVX>();
     break;
@@ -194,8 +204,10 @@ void TCoeffOps::initTCoeffOpsX86()
   {
   case AVX512:
   case AVX2:
+#ifndef TARGET_SIMD_WASM
     _initTCoeffOpsX86<AVX2>();
     break;
+#endif  // !TARGET_SIMD_WASM
   case AVX:
     _initTCoeffOpsX86<AVX>();
     break;
@@ -216,8 +228,10 @@ void IntraPrediction::initIntraPredictionX86()
   switch (vext){
     case AVX512:
     case AVX2:
+#ifndef TARGET_SIMD_WASM
       _initIntraPredictionX86<AVX2>();
       break;
+#endif  // !TARGET_SIMD_WASM
     case AVX:
       _initIntraPredictionX86<AVX>();
       break;
@@ -239,8 +253,10 @@ void SampleAdaptiveOffset::initSampleAdaptiveOffsetX86()
   switch (vext){
     case AVX512:
     case AVX2:
+#ifndef TARGET_SIMD_WASM
       _initSampleAdaptiveOffsetX86<AVX2>();
       break;
+#endif  // !TARGET_SIMD_WASM
     case AVX:
       _initSampleAdaptiveOffsetX86<AVX>();
       break;
@@ -256,15 +272,17 @@ void SampleAdaptiveOffset::initSampleAdaptiveOffsetX86()
 
 #endif
 
-#if ENABLE_SIMD_OPT_BIO
+#if ENABLE_SIMD_OPT_INTER
 void InterPrediction::initInterPredictionX86()
 {
   auto vext = read_x86_extension_flags();
   switch (vext){
     case AVX512:
     case AVX2:
+#ifndef TARGET_SIMD_WASM
       _initInterPredictionX86<AVX2>();
       break;
+#endif  // !TARGET_SIMD_WASM
     case AVX:
       _initInterPredictionX86<AVX>();
       break;
@@ -286,8 +304,10 @@ void Picture::initPictureX86()
   switch (vext){
     case AVX512:
     case AVX2:
+#ifndef TARGET_SIMD_WASM
       _initPictureX86<AVX2>();
       break;
+#endif  // !TARGET_SIMD_WASM
     case AVX:
       _initPictureX86<AVX>();
       break;
@@ -309,8 +329,10 @@ void Quant::initQuantX86()
   switch (vext){
     case AVX512:
     case AVX2:
+#ifndef TARGET_SIMD_WASM
       _initQuantX86<AVX2>();
       break;
+#endif  // !TARGET_SIMD_WASM
     case AVX:
       _initQuantX86<AVX>();
       break;

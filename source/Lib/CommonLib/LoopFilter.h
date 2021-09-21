@@ -91,9 +91,9 @@ private:
   void xSetMaxFilterLengthPQForCodingSubBlocks( const CodingUnit& cu, CtuData& ctuData ) const;
 
   template<DeblockEdgeDir edgeDir>
-  void xEdgeFilterLuma            ( CodingStructure& cs, const Position& pos, const LoopFilterParam& lfp ) const;
+  void xEdgeFilterLuma            ( CodingStructure& cs, const Position& pos, const LoopFilterParam& lfp, const Slice& slice ) const;
   template<DeblockEdgeDir edgeDir>
-  void xEdgeFilterChroma          ( CodingStructure& cs, const Position& pos, const LoopFilterParam& lfp ) const;
+  void xEdgeFilterChroma          ( CodingStructure& cs, const Position& pos, const LoopFilterParam& lfp, const Slice& slice ) const;
 
 #if LUMA_ADAPTIVE_DEBLOCKING_FILTER_QP_OFFSET
   void deriveLADFShift            ( const Pel* src, const ptrdiff_t stride, int& shift, const DeblockEdgeDir edgeDir, const SPS sps ) const;

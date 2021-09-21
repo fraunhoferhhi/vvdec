@@ -193,33 +193,6 @@ void copyBufferCore( const char *src, ptrdiff_t srcStride, char *dst, ptrdiff_t 
   }
 }
 
-template<int padSize>
-void paddingCore(Pel *ptr, ptrdiff_t stride, int width, int height)
-{
-  /*left and right padding*/
-  Pel *ptrTemp1 = ptr;
-  Pel *ptrTemp2 = ptr + (width - 1);
-  ptrdiff_t offset = 0;
-  for (int i = 0; i < height; i++)
-  {
-    offset = stride * i;
-    for (int j = 1; j <= padSize; j++)
-    {
-      *(ptrTemp1 - j + offset) = *(ptrTemp1 + offset);
-      *(ptrTemp2 + j + offset) = *(ptrTemp2 + offset);
-    }
-  }
-  /*Top and Bottom padding*/
-  int numBytes = (width + padSize + padSize) * sizeof(Pel);
-  ptrTemp1 = (ptr - padSize);
-  ptrTemp2 = (ptr + (stride * (height - 1)) - padSize);
-  for (int i = 1; i <= padSize; i++)
-  {
-    memcpy(ptrTemp1 - (i * stride), (ptrTemp1), numBytes);
-    memcpy(ptrTemp2 + (i * stride), (ptrTemp2), numBytes);
-  }
-}
-
 void applyLutCore( Pel* ptr, ptrdiff_t ptrStride, int width, int height, const Pel* lut )
 {
   //    const auto rsp_sgnl_op  = [=, &dst]( int ADDR ){ dst[ADDR] = lut[dst[ADDR]]; };
@@ -235,7 +208,6 @@ void applyLutCore( Pel* ptr, ptrdiff_t ptrStride, int width, int height, const P
 #undef RSP_SGNL_OP
 #undef RSP_SGNL_INC
 }
-
 
 void fillN_CuCore( CodingUnit** ptr, ptrdiff_t ptrStride, int width, int height, CodingUnit* cuPtr )
 {
@@ -358,13 +330,13 @@ PelBufferOps::PelBufferOps()
   wghtAvg8 = addWeightedAvgCore<Pel>;
 
   copyBuffer = copyBufferCore;
-  padding2 = paddingCore<2>;
-  padding1 = paddingCore<1>;
 
   transpose4x4 = transpose4x4Core<Pel>;
   transpose8x8 = transpose8x8Core<Pel>;
 
   applyLut = applyLutCore;
+  rspFwd   = nullptr;
+  rspBcw   = nullptr;
 
   fillN_CU = fillN_CuCore;
 
@@ -428,12 +400,6 @@ void AreaBuf<Pel>::rescaleBuf( const AreaBuf<const Pel>& beforeScaling, Componen
                              confAfter.getWindowLeftOffset() * SPS::getWinUnitX( chromaFormatIDC ), confAfter.getWindowTopOffset() * SPS::getWinUnitY( chromaFormatIDC ),
                              bitDepths.recon[toChannelType( compID )], isLuma( compID ),
                              isLuma( compID ) ? 1 : horCollocatedChromaFlag, isLuma( compID ) ? 1 : verCollocatedChromaFlag );
-}
-
-template<>
-void AreaBuf<Pel>::rspSignal( const Pel* lut )
-{
-  g_pelBufOP.applyLut( buf, stride, width, height, lut );
 }
 
 template<>
@@ -716,7 +682,11 @@ void PelStorage::create( const ChromaFormat _chromaFormat, const Size& _size, co
       totalWidth = ( ( totalWidth + _alignment - 1 ) / _alignment ) * _alignment;
     }
 
+#if ENABLE_SIMD_OPT_INTER
+    uint32_t area = totalWidth * totalHeight + 1; // +1 for the extra Pel overread in prefetchPad_SSE, in case reading from the very bottom right of the picture
+#else
     uint32_t area = totalWidth * totalHeight;
+#endif
     CHECK( !area, "Trying to create a buffer with zero area" );
 
     m_origSi[i] = Size{ totalWidth, totalHeight };

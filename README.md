@@ -74,6 +74,25 @@ The above call only tests the sequences that are know to work. To run a test ove
 
     make test-all
 
+## Build WebAssembly using Emscripten
+
+Install the Emscripten emsdk as documented on the website https://emscripten.org and activate the latest version (tested with 2.0.25).
+
+Ensure the environment variables are set up correctly (e.g. run `source emsdk_env.sh` in the current shell).
+
+Configure the VVdeC project:
+
+    emcmake cmake -B build/wasm
+
+And build the project:
+
+    cmake --build build/wasm
+
+The produced output consists of the `vvdecapp.wasm` binary and the corresponding javascript helpers (`vvdecapp.js`, `vvdecapp.worker.js`).
+
+When importing vvdecapp.js, the function `CreateVVdeC()` creates an instance of the vvdec module, which exposes a similar API to the one defined in `include/vvdec/vvdec.h`.
+
+
 # Contributing
 
 Feel free to contribute. To do so:

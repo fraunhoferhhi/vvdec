@@ -288,7 +288,6 @@ void CodingUnit::minInit( const UnitArea &unit )
 {
   static_cast<UnitArea &>( *this ) = unit;
 
-  setBcwIdx   ( BCW_DEFAULT );
   intraDir[0] = DC_IDX;
 
   refIdx[0]   = refIdx[1] = -1;

@@ -25,6 +25,9 @@ target_compile_options( ${EXE_NAME} PRIVATE $<$<OR:$<CXX_COMPILER_ID:Clang>,$<CX
 target_link_libraries( ${EXE_NAME} Threads::Threads vvdec )
 target_include_directories( ${EXE_NAME} PRIVATE  ../../Lib/libmd5 )
 
+if( ${CMAKE_SYSTEM_NAME} STREQUAL "Emscripten" )
+  set_target_properties( ${EXE_NAME} PROPERTIES LINK_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/../../Lib/vvdec/wasm_exported_functions.json;" )
+endif()
 
 # example: place header files in different folders
 source_group( "Header Files"   FILES ${INC_FILES} )

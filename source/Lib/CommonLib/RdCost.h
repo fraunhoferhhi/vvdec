@@ -113,19 +113,12 @@ public:
 
 private:
 
-  static Distortion xGetSAD           ( const DistParam& pcDtParam );
-  static Distortion xGetSAD4          ( const DistParam& pcDtParam );
   static Distortion xGetSAD8          ( const DistParam& pcDtParam );
   static Distortion xGetSAD16         ( const DistParam& pcDtParam );
-  static Distortion xGetSAD32         ( const DistParam& pcDtParam );
-  static Distortion xGetSAD64         ( const DistParam& pcDtParam );
-  static Distortion xGetSAD16N        ( const DistParam& pcDtParam );
 
 #ifdef TARGET_SIMD_X86
-  template< X86_VEXT vext >
-  static Distortion xGetSAD_16xN_SIMD ( const DistParam& pcDtParam );
-  template< int iWidth, X86_VEXT vext >
-  static Distortion xGetSAD_NxN_SIMD  ( const DistParam& pcDtParam );
+  template< X86_VEXT vext, bool isWdt16 >
+  static Distortion xGetSAD_MxN_SIMD ( const DistParam& pcDtParam );
 #endif
 };// END CLASS DEFINITION RdCost
 

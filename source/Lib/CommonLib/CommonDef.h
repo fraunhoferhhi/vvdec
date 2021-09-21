@@ -56,9 +56,20 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #include <iostream>
 #include <iomanip>
 #include <limits>
+#include <cmath>   // needed for std::log2()
 
 #include <functional>
 #include <mutex>
+
+#if defined( TARGET_SIMD_X86 )
+# ifdef _WIN32
+#  include <intrin.h>
+# elif defined( __GNUC__ ) && !defined( TARGET_SIMD_WASM )
+#  include <x86intrin.h>
+# elif defined( __GNUC__ )
+#  include <immintrin.h>
+# endif
+#endif // TARGET_SIMD_X86
 
 namespace vvdec
 {
@@ -346,7 +357,7 @@ static const int BIO_TEMP_BUFFER_SIZE         =                     (MAX_BDOF_AP
 static const int PROF_BORDER_EXT_W            =                     1;
 static const int PROF_BORDER_EXT_H            =                     1;
 static const int BCW_NUM =                                          5; ///< the number of weight options
-static const int BCW_DEFAULT =                                      ((uint8_t)(BCW_NUM >> 1)); ///< Default weighting index representing for w=0.5
+static const int BCW_DEFAULT =                                      0; ///< Default weighting index representing for w=0.5, in the internal domain
 static const int BCW_SIZE_CONSTRAINT =                            256; ///< disabling Bcw if cu size is smaller than 256
 static const int MAX_NUM_HMVP_CANDS =                              (MRG_MAX_NUM_CANDS-1); ///< maximum number of HMVP candidates to be stored and used in merge list
 static const int MAX_NUM_HMVP_AVMPCANDS =                          4; ///< maximum number of HMVP candidates to be used in AMVP list
@@ -558,42 +569,40 @@ template <typename ValueType> inline ValueType rightShift      (const ValueType 
 template <typename ValueType> inline ValueType leftShift_round (const ValueType value, const int shift) { return (shift >= 0) ? ( value                                  << shift) : ((value + (ValueType(1) << (-shift - 1))) >> -shift); }
 template <typename ValueType> inline ValueType rightShift_round(const ValueType value, const int shift) { return (shift >= 0) ? ((value + (ValueType(1) << (shift - 1))) >> shift) : ( value                                   << -shift); }
 
-#ifdef TARGET_SIMD_X86
-#ifdef _WIN32
-}
-# include <intrin.h>
-namespace vvdec {
-static inline unsigned long _bit_scan_reverse( long a )
+#if defined( _WIN32 ) && defined( TARGET_SIMD_X86 )
+static inline unsigned int bit_scan_reverse( int a )
 {
   unsigned long idx = 0;
   _BitScanReverse( &idx, a );
   return idx;
 }
-#else
+#elif defined( __GNUC__ ) && defined( TARGET_SIMD_X86 ) && !defined( TARGET_SIMD_WASM )
+static inline unsigned int bit_scan_reverse( int a )
+{
+  return _bit_scan_reverse( a );
 }
-# include <x86intrin.h>
-namespace vvdec {
+#elif defined( __GNUC__ )
+static inline unsigned int bit_scan_reverse( int a )
+{
+  return __builtin_clz( a ) ^ ( 8 * sizeof( a ) - 1 );
+}
 #endif
 
-#endif
-#if ENABLE_SIMD_LOG2 && defined( TARGET_SIMD_X86 )
+#if ENABLE_SIMD_LOG2
 static inline int getLog2( long val )
 {
-  return _bit_scan_reverse( val );
+  return bit_scan_reverse( val );
 }
 #else
-}
-#include <cmath>
-namespace vvdec {
 extern int8_t g_aucLog2[MAX_CU_SIZE + 1];
 static inline int getLog2( long val )
 {
   CHECKD( g_aucLog2[2] != 1, "g_aucLog2[] has not been initialized yet." );
-  if( val > 0 && val < (int)sizeof(g_aucLog2) )
+  if( val > 0 && val < (int) sizeof( g_aucLog2 ) )
   {
     return g_aucLog2[val];
   }
-  return std::log2(val);
+  return std::log2( val );
 }
 #endif
 

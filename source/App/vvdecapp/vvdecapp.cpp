@@ -375,6 +375,7 @@ int main( int argc, char* argv[] )
           if( pcFrame->picAttributes )
           {
             uiBitrate += pcFrame->picAttributes->bits;
+            (void)uiBitrate;
           }
 
 #if 0 // just sample code to retrieve sei messages
