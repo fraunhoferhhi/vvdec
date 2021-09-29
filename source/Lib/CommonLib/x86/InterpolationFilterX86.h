@@ -904,15 +904,35 @@ static void simdInterpolateVerM2( const int16_t* src, ptrdiff_t srcStride, int16
 
   const int nextLine = srcStride * ( N - 1 );
 
+#if 0
+  // workaround for GCC-11+, TODO: understand the problem
   vsrc = _mm_unpacklo_epi32( _mm_loadu_si32( ( const __m128i* ) &src[0] ), _mm_loadu_si32( ( const __m128i* ) &src[srcStride] ) );
   vsrc = _mm_unpacklo_epi64( vsrc, _mm_loadu_si32( (const __m128i*) & src[2 * srcStride] ) );
+  Pel out[8];
+  _mm_storeu_si128( ( __m128i* ) out, vsrc );
+  CHECK( out[0] != src[0], "" );
+  CHECK( out[1] != src[1], "" );
+  CHECK( out[2] != src[0 + srcStride], "" );
+  CHECK( out[3] != src[1 + srcStride], "" );
+  CHECK( out[4] != src[0 + 2 * srcStride], "" );
+  CHECK( out[5] != src[1 + 2 * srcStride], "" );
+  CHECK( out[6] != 0, "" );
+  CHECK( out[7] != 0, "" );
+#else
+  vsrc = _mm_setr_epi32( *reinterpret_cast<const int32_t*>( &src[0] ), *reinterpret_cast<const int32_t*>( &src[1 * srcStride] ), *reinterpret_cast<const int32_t*>( &src[2 * srcStride] ), 0 );
+#endif
 
   for( int row = 0; row < height; row++ )
   {
     _mm_prefetch( ( const char* ) &src[( N + 0 ) * srcStride], _MM_HINT_T0 );
     _mm_prefetch( ( const char* ) &src[( N + 1 ) * srcStride], _MM_HINT_T0 );
 
-    vnl  = _mm_loadu_si32   ( ( const __m128i* ) &src[nextLine] );
+#if 0
+    // workaround for GCC-11+, TODO: understand the problem
+    vnl  = _mm_loadu_si32( (const __m128i*) & src[nextLine] );
+#else
+    vnl  = _mm_setr_epi32   ( *reinterpret_cast<const int32_t*>( &src[nextLine] ), 0, 0, 0 );
+#endif
     vnl  = _mm_slli_si128   ( vnl, 12 );
     vsrc = _mm_or_si128     ( vsrc, vnl );
     vtmp = _mm_shuffle_epi8 ( vsrc, vshuff );
@@ -1864,6 +1884,8 @@ static void simdFilter( const ClpRng& clpRng, const Pel* src, const ptrdiff_t sr
           simdInterpolateHorM4<vext, 4, isLast>( src, srcStride, dst, dstStride, width, height, shift, offset, clpRng, c );
         else
           simdInterpolateHorM2<vext, 4, isLast>( src, srcStride, dst, dstStride, width, height, shift, offset, clpRng, c );
+
+        return;
       }
       else
       {
@@ -1883,8 +1905,9 @@ static void simdFilter( const ClpRng& clpRng, const Pel* src, const ptrdiff_t sr
           simdInterpolateVerM4<vext, 4, isLast>( src, srcStride, dst, dstStride, width, height, shift, offset, clpRng, c );
         else
           simdInterpolateVerM2<vext, 4, isLast>( src, srcStride, dst, dstStride, width, height, shift, offset, clpRng, c );
+
+        return;
       }
-      return;
     }
     else if( N == 4 && width == 1 )
     {
@@ -3419,57 +3442,57 @@ void InterpolationFilter::_initInterpolationFilterX86()
   m_filterHor[0][0][1] = simdFilter<vext, 8, false, false, true>;
   m_filterHor[0][1][0] = simdFilter<vext, 8, false, true, false>;
   m_filterHor[0][1][1] = simdFilter<vext, 8, false, true, true>;
-
+  
   m_filterHor[1][0][0] = simdFilter<vext, 4, false, false, false>;
   m_filterHor[1][0][1] = simdFilter<vext, 4, false, false, true>;
   m_filterHor[1][1][0] = simdFilter<vext, 4, false, true, false>;
   m_filterHor[1][1][1] = simdFilter<vext, 4, false, true, true>;
-
+  
   m_filterHor[2][0][0] = simdFilter<vext, 2, false, false, false>;
   m_filterHor[2][0][1] = simdFilter<vext, 2, false, false, true>;
   m_filterHor[2][1][0] = simdFilter<vext, 2, false, true, false>;
   m_filterHor[2][1][1] = simdFilter<vext, 2, false, true, true>;
-
+  
   m_filterVer[0][0][0] = simdFilter<vext, 8, true, false, false>;
   m_filterVer[0][0][1] = simdFilter<vext, 8, true, false, true>;
   m_filterVer[0][1][0] = simdFilter<vext, 8, true, true, false>;
   m_filterVer[0][1][1] = simdFilter<vext, 8, true, true, true>;
-
+  
   m_filterVer[1][0][0] = simdFilter<vext, 4, true, false, false>;
   m_filterVer[1][0][1] = simdFilter<vext, 4, true, false, true>;
   m_filterVer[1][1][0] = simdFilter<vext, 4, true, true, false>;
   m_filterVer[1][1][1] = simdFilter<vext, 4, true, true, true>;
-
+  
   m_filterVer[2][0][0] = simdFilter<vext, 2, true, false, false>;
   m_filterVer[2][0][1] = simdFilter<vext, 2, true, false, true>;
   m_filterVer[2][1][0] = simdFilter<vext, 2, true, true, false>;
   m_filterVer[2][1][1] = simdFilter<vext, 2, true, true, true>;
-
+  
   m_filterCopy[0][0]   = simdFilterCopy<vext, false, false>;
   m_filterCopy[0][1]   = simdFilterCopy<vext, false, true>;
   m_filterCopy[1][0]   = simdFilterCopy<vext, true, false>;
   m_filterCopy[1][1]   = simdFilterCopy<vext, true, true>;
-
+  
   m_filter4x4[0][0]    = simdFilter4x4_N6<vext, false>;
   m_filter4x4[0][1]    = simdFilter4x4_N6<vext, true>;
-
+  
   m_filter4x4[1][0]    = simdFilter4x4_N4<vext, false>;
   m_filter4x4[1][1]    = simdFilter4x4_N4<vext, true>;
-
+  
   m_filter8x8[0][0]    = simdFilter8xX_N8<vext, false>;
   m_filter8x8[0][1]    = simdFilter8xX_N8<vext, true>;
-
+  
   m_filter8x8[1][0]    = simdFilter8xX_N4<vext, false>;
   m_filter8x8[1][1]    = simdFilter8xX_N4<vext, true>;
-
+  
   m_filter16x16[0][0]    = simdFilter16xX_N8<vext, false>;
   m_filter16x16[0][1]    = simdFilter16xX_N8<vext, true>;
-
+  
   m_filter16x16[1][0]    = simdFilter16xX_N4<vext, false>;
   m_filter16x16[1][1]    = simdFilter16xX_N4<vext, true>;
-
+  
   m_filterN2_2D = simdInterpolateN2_2D<vext>;
-
+  
   m_weightedGeoBlk = xWeightedGeoBlk_SSE<vext>;
 }
 
