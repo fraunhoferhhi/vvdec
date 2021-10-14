@@ -345,6 +345,56 @@ static int readBitstreamFromFile( std::ifstream *f, vvdecAccessUnit* pcAccessUni
   return len;
 }
 
+
+/**
+  This method writes the y4m header in front of every frame
+*/
+static int writeY4MHeader( std::ostream *f, vvdecFrame *frame )
+{
+  std::stringstream cssHeader;
+
+  if ( f == NULL || frame == NULL )
+  {
+    return -1;
+  }
+
+  if ( frame->sequenceNumber == 0 )
+  {
+    const char *cf = (frame->colorFormat == VVDEC_CF_YUV444_PLANAR) ? "444"
+                   : (frame->colorFormat == VVDEC_CF_YUV422_PLANAR) ? "422" : "420";
+
+    const char *bdepth = (frame->bitDepth == 10) ? "p10" : "";
+
+    int frameRate=50;
+    int frameScale=1;
+    if( frame->picAttributes && frame->picAttributes->hrd )
+    {
+      if( frame->picAttributes->hrd->numUnitsInTick && frame->picAttributes->hrd->timeScale )
+      {
+        if( frame->picAttributes->hrd->numUnitsInTick != 1001)
+        {
+          frameRate = frame->picAttributes->hrd->timeScale / frame->picAttributes->hrd->numUnitsInTick;
+          frameScale=1;
+        }
+        else
+        {
+          frameRate  = frame->picAttributes->hrd->timeScale;
+          frameScale = frame->picAttributes->hrd->numUnitsInTick;
+        }
+      }
+    }
+
+    const char *interlacedMode = (frame->frameFormat == VVDEC_FF_TOP_FIELD || frame->frameFormat == VVDEC_FF_BOT_FIELD) ? " Im" : " Ip";
+    cssHeader << "YUV4MPEG2 W" << frame->width << " H" << frame->height << " F" << frameRate << ":" << frameScale << interlacedMode << " C" << cf << bdepth << "\n";
+  }
+
+  cssHeader << "FRAME\n";
+
+  f->write( cssHeader.str().c_str(),cssHeader.str().length() );
+
+  return 0;
+}
+
 /**
   This method writes and yuv planar picture into a file sink.
   \param[in]  *f file sink pointer
@@ -352,7 +402,7 @@ static int readBitstreamFromFile( std::ifstream *f, vvdecAccessUnit* pcAccessUni
   \retval     int  if non-zero an error occurred (see ErrorCodes), otherwise the return value indicates success VVC_DEC_OK
   \pre        The decoder must not be initialized.
 */
-static int writeYUVToFile( std::ostream *f, vvdecFrame *frame  )
+static int writeYUVToFile( std::ostream *f, vvdecFrame *frame, bool y4mFormat )
 {
  int ret;
  uint32_t c = 0;
@@ -360,6 +410,11 @@ static int writeYUVToFile( std::ostream *f, vvdecFrame *frame  )
  uint32_t uiBytesPerSample = 1;
 
  assert( f != NULL );
+
+ if ( y4mFormat )
+ {
+   writeY4MHeader( f, frame );
+ }
 
  for( c = 0; c < frame->numPlanes; c++ )
  {
@@ -385,7 +440,7 @@ static int writeYUVToFile( std::ostream *f, vvdecFrame *frame  )
    \retval     int  if non-zero an error occurred (see ErrorCodes), otherwise the return value indicates success VVC_DEC_OK
    \pre        The decoder must not be initialized.
  */
-static int writeYUVToFileInterlaced( std::ostream *f, vvdecFrame *topField, vvdecFrame *botField )
+static int writeYUVToFileInterlaced( std::ostream *f, vvdecFrame *topField, vvdecFrame *botField, bool y4mFormat )
 {
   int ret;
   uint32_t c = 0;
@@ -396,6 +451,11 @@ static int writeYUVToFileInterlaced( std::ostream *f, vvdecFrame *topField, vvde
   assert( topField != NULL );
   assert( botField != NULL );
   assert( topField->numPlanes == botField->numPlanes );
+
+  if ( y4mFormat )
+  {
+    writeY4MHeader( f, topField );
+  }
 
   for( c = 0; c < topField->numPlanes; c++ )
   {
@@ -411,7 +471,6 @@ static int writeYUVToFileInterlaced( std::ostream *f, vvdecFrame *topField, vvde
   }
   return 0;
 }
-
 
 static inline std::string getTimePointAsString( )
 {

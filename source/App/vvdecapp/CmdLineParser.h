@@ -78,6 +78,7 @@ public:
           "\n"
           "\t\t [--output,-o  <str>        ] : yuv output file (default: not set)\n"
           "\t\t [--upscale,-uo             ] : set upscaling mode for RPR pictures(default: 0: off, 1: copy without rescaling, 2: rescale to target resolution)\n"
+          "\t\t [--y4m                     ] : force y4m output (for pipe output; auto enable for .y4m output file extension)\n"
           "\n"
           "\t Decoder Options\n"
           "\n"
@@ -100,7 +101,7 @@ public:
 
 
   static int parse_command_line( int argc, char* argv[] , vvdecParams& rcParams, std::string& rcBitstreamFile, std::string& rcOutputFile,
-                                 int& riFrames, int& riLoops, std::string& rcExpectYuvMD5 )
+                                 int& riFrames, int& riLoops, std::string& rcExpectYuvMD5, bool& useY4mFormat )
   {
     int iRet = 0;
     /* Check command line parameters */
@@ -193,6 +194,19 @@ public:
           default: scale = "UNKNOWN"; break;
           };
           fprintf( stdout, "[upscale] : %s\n", scale.c_str() );
+        }
+      }
+      else if( !strcmp( (const char*)argv[i_arg], "--y4m" ) )
+      {
+        i_arg++;
+        useY4mFormat = true;
+
+        if( i_arg < argc )
+        {
+          if( std::isdigit(argv[i_arg][0]))
+          {
+            i_arg++;
+          }
         }
       }
       else if( (!strcmp( (const char*)argv[i_arg], "-f" )) || !strcmp( (const char*)argv[i_arg], "--frames" ) )

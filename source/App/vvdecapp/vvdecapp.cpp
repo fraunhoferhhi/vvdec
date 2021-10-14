@@ -65,8 +65,8 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #endif
 
 /*! Prototypes */
-int writeYUVToFile( std::ostream *f, vvdecFrame *frame );
-int writeYUVToFileInterlaced( std::ostream *f, vvdecFrame *topField, vvdecFrame *botField = nullptr );
+int writeYUVToFile( std::ostream *f, vvdecFrame *frame, bool y4mFormat = false );
+int writeYUVToFileInterlaced( std::ostream *f, vvdecFrame *topField, vvdecFrame *botField = nullptr, bool y4mFormat = false );
 
 void msgFnc( void *, int level, const char* fmt, va_list args )
 {
@@ -99,6 +99,7 @@ int main( int argc, char* argv[] )
   std::string cOutputFile    = "";
   int         iMaxFrames     = -1;
   int         iLoopCount     = 1;
+  bool        y4mOutput      = false;
   std::string cExpectedYuvMD5;
   vvdecParams params;
   vvdec_params_default(&params);
@@ -111,7 +112,7 @@ int main( int argc, char* argv[] )
     return 0;
   }
 
-  int iRet = vvdecoderapp::CmdLineParser::parse_command_line(  argc, argv, params, cBitstreamFile, cOutputFile, iMaxFrames, iLoopCount, cExpectedYuvMD5 );
+  int iRet = vvdecoderapp::CmdLineParser::parse_command_line(  argc, argv, params, cBitstreamFile, cOutputFile, iMaxFrames, iLoopCount, cExpectedYuvMD5, y4mOutput);
   if( iRet != 0 )
   {
     if( iRet == 2 )
@@ -163,6 +164,12 @@ int main( int argc, char* argv[] )
     }
     else
     {
+      const char * s = strrchr(cOutputFile.c_str(), '.');
+      if (s && !strcmp(s, ".y4m"))
+      {
+        y4mOutput = true;
+      }
+
       cRecFile.open( cOutputFile.c_str(), std::fstream::binary | std::fstream::out );
       if( !cRecFile )
       {
@@ -395,7 +402,7 @@ int main( int argc, char* argv[] )
             }
             if( cRecFile.is_open() || writeStdout )
             {
-              if( 0 != writeYUVToFile( outStream, pcFrame ) )
+              if( 0 != writeYUVToFile( outStream, pcFrame, y4mOutput ) )
               {
                 *logStream << "vvdecapp [error]: write of rec. yuv failed for picture seq. " <<  pcFrame->sequenceNumber << std::endl;
                 vvdec_accessUnit_free( accessUnit );
@@ -418,7 +425,7 @@ int main( int argc, char* argv[] )
               }
               if( cRecFile.is_open() || writeStdout )
               {
-                if( 0 != writeYUVToFileInterlaced( outStream, pcPrevField, pcFrame ) )
+                if( 0 != writeYUVToFileInterlaced( outStream, pcPrevField, pcFrame, y4mOutput ) )
                 {
                   *logStream << "vvdecapp [error]: write of rec. yuv failed for picture seq. " <<  pcFrame->sequenceNumber << std::endl;
                   vvdec_accessUnit_free( accessUnit );
@@ -485,7 +492,7 @@ int main( int argc, char* argv[] )
           }
           if( cRecFile.is_open() || writeStdout )
           {
-            if( 0 != writeYUVToFile( outStream, pcFrame ) )
+            if( 0 != writeYUVToFile( outStream, pcFrame, y4mOutput ) )
             {
               *logStream << "vvdecapp [error]: write of rec. yuv failed for picture seq. " << pcFrame->sequenceNumber << std::endl;
               vvdec_accessUnit_free( accessUnit );
@@ -508,7 +515,7 @@ int main( int argc, char* argv[] )
             }
             if( cRecFile.is_open() || writeStdout )
             {
-              if( 0 != writeYUVToFileInterlaced( outStream, pcPrevField, pcFrame ) )
+              if( 0 != writeYUVToFileInterlaced( outStream, pcPrevField, pcFrame, y4mOutput ) )
               {
                 *logStream << "vvdecapp [error]: write of rec. yuv failed for picture seq. " << pcFrame->sequenceNumber << std::endl;
                 vvdec_accessUnit_free( accessUnit );
