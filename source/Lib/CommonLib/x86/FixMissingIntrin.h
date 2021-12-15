@@ -23,7 +23,7 @@ static inline void _mm_storeu_si32( void* p, __m128i a )
 #ifndef HAVE_INITIN_mm_storeu_si64
 static inline void _mm_storeu_si64( void* p, __m128i a )
 {
-  *(int64_t*)p = _mm_cvtsi128_si64( a );
+  _mm_storel_epi64( (__m128i*)p, a);
 }
 #endif
 
@@ -37,7 +37,7 @@ static inline __m128i _mm_loadu_si32( const void* p )
 #ifndef HAVE_INITIN_mm_loadu_si64
 static inline __m128i _mm_loadu_si64( const void* p )
 {
-  return _mm_cvtsi64_si128( *(int64_t*)p );
+  return _mm_loadl_epi64( (const __m128i*)p );
 }
 #endif
 

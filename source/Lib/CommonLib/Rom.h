@@ -164,6 +164,7 @@ public:
 extern const SizeIndexInfoLog2 g_sizeIdxInfo;
 
 extern const UnitScale g_miScaling; // scaling object for motion scaling
+extern const UnitScale g_colMiScaling;
 
 /*! Sophisticated Trace-logging */
 #if ENABLE_TRACING

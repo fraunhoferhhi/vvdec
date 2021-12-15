@@ -74,6 +74,7 @@ class TrQuant : Quant
 {
 public:
   TrQuant();
+  TrQuant( const TrQuant& other );
   ~TrQuant();
 
   // initialize class

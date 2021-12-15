@@ -1147,7 +1147,7 @@ void rspFwdCore_SIMD( Pel* ptr, ptrdiff_t ptrStride, int width, int height, cons
   }
 }
 
-#ifndef TARGET_SIMD_WASM
+#if !defined( TARGET_SIMD_WASM ) && INTPTR_MAX == INT64_MAX
 template<X86_VEXT vext>
 void fillN_CU_SIMD( CodingUnit** ptr, ptrdiff_t ptrStride, int width, int height, CodingUnit* cuPtr )
 {
@@ -1712,6 +1712,7 @@ void PelBufferOps::_initPelBufOpsX86()
   transpose4x4 = transposePel_SSE<vext, 4>;
   transpose8x8 = transposePel_SSE<vext, 8>;
 
+#if !defined( TARGET_SIMD_WASM ) // profilings show those functions are slower with WASM SIMD emulation than C++->WASM
   // for modern CPUs and fast memory chips, applyLut using igather32 outperfoms the loop-based interval index estimation
   if( vext >= AVX2 )
     applyLut = applyLut_SIMD<vext>;
@@ -1720,10 +1721,11 @@ void PelBufferOps::_initPelBufOpsX86()
 
   rspFwd = rspFwdCore_SIMD<vext>;
 
-#ifndef TARGET_SIMD_WASM
+#endif
+#if !defined( TARGET_SIMD_WASM ) && INTPTR_MAX == INT64_MAX
   fillN_CU = fillN_CU_SIMD<vext>;
-#endif  // !TARGET_SIMD_WASM
 
+#endif  // !TARGET_SIMD_WASM
   sampleRateConv = sampleRateConvSIMD<vext>;
 }
 

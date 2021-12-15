@@ -99,22 +99,20 @@ public:
 
   AdaptiveLoopFilter();
   ~AdaptiveLoopFilter() {}
-  void create( const PicHeader* picHeader, const SPS* sps, const PPS* pps, int numThreads );
+  void create( const PicHeader* picHeader, const SPS* sps, const PPS* pps, int numThreads, PelUnitBuf& unitBuf );
   void destroy();
 
   static void filterBlkCcAlf(const PelBuf &dstBuf, const CPelUnitBuf &recSrc, const Area &blkDst, const Area &blkSrc,
                              const ComponentID compId, const int16_t *filterCoeff, const ClpRngs &clpRngs,
                              int vbCTUHeight, int vbPos);
 
-  static void preparePic    ( CodingStructure &cs );
   static void prepareCTU    ( CodingStructure &cs, unsigned col, unsigned line );
          void processCTU    ( CodingStructure &cs, unsigned col, unsigned line, int tid = 0, const ChannelType chType = MAX_NUM_CHANNEL_TYPE );
-  static void swapBufs      ( CodingStructure &cs );
   static bool getAlfSkipPic       ( const CodingStructure& cs );
   static void reconstructCoeffAPSs( Slice& slice );
   static void reconstructCoeff    ( AlfSliceParam& alfSliceParam, ChannelType channel, const int inputBitDepth[MAX_NUM_CHANNEL_TYPE] );
+
 protected:
-  static void getCompatibleBuffer( const CodingStructure & cs, const CPelUnitBuf & srcBuf, PelStorage & destBuf );
 
   static void deriveClassificationBlk( AlfClassifier *classifier, const CPelBuf& srcLuma, const Area& blk, const int shift, int vbCTUHeight, int vbPos );
   void ( *m_deriveClassificationBlk )( AlfClassifier *classifier, const CPelBuf& srcLuma, const Area& blk, const int shift, int vbCTUHeight, int vbPos );
@@ -156,6 +154,7 @@ protected:
   short                   m_clipDefault                                  [MAX_NUM_ALF_TRANSPOSE_ID * MAX_NUM_ALF_CLASSES * MAX_NUM_ALF_LUMA_COEFF];
   static const Pel        m_alfClippVls[3][MaxAlfNumClippingValues];
   std::vector<PelStorage> m_tempBuf;
+  PelUnitBuf              m_alfBuf;
   int           m_inputBitDepth[MAX_NUM_CHANNEL_TYPE] = { 0, 0 };
   int           m_picWidth;
   int           m_picHeight;

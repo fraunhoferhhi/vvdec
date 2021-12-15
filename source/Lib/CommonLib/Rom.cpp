@@ -444,7 +444,8 @@ int8_t                    g_aucPrevLog2[MAX_CU_SIZE + 1];
 
 const int                 g_ictModes[2][4] = { { 0, 3, 1, 2 }, { 0, -3, -1, -2 } };
 
-const UnitScale g_miScaling( MIN_CU_LOG2, MIN_CU_LOG2 );
+const UnitScale g_miScaling   ( MIN_CU_LOG2,     MIN_CU_LOG2 );
+const UnitScale g_colMiScaling( MIN_CU_LOG2 + 1, MIN_CU_LOG2 + 1 ); // collocated motion has an 8x8 scaling
 
 
 // ====================================================================================================================

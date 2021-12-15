@@ -56,8 +56,7 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #include "CommonLib/TimeProfiler.h"
 #include <array>
 #include <cmath>
-
-#include <array>
+#include <mutex>
 
 namespace vvdec
 {
@@ -368,7 +367,7 @@ const Pel AdaptiveLoopFilter::m_alfClippVls[3][MaxAlfNumClippingValues] =
   { 1024, 128, 32, 8 },
 };
 
-void AdaptiveLoopFilter::create( const PicHeader* picHeader, const SPS* sps, const PPS* pps, int numThreads )
+void AdaptiveLoopFilter::create( const PicHeader* picHeader, const SPS* sps, const PPS* pps, int numThreads, PelUnitBuf& unitBuf )
 {
   auto & inputBitDepth = sps->getBitDepths().recon;
   if( m_inputBitDepth[CHANNEL_TYPE_LUMA] != inputBitDepth[CHANNEL_TYPE_LUMA] )
@@ -422,22 +421,14 @@ void AdaptiveLoopFilter::create( const PicHeader* picHeader, const SPS* sps, con
   }
 
   classifier.resize( std::max( 1, numThreads ) );
+
+  m_alfBuf = unitBuf;
 }
 
 void AdaptiveLoopFilter::destroy()
 {
   m_tempBuf.clear();
   classifier.clear();
-}
-
-void AdaptiveLoopFilter::preparePic( CodingStructure & cs )
-{
-  if( !AdaptiveLoopFilter::getAlfSkipPic( cs ) )
-  {
-    PROFILER_SCOPE_AND_STAGE_EXT( 1, g_timeProfiler, P_ALF, cs, CH_L );
-    PelUnitBuf recYuv = cs.getRecoBuf();
-    getCompatibleBuffer( cs, recYuv, cs.m_alfBuf );
-  }
 }
 
 void AdaptiveLoopFilter::prepareCTU( CodingStructure &cs, unsigned col, unsigned line )
@@ -469,42 +460,7 @@ void AdaptiveLoopFilter::processCTU( CodingStructure & cs, unsigned col, unsigne
   const uint8_t ctuAlternativeData[2] = { cs.picture->getAlfCtuAlternativeData( 0 )[ctuIdx],
                                           cs.picture->getAlfCtuAlternativeData( 1 )[ctuIdx] };
 
-  filterCTU( recYuv.subBuf( ctuArea ), cs.m_alfBuf.subBuf( ctuArea ), ctuEnableFlag, ctuAlternativeData, cs.picture->slices[0]->getClpRngs(), chType, cs, ctuIdx, ctuArea.lumaPos(), tid );
-}
-
-void AdaptiveLoopFilter::swapBufs(CodingStructure & cs)
-{
-  cs.picture->m_bufs[PIC_RECONSTRUCTION].swap( cs.m_alfBuf );
-  cs.rebindPicBufs();   // ensure the recon buf in the coding structure points to the correct buffer
-}
-
-void AdaptiveLoopFilter::getCompatibleBuffer( const CodingStructure & cs, const CPelUnitBuf & srcBuf, PelStorage & destBuf )
-{
-  if( !destBuf.bufs.empty() )
-  {
-    bool compat = false;
-    if( destBuf.chromaFormat == srcBuf.chromaFormat )
-    {
-      compat = true;
-      const uint32_t numCh = getNumberValidComponents( srcBuf.chromaFormat );
-      for( uint32_t i = 0; i < numCh; i++ )
-      {
-        // check this otherwise it would turn out to get very weird
-        compat &= destBuf.get( ComponentID( i ) )        == srcBuf.get( ComponentID( i ) );
-        compat &= destBuf.get( ComponentID( i ) ).stride == srcBuf.get( ComponentID( i ) ).stride;
-        compat &= destBuf.get( ComponentID( i ) ).width  == srcBuf.get( ComponentID( i ) ).width;
-        compat &= destBuf.get( ComponentID( i ) ).height == srcBuf.get( ComponentID( i ) ).height;
-      }
-    }
-    if( !compat )
-    {
-      destBuf.destroy();
-    }
-  }
-  if( destBuf.bufs.empty() )
-  {
-    destBuf.create(cs.picture->chromaFormat, cs.picture->lumaSize(), cs.pcv->maxCUWidth, cs.picture->margin, MEMORY_ALIGN_DEF_SIZE );
-  }
+  filterCTU( recYuv.subBuf( ctuArea ), m_alfBuf.subBuf( ctuArea ), ctuEnableFlag, ctuAlternativeData, cs.picture->slices[0]->getClpRngs(), chType, cs, ctuIdx, ctuArea.lumaPos(), tid );
 }
 
 bool AdaptiveLoopFilter::getAlfSkipPic( const CodingStructure & cs )
@@ -811,19 +767,15 @@ void AdaptiveLoopFilter::reconstructCoeffAPSs( Slice& slice )
 
 void AdaptiveLoopFilter::reconstructCoeff( AlfSliceParam& alfSliceParam, ChannelType channel, const int inputBitDepth[MAX_NUM_CHANNEL_TYPE] )
 {
-  if( isChroma(channel ) )
+  std::lock_guard<std::mutex> l( alfSliceParam.recostructMutex );
+
+  if( isChroma( channel ) && alfSliceParam.chrmFinalDone )
   {
-    if( alfSliceParam.chrmFinalDone )
-    {
-      return;
-    }
+    return;
   }
-  else
+  if( isLuma( channel ) && alfSliceParam.lumaFinalDone )
   {
-    if( alfSliceParam.lumaFinalDone )
-    {
-      return;
-    }
+    return;
   }
 
   const AlfFilterType filterType     = isLuma( channel ) ? ALF_FILTER_7 : ALF_FILTER_5;

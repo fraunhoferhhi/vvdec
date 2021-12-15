@@ -353,6 +353,8 @@ void HLSyntaxReader::parsePPS( PPS* pcPPS, ParameterSetManager *parameterSetMana
   CHECK( uiCode > 63, "PPS id exceeds boundary (63)" );
 
   READ_CODE( 4, uiCode, "pps_seq_parameter_set_id" );                        pcPPS->setSPSId( uiCode );
+  const SPS* pcSPS = parameterSetManager->getSPS( pcPPS->getSPSId() );
+  CHECK( !pcSPS, "SPS with id " << pcPPS->getSPSId() << " missing." );
 
   READ_FLAG( uiCode, "pps_mixed_nalu_types_in_pic_flag" );                   pcPPS->setMixedNaluTypesInPicFlag( uiCode == 1 );
 
@@ -790,11 +792,7 @@ void HLSyntaxReader::parsePPS( PPS* pcPPS, ParameterSetManager *parameterSetMana
 
   xReadRbspTrailingBits();
 
-  const SPS* pcSPS = parameterSetManager->getSPS( pcPPS->getSPSId() );
-  if( pcSPS )
-  {
-    pcPPS->finalizePPSPartitioning( pcSPS );
-  }
+  pcPPS->finalizePPSPartitioning( pcSPS );
 }
 
 void HLSyntaxReader::parseAPS( APS* aps )
@@ -1963,12 +1961,6 @@ void HLSyntaxReader::parseSPS( SPS* pcSPS, ParameterSetManager *parameterSetMana
   }
 
   xReadRbspTrailingBits();
-
-  std::vector<PPS*> ppsForSPSId = parameterSetManager->getPPSforSPSId( pcSPS->getSPSId() );
-  for( PPS* pps : ppsForSPSId )
-  {
-    pps->finalizePPSPartitioning( pcSPS );
-  }
 }
 
 void HLSyntaxReader::parseDCI( DCI* dci )
@@ -2347,8 +2339,6 @@ void HLSyntaxReader::parsePictureHeader( PicHeader* picHeader, ParameterSetManag
 {
   uint32_t uiCode = 0;
   int      iCode  = 0;
-  PPS*     pps    = NULL;
-  SPS*     sps    = NULL;
 
 #if ENABLE_TRACING
   xTracePictureHeader();
@@ -2376,10 +2366,10 @@ void HLSyntaxReader::parsePictureHeader( PicHeader* picHeader, ParameterSetManag
   CHECK( picHeader->getPicInterSliceAllowedFlag() == 0 && picHeader->getPicIntraSliceAllowedFlag() == 0, "Invalid picture without intra or inter slice" );
   // parameter sets
   READ_UVLC( uiCode, "ph_pic_parameter_set_id" );                            picHeader->setPPSId( uiCode );
-  pps = parameterSetManager->getPPS( picHeader->getPPSId() );
+  PPS* pps = parameterSetManager->getPPS( picHeader->getPPSId() );
   CHECK( pps == 0, "Invalid PPS" );
   picHeader->setSPSId( pps->getSPSId() );
-  sps = parameterSetManager->getSPS( picHeader->getSPSId() );
+  SPS* sps = parameterSetManager->getSPS( picHeader->getSPSId() );
   CHECK( sps == 0, "Invalid SPS" );
   READ_CODE( sps->getBitsForPOC(), uiCode, "ph_pic_order_cnt_lsb" );         picHeader->setPocLsb( uiCode );
   if( picHeader->getGdrPicFlag() )
@@ -2433,7 +2423,7 @@ void HLSyntaxReader::parsePictureHeader( PicHeader* picHeader, ParameterSetManag
           READ_CODE( 3, uiCode, "ph_alf_aps_id_luma[i]" );
           apsId[i] = uiCode;
         }
-        picHeader->setAlfAPSs( apsId );
+        picHeader->setAlfAPSIds( std::move( apsId ) );
 
         if( sps->getChromaFormatIdc() != CHROMA_400 )
         {
@@ -3019,18 +3009,19 @@ void HLSyntaxReader::parsePictureHeader( PicHeader* picHeader, ParameterSetManag
 
 void HLSyntaxReader::checkAlfNaluTidAndPicTid( const Slice* pcSlice, const PicHeader* picHeader, ParameterSetManager *parameterSetManager )
 {
-  SPS* sps = parameterSetManager->getSPS(picHeader->getSPSId());
-  PPS* pps = parameterSetManager->getPPS(picHeader->getPPSId());
-  int curPicTid = pcSlice->getTLayer();
-  APS* aps;
-  const std::vector<int>&   apsId = picHeader->getAlfAPSs();
+  const SPS* sps = parameterSetManager->getSPS(picHeader->getSPSId());
+  const PPS* pps = parameterSetManager->getPPS(picHeader->getPPSId());
+
+  int  curPicTid = pcSlice->getTLayer();
+  APS* aps       = nullptr;
 
   if( sps->getUseALF() && pps->getAlfInfoInPhFlag() && picHeader->getAlfEnabledFlag( COMPONENT_Y ) )
   {
+    const std::vector<int>& apsIds = picHeader->getAlfAPSIds();
     //luma
     for( int i = 0; i < picHeader->getNumAlfAps(); i++ )
     {
-      aps = parameterSetManager->getAPS( apsId[i], ALF_APS );
+      aps = parameterSetManager->getAPS( apsIds[i], ALF_APS );
       CHECK( aps->getTemporalId() > curPicTid, "The TemporalId of the APS NAL unit having aps_params_type equal to ALF_APS and adaptation_parameter_set_id equal to ph_alf_aps_id_luma[i] shall be less than or equal to the TemporalId of the picture associated with the PH." );
       if( pcSlice->getNalUnitLayerId() != aps->getLayerId() )
       {
@@ -3100,8 +3091,7 @@ void HLSyntaxReader::parseSliceHeader( Slice*               pcSlice,
 #if ENABLE_TRACING
   xTraceSliceHeader();
 #endif
-  PPS* pps = NULL;
-  SPS* sps = NULL;
+
   READ_FLAG( uiCode, "sh_picture_header_in_slice_header_flag" );
   if( uiCode )
   {
@@ -3109,30 +3099,35 @@ void HLSyntaxReader::parseSliceHeader( Slice*               pcSlice,
     parsePictureHeader( picHeader, parameterSetManager, false );
     picHeader->setValid();
   }
-  else if( !picHeader->isValid() && nullptr != parsePic )
+  else if( parsePic && !picHeader->isValid() )
   {
+    CHECK( !parsePic, "currently parsed picture missing" );
     picHeader = parsePic->picHeader.get();
   }
-  CHECK( picHeader==0, "Invalid Picture Header" );
-  CHECK( picHeader->isValid() == false, "Invalid Picture Header" );
+  CHECK            ( !picHeader,            "Picture Header not allocated" );   // should always be allocated, even if it is not valid
+  CHECK_RECOVERABLE( !picHeader->isValid(), "Picture Header missing" );
+
   checkAlfNaluTidAndPicTid( pcSlice, picHeader, parameterSetManager );
-  pps = parameterSetManager->getPPS( picHeader->getPPSId() );
-  //!KS: need to add error handling code here, if PPS is not available
+
+  const PPS* pps = parameterSetManager->getPPS( picHeader->getPPSId() );
   CHECK( pps==0, "Invalid PPS" );
-  sps = parameterSetManager->getSPS( pps->getSPSId() );
-  //!KS: need to add error handling code here, if SPS is not available
+  const SPS* sps = parameterSetManager->getSPS( pps->getSPSId() );
   CHECK( sps==0, "Invalid SPS" );
+
   if( sps->getProfileTierLevel()->getConstraintInfo()->getPicHeaderInSliceHeaderConstraintFlag() )
   {
     CHECK( pcSlice->getPictureHeaderInSliceHeader() == false, "PH shall be present in SH, when pic_header_in_slice_header_constraint_flag is equal to 1" );
   }
-  CHECK( pcSlice->getPictureHeaderInSliceHeader() && pps->getRplInfoInPhFlag() == 1, "When sh_picture_header_in_slice_header_flag is equal to 1, rpl_info_in_ph_flag shall be equal to 0" );
-  CHECK( pcSlice->getPictureHeaderInSliceHeader() && pps->getDbfInfoInPhFlag() == 1, "When sh_picture_header_in_slice_header_flag is equal to 1, dbf_info_in_ph_flag shall be equal to 0" );
-  CHECK( pcSlice->getPictureHeaderInSliceHeader() && pps->getSaoInfoInPhFlag() == 1, "When sh_picture_header_in_slice_header_flag is equal to 1, sao_info_in_ph_flag shall be equal to 0" );
-  CHECK( pcSlice->getPictureHeaderInSliceHeader() && pps->getAlfInfoInPhFlag() == 1, "When sh_picture_header_in_slice_header_flag is equal to 1, alf_info_in_ph_flag shall be equal to 0" );
-  CHECK( pcSlice->getPictureHeaderInSliceHeader() && pps->getWpInfoInPhFlag() == 1, "When sh_picture_header_in_slice_header_flag is equal to 1, wp_info_in_ph_flag shall be equal to 0" );
-  CHECK( pcSlice->getPictureHeaderInSliceHeader() && pps->getQpDeltaInfoInPhFlag() == 1, "When sh_picture_header_in_slice_header_flag is equal to 1, qp_delta_info_in_ph_flag shall be equal to 0" );
-  CHECK( pcSlice->getPictureHeaderInSliceHeader() && sps->getSubPicInfoPresentFlag() == 1, "When sps_subpic_info_present_flag is equal to 1, the value of sh_picture_header_in_slice_header_flag shall be equal to 0" );
+  if( pcSlice->getPictureHeaderInSliceHeader() )
+  {
+    CHECK( pps->getRplInfoInPhFlag() == 1, "When sh_picture_header_in_slice_header_flag is equal to 1, rpl_info_in_ph_flag shall be equal to 0" );
+    CHECK( pps->getDbfInfoInPhFlag() == 1, "When sh_picture_header_in_slice_header_flag is equal to 1, dbf_info_in_ph_flag shall be equal to 0" );
+    CHECK( pps->getSaoInfoInPhFlag() == 1, "When sh_picture_header_in_slice_header_flag is equal to 1, sao_info_in_ph_flag shall be equal to 0" );
+    CHECK( pps->getAlfInfoInPhFlag() == 1, "When sh_picture_header_in_slice_header_flag is equal to 1, alf_info_in_ph_flag shall be equal to 0" );
+    CHECK( pps->getWpInfoInPhFlag() == 1, "When sh_picture_header_in_slice_header_flag is equal to 1, wp_info_in_ph_flag shall be equal to 0" );
+    CHECK( pps->getQpDeltaInfoInPhFlag() == 1, "When sh_picture_header_in_slice_header_flag is equal to 1, qp_delta_info_in_ph_flag shall be equal to 0" );
+    CHECK( sps->getSubPicInfoPresentFlag() == 1, "When sps_subpic_info_present_flag is equal to 1, the value of sh_picture_header_in_slice_header_flag shall be equal to 0" );
+  }
   CHECK( sps->getSubPicInfoPresentFlag() == 1 && sps->getVirtualBoundariesEnabledFlag() == 1 && sps->getVirtualBoundariesPresentFlag() == 0,
         "when sps_subpic_info_present_flag is equal to 1 and sps_virtual_boundaries_enabled_flag is equal to 1, sps_virtual_boundaries_present_flag shall be equal 1" );
 
@@ -3918,88 +3913,6 @@ void HLSyntaxReader::parsePicOrSliceHeaderRPL( HeaderT* header, const SPS* sps, 
         }
       }
     }
-  }
-}
-
-void HLSyntaxReader::getSlicePoc( Slice* pcSlice, const PicHeader* picHeader, ParameterSetManager *parameterSetManager, const int prevTid0POC )
-{
-  //TODO: check this, function gets never called
-  uint32_t  uiCode;
-  uint32_t  iPOClsb;
-  PPS* pps = NULL;
-  SPS* sps = NULL;
-
-  CHECK(picHeader==0, "Invalid Picture Header");
-  CHECK(picHeader->isValid()==false, "Invalid Picture Header");
-  pps = parameterSetManager->getPPS( picHeader->getPPSId() );
-  //!KS: need to add error handling code here, if PPS is not available
-  CHECK(pps==0, "Invalid PPS");
-  sps = parameterSetManager->getSPS(pps->getSPSId());
-  //!KS: need to add error handling code here, if SPS is not available
-  CHECK(sps==0, "Invalid SPS");
-
-  READ_FLAG(uiCode, "picture_header_in_slice_header_flag");
-  if (uiCode == 0)
-  {
-    iPOClsb = picHeader->getPocLsb();
-  }
-  else
-  {
-    READ_FLAG(uiCode, "gdr_or_irap_pic_flag");
-    if (uiCode)
-    {
-      READ_FLAG(uiCode, "gdr_pic_flag");
-    }
-    READ_FLAG(uiCode, "pic_inter_slice_allowed_flag");
-    if (uiCode)
-    {
-      READ_FLAG(uiCode, "pic_intra_slice_allowed_flag");
-    }
-    READ_FLAG(uiCode, "non_reference_picture_flag");
-    // parameter sets
-    READ_UVLC(uiCode, "ph_pic_parameter_set_id");
-    // picture order count
-    READ_CODE(sps->getBitsForPOC(), iPOClsb, "ph_pic_order_cnt_lsb");
-  }
-  int iMaxPOClsb = 1 << sps->getBitsForPOC();
-  int iPOCmsb;
-  if (pcSlice->getIdrPicFlag())
-  {
-    if (picHeader->getPocMsbPresentFlag())
-    {
-      iPOCmsb = picHeader->getPocMsbVal() * iMaxPOClsb;
-    }
-    else
-    {
-      iPOCmsb = 0;
-    }
-    pcSlice->setPOC(iPOCmsb + iPOClsb);
-  }
-  else
-  {
-    int iPrevPOC = prevTid0POC;
-    int iPrevPOClsb = iPrevPOC & (iMaxPOClsb - 1);
-    int iPrevPOCmsb = iPrevPOC - iPrevPOClsb;
-    if( picHeader->getPocMsbPresentFlag() )
-    {
-      iPOCmsb = picHeader->getPocMsbVal() * iMaxPOClsb;
-    }
-    else
-    {
-      if ((iPOClsb  <  iPrevPOClsb) && ((iPrevPOClsb - iPOClsb) >= (iMaxPOClsb / 2)))
-      {
-        iPOCmsb = iPrevPOCmsb + iMaxPOClsb;
-      }
-      else if ((iPOClsb  >  iPrevPOClsb) && ((iPOClsb - iPrevPOClsb)  >  (iMaxPOClsb / 2)))
-      {
-        iPOCmsb = iPrevPOCmsb - iMaxPOClsb;
-      }
-      else
-      {
-        iPOCmsb = iPrevPOCmsb;
-      }
-    }
-    pcSlice->setPOC(iPOCmsb + iPOClsb);
   }
 }
 

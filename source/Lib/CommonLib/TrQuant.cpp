@@ -101,6 +101,7 @@ template<int signedMode> void invTransformCbCr( PelBuf &resCb, PelBuf &resCr )
 // ====================================================================================================================
 // TrQuant class member functions
 // ====================================================================================================================
+
 TrQuant::TrQuant()
 {
   // allocate temporary buffers
@@ -117,6 +118,24 @@ TrQuant::TrQuant()
   m_blk  = ( TCoeff* ) xMalloc( TCoeff, MAX_TU_SIZE_FOR_PROFILE * MAX_TU_SIZE_FOR_PROFILE );
   m_dqnt = ( TCoeff* ) xMalloc( TCoeff, MAX_TU_SIZE_FOR_PROFILE * MAX_TU_SIZE_FOR_PROFILE );
 }
+
+TrQuant::TrQuant( const TrQuant& other ) : Quant( other )
+{
+  // allocate temporary buffers
+  m_invICT      = m_invICTMem + maxAbsIctMode;
+  m_invICT[ 0]  = invTransformCbCr< 0>;
+  m_invICT[ 1]  = invTransformCbCr< 1>;
+  m_invICT[-1]  = invTransformCbCr<-1>;
+  m_invICT[ 2]  = invTransformCbCr< 2>;
+  m_invICT[-2]  = invTransformCbCr<-2>;
+  m_invICT[ 3]  = invTransformCbCr< 3>;
+  m_invICT[-3]  = invTransformCbCr<-3>;
+
+  m_tmp  = ( TCoeff* ) xMalloc( TCoeff, MAX_TU_SIZE_FOR_PROFILE * MAX_TU_SIZE_FOR_PROFILE );
+  m_blk  = ( TCoeff* ) xMalloc( TCoeff, MAX_TU_SIZE_FOR_PROFILE * MAX_TU_SIZE_FOR_PROFILE );
+  m_dqnt = ( TCoeff* ) xMalloc( TCoeff, MAX_TU_SIZE_FOR_PROFILE * MAX_TU_SIZE_FOR_PROFILE );
+}
+
 
 TrQuant::~TrQuant()
 {

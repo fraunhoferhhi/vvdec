@@ -81,7 +81,10 @@ void DecCu::TaskDeriveCtuMotionInfo( CodingStructure &cs, const UnitArea &ctuAre
   
   for( auto &currCU : cs.traverseCUs( ctuArea ) )
   {
-    CHECK( !ctuArea.blocks[currCU.chType()].contains( currCU.blocks[currCU.chType()] ), "Should never happen!" );
+    CHECK( !ctuArea.blocks[currCU.chType()].contains( currCU.blocks[currCU.chType()] ),
+           "Traversing CU at (" << currCU.blocks[currCU.chType()].x << "," << currCU.blocks[currCU.chType()].y
+           << ") outside of the CTU at (" << ctuArea.blocks[currCU.chType()].x << "," << ctuArea.blocks[currCU.chType()].y << ")!"
+    );
 
 #if JVET_O1170_CHECK_BV_AT_DECODER
     if( currCU.Y().valid() && currCU.sps->getIBCFlag() )
@@ -154,9 +157,13 @@ void DecCu::TaskCriticalIntraKernel( CodingStructure &cs, const UnitArea &ctuAre
   }
 }
 
-void DecCu::TaskDeriveDMVRMotionInfo( CodingStructure& cs, const UnitArea& ctuArea )
+void DecCu::TaskFinishMotionInfo( CodingStructure &cs, const int col, const int row )
 {
   PROFILER_SCOPE_AND_STAGE_EXT( 1, g_timeProfiler, P_CONTROL_PARSE_DERIVE_LL, cs, CH_L );
+
+  // first, finish DMVR motion
+
+  UnitArea    ctuArea= getCtuArea( cs, col, row, true );
   MotionBuf   mb     = cs.getMotionBuf( ctuArea.Y() );
   MotionInfo* orgPtr = mb.buf;
 
@@ -182,8 +189,8 @@ void DecCu::TaskDeriveDMVRMotionInfo( CodingStructure& cs, const UnitArea& ctuAr
       {
         for( int x = puPos.x; x < ( puPos.x + pu.lumaSize().width ); x = x + dx, num++ )
         {
-          const Mv subPuMv0 = mv0 + pu.mvdL0SubPu[num];
-          const Mv subPuMv1 = mv1 - pu.mvdL0SubPu[num];
+          const Mv subPuMv0 = mv0 + cs.m_dmvrMvCache[pu.mvdL0SubPuOff + num];
+          const Mv subPuMv1 = mv1 - cs.m_dmvrMvCache[pu.mvdL0SubPuOff + num];
 
           int y2 = ( ( y - 1 ) & ~mask ) + scale;
 
@@ -202,6 +209,31 @@ void DecCu::TaskDeriveDMVRMotionInfo( CodingStructure& cs, const UnitArea& ctuAr
             }
           }
         }
+      }
+    }
+  }
+
+  CtuData &ctuData = cs.getCtuData( col, row );
+
+  const int size4x4 = cs.getLFPMapStride();
+
+  const MotionInfo          *src = ctuData.motion;
+        ColocatedMotionInfo *dst = ctuData.colMotion;
+
+  // ctuDta.colMotion should already be set to '0'
+  //memset( dst, 0, sizeof( ctuData.colMotion ) );
+
+  // skip every second source line
+  for( int y = 0; y < size4x4; y += 2, src += size4x4 )
+  {
+    for( int x = 0; x < size4x4; x += 2, src += 2, dst++ )
+    {
+      //if( src->isInter() )
+      {
+        dst->mv[0]       = src->mv[0];
+        dst->mv[1]       = src->mv[1];
+        dst->coRefIdx[0] = src->miRefIdx[0];
+        dst->coRefIdx[1] = src->miRefIdx[1];
       }
     }
   }
@@ -740,8 +772,8 @@ void DecCu::xDeriveCUMV( CodingUnit &cu, MotionHist& hist )
 
       if( pu.mergeType() == MRG_TYPE_SUBPU_ATMVP )
       {
-        pu.refIdx[0] = affineMergeCtx.mvFieldNeighbours[( pu.mergeIdx() << 1 ) + 0][0].refIdx;
-        pu.refIdx[1] = affineMergeCtx.mvFieldNeighbours[( pu.mergeIdx() << 1 ) + 1][0].refIdx;
+        pu.refIdx[0] = affineMergeCtx.mvFieldNeighbours[( pu.mergeIdx() << 1 ) + 0][0].mfRefIdx;
+        pu.refIdx[1] = affineMergeCtx.mvFieldNeighbours[( pu.mergeIdx() << 1 ) + 1][0].mfRefIdx;
       }
       else
       {
@@ -866,12 +898,14 @@ void DecCu::xDeriveCUMV( CodingUnit &cu, MotionHist& hist )
     const unsigned xBr = pu.Y().width  + pu.Y().x;
     const unsigned yBr = pu.Y().height + pu.Y().y;
     bool enableHmvp      = ((xBr >> log2ParallelMergeLevel) > (pu.Y().x >> log2ParallelMergeLevel)) && ((yBr >> log2ParallelMergeLevel) > (pu.Y().y >> log2ParallelMergeLevel));
-    bool enableInsertion = CU::isIBC( cu ) || enableHmvp;
+    bool isIbc           = CU::isIBC( cu );
+    bool enableInsertion = isIbc || enableHmvp;
 
     if( enableInsertion )
     {
       HPMVInfo mi( pu.getMotionInfo(), pu.interDir() == 3 ? pu.BcwIdx() : BCW_DEFAULT, pu.imv() == IMV_HPEL );
-      MotionHist::addMiToLut( CU::isIBC( cu ) ? hist.motionLutIbc : hist.motionLut, mi );
+      if( isIbc ) mi.mhRefIdx[0] = MH_NOT_VALID + 1;
+      MotionHist::addMiToLut( isIbc ? hist.motionLutIbc : hist.motionLut, mi );
     }
   }
 }

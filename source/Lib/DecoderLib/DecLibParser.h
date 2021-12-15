@@ -149,6 +149,8 @@ private:
   std::deque<Picture*>      m_parseFrameList;
   int                       m_maxPicReconSkip = 1;
 
+  CUChunkCache              m_cuChunkCache;
+  TUChunkCache              m_tuChunkCache;
 
 public:
   DecLibParser( DecLib& decLib, PicListManager& picListManager,  PicHeader* picHeader ) : m_decLib( decLib ), m_picListManager( picListManager ), m_picHeader( picHeader ) {}

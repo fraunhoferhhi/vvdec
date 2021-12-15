@@ -127,6 +127,7 @@ Picture* PicListManager::getNewPicBuffer( const SPS& sps, const PPS& pps, const 
                    sps.getMaxCUWidth(),
                    sps.getMaxCUWidth() + 16,
                    layerId );
+    pcPic->createWrapAroundBuf( sps.getUseWrapAround(), sps.getMaxCUWidth() );
     m_cPicList.push_back( pcPic );
 
     return pcPic;
@@ -155,6 +156,7 @@ Picture* PicListManager::getNewPicBuffer( const SPS& sps, const PPS& pps, const 
                    sps.getMaxCUWidth(),
                    sps.getMaxCUWidth() + 16,
                    layerId );
+    pcPic->createWrapAroundBuf( sps.getUseWrapAround(), sps.getMaxCUWidth() );
     m_cPicList.push_back( pcPic );
 
     return pcPic;
@@ -172,6 +174,7 @@ Picture* PicListManager::getNewPicBuffer( const SPS& sps, const PPS& pps, const 
                    sps.getMaxCUWidth(),
                    sps.getMaxCUWidth() + 16,
                    layerId );
+    pcPic->createWrapAroundBuf( sps.getUseWrapAround(), sps.getMaxCUWidth() );
   }
 
   pcPic->resetForUse();

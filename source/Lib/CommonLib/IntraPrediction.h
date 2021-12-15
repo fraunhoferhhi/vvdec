@@ -79,12 +79,13 @@ class IntraPrediction
 {
 private:
 
-  Pel    m_piYuvExt[NUM_PRED_BUF][(MAX_CU_SIZE * 2 + 1 + MAX_REF_LINE_IDX) * (MAX_CU_SIZE * 2 + 1 + MAX_REF_LINE_IDX)];
+  Pel    m_piYuvExt     [NUM_PRED_BUF][(MAX_TU_SIZE_FOR_PROFILE * 2 + 1 + MAX_REF_LINE_IDX) * (MAX_TU_SIZE_FOR_PROFILE * 2 + 1 + MAX_REF_LINE_IDX)];
   PelBuf m_pelBufISPBase[2];
-  PelBuf m_pelBufISP[2];
+  PelBuf m_pelBufISP    [2];
 
-  Pel  m_yuvCiip[MAX_NUM_COMPONENT][MAX_CU_SIZE * MAX_CU_SIZE];
-  static const uint8_t m_aucIntraFilter[MAX_NUM_CHANNEL_TYPE][MAX_INTRA_FILTER_DEPTHS];
+  Pel  m_yuvCiip        [MAX_NUM_COMPONENT][MAX_TU_SIZE_FOR_PROFILE * MAX_TU_SIZE_FOR_PROFILE];
+  static const uint8_t
+       m_aucIntraFilter [MAX_NUM_CHANNEL_TYPE][MAX_INTRA_FILTER_DEPTHS];
 
   unsigned m_auShiftLM[32]; // Table for substituting division operation by multiplication
 

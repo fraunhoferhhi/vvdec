@@ -88,10 +88,9 @@ struct CommonTaskParam
   CodingStructure*         cs           = nullptr;
   std::vector<CtuState>    ctuStates;
   std::vector<MotionHist>  perLineMiHist;
-  std::vector<Barrier>     dmvrTriggers;
+  std::vector<Barrier>     finishMotionTriggers;
 
   bool                     doALF        = true;
-  Barrier                  alfPrepared;
 
   explicit CommonTaskParam( DecLibRecon* dec ) : decLib( *dec ) {}
   void reset( CodingStructure& cs, TaskType ctuStartState, int tasksPerLine, bool doALF );
@@ -119,6 +118,15 @@ struct CtuTaskParam
   int              numTasksPerLine;
 };
 
+struct FinishPicTaskParam
+{
+  DecLibRecon* decLib;
+  Picture*     pic;
+
+  FinishPicTaskParam() : decLib( nullptr ), pic( nullptr ) {}
+  FinishPicTaskParam( DecLibRecon* _dec, Picture* _pic ) : decLib( _dec ), pic( _pic ) {}
+};
+
 /// decoder class
 class DecLibRecon
 {
@@ -126,7 +134,7 @@ private:
   // functional classes
   IntraPrediction*     m_cIntraPred = nullptr;
   InterPrediction*     m_cInterPred = nullptr;
-  TrQuant*             m_cTrQuant   = nullptr;
+  TrQuant**            m_cTrQuant   = nullptr;
   DecCu*               m_cCuDecoder = nullptr;
   RdCost               m_cRdCost;
   Reshape*             m_cReshaper  = nullptr;   ///< reshaper class
@@ -142,10 +150,21 @@ private:
   __itt_domain*        m_itt_decInst = nullptr;
 #endif
 
+  std::unique_ptr<Pel[], AlignedDeleter<Pel>> 
+                       m_predBuf;
+  ptrdiff_t            m_predBufSize;
+  std::vector<CtuDataBuffers>
+                       m_ctuDataBufs;
+  Mv*                  m_dmvrMvCache;
+  size_t               m_dmvrMvCacheSize;
+
+  PelStorage           m_fltBuf;
+
   CommonTaskParam            commonTaskParam{ this };
   std::vector<SubPicExtTask> m_subPicExtTasks;
-  std::vector<LineTaskParam> tasksDMVR;
+  std::vector<LineTaskParam> tasksFinishMotion;
   std::vector<CtuTaskParam>  tasksCtu;
+  FinishPicTaskParam         taskFinishPic;
   CBarrierVec                picBarriers;
 
 public:
@@ -160,6 +179,7 @@ public:
   void     decompressPicture( Picture* pcPic );
   Picture* waitForPrevDecompressedPic();
   Picture* getCurrPic() const { return m_currDecompPic; }
+  void     swapBufs( CodingStructure& cs );
 
 
 private:

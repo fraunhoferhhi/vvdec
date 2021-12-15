@@ -90,7 +90,7 @@ QpParam::QpParam( const TransformUnit& tu, const ComponentID& compIDX, const boo
     int
     chromaQpOffset  = pps.getQpOffset                    ( jCbCr );
     chromaQpOffset += tu.cu->slice->getSliceChromaQpDelta( jCbCr );
-    chromaQpOffset += pps.getChromaQpOffsetListEntry( tu.cu->chromaQpAdj ).u.offset[int( jCbCr ) - 1];
+    chromaQpOffset += pps.getChromaQpOffsetListEntry( tu.cu->chromaQpAdj ).get( jCbCr );
 
     int qpi = Clip3( -qpBdOffset, MAX_QP, qpy );
     baseQp  = sps.getMappedChromaQpValue( jCbCr, qpi );
@@ -237,15 +237,28 @@ static void DeQuantPCMCore( const int     maxX,
   }
 }
 
-Quant::Quant()
+Quant::Quant() : m_dequantCoefBuf( nullptr ), m_ownDequantCoeff( false )
 {
   xInitScalingList( nullptr );
-  DeQuant= DeQuantCore;
+
+  DeQuant    = DeQuantCore;
   DeQuantPCM = DeQuantPCMCore;
-#if   ENABLE_SIMD_OPT_QUANT && defined( TARGET_SIMD_X86 )
+#if ENABLE_SIMD_OPT_QUANT && defined( TARGET_SIMD_X86 )
+
   initQuantX86();
 #endif
+}
 
+Quant::Quant( const Quant& other ) : m_dequantCoefBuf( nullptr ), m_ownDequantCoeff( false )
+{
+  xInitScalingList( &other );
+
+  DeQuant    = DeQuantCore;
+  DeQuantPCM = DeQuantPCMCore;
+#if ENABLE_SIMD_OPT_QUANT && defined( TARGET_SIMD_X86 )
+
+  initQuantX86();
+#endif
 }
 
 Quant::~Quant()
@@ -646,6 +659,17 @@ void Quant::processScalingListDec( const int *coeff, int *dequantcoeff, int invQ
  */
 void Quant::xInitScalingList( const Quant* other )
 {
+  if( other )
+  {
+    m_dequantCoefBuf  = other->m_dequantCoefBuf;
+    m_ownDequantCoeff = false;
+  }
+  else
+  {
+    m_dequantCoefBuf  = new int[580644];
+    m_ownDequantCoeff = true;
+  }
+
   size_t numQuants = 0;
 
   for(uint32_t sizeIdX = 0; sizeIdX < SCALING_LIST_SIZE_NUM; sizeIdX++)
@@ -662,12 +686,21 @@ void Quant::xInitScalingList( const Quant* other )
       }
     }
   }
+
+  CHECK( numQuants != 580644, "Incorrect size of scaling list entries number!" );
 }
 
 /** destroy quantization matrix array
  */
 void Quant::xDestroyScalingList()
 {
+  if( m_ownDequantCoeff )
+  {
+    delete[] m_dequantCoefBuf;
+  }
+
+  m_ownDequantCoeff = false;
+  m_dequantCoefBuf  = nullptr;
 }
 
 void Quant::init( const Picture *pic )
@@ -711,7 +744,8 @@ void Quant::init( const Picture *pic )
       }
     }
     ScalingList scalingList = scalingListAPS->getScalingList();
-    setScalingListDec(scalingList);
+    if( m_ownDequantCoeff )
+      setScalingListDec(scalingList);
     setUseScalingList(true);
   }
   else

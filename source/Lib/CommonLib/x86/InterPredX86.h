@@ -979,8 +979,10 @@ void InterPrediction::_initInterPredictionX86()
 {
   BiOptFlow       = BiOptFlowCoreSIMD  <vext>;
   PaddBIO         = PaddBIO_SIMD       <vext>;
+#if !defined( TARGET_SIMD_WASM ) // profilings show those functions are slower with WASM SIMD emulation than C++->WASM
   BioGradFilter   = gradFilter_SSE     <vext, true>;
   profGradFilter  = gradFilter_SSE     <vext, false>;
+#endif
   applyPROF[0]    = applyPROF_SSE      <vext, false>;
   applyPROF[1]    = applyPROF_SSE      <vext, true>;
   roundIntVector  = roundIntVector_SIMD<vext>;

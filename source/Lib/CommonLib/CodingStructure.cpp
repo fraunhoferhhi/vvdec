@@ -59,8 +59,6 @@ THE POSSIBILITY OF SUCH DAMAGE.
 namespace vvdec
 {
 
-ThreadSafeCUCache g_globalUnitCache{};
-
 const UnitScale UnitScaleArray[NUM_CHROMA_FORMAT][MAX_NUM_COMPONENT] =
 {
   { {2,2}, {0,0}, {0,0} },  // 4:0:0
@@ -73,16 +71,14 @@ const UnitScale UnitScaleArray[NUM_CHROMA_FORMAT][MAX_NUM_COMPONENT] =
 // coding structure method definitions
 // ---------------------------------------------------------------------------
 
-CodingStructure::CodingStructure(std::shared_ptr<CUCache> cuCache, std::shared_ptr<TUCache> tuCache )
+CodingStructure::CodingStructure( CUChunkCache* cuChunkCache, TUChunkCache* tuChunkCache )
   : area      ()
   , picture   ( nullptr )
   , m_ctuData ( nullptr )
   , m_ctuDataSize( 0 )
-  , m_predBufSize ( 0 )
   , m_dmvrMvCache ( nullptr )
-  , m_dmvrMvCacheSize( 0 )
-  , m_cuCache ( cuCache )
-  , m_tuCache ( tuCache )
+  , m_cuCache ( cuChunkCache )
+  , m_tuCache ( tuChunkCache )
   , m_IBCBufferWidth( 0 )
 {
   m_dmvrMvCacheOffset = 0;
@@ -94,19 +90,13 @@ void CodingStructure::destroy()
 
   m_reco.destroy();
   m_rec_wrap.destroy();
-  m_pred.destroy();
 
-  if( m_dmvrMvCache )
-  {
-    free( m_dmvrMvCache );
-    m_dmvrMvCache = nullptr;
-    m_dmvrMvCacheSize = 0;
-  }
-
-  m_cuCache->defragment();
-  m_tuCache->defragment();
+  m_cuCache.releaseAll();
+  m_tuCache.releaseAll();
   
   m_virtualIBCbuf.clear();
+
+  deallocTempInternals();
 
   if( m_ctuData )
   {
@@ -114,17 +104,11 @@ void CodingStructure::destroy()
     m_ctuData = nullptr;
     m_ctuDataSize = 0;
   }
-
-  if( m_predBuf )
-  {
-    m_predBuf.reset();
-    m_predBufSize = 0;
-  }
 }
 
 CodingUnit& CodingStructure::addCU( const UnitArea &unit, const ChannelType chType, const TreeType treeType, const ModeType modeType, const CodingUnit *cuLeft, const CodingUnit *cuAbove )
 {
-  CodingUnit *cu = m_cuCache->get();
+  CodingUnit *cu = m_cuCache.get();
 
   GCC_WARNING_DISABLE_class_memaccess
   memset( cu, 0, sizeof( CodingUnit ) );
@@ -136,15 +120,12 @@ CodingUnit& CodingStructure::addCU( const UnitArea &unit, const ChannelType chTy
   cu->setTreeType( treeType );
   cu->setModeType( modeType );
   
-  CodingUnit *prevCU = m_lastCU;
+  CodingUnit *prevCU = cu;
+  std::swap( m_lastCU, prevCU );
 
   const int currRsAddr = ctuRsAddr( unit.blocks[chType].pos(), chType );
-  const int prevRsAddr = prevCU ? ctuRsAddr( prevCU->blocks[prevCU->chType()].pos(), prevCU->chType() ) : -1;
 
-  if( prevCU && currRsAddr == prevRsAddr )
-  {
-    prevCU->next = cu;
-  }
+  if( prevCU ) prevCU->next = cu;
 
   cu->idx = ++m_numCUs;
 
@@ -153,7 +134,7 @@ CodingUnit& CodingStructure::addCU( const UnitArea &unit, const ChannelType chTy
   CtuData& ctuData = getCtuData( currRsAddr );
   cu->ctuData = &ctuData;
 
-  cu->predBuf = m_predBuf.get() + m_predBufOffset;
+  cu->predBufOff = m_predBufOffset;
 
   for( uint32_t i = 0; i < numCh; i++ )
   {
@@ -166,7 +147,7 @@ CodingUnit& CodingStructure::addCU( const UnitArea &unit, const ChannelType chTy
 
     if( i )
     {
-      m_predBufOffset += (cuArea << 1);
+      m_predBufOffset += ( cuArea << 1 );
     }
     else
     {
@@ -195,12 +176,9 @@ CodingUnit& CodingStructure::addCU( const UnitArea &unit, const ChannelType chTy
 
   if( isLuma( chType ) && unit.lheight() >= 8 && unit.lwidth()  >= 8 && unit.Y().area() >= 128 )
   {
-    CHECKD( m_dmvrMvCacheOffset >= m_dmvrMvCacheSize, "dmvr cache offset out of bounds" )
-    pu.mvdL0SubPu       = &m_dmvrMvCache[m_dmvrMvCacheOffset];
+    pu.mvdL0SubPuOff     = m_dmvrMvCacheOffset;
     m_dmvrMvCacheOffset += std::max<int>( 1, unit.lwidth() >> DMVR_SUBCU_WIDTH_LOG2 ) * std::max<int>( 1, unit.lheight() >> DMVR_SUBCU_HEIGHT_LOG2 );
   }
-
-  m_lastCU = cu;
 
   return *cu;
 }
@@ -215,7 +193,7 @@ TransformUnit& CodingStructure::addTU( const UnitArea &unit, const ChannelType c
   }
   else
   {
-    tu = m_tuCache->get();
+    tu = m_tuCache.get();
 
     GCC_WARNING_DISABLE_class_memaccess
     memset( tu, 0, sizeof( TransformUnit ) );
@@ -299,22 +277,6 @@ void CodingStructure::createInternals( const UnitArea& _unit )
   memcpy( unitScale, UnitScaleArray[area.chromaFormat], sizeof( unitScale ) );
 
   picture = nullptr;
-
-  // for the worst case of all PUs being 8x8 and using DMVR
-  const size_t _maxNumDmvrMvs = ( area.lwidth() >> 3 ) * ( area.lheight() >> 3 );
-  if( _maxNumDmvrMvs != m_dmvrMvCacheSize )
-  {
-    if( m_dmvrMvCache ) free( m_dmvrMvCache );
-    m_dmvrMvCacheSize = _maxNumDmvrMvs;
-    m_dmvrMvCache = ( Mv* ) malloc( sizeof( Mv ) * _maxNumDmvrMvs );
-  }
-
-  size_t predBufSize = area.Y().area() + ( isChromaEnabled( _unit.chromaFormat ) ? ( area.Cb().area() + area.Cr().area() ) : 0 );
-  if( predBufSize != m_predBufSize )
-  {
-    m_predBuf.reset( (Pel*) xMalloc( Pel, predBufSize ) );
-    m_predBufSize = predBufSize;
-  }
 }
 
 
@@ -326,14 +288,34 @@ void CodingStructure::rebindPicBufs()
   else                                                    m_rec_wrap.destroy();
 }
 
+void CodingStructure::allocTempInternals()
+{
+  if( m_ctuDataSize != pcv->sizeInCtus )
+  {
+    m_ctuDataSize = pcv->sizeInCtus;
+    if( m_ctuData ) free( m_ctuData );
+    m_ctuData = ( CtuData* ) malloc( m_ctuDataSize * sizeof( CtuData ) );
+  }
+}
+
+void CodingStructure::deallocTempInternals()
+{
+  m_numCUs = 0;
+  m_numTUs = 0;
+  m_lastCU = nullptr;
+
+  m_cuCache.releaseAll();
+  m_tuCache.releaseAll();
+}
+
 void CodingStructure::initStructData()
 {
   m_numCUs = 0;
   m_numTUs = 0;
   m_lastCU = nullptr;
 
-  m_cuCache->defragment();
-  m_tuCache->defragment();
+  m_cuCache.releaseAll();
+  m_tuCache.releaseAll();
 
   m_widthInCtus = pcv->widthInCtus;
 
@@ -343,22 +325,13 @@ void CodingStructure::initStructData()
   m_ctuWidthLog2[0] = pcv->maxCUWidthLog2 - unitScale[CH_L].posx;
   m_ctuWidthLog2[1] = m_ctuWidthLog2[0]; // same for luma and chroma, because of the 2x2 blocks
 
-  if( m_ctuDataSize != pcv->sizeInCtus )
-  {
-    m_ctuDataSize = pcv->sizeInCtus;
-    if( m_ctuData ) free( m_ctuData );
-    m_ctuData = ( CtuData* ) malloc( m_ctuDataSize * sizeof( CtuData ) );
-  }
-
-  for( int i = 0; i < m_ctuDataSize; i++ )
-  {
-    CtuData& ctuData = m_ctuData[i];
-    memset( ctuData.cuPtr, 0, sizeof( ctuData.cuPtr ) );
-  }
-
   m_dmvrMvCacheOffset = 0;
 
   m_predBufOffset = 0;
+
+  GCC_WARNING_DISABLE_class_memaccess
+  memset( m_ctuData, 0, sizeof( CtuData ) * m_ctuDataSize );
+  GCC_WARNING_RESET
 }
 
 MotionBuf CodingStructure::getMotionBuf( const Area& _area )
@@ -389,7 +362,7 @@ PelUnitBuf CodingStructure::getPredBuf(const CodingUnit &unit)
 
   if( unit.Y().valid() )
   {
-    ret.bufs[0].buf    = unit.predBuf;
+    ret.bufs[0].buf    = m_predBuf + unit.predBufOff;
     ret.bufs[0].stride = unit.blocks[0].width;
     ret.bufs[0].width  = unit.blocks[0].width;
     ret.bufs[0].height = unit.blocks[0].height;
@@ -399,7 +372,7 @@ PelUnitBuf CodingStructure::getPredBuf(const CodingUnit &unit)
   {
     if( unit.Cb().valid() )
     {
-      ret.bufs[1].buf    = unit.predBuf + unit.Y().area();
+      ret.bufs[1].buf    = m_predBuf + unit.predBufOff + unit.Y().area();
       ret.bufs[1].stride = unit.blocks[1].width;
       ret.bufs[1].width  = unit.blocks[1].width;
       ret.bufs[1].height = unit.blocks[1].height;
@@ -407,7 +380,7 @@ PelUnitBuf CodingStructure::getPredBuf(const CodingUnit &unit)
 
     if( unit.Cr().valid() )
     {
-      ret.bufs[2].buf    = unit.predBuf + unit.Y().area() + unit.Cb().area();
+      ret.bufs[2].buf    = m_predBuf + unit.predBufOff + unit.Y().area() + unit.Cb().area();
       ret.bufs[2].stride = unit.blocks[2].width;
       ret.bufs[2].width  = unit.blocks[2].width;
       ret.bufs[2].height = unit.blocks[2].height;
@@ -425,7 +398,7 @@ const CPelUnitBuf CodingStructure::getPredBuf(const CodingUnit &unit) const
 
   if( unit.Y().valid() )
   {
-    ret.bufs[0].buf    = unit.predBuf;
+    ret.bufs[0].buf    = m_predBuf + unit.predBufOff;
     ret.bufs[0].stride = unit.blocks[0].width;
     ret.bufs[0].width  = unit.blocks[0].width;
     ret.bufs[0].height = unit.blocks[0].height;
@@ -433,7 +406,7 @@ const CPelUnitBuf CodingStructure::getPredBuf(const CodingUnit &unit) const
 
   if( unit.Cb().valid() )
   {
-    ret.bufs[1].buf    = unit.predBuf + unit.Y().area();
+    ret.bufs[1].buf    = m_predBuf + unit.predBufOff + unit.Y().area();
     ret.bufs[1].stride = unit.blocks[1].width;
     ret.bufs[1].width  = unit.blocks[1].width;
     ret.bufs[1].height = unit.blocks[1].height;
@@ -441,13 +414,23 @@ const CPelUnitBuf CodingStructure::getPredBuf(const CodingUnit &unit) const
 
   if( unit.Cr().valid() )
   {
-    ret.bufs[2].buf    = unit.predBuf + unit.Y().area() + unit.Cb().area();
+    ret.bufs[2].buf    = m_predBuf + unit.predBufOff + unit.Y().area() + unit.Cb().area();
     ret.bufs[2].stride = unit.blocks[2].width;
     ret.bufs[2].width  = unit.blocks[2].width;
     ret.bufs[2].height = unit.blocks[2].height;
   }
 
   return ret;
+}
+
+const ColocatedMotionInfo& CodingStructure::getColInfo( const Position &pos, const Slice*& pColSlice ) const
+{
+  const CtuData& ctuData    = getCtuData( ctuRsAddr( pos, CH_L ) );
+  const ColocatedMotionInfo&
+                 colMi      = ctuData.colMotion[colMotPos( pos )];
+                 pColSlice  = ctuData.slice;
+  
+  return colMi;
 }
 
 const CodingUnit* CodingStructure::getCURestricted( const Position &pos, const CodingUnit& curCu, const ChannelType _chType, const CodingUnit* guess ) const

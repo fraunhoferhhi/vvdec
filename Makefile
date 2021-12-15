@@ -1,4 +1,4 @@
-# VVCLib/Makefile
+# VVdeC/Makefile
 #
 # How to build a single target:
 #  make <project>-r  => build variant=release
@@ -57,6 +57,10 @@ endif
 
 ifneq ($(osx-arch),)
 CONFIG_OPTIONS += -DCMAKE_OSX_ARCHITECTURES=$(osx-arch)
+endif
+
+ifneq ($(toolchainfile),)
+CONFIG_OPTIONS += -DCMAKE_TOOLCHAIN_FILE=$(toolchainfile)
 endif
 
 ifeq ($(j),)
@@ -263,7 +267,9 @@ install-ps: install-relwithdebinfo-shared
 # test target
 test: release
 	cmake $(BUILD_OPTIONS-release) --target test-ok $(BUILD_TOOL_OPTIONS)
-  
+test-relwithdebinfo: relwithdebinfo
+	cmake $(BUILD_OPTIONS-relwithdebinfo) --target test-ok $(BUILD_TOOL_OPTIONS)
+
 test-all: release
 	cmake $(BUILD_OPTIONS-release) --target test-all $(BUILD_TOOL_OPTIONS)
 

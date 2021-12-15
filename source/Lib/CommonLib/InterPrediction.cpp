@@ -350,23 +350,15 @@ void InterPrediction::init( RdCost* pcRdCost, ChromaFormat chromaFormatIDC, cons
 
   if( m_currChromaFormat == NUM_CHROMA_FORMAT ) // check if first is null (in which case, nothing initialised yet)
   {
-    int extWidth  = MAX_CU_SIZE + ( 2 * BIO_ALIGN_SIZE + BIO_ALIGN_SIZE ) + 16;
-    int extHeight = MAX_CU_SIZE + ( 2 * BIO_EXTEND_SIZE + 2 ) + 2;
-    extWidth      = extWidth  > ( MAX_CU_SIZE + ( 2 * DMVR_NUM_ITERATION ) + 16 ) ? extWidth  : MAX_CU_SIZE + ( 2 * DMVR_NUM_ITERATION ) + 16;
-    extHeight     = extHeight > ( MAX_CU_SIZE + ( 2 * DMVR_NUM_ITERATION ) + 1 )  ? extHeight : MAX_CU_SIZE + ( 2 * DMVR_NUM_ITERATION ) + 1;
-
-    for( uint32_t i = 0; i < NUM_REF_PIC_LIST_01; i++ )
-    {
-      VALGRIND_MEMZERO( m_bdofBlock[i], extWidth * extHeight * sizeof( Pel ) );
-    }
-    VALGRIND_MEMZERO( m_tmpBlock, extWidth * extHeight * sizeof( Pel ) );
+    VALGRIND_MEMCLEAR( m_bdofBlock );
+    VALGRIND_MEMCLEAR( m_tmpBlock  );
 
     m_iRefListIdx = -1;
 
-    VALGRIND_MEMZERO( m_gradX0, sizeof( Pel ) * BIO_TEMP_BUFFER_SIZE );
-    VALGRIND_MEMZERO( m_gradY0, sizeof( Pel ) * BIO_TEMP_BUFFER_SIZE );
-    VALGRIND_MEMZERO( m_gradX1, sizeof( Pel ) * BIO_TEMP_BUFFER_SIZE );
-    VALGRIND_MEMZERO( m_gradY1, sizeof( Pel ) * BIO_TEMP_BUFFER_SIZE );
+    VALGRIND_MEMCLEAR( m_gradX0 );
+    VALGRIND_MEMCLEAR( m_gradY0 );
+    VALGRIND_MEMCLEAR( m_gradX1 );
+    VALGRIND_MEMCLEAR( m_gradY1 );
 
     m_if.initInterpolationFilter( true );
 
@@ -1110,8 +1102,16 @@ void InterPrediction::xPredAffineBlk( const ComponentID&        compID,
   }
   else
   {
-    refBuf       = { refPic->getRecoBufPtr   ( compID, false ), refPic->getRecoBufPtr   ( compID, true ) };
-    refBufStride = { refPic->getRecoBufStride( compID, false ), refPic->getRecoBufStride( compID, true ) };
+    if( pu.sps->getUseWrapAround() )
+    {
+      refBuf       = { refPic->getRecoBufPtr   ( compID, false ), refPic->getRecoBufPtr   ( compID, true ) };
+      refBufStride = { refPic->getRecoBufStride( compID, false ), refPic->getRecoBufStride( compID, true ) };
+    }
+    else
+    {
+      refBuf      [0] = refBuf      [1] = refPic->getRecoBufPtr   ( compID, false );
+      refBufStride[0] = refBufStride[1] = refPic->getRecoBufStride( compID, false );
+    }
   }
 
   const int puPosX = pu.blocks[compID].x, puPosY = pu.blocks[compID].y;
@@ -1925,10 +1925,11 @@ void InterPrediction::xProcessDMVR( PredictionUnit& pu, PelUnitBuf &pcYuvDst, co
         totalDeltaMV[1]   = deltaMV[1] << mvShift;
         xDMVRSubPixelErrorSurface( notZeroCost, totalDeltaMV, deltaMV, pSADsArray );
 
-        pu.mvdL0SubPu[num] = Mv( totalDeltaMV[0], totalDeltaMV[1] );
+        Mv &curDMv = pu.cs->m_dmvrMvCache[pu.mvdL0SubPuOff + num];
+        curDMv = Mv( totalDeltaMV[0], totalDeltaMV[1] );
         
-        Mv mv0 = mergeMv[REF_PIC_LIST_0] + pu.mvdL0SubPu[num]; mv0.clipToStorageBitDepth();
-        Mv mv1 = mergeMv[REF_PIC_LIST_1] - pu.mvdL0SubPu[num]; mv1.clipToStorageBitDepth();
+        Mv mv0 = mergeMv[REF_PIC_LIST_0] + curDMv; mv0.clipToStorageBitDepth();
+        Mv mv1 = mergeMv[REF_PIC_LIST_1] - curDMv; mv1.clipToStorageBitDepth();
 
         if( ( mv0.hor >> mvShift ) != ( mergeMv[0].hor >> mvShift ) || ( mv0.ver >> mvShift ) != ( mergeMv[0].ver >> mvShift ) )
         {

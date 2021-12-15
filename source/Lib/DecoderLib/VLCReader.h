@@ -167,7 +167,6 @@ private:
   void  copyRefPicList           ( const SPS* pcSPS, ReferencePictureList* source_rpl, ReferencePictureList* dest_rpl );
 
   void  checkAlfNaluTidAndPicTid ( const Slice* pcSlice, const PicHeader* picHeader, ParameterSetManager* parameterSetManager);
-  void  getSlicePoc              (       Slice* pcSlice, const PicHeader* picHeader, ParameterSetManager* parameterSetManager, const int prevTid0POC );
 
   void  parsePredWeightTable     ( Slice* pcSlice, const SPS *sps );
   void  parsePredWeightTable     ( PicHeader *picHeader, const SPS *sps );

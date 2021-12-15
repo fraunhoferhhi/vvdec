@@ -114,10 +114,9 @@ void CommonTaskParam::reset( CodingStructure& cs, TaskType ctuStartState, int ta
 
 
   this->perLineMiHist = std::vector<MotionHist>( heightInCtus );
-  this->dmvrTriggers  = std::vector<Barrier>   ( heightInCtus );
+  this->finishMotionTriggers  = std::vector<Barrier>   ( heightInCtus );
 
   this->doALF        = doALF;
-  this->alfPrepared.lock();
 }
 
 DecLibRecon::DecLibRecon()
@@ -153,22 +152,75 @@ void DecLibRecon::create( ThreadPool* threadPool, unsigned instanceId )
   m_decodeThreadPool = threadPool;
   m_numDecThreads    = std::max( 1, threadPool ? threadPool->numThreads() : 1 );
 
+  m_predBufSize = 0;
+  m_dmvrMvCacheSize = 0;
+  m_dmvrMvCache     = nullptr;
+
   m_cIntraPred = new IntraPrediction[m_numDecThreads];
   m_cInterPred = new InterPrediction[m_numDecThreads];
-  m_cTrQuant   = new TrQuant        [m_numDecThreads];
   m_cCuDecoder = new DecCu          [m_numDecThreads];
   m_cReshaper  = new Reshape        [m_numDecThreads];
+  m_cTrQuant   = new TrQuant*       [m_numDecThreads];
+  m_cTrQuant[0] = new TrQuant;
+  for( int i = 1; i < m_numDecThreads; i++ )
+  {
+    m_cTrQuant[i] = new TrQuant( *m_cTrQuant[0] );
+  }
 }
 
 void DecLibRecon::destroy()
 {
   m_decodeThreadPool = nullptr;
 
+  if( m_predBuf )
+  {
+    m_predBuf.reset();
+    m_predBufSize = 0;
+  }
+
+  if( m_dmvrMvCache )
+  {
+    free( m_dmvrMvCache );
+    m_dmvrMvCache = nullptr;
+    m_dmvrMvCacheSize = 0;
+  }
+
   delete[] m_cIntraPred; m_cIntraPred = nullptr;
   delete[] m_cInterPred; m_cInterPred = nullptr;
-  delete[] m_cTrQuant;   m_cTrQuant   = nullptr;
   delete[] m_cCuDecoder; m_cCuDecoder = nullptr;
   delete[] m_cReshaper;  m_cReshaper  = nullptr;
+  for( int i = 0; i < m_numDecThreads; i++ ) delete m_cTrQuant[i];
+  delete[] m_cTrQuant;   m_cTrQuant   = nullptr;
+}
+
+
+static void getCompatibleBuffer( const CodingStructure& cs, const CPelUnitBuf& srcBuf, PelStorage& destBuf )
+{
+  if( !destBuf.bufs.empty() )
+  {
+    bool compat = false;
+    if( destBuf.chromaFormat == srcBuf.chromaFormat )
+    {
+      compat = true;
+      const uint32_t numCh = getNumberValidComponents( srcBuf.chromaFormat );
+      for( uint32_t i = 0; i < numCh; i++ )
+      {
+        // check this otherwise it would turn out to get very weird
+        compat &= destBuf.get( ComponentID( i ) )         == srcBuf.get( ComponentID( i ) );
+        compat &= destBuf.get( ComponentID( i ) ).stride  == srcBuf.get( ComponentID( i ) ).stride;
+        compat &= destBuf.get( ComponentID( i ) ).width   == srcBuf.get( ComponentID( i ) ).width;
+        compat &= destBuf.get( ComponentID( i ) ).height  == srcBuf.get( ComponentID( i ) ).height;
+      }
+    }
+    if( !compat )
+    {
+      destBuf.destroy();
+    }
+  }
+  if( destBuf.bufs.empty() )
+  {
+    destBuf.create( cs.picture->chromaFormat, cs.picture->lumaSize(), cs.pcv->maxCUWidth, cs.picture->margin, MEMORY_ALIGN_DEF_SIZE );
+  }
 }
 
 void DecLibRecon::borderExtPic( Picture* pic )
@@ -306,6 +358,12 @@ void DecLibRecon::createSubPicRefBufs( Picture* pic )
   }
 }
 
+void DecLibRecon::swapBufs( CodingStructure& cs )
+{
+  cs.picture->m_bufs[PIC_RECONSTRUCTION].swap( m_fltBuf );
+  cs.rebindPicBufs();   // ensure the recon buf in the coding structure points to the correct buffer
+}
+
 void DecLibRecon::decompressPicture( Picture* pcPic )
 {
   CodingStructure& cs = *pcPic->cs;
@@ -334,9 +392,11 @@ void DecLibRecon::decompressPicture( Picture* pcPic )
     m_cInterPred[i].init( &m_cRdCost, sps->getChromaFormatIdc(), sps->getMaxCUHeight() );
 
     // Recursive structure
-    m_cTrQuant[i]  .init( pcPic );
-    m_cCuDecoder[i].init( &m_cIntraPred[i], &m_cInterPred[i], &m_cReshaper[i], &m_cTrQuant[i] );
+    m_cTrQuant[i] ->init( pcPic );
+    m_cCuDecoder[i].init( &m_cIntraPred[i], &m_cInterPred[i], &m_cReshaper[i], m_cTrQuant[i] );
   }
+
+  getCompatibleBuffer( *pcPic->cs, pcPic->cs->getRecoBuf(), m_fltBuf );
 
   const uint32_t  log2SaoOffsetScaleLuma   = (uint32_t) std::max(0, sps->getBitDepth(CHANNEL_TYPE_LUMA  ) - MAX_SAO_TRUNCATED_BITDEPTH);
   const uint32_t  log2SaoOffsetScaleChroma = (uint32_t) std::max(0, sps->getBitDepth(CHANNEL_TYPE_CHROMA) - MAX_SAO_TRUNCATED_BITDEPTH);
@@ -348,15 +408,40 @@ void DecLibRecon::decompressPicture( Picture* pcPic )
                  sps->getMaxCUHeight(),
                  maxDepth,
                  log2SaoOffsetScaleLuma,
-                 log2SaoOffsetScaleChroma
+                 log2SaoOffsetScaleChroma,
+                 m_fltBuf
                );
 
   if( sps->getUseALF() )
   {
-    m_cALF.create( cs.picHeader, sps, pps, m_numDecThreads );
+    m_cALF.create( cs.picHeader, sps, pps, m_numDecThreads, m_fltBuf );
   }
 
-  const int widthInCtus = cs.pcv->widthInCtus;
+  // set reconstruction buffers in CodingStructure
+  size_t predBufSize = pcPic->Y().area() + ( isChromaEnabled( pcPic->chromaFormat ) ? ( pcPic->Cb().area() + pcPic->Cr().area() ) : 0 );
+  if( predBufSize != m_predBufSize )
+  {
+    m_predBuf.reset( ( Pel* ) xMalloc( Pel, predBufSize ) );
+    m_predBufSize = predBufSize;
+  }
+
+  pcPic->cs->m_predBuf = m_predBuf.get();
+
+  // for the worst case of all PUs being 8x8 and using DMVR
+  const size_t _maxNumDmvrMvs = ( pcPic->lwidth() >> 3 ) * ( pcPic->lheight() >> 3 );
+  if( _maxNumDmvrMvs != m_dmvrMvCacheSize )
+  {
+    if( m_dmvrMvCache ) free( m_dmvrMvCache );
+    m_dmvrMvCacheSize = _maxNumDmvrMvs;
+    m_dmvrMvCache     = ( Mv* ) malloc( sizeof( Mv ) * _maxNumDmvrMvs );
+  }
+
+  pcPic->cs->m_dmvrMvCache = m_dmvrMvCache;
+
+  m_ctuDataBufs.resize( cs.pcv->sizeInCtus );
+  // finished
+
+  const int widthInCtus  = cs.pcv->widthInCtus;
   const int heightInCtus = cs.pcv->heightInCtus;
 
   if( sps->getIBCFlag() )
@@ -428,10 +513,10 @@ void DecLibRecon::decompressPicture( Picture* pcPic )
       picExtBarriers.push_back( refPic->m_borderExtTaskCounter.donePtr() );
     }
 
-    if( refPic->m_dmvrTaskCounter.isBlocked() &&
-        std::find( picBarriers.cbegin(), picBarriers.cend(), refPic->m_dmvrTaskCounter.donePtr() ) == picBarriers.cend() )
+    if( refPic->m_motionTaskCounter.isBlocked() &&
+        std::find( picBarriers.cbegin(), picBarriers.cend(), refPic->m_motionTaskCounter.donePtr() ) == picBarriers.cend() )
     {
-      picBarriers.push_back( refPic->m_dmvrTaskCounter.donePtr() );
+      picBarriers.push_back( refPic->m_motionTaskCounter.donePtr() );
     }
   }
 
@@ -451,14 +536,14 @@ void DecLibRecon::decompressPicture( Picture* pcPic )
   pcPic->refPicExtDepBarriers = std::move( picExtBarriers );
 #endif
 #if !RECO_WHILE_PARSE
-  picBarriers.push_back( &cs.slice->parseDone );
-
+  picBarriers.push_back( &cs.picture->parseDone );
 #endif
+
   const TaskType ctuStartState = MIDER;
   const bool     doALF         = cs.sps->getUseALF() && !AdaptiveLoopFilter::getAlfSkipPic( cs );
   commonTaskParam.reset( cs, ctuStartState, numTasksPerLine, doALF );
 
-  tasksDMVR = std::vector<LineTaskParam>( heightInCtus, LineTaskParam{ commonTaskParam, -1 } );
+  tasksFinishMotion = std::vector<LineTaskParam>( heightInCtus, LineTaskParam{ commonTaskParam, -1 } );
   tasksCtu  = std::vector<CtuTaskParam >( heightInCtus * numTasksPerLine, CtuTaskParam{ commonTaskParam, -1, -1, {} } );
 
   pcPic->done.lock();
@@ -505,31 +590,27 @@ void DecLibRecon::decompressPicture( Picture* pcPic )
     }
   }
 
-  if( commonTaskParam.doALF )
   {
-    AdaptiveLoopFilter::preparePic( cs );
-    commonTaskParam.alfPrepared.unlock();
-  }
-
-  {
-    static auto doneTask = []( int, Picture* picture )
+    static auto finishPicTask = []( int, FinishPicTaskParam* param )
     {
-      CodingStructure& cs = *picture->cs;
+      CodingStructure& cs = *param->pic->cs;
       if( cs.sps->getUseALF() && !AdaptiveLoopFilter::getAlfSkipPic( cs ) )
       {
-        AdaptiveLoopFilter::swapBufs( cs );
+        param->decLib->swapBufs( cs );
       }
 
-      picture->reconstructed = true;
+      param->pic->reconstructed = true;
 #ifdef TRACE_ENABLE_ITT
       // mark end of frame
       __itt_frame_end_v3( picture->m_itt_decLibInst, nullptr );
 #endif
-      picture->stopProcessingTimer();
+      param->pic->stopProcessingTimer();
 
       return true;
     };
-    m_decodeThreadPool->addBarrierTask<Picture>( doneTask, pcPic, nullptr, &pcPic->done, { pcPic->m_ctuTaskCounter.donePtr() } );
+
+    taskFinishPic = FinishPicTaskParam( this, pcPic );
+    m_decodeThreadPool->addBarrierTask<FinishPicTaskParam>( finishPicTask, &taskFinishPic, nullptr, &pcPic->done, { pcPic->m_ctuTaskCounter.donePtr() } );
   }
 
   if( pcPic->referenced )
@@ -540,29 +621,38 @@ void DecLibRecon::decompressPicture( Picture* pcPic )
       auto& cs = *param->common.cs;
       for( int col = 0; col < cs.pcv->widthInCtus; col++ )
       {
-        param->common.decLib.m_cCuDecoder[tid].TaskDeriveDMVRMotionInfo( cs, getCtuArea( cs, col, param->line, true ) );
+        param->common.decLib.m_cCuDecoder[tid].TaskFinishMotionInfo( cs, col, param->line );
       }
       ITT_TASKEND( itt_domain_dec, itt_handle_dmvr );
       return true;
     };
 
-    for( int taskLineDMVR = 0; taskLineDMVR < heightInCtus; taskLineDMVR++ )
+    for( int taskLineMotion = 0; taskLineMotion < heightInCtus; taskLineMotion++ )
     {
-      auto param  = &tasksDMVR[taskLineDMVR];
-      param->line = taskLineDMVR;
+      auto param  = &tasksFinishMotion[taskLineMotion];
+      param->line = taskLineMotion;
       m_decodeThreadPool->addBarrierTask<LineTaskParam>( task,
-                                                         param,
-                                                         &pcPic->m_dmvrTaskCounter,
-                                                         nullptr,
-                                                         { &commonTaskParam.dmvrTriggers[taskLineDMVR], &pcPic->parseDone } );
+                                                          param,
+                                                          &pcPic->m_motionTaskCounter,
+                                                          nullptr,
+                                                          { &commonTaskParam.finishMotionTriggers[taskLineMotion], &pcPic->parseDone } );
     }
 
     {
       // dummy task to propagate exceptions from the ctu-decoding tasks to the dmvrTaskCounter
       static auto dummyTask = []( int, void* ) { return true; };
-      m_decodeThreadPool->addBarrierTask<void>( dummyTask, nullptr, &pcPic->m_dmvrTaskCounter, nullptr, { pcPic->m_ctuTaskCounter.donePtr() } );
+      m_decodeThreadPool->addBarrierTask<void>( dummyTask, nullptr, &pcPic->m_motionTaskCounter, nullptr, { pcPic->m_ctuTaskCounter.donePtr() } );
     }
   }
+
+  static auto clearDataTask = []( int tid, Picture* pcPic )
+  {
+    auto& cs = *pcPic->cs;
+    cs.deallocTempInternals();
+    return true;
+  };
+
+  m_decodeThreadPool->addBarrierTask<Picture>( clearDataTask, pcPic, nullptr, nullptr, { pcPic->m_ctuTaskCounter.donePtr(), pcPic->m_motionTaskCounter.donePtr() } );
 
   if( m_decodeThreadPool->numThreads() == 0 )
   {
@@ -584,9 +674,9 @@ Picture* DecLibRecon::waitForPrevDecompressedPic()
   if( m_decodeThreadPool->numThreads() == 0 )
   {
     m_decodeThreadPool->processTasksOnMainThread();
-    CHECK( m_currDecompPic->m_dmvrTaskCounter.isBlocked() || m_currDecompPic->done.isBlocked(), "can't make progress. some dependecy has not been finished" );
+    CHECK( m_currDecompPic->m_motionTaskCounter.isBlocked() || m_currDecompPic->done.isBlocked(), "can't make progress. some dependecy has not been finished" );
   }
-  m_currDecompPic->m_dmvrTaskCounter.wait();
+  m_currDecompPic->m_motionTaskCounter.wait();
   m_currDecompPic->done.wait();
   ITT_TASKEND( itt_domain_dec, itt_handle_waitTasks );
 
@@ -637,9 +727,10 @@ bool DecLibRecon::ctuTask( int tid, CtuTaskParam* param )
 
       for( int ctu = ctuStart; ctu < ctuEnd; ctu++ )
       {
-        CtuData& ctuData = cs.getCtuData( ctu, line );
+        CtuData &ctuData = cs.getCtuData( ctu, line );
+        ctuData.motion = decLib.m_ctuDataBufs[ctu + line * cs.pcv->widthInCtus].motion;
         GCC_WARNING_DISABLE_class_memaccess
-        memset( ctuData.motion, 0, sizeof( CtuData::motion ) );
+        memset( ctuData.motion, 0, sizeof( CtuDataBuffers::motion ) );
         GCC_WARNING_RESET
 
         if( !ctuData.slice->isIntra() || cs.sps->getIBCFlag() )
@@ -663,7 +754,10 @@ bool DecLibRecon::ctuTask( int tid, CtuTaskParam* param )
       for( int ctu = ctuStart; ctu < ctuEnd; ctu++ )
       {
         CtuData& ctuData = cs.getCtuData( ctu, line );
-        memset( ctuData.lfParam, 0, sizeof( CtuData::lfParam ) );
+        ctuData.lfParam[0] = decLib.m_ctuDataBufs[ctu + line * cs.pcv->widthInCtus].lfParam[0];
+        ctuData.lfParam[1] = decLib.m_ctuDataBufs[ctu + line * cs.pcv->widthInCtus].lfParam[1];
+        memset( ctuData.lfParam[0], 0, sizeof( CtuDataBuffers::lfParam[0] ) );
+        memset( ctuData.lfParam[1], 0, sizeof( CtuDataBuffers::lfParam[1] ) );
 
         const UnitArea  ctuArea  = getCtuArea( cs, ctu, line, true );
         decLib.m_cLoopFilter.calcFilterStrengthsCTU( cs, ctuArea );
@@ -835,7 +929,7 @@ bool DecLibRecon::ctuTask( int tid, CtuTaskParam* param )
         {
           decLib.m_cSAO.SAOPrepareCTULine( cs, getLineArea( cs, line, true ) );
         }
-        param->common.dmvrTriggers[line].unlock();
+        param->common.finishMotionTriggers[line].unlock();
 
         ITT_TASKEND( itt_domain_dec, itt_handle_presao );
       }
@@ -891,9 +985,6 @@ bool DecLibRecon::ctuTask( int tid, CtuTaskParam* param )
         const bool c = col > 0;
         const bool d = col + 1 < widthInCtus;
 
-        if( param->common.alfPrepared.isBlocked() )
-          return false;
-
         if( a )
         {
           if( c && lineAbove[col - 1] < ALF ) return false;
@@ -933,7 +1024,7 @@ bool DecLibRecon::ctuTask( int tid, CtuTaskParam* param )
   }
   catch( ... )
   {
-    for( auto& t: param->common.dmvrTriggers )
+    for( auto& t: param->common.finishMotionTriggers )
     {
       t.setException( std::current_exception() );
     }

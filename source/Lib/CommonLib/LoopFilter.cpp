@@ -1183,27 +1183,32 @@ void LoopFilter::xGetBoundaryStrengthSingle( LoopFilterParam& lfp, const CodingU
 
   if( sliceQ.isInterB() || sliceP.isInterB() )
   {
-    const Picture *piRefP0 = CU::isIBC( cuP ) ? sliceP.getPic() : 0 <= miP.refIdx[0] ? sliceP.getRefPic( REF_PIC_LIST_0, miP.refIdx[0] ) : nullptr;
-    const Picture *piRefP1 = CU::isIBC( cuP ) ? nullptr         : 0 <= miP.refIdx[1] ? sliceP.getRefPic( REF_PIC_LIST_1, miP.refIdx[1] ) : nullptr;
-    const Picture *piRefQ0 = CU::isIBC( cuQ ) ? sliceQ.getPic() : 0 <= miQ.refIdx[0] ? sliceQ.getRefPic( REF_PIC_LIST_0, miQ.refIdx[0] ) : nullptr;
-    const Picture *piRefQ1 = CU::isIBC( cuQ ) ? nullptr         : 0 <= miQ.refIdx[1] ? sliceQ.getRefPic( REF_PIC_LIST_1, miQ.refIdx[1] ) : nullptr;
+    const Picture *piRefP0 = CU::isIBC( cuP ) ? sliceP.getPic() : MI_NOT_VALID != miP.miRefIdx[0] ? sliceP.getRefPic( REF_PIC_LIST_0, miP.miRefIdx[0] - 1 ) : nullptr;
+    const Picture *piRefP1 = CU::isIBC( cuP ) ? nullptr         : MI_NOT_VALID != miP.miRefIdx[1] ? sliceP.getRefPic( REF_PIC_LIST_1, miP.miRefIdx[1] - 1 ) : nullptr;
+    const Picture *piRefQ0 = CU::isIBC( cuQ ) ? sliceQ.getPic() : MI_NOT_VALID != miQ.miRefIdx[0] ? sliceQ.getRefPic( REF_PIC_LIST_0, miQ.miRefIdx[0] - 1 ) : nullptr;
+    const Picture *piRefQ1 = CU::isIBC( cuQ ) ? nullptr         : MI_NOT_VALID != miQ.miRefIdx[1] ? sliceQ.getRefPic( REF_PIC_LIST_1, miQ.miRefIdx[1] - 1 ) : nullptr;
 
     unsigned uiBs = 0;
+
+    const bool refQ0valid = !!piRefQ0;
+    const bool refQ1valid = !!piRefQ1;
+    const bool refP0valid = !!piRefP0;
+    const bool refP1valid = !!piRefP1;
 
     //th can be optimized
     if( ( piRefP0 == piRefQ0 && piRefP1 == piRefQ1 ) || ( piRefP0 == piRefQ1 && piRefP1 == piRefQ0 ) )
     {
 #if defined( TARGET_SIMD_X86 ) && ENABLE_SIMD_DBLF
-      const __m128i xmvP = _mm_unpacklo_epi64( 0 <= miP.refIdx[0] ? _mm_loadl_epi64( ( const __m128i* ) &miP.mv[0] ) : _mm_setzero_si128(), 0 <= miP.refIdx[1] ? _mm_loadl_epi64( ( const __m128i* ) &miP.mv[1] ) : _mm_setzero_si128() );
-      const __m128i xmvQ = _mm_unpacklo_epi64( 0 <= miQ.refIdx[0] ? _mm_loadl_epi64( ( const __m128i* ) &miQ.mv[0] ) : _mm_setzero_si128(), 0 <= miQ.refIdx[1] ? _mm_loadl_epi64( ( const __m128i* ) &miQ.mv[1] ) : _mm_setzero_si128() );
+      const __m128i xmvP = _mm_unpacklo_epi64( refP0valid ? _mm_loadl_epi64( ( const __m128i* ) &miP.mv[0] ) : _mm_setzero_si128(), refP1valid ? _mm_loadl_epi64( ( const __m128i* ) &miP.mv[1] ) : _mm_setzero_si128() );
+      const __m128i xmvQ = _mm_unpacklo_epi64( refQ0valid ? _mm_loadl_epi64( ( const __m128i* ) &miQ.mv[0] ) : _mm_setzero_si128(), refQ1valid ? _mm_loadl_epi64( ( const __m128i* ) &miQ.mv[1] ) : _mm_setzero_si128() );
       const __m128i xth  = _mm_set1_epi32( nThreshold - 1 );
 #else
       Mv mvP[2] = { { 0, 0 }, { 0, 0 } }, mvQ[2] = { { 0, 0 }, { 0, 0 } };
 
-      if( 0 <= miP.refIdx[0] ) { mvP[0] = miP.mv[0]; }
-      if( 0 <= miP.refIdx[1] ) { mvP[1] = miP.mv[1]; }
-      if( 0 <= miQ.refIdx[0] ) { mvQ[0] = miQ.mv[0]; }
-      if( 0 <= miQ.refIdx[1] ) { mvQ[1] = miQ.mv[1]; }
+      if( refP0valid ) { mvP[0] = miP.mv[0]; }
+      if( refP1valid ) { mvP[1] = miP.mv[1]; }
+      if( refQ0valid ) { mvQ[0] = miQ.mv[0]; }
+      if( refQ1valid ) { mvQ[1] = miQ.mv[1]; }
 #endif
       if( piRefP0 != piRefP1 )   // Different L0 & L1
       {
@@ -1275,11 +1280,11 @@ void LoopFilter::xGetBoundaryStrengthSingle( LoopFilterParam& lfp, const CodingU
   }
 
   // pcSlice->isInterP()
-  CHECK( CU::isInter( cuP ) && 0 > miP.refIdx[0], "Invalid reference picture list index" );
-  CHECK( CU::isInter( cuP ) && 0 > miQ.refIdx[0], "Invalid reference picture list index" );
+  CHECK( CU::isInter( cuP ) && MI_NOT_VALID == miP.miRefIdx[0], "Invalid reference picture list index" );
+  CHECK( CU::isInter( cuP ) && MI_NOT_VALID == miQ.miRefIdx[0], "Invalid reference picture list index" );
 
-  const Picture *piRefP0 = ( CU::isIBC( cuP ) ? sliceP.getPic() : sliceP.getRefPic( REF_PIC_LIST_0, miP.refIdx[0] ) );
-  const Picture *piRefQ0 = ( CU::isIBC( cuQ ) ? sliceQ.getPic() : sliceQ.getRefPic( REF_PIC_LIST_0, miQ.refIdx[0] ) );
+  const Picture *piRefP0 = ( CU::isIBC( cuP ) ? sliceP.getPic() : sliceP.getRefPic( REF_PIC_LIST_0, miP.miRefIdx[0] - 1 ) );
+  const Picture *piRefQ0 = ( CU::isIBC( cuQ ) ? sliceQ.getPic() : sliceQ.getRefPic( REF_PIC_LIST_0, miQ.miRefIdx[0] - 1 ) );
 
   if( piRefP0 != piRefQ0 )
   {

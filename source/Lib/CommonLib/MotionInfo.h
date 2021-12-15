@@ -84,76 +84,92 @@ struct AffineAMVPInfo
 struct MvField
 {
   Mv     mv;
-  int8_t refIdx = NOT_VALID;
+  int8_t mfRefIdx = MF_NOT_VALID;
 
   MvField() = default;
-  MvField( Mv const & cMv, const int iRefIdx ) : mv( cMv ), refIdx(   iRefIdx ) {}
+  MvField( Mv const & cMv, const int iRefIdx ) : mv( cMv ), mfRefIdx(   iRefIdx ) {}
 
   void setMvField( Mv const & cMv, const int iRefIdx )
   {
-    CHECKD( iRefIdx == -1 && cMv != Mv(0,0), "Must not happen." );
+    //CHECKD( iRefIdx == MF_NOT_VALID && cMv != Mv(0,0), "Must not happen." );
     mv     = cMv;
-    refIdx = iRefIdx;
+    mfRefIdx = iRefIdx;
   }
 
   bool operator==( const MvField& other ) const
   {
-    CHECKD( refIdx == -1 && mv != Mv(0,0), "Error in operator== of MvField." );
-    CHECKD( other.refIdx == -1 && other.mv != Mv(0,0), "Error in operator== of MvField." );
-    return refIdx == other.refIdx && mv == other.mv;
+    //CHECKD( mfRefIdx == MF_NOT_VALID && mv != Mv(0,0), "Error in operator== of MvField." );
+    //CHECKD( other.mfRefIdx == MF_NOT_VALID && other.mv != Mv(0,0), "Error in operator== of MvField." );
+    return mfRefIdx == other.mfRefIdx && mv == other.mv;
   }
   bool operator!=( const MvField& other ) const
   {
-    CHECKD( refIdx == -1 && mv != Mv(0,0), "Error in operator!= of MvField." );
-    CHECKD( other.refIdx == -1 && other.mv != Mv(0,0), "Error in operator!= of MvField." );
-    return refIdx != other.refIdx || mv != other.mv;
+    //CHECKD( mfRefIdx == MF_NOT_VALID && mv != Mv(0,0), "Error in operator!= of MvField." );
+    //CHECKD( other.mfRefIdx == MF_NOT_VALID && other.mv != Mv(0,0), "Error in operator!= of MvField." );
+    return mfRefIdx != other.mfRefIdx || mv != other.mv;
+  }
+};
+
+struct ColocatedMotionInfo
+{
+  Mv       mv      [NUM_REF_PIC_LIST_01];
+  int8_t   coRefIdx[NUM_REF_PIC_LIST_01] = { CO_NOT_VALID, CO_NOT_VALID };
+
+  int interDir() const
+  {
+    int
+    interDir  = coRefIdx[0] != CO_NOT_VALID ? 1 : 0;
+    interDir += coRefIdx[1] != CO_NOT_VALID ? 2 : 0;
+    return interDir;
+  }
+
+  bool isInter() const
+  {
+    return interDir() != 0;
   }
 };
 
 struct MotionInfo
 {
-  Mv       mv    [NUM_REF_PIC_LIST_01];
-  int8_t   refIdx[NUM_REF_PIC_LIST_01] = { NOT_VALID, NOT_VALID };
+  Mv       mv      [NUM_REF_PIC_LIST_01];
+  int8_t   miRefIdx[NUM_REF_PIC_LIST_01] = { MI_NOT_VALID, MI_NOT_VALID };
 
-  uint16_t sliceIdx = 0;
-  bool     isInter  = false;
-  char     interDir = 0;
-
-  bool operator==( const MotionInfo& mi ) const
+  bool operator==( const MotionInfo &mi ) const
   {
-    if( isInter  != mi.isInter  ) return false;
+    if( miRefIdx[0] != mi.miRefIdx[0] ) return false;
+    if( miRefIdx[0] != MI_NOT_VALID && mv[0] != mi.mv[0] ) return false;
 
-    if( sliceIdx != mi.sliceIdx ) return false;
-    if( interDir != mi.interDir ) return false;
-
-    if( interDir != 2 )
-    {
-      if( refIdx[0] != mi.refIdx[0] ) return false;
-      if( mv[0]     != mi.mv[0]     ) return false;
-    }
-
-    if( interDir != 1 )
-    {
-      if( refIdx[1] != mi.refIdx[1] ) return false;
-      if( mv[1]     != mi.mv[1]     ) return false;
-    }
+    if( miRefIdx[1] != mi.miRefIdx[1] ) return false;
+    if( miRefIdx[1] != MI_NOT_VALID && mv[1] != mi.mv[1] ) return false;
 
     return true;
   }
 
-  bool operator!=( const MotionInfo& mi ) const
+  bool operator!=( const MotionInfo &mi ) const
   {
     return !( *this == mi );
+  }
+
+  bool isInter() const
+  {
+    return interDir() != 0;
+  }
+
+  int interDir() const
+  {
+    int
+    interDir  = miRefIdx[0] != MI_NOT_VALID ? 1 : 0;
+    interDir += miRefIdx[1] != MI_NOT_VALID ? 2 : 0;
+    return interDir;
   }
 };
 
 struct HPMVInfo
 {
-  Mv       mv    [NUM_REF_PIC_LIST_01];
-  int8_t   refIdx[NUM_REF_PIC_LIST_01] = { NOT_VALID, NOT_VALID };
+  Mv       mv      [NUM_REF_PIC_LIST_01];
+  int8_t   mhRefIdx[NUM_REF_PIC_LIST_01] = { MH_NOT_VALID, MH_NOT_VALID };
 
-  char     interDir = 0;
-  uint8_t  BcwIdx   = 0;
+  uint8_t  BcwIdx       = 0;
   bool     useAltHpelIf = false;
 
   HPMVInfo() = default;
@@ -162,10 +178,8 @@ struct HPMVInfo
     mv[0] = mi.mv[0];
     mv[1] = mi.mv[1];
 
-    refIdx[0] = mi.refIdx[0];
-    refIdx[1] = mi.refIdx[1];
-
-    interDir = mi.interDir;
+    mhRefIdx[0] = mi.miRefIdx[0] - 1;
+    mhRefIdx[1] = mi.miRefIdx[1] - 1;
 
     this->BcwIdx       = BcwIdx;
     this->useAltHpelIf = useAltHpelIf;
@@ -173,19 +187,11 @@ struct HPMVInfo
 
   bool operator==( const HPMVInfo& mi ) const
   {
-    if( interDir != mi.interDir ) return false;
+    if( mhRefIdx[0] != mi.mhRefIdx[0] ) return false;
+    if( mhRefIdx[0] != MH_NOT_VALID && mv[0] != mi.mv[0] ) return false;
 
-    if( interDir != 2 )
-    {
-      if( refIdx[0] != mi.refIdx[0] ) return false;
-      if( mv[0]     != mi.mv[0]     ) return false;
-    }
-
-    if( interDir != 1 )
-    {
-      if( refIdx[1] != mi.refIdx[1] ) return false;
-      if( mv[1]     != mi.mv[1]     ) return false;
-    }
+    if( mhRefIdx[1] != mi.mhRefIdx[1] ) return false;
+    if( mhRefIdx[1] != MH_NOT_VALID && mv[1] != mi.mv[1] ) return false;
 
     return true;
   }
@@ -193,6 +199,14 @@ struct HPMVInfo
   bool operator!=( const HPMVInfo& mi ) const
   {
     return !( *this == mi );
+  }
+
+  int interDir() const
+  {
+    int
+    interDir  = mhRefIdx[0] != MH_NOT_VALID ? 1 : 0;
+    interDir += mhRefIdx[1] != MH_NOT_VALID ? 2 : 0;
+    return interDir;
   }
 };
 

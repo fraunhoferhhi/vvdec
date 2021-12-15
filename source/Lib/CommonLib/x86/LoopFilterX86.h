@@ -64,20 +64,17 @@ namespace vvdec
 {
 
 template<X86_VEXT vext>
-inline void xPelLumaCore( int64_t m0, int64_t& m1, int64_t& m2, int64_t& m3, int64_t& m4, int64_t& m5, int64_t& m6, int64_t m7, const int tc )
+static inline void xPelLumaCore( __m128i& m0, __m128i& m1, __m128i& m2, __m128i& m3, __m128i& m4, __m128i& m5, __m128i& m6, __m128i m7, const int tc )
 {
-  static constexpr int64_t val4  = 4ll | ( 4ll << 32ll ) | ( ( 4ll | ( 4ll << 32ll ) ) << 16ll );
-  static constexpr int64_t val2  = 2ll | ( 2ll << 32ll ) | ( ( 2ll | ( 2ll << 32ll ) ) << 16ll );
+  const __m128i m1234 = _mm_add_epi16( _mm_add_epi16( m1, m2 ), _mm_add_epi16( m3, m4 ) );
+  const __m128i m3456 = _mm_add_epi16( _mm_add_epi16( m5, m6 ), _mm_add_epi16( m3, m4 ) );
 
-  const int64_t m1234        = m1 + m2 + m3 + m4;
-  const int64_t m3456        = m3 + m4 + m5 + m6;
-
-  const int64_t r1           = m1234 + val4 + ( ( m0 + m1 ) << 1 );
-  const int64_t r2           = m1234 + val2;
-  const int64_t r3           = ( m1234 << 1 ) + m5 + val4 - m1;
-  const int64_t r4           = ( m3456 << 1 ) + m2 + val4 - m6;
-  const int64_t r5           = m3456 + val2;
-  const int64_t r6           = m3456 + val4 + ( ( m6 + m7 ) << 1 );
+  const __m128i r1    = _mm_add_epi16( _mm_add_epi16( m1234, _mm_set1_epi16( 4 ) ), _mm_slli_epi16( _mm_add_epi16( m0, m1 ), 1 ) );
+  const __m128i r2    = _mm_add_epi16( m1234, _mm_set1_epi16( 2 ) );
+  const __m128i r3    = _mm_add_epi16( _mm_add_epi16( _mm_slli_epi16( m1234, 1 ), m5 ), _mm_sub_epi16( _mm_set1_epi16( 4 ), m1 ) );
+  const __m128i r4    = _mm_add_epi16( _mm_add_epi16( _mm_slli_epi16( m3456, 1 ), m2 ), _mm_sub_epi16( _mm_set1_epi16( 4 ), m6 ) );
+  const __m128i r5    = _mm_add_epi16( m3456, _mm_set1_epi16( 2 ) );
+  const __m128i r6    = _mm_add_epi16( _mm_add_epi16( m3456, _mm_set1_epi16( 4 ) ), _mm_slli_epi16( _mm_add_epi16( m6, m7 ), 1 ) );
 
   const char tc3[3]          = { 3, 2, 1 };
 
@@ -89,51 +86,58 @@ inline void xPelLumaCore( int64_t m0, int64_t& m1, int64_t& m2, int64_t& m3, int
   __m128i vmax  = vtc1;
   __m128i vmin  = _mm_sub_epi16    ( vzero, vmax );
 
-  __m128i org   = _mm_set_epi64x   ( m2,    m5 );
-  __m128i vec   = _mm_set_epi64x   ( r2,    r5 );
+  __m128i org   = _mm_unpacklo_epi64( m5,    m2 );
+  __m128i vec   = _mm_unpacklo_epi64( r5,    r2 );
   vec           = _mm_srli_epi16   ( vec,   2 );
   vec           = _mm_sub_epi16    ( vec,   org );
   vec           = _mm_min_epi16    ( vmax,  _mm_max_epi16( vmin, vec ) );
   vec           = _mm_add_epi16    ( vec,   org );
-  m5            = _mm_cvtsi128_si64( vec );
-  m2            = _mm_extract_epi64( vec,   1 );
+  m5            = vec;
+  m2            = _mm_unpackhi_epi64( vec,  vec );
 
   vmax          = _mm_blend_epi16  ( vtc0, vtc2, 0xf0 );
   vmin          = _mm_sub_epi16    ( vzero, vmax );
-  org           = _mm_set_epi64x   ( m1,    m3 );
-  vec           = _mm_set_epi64x   ( r1,    r3 );
+  org           = _mm_unpacklo_epi64( m3,    m1 );
+  vec           = _mm_unpacklo_epi64( r3,    r1 );
   vec           = _mm_srli_epi16   ( vec,   3 );
   vec           = _mm_sub_epi16    ( vec,   org );
   vec           = _mm_min_epi16    ( vmax,  _mm_max_epi16( vmin, vec ) );
   vec           = _mm_add_epi16    ( vec,   org );
-  m3            = _mm_cvtsi128_si64( vec );
-  m1            = _mm_extract_epi64( vec,   1 );
+  m3            = vec;
+  m1            = _mm_unpackhi_epi64( vec,  vec );
   
   vmax          = _mm_blend_epi16  ( vtc2, vtc0, 0xf0 );
   vmin          = _mm_sub_epi16    ( vzero, vmax );
-  org           = _mm_set_epi64x   ( m4,    m6 );
-  vec           = _mm_set_epi64x   ( r4,    r6 );
+  org           = _mm_unpacklo_epi64( m6,    m4 );
+  vec           = _mm_unpacklo_epi64( r6,    r4 );
   vec           = _mm_srli_epi16   ( vec,   3 );
   vec           = _mm_sub_epi16    ( vec,   org );
   vec           = _mm_min_epi16    ( vmax,  _mm_max_epi16( vmin, vec ) );
   vec           = _mm_add_epi16    ( vec,   org );
-  m6            = _mm_cvtsi128_si64( vec );
-  m4            = _mm_extract_epi64( vec,   1 );
+  m6            = vec;
+  m4            = _mm_unpackhi_epi64( vec,  vec );
 }
 
 template<X86_VEXT vext>
 static inline void xPelFilterLumaLoopHor( Pel* piSrc, const ptrdiff_t offset, const int tc )
 {
-  int64_t  m0 = *( ( int64_t* ) &piSrc[-4 * offset] );
-  int64_t &m1 = *( ( int64_t* ) &piSrc[-3 * offset] );
-  int64_t &m2 = *( ( int64_t* ) &piSrc[-2 * offset] );
-  int64_t &m3 = *( ( int64_t* ) &piSrc[-1 * offset] );
-  int64_t &m4 = *( ( int64_t* ) &piSrc[ 0         ] );
-  int64_t &m5 = *( ( int64_t* ) &piSrc[ 1 * offset] );
-  int64_t &m6 = *( ( int64_t* ) &piSrc[ 2 * offset] );
-  int64_t  m7 = *( ( int64_t* ) &piSrc[ 3 * offset] );
+  __m128i m0 = _mm_loadl_epi64( ( const __m128i* ) &piSrc[-4 * offset] );
+  __m128i m1 = _mm_loadl_epi64( ( const __m128i* ) &piSrc[-3 * offset] );
+  __m128i m2 = _mm_loadl_epi64( ( const __m128i* ) &piSrc[-2 * offset] );
+  __m128i m3 = _mm_loadl_epi64( ( const __m128i* ) &piSrc[-1 * offset] );
+  __m128i m4 = _mm_loadl_epi64( ( const __m128i* ) &piSrc[ 0         ] );
+  __m128i m5 = _mm_loadl_epi64( ( const __m128i* ) &piSrc[ 1 * offset] );
+  __m128i m6 = _mm_loadl_epi64( ( const __m128i* ) &piSrc[ 2 * offset] );
+  __m128i m7 = _mm_loadl_epi64( ( const __m128i* ) &piSrc[ 3 * offset] );
 
   xPelLumaCore<vext>( m0, m1, m2, m3, m4, m5, m6, m7, tc );
+  
+  _mm_storel_epi64( ( __m128i* ) &piSrc[-3 * offset], m1 );
+  _mm_storel_epi64( ( __m128i* ) &piSrc[-2 * offset], m2 );
+  _mm_storel_epi64( ( __m128i* ) &piSrc[-1 * offset], m3 );
+  _mm_storel_epi64( ( __m128i* ) &piSrc[ 0         ], m4 );
+  _mm_storel_epi64( ( __m128i* ) &piSrc[ 1 * offset], m5 );
+  _mm_storel_epi64( ( __m128i* ) &piSrc[ 2 * offset], m6 );
 }
 
 template<X86_VEXT vext>
@@ -159,23 +163,23 @@ static inline void xPelFilterLumaLoopVer( Pel* piSrc, const ptrdiff_t step, cons
   va45 = _mm_unpacklo_epi32( va01a23hi, va45a67hi );
   va67 = _mm_unpackhi_epi32( va01a23hi, va45a67hi );
 
-  int64_t m0 = _mm_extract_epi64( va01, 0 );
-  int64_t m1 = _mm_extract_epi64( va01, 1 );
-  int64_t m2 = _mm_extract_epi64( va23, 0 );
-  int64_t m3 = _mm_extract_epi64( va23, 1 );
-  int64_t m4 = _mm_extract_epi64( va45, 0 );
-  int64_t m5 = _mm_extract_epi64( va45, 1 );
-  int64_t m6 = _mm_extract_epi64( va67, 0 );
-  int64_t m7 = _mm_extract_epi64( va67, 1 );
+  __m128i m0 = va01;
+  __m128i m1 = _mm_unpackhi_epi64( va01, va01 );
+  __m128i m2 = va23;
+  __m128i m3 = _mm_unpackhi_epi64( va23, va23 );
+  __m128i m4 = va45;
+  __m128i m5 = _mm_unpackhi_epi64( va45, va45 );
+  __m128i m6 = va67;
+  __m128i m7 = _mm_unpackhi_epi64( va67, va67 );
 
   // do the loop filter of the the 4x8 matrix
   xPelLumaCore<vext>( m0, m1, m2, m3, m4, m5, m6, m7, tc );
 
   // Transpose back
-  va01 = _mm_set_epi64x( m4, m0 );
-  va23 = _mm_set_epi64x( m5, m1 );
-  va45 = _mm_set_epi64x( m6, m2 );
-  va67 = _mm_set_epi64x( m7, m3 );
+  va01 = _mm_unpacklo_epi64( m0, m4 );
+  va23 = _mm_unpacklo_epi64( m1, m5 );
+  va45 = _mm_unpacklo_epi64( m2, m6 );
+  va67 = _mm_unpacklo_epi64( m3, m7 );
 
   va01a23lo = _mm_unpacklo_epi16( va01, va23 );
   va01a23hi = _mm_unpackhi_epi16( va01, va23 );

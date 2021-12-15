@@ -315,8 +315,8 @@ void MergeCtx::setMergeInfo( PredictionUnit& pu, int candIdx )
   pu.setMergeType            ( mrgTypeNeighbours[candIdx] );
   pu.mv  [REF_PIC_LIST_0][0] = mvFieldNeighbours[(candIdx << 1) + 0].mv;
   pu.mv  [REF_PIC_LIST_1][0] = mvFieldNeighbours[(candIdx << 1) + 1].mv;
-  pu.refIdx [REF_PIC_LIST_0] = mvFieldNeighbours[( candIdx << 1 ) + 0].refIdx;
-  pu.refIdx [REF_PIC_LIST_1] = mvFieldNeighbours[( candIdx << 1 ) + 1].refIdx;
+  pu.refIdx [REF_PIC_LIST_0] = mvFieldNeighbours[( candIdx << 1 ) + 0].mfRefIdx;
+  pu.refIdx [REF_PIC_LIST_1] = mvFieldNeighbours[( candIdx << 1 ) + 1].mfRefIdx;
   pu.mvpIdx [REF_PIC_LIST_0] = NOT_VALID;
   pu.mvpIdx [REF_PIC_LIST_1] = NOT_VALID;
   pu.setBcwIdx               ( ( interDirNeighbours[candIdx] == 3 ) ? BcwIdx[candIdx] : BCW_DEFAULT );
@@ -351,8 +351,8 @@ void MergeCtx::setMmvdMergeCandiInfo( PredictionUnit& pu, int candIdx )
   {
     offset <<= 2;
   }
-  const int refList0 = mmvdBaseMv[fPosBaseIdx][0].refIdx;
-  const int refList1 = mmvdBaseMv[fPosBaseIdx][1].refIdx;
+  const int refList0 = mmvdBaseMv[fPosBaseIdx][0].mfRefIdx;
+  const int refList1 = mmvdBaseMv[fPosBaseIdx][1].mfRefIdx;
 
   if( ( refList0 != -1 ) && ( refList1 != -1 ) )
   {

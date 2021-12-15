@@ -144,7 +144,7 @@ void DecLibParser::recreateLostPicture( Picture* pcPic )
     pcPic->getRecoBuf().copyFrom( closestPic->getRecoBuf() );
     for( int i = 0; i < pcPic->cs->m_ctuDataSize; i++ )
     {
-      memcpy( pcPic->cs->m_ctuData[i].motion, closestPic->cs->m_ctuData[i].motion, sizeof( CtuData::motion ) );
+      memcpy( pcPic->cs->m_ctuData[i].colMotion, closestPic->cs->m_ctuData[i].colMotion, sizeof( CtuData::colMotion ) );
     }
 
     pcPic->slices[0]->copySliceInfo( closestPic->slices[0] );
@@ -450,13 +450,12 @@ DecLibParser::SliceHeadResult DecLibParser::xDecodeSliceHead( InputNALUnit& nalu
   SPS *sps = m_parameterSetManager.getSPS( pps->getSPSId() );
   CHECK( sps == 0, "No SPS present" );
   VPS *vps = m_parameterSetManager.getVPS( sps->getVPSId() );
+  CHECK( sps->getVPSId() > 0 && vps == 0, "Invalid VPS" );
   if( sps->getVPSId() == 0 && m_prevLayerID != MAX_INT )
   {
     CHECK( m_prevLayerID != nalu.m_nuhLayerId, "All VCL NAL unit in the CVS shall have the same value of nuh_layer_id "
                                                "when sps_video_parameter_set_id is equal to 0" );
   }
-
-  CHECK( sps->getVPSId() > 0 && vps == 0, "Invalid VPS" );
 
   if( vps != nullptr && ( vps->getIndependentLayerFlag( nalu.m_nuhLayerId ) == 0 ) )
   {
@@ -864,7 +863,7 @@ Slice*  DecLibParser::xDecodeSliceMain( InputNALUnit &nalu )
     CU::checkConformanceILRP(pcSlice);
   }
 
-  pcSlice->scaleRefPicList( m_pcParsePic->cs->picHeader, m_parameterSetManager.getAlfAPSs().data(), m_picHeader->getLmcsAPS().get(), m_picHeader->getScalingListAPS().get() );
+  pcSlice->scaleRefPicList( m_pcParsePic->cs->picHeader );
 
 
     if (!pcSlice->isIntra())
@@ -1020,10 +1019,12 @@ Slice*  DecLibParser::xDecodeSliceMain( InputNALUnit &nalu )
     catch( ... )
     {
       pic->parseDone.setException( std::current_exception() );
+#if RECO_WHILE_PARSE
       for( auto& b: pic->ctuParsedBarrier )
       {
         b.setException( std::current_exception() );
       }
+#endif
       std::rethrow_exception( std::current_exception() );
     }
     return true;
@@ -1087,7 +1088,7 @@ Picture * DecLibParser::xActivateParameterSets( const int layerId )
 #if !DISABLE_CONFROMANCE_CHECK
     m_apcSlicePilot->checkLeadingPictureRestrictions( m_picListManager.getPicListRange( pcPic ) );
 #endif
-    pcPic->finalInit( sps, pps, m_picHeader.get(), alfApss, lmcsAPS, scalingListAPS );
+    pcPic->finalInit( &m_cuChunkCache, &m_tuChunkCache, sps, pps, m_picHeader.get(), alfApss, lmcsAPS, scalingListAPS );
 
     // Set Field/Frame coding mode
     bool isField    = false;
@@ -1145,8 +1146,7 @@ Picture * DecLibParser::xActivateParameterSets( const int layerId )
     }
     for( int i = 0; i < ALF_CTB_MAX_NUM_APS; i++ )
     {
-      APS* aps = m_parameterSetManager.getAPS( i, ALF_APS );
-
+      APS* aps = m_parameterSetManager.getAPS_nothrow( i, ALF_APS );
       if( aps && aps->getChangedFlag() )
       {
         EXIT("Error - a new APS has been decoded while processing a picture");
@@ -1316,7 +1316,8 @@ Picture* DecLibParser::prepareLostPicture( int iLostPoc, const int layerId )
   msg( INFO, "inserting lost poc : %d\n", iLostPoc );
 
   Picture* cFillPic = m_picListManager.getNewPicBuffer( *m_parameterSetManager.getFirstSPS(), *m_parameterSetManager.getFirstPPS(), 0, layerId, m_parameterSetManager.getVPS( m_parameterSetManager.getFirstSPS()->getVPSId() ) );
-  cFillPic->finalInit( m_parameterSetManager.getFirstSPS(), m_parameterSetManager.getFirstPPS(), m_picHeader.get(), m_parameterSetManager.getAlfAPSs().data(), nullptr, nullptr, false ); //TODO: check this
+  cFillPic->finalInit( &m_cuChunkCache, &m_tuChunkCache, m_parameterSetManager.getFirstSPS(), m_parameterSetManager.getFirstPPS(), m_picHeader.get(), m_parameterSetManager.getAlfAPSs().data(), nullptr, nullptr, false ); //TODO: check this
+  cFillPic->cs->allocTempInternals();
   cFillPic->cs->initStructData();
 
   int         iTLayer  = m_apcSlicePilot->getTLayer();   // TLayer needs to be <= TLayer of referencing frame
@@ -1381,7 +1382,8 @@ void DecLibParser::prepareUnavailablePicture( const PPS *pps, int iUnavailablePo
   msg( INFO, "inserting unavailable poc : %d\n", iUnavailablePoc );
   Picture* cFillPic = m_picListManager.getNewPicBuffer( *m_parameterSetManager.getFirstSPS(), *m_parameterSetManager.getFirstPPS(), 0, layerId, m_parameterSetManager.getVPS( m_parameterSetManager.getFirstSPS()->getVPSId() ) );
   APS* nullAlfApss[ALF_CTB_MAX_NUM_APS] = { nullptr, };
-  cFillPic->finalInit( m_parameterSetManager.getFirstSPS(), m_parameterSetManager.getFirstPPS(), m_picHeader.get(), nullAlfApss, nullptr, nullptr, false ); //TODO: check this
+  cFillPic->finalInit( &m_cuChunkCache, &m_tuChunkCache, m_parameterSetManager.getFirstSPS(), m_parameterSetManager.getFirstPPS(), m_picHeader.get(), nullAlfApss, nullptr, nullptr, false ); //TODO: check this
+  cFillPic->cs->allocTempInternals();
   cFillPic->cs->initStructData();
 
   cFillPic->allocateNewSlice();
@@ -1447,10 +1449,10 @@ void DecLibParser::xDecodePicHeader( InputNALUnit& nalu )
 
 void DecLibParser::xDecodeVPS( InputNALUnit& nalu )
 {
-  VPS* vps = new VPS();
+  std::unique_ptr<VPS> vps( new VPS() );
   m_HLSReader.setBitstream( &nalu.getBitstream() );
-  m_HLSReader.parseVPS( vps );
-  m_parameterSetManager.storeVPS( vps, nalu.getBitstream().getFifo() );
+  m_HLSReader.parseVPS( vps.get() );
+  m_parameterSetManager.storeVPS( vps.release(), nalu.getBitstream().getFifo() );
 
   // VPS is parsed, but completely ingored
 }
@@ -1475,32 +1477,32 @@ void DecLibParser::xDecodeDCI( InputNALUnit& nalu )
 
 void DecLibParser::xDecodeSPS( InputNALUnit& nalu )
 {
-  SPS* sps = new SPS();
+  std::unique_ptr<SPS> sps( new SPS() );
   m_HLSReader.setBitstream( &nalu.getBitstream() );
-  m_HLSReader.parseSPS( sps, &m_parameterSetManager );
+  m_HLSReader.parseSPS( sps.get(), &m_parameterSetManager );
   sps->setLayerId( nalu.m_nuhLayerId );
   DTRACE( g_trace_ctx, D_QP_PER_CTU, "CTU Size: %dx%d", sps->getMaxCUWidth(), sps->getMaxCUHeight() );  // don't move after storeSPS, because SPS could have been deleted
-  m_parameterSetManager.storeSPS( sps, nalu.getBitstream().getFifo() );
+  m_parameterSetManager.storeSPS( sps.release(), nalu.getBitstream().getFifo() );
 }
 
 void DecLibParser::xDecodePPS( InputNALUnit& nalu )
 {
-  PPS* pps = new PPS();
+  std::unique_ptr<PPS> pps( new PPS() );
   m_HLSReader.setBitstream( &nalu.getBitstream() );
-  m_HLSReader.parsePPS( pps, &m_parameterSetManager );
+  m_HLSReader.parsePPS( pps.get(), &m_parameterSetManager );
   pps->setLayerId( nalu.m_nuhLayerId );
-  m_parameterSetManager.storePPS( pps, nalu.getBitstream().getFifo() );
+  m_parameterSetManager.storePPS( pps.release(), nalu.getBitstream().getFifo() );
 }
 
 void DecLibParser::xDecodeAPS( InputNALUnit& nalu )
 {
-  APS* aps = new APS();
+  std::unique_ptr<APS> aps( new APS() );
   m_HLSReader.setBitstream( &nalu.getBitstream() );
-  m_HLSReader.parseAPS( aps );
+  m_HLSReader.parseAPS( aps.get() );
   aps->setTemporalId( nalu.m_temporalId );
   aps->setLayerId( nalu.m_nuhLayerId );
   aps->setHasPrefixNalUnitType( nalu.m_nalUnitType == NAL_UNIT_PREFIX_APS );
-  m_parameterSetManager.storeAPS( aps, nalu.getBitstream().getFifo() );
+  m_parameterSetManager.storeAPS( aps.release(), nalu.getBitstream().getFifo() );
 }
 
 void DecLibParser::xUpdatePreviousTid0POC(Slice * pSlice)

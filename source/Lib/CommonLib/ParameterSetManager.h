@@ -121,16 +121,30 @@ public:
     }
   }
 
-  T* getPS( int psId )
+  T* getPS_nothrow( int psId )
   {
     auto it = m_paramsetMap.find( psId );
-    return ( it == m_paramsetMap.end() ) ? NULL : ( it )->second.parameterSet.get();
+    return it == m_paramsetMap.end() ? nullptr : it->second.parameterSet.get();
+  }
+
+  const T* getPS_nothrow( int psId ) const
+  {
+    auto it = m_paramsetMap.find( psId );
+    return it == m_paramsetMap.end() ? nullptr : it->second.parameterSet.get();
+  }
+
+  T* getPS( int psId )
+  {
+    T* ps = getPS_nothrow( psId );
+    CHECK_RECOVERABLE( !ps, "Missing Parameter Set (id:" << ( psId >> ( std::is_same<T, APS>::value ? NUM_APS_TYPE_LEN : 0 ) ) << ')' );
+    return ps;
   }
 
   const T* getPS( int psId ) const
   {
-    auto it = m_paramsetMap.find( psId );
-    return ( it == m_paramsetMap.end() ) ? NULL : ( it )->second.parameterSet.get();
+    const T* ps = getPS_nothrow( psId );
+    CHECK_RECOVERABLE( !ps, "Missing Parameter Set (id:" << ( psId >> ( std::is_same<T, APS>::value ? NUM_APS_TYPE_LEN : 0 ) ) << ')' );
+    return ps;
   }
 
   T* getFirstPS()
@@ -142,17 +156,12 @@ public:
   void clearActive()         { m_activePsId.clear(); }
   void clearMap()            { m_paramsetMap.clear(); }
 
-  std::vector<T*> getPPSforSPSId( int spdId );
-
 private:
   std::map<int, MapData> m_paramsetMap;
   std::shared_ptr<T>     m_lastActiveParameterSet;
   std::vector<int>       m_activePsId;
 };
 
-
-template<>
-std::vector<PPS*> ParameterSetMap<PPS, MAX_NUM_PPS>::getPPSforSPSId( int spdId );
 
 class ParameterSetManager
 {
@@ -161,7 +170,7 @@ public:
   ~ParameterSetManager() = default;
 
   void           storeVPS( VPS *vps, const std::vector<uint8_t> &naluData )        { m_vpsMap.storePS( vps->getVPSId(), vps, &naluData ); }
-  VPS*           getVPS( int vpsId )                                               { return m_vpsMap.getPS( vpsId ); };
+  VPS*           getVPS( int vpsId )                                               { if( !vpsId ) return nullptr; return m_vpsMap.getPS( vpsId ); };
 
   struct ActivePSs
   {
@@ -194,11 +203,10 @@ public:
   // getter only used by DecLibParser::prepareLostPicture(). Is it really needed?
   std::array<APS*, ALF_CTB_MAX_NUM_APS>& getAlfAPSs()                              { return m_alfAPSs; }
   void                  storeAPS( APS* aps, const std::vector<uint8_t>& naluData ) { m_apsMap.storePS( ( aps->getAPSId() << NUM_APS_TYPE_LEN ) + aps->getAPSType(), aps, &naluData ); }
-  APS*                  getAPS( int apsId, int apsType )                           { return m_apsMap.getPS( ( apsId << NUM_APS_TYPE_LEN ) + apsType );                                }
+  APS*                  getAPS        ( int apsId, int apsType )                   { return m_apsMap.getPS        ( ( apsId << NUM_APS_TYPE_LEN ) + apsType );                        }
+  APS*                  getAPS_nothrow( int apsId, int apsType )                   { return m_apsMap.getPS_nothrow( ( apsId << NUM_APS_TYPE_LEN ) + apsType );                        }
   APS*                  getFirstAPS()                                              { return m_apsMap.getFirstPS();                                                                    }
   bool                  activateAPS( int apsId, int apsType );
-
-  std::vector<PPS*>     getPPSforSPSId( int spsId )                                { return m_ppsMap.getPPSforSPSId( spsId ); }
 
 protected:
   ParameterSetMap<SPS, MAX_NUM_SPS>                    m_spsMap;
