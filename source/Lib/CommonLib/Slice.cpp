@@ -357,7 +357,7 @@ void Slice::inheritFromPicHeader( PicHeader *picHeader, const PPS *pps, const SP
   setTileGroupAlfEnabledFlag(COMPONENT_Cb, picHeader->getAlfEnabledFlag(COMPONENT_Cb));
   setTileGroupAlfEnabledFlag(COMPONENT_Cr, picHeader->getAlfEnabledFlag(COMPONENT_Cr));
   setTileGroupNumAps(picHeader->getNumAlfAps());
-  setAlfAPSids( picHeader->getAlfAPSs() );
+  setAlfAPSids( picHeader->getAlfAPSIds() );
   setTileGroupApsIdChroma(picHeader->getAlfApsIdChroma());   
   setTileGroupCcAlfCbEnabledFlag(picHeader->getCcAlfEnabledFlag(COMPONENT_Cb));
   setTileGroupCcAlfCrEnabledFlag(picHeader->getCcAlfEnabledFlag(COMPONENT_Cr));
@@ -1967,7 +1967,7 @@ bool ScalingList::isLumaScalingList( int scalingListId) const
   return (scalingListId % MAX_NUM_COMPONENT == SCALING_LIST_1D_START_4x4 || scalingListId == SCALING_LIST_1D_START_64x64 + 1);
 }
 
-void Slice::scaleRefPicList( PicHeader *picHeader, APS** apss, APS* lmcsAps, APS* scalingListAps )
+void Slice::scaleRefPicList( PicHeader *picHeader )
 {
   const SPS* sps = getSPS();
   const PPS* pps = getPPS();

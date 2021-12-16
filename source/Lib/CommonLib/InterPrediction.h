@@ -85,13 +85,14 @@ protected:
   Pel                  m_gradX1[BIO_TEMP_BUFFER_SIZE];
   Pel                  m_gradY1[BIO_TEMP_BUFFER_SIZE];
 
-  Pel                  m_bdofBlock[NUM_REF_PIC_LIST_01][(MAX_CU_SIZE + (2 * BIO_ALIGN_SIZE + BIO_ALIGN_SIZE) + 16) * (MAX_CU_SIZE + (2 * BIO_EXTEND_SIZE + 2) + 2)];
+  Pel                  m_bdofBlock[NUM_REF_PIC_LIST_01][( MAX_BDOF_APPLICATION_REGION + ( 2 * BIO_ALIGN_SIZE + BIO_ALIGN_SIZE ) + 16 )
+                                                      * ( MAX_BDOF_APPLICATION_REGION + ( 2 * BIO_EXTEND_SIZE + 2 ) + 2 )];
   Pel                  m_acYuvPred[MAX_NUM_COMPONENT][MAX_CU_SIZE * MAX_CU_SIZE];
   Pel                  m_tmpBlock[MAX_CU_SIZE * (MAX_CU_SIZE + NTAPS_LUMA)];
 
   /*buffers for padded data*/
-  Pel                  m_cRefSamplesDMVRL0[MAX_NUM_COMPONENT][(MAX_CU_SIZE + (2 * DMVR_NUM_ITERATION) + NTAPS_LUMA) * (MAX_CU_SIZE + (2 * DMVR_NUM_ITERATION) + NTAPS_LUMA)];
-  Pel                  m_cRefSamplesDMVRL1[MAX_NUM_COMPONENT][(MAX_CU_SIZE + (2 * DMVR_NUM_ITERATION) + NTAPS_LUMA) * (MAX_CU_SIZE + (2 * DMVR_NUM_ITERATION) + NTAPS_LUMA)];
+  Pel                  m_cRefSamplesDMVRL0[MAX_NUM_COMPONENT][(DMVR_SUBCU_WIDTH + (2 * DMVR_NUM_ITERATION) + NTAPS_LUMA) * (DMVR_SUBCU_HEIGHT + (2 * DMVR_NUM_ITERATION) + NTAPS_LUMA)];
+  Pel                  m_cRefSamplesDMVRL1[MAX_NUM_COMPONENT][(DMVR_SUBCU_WIDTH + (2 * DMVR_NUM_ITERATION) + NTAPS_LUMA) * (DMVR_SUBCU_HEIGHT + (2 * DMVR_NUM_ITERATION) + NTAPS_LUMA)];
   /*buffers for bilinear Filter data for DMVR refinement*/
   Pel                  m_cYuvPredTempDMVRL0[(MAX_CU_SIZE + (2 * DMVR_NUM_ITERATION)) * (MAX_CU_SIZE + (2 * DMVR_NUM_ITERATION))];
   Pel                  m_cYuvPredTempDMVRL1[(MAX_CU_SIZE + (2 * DMVR_NUM_ITERATION)) * (MAX_CU_SIZE + (2 * DMVR_NUM_ITERATION))];
@@ -103,7 +104,7 @@ protected:
                                                Mv(-2, 2), Mv(-1, 2), Mv(0, 2), Mv(1, 2), Mv(2, 2) };
   uint64_t             m_SADsArray[((2 * DMVR_NUM_ITERATION) + 1) * ((2 * DMVR_NUM_ITERATION) + 1)];
 
-  Pel                  m_geoPartBuf[MAX_NUM_COMPONENT][MAX_CU_SIZE * MAX_CU_SIZE];
+  Pel                  m_geoPartBuf[MAX_NUM_COMPONENT][GEO_MAX_CU_SIZE * GEO_MAX_CU_SIZE];
 
   ChromaFormat         m_currChromaFormat = NUM_CHROMA_FORMAT;
 
@@ -119,7 +120,7 @@ protected:
 
   void xIntraBlockCopy          (PredictionUnit &pu, PelUnitBuf &predBuf, const ComponentID compID);
 
-  void            applyBiOptFlow(const PredictionUnit &pu, const PelUnitBuf &yuvSrc0, const PelUnitBuf &yuvSrc1, const int &refIdx0, const int &refIdx1, PelUnitBuf &yuvDst, const BitDepths &clipBitDepths);
+  void applyBiOptFlow           (const PredictionUnit &pu, const PelUnitBuf &yuvSrc0, const PelUnitBuf &yuvSrc1, const int &refIdx0, const int &refIdx1, PelUnitBuf &yuvDst, const BitDepths &clipBitDepths);
 
   void xPredInterUni            ( const PredictionUnit& pu, const RefPicList& eRefPicList, PelUnitBuf& pcYuvPred, const bool& bi
                                   , const bool& bioApplied

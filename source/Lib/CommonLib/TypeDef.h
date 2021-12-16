@@ -61,6 +61,7 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #include <cstring>
 #include <assert.h>
 #include <cassert>
+#include <mutex>
 
 namespace vvdec
 {
@@ -742,23 +743,39 @@ enum MsgLevel
 class Exception : public std::exception
 {
 public:
-  Exception( const std::string& _s ) : m_str( _s ) { }
-  Exception( const Exception& _e ) : std::exception( _e ), m_str( _e.m_str ) { }
-  virtual ~Exception() noexcept { };
-  virtual const char* what() const noexcept { return m_str.c_str(); }
-  Exception& operator=( const Exception& _e ) { std::exception::operator=( _e ); m_str = _e.m_str; return *this; }
-  template<typename T> Exception& operator<<( T t ) { std::ostringstream oss; oss << t; m_str += oss.str(); return *this; }
+  explicit Exception( const std::string& _s ) : m_str( _s ) {}
+  Exception( const Exception& _e )                          = default;
+  virtual ~Exception() noexcept                             = default;
+  virtual const char* what() const noexcept                 { return m_str.c_str(); }
+  Exception& operator=( const Exception& _e )               { std::exception::operator=( _e ); m_str = _e.m_str; return *this; }
+  template<typename T> Exception& operator<<( const T& t )  { std::ostringstream oss; oss << t; m_str += oss.str(); return *this; }
 private:
   std::string m_str;
 };
 
+class RecoverableException : public Exception
+{
+public:
+  explicit RecoverableException( const std::string& _s ) : Exception( _s ) {}
+  RecoverableException( const RecoverableException& _e )                   = default;
+  virtual ~RecoverableException() noexcept                                 = default;
+  RecoverableException& operator=( const RecoverableException& _e )        { Exception::operator=( _e ); return *this; }
+  template<typename T> RecoverableException& operator<<( const T& t )      { Exception::operator<<( t ); return *this; }
+};
+
+#if !defined( __PRETTY_FUNCTION__ ) && !defined( __GNUC__ )
+# define __PRETTY_FUNCTION__ __FUNCSIG__
+#endif
+
 // if a check fails with THROW or CHECK, please check if ported correctly from assert in revision 1196)
-#define THROW(x)            throw( Exception( "\nERROR: In function \"" ) << __FUNCTION__ << "\" in " << __FILE__ << ":" << __LINE__ << ": " << x )
-//#define THROW(x)            { std::cerr << "\nERROR: In function \"" << __FUNCTION__ << "\" in " << __FILE__ << ":" << __LINE__ << ": " << x << std::endl; abort(); }
-#define CHECK(c,x)          if(c){ THROW( x << "\nERROR CONDITION: " << #c ); }
-#define CHECK_WARN(c,x)     if(c){ std::cerr << "\nWARNING: In function \"" << __FUNCTION__ << "\" in " << __FILE__ << ":" << __LINE__ << ": " << x << "\nERROR CONDITION: " << #c << std::endl; }
-#define EXIT(x)             throw( Exception( "\n" ) << x << "\n" )
-#define CHECK_NULLPTR(_ptr) CHECK( !( _ptr ), "Accessing an empty pointer!" )
+#define THROW(x)               throw( Exception( "\nERROR: In function \"" ) << __PRETTY_FUNCTION__ << "\" in " << __FILE__ << ":" << __LINE__ << ": " << x )
+//#define THROW(x)                { std::cerr << "\nERROR: In function \"" << __FUNCTION__ << "\" in " << __FILE__ << ":" << __LINE__ << ": " << x << std::endl; abort(); }
+#define THROW_RECOVERABLE(x)   throw( RecoverableException( "\nERROR: In function \"" ) << __PRETTY_FUNCTION__ << "\" in " << __FILE__ << ":" << __LINE__ << ": " << x )
+#define CHECK(c,x)             if(c){ THROW( x << "\nERROR CONDITION: " << #c ); }
+#define CHECK_RECOVERABLE(c,x) if(c){ THROW_RECOVERABLE( x << "\nERROR CONDITION: " << #c ); }
+#define CHECK_WARN(c,x)        if(c){ std::cerr << "\nWARNING: In function \"" << __PRETTY_FUNCTION__ << "\" in " << __FILE__ << ":" << __LINE__ << ": " << x << "\nERROR CONDITION: " << #c << std::endl; }
+#define EXIT(x)                throw( Exception( "\n" ) << x << "\n" )
+#define CHECK_NULLPTR(_ptr)    CHECK( !( _ptr ), "Accessing an empty pointer!" )
 
 #if !NDEBUG  // for non MSVC compiler, define _DEBUG if in debug mode to have same behavior between MSVC and others in debug
 #ifndef _DEBUG
@@ -910,22 +927,37 @@ struct AlfSliceParam
   short            chrmClippFinal     [MAX_NUM_ALF_ALTERNATIVES_CHROMA * MAX_NUM_ALF_CHROMA_COEFF];
   int              tLayer;
   bool             newFilterFlag      [MAX_NUM_CHANNEL_TYPE];
-  
+
+  std::mutex       recostructMutex;   // this must be the last member, so we can clear the rest of the struct using memset()
+
   AlfSliceParam()
   {
-    memset( this, 0, sizeof( *this ) );
+    static_assert( offsetof( AlfSliceParam, recostructMutex ) + sizeof( recostructMutex ) == sizeof( AlfSliceParam ), "recostructMutex must be last member" );
+    static_assert( std::is_standard_layout<AlfSliceParam>::value, "AlfSliceParam must be standard layout type for offsetof to work" );
+
+    GCC_WARNING_DISABLE_class_memaccess
+      memset( this, 0, offsetof( AlfSliceParam, recostructMutex ) );
+    GCC_WARNING_RESET
+
+    // GH: why are numLumaFilters and numAlternativesChroma not set to 1 as in reset()?
   }
 
   void reset()
   {
-    std::memset( this, 0, sizeof( AlfSliceParam ) );
+    GCC_WARNING_DISABLE_class_memaccess
+      memset( this, 0, offsetof( AlfSliceParam, recostructMutex ) );
+    GCC_WARNING_RESET
+
     numLumaFilters = 1;
     numAlternativesChroma = 1;
   }
 
   const AlfSliceParam& operator=( const AlfSliceParam& src )
   {
-    std::memcpy( this, &src, sizeof( AlfSliceParam ) );
+    GCC_WARNING_DISABLE_class_memaccess
+      std::memcpy( this, &src, offsetof( AlfSliceParam, recostructMutex ) );
+    GCC_WARNING_RESET
+
     return *this;
   }
 };

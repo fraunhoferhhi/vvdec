@@ -299,11 +299,11 @@ void CodingUnit::minInit( const UnitArea &unit )
 
 CodingUnit& CodingUnit::operator=( const MotionInfo& mi )
 {
-  setInterDir( mi.interDir );
+  setInterDir( mi.interDir() );
 
   for( uint32_t i = 0; i < NUM_REF_PIC_LIST_01; i++ )
   {
-    refIdx[i] = mi.refIdx[i];
+    refIdx[i] = mi.miRefIdx[i] - 1;
     mv [i][0] = mi.mv    [i];
   }
 
@@ -329,42 +329,6 @@ MotionBuf CodingUnit::getMotionBuf()
 CMotionBuf CodingUnit::getMotionBuf() const
 {
   return CMotionBuf( &getMotionInfo(), cs->getLFPMapStride(), g_miScaling.scaleHor( lwidth() ), g_miScaling.scaleVer( lheight() ) );
-}
-
-// ---------------------------------------------------------------------------
-// XUCache: unit allocation cache
-// ---------------------------------------------------------------------------
-
-std::shared_ptr<CUCache> ThreadSafeCUCache::getCuCache()
-{
-  std::unique_lock<std::mutex> l(m_mutex);
-  for( auto & c: m_cuCaches )
-  {
-    // we know the cache instance is available, when there is only one shared_ptr reference (our own) to the element
-    if( c.unique() )
-    {
-      return c;
-    }
-  }
-  // no cache instance available -> create a new one
-  m_cuCaches.push_back( std::make_shared<CUCache>() );
-  return m_cuCaches.back();
-}
-
-std::shared_ptr<TUCache> ThreadSafeCUCache::getTuCache()
-{
-  std::unique_lock<std::mutex> l( m_mutex );
-  for( auto & t : m_tuCaches )
-  {
-    // we know the cache instance is available, when there is only one shared_ptr reference (our own) to the element
-    if( t.unique() )
-    {
-      return t;
-    }
-  }
-  // no cache instance available -> create a new one
-  m_tuCaches.push_back( std::make_shared<TUCache>() );
-  return m_tuCaches.back();
 }
 
 }

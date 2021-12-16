@@ -71,8 +71,8 @@ struct ThreadPool::TaskException : public std::exception
     : m_originalException( e )
     , m_task( task )
   {}
-  std::exception_ptr        m_originalException;
-  ThreadPool::Slot& m_task;
+  std::exception_ptr m_originalException;
+  ThreadPool::Slot&  m_task;
 };
 
 class ScopeIncDecCounter
@@ -306,6 +306,11 @@ ThreadPool::TaskIterator ThreadPool::findNextTask( int threadId, TaskIterator st
         task.state = WAITING;
       }
     }
+    catch( RecoverableException& e )
+    {
+      // convert a RecoverableException to a normal Exception, when coming from within the thread pool.
+      throw TaskException( std::make_exception_ptr<Exception>( e ), *it );
+    }
     catch( ... )
     {
       throw TaskException( std::current_exception(), *it );
@@ -333,6 +338,11 @@ bool ThreadPool::processTask( int threadId, ThreadPool::Slot& task )
     {
       --(*task.counter);
     }
+  }
+  catch( RecoverableException& e )
+  {
+    // convert a RecoverableException to a normal Exception, when coming from within the thread pool.
+    throw TaskException( std::make_exception_ptr<Exception>( e ), task );
   }
   catch( ... )
   {

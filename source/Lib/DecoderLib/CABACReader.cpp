@@ -644,9 +644,6 @@ bool CABACReader::coding_tree( CodingStructure& cs, Partitioner& partitioner, CU
     }
   }
 
-  m_slice->incNumCu();
-  if( cu.predMode() != MODE_INTER || cu.ciipFlag() ) m_slice->incNumIntraCu();
-
 #if ENABLE_TRACING
   if( cu.chType() == CHANNEL_TYPE_CHROMA )
   {

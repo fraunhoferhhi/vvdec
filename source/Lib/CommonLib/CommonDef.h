@@ -88,13 +88,7 @@ namespace vvdec
 
 #pragma warning( disable : 4996 )
 #endif // _MSC_VER > 1000
-}
 
-#include "TypeDef.h"
-#include "vvdec/version.h"
-
-namespace vvdec
-{
 
 #ifdef _MSC_VER
 #if _MSC_VER <= 1500
@@ -124,6 +118,14 @@ inline int64_t abs (int64_t x) { return _abs64(x); };
 # define GCC_WARNING_DISABLE_maybe_uninitialized
 # define GCC_WARNING_DISABLE_class_memaccess
 #endif
+
+}   // namespace vvdec
+
+#include "TypeDef.h"
+#include "vvdec/version.h"
+
+namespace vvdec
+{
 
 
 //! \ingroup CommonLib
@@ -190,6 +192,10 @@ static const int MAX_NUM_REF_PICS =                                16; ///< max.
 static const int MAX_NUM_REF =                                     16; ///< max. number of entries in picture reference list
 static const int MAX_QP =                                          63;
 static const int NOT_VALID =                                       -1;
+static const int MI_NOT_VALID =                                     0;
+static const int MF_NOT_VALID =                                    -1;
+static const int MH_NOT_VALID =                                    -1;
+static const int CO_NOT_VALID =                                     0;
 
 static const int AMVP_MAX_NUM_CANDS =                               2; ///< AMVP: advanced motion vector prediction - max number of final candidates
 static const int AMVP_MAX_NUM_CANDS_MEM =                           3; ///< AMVP: advanced motion vector prediction - max number of candidates
@@ -655,5 +661,4 @@ namespace vvdec {
 
 //! \}
 
-}
-
+}   // namespace vvdec

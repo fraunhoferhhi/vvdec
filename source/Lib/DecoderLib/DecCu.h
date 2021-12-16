@@ -75,7 +75,7 @@ public:
   void TaskInterCtu            ( CodingStructure& cs, const UnitArea& ctuArea );
   void TaskTrafoCtu            ( CodingStructure& cs, const UnitArea& ctuArea );
   void TaskCriticalIntraKernel ( CodingStructure& cs, const UnitArea& ctuArea );
-  void TaskDeriveDMVRMotionInfo( CodingStructure& cs, const UnitArea& ctuArea );
+  void TaskFinishMotionInfo    ( CodingStructure &cs, const int col, const int row );
 
 public:
   DecCu();

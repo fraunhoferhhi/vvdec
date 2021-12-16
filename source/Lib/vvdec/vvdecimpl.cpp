@@ -212,7 +212,7 @@ int VVDecImpl::decode( vvdecAccessUnit& rcAccessUnit, vvdecFrame** ppcFrame )
   if( m_eState == INTERNAL_STATE_RESTART_REQUIRED ) { m_cErrorString = "restart required, please reinit."; return VVDEC_ERR_RESTART_REQUIRED; }
   if( m_eState == INTERNAL_STATE_FLUSHING )         { m_cErrorString = "decoder already received flush indication, please reinit."; return VVDEC_ERR_RESTART_REQUIRED; }
 
-  if( m_eState == INTERNAL_STATE_INITIALIZED ){ m_eState = INTERNAL_STATE_DECODING; }
+  if( m_eState == INTERNAL_STATE_INITIALIZED ){ m_eState = INTERNAL_STATE_TUNING_IN; }
 
   if( !rcAccessUnit.payload )
   {
@@ -404,6 +404,19 @@ int VVDecImpl::decode( vvdecAccessUnit& rcAccessUnit, vvdecFrame** ppcFrame )
       }
     }
   }
+  catch( RecoverableException& e )
+  {
+    std::stringstream css;
+    if( m_eState == INTERNAL_STATE_TUNING_IN )
+    {
+      css << "Exception while tuning in: " << e.what() << "\n"
+          << "You can try to pass in more data to start decoding from the first RAP.";
+      m_cAdditionalErrorString = css.str();
+      return VVDEC_ERR_DEC_INPUT;
+    }
+    m_eState = INTERNAL_STATE_RESTART_REQUIRED;
+    return VVDEC_ERR_RESTART_REQUIRED;
+  }
   catch( std::overflow_error& e )
   {
     //assert( 0 );
@@ -434,7 +447,10 @@ int VVDecImpl::flush( vvdecFrame** ppframe )
   if( m_eState == INTERNAL_STATE_FINALIZED )        { m_cErrorString = "decoder already flushed, please reinit."; return VVDEC_ERR_RESTART_REQUIRED; }
   if( m_eState == INTERNAL_STATE_RESTART_REQUIRED ) { m_cErrorString = "restart required, please reinit."; return VVDEC_ERR_RESTART_REQUIRED; }
 
-  if( m_eState == INTERNAL_STATE_DECODING ) { m_eState = INTERNAL_STATE_FLUSHING; }
+  if( m_eState == INTERNAL_STATE_TUNING_IN || m_eState == INTERNAL_STATE_DECODING )
+  {
+    m_eState = INTERNAL_STATE_FLUSHING;
+  }
 
   int iRet= VVDEC_OK;
 
@@ -1339,6 +1355,10 @@ int VVDecImpl::xHandleOutput( Picture* pcPic )
   int ret = 0;
   if( pcPic )
   {
+    if( m_eState == INTERNAL_STATE_TUNING_IN )
+    {
+      m_eState = INTERNAL_STATE_DECODING;
+    }
     // copy internal picture to external
     if( 0 != xAddPicture( pcPic ))
     {

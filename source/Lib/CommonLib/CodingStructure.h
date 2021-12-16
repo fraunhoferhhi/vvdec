@@ -70,21 +70,28 @@ enum PictureType
   NUM_PIC_TYPES
 };
 
-extern ThreadSafeCUCache g_globalUnitCache;
-
-#define NUM_PARTS_IN_CTU ( MAX_CU_SIZE * MAX_CU_SIZE ) >> ( MIN_CU_LOG2 << 1 )
+#define NUM_PARTS_IN_CTU ( MAX_CU_SIZE * MAX_CU_SIZE ) >> (   MIN_CU_LOG2       << 1 )
+// num collocated motion
+#define NUM_COMOT_IN_CTU ( MAX_CU_SIZE * MAX_CU_SIZE ) >> ( ( MIN_CU_LOG2 + 1 ) << 1 )
 
 struct CtuData
 {
-  SAOBlkParam       saoParam;
-  const Slice*      slice;
-  const PPS*        pps;
-  const SPS*        sps;
-  const PicHeader*  ph;
+  SAOBlkParam         saoParam;
+  const Slice*        slice;
+  const PPS*          pps;
+  const SPS*          sps;
+  const PicHeader*    ph;
 
-  CodingUnit*     cuPtr  [MAX_NUM_CHANNEL_TYPE][NUM_PARTS_IN_CTU];
-  LoopFilterParam lfParam[NUM_EDGE_DIR]        [NUM_PARTS_IN_CTU];
-  MotionInfo      motion                       [NUM_PARTS_IN_CTU];
+  CodingUnit*         cuPtr  [MAX_NUM_CHANNEL_TYPE][NUM_PARTS_IN_CTU];
+  LoopFilterParam*    lfParam[NUM_EDGE_DIR];
+  MotionInfo*         motion;
+  ColocatedMotionInfo colMotion                    [NUM_COMOT_IN_CTU];
+};
+
+struct CtuDataBuffers
+{
+  LoopFilterParam lfParam[NUM_EDGE_DIR][NUM_PARTS_IN_CTU];
+  MotionInfo      motion               [NUM_PARTS_IN_CTU];
 };
 
 // ---------------------------------------------------------------------------
@@ -109,11 +116,18 @@ public:
   std::shared_ptr<APS>       lmcsAps;
   const PreCalcValues*       pcv;
 
+  // data for which memory is partially borrowed from DecLibRecon
   CtuData*          m_ctuData;
   size_t            m_ctuDataSize;
 
-
-  CodingStructure(std::shared_ptr<CUCache>, std::shared_ptr<TUCache>);
+  Pel*              m_predBuf;
+  ptrdiff_t         m_predBufOffset;
+  
+  Mv*               m_dmvrMvCache;
+  ptrdiff_t         m_dmvrMvCacheOffset;
+  // end of partially borrowed data
+  
+  CodingStructure( CUChunkCache* cuChunkCache, TUChunkCache* tuChunkCache );
 
   void create(const UnitArea &_unit);
   void create(const ChromaFormat &_chromaFormat, const Area& _area);
@@ -164,27 +178,19 @@ public:
 
   void initStructData();
 
-private:
+  void allocTempInternals();
+  void deallocTempInternals();
+
   void createInternals(const UnitArea& _unit);
 
-private:
-  std::unique_ptr<Pel[], AlignedDeleter<Pel>> m_predBuf;
-  ptrdiff_t                                   m_predBufOffset;
-  ptrdiff_t                                   m_predBufSize;
+  unsigned   m_numCUs;
+  unsigned   m_numTUs;
 
-  Mv*             m_dmvrMvCache;
-  size_t          m_dmvrMvCacheSize;
-  ptrdiff_t       m_dmvrMvCacheOffset;
-
-  unsigned                 m_numCUs;
-  unsigned                 m_numTUs;
-
-  std::shared_ptr<CUCache> m_cuCache;
-  std::shared_ptr<TUCache> m_tuCache;
+  CUCache    m_cuCache;
+  TUCache    m_tuCache;
 
   PelStorage m_reco;
   PelStorage m_rec_wrap;
-  PelStorage m_pred;
 
   CodingUnit* m_lastCU = nullptr;
 
@@ -200,6 +206,8 @@ public:
   ptrdiff_t ctuRsAddr( Position pos, ChannelType chType ) const { Position posL = recalcPosition( area.chromaFormat, chType, CH_L, pos ); return ctuRsAddr( posL.x >> pcv->maxCUWidthLog2, posL.y >> pcv->maxCUHeightLog2 ); }
   // 4x4 luma block position within the CTU
   ptrdiff_t inCtuPos ( Position pos, ChannelType chType ) const { return ( unitScale[chType].scaleHor( pos.x ) & m_ctuSizeMask[chType] ) + ( ( unitScale[chType].scaleVer( pos.y ) & m_ctuSizeMask[chType] ) << m_ctuWidthLog2[chType] ); }
+  // 4x4 luma block position within the CTU
+  ptrdiff_t colMotPos( Position pos ) const { return ( g_colMiScaling.scaleHor( pos.x ) & ( m_ctuSizeMask[CH_L] >> 1 ) ) + ( ( g_colMiScaling.scaleVer( pos.y ) & ( m_ctuSizeMask[CH_L] >> 1 ) ) << ( m_ctuWidthLog2[CH_L] - 1 ) ); }
 
         CtuData& getCtuData( int col, int line )       { return m_ctuData[ctuRsAddr( col, line )]; }
   const CtuData& getCtuData( int col, int line ) const { return m_ctuData[ctuRsAddr( col, line )]; }
@@ -211,8 +219,6 @@ public:
   std::vector<PelStorage> m_virtualIBCbuf;
   void initVIbcBuf( int numCtuLines, ChromaFormat chromaFormatIDC, int ctuSize );
   void fillIBCbuffer( CodingUnit &cu, int lineIdx );
-  
-  PelStorage m_alfBuf;
 
   MotionBuf getMotionBuf( const     Area& _area );
   MotionBuf getMotionBuf( const UnitArea& _area ) { return getMotionBuf( _area.Y() ); }
@@ -222,6 +228,9 @@ public:
 
         MotionInfo& getMotionInfo( const Position& pos )       { return getCtuData( ctuRsAddr( pos, CH_L ) ).motion[inCtuPos( pos, CH_L )]; }
   const MotionInfo& getMotionInfo( const Position& pos ) const { return getCtuData( ctuRsAddr( pos, CH_L ) ).motion[inCtuPos( pos, CH_L )]; }
+  
+
+  const ColocatedMotionInfo& getColInfo( const Position &pos, const Slice*& pColSlice ) const;
 
   LoopFilterParam const* getLFPMapPtr   ( const DeblockEdgeDir edgeDir, ptrdiff_t _ctuRsAddr ) const { return m_ctuData[_ctuRsAddr].lfParam[edgeDir]; }
   LoopFilterParam      * getLFPMapPtr   ( const DeblockEdgeDir edgeDir, ptrdiff_t _ctuRsAddr )       { return m_ctuData[_ctuRsAddr].lfParam[edgeDir]; }

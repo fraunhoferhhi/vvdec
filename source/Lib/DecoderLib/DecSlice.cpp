@@ -106,6 +106,7 @@ void DecSlice::parseSlice( Slice* slice, InputBitstream* bitstream, int threadId
   // if first slice, finish init of the coding structure
   if( startCtuTsAddr == 0 )
   {
+    cs.allocTempInternals();
     cs.initStructData();
   }
 
@@ -166,6 +167,8 @@ void DecSlice::parseSlice( Slice* slice, InputBitstream* bitstream, int threadId
     ctuData.pps   = slice->getPPS();
     ctuData.sps   = slice->getSPS();
     ctuData.ph    = slice->getPicHeader();
+
+    cs.m_lastCU   = nullptr;
 
     cabacReader.coding_tree_unit( cs, slice, ctuArea, pic->m_prevQP, ctuRsAddr );
 

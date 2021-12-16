@@ -107,7 +107,12 @@ void Picture::create(const ChromaFormat &_chromaFormat, const Size &size, const 
   UnitArea::operator=( UnitArea( _chromaFormat, Area( Position{ 0, 0 }, size ) ) );
   margin            = _margin;
   m_bufs[PIC_RECONSTRUCTION].create( _chromaFormat, size, _maxCUSize, _margin, MEMORY_ALIGN_DEF_SIZE );
-  m_bufs[PIC_RECON_WRAP    ].create( _chromaFormat, size, _maxCUSize, _margin, MEMORY_ALIGN_DEF_SIZE );
+}
+
+void Picture::createWrapAroundBuf( const bool isWrapAround, const unsigned _maxCUSize )
+{
+  if( isWrapAround )
+    m_bufs[PIC_RECON_WRAP].create( chromaFormat, Y().size(), _maxCUSize, margin, MEMORY_ALIGN_DEF_SIZE );
 }
 
 void Picture::resetForUse()
@@ -131,13 +136,15 @@ void Picture::resetForUse()
   subpicsCheckedDPH.clear();
 
   m_ctuTaskCounter      .clearException();
-  m_dmvrTaskCounter     .clearException();
+  m_motionTaskCounter   .clearException();
   m_borderExtTaskCounter.clearException();
   m_copyWrapBufDone     .clearException();
   done                  .clearException();
   parseDone             .clearException();
+#if RECO_WHILE_PARSE
   std::for_each( ctuParsedBarrier.begin(), ctuParsedBarrier.end(), []( auto& b ) { b.clearException(); } );
 
+#endif
   done.lock();
 }
 
@@ -172,12 +179,14 @@ void Picture::destroy()
   subpicsCheckedDPH.clear();
 
   m_ctuTaskCounter      .clearException();
-  m_dmvrTaskCounter     .clearException();
+  m_motionTaskCounter   .clearException();
   m_borderExtTaskCounter.clearException();
   m_copyWrapBufDone     .clearException();
   done                  .clearException();
   parseDone             .clearException();
+#if RECO_WHILE_PARSE
   std::for_each( ctuParsedBarrier.begin(), ctuParsedBarrier.end(), []( auto& b ) { b.clearException(); } );
+#endif
 }
 
        PelBuf     Picture::getRecoBuf(const ComponentID compID, bool wrap)       { return getBuf(compID, wrap ? PIC_RECON_WRAP : PIC_RECONSTRUCTION); }
@@ -189,7 +198,7 @@ const CPelUnitBuf Picture::getRecoBuf(const UnitArea &unit, bool wrap)     const
        PelUnitBuf Picture::getRecoBuf( bool wrap )                               { return wrap ? m_bufs[PIC_RECON_WRAP] : m_bufs[PIC_RECONSTRUCTION]; }
 const CPelUnitBuf Picture::getRecoBuf( bool wrap )                         const { return wrap ? m_bufs[PIC_RECON_WRAP] : m_bufs[PIC_RECONSTRUCTION]; }
 
-void Picture::finalInit( const SPS *sps, const PPS *pps, PicHeader* picHeader, APS* alfApss[ALF_CTB_MAX_NUM_APS], APS* lmcsAps, APS* scalingListAps, bool phPSupdate )
+void Picture::finalInit( CUChunkCache* cuChunkCache, TUChunkCache* tuChunkCache, const SPS *sps, const PPS *pps, PicHeader* picHeader, APS* alfApss[ALF_CTB_MAX_NUM_APS], APS* lmcsAps, APS* scalingListAps, bool phPSupdate )
 {
   SEI_internal::deleteSEIs( seiMessageList );
   clearSliceBuffer();
@@ -200,7 +209,7 @@ void Picture::finalInit( const SPS *sps, const PPS *pps, PicHeader* picHeader, A
 
   if( !cs )
   {
-    cs = new CodingStructure( g_globalUnitCache.getCuCache(), g_globalUnitCache.getTuCache() );
+    cs = new CodingStructure( cuChunkCache, tuChunkCache );
     cs->create( chromaFormatIDC, Area( 0, 0, iWidth, iHeight ) );
   }
 

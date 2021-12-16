@@ -97,7 +97,7 @@ ParameterSetManager::ActivePSs ParameterSetManager::xActivateParameterSets( cons
 
   if( false == activatePPS( picHeader->getPPSId(), pSlicePilot->isIRAP() ) )
   {
-    THROW( "Parameter set activation failed!" );
+    THROW_RECOVERABLE( "Parameter set activation failed!" );
   }
 
   m_alfAPSs.fill( nullptr );
@@ -275,22 +275,6 @@ bool ParameterSetManager::activatePPS( int ppsId, bool isIRAP )
   // Failed to activate if reach here.
   m_activeSPSId = -1;
   return false;
-}
-
-template<>
-std::vector<PPS*> ParameterSetMap<PPS, MAX_NUM_PPS>::getPPSforSPSId( int spsId )
-{
-  std::vector<PPS*> ppssforsps;
-
-  for( auto& it : m_paramsetMap )
-  {
-    if( it.second.parameterSet->getSPSId() == spsId )
-    {
-      ppssforsps.push_back( it.second.parameterSet.get() );
-    }
-  }
-
-  return ppssforsps;
 }
 
 bool ParameterSetManager::activateAPS( int apsId, int apsType )

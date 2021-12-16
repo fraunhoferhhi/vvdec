@@ -10,7 +10,7 @@ if( NOT CMAKE_VERSION VERSION_LESS 3.12.0 )
 endif()
 
 # project name
-project( vvdec VERSION 1.2.0 )
+project( vvdec VERSION 1.3.0 )
 
 set( VVDEC_ENABLE_X86_SIMD TRUE  CACHE BOOL "enable x86 intrinsics" )
 set( VVDEC_ENABLE_ARM_SIMD FALSE CACHE BOOL "enable arm intrinsics" )
@@ -62,7 +62,7 @@ if( ${CMAKE_SYSTEM_NAME} STREQUAL "Emscripten" )
   add_link_options(
     --bind
     -sWASM_BIGINT
-    -sTOTAL_MEMORY=2000MB # this should be enough for FullHD decoding
+    -sTOTAL_MEMORY=1000MB # this should be enough for FullHD decoding
     -sINVOKE_RUN=0        # don't call main() automatically
     -sUSE_PTHREADS
     -sPROXY_TO_PTHREAD
@@ -333,6 +333,14 @@ function( read_bitstream_yuv_md5 BITSTREAM_FILE OUT_MD5_HASH )
   set( ${OUT_MD5_HASH} ${MD5_HASH} PARENT_SCOPE )
 endfunction()
 
+if( UNIX AND NOT VVDEC_USE_ADDRESS_SANITIZER AND
+    (CMAKE_BUILD_TYPE STREQUAL "Debug" OR CMAKE_BUILD_TYPE STREQUAL "RelWithDebInfo") )
+    # run Debug and RelWithDebInfo test suite in GDB and collect backtrace on crashes
+    set( VVDEC_TESTS_DEBUGGER_COMMAND gdb --batch --return-child-result --nx -iex "set index-cache on" -ex run -ex "info locals" -ex backtrace -ex quit --args )
+else()
+    set( VVDEC_TESTS_DEBUGGER_COMMAND "" )
+endif()
+
 # add tests for bitstreams
 foreach( BITSTREAM IN LISTS BITSTREAM_FILES )
   string( REGEX REPLACE "(.*).zip" "\\1" BITSTREAM_SHORT "${BITSTREAM}" )
@@ -340,10 +348,10 @@ foreach( BITSTREAM IN LISTS BITSTREAM_FILES )
 
   if( EXISTS ${BITSTREAM_FILE} )
     read_bitstream_yuv_md5( ${BITSTREAM_FILE} RX_MD5_HASH )
-    add_test( NAME Test:${BITSTREAM_SHORT}.bit COMMAND vvdecapp -b ${BITSTREAM_FILE} -md5 ${RX_MD5_HASH} )
+    add_test( NAME Test:${BITSTREAM_SHORT}.bit COMMAND ${VVDEC_TESTS_DEBUGGER_COMMAND} $<TARGET_FILE:vvdecapp> -b ${BITSTREAM_FILE} -md5 ${RX_MD5_HASH})
     set_tests_properties( Test:${BITSTREAM_SHORT}.bit PROPERTIES TIMEOUT 120 )
   else()
-    add_test( NAME MISSING:${BITSTREAM_SHORT}.bit COMMAND vvdecapp -b ${BITSTREAM_FILE} -dph )
+    add_test( NAME MISSING:${BITSTREAM_SHORT}.bit COMMAND ${VVDEC_TESTS_DEBUGGER_COMMAND} $<TARGET_FILE:vvdecapp> -b ${BITSTREAM_FILE} -dph )
     set_tests_properties( MISSING:${BITSTREAM_SHORT}.bit PROPERTIES TIMEOUT 120 )
 
     set( MISSING_BITSTREAM_FILES TRUE )
@@ -356,10 +364,10 @@ foreach( BITSTREAM IN LISTS BITSTREAM_FAULTY_FILES )
 
   if( EXISTS ${BITSTREAM_FILE} )
     read_bitstream_yuv_md5( ${BITSTREAM_FILE} RX_MD5_HASH )
-    add_test( NAME Faulty:${BITSTREAM_SHORT}.bit COMMAND vvdecapp -b ${BITSTREAM_FILE} -dph -md5 ${RX_MD5_HASH} )
+    add_test( NAME Faulty:${BITSTREAM_SHORT}.bit COMMAND ${VVDEC_TESTS_DEBUGGER_COMMAND} $<TARGET_FILE:vvdecapp> -b ${BITSTREAM_FILE} -dph -md5 ${RX_MD5_HASH} )
     set_tests_properties( Faulty:${BITSTREAM_SHORT}.bit PROPERTIES TIMEOUT 120 )
   else()
-    add_test( NAME MISSING:${BITSTREAM_SHORT}.bit COMMAND vvdecapp -b ${BITSTREAM_FILE} -dph )
+    add_test( NAME MISSING:${BITSTREAM_SHORT}.bit COMMAND ${VVDEC_TESTS_DEBUGGER_COMMAND} $<TARGET_FILE:vvdecapp> -b ${BITSTREAM_FILE} -dph )
     set_tests_properties( MISSING:${BITSTREAM_SHORT}.bit PROPERTIES TIMEOUT 120 )
 
     set( MISSING_BITSTREAM_FILES TRUE )

@@ -73,6 +73,7 @@ struct Picture : public UnitArea
   ~Picture() = default;
 
   void create(const ChromaFormat &_chromaFormat, const Size &size, const unsigned _maxCUSize, const unsigned margin, const int layerId);
+  void createWrapAroundBuf( const bool isWrapAround, const unsigned _maxCUSize );
   void resetForUse();
   void destroy();
 
@@ -124,7 +125,7 @@ public:
   void (*paddPicBorderTop) (Pel *pi, ptrdiff_t stride,int width,int xmargin,int ymargin);
   void (*paddPicBorderLeftRight) (Pel *pi, ptrdiff_t stride,int width,int xmargin,int height);
 
-  void finalInit( const SPS * sps, const PPS * pps, PicHeader *picHeader, APS* alfApss[ALF_CTB_MAX_NUM_APS], APS * lmcsAps, APS* scalingListAps, bool phPSupdate = true );
+  void finalInit( CUChunkCache* cuChunkCache, TUChunkCache* tuChunkCache, const SPS * sps, const PPS * pps, PicHeader *picHeader, APS* alfApss[ALF_CTB_MAX_NUM_APS], APS * lmcsAps, APS* scalingListAps, bool phPSupdate = true );
   int      getPOC()                           const { return poc; }
   uint64_t getCts()                           const { return cts; }
   uint64_t getDts()                           const { return dts; }
@@ -189,11 +190,11 @@ public:
   bool subLayerNonReferencePictureDueToSTSA = 0;
 
   PelStorage     m_bufs[NUM_PIC_TYPES];
-  uint32_t       margin = 0;
-  const Picture* unscaledPic;
+  uint32_t       margin      = 0;
+  const Picture* unscaledPic = nullptr;
 
   WaitCounter     m_ctuTaskCounter;
-  WaitCounter     m_dmvrTaskCounter;
+  WaitCounter     m_motionTaskCounter;
   WaitCounter     m_borderExtTaskCounter;
   Barrier         m_copyWrapBufDone;
   BlockingBarrier done;

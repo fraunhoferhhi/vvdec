@@ -343,6 +343,20 @@ int main( int argc, char* argv[] )
             }
           }
         }
+        else if( iRet == VVDEC_ERR_DEC_INPUT )
+        {
+          std::string cErr           = vvdec_get_last_error( dec );
+          std::string cAdditionalErr = vvdec_get_last_additional_error( dec );
+          if( !cAdditionalErr.empty() )
+          {
+            *logStream << "vvdecapp [warning]: " << cErr << " (" << vvdec_get_error_msg( iRet ) << ")"
+                       << " detail: " << vvdec_get_last_additional_error( dec ) << std::endl;
+          }
+          else
+          {
+            *logStream << "vvdecapp [warning]: " << cErr << " (" << vvdec_get_error_msg( iRet ) << ")" << std::endl;
+          }
+        }
         else if( iRet != VVDEC_OK )
         {
           std::string cErr = vvdec_get_last_error(dec);

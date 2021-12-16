@@ -56,6 +56,8 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #include "MotionInfo.h"
 #include "ChromaFormat.h"
 
+#include <mutex>
+
 namespace vvdec
 {
 
@@ -326,8 +328,8 @@ struct CodingUnit : public UnitArea
         CodingUnit *next;
   const CodingUnit *above;
   const CodingUnit *left;
-  Mv               *mvdL0SubPu; // 7 ptr (8 byte)
-  Pel              *predBuf;
+  ptrdiff_t         mvdL0SubPuOff; // 7 ptr (8 byte)
+  ptrdiff_t         predBufOff;
   uint32_t          idx;
   uint32_t          tileIdx;
   
@@ -561,102 +563,111 @@ namespace vvdec {
 static constexpr size_t DYN_CACHE_CHUNK_SIZE = 1024;
 
 template<typename T>
-class dynamic_cache
+class thread_safe_chunk_cache
 {
-  std::vector<T*> m_cache;
   std::vector<T*> m_cacheChunks;
+  std::mutex      m_mutex;
 
 public:
 
-  ~dynamic_cache()
+  ~thread_safe_chunk_cache()
   {
-    deleteEntries();
+    clear_chunks();
   }
 
-  void deleteEntries()
+  void clear_chunks()
   {
-    for( auto &chunk : m_cacheChunks )
+    for( auto& chunk : m_cacheChunks )
     {
       free( chunk );
     }
 
-    m_cache      .clear();
     m_cacheChunks.clear();
+  }
+
+  T* get()
+  {
+    std::unique_lock<std::mutex> l( m_mutex );
+
+    if( m_cacheChunks.empty() )
+    {
+      l.unlock();
+      return ( T* ) malloc( DYN_CACHE_CHUNK_SIZE * sizeof( T ) );
+    }
+    else
+    {
+      T* chunk = m_cacheChunks.back();
+      m_cacheChunks.pop_back();
+      return chunk;
+    }
+  }
+
+  void cache( std::vector<T*>& chunks )
+  {
+    std::unique_lock<std::mutex> l( m_mutex );
+
+    m_cacheChunks.insert( m_cacheChunks.end(), chunks.begin(), chunks.end() );
+    chunks.clear();
+  }
+};
+
+template<typename T>
+class dynamic_cache
+{
+  ptrdiff_t       m_lastIdx;
+  std::vector<T*> m_cache;
+
+  thread_safe_chunk_cache<T> *m_chunkCache;
+
+  void clear_chunks()
+  {
+    m_chunkCache->cache( m_cache );
+  }
+
+public:
+
+  explicit dynamic_cache( thread_safe_chunk_cache<T>* chunkCache ) : m_lastIdx( DYN_CACHE_CHUNK_SIZE ), m_chunkCache( chunkCache )
+  {
+  }
+
+  ~dynamic_cache()
+  {
+    clear_chunks();
   }
 
   T* get()
   {
     T* ret;
 
-    if( !m_cache.empty() )
+    if( m_lastIdx < DYN_CACHE_CHUNK_SIZE )
     {
-      ret = m_cache.back();
-      m_cache.pop_back();
+      ret = &m_cache.back()[m_lastIdx++];
     }
     else
     {
-      T* chunk = (T*) malloc( DYN_CACHE_CHUNK_SIZE * sizeof( T ) );
+      T* chunk = m_chunkCache->get();
 
-      //GCC_WARNING_DISABLE_class_memaccess
-      //memset( chunk, 0, DYN_CACHE_CHUNK_SIZE * sizeof( T ) );
-      //GCC_WARNING_RESET
+      m_cache.push_back( chunk );
 
-      m_cacheChunks.push_back( chunk );
-      m_cache      .reserve( m_cache.size() + DYN_CACHE_CHUNK_SIZE );
-
-      for( ptrdiff_t p = 0; p < DYN_CACHE_CHUNK_SIZE; p++ )
-      {
-        //m_cache.push_back( &chunk[DYN_CACHE_CHUNK_SIZE - p - 1] );
-        m_cache.push_back( &chunk[p] );
-      }
-
-      ret = m_cache.back();
-      m_cache.pop_back();
+      ret = &chunk[0];
+      m_lastIdx = 1;
     }
 
     return ret;
   }
 
-  void defragment()
+  void releaseAll()
   {
-    m_cache.clear();
-
-    for( T* chunk : m_cacheChunks )
-    {
-      //GCC_WARNING_DISABLE_class_memaccess
-      //memset( chunk, 0, DYN_CACHE_CHUNK_SIZE * sizeof( T ) );
-      //GCC_WARNING_RESET
-
-      for( ptrdiff_t p = 0; p < DYN_CACHE_CHUNK_SIZE; p++ )
-      {
-        //m_cache.push_back( &chunk[DYN_CACHE_CHUNK_SIZE - p - 1] );
-        m_cache.push_back( &chunk[p] );
-      }
-    }
-  }
-
-  void cache( std::vector<T*>& vel )
-  {
-    m_cache.insert( m_cache.end(), vel.begin(), vel.end() );
-    vel.clear();
+    clear_chunks();
+    m_lastIdx = DYN_CACHE_CHUNK_SIZE;
   }
 };
 
-typedef dynamic_cache<struct CodingUnit> CUCache;
+typedef dynamic_cache<struct CodingUnit>    CUCache;
 typedef dynamic_cache<struct TransformUnit> TUCache;
 
-struct ThreadSafeCUCache
-{
-  std::shared_ptr<CUCache> getCuCache();
-  std::shared_ptr<TUCache> getTuCache();
-
-private:
-  std::mutex m_mutex;
-
-  // we use the shared_ptr reference-count to track if a cache is in use or available
-  std::vector< std::shared_ptr<CUCache> > m_cuCaches;
-  std::vector< std::shared_ptr<TUCache> > m_tuCaches;
-};
+typedef thread_safe_chunk_cache<struct CodingUnit>    CUChunkCache;
+typedef thread_safe_chunk_cache<struct TransformUnit> TUChunkCache;
 
 }
 

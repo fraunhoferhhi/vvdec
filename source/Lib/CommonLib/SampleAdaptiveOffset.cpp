@@ -348,24 +348,14 @@ SampleAdaptiveOffset::~SampleAdaptiveOffset()
   destroy();
 }
 
-void SampleAdaptiveOffset::create( int picWidth, int picHeight, ChromaFormat format, uint32_t maxCUWidth, uint32_t maxCUHeight, uint32_t maxCUDepth, uint32_t lumaBitShift, uint32_t chromaBitShift )
+void SampleAdaptiveOffset::create( int picWidth, int picHeight, ChromaFormat format, uint32_t maxCUWidth, uint32_t maxCUHeight, uint32_t maxCUDepth, uint32_t lumaBitShift, uint32_t chromaBitShift, PelUnitBuf& unitBuf )
 {
   offsetBlock = offsetBlock_core;
 #if ENABLE_SIMD_OPT_SAO && defined( TARGET_SIMD_X86 )
   initSampleAdaptiveOffsetX86();
 #endif
 
-  //temporary picture buffer
-  UnitArea picArea( format, Area( 0, 0, picWidth, picHeight ) );
-
-  if( !m_tempBuf.bufs.empty() && ( picWidth != m_tempBuf.Y().width || picHeight != m_tempBuf.Y().height ) )
-  {
-    m_tempBuf.destroy();
-  }
-  if( m_tempBuf.bufs.empty() )
-  {
-    m_tempBuf.create( picArea );
-  }
+  m_tempBuf = unitBuf;
 
   //bit-depth related
   for( int compIdx = 0; compIdx < MAX_NUM_COMPONENT; compIdx++ )
@@ -377,7 +367,6 @@ void SampleAdaptiveOffset::create( int picWidth, int picHeight, ChromaFormat for
 
 void SampleAdaptiveOffset::destroy()
 {
-  m_tempBuf.destroy();
 }
 
 #if 0
@@ -442,11 +431,11 @@ void SampleAdaptiveOffset::SAOPrepareCTULine( CodingStructure &cs, const UnitAre
     const int currCtuW =   pcv.maxCUWidth  >> getComponentScaleX( compID, pcv.chrFormat );
     const int currPicW =   pcv.lumaWidth   >> getComponentScaleX( compID, pcv.chrFormat );
     
-    const ptrdiff_t src_stride =       rec.bufs  [ compID ].stride;
-    const ptrdiff_t dst_stride = m_tempBuf.getBuf( compID ).stride;
+    const ptrdiff_t src_stride =       rec.bufs[ compID ].stride;
+    const ptrdiff_t dst_stride = m_tempBuf.bufs[ compID ].stride;
 
-    const Pel* src =       rec.bufs  [ compID ].bufAt( 0, currCpyY );
-          Pel* dst = m_tempBuf.getBuf( compID ).bufAt( 0, currCpyY );
+    const Pel* src =       rec.bufs[ compID ].bufAt( 0, currCpyY );
+          Pel* dst = m_tempBuf.bufs[ compID ].bufAt( 0, currCpyY );
 
     for( int j = currCpyY; j < ( currCpyY + currCpyH ); j++, src += src_stride, dst += dst_stride )
     {
