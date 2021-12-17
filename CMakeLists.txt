@@ -11,6 +11,11 @@ endif()
 
 # project name
 project( vvdec VERSION 1.3.0 )
+# set alternative version numbering for release candidates
+#set( PROJECT_VERSION_RC rc1 )
+if( PROJECT_VERSION_RC)
+    set( PROJECT_VERSION "${PROJECT_VERSION}-rc${PROJECT_VERSION_RC}" )
+endif()
 
 set( VVDEC_ENABLE_X86_SIMD TRUE  CACHE BOOL "enable x86 intrinsics" )
 set( VVDEC_ENABLE_ARM_SIMD FALSE CACHE BOOL "enable arm intrinsics" )
@@ -334,9 +339,16 @@ function( read_bitstream_yuv_md5 BITSTREAM_FILE OUT_MD5_HASH )
 endfunction()
 
 if( UNIX AND NOT VVDEC_USE_ADDRESS_SANITIZER AND
-    (CMAKE_BUILD_TYPE STREQUAL "Debug" OR CMAKE_BUILD_TYPE STREQUAL "RelWithDebInfo") )
+    ( CMAKE_BUILD_TYPE STREQUAL "Debug" OR CMAKE_BUILD_TYPE STREQUAL "RelWithDebInfo" ) )
     # run Debug and RelWithDebInfo test suite in GDB and collect backtrace on crashes
-    set( VVDEC_TESTS_DEBUGGER_COMMAND gdb --batch --return-child-result --nx -iex "set index-cache on" -ex run -ex "info locals" -ex backtrace -ex quit --args )
+    set( VVDEC_TESTS_DEBUGGER_COMMAND gdb --batch --return-child-result --nx
+                                          -iex "set print thread-events off"
+                                          -iex "set index-cache on"
+                                          -ex "run"
+                                          -ex "info locals"
+                                          -ex "backtrace"
+                                          -ex "quit"
+                                          --args )
 else()
     set( VVDEC_TESTS_DEBUGGER_COMMAND "" )
 endif()

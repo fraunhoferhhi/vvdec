@@ -347,29 +347,24 @@ int main( int argc, char* argv[] )
         {
           std::string cErr           = vvdec_get_last_error( dec );
           std::string cAdditionalErr = vvdec_get_last_additional_error( dec );
+          *logStream << "vvdecapp [warning]: " << cErr << " (" << vvdec_get_error_msg( iRet ) << ")";
           if( !cAdditionalErr.empty() )
           {
-            *logStream << "vvdecapp [warning]: " << cErr << " (" << vvdec_get_error_msg( iRet ) << ")"
-                       << " detail: " << vvdec_get_last_additional_error( dec ) << std::endl;
+            *logStream << " detail: " << vvdec_get_last_additional_error( dec ) << std::endl;
           }
-          else
-          {
-            *logStream << "vvdecapp [warning]: " << cErr << " (" << vvdec_get_error_msg( iRet ) << ")" << std::endl;
-          }
+          *logStream << std::endl;
         }
         else if( iRet != VVDEC_OK )
         {
-          std::string cErr = vvdec_get_last_error(dec);
-          std::string cAdditionalErr = vvdec_get_last_additional_error(dec);
+          std::string cErr           = vvdec_get_last_error( dec );
+          std::string cAdditionalErr = vvdec_get_last_additional_error( dec );
+          *logStream << "vvdecapp [error]: decoding failed: " << cErr << " (" <<vvdec_get_error_msg( iRet ) << ")";
           if( !cAdditionalErr.empty() )
           {
-            *logStream << "vvdecapp [error]: decoding failed: " << cErr << " (" <<vvdec_get_error_msg( iRet ) << ")"
-                       << " detail: " << vvdec_get_last_additional_error(dec) << std::endl;
+            *logStream << " detail: " << vvdec_get_last_additional_error( dec ) << std::endl;
           }
-          else
-          {
-            *logStream << "vvdecapp [error]: decoding failed: " << cErr << " (" <<vvdec_get_error_msg( iRet ) << ")" << std::endl;
-          }
+          *logStream << std::endl;
+
           vvdec_accessUnit_free( accessUnit );
           return iRet;
         }
@@ -491,7 +486,16 @@ int main( int argc, char* argv[] )
       iRet = vvdec_flush( dec, &pcFrame );
       if( iRet != VVDEC_OK && iRet != VVDEC_EOF )
       {
-        *logStream << "vvdecapp [error]: decoding failed (" << iRet << ")" << std::endl;  return iRet;
+        std::string cErr           = vvdec_get_last_error(dec);
+        std::string cAdditionalErr = vvdec_get_last_additional_error(dec);
+        *logStream << "vvdecapp [error]: decoding failed: " << cErr << " (" <<vvdec_get_error_msg( iRet ) << ")";
+        if( !cAdditionalErr.empty() )
+        {
+          *logStream << " detail: " << cAdditionalErr;
+        }
+        *logStream << std::endl;
+        vvdec_accessUnit_free( accessUnit );
+        return iRet;
       }
 
       if( NULL != pcFrame  )
