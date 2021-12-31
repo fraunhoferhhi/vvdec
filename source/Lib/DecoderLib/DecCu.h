@@ -71,6 +71,7 @@ class DecCu
 {
   // Task definition
 public:
+  void TaskReconAll            ( CodingStructure& cs, const UnitArea& ctuArea );
   void TaskDeriveCtuMotionInfo ( CodingStructure& cs, const UnitArea& ctuArea,  MotionHist& hist );
   void TaskInterCtu            ( CodingStructure& cs, const UnitArea& ctuArea );
   void TaskTrafoCtu            ( CodingStructure& cs, const UnitArea& ctuArea );
@@ -95,6 +96,9 @@ protected:
 
   void xIntraRecACT       ( CodingUnit&      cu );
   void xDeriveCUMV        ( CodingUnit&      cu, MotionHist& hist );
+  
+  PelUnitBuf          getPredBuf(const CodingUnit &cu);
+  const CPelUnitBuf   getPredBuf(const CodingUnit &cu) const;
 
 private:
   Reshape*          m_pcReshape;
@@ -103,6 +107,7 @@ private:
   TrQuant*          m_pcTrQuant;
 
   MergeCtx          m_geoMrgCtx;
+  PelUnitBuf        m_predBuf;
 };
 
 }

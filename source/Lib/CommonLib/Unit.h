@@ -329,7 +329,6 @@ struct CodingUnit : public UnitArea
   const CodingUnit *above;
   const CodingUnit *left;
   ptrdiff_t         mvdL0SubPuOff; // 7 ptr (8 byte)
-  ptrdiff_t         predBufOff;
   uint32_t          idx;
   uint32_t          tileIdx;
   

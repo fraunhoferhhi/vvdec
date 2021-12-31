@@ -78,7 +78,7 @@ class DecCu;
 
 enum TaskType
 {
-  /*TRAFO=-1,*/ MIDER, LF_INIT, INTER, INTRA, RSP, LF_V, LF_H, PRESAO, SAO, ALF, DONE, DMVR
+  /*TRAFO=-1,*/ MIDER, LF_INIT, PRED_RECO, RSP, LF_V, LF_H, PRESAO, SAO, ALF, DONE, DMVR
 };
 using CtuState = std::atomic<TaskType>;
 
@@ -150,9 +150,6 @@ private:
   __itt_domain*        m_itt_decInst = nullptr;
 #endif
 
-  std::unique_ptr<Pel[], AlignedDeleter<Pel>> 
-                       m_predBuf;
-  ptrdiff_t            m_predBufSize;
   std::vector<CtuDataBuffers>
                        m_ctuDataBufs;
   Mv*                  m_dmvrMvCache;

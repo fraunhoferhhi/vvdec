@@ -134,24 +134,11 @@ CodingUnit& CodingStructure::addCU( const UnitArea &unit, const ChannelType chTy
   CtuData& ctuData = getCtuData( currRsAddr );
   cu->ctuData = &ctuData;
 
-  cu->predBufOff = m_predBufOffset;
-
   for( uint32_t i = 0; i < numCh; i++ )
   {
     if( !cu->blocks[i].valid() )
     {
       continue;
-    }
-
-    const int cuArea = cu->blocks[i].area();
-
-    if( i )
-    {
-      m_predBufOffset += ( cuArea << 1 );
-    }
-    else
-    {
-      m_predBufOffset += cuArea;
     }
 
     const ptrdiff_t  stride = ptrdiff_t( 1 ) << m_ctuWidthLog2[i];
@@ -327,8 +314,6 @@ void CodingStructure::initStructData()
 
   m_dmvrMvCacheOffset = 0;
 
-  m_predBufOffset = 0;
-
   GCC_WARNING_DISABLE_class_memaccess
   memset( m_ctuData, 0, sizeof( CtuData ) * m_ctuDataSize );
   GCC_WARNING_RESET
@@ -352,75 +337,6 @@ const CMotionBuf CodingStructure::getMotionBuf( const Area& _area ) const
   const UnitScale  scale  = g_miScaling;
 
   return CMotionBuf( ctuData.motion + inCtuPos( _area, CH_L ), stride, scale.scaleHor( _area.width ), scale.scaleVer( _area.height ) );
-}
-
-PelUnitBuf CodingStructure::getPredBuf(const CodingUnit &unit)          
-{
-  PelUnitBuf ret;
-  ret.chromaFormat = unit.chromaFormat;
-  ret.bufs.resize_noinit( getNumberValidComponents( unit.chromaFormat ) );
-
-  if( unit.Y().valid() )
-  {
-    ret.bufs[0].buf    = m_predBuf + unit.predBufOff;
-    ret.bufs[0].stride = unit.blocks[0].width;
-    ret.bufs[0].width  = unit.blocks[0].width;
-    ret.bufs[0].height = unit.blocks[0].height;
-  }
-
-  if( isChromaEnabled( unit.chromaFormat ) )
-  {
-    if( unit.Cb().valid() )
-    {
-      ret.bufs[1].buf    = m_predBuf + unit.predBufOff + unit.Y().area();
-      ret.bufs[1].stride = unit.blocks[1].width;
-      ret.bufs[1].width  = unit.blocks[1].width;
-      ret.bufs[1].height = unit.blocks[1].height;
-    }
-
-    if( unit.Cr().valid() )
-    {
-      ret.bufs[2].buf    = m_predBuf + unit.predBufOff + unit.Y().area() + unit.Cb().area();
-      ret.bufs[2].stride = unit.blocks[2].width;
-      ret.bufs[2].width  = unit.blocks[2].width;
-      ret.bufs[2].height = unit.blocks[2].height;
-    }
-  }
-
-  return ret;
-}
-
-const CPelUnitBuf CodingStructure::getPredBuf(const CodingUnit &unit) const
-{
-  CPelUnitBuf ret;
-  ret.chromaFormat = unit.chromaFormat;
-  ret.bufs.resize( 3 );
-
-  if( unit.Y().valid() )
-  {
-    ret.bufs[0].buf    = m_predBuf + unit.predBufOff;
-    ret.bufs[0].stride = unit.blocks[0].width;
-    ret.bufs[0].width  = unit.blocks[0].width;
-    ret.bufs[0].height = unit.blocks[0].height;
-  }
-
-  if( unit.Cb().valid() )
-  {
-    ret.bufs[1].buf    = m_predBuf + unit.predBufOff + unit.Y().area();
-    ret.bufs[1].stride = unit.blocks[1].width;
-    ret.bufs[1].width  = unit.blocks[1].width;
-    ret.bufs[1].height = unit.blocks[1].height;
-  }
-
-  if( unit.Cr().valid() )
-  {
-    ret.bufs[2].buf    = m_predBuf + unit.predBufOff + unit.Y().area() + unit.Cb().area();
-    ret.bufs[2].stride = unit.blocks[2].width;
-    ret.bufs[2].width  = unit.blocks[2].width;
-    ret.bufs[2].height = unit.blocks[2].height;
-  }
-
-  return ret;
 }
 
 const ColocatedMotionInfo& CodingStructure::getColInfo( const Position &pos, const Slice*& pColSlice ) const

@@ -64,6 +64,40 @@ namespace vvdec
 //! \ingroup DecoderLib
 //! \{
 
+void DecCu::TaskReconAll( CodingStructure &cs, const UnitArea &ctuArea )
+{
+  PROFILER_SCOPE_AND_STAGE_EXT( 1, g_timeProfiler, P_CONTROL_PARSE_DERIVE_LL, cs, CH_L );
+
+  for( auto &currCU: cs.traverseCUs( ctuArea ) )
+  {
+    CHECK( !ctuArea.blocks[currCU.chType()].contains( currCU.blocks[currCU.chType()] ), "Should never happen!" );
+
+    if( currCU.rootCbf() )
+    {
+      reconstructResi( currCU );
+    }
+      
+    if( !CU::isIntra( currCU ) && !CU::isIBC( currCU ) )
+    {
+      predAndReco( currCU, false );
+    }
+
+    if( CU::isIntra( currCU ) || currCU.ciipFlag() || CU::isIBC( currCU ) )
+    {
+      predAndReco( currCU, true );
+    }
+    else if( currCU.rootCbf() )
+    {
+      finishLMCSAndReco( currCU );
+    }
+
+    if( cs.sps->getIBCFlag() )
+    {
+      cs.fillIBCbuffer( currCU, ctuArea.Y().y / cs.sps->getMaxCUHeight() );
+    }
+  }
+}
+
 void DecCu::TaskDeriveCtuMotionInfo( CodingStructure &cs, const UnitArea &ctuArea, MotionHist& hist )
 {
   PROFILER_SCOPE_AND_STAGE_EXT( 1, g_timeProfiler, P_CONTROL_PARSE_DERIVE_LL, cs, CH_L );
@@ -262,10 +296,17 @@ void DecCu::init( IntraPrediction* pcIntra, InterPrediction* pcInter, Reshape *p
 
 void DecCu::create()
 {
+  m_predBuf.bufs.resize(3);
+  m_predBuf.bufs[0].buf = xMalloc(Pel, MAX_CU_SIZE * MAX_CU_SIZE);
+  m_predBuf.bufs[1].buf = xMalloc(Pel, MAX_CU_SIZE * MAX_CU_SIZE);
+  m_predBuf.bufs[2].buf = xMalloc(Pel, MAX_CU_SIZE * MAX_CU_SIZE);
 }
 
 void DecCu::destroy()
 {
+  if(m_predBuf.bufs[0].buf) xFree(m_predBuf.bufs[0].buf);
+  if(m_predBuf.bufs[1].buf) xFree(m_predBuf.bufs[1].buf);
+  if(m_predBuf.bufs[2].buf) xFree(m_predBuf.bufs[2].buf);
 }
 
 // ====================================================================================================================
@@ -304,11 +345,11 @@ void DecCu::predAndReco( CodingUnit& cu, bool doCiipIntra )
           if( chType == CHANNEL_TYPE_LUMA )
           {
             Position pos = Position( tu.Y().x - cu.lumaPos().x, tu.Y().y - cu.lumaPos().y );
-            piPred = cs.getPredBuf( cu ).Y().subBuf( pos, tu.lumaSize() );
+            piPred = getPredBuf( cu ).Y().subBuf( pos, tu.lumaSize() );
           }
           else
           {
-            piPred = cs.getPredBuf( cu ).Cb().subBuf( Position( 0, 0 ), tu.chromaSize() );
+            piPred = getPredBuf( cu ).Cb().subBuf( Position( 0, 0 ), tu.chromaSize() );
           }
 
           const PredictionUnit &pu      = cu;
@@ -360,7 +401,7 @@ void DecCu::predAndReco( CodingUnit& cu, bool doCiipIntra )
               if( firstTBInPredReg )
               {
                 Position pos( areaPredReg.x - cu.lumaPos().x, areaPredReg.y - cu.lumaPos().y );
-                piPred      = cs.getPredBuf( cu ).Y().subBuf( pos, areaPredReg.size() );
+                piPred      = getPredBuf( cu ).Y().subBuf( pos, areaPredReg.size() );
 
                 m_pcIntraPred->predIntraAng( compID, piPred, pu, bUseFilteredPredictions );
 
@@ -406,7 +447,7 @@ void DecCu::predAndReco( CodingUnit& cu, bool doCiipIntra )
   {
     const UnitArea& cuArea = cu;
 
-    PelUnitBuf predBuf = cu.rootCbf() ? cs.getPredBuf( cu ) : cs.getRecoBuf( cuArea );
+    PelUnitBuf predBuf = cu.rootCbf() ? getPredBuf( cu ) : cs.getRecoBuf( cuArea );
     PelUnitBuf recoBuf = cs.getRecoBuf( cuArea );
 
     // CBF in at least one channel, but no TU split
@@ -494,7 +535,7 @@ void DecCu::finishLMCSAndReco( CodingUnit &cu )
 
   const uint32_t uiNumVaildComp = getNumberValidComponents( cu.chromaFormat );
   const bool     doCS           = cs.picHeader->getLmcsEnabledFlag() && cs.picHeader->getLmcsChromaResidualScaleFlag() && cu.slice->getLmcsEnabledFlag();
-  const PelUnitBuf predUnitBuf  = cs.getPredBuf( cu );
+  const PelUnitBuf predUnitBuf  = getPredBuf( cu );
 
   for( auto& currTU : TUTraverser( &cu.firstTU, cu.lastTU->next ) )
   {
@@ -650,11 +691,11 @@ void DecCu::xIntraRecACT( CodingUnit &cu )
       if( chType == CHANNEL_TYPE_LUMA )
       {
         Position pos = Position( tu.Y().x - cu.lumaPos().x, tu.Y().y - cu.lumaPos().y );
-        piPred = cs.getPredBuf( cu ).Y().subBuf( pos, tu.lumaSize() );
+        piPred = getPredBuf( cu ).Y().subBuf( pos, tu.lumaSize() );
       }
       else
       {
-        piPred = cs.getPredBuf( cu ).Cb().subBuf( Position( 0, 0 ), tu.chromaSize() );
+        piPred = getPredBuf( cu ).Cb().subBuf( Position( 0, 0 ), tu.chromaSize() );
       }
 
       const PredictionUnit &pu      = cu;
@@ -707,7 +748,7 @@ void DecCu::xIntraRecACT( CodingUnit &cu )
             if( firstTBInPredReg )
             {
               Position pos( areaPredReg.x - cu.lumaPos().x, areaPredReg.y - cu.lumaPos().y );
-              piPred      = cs.getPredBuf( cu ).Y().subBuf( pos, areaPredReg.size() );
+              piPred      = getPredBuf( cu ).Y().subBuf( pos, areaPredReg.size() );
 
               m_pcIntraPred->predIntraAng( compID, piPred, pu, bUseFilteredPredictions );
             }
@@ -908,6 +949,75 @@ void DecCu::xDeriveCUMV( CodingUnit &cu, MotionHist& hist )
       MotionHist::addMiToLut( isIbc ? hist.motionLutIbc : hist.motionLut, mi );
     }
   }
+}
+
+PelUnitBuf DecCu::getPredBuf(const CodingUnit &unit)
+{
+  PelUnitBuf ret;
+  ret.chromaFormat = unit.chromaFormat;
+  ret.bufs.resize_noinit( getNumberValidComponents( unit.chromaFormat ) );
+
+  if( unit.Y().valid() )
+  {
+    ret.bufs[0].buf    = m_predBuf.bufs[0].buf;
+    ret.bufs[0].stride = unit.blocks[0].width;
+    ret.bufs[0].width  = unit.blocks[0].width;
+    ret.bufs[0].height = unit.blocks[0].height;
+  }
+
+  if( isChromaEnabled( unit.chromaFormat ) )
+  {
+    if( unit.Cb().valid() )
+    {
+      ret.bufs[1].buf    = m_predBuf.bufs[1].buf;
+      ret.bufs[1].stride = unit.blocks[1].width;
+      ret.bufs[1].width  = unit.blocks[1].width;
+      ret.bufs[1].height = unit.blocks[1].height;
+    }
+
+    if( unit.Cr().valid() )
+    {
+      ret.bufs[2].buf    = m_predBuf.bufs[2].buf;
+      ret.bufs[2].stride = unit.blocks[2].width;
+      ret.bufs[2].width  = unit.blocks[2].width;
+      ret.bufs[2].height = unit.blocks[2].height;
+    }
+  }
+
+  return ret;
+}
+
+const CPelUnitBuf DecCu::getPredBuf(const CodingUnit &unit) const
+{
+  CPelUnitBuf ret;
+  ret.chromaFormat = unit.chromaFormat;
+  ret.bufs.resize( 3 );
+
+  if( unit.Y().valid() )
+  {
+    ret.bufs[0].buf    = m_predBuf.bufs[0].buf;
+    ret.bufs[0].stride = unit.blocks[0].width;
+    ret.bufs[0].width  = unit.blocks[0].width;
+    ret.bufs[0].height = unit.blocks[0].height;
+  }
+
+  if( unit.Cb().valid() )
+  {
+    ret.bufs[1].buf    = m_predBuf.bufs[1].buf;
+    ret.bufs[1].stride = unit.blocks[1].width;
+    ret.bufs[1].width  = unit.blocks[1].width;
+    ret.bufs[1].height = unit.blocks[1].height;
+  }
+
+  if( unit.Cr().valid() )
+  {
+    ret.bufs[2].buf    = m_predBuf.bufs[2].buf;
+    ret.bufs[2].stride = unit.blocks[2].width;
+    ret.bufs[2].width  = unit.blocks[2].width;
+    ret.bufs[2].height = unit.blocks[2].height;
+  }
+
+  return ret;
 }
 
 }

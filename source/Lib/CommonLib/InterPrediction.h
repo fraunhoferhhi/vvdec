@@ -168,7 +168,7 @@ public:
   InterPrediction();
   virtual ~InterPrediction();
 
-  void    init                (RdCost* pcRdCost, ChromaFormat chromaFormatIDC, const int ctuSize);
+  void    init                (RdCost* pcRdCost, ChromaFormat chromaFormatIDC, const int ctuSize, bool bEnableIBC);
 
   // inter
   void    motionCompensation  (PredictionUnit &pu, PelUnitBuf& predBuf, const bool luma = true, const bool chroma = true);

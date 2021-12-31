@@ -119,9 +119,6 @@ public:
   // data for which memory is partially borrowed from DecLibRecon
   CtuData*          m_ctuData;
   size_t            m_ctuDataSize;
-
-  Pel*              m_predBuf;
-  ptrdiff_t         m_predBufOffset;
   
   Mv*               m_dmvrMvCache;
   ptrdiff_t         m_dmvrMvCacheOffset;
@@ -255,9 +252,6 @@ public:
   const CPelBuf       getRecoBuf(const ComponentID compID, bool wrap=false)   const { return wrap ? m_rec_wrap.get(compID) : m_reco.get(compID); }
          PelUnitBuf   getRecoBuf(bool wrap=false)                                   { return wrap ? m_rec_wrap : m_reco; }
   const CPelUnitBuf   getRecoBuf(bool wrap=false)                             const { return wrap ? m_rec_wrap : m_reco; }
-
-         PelUnitBuf   getPredBuf(const CodingUnit &cu);
-  const CPelUnitBuf   getPredBuf(const CodingUnit &cu) const;
 };
 
 }

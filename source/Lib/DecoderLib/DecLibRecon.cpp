@@ -152,7 +152,6 @@ void DecLibRecon::create( ThreadPool* threadPool, unsigned instanceId )
   m_decodeThreadPool = threadPool;
   m_numDecThreads    = std::max( 1, threadPool ? threadPool->numThreads() : 1 );
 
-  m_predBufSize = 0;
   m_dmvrMvCacheSize = 0;
   m_dmvrMvCache     = nullptr;
 
@@ -171,12 +170,6 @@ void DecLibRecon::create( ThreadPool* threadPool, unsigned instanceId )
 void DecLibRecon::destroy()
 {
   m_decodeThreadPool = nullptr;
-
-  if( m_predBuf )
-  {
-    m_predBuf.reset();
-    m_predBufSize = 0;
-  }
 
   if( m_dmvrMvCache )
   {
@@ -389,7 +382,7 @@ void DecLibRecon::decompressPicture( Picture* pcPic )
     }
 
     m_cIntraPred[i].init( sps->getChromaFormatIdc(), sps->getBitDepth( CHANNEL_TYPE_LUMA ) );
-    m_cInterPred[i].init( &m_cRdCost, sps->getChromaFormatIdc(), sps->getMaxCUHeight() );
+    m_cInterPred[i].init( &m_cRdCost, sps->getChromaFormatIdc(), sps->getMaxCUHeight(), sps->getIBCFlag() ? true : false );
 
     // Recursive structure
     m_cTrQuant[i] ->init( pcPic );
@@ -416,16 +409,6 @@ void DecLibRecon::decompressPicture( Picture* pcPic )
   {
     m_cALF.create( cs.picHeader, sps, pps, m_numDecThreads, m_fltBuf );
   }
-
-  // set reconstruction buffers in CodingStructure
-  size_t predBufSize = pcPic->Y().area() + ( isChromaEnabled( pcPic->chromaFormat ) ? ( pcPic->Cb().area() + pcPic->Cr().area() ) : 0 );
-  if( predBufSize != m_predBufSize )
-  {
-    m_predBuf.reset( ( Pel* ) xMalloc( Pel, predBufSize ) );
-    m_predBufSize = predBufSize;
-  }
-
-  pcPic->cs->m_predBuf = m_predBuf.get();
 
   // for the worst case of all PUs being 8x8 and using DMVR
   const size_t _maxNumDmvrMvs = ( pcPic->lwidth() >> 3 ) * ( pcPic->lheight() >> 3 );
@@ -768,16 +751,12 @@ bool DecLibRecon::ctuTask( int tid, CtuTaskParam* param )
       ITT_TASKEND( itt_domain_dec, itt_handle_lfcl );
     }
 
-    case INTER:
+    case PRED_RECO:
     {
-      if( std::all_of( cs.picture->slices.begin(), cs.picture->slices.end(), []( const Slice* pcSlice ) { return pcSlice->isIntra(); } ) )
-      {
-        // not really necessary, but only for optimizing the wave-fronts
-        if( col > 1 && thisLine[col - 2] <= INTER )
-          return false;
-        if( line > 0 && lineAbove[col] <= INTER )
-          return false;
-      }
+      if( col > 0 && thisLine[col - 1] <= PRED_RECO )
+        return false;
+      if( line > 0 && lineAbove[std::min( col + 1, widthInCtus - 1 )] <= PRED_RECO )
+        return false;
 
       if( std::any_of( cs.picture->refPicExtDepBarriers.cbegin(), cs.picture->refPicExtDepBarriers.cend(), []( const Barrier* b ) { return b->isBlocked(); } ) )
       {
@@ -791,42 +770,13 @@ bool DecLibRecon::ctuTask( int tid, CtuTaskParam* param )
 
       for( int ctu = ctuStart; ctu < ctuEnd; ctu++ )
       {
-        const CtuData& ctuData = cs.getCtuData( ctu, line );
         const UnitArea ctuArea = getCtuArea( cs, ctu, line, true );
-
-        decLib.m_cCuDecoder[tid].TaskTrafoCtu( cs, ctuArea );
-
-        if( !ctuData.slice->isIntra() )
-        {
-          decLib.m_cCuDecoder[tid].TaskInterCtu( cs, ctuArea );
-        }
+        decLib.m_cCuDecoder[tid].TaskReconAll( cs, ctuArea );
       }
 
-      thisCtuState = ( TaskType )( INTER + 1 );
+      thisCtuState = ( TaskType )( PRED_RECO + 1 );
 
       ITT_TASKEND( itt_domain_dec, itt_handle_inter );
-    }
-
-    case INTRA:
-    {
-      if( col > 0 && thisLine[col - 1] <= INTRA )
-        return false;
-      if( line > 0 && lineAbove[std::min( col + 1, widthInCtus - 1 )] <= INTRA )
-        return false;
-      if( onlyCheckReadyState )
-        return true;
-
-      ITT_TASKSTART( itt_domain_dec, itt_handle_intra );
-
-      for( int ctu = ctuStart; ctu < ctuEnd; ctu++ )
-      {
-        const UnitArea  ctuArea = getCtuArea( cs, ctu, line, true );
-        decLib.m_cCuDecoder[tid].TaskCriticalIntraKernel( cs, ctuArea );
-      }
-
-      thisCtuState = ( TaskType )( INTRA + 1 );
-
-      ITT_TASKEND( itt_domain_dec, itt_handle_intra );
     }
 
     case RSP:
