@@ -683,12 +683,59 @@ void gradFilter_SSE( int16_t* src, ptrdiff_t _srcStride, int width, int height, 
 
       gradXTmp[widthInside] = gradXTmp[widthInside - 1];
       gradYTmp[widthInside] = gradYTmp[widthInside - 1];
+      srcTmp  [widthInside] = srcTmp  [widthInside - 1];
       gradXTmp[-1]          = gradXTmp[0];
       gradYTmp[-1]          = gradYTmp[0];
+      srcTmp  [-1]          = srcTmp  [0];
 
       gradXTmp += gradStride;
       gradYTmp += gradStride;
       srcTmp   += srcStride;
+    }
+    
+    {
+      gradXTmp = gradX + gradStride;
+      gradYTmp = gradY + gradStride;
+      srcTmp   = src   + srcStride;
+      
+      Pel * src0 = gradXTmp;
+      Pel * src1 = gradXTmp + (height - 2 * BIO_EXTEND_SIZE - 1) * gradStride;
+      Pel * src2 = gradYTmp;
+      Pel * src3 = gradYTmp + (height - 2 * BIO_EXTEND_SIZE - 1) * gradStride;
+      Pel * src4 = srcTmp;
+      Pel * src5 = srcTmp + (height - 2 * BIO_EXTEND_SIZE - 1) * srcStride;
+      
+      Pel * dst0 = gradXTmp - gradStride;
+      Pel * dst1 = gradXTmp + (height - 2 * BIO_EXTEND_SIZE) * gradStride;
+      Pel * dst2 = gradYTmp - gradStride;
+      Pel * dst3 = gradYTmp + (height - 2 * BIO_EXTEND_SIZE) * gradStride;
+      Pel * dst4 = srcTmp - srcStride;
+      Pel * dst5 = srcTmp + (height - 2 * BIO_EXTEND_SIZE) * srcStride;
+      
+      int x;
+      
+      for (x = 0; x < widthInside; x+=16)
+      {
+        __m256i s0 = _mm256_loadu_si256(( __m256i* )(src0 + x));
+        __m256i s1 = _mm256_loadu_si256(( __m256i* )(src1 + x));
+        __m256i s2 = _mm256_loadu_si256(( __m256i* )(src2 + x));
+        __m256i s3 = _mm256_loadu_si256(( __m256i* )(src3 + x));
+        __m256i s4 = _mm256_loadu_si256(( __m256i* )(src4 + x));
+        __m256i s5 = _mm256_loadu_si256(( __m256i* )(src5 + x));
+        _mm256_storeu_si256(( __m256i* )(dst0 + x), s0);
+        _mm256_storeu_si256(( __m256i* )(dst1 + x), s1);
+        _mm256_storeu_si256(( __m256i* )(dst2 + x), s2);
+        _mm256_storeu_si256(( __m256i* )(dst3 + x), s3);
+        _mm256_storeu_si256(( __m256i* )(dst4 + x), s4);
+        _mm256_storeu_si256(( __m256i* )(dst5 + x), s5);
+      }
+      
+      ((int32_t * )(dst0 + x))[0] = ((int32_t * )(src0 + x))[0];
+      ((int32_t * )(dst1 + x))[0] = ((int32_t * )(src1 + x))[0];
+      ((int32_t * )(dst2 + x))[0] = ((int32_t * )(src2 + x))[0];
+      ((int32_t * )(dst3 + x))[0] = ((int32_t * )(src3 + x))[0];
+      ((int32_t * )(dst4 + x))[0] = ((int32_t * )(src4 + x))[0];
+      ((int32_t * )(dst5 + x))[0] = ((int32_t * )(src5 + x))[0];
     }
   }
   else
@@ -711,17 +758,61 @@ void gradFilter_SSE( int16_t* src, ptrdiff_t _srcStride, int width, int height, 
         _mm_storeu_si128((__m128i *) (gradXTmp + x), mmGradHor);
       }
 
-      if( PAD )
-      {
-        gradXTmp[widthInside] = gradXTmp[widthInside - 1];
-        gradYTmp[widthInside] = gradYTmp[widthInside - 1];
-        gradXTmp[-1]          = gradXTmp[0];
-        gradYTmp[-1]          = gradYTmp[0];
-      }
+      gradXTmp[widthInside] = gradXTmp[widthInside - 1];
+      gradYTmp[widthInside] = gradYTmp[widthInside - 1];
+      srcTmp  [widthInside] = srcTmp  [widthInside - 1];
+      gradXTmp[-1]          = gradXTmp[0];
+      gradYTmp[-1]          = gradYTmp[0];
+      srcTmp  [-1]          = srcTmp  [0];
 
       gradXTmp += gradStride;
       gradYTmp += gradStride;
       srcTmp += srcStride;
+    }
+    
+    {
+      gradXTmp = gradX + gradStride;
+      gradYTmp = gradY + gradStride;
+      srcTmp   = src   + srcStride;
+      
+      Pel * src0 = gradXTmp;
+      Pel * src1 = gradXTmp + (height - 2 * BIO_EXTEND_SIZE - 1) * gradStride;
+      Pel * src2 = gradYTmp;
+      Pel * src3 = gradYTmp + (height - 2 * BIO_EXTEND_SIZE - 1) * gradStride;
+      Pel * src4 = srcTmp;
+      Pel * src5 = srcTmp + (height - 2 * BIO_EXTEND_SIZE - 1) * srcStride;
+      
+      Pel * dst0 = gradXTmp - gradStride;
+      Pel * dst1 = gradXTmp + (height - 2 * BIO_EXTEND_SIZE) * gradStride;
+      Pel * dst2 = gradYTmp - gradStride;
+      Pel * dst3 = gradYTmp + (height - 2 * BIO_EXTEND_SIZE) * gradStride;
+      Pel * dst4 = srcTmp - srcStride;
+      Pel * dst5 = srcTmp + (height - 2 * BIO_EXTEND_SIZE) * srcStride;
+      
+      int x;
+      
+      for (x = 0; x < widthInside; x+=8)
+      {
+        __m128i s0 = _mm_loadu_si128(( __m128i* )(src0 + x));
+        __m128i s1 = _mm_loadu_si128(( __m128i* )(src1 + x));
+        __m128i s2 = _mm_loadu_si128(( __m128i* )(src2 + x));
+        __m128i s3 = _mm_loadu_si128(( __m128i* )(src3 + x));
+        __m128i s4 = _mm_loadu_si128(( __m128i* )(src4 + x));
+        __m128i s5 = _mm_loadu_si128(( __m128i* )(src5 + x));
+        _mm_storeu_si128(( __m128i* )(dst0 + x), s0);
+        _mm_storeu_si128(( __m128i* )(dst1 + x), s1);
+        _mm_storeu_si128(( __m128i* )(dst2 + x), s2);
+        _mm_storeu_si128(( __m128i* )(dst3 + x), s3);
+        _mm_storeu_si128(( __m128i* )(dst4 + x), s4);
+        _mm_storeu_si128(( __m128i* )(dst5 + x), s5);
+      }
+      
+      ((int32_t * )(dst0 + x))[0] = ((int32_t * )(src0 + x))[0];
+      ((int32_t * )(dst1 + x))[0] = ((int32_t * )(src1 + x))[0];
+      ((int32_t * )(dst2 + x))[0] = ((int32_t * )(src2 + x))[0];
+      ((int32_t * )(dst3 + x))[0] = ((int32_t * )(src3 + x))[0];
+      ((int32_t * )(dst4 + x))[0] = ((int32_t * )(src4 + x))[0];
+      ((int32_t * )(dst5 + x))[0] = ((int32_t * )(src5 + x))[0];
     }
   }
   else
@@ -745,30 +836,35 @@ void gradFilter_SSE( int16_t* src, ptrdiff_t _srcStride, int width, int height, 
       {
         gradXTmp[widthInside] = gradXTmp[widthInside - 1];
         gradYTmp[widthInside] = gradYTmp[widthInside - 1];
+        srcTmp  [widthInside] = srcTmp  [widthInside - 1];
         gradXTmp[-1]          = gradXTmp[0];
         gradYTmp[-1]          = gradYTmp[0];
+        srcTmp  [-1]          = srcTmp  [0];
       }
 
       gradXTmp += gradStride;
       gradYTmp += gradStride;
       srcTmp   += srcStride;
+      
+      if( PAD )
+      {
+        gradXTmp = gradX + gradStride;
+        gradYTmp = gradY + gradStride;
+        srcTmp   = src   + srcStride;
+        
+        ::memcpy( gradXTmp + heightInside * gradStride, gradXTmp + ( heightInside - 1 ) * gradStride, sizeof( int16_t ) * ( width ) );
+        ::memcpy( gradYTmp + heightInside * gradStride, gradYTmp + ( heightInside - 1 ) * gradStride, sizeof( int16_t ) * ( width ) );
+        ::memcpy( srcTmp   + heightInside * srcStride , srcTmp   + ( heightInside - 1 ) * srcStride , sizeof( int16_t ) * ( width ) );
+        ::memcpy( gradXTmp - gradStride, gradXTmp, sizeof( int16_t ) * ( width ) );
+        ::memcpy( gradYTmp - gradStride, gradYTmp, sizeof( int16_t ) * ( width ) );
+        ::memcpy( srcTmp   - srcStride , srcTmp  , sizeof( int16_t ) * ( width ) );
+      }
     }
   }
 #if USE_AVX2
 
   _mm256_zeroupper();
 #endif
-
-  if( PAD )
-  {
-    gradXTmp = gradX + gradStride;
-    gradYTmp = gradY + gradStride;
-
-    ::memcpy( gradXTmp + heightInside * gradStride, gradXTmp + ( heightInside - 1 ) * gradStride, sizeof( int16_t ) * ( width ) );
-    ::memcpy( gradYTmp + heightInside * gradStride, gradYTmp + ( heightInside - 1 ) * gradStride, sizeof( int16_t ) * ( width ) );
-    ::memcpy( gradXTmp - gradStride, gradXTmp, sizeof( int16_t ) * ( width ) );
-    ::memcpy( gradYTmp - gradStride, gradYTmp, sizeof( int16_t ) * ( width ) );
-  }
 }
 
 template<X86_VEXT vext>

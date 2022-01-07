@@ -101,6 +101,11 @@ void DecCu::TaskDeriveCtuMotionInfo( CodingStructure &cs, const UnitArea &ctuAre
     {
       xDeriveCUMV( currCU, hist );
     }
+    else
+    {
+      MotionBuf mb = currCU.getMotionBuf();
+      mb.memset(0);
+    }
   }
 }
 
