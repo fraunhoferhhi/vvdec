@@ -80,34 +80,38 @@ public:
     uint16_t half = 1 << (PROB_BITS - 1);
     m_state[0]    = half;
     m_state[1]    = half;
-    m_rate        = DWS;
+    m_rate0 = 0;
+    m_rate1 = DWS;
+    m_delta0[0] = ((0xFFFFU) >> (16 - m_rate0));
+    m_delta0[1] = ((0xFFFFU) >> (16 - PROB_BITS));
+    m_delta1[0] = ((0xFFFFU) >> (16 - m_rate1));
+    m_delta1[1] = ((0xFFFFU) >> (16 - PROB_BITS));
   }
   ~BinProbModel() {}
 public:
   void            init              ( int qp, int initId );
   void update(unsigned bin)
   {
-    int rate0 = m_rate >> 4;
-    int rate1 = m_rate & 15;
-
-    m_state[0] -= (m_state[0] >> rate0) & MASK_0;
-    m_state[1] -= (m_state[1] >> rate1) & MASK_1;
-
-    m_state[0] += ( ( -static_cast< int >( bin ) & 0x7fffu ) >> rate0 ) & MASK_0;
-    m_state[1] += ( ( -static_cast< int >( bin ) & 0x7fffu ) >> rate1 ) & MASK_1;
-    
-    //if (bin)
-    //{
-    //  m_state[0] += (0x7fffu >> rate0) & MASK_0;
-    //  m_state[1] += (0x7fffu >> rate1) & MASK_1;
-    //}
+//    m_state[0] -= (m_state[0] >> m_rate0) & MASK_0;
+//    m_state[1] -= (m_state[1] >> m_rate1) & MASK_1;
+//    m_state[0] += ( ( bin ? 0x7fffu : 0x0u ) >> m_rate0 ) & MASK_0;
+//    m_state[1] += ( ( bin ? 0x7fffu : 0x0u ) >> m_rate1 ) & MASK_1;
+    int delta0 = m_delta0[bin] - m_state[0];
+    int delta1 = m_delta1[bin] - m_state[1];
+    delta0 = delta0 >> m_rate0;
+    delta1 = delta1 >> m_rate1;
+    m_state[0] += delta0 << 5;
+    m_state[1] += delta1 << 1;
   }
   void setLog2WindowSize(uint8_t log2WindowSize)
   {
-    int rate0 = 2 + ((log2WindowSize >> 2) & 3);
-    int rate1 = 3 + rate0 + (log2WindowSize & 3);
-    m_rate    = 16 * rate0 + rate1;
-    CHECK(rate1 > 9, "Second window size is too large!");
+    m_rate0 = 2 + ((log2WindowSize >> 2) & 3);
+    m_rate1 = 3 + m_rate0 + (log2WindowSize & 3);
+    CHECK(m_rate1 > 9, "Second window size is too large!");
+    m_rate0 += 5;
+    m_rate1 += 1;
+    m_delta0[0] = ((0xFFFFU) >> (16 - m_rate0));
+    m_delta1[0] = ((0xFFFFU) >> (16 - m_rate1));
   }
 public:
   uint8_t state() const { return (m_state[0] + m_state[1]) >> 8; }
@@ -121,13 +125,11 @@ public:
   }
   void lpsmps( unsigned range, unsigned& lps, unsigned& bin ) const
   {
-    const uint8_t q = state();
+    const uint16_t q = (m_state[0] + m_state[1]) >> 8;
     bin = q >> 7;
     
-    lps = ( ( ( ( ( ( q ^ 0xff ) &    -static_cast< int >( bin ) ) |
-                  (   q          & ~( -static_cast< int >( bin ) ) ) ) >> 2 
-              ) * ( range >> 5 ) ) >> 1 ) + 4;
-
+    lps = ((((q ^ (-static_cast<int>(bin) & 0xff)) >> 2) * (range >> 5)) >> 1) + 4;
+    
     //if( q & 0x80 )
     //{
     //  CHECK( lps != ( ( ( ( q ^ 0xff ) >> 2 ) * ( range >> 5 ) >> 1 ) + 4 ), "" );
@@ -143,7 +145,10 @@ public:
   static uint8_t  getRenormBitsRange( unsigned range )                  { return    1; }
 private:
   uint16_t m_state[2];
-  uint8_t  m_rate;
+  uint16_t m_rate0;
+  uint16_t m_rate1;
+  uint16_t m_delta0[2];
+  uint16_t m_delta1[2];
 };
 
 

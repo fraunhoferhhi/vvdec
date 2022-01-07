@@ -69,7 +69,13 @@ public:
 public:
 
   void        initCtxModels             ( Slice&                        slice );
-  void        initBitstream             ( InputBitstream*               bitstream )           { m_Bitstream = bitstream; m_BinDecoder.init( m_Bitstream ); }
+  void        initBitstream             ( InputBitstream*               bitstream )
+  {
+    m_Bitstream = bitstream;
+    // Add a byte to prevent readByteFlag from crossing the boundary
+    m_Bitstream->inputZeroByte();
+    m_BinDecoder.init( m_Bitstream );
+  }
   const Ctx&  getCtx                    ()                                            const   { return m_BinDecoder.getCtx();  }
   void        setCtx                    ( const Ctx& ctx )                                    { m_BinDecoder.setCtx( ctx );    }
 

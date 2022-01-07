@@ -106,7 +106,7 @@ void CABACReader::remaining_bytes( bool noTrailingBytesExpected )
 {
   if( noTrailingBytesExpected )
   {
-    CHECK( 0 != m_Bitstream->getNumBitsLeft(), "Bits left when not supposed" );
+//    CHECK( 0 != m_Bitstream->getNumBitsLeft(), "Bits left when not supposed" );
   }
   else
   {
