@@ -68,6 +68,7 @@ class EncCfg;
 
 // for function pointer
 typedef Distortion (*FpDistFunc) (const DistParam&);
+typedef void (*FpDistFuncX5)(const DistParam&, Distortion*, bool);
 
 // ====================================================================================================================
 // Class definition
@@ -80,6 +81,7 @@ public:
   CPelBuf               org;
   CPelBuf               cur;
   FpDistFunc            distFunc;
+  FpDistFuncX5          distFuncX5;
   int                   bitDepth;
 
   // (vertical) subsampling shift (for reducing complexity)
@@ -97,6 +99,7 @@ private:
   // for distortion
 
   static FpDistFunc m_afpDistortFunc[DF_TOTAL_FUNCTIONS]; // [eDFunc]
+  static FpDistFuncX5 m_afpDistortFuncX5[DF_TOTAL_FUNCTIONS]; // [eDFunc]
 
 public:
 
@@ -115,10 +118,16 @@ private:
 
   static Distortion xGetSAD8          ( const DistParam& pcDtParam );
   static Distortion xGetSAD16         ( const DistParam& pcDtParam );
+  static void       xGetSAD8X5        ( const DistParam& pcDtParam, Distortion* cost, bool isCalCentrePos );
+  static void       xGetSAD16X5       ( const DistParam& pcDtParam, Distortion* cost, bool isCalCentrePos );
 
 #ifdef TARGET_SIMD_X86
   template< X86_VEXT vext, bool isWdt16 >
   static Distortion xGetSAD_MxN_SIMD ( const DistParam& pcDtParam );
+  template <X86_VEXT vext>
+  static void xGetSADX5_8xN_SIMD(const DistParam& rcDtParam, Distortion* cost, bool isCalCentrePos);
+  template <X86_VEXT vext>
+  static void xGetSADX5_16xN_SIMD(const DistParam& rcDtParam, Distortion* cost, bool isCalCentrePos);
 #endif
 };// END CLASS DEFINITION RdCost
 

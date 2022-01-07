@@ -56,11 +56,15 @@ namespace vvdec
 {
 
 FpDistFunc RdCost::m_afpDistortFunc[DF_TOTAL_FUNCTIONS] = { nullptr, };
+FpDistFuncX5 RdCost::m_afpDistortFuncX5[DF_TOTAL_FUNCTIONS] = { nullptr, };
 
 RdCost::RdCost()
 {
   m_afpDistortFunc[DF_SAD8   ] = RdCost::xGetSAD8;
   m_afpDistortFunc[DF_SAD16  ] = RdCost::xGetSAD16;
+  
+  m_afpDistortFuncX5[DF_SAD8   ] = RdCost::xGetSAD8X5;
+  m_afpDistortFuncX5[DF_SAD16  ] = RdCost::xGetSAD16X5;
 
 #if ENABLE_SIMD_OPT_DIST
 #ifdef TARGET_SIMD_X86
@@ -90,6 +94,7 @@ void RdCost::setDistParam( DistParam &rcDP, const Pel* pOrg, const Pel* piRefY, 
   rcDP.subShift   = subShiftMode;
 
   rcDP.distFunc   = m_afpDistortFunc[getLog2( width ) - 3];
+  rcDP.distFuncX5 = m_afpDistortFuncX5[getLog2( width ) - 3];
 }
 
 // ====================================================================================================================
@@ -168,6 +173,50 @@ Distortion RdCost::xGetSAD16( const DistParam& rcDtParam )
 
   uiSum <<= iSubShift;
   return (uiSum >> DISTORTION_PRECISION_ADJUSTMENT(rcDtParam.bitDepth));
+}
+
+void RdCost::xGetSAD8X5(const DistParam& rcDtParam, Distortion* cost, bool isCalCentrePos) {
+  DistParam rcDtParamTmp0 = rcDtParam;
+  DistParam rcDtParamTmp1 = rcDtParam;
+  rcDtParamTmp1.org.buf += 1;
+  rcDtParamTmp1.cur.buf -= 1;
+  DistParam rcDtParamTmp2 = rcDtParam;
+  rcDtParamTmp2.org.buf += 2;
+  rcDtParamTmp2.cur.buf -= 2;
+  DistParam rcDtParamTmp3 = rcDtParam;
+  rcDtParamTmp3.org.buf += 3;
+  rcDtParamTmp3.cur.buf -= 3;
+  DistParam rcDtParamTmp4 = rcDtParam;
+  rcDtParamTmp4.org.buf += 4;
+  rcDtParamTmp4.cur.buf -= 4;
+  
+  cost[0] = (RdCost::xGetSAD8(rcDtParamTmp0)) >> 1;
+  cost[1] = (RdCost::xGetSAD8(rcDtParamTmp1)) >> 1;
+  if (isCalCentrePos) cost[2] = (RdCost::xGetSAD8(rcDtParamTmp2)) >> 1;
+  cost[3] = (RdCost::xGetSAD8(rcDtParamTmp3)) >> 1;
+  cost[4] = (RdCost::xGetSAD8(rcDtParamTmp4)) >> 1;
+}
+
+void RdCost::xGetSAD16X5(const DistParam& rcDtParam, Distortion* cost, bool isCalCentrePos) {
+  DistParam rcDtParamTmp0 = rcDtParam;
+  DistParam rcDtParamTmp1 = rcDtParam;
+  rcDtParamTmp1.org.buf += 1;
+  rcDtParamTmp1.cur.buf -= 1;
+  DistParam rcDtParamTmp2 = rcDtParam;
+  rcDtParamTmp2.org.buf += 2;
+  rcDtParamTmp2.cur.buf -= 2;
+  DistParam rcDtParamTmp3 = rcDtParam;
+  rcDtParamTmp3.org.buf += 3;
+  rcDtParamTmp3.cur.buf -= 3;
+  DistParam rcDtParamTmp4 = rcDtParam;
+  rcDtParamTmp4.org.buf += 4;
+  rcDtParamTmp4.cur.buf -= 4;
+  
+  cost[0] = (RdCost::xGetSAD16(rcDtParamTmp0)) >> 1;
+  cost[1] = (RdCost::xGetSAD16(rcDtParamTmp1)) >> 1;
+  if (isCalCentrePos) cost[2] = (RdCost::xGetSAD16(rcDtParamTmp2)) >> 1;
+  cost[3] = (RdCost::xGetSAD16(rcDtParamTmp3)) >> 1;
+  cost[4] = (RdCost::xGetSAD16(rcDtParamTmp4)) >> 1;
 }
 
 }

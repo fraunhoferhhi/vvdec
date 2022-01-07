@@ -1674,35 +1674,21 @@ void InterPrediction::xBIPMVRefine( DistParam &cDistParam, const Pel *pRefL0, co
   const Pel *pRefL0Orig = pRefL0;
   const Pel *pRefL1Orig = pRefL1;
 
-  for( int ver = -2; ver <= 2; ver++ )
-  {
-    const ptrdiff_t verStride = ver * refStride;
+  for (int ver = -2; ver <= 2; ver++) {
+    const int initHor = -2;
+    const ptrdiff_t offset = initHor + ver * refStride;
+    pRefL0 = pRefL0Orig + offset;
+    pRefL1 = pRefL1Orig - offset;
+    cDistParam.org.buf = pRefL0;
+    cDistParam.cur.buf = pRefL1;
 
-    for( int hor = -2; hor <= 2; hor++, pSADsArray++ )
-    {
-      uint64_t cost;
+    cDistParam.distFuncX5(cDistParam, pSADsArray, ver != 0);
 
-      if( !!( hor | ver ) )
-      {
-        const ptrdiff_t offset = hor + verStride;
+    for (int hor = -2; hor <= 2; hor++, pSADsArray++) {
+      uint64_t cost = *pSADsArray;
 
-        pRefL0              = pRefL0Orig + offset;
-        pRefL1              = pRefL1Orig - offset;
-
-        cDistParam.org.buf  = pRefL0;
-        cDistParam.cur.buf  = pRefL1;
-
-        cost                = cDistParam.distFunc( cDistParam ) >> 1;
-        *pSADsArray          = cost;
-      }
-      else
-      {
-        cost = *pSADsArray;
-      }
-
-      if( cost < minCost )
-      {
-        minCost    = cost;
+      if (cost < minCost) {
+        minCost = cost;
         deltaMV[0] = hor;
         deltaMV[1] = ver;
       }
