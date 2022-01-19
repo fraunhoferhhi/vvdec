@@ -98,21 +98,25 @@ void BinDecoder::reset( int qp, int initId )
 
 unsigned BinDecoder::decodeBinEP()
 {
-  m_Value            += m_Value;
-  if( ++m_bitsNeeded >= 0 )
-  {
-    m_Value          += m_Bitstream->readByte();
-    m_bitsNeeded      = -8;
+  int value = m_Value << 1;
+  if (++m_bitsNeeded >= 0) {
+    value += m_Bitstream->readByte();
+    m_bitsNeeded = -8;
   }
 
   unsigned bin = 0;
-  unsigned SR  = m_Range << 7;
-  if( m_Value >= SR )
-  {
-    m_Value   -= SR;
-    bin        = 1;
+  unsigned SR = m_Range << 7;
+  if (value >= SR) {
+    value -= SR;
+    bin = 1;
   }
-  DTRACE( g_trace_ctx, D_CABAC, "%d" "  " "%d" "  EP=%d \n",  DTRACE_GET_COUNTER( g_trace_ctx, D_CABAC ), m_Range, bin );
+  m_Value = value;
+  DTRACE(g_trace_ctx, D_CABAC,
+         "%d"
+         "  "
+         "%d"
+         "  EP=%d \n",
+         DTRACE_GET_COUNTER(g_trace_ctx, D_CABAC), m_Range, bin);
   return bin;
 }
 
@@ -129,40 +133,46 @@ unsigned BinDecoder::decodeBinsEP( unsigned numBins )
   }
   unsigned remBins = numBins;
   unsigned bins    = 0;
+  int value = m_Value;
+  int range = m_Range;
+  int bitsNeeded = m_bitsNeeded;
   while(   remBins > 8 )
   {
-    m_Value     = ( m_Value << 8 ) + ( m_Bitstream->readByte() << ( 8 + m_bitsNeeded ) );
-    unsigned SR =   m_Range << 15;
+    value       = ( value << 8 ) + ( m_Bitstream->readByte() << ( 8 + bitsNeeded ) );
+    unsigned SR =   range << 15;
     for( int i = 0; i < 8; i++ )
     {
       bins += bins;
       SR  >>= 1;
-      if( m_Value >= SR )
+      if( value >= SR )
       {
         bins    ++;
-        m_Value -= SR;
+        value -= SR;
       }
     }
     remBins -= 8;
   }
-  m_bitsNeeded   += remBins;
-  m_Value       <<= remBins;
-  if( m_bitsNeeded >= 0 )
+  bitsNeeded   += remBins;
+  value       <<= remBins;
+  if( bitsNeeded >= 0 )
   {
-    m_Value      += m_Bitstream->readByte() << m_bitsNeeded;
-    m_bitsNeeded -= 8;
+    value      += m_Bitstream->readByte() << bitsNeeded;
+    bitsNeeded -= 8;
   }
-  unsigned SR = m_Range << ( remBins + 7 );
+  unsigned SR = range << ( remBins + 7 );
   for ( int i = 0; i < remBins; i++ )
   {
     bins += bins;
     SR  >>= 1;
-    if( m_Value >= SR )
+    if( value >= SR )
     {
       bins    ++;
-      m_Value -= SR;
+      value -= SR;
     }
   }
+  m_Value = value;
+  m_Range = range;
+  m_bitsNeeded = bitsNeeded;
 #if ENABLE_TRACING
   for( int i = 0; i < numBinsOrig; i++ )
   {
@@ -309,19 +319,17 @@ unsigned BinDecoder::decodeBin( unsigned ctxId )
   // b    0 0 1 1
   // bin  0 1 0 1
   // res  0 1 1 0
-  
+
   //bin          = ( ~b & bin ) | ( b & !bin );
   bin         ^= b;
   bin         &= 1;
   
   bitsNeeded  += numBits & ( a | b );
   
-  if( bitsNeeded >= 0 )
-  {
-    Value      += m_Bitstream->readByte() << bitsNeeded; 
-    bitsNeeded -= 8;
-  }
-
+  const int c = ~(bitsNeeded >> 31);
+  Value += m_Bitstream->readByteFlag(c) << bitsNeeded;
+  bitsNeeded -= c & 8;
+  
   //if( Value < SR )
   //{
   //  // MPS path
@@ -333,7 +341,7 @@ unsigned BinDecoder::decodeBin( unsigned ctxId )
   //    bitsNeeded   += numBits;
   //    if( bitsNeeded >= 0 )
   //    {
-  //      Value      += m_Bitstream->readByte() << bitsNeeded; 
+  //      Value      += m_Bitstream->readByte() << bitsNeeded;
   //      bitsNeeded -= 8;
   //    }
   //  }
@@ -359,7 +367,6 @@ unsigned BinDecoder::decodeBin( unsigned ctxId )
   m_bitsNeeded = bitsNeeded;
 
   rcProbModel.update( bin );
-  //DTRACE_DECR_COUNTER( g_trace_ctx, D_CABAC );
   DTRACE_WITHOUT_COUNT( g_trace_ctx, D_CABAC, "  -  " "%d" "\n", bin );
   return  bin;
 }

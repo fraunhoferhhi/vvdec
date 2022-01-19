@@ -729,14 +729,17 @@ bool DecLibRecon::ctuTask( int tid, CtuTaskParam* param )
       {
         CtuData &ctuData = cs.getCtuData( ctu, line );
         ctuData.motion = decLib.m_ctuDataBufs[ctu + line * cs.pcv->widthInCtus].motion;
-        GCC_WARNING_DISABLE_class_memaccess
-        memset( ctuData.motion, 0, sizeof( CtuDataBuffers::motion ) );
-        GCC_WARNING_RESET
 
         if( !ctuData.slice->isIntra() || cs.sps->getIBCFlag() )
         {
           const UnitArea ctuArea = getCtuArea( cs, ctu, line, true );
           decLib.m_cCuDecoder[tid].TaskDeriveCtuMotionInfo( cs, ctuArea, param->common.perLineMiHist[line] );
+        }
+        else
+        {
+          GCC_WARNING_DISABLE_class_memaccess
+          memset( ctuData.motion, 0, sizeof( CtuDataBuffers::motion ) );
+          GCC_WARNING_RESET
         }
       }
       thisCtuState = ( TaskType )( MIDER + 1 );

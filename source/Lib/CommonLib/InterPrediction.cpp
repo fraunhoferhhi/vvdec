@@ -240,6 +240,7 @@ void gradFilterCore(Pel* pSrc, ptrdiff_t srcStride, int width, int height, ptrdi
   {
     gradXTmp = gradX + gradStride + 1;
     gradYTmp = gradY + gradStride + 1;
+    srcTmp   = pSrc  + srcStride  + 1;
 
     for (int y = 0; y < heightInside; y++)
     {
@@ -250,15 +251,22 @@ void gradFilterCore(Pel* pSrc, ptrdiff_t srcStride, int width, int height, ptrdi
       gradYTmp[-1] = gradYTmp[0];
       gradYTmp[width - 2 * BIO_EXTEND_SIZE] = gradYTmp[width - 2 * BIO_EXTEND_SIZE - 1];
       gradYTmp += gradStride;
+      
+      srcTmp[-1] = srcTmp[0];
+      srcTmp[width - 2 * BIO_EXTEND_SIZE] = srcTmp[width - 2 * BIO_EXTEND_SIZE - 1];
+      srcTmp += srcStride;
     }
 
     gradXTmp = gradX + gradStride;
     gradYTmp = gradY + gradStride;
+    srcTmp   = pSrc  + srcStride;
 
     ::memcpy(gradXTmp - gradStride, gradXTmp, sizeof(Pel)*(width));
     ::memcpy(gradXTmp + (height - 2 * BIO_EXTEND_SIZE)*gradStride, gradXTmp + (height - 2 * BIO_EXTEND_SIZE - 1)*gradStride, sizeof(Pel)*(width));
     ::memcpy(gradYTmp - gradStride, gradYTmp, sizeof(Pel)*(width));
     ::memcpy(gradYTmp + (height - 2 * BIO_EXTEND_SIZE)*gradStride, gradYTmp + (height - 2 * BIO_EXTEND_SIZE - 1)*gradStride, sizeof(Pel)*(width));
+    ::memcpy(srcTmp   - srcStride , srcTmp, sizeof(Pel)*(width));
+    ::memcpy(srcTmp   + (height - 2 * BIO_EXTEND_SIZE)*srcStride , srcTmp   + (height - 2 * BIO_EXTEND_SIZE - 1)*srcStride , sizeof(Pel)*(width));
   }
 }
 
@@ -1302,18 +1310,6 @@ void InterPrediction::applyBiOptFlow( const PredictionUnit &pu,
     Pel *gradY      = ( refList == 0 ) ? m_gradY0 : m_gradY1;
     Pel *gradX      = ( refList == 0 ) ? m_gradX0 : m_gradX1;
     BioGradFilter( dstTempPtr, stridePredMC, widthG, heightG, width + BIO_ALIGN_SIZE, gradX, gradY, bitDepth );
-    Pel *padStr = m_bdofBlock[refList] + 2 * stridePredMC + 1;
-    for( int y = 0; y < height; y++ )
-    {
-      padStr[-1]    = padStr[0];
-      padStr[width] = padStr[width - 1];
-      padStr += stridePredMC;
-    }
-
-    padStr = m_bdofBlock[refList] + 2 * stridePredMC;
-
-    ::memcpy( padStr - stridePredMC, padStr, sizeof( Pel ) * ( widthG ) );
-    ::memcpy( padStr + height * stridePredMC, padStr + ( height - 1 ) * stridePredMC, sizeof( Pel ) * ( widthG ) );
   }
 
   const ClpRng &clpRng   = pu.slice->clpRng( COMPONENT_Y );
@@ -1674,35 +1670,21 @@ void InterPrediction::xBIPMVRefine( DistParam &cDistParam, const Pel *pRefL0, co
   const Pel *pRefL0Orig = pRefL0;
   const Pel *pRefL1Orig = pRefL1;
 
-  for( int ver = -2; ver <= 2; ver++ )
-  {
-    const ptrdiff_t verStride = ver * refStride;
+  for (int ver = -2; ver <= 2; ver++) {
+    const int initHor = -2;
+    const ptrdiff_t offset = initHor + ver * refStride;
+    pRefL0 = pRefL0Orig + offset;
+    pRefL1 = pRefL1Orig - offset;
+    cDistParam.org.buf = pRefL0;
+    cDistParam.cur.buf = pRefL1;
 
-    for( int hor = -2; hor <= 2; hor++, pSADsArray++ )
-    {
-      uint64_t cost;
+    cDistParam.distFuncX5(cDistParam, pSADsArray, ver != 0);
 
-      if( !!( hor | ver ) )
-      {
-        const ptrdiff_t offset = hor + verStride;
+    for (int hor = -2; hor <= 2; hor++, pSADsArray++) {
+      uint64_t cost = *pSADsArray;
 
-        pRefL0              = pRefL0Orig + offset;
-        pRefL1              = pRefL1Orig - offset;
-
-        cDistParam.org.buf  = pRefL0;
-        cDistParam.cur.buf  = pRefL1;
-
-        cost                = cDistParam.distFunc( cDistParam ) >> 1;
-        *pSADsArray          = cost;
-      }
-      else
-      {
-        cost = *pSADsArray;
-      }
-
-      if( cost < minCost )
-      {
-        minCost    = cost;
+      if (cost < minCost) {
+        minCost = cost;
         deltaMV[0] = hor;
         deltaMV[1] = ver;
       }

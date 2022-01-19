@@ -174,6 +174,8 @@ public:
   InputBitstream( InputBitstream&& src )      = default;
 
   void resetToStart();
+  
+  void inputZeroByte() { m_fifo.push_back(0); };
 
   // interface for decoding
   void pseudoRead( uint32_t uiNumberOfBits, uint32_t& ruiBits );
@@ -183,6 +185,17 @@ public:
     ruiBits = m_fifo[m_fifo_idx++];
 #if ENABLE_TRACING
     m_numBitsRead += 8;
+#endif
+  }
+  
+  // In the function initBitstream, add a Byte at the end of m_fifo
+  // In the past, readByteFlag judged whether to read data according to the flag, so it would not cross the boundary
+  // Now, in order to speed up, readByteFlag will definitely read data, so it may cross the boundary
+  void readByteFlag(uint32_t& ruiBits, int flag) {
+    ruiBits = flag & m_fifo[m_fifo_idx];
+    m_fifo_idx += flag & 1;
+#if ENABLE_TRACING
+    m_numBitsRead += flag & 8;
 #endif
   }
 
@@ -213,6 +226,13 @@ public:
   {
     uint32_t tmp;
     readByte( tmp );
+    return tmp;
+  }
+  
+  uint32_t readByteFlag(int flag)
+  {
+    uint32_t tmp;
+    readByteFlag(tmp, flag);
     return tmp;
   }
   uint32_t        getNumBitsUntilByteAligned()            { return m_num_held_bits & ( 0x7 ); }
