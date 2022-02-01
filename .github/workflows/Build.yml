@@ -15,9 +15,15 @@ jobs:
       matrix:
         config:
           - {
-              name: "Windows MSVC",
+              name: "Windows MSVC 64 Bit",
               os: windows-2019,
               environment_script: "C:/Program Files (x86)/Microsoft Visual Studio/2019/Enterprise/VC/Auxiliary/Build/vcvars64.bat",
+              generators: "Visual Studio 16 2019"
+            }
+          - {
+              name: "Windows MSVC 32 Bit",
+              os: windows-2019,
+              environment_script: "C:/Program Files (x86)/Microsoft Visual Studio/2019/Enterprise/VC/Auxiliary/Build/vcvars32.bat",
               generators: "Visual Studio 16 2019"
             }
           - {
@@ -48,7 +54,9 @@ jobs:
     steps:
     - uses: actions/checkout@v2
     - run: git fetch --prune --unshallow
-    - run: |
+    - env:
+        osx_arch: ${{ matrix.config.osx_arch }}
+      run: |
         mkdir build
         cd build
         cmake .. -DCMAKE_BUILD_TYPE=Release "-DCMAKE_OSX_ARCHITECTURES=${{ matrix.config.osx_arch }}"
