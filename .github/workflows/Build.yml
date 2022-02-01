@@ -36,8 +36,14 @@ jobs:
               os: ubuntu-20.04
             }
           - {
-              name: "Mac OS 10.15",
-              os: macos-10.15
+              name: "Mac OS Latest x86_64",
+              os: macos-latest,
+              osx_arch: x86_64
+            }
+          - {
+              name: "Mac OS Latest arm64",
+              os: macos-latest,
+              osx_arch: arm64
             }
     steps:
     - uses: actions/checkout@v2
@@ -45,7 +51,7 @@ jobs:
     - run: |
         mkdir build
         cd build
-        cmake .. -DCMAKE_BUILD_TYPE=Release
+        cmake .. -DCMAKE_BUILD_TYPE=Release "-DCMAKE_OSX_ARCHITECTURES=${{ matrix.config.osx_arch }}"
         cmake --build .
       if: matrix.config.os != 'windows-2019'
     - run: |
