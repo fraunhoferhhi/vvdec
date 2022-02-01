@@ -14,7 +14,7 @@ Einsteinufer 37
 www.hhi.fraunhofer.de/vvc
 vvc@hhi.fraunhofer.de
 
-Copyright (c) 2018-2021, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. 
+Copyright (c) 2018-2022, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. 
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -151,12 +151,11 @@ void DecLib::create(int numDecThreads, int parserFrameDelay)
   cssCap << "THREADS="     << numDecThreads << "; "
          << "PARSE_DELAY=" << parserFrameDelay << "; ";
 #if ENABLE_SIMD_OPT
-#if defined( TARGET_SIMD_X86 )
-  std::string cSIMD;
-  cssCap << "SIMD=" << read_x86_extension( cSIMD );
-#else
+#  if defined( TARGET_SIMD_X86 )
+  cssCap << "SIMD=" << read_x86_extension();
+#  else
   cssCap << "SIMD=SCALAR";
-#endif
+#  endif
 #else
   cssCap << "SIMD=NONE";
 #endif

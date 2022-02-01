@@ -14,7 +14,7 @@ Einsteinufer 37
 www.hhi.fraunhofer.de/vvc
 vvc@hhi.fraunhofer.de
 
-Copyright (c) 2018-2021, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. 
+Copyright (c) 2018-2022, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. 
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -107,6 +107,7 @@ const char* nalUnitTypeToString(NalUnitType type)
   case NAL_UNIT_CODED_SLICE_IDR_N_LP:   return "IDR_N_LP";
   case NAL_UNIT_CODED_SLICE_CRA:        return "CRA";
   case NAL_UNIT_CODED_SLICE_GDR:        return "GDR";
+  case NAL_UNIT_OPI:                    return "OPI";
   case NAL_UNIT_DCI:                    return "DCI";
   case NAL_UNIT_VPS:                    return "VPS";
   case NAL_UNIT_SPS:                    return "SPS";
@@ -124,7 +125,6 @@ const char* nalUnitTypeToString(NalUnitType type)
   case NAL_UNIT_RESERVED_VCL_5:
   case NAL_UNIT_RESERVED_VCL_6:
   case NAL_UNIT_RESERVED_IRAP_VCL_11:
-  case NAL_UNIT_RESERVED_IRAP_VCL_12:
   case NAL_UNIT_RESERVED_NVCL_26:
   case NAL_UNIT_RESERVED_NVCL_27:
   case NAL_UNIT_UNSPECIFIED_28:

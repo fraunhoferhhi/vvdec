@@ -14,7 +14,7 @@ Einsteinufer 37
 www.hhi.fraunhofer.de/vvc
 vvc@hhi.fraunhofer.de
 
-Copyright (c) 2018-2021, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. 
+Copyright (c) 2018-2022, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. 
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -155,9 +155,9 @@ VVDEC_DECL vvdecDecoder* vvdec_decoder_open( vvdecParams *params)
     return nullptr;
   }
 
-  if( (int)params->simd > (int)VVDEC_SIMD_AVX512 || (int)params->simd < (int)VVDEC_SIMD_DEFAULT)
+  if( (int)params->simd > (int)VVDEC_SIMD_AVX2 || (int)params->simd < (int)VVDEC_SIMD_DEFAULT)
   {
-    vvdec::msg( vvdec::ERROR, "unsupported simd mode. simd must be 0 <= simd <= 6\n" );
+    vvdec::msg( vvdec::ERROR, "unsupported simd mode. simd must be 0 <= simd <= 5\n" );
     return nullptr;
   }
 
@@ -177,10 +177,12 @@ VVDEC_DECL vvdecDecoder* vvdec_decoder_open( vvdecParams *params)
   int ret = decCtx->init(*params);
   if (ret != 0)
   {
+    const std::string initErr( std::move( decCtx->m_cAdditionalErrorString.c_str() ) );
+
     // Error initializing the decoder
     delete decCtx;
 
-    vvdec::msg( vvdec::ERROR, "cannot init the VVdeC decoder\n" );
+    vvdec::msg( vvdec::ERROR, "cannot init the VVdeC decoder:\n%s\n", initErr.c_str() );
     return nullptr;
   }
 

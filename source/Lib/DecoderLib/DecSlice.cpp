@@ -14,7 +14,7 @@ Einsteinufer 37
 www.hhi.fraunhofer.de/vvc
 vvc@hhi.fraunhofer.de
 
-Copyright (c) 2018-2021, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. 
+Copyright (c) 2018-2022, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. 
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -111,9 +111,8 @@ void DecSlice::parseSlice( Slice* slice, InputBitstream* bitstream, int threadId
   }
 
   // Quantization parameter
-  pic->m_prevQP[0] = pic->m_prevQP[1] = slice->getSliceQp();
-
-  CHECK( pic->m_prevQP[0] == std::numeric_limits<int>::max(), "Invalid previous QP" );
+  int prevQP[2] = { slice->getSliceQp(), slice->getSliceQp() };
+  CHECK( prevQP[0] == std::numeric_limits<int>::max(), "Invalid previous QP" );
 
   DTRACE( g_trace_ctx, D_HEADER, "=========== POC: %d ===========\n", slice->getPOC() );
 
@@ -145,7 +144,7 @@ void DecSlice::parseSlice( Slice* slice, InputBitstream* bitstream, int threadId
       {
         cabacReader.initCtxModels( *slice );
       }
-      pic->m_prevQP[0] = pic->m_prevQP[1] = slice->getSliceQp();
+      prevQP[0] = prevQP[1] = slice->getSliceQp();
     }
     else if( ctuXPosInCtus == tileXPosInCtus && wavefrontsEnabled )
     {
@@ -158,7 +157,7 @@ void DecSlice::parseSlice( Slice* slice, InputBitstream* bitstream, int threadId
       {
         cabacReader.setCtx( m_entropyCodingSyncContextState[threadId] );
       }
-      pic->m_prevQP[0] = pic->m_prevQP[1] = slice->getSliceQp();
+      prevQP[0] = prevQP[1] = slice->getSliceQp();
     }
 
     //memset( cs.getCtuData( ctuRsAddr ).cuPtr, 0, sizeof( CtuData::cuPtr ) );
@@ -170,7 +169,7 @@ void DecSlice::parseSlice( Slice* slice, InputBitstream* bitstream, int threadId
 
     cs.m_lastCU   = nullptr;
 
-    cabacReader.coding_tree_unit( cs, slice, ctuArea, pic->m_prevQP, ctuRsAddr );
+    cabacReader.coding_tree_unit( cs, slice, ctuArea, prevQP, ctuRsAddr );
 
     if( ctuXPosInCtus == tileXPosInCtus && wavefrontsEnabled )
     {

@@ -14,7 +14,7 @@ Einsteinufer 37
 www.hhi.fraunhofer.de/vvc
 vvc@hhi.fraunhofer.de
 
-Copyright (c) 2018-2021, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. 
+Copyright (c) 2018-2022, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. 
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -154,7 +154,7 @@ protected:
   void( *applyPROF[2] )         ( Pel* dst, ptrdiff_t dstStride, const Pel* src, const Pel* gradX, const Pel* gradY, const int* dMvX, const int* dMvY, int shiftNum, Pel offset, const ClpRng& clpRng );
   void( *roundIntVector )       ( int* v, int size, unsigned int nShift, const int dmvLimit );
   void( *clipMv )               ( Mv& rcMv, const Position& pos, const struct Size& size, const SPS& sps, const PPS& pps );
-  void( *prefetchPad )          ( const Pel* src, const ptrdiff_t srcStride, Pel* dst, const ptrdiff_t dstStride, int width, int height, int padSize );
+  void( *prefetchPad[3] )       ( const Pel* src, const ptrdiff_t srcStride, Pel* dst, const ptrdiff_t dstStride, int width, int height );
 
   void xPredAffineBlk           ( const ComponentID& compID, const PredictionUnit& pu, const Picture* refPic, const RefPicList refPicList, PelUnitBuf& dstPic, bool bi, const ClpRng& clpRng, const std::pair<int, int> scalingRatio = SCALE_1X );
   static bool xCheckIdenticalMotion

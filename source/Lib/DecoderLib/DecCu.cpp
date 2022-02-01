@@ -14,7 +14,7 @@ Einsteinufer 37
 www.hhi.fraunhofer.de/vvc
 vvc@hhi.fraunhofer.de
 
-Copyright (c) 2018-2021, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. 
+Copyright (c) 2018-2022, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. 
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -220,7 +220,7 @@ void DecCu::TaskFinishMotionInfo( CodingStructure &cs, const int col, const int 
 
   CtuData &ctuData = cs.getCtuData( col, row );
 
-  const int size4x4 = cs.getLFPMapStride();
+  const int size4x4 = cs.get4x4MapStride();
 
   const MotionInfo          *src = ctuData.motion;
         ColocatedMotionInfo *dst = ctuData.colMotion;

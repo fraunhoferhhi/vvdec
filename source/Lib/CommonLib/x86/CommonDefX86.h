@@ -14,7 +14,7 @@ Einsteinufer 37
 www.hhi.fraunhofer.de/vvc
 vvc@hhi.fraunhofer.de
 
-Copyright (c) 2018-2021, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. 
+Copyright (c) 2018-2022, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. 
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -51,23 +51,39 @@ THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "CommonDef.h"
 
-#include <immintrin.h>
-#include "FixMissingIntrin.h"
+#ifdef TARGET_SIMD_X86
+#  if REAL_TARGET_X86 || REAL_TARGET_WASM
+#    ifdef _WIN32
+#      include <intrin.h>
+#    else
+#      include <immintrin.h>
+#    endif
+#  else    // !REAL_TARGET_X86 && !REAL_TARGET_WASM
+#    define SIMDE_ENABLE_NATIVE_ALIASES
+#  endif   // !REAL_TARGET_X86 && !REAL_TARGET_WASM
+
+#  include "FixMissingIntrin.h"
+#endif   // TARGET_SIMD_X86
+
+#ifdef USE_AVX512
+#  define SIMDX86 AVX512
+#  include <simde/x86/avx512.h>
+#elif defined USE_AVX2
+#  define SIMDX86 AVX2
+#  include <simde/x86/avx2.h>
+#elif defined USE_AVX
+#  define SIMDX86 AVX
+#  include <simde/x86/avx.h>
+#elif defined USE_SSE42
+#  define SIMDX86 SSE42
+#  include <simde/x86/sse4.2.h>
+#elif defined USE_SSE41
+#  define SIMDX86 SSE41
+#  include <simde/x86/sse4.1.h>
+#endif
 
 namespace vvdec
 {
-
-#ifdef USE_AVX512
-#define SIMDX86 AVX512
-#elif defined USE_AVX2
-#define SIMDX86 AVX2
-#elif defined USE_AVX
-#define SIMDX86 AVX
-#elif defined USE_SSE42
-#define SIMDX86 SSE42
-#elif defined USE_SSE41
-#define SIMDX86 SSE41
-#endif
 
 #if defined( _MSC_VER ) && _MSC_VER <= 1900
 #define _mm_bsrli_si128 _mm_srli_si128
@@ -180,29 +196,6 @@ namespace vvdec
   ADDCLIP(&D[6*stride], T[6], min, max);\
   ADDCLIP(&D[7*stride], T[7], min, max);\
 }\
-
-
-static inline __m128i _mm_sel_si128(__m128i a, __m128i b, __m128i mask)
-{
-#ifdef USE_SSE41
-  return _mm_blendv_epi8( a, b, mask);
-#else
-  return _mm_or_si128( _mm_andnot_si128( mask, a ), _mm_and_si128( b, mask ));
-#endif
-}
-
-
-static inline __m128i _mm_clip_epi8(__m128i v, __m128i low, __m128i hi)
-{
-#ifdef USE_SSE41
-  return _mm_min_epi8(_mm_max_epi8(v, low), hi);
-#else
-  __m128i vlowm = _mm_cmplt_epi8(v, low);
-  __m128i vhighm = _mm_cmpgt_epi8(v, hi);
-  return _mm_sel_si128(_mm_sel_si128(v, low, vlowm), hi, vhighm);
-#endif
-}
-
 
 #ifdef USE_AVX2
 

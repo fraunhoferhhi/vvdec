@@ -23,8 +23,6 @@ if( NOT DEFINED VVDEC_ENABLE_X86_SIMD )
 endif()
 
 if( VVDEC_ENABLE_X86_SIMD )
-  include( check_missing_intrinsics )
-
   # get x86 source files
   file( GLOB X86_SRC_FILES "../CommonLib/x86/*.cpp" )
 
@@ -85,13 +83,21 @@ if( VVDEC_ENABLE_X86_SIMD )
     set_property( SOURCE ${AVX_SRC_FILES}   APPEND PROPERTY COMPILE_FLAGS "/arch:AVX" )
     set_property( SOURCE ${AVX2_SRC_FILES}  APPEND PROPERTY COMPILE_FLAGS "/arch:AVX2" )
   elseif( UNIX OR MINGW )
+    include( vvdecCompilerSupport )
+
     if( NOT VVDEC_TARGET_WASM )
-      set_property( SOURCE ${X86_SRC_FILES} APPEND PROPERTY COMPILE_FLAGS "-mxsave" )
+      set_if_compiler_supports_flag( FLAG_mxsave -mxsave )
+      set_property( SOURCE ${X86_SRC_FILES} APPEND PROPERTY COMPILE_FLAGS ${FLAG_mxsave} )
     endif()
-    set_property( SOURCE ${SSE41_SRC_FILES} APPEND PROPERTY COMPILE_FLAGS "-msse4.1" )
-    set_property( SOURCE ${SSE42_SRC_FILES} APPEND PROPERTY COMPILE_FLAGS "-msse4.2" )
-    set_property( SOURCE ${AVX_SRC_FILES}   APPEND PROPERTY COMPILE_FLAGS "-mavx" )
-    set_property( SOURCE ${AVX2_SRC_FILES}  APPEND PROPERTY COMPILE_FLAGS "-mavx2" )
+
+    set_if_compiler_supports_flag( FLAG_msse41 -msse4.1 )
+    set_if_compiler_supports_flag( FLAG_msse42 -msse4.2 )
+    set_if_compiler_supports_flag( FLAG_mavx   -mavx    )
+    set_if_compiler_supports_flag( FLAG_mavx2  -mavx2   )
+    set_property( SOURCE ${SSE41_SRC_FILES} APPEND PROPERTY COMPILE_FLAGS ${FLAG_msse41} )
+    set_property( SOURCE ${SSE42_SRC_FILES} APPEND PROPERTY COMPILE_FLAGS ${FLAG_msse41} )
+    set_property( SOURCE ${AVX_SRC_FILES}   APPEND PROPERTY COMPILE_FLAGS ${FLAG_mavx}   )
+    set_property( SOURCE ${AVX2_SRC_FILES}  APPEND PROPERTY COMPILE_FLAGS ${FLAG_mavx2}  )
   endif()
 endif()
 
@@ -112,6 +118,8 @@ target_compile_options( ${LIB_NAME} PRIVATE $<$<OR:$<CXX_COMPILER_ID:Clang>,$<CX
 target_include_directories( ${LIB_NAME} PRIVATE           $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../../include> $<BUILD_INTERFACE:${CMAKE_BINARY_DIR}>
                                         SYSTEM INTERFACE  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../../include> $<BUILD_INTERFACE:${CMAKE_BINARY_DIR}> )
 target_include_directories( ${LIB_NAME} PRIVATE . .. ../DecoderLib ../CommonLib ../CommonLib/x86 ../libmd5 )
+
+target_include_directories( ${LIB_NAME} SYSTEM PRIVATE ../../../include/3rd_party )
 
 target_link_libraries( ${LIB_NAME} ${INTEL_ITT_LINK_TARGET} Threads::Threads )
 

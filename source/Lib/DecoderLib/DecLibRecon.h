@@ -14,7 +14,7 @@ Einsteinufer 37
 www.hhi.fraunhofer.de/vvc
 vvc@hhi.fraunhofer.de
 
-Copyright (c) 2018-2021, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. 
+Copyright (c) 2018-2022, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. 
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -127,17 +127,24 @@ struct FinishPicTaskParam
   FinishPicTaskParam( DecLibRecon* _dec, Picture* _pic ) : decLib( _dec ), pic( _pic ) {}
 };
 
+struct PerThreadResource
+{
+  TrQuant         m_cTrQuant;
+  IntraPrediction m_cIntraPred;
+  InterPrediction m_cInterPred;
+  DecCu           m_cCuDecoder;
+  Reshape         m_cReshaper;
+
+  explicit PerThreadResource() = default;
+  explicit PerThreadResource( TrQuant& trQuant0 ) : m_cTrQuant( trQuant0 ) {}
+};
+
 /// decoder class
 class DecLibRecon
 {
 private:
-  // functional classes
-  IntraPrediction*     m_cIntraPred = nullptr;
-  InterPrediction*     m_cInterPred = nullptr;
-  TrQuant**            m_cTrQuant   = nullptr;
-  DecCu*               m_cCuDecoder = nullptr;
+  PerThreadResource  **m_pcThreadResource;
   RdCost               m_cRdCost;
-  Reshape*             m_cReshaper  = nullptr;   ///< reshaper class
   LoopFilter           m_cLoopFilter;
   SampleAdaptiveOffset m_cSAO;
   AdaptiveLoopFilter   m_cALF;
@@ -152,11 +159,12 @@ private:
 
   std::unique_ptr<Pel[], AlignedDeleter<Pel>> 
                        m_predBuf;
-  ptrdiff_t            m_predBufSize;
-  std::vector<CtuDataBuffers>
-                       m_ctuDataBufs;
-  Mv*                  m_dmvrMvCache;
-  size_t               m_dmvrMvCacheSize;
+  ptrdiff_t            m_predBufSize     = 0;
+  Mv*                  m_dmvrMvCache     = nullptr;
+  size_t               m_dmvrMvCacheSize = 0;
+  ptrdiff_t            m_num4x4Elements  = 0;
+  LoopFilterParam*     m_loopFilterParam = nullptr;
+  MotionInfo*          m_motionInfo      = nullptr;
 
   PelStorage           m_fltBuf;
 

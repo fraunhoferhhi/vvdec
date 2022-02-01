@@ -14,7 +14,7 @@ Einsteinufer 37
 www.hhi.fraunhofer.de/vvc
 vvc@hhi.fraunhofer.de
 
-Copyright (c) 2018-2021, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. 
+Copyright (c) 2018-2022, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. 
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -1147,7 +1147,7 @@ void rspFwdCore_SIMD( Pel* ptr, ptrdiff_t ptrStride, int width, int height, cons
   }
 }
 
-#if !defined( TARGET_SIMD_WASM ) && INTPTR_MAX == INT64_MAX
+#if INTPTR_MAX == INT64_MAX
 template<X86_VEXT vext>
 void fillN_CU_SIMD( CodingUnit** ptr, ptrdiff_t ptrStride, int width, int height, CodingUnit* cuPtr )
 {
@@ -1197,7 +1197,77 @@ void fillN_CU_SIMD( CodingUnit** ptr, ptrdiff_t ptrStride, int width, int height
     }
   }
 }
-#endif  // !TARGET_SIMD_WASM
+#elif INTPTR_MAX == INT32_MAX
+template<X86_VEXT vext>
+void fillN_CU_SIMD( CodingUnit** ptr, ptrdiff_t ptrStride, int width, int height, CodingUnit* cuPtr )
+{
+  static_assert( sizeof( cuPtr ) == 4, "Only supported for 32bit systems!" );
+  if( ( width & 7 ) == 0 )
+  {
+#if USE_AVX2
+    __m256i vval = _mm256_set1_epi32( ( int32_t ) cuPtr );
+
+    while( height-- )
+    {
+      for( int x = 0; x < width; x += 8 )
+      {
+        _mm256_storeu_si256( (__m256i*) &ptr[x], vval );
+      }
+
+      ptr += ptrStride;
+    }
+#else
+    __m128i vval = _mm_set1_epi32( ( int32_t ) cuPtr );
+
+    while( height-- )
+    {
+      for( int x = 0; x < width; x += 8 )
+      {
+        _mm_storeu_si128( ( __m128i* ) &ptr[x + 0], vval );
+        _mm_storeu_si128( ( __m128i* ) &ptr[x + 4], vval );
+      }
+
+      ptr += ptrStride;
+    }
+#endif
+  }
+  else if( ( width & 3 ) == 0 )
+  {
+    __m128i vval = _mm_set1_epi32( ( int32_t ) cuPtr );
+
+    while( height-- )
+    {
+      for( int x = 0; x < width; x += 4 )
+      {
+        _mm_storeu_si128( (__m128i*) &ptr[x], vval );
+      }
+
+      ptr += ptrStride;
+    }
+  }
+  else if( ( width & 1 ) == 0 )
+  {
+    while( height-- )
+    {
+      ptr[0] = cuPtr;
+      ptr[1] = cuPtr;
+
+      ptr += ptrStride;
+    }
+  }
+  else
+  {
+    while( height-- )
+    {
+      for( int x = 0; x < width; ++x )
+      {
+        ptr[x] = cuPtr;
+      }
+      ptr += ptrStride;
+    }
+  }
+}
+#endif  // INTPTR_MAX == INT32_MAX
 
 template<X86_VEXT vext>
 void sampleRateConvSIMD_8tap( const std::pair<int, int> scalingRatio, const std::pair<int, int> compScale,
@@ -1712,7 +1782,7 @@ void PelBufferOps::_initPelBufOpsX86()
   transpose4x4 = transposePel_SSE<vext, 4>;
   transpose8x8 = transposePel_SSE<vext, 8>;
 
-#if !defined( TARGET_SIMD_WASM ) // profilings show those functions are slower with WASM SIMD emulation than C++->WASM
+#if !defined( REAL_TARGET_WASM ) // profilings show those functions are slower with WASM SIMD emulation than C++->WASM
   // for modern CPUs and fast memory chips, applyLut using igather32 outperfoms the loop-based interval index estimation
   if( vext >= AVX2 )
     applyLut = applyLut_SIMD<vext>;
@@ -1720,12 +1790,12 @@ void PelBufferOps::_initPelBufOpsX86()
     rspBcw = rspBcwCore_SIMD<vext>;
 
   rspFwd = rspFwdCore_SIMD<vext>;
-
 #endif
-#if !defined( TARGET_SIMD_WASM ) && INTPTR_MAX == INT64_MAX
-  fillN_CU = fillN_CU_SIMD<vext>;
 
-#endif  // !TARGET_SIMD_WASM
+#if INTPTR_MAX == INT64_MAX || INTPTR_MAX == INT32_MAX
+  fillN_CU = fillN_CU_SIMD<vext>;
+#endif
+
   sampleRateConv = sampleRateConvSIMD<vext>;
 }
 

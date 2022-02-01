@@ -14,7 +14,7 @@ Einsteinufer 37
 www.hhi.fraunhofer.de/vvc
 vvc@hhi.fraunhofer.de
 
-Copyright (c) 2018-2021, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. 
+Copyright (c) 2018-2022, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. 
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -323,12 +323,12 @@ const MotionInfo& CodingUnit::getMotionInfo( const Position& pos ) const
 
 MotionBuf CodingUnit::getMotionBuf()
 {
-  return MotionBuf( const_cast<MotionInfo*>( &getMotionInfo() ), cs->getLFPMapStride(), g_miScaling.scaleHor( lwidth() ), g_miScaling.scaleVer( lheight() ) );
+  return MotionBuf( const_cast<MotionInfo*>( &getMotionInfo() ), cs->get4x4MapStride(), g_miScaling.scaleHor( lwidth() ), g_miScaling.scaleVer( lheight() ) );
 }
 
 CMotionBuf CodingUnit::getMotionBuf() const
 {
-  return CMotionBuf( &getMotionInfo(), cs->getLFPMapStride(), g_miScaling.scaleHor( lwidth() ), g_miScaling.scaleVer( lheight() ) );
+  return CMotionBuf( &getMotionInfo(), cs->get4x4MapStride(), g_miScaling.scaleHor( lwidth() ), g_miScaling.scaleVer( lheight() ) );
 }
 
 }

@@ -14,7 +14,7 @@ Einsteinufer 37
 www.hhi.fraunhofer.de/vvc
 vvc@hhi.fraunhofer.de
 
-Copyright (c) 2018-2021, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. 
+Copyright (c) 2018-2022, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. 
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -114,9 +114,9 @@ TrQuant::TrQuant()
   m_invICT[ 3]  = invTransformCbCr< 3>;
   m_invICT[-3]  = invTransformCbCr<-3>;
 
-  m_tmp  = ( TCoeff* ) xMalloc( TCoeff, MAX_TU_SIZE_FOR_PROFILE * MAX_TU_SIZE_FOR_PROFILE );
-  m_blk  = ( TCoeff* ) xMalloc( TCoeff, MAX_TU_SIZE_FOR_PROFILE * MAX_TU_SIZE_FOR_PROFILE );
-  m_dqnt = ( TCoeff* ) xMalloc( TCoeff, MAX_TU_SIZE_FOR_PROFILE * MAX_TU_SIZE_FOR_PROFILE );
+  m_tmp  = ( TCoeff* ) ( ( ptrdiff_t ) m_tmp_  + ( MEMORY_ALIGN_DEF_SIZE - ( ( ptrdiff_t ) m_tmp_  & ( MEMORY_ALIGN_DEF_SIZE - 1 ) ) ) );
+  m_blk  = ( TCoeff* ) ( ( ptrdiff_t ) m_blk_  + ( MEMORY_ALIGN_DEF_SIZE - ( ( ptrdiff_t ) m_blk_  & ( MEMORY_ALIGN_DEF_SIZE - 1 ) ) ) );
+  m_dqnt = ( TCoeff* ) ( ( ptrdiff_t ) m_dqnt_ + ( MEMORY_ALIGN_DEF_SIZE - ( ( ptrdiff_t ) m_dqnt_ & ( MEMORY_ALIGN_DEF_SIZE - 1 ) ) ) );
 }
 
 TrQuant::TrQuant( const TrQuant& other ) : Quant( other )
@@ -131,32 +131,14 @@ TrQuant::TrQuant( const TrQuant& other ) : Quant( other )
   m_invICT[ 3]  = invTransformCbCr< 3>;
   m_invICT[-3]  = invTransformCbCr<-3>;
 
-  m_tmp  = ( TCoeff* ) xMalloc( TCoeff, MAX_TU_SIZE_FOR_PROFILE * MAX_TU_SIZE_FOR_PROFILE );
-  m_blk  = ( TCoeff* ) xMalloc( TCoeff, MAX_TU_SIZE_FOR_PROFILE * MAX_TU_SIZE_FOR_PROFILE );
-  m_dqnt = ( TCoeff* ) xMalloc( TCoeff, MAX_TU_SIZE_FOR_PROFILE * MAX_TU_SIZE_FOR_PROFILE );
+  m_tmp  = ( TCoeff* ) ( ( ptrdiff_t ) m_tmp_  + ( MEMORY_ALIGN_DEF_SIZE - ( ( ptrdiff_t ) m_tmp_  & ( MEMORY_ALIGN_DEF_SIZE - 1 ) ) ) );
+  m_blk  = ( TCoeff* ) ( ( ptrdiff_t ) m_blk_  + ( MEMORY_ALIGN_DEF_SIZE - ( ( ptrdiff_t ) m_blk_  & ( MEMORY_ALIGN_DEF_SIZE - 1 ) ) ) );
+  m_dqnt = ( TCoeff* ) ( ( ptrdiff_t ) m_dqnt_ + ( MEMORY_ALIGN_DEF_SIZE - ( ( ptrdiff_t ) m_dqnt_ & ( MEMORY_ALIGN_DEF_SIZE - 1 ) ) ) );
 }
 
 
 TrQuant::~TrQuant()
 {
-  // delete temporary buffers
-  if( m_tmp )
-  {
-    xFree( m_tmp );
-    m_tmp = nullptr;
-  }
-
-  if( m_blk )
-  {
-    xFree( m_blk );
-    m_blk = nullptr;
-  }
-
-  if( m_dqnt )
-  {
-    xFree( m_dqnt );
-    m_dqnt = nullptr;
-  }
 }
 
 
@@ -457,6 +439,7 @@ void TrQuant::xIT( const TransformUnit &tu, const ComponentID &compID, const CCo
   const int skipHeight = std::max<int>( ( trTypeVer != DCT2 && height == 32 ) ? 16 : height > JVET_C0024_ZERO_OUT_TH ? height - JVET_C0024_ZERO_OUT_TH : 0, height - tu.maxScanPosY[compID] - 1 );
 
   TCoeff *block = m_blk;
+  int shiftlast;
 
   if( width > 1 && height > 1 ) //2-D transform
   {
@@ -465,51 +448,29 @@ void TrQuant::xIT( const TransformUnit &tu, const ComponentID &compID, const CCo
     CHECK( shift_1st < 0, "Negative shift" );
     CHECK( shift_2nd < 0, "Negative shift" );
     TCoeff *tmp   = m_tmp;
-    fastInvTrans[trTypeVer][transformHeightIndex](pCoeff.buf, tmp, shift_1st, width, skipWidth, skipHeight, clipMinimum, clipMaximum);
-    fastInvTrans[trTypeHor][transformWidthIndex] (tmp,      block, shift_2nd, height,         0, skipWidth, clipMinimum, clipMaximum);
+    fastInvTrans[trTypeVer][transformHeightIndex](pCoeff.buf, tmp, shift_1st, width, skipWidth, skipHeight, true,  clipMinimum, clipMaximum);
+    fastInvTrans[trTypeHor][transformWidthIndex] (tmp,      block, shift_2nd, height,         0, skipWidth, false, clipMinimum, clipMaximum);
+    shiftlast = shift_2nd;
   }
   else if( width == 1 ) //1-D vertical transform
   {
     int shift = ( TRANSFORM_MATRIX_SHIFT + maxLog2TrDynamicRange - 1 ) - bitDepth + COM16_C806_TRANS_PREC;
     CHECK( shift < 0, "Negative shift" );
     CHECK( ( transformHeightIndex < 0 ), "There is a problem with the height." );
-    fastInvTrans[trTypeVer][transformHeightIndex]( pCoeff.buf, block, shift + 1, 1, 0, skipHeight, clipMinimum, clipMaximum );
+    fastInvTrans[trTypeVer][transformHeightIndex]( pCoeff.buf, block, shift + 1, 1, 0, skipHeight, false, clipMinimum, clipMaximum );
+    shiftlast = shift + 1;
   }
   else //if(iHeight == 1) //1-D horizontal transform
   {
     const int      shift              = ( TRANSFORM_MATRIX_SHIFT + maxLog2TrDynamicRange - 1 ) - bitDepth + COM16_C806_TRANS_PREC;
     CHECK( shift < 0, "Negative shift" );
     CHECK( ( transformWidthIndex < 0 ), "There is a problem with the width." );
-    fastInvTrans[trTypeHor][transformWidthIndex]( pCoeff.buf, block, shift + 1, 1, 0, skipWidth, clipMinimum, clipMaximum );
+    fastInvTrans[trTypeHor][transformWidthIndex]( pCoeff.buf, block, shift + 1, 1, 0, skipWidth, false, clipMinimum, clipMaximum );
+    shiftlast = shift + 1;
   }
 
-#if ENABLE_SIMD_TCOEFF_OPS
-  if( width & 3 )
-#endif //ENABLE_SIMD_TCOEFF_OPS
-  {
-    Pel       *dst    = pResidual.buf;
-    ptrdiff_t  stride = pResidual.stride;
-
-    for( int y = 0; y < height; y++ )
-    {
-      for( int x = 0; x < width; x++ )
-      {
-        dst[x] = ( Pel ) *block++;
-      }
-
-      dst += stride;
-    }
-  }
-#if ENABLE_SIMD_TCOEFF_OPS
-  else if( width & 7 )
-  {
-    g_tCoeffOps.cpyResi4( block, pResidual.buf, pResidual.stride, width, height );
-  }
-  else
-  {
-    g_tCoeffOps.cpyResi8( block, pResidual.buf, pResidual.stride, width, height );
-  }
-#endif //ENABLE_SIMD_TCOEFF_OPS
+  int round = 1 << ( shiftlast - 1 );
+  g_tCoeffOps.cpyResiClip[getLog2( width )]( block, pResidual.buf, pResidual.stride, width, height, clipMinimum, clipMaximum, round, shiftlast );
 }
 
 /** Wrapper function between HM interface and core NxN transform skipping

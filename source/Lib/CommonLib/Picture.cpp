@@ -14,7 +14,7 @@ Einsteinufer 37
 www.hhi.fraunhofer.de/vvc
 vvc@hhi.fraunhofer.de
 
-Copyright (c) 2018-2021, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V.
+Copyright (c) 2018-2022, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V.
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -122,18 +122,40 @@ void Picture::resetForUse()
   setPicHead( nullptr );
   m_subPicRefBufs.clear();
 
-  subPicExtStarted = false;
-  borderExtStarted = false;
-  wrapAroundValid  = false;
-  wrapAroundOffset = 0;
-  neededForOutput  = false;
-  reconstructed    = false;
-  inProgress       = false;
-  wasLost          = false;
-  skippedDecCount  = 0;
+  m_dProcessingTime       = 0;
+  subPicExtStarted        = false;
+  borderExtStarted        = false;
+  referenced              = false;
+  reconstructed           = false;
+  inProgress              = false;
+  neededForOutput         = false;
+  wasLost                 = false;
+  longTerm                = false;
+  topField                = false;
+  fieldPic                = false;
+  nonReferencePictureFlag = false;
+  skippedDecCount         = 0;
 
   picCheckedDPH = false;
   subpicsCheckedDPH.clear();
+
+  lockedByApplication = false;
+
+  poc                 = 0;
+  cts                 = 0;
+  dts                 = 0;
+  layer               = std::numeric_limits<uint32_t>::max();
+  depth               = 0;
+  layerId             = NOT_VALID;
+  eNalUnitType        = NAL_UNIT_INVALID;
+  bits                = 0;
+  rap                 = 0;
+  decodingOrderNumber = 0;
+
+  sliceSubpicIdx.clear();
+  subPictures.clear();
+
+  subLayerNonReferencePictureDueToSTSA = 0;
 
   m_ctuTaskCounter      .clearException();
   m_motionTaskCounter   .clearException();
@@ -143,8 +165,12 @@ void Picture::resetForUse()
   parseDone             .clearException();
 #if RECO_WHILE_PARSE
   std::for_each( ctuParsedBarrier.begin(), ctuParsedBarrier.end(), []( auto& b ) { b.clearException(); } );
-
 #endif
+
+  clearSliceBuffer();
+
+  SEI_internal::deleteSEIs( seiMessageList );
+
   done.lock();
 }
 
@@ -168,11 +194,7 @@ void Picture::destroy()
   ctuParsedBarrier.clear();
 #endif
 
-  for( auto &ps : slices )
-  {
-    delete ps;
-  }
-  slices.clear();
+  clearSliceBuffer();
 
   SEI_internal::deleteSEIs( seiMessageList );
 
@@ -232,7 +254,8 @@ void Picture::finalInit( CUChunkCache* cuChunkCache, TUChunkCache* tuChunkCache,
     picHeader->setLmcsAPS       ( lmcsAps        ? lmcsAps       ->getSharedPtr() : nullptr );
     picHeader->setScalingListAPS( scalingListAps ? scalingListAps->getSharedPtr() : nullptr );
   }
-  
+  nonReferencePictureFlag = picHeader->getNonReferencePictureFlag();
+
   for( int i = 0; i < ALF_CTB_MAX_NUM_APS; ++i )
   {
     cs->alfApss[i] = alfApss[i] ? alfApss[i]->getSharedPtr() : nullptr;
@@ -305,11 +328,10 @@ void Picture::setPicHead( const std::shared_ptr<PicHeader>& ph )
 
 void Picture::clearSliceBuffer()
 {
-  for( size_t i = 0; i < slices.size(); i++ )
+  for( auto &s: slices )
   {
-    delete slices[i];
+    delete s;
   }
-
   slices.clear();
 }
 

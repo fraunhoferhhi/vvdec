@@ -14,7 +14,7 @@ Einsteinufer 37
 www.hhi.fraunhofer.de/vvc
 vvc@hhi.fraunhofer.de
 
-Copyright (c) 2018-2021, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. 
+Copyright (c) 2018-2022, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. 
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -310,13 +310,12 @@ void paddingCore(Pel *ptr, ptrdiff_t stride, int width, int height)
   }
 }
 
-void prefetchPadCore( const Pel* src, const ptrdiff_t srcStride, Pel* dst, const ptrdiff_t dstStride, int width, int height, int padSize )
+template<int padSize>
+void prefetchPadCore( const Pel* src, const ptrdiff_t srcStride, Pel* dst, const ptrdiff_t dstStride, int width, int height )
 {
   g_pelBufOP.copyBuffer( ( const char* ) src, srcStride * sizeof( Pel ), ( char* ) dst, dstStride * sizeof( Pel ), width * sizeof( Pel ), height );
-  if( padSize == 1 )
-    paddingCore<1>( dst, dstStride, width, height );
-  else
-    paddingCore<2>( dst, dstStride, width, height );
+
+  paddingCore<padSize>( dst, dstStride, width, height );
 }
 
 // ====================================================================================================================
@@ -373,7 +372,9 @@ void InterPrediction::init( RdCost* pcRdCost, ChromaFormat chromaFormatIDC, cons
     applyPROF[0] = applyPROFCore<0>;
     applyPROF[1] = applyPROFCore<1>;
     PaddBIO      = PaddBIOCore;
-    prefetchPad  = prefetchPadCore;
+    prefetchPad[0] = prefetchPadCore<2>; // luma
+    prefetchPad[1] = prefetchPadCore<2>; // chroma for 444 and 422
+    prefetchPad[2] = prefetchPadCore<1>; // chroma for 420
 #if ENABLE_SIMD_OPT_INTER && defined( TARGET_SIMD_X86 )
     initInterPredictionX86();
 #endif
@@ -1514,7 +1515,6 @@ void InterPrediction::weightedGeoBlk( PredictionUnit &pu, const uint8_t splitDir
 
 void InterPrediction::xPrefetchPad( PredictionUnit& pu, PelUnitBuf &pcPad, RefPicList refId, bool forLuma )
 {
-  ptrdiff_t offset;
   int width, height;
   Mv cMv;
 
@@ -1525,12 +1525,7 @@ void InterPrediction::xPrefetchPad( PredictionUnit& pu, PelUnitBuf &pcPad, RefPi
   const bool wrapRefEnbld = refPic->isWrapAroundEnabled( pu.pps );
   const bool subPicAsPic  = pu.pps->getNumSubPics() > 1 && pu.pps->getSubPicFromCU( pu ).getTreatedAsPicFlag();
 
-  const int start = forLuma ? 0 : 1;
-  const int end   = forLuma ? 1 : MAX_NUM_COMPONENT;
-
   const ChannelType chType = forLuma ? CHANNEL_TYPE_LUMA : CHANNEL_TYPE_CHROMA;
-
-  const int padsize = DMVR_NUM_ITERATION >> getChannelTypeScaleY( chType, pu.chromaFormat );
 
   int filtersize = isLuma( chType ) ? NTAPS_LUMA : NTAPS_CHROMA;
   cMv = pu.mv[refId][0];
@@ -1553,23 +1548,55 @@ void InterPrediction::xPrefetchPad( PredictionUnit& pu, PelUnitBuf &pcPad, RefPi
   cMv.hor >>= mvshiftTempHor;
   cMv.ver >>= mvshiftTempVer;
 
-  for( int compID = start; compID < end; compID++ )
+  if( isLuma( chType ) )
   {
-    pcPad.bufs[compID].stride = pcPad.bufs[compID].width + ( 2 * DMVR_NUM_ITERATION ) + filtersize;
-    width                     = pcPad.bufs[compID].width;
-    height                    = pcPad.bufs[compID].height;
-    offset                    = DMVR_NUM_ITERATION * ( pcPad.bufs[compID].stride + 1 );
+    pcPad.bufs[COMPONENT_Y]
+      .stride  = pcPad.bufs[COMPONENT_Y].width + ( 2 * DMVR_NUM_ITERATION ) + filtersize;
+    width      = pcPad.bufs[COMPONENT_Y].width;
+    height     = pcPad.bufs[COMPONENT_Y].height;
+    ptrdiff_t
+      offset   = DMVR_NUM_ITERATION * ( pcPad.bufs[COMPONENT_Y].stride + 1 );
 
-    width                    += filtersize - 1;
-    height                   += filtersize - 1;
+    width      += filtersize - 1;
+    height     += filtersize - 1;
 
-    CPelBuf refBuf = subPicAsPic ? refPic->getSubPicBuf( pu.pps->getSubPicFromCU( pu ).getSubPicIdx(), ComponentID( compID ), wrapRef ) : refPic->getRecoBuf( ComponentID( compID ), wrapRef );
+    CPelBuf refBuf = subPicAsPic ? refPic->getSubPicBuf( pu.pps->getSubPicFromCU( pu ).getSubPicIdx(), COMPONENT_Y, wrapRef ) : refPic->getRecoBuf( COMPONENT_Y, wrapRef );
 
-    Position   Rec_offset = pu.blocks[compID].pos().offset( cMv.hor, cMv.ver );
+    Position   Rec_offset = pu.lumaPos().offset( cMv.hor, cMv.ver );
     const Pel* refBufPtr  = refBuf.bufAt( Rec_offset );
 
-    PelBuf& dstBuf = pcPad.bufs[compID];
-    prefetchPad( refBufPtr, refBuf.stride, dstBuf.buf + offset, dstBuf.stride, width, height, padsize );
+    PelBuf& dstBuf = pcPad.Y();
+    prefetchPad[0]( refBufPtr, refBuf.stride, dstBuf.buf + offset, dstBuf.stride, width, height );
+  }
+  else
+  {
+    pcPad.bufs[COMPONENT_Cb]
+      .stride  = pcPad.bufs[COMPONENT_Cb].width + ( 2 * DMVR_NUM_ITERATION ) + filtersize;
+    pcPad.bufs[COMPONENT_Cr]
+      .stride  = pcPad.bufs[COMPONENT_Cb].stride;
+    width      = pcPad.bufs[COMPONENT_Cb].width;
+    height     = pcPad.bufs[COMPONENT_Cb].height;
+    ptrdiff_t
+      offsetCb = DMVR_NUM_ITERATION * ( pcPad.bufs[COMPONENT_Cb].stride + 1 );
+    ptrdiff_t
+      offsetCr = DMVR_NUM_ITERATION * ( pcPad.bufs[COMPONENT_Cr].stride + 1 );
+
+    width      += filtersize - 1;
+    height     += filtersize - 1;
+
+    CPelBuf refBufCb = subPicAsPic ? refPic->getSubPicBuf( pu.pps->getSubPicFromCU( pu ).getSubPicIdx(), COMPONENT_Cb, wrapRef ) : refPic->getRecoBuf( COMPONENT_Cb, wrapRef );
+    CPelBuf refBufCr = subPicAsPic ? refPic->getSubPicBuf( pu.pps->getSubPicFromCU( pu ).getSubPicIdx(), COMPONENT_Cr, wrapRef ) : refPic->getRecoBuf( COMPONENT_Cr, wrapRef );
+
+    Position   Rec_offset     = pu.blocks[COMPONENT_Cb].pos().offset( cMv.hor, cMv.ver );
+    const Pel* refBufPtr  [2] = { refBufCb.bufAt( Rec_offset ), refBufCr.bufAt( Rec_offset ) };
+    const ptrdiff_t stride[2] = { refBufCb.stride, refBufCr.stride };
+          Pel* dstBufPtr  [2] = { pcPad.Cb().buf + offsetCb, pcPad.Cr().buf + offsetCr };
+    const ptrdiff_t dstStr[2] = { pcPad.Cb().stride, pcPad.Cr().stride };
+
+    const int idx = getChannelTypeScaleY( CH_C, pu.chromaFormat );
+
+    prefetchPad[1+idx]( refBufPtr[0], stride[0], dstBufPtr[0], dstStr[0], width, height );
+    prefetchPad[1+idx]( refBufPtr[1], stride[1], dstBufPtr[1], dstStr[1], width, height );
   }
 }
 

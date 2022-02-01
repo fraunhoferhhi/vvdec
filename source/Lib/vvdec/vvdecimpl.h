@@ -14,7 +14,7 @@ Einsteinufer 37
 www.hhi.fraunhofer.de/vvc
 vvc@hhi.fraunhofer.de
 
-Copyright (c) 2018-2021, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. 
+Copyright (c) 2018-2022, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. 
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -200,7 +200,7 @@ public:
    bool                                    m_bRemovePadding = false; // copy picture before output to remove padding
    VVDecInternalState                      m_eState       = INTERNAL_STATE_UNINITIALIZED;
 
-   DecLib*                                 m_cDecLib;
+   std::unique_ptr<DecLib>                 m_cDecLib;
 
    std::list<vvdecFrame>                   m_rcFrameList;
    std::list<vvdecFrame>::iterator         m_pcFrameNext = m_rcFrameList.begin();

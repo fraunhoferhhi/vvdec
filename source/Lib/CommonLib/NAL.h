@@ -14,7 +14,7 @@ Einsteinufer 37
 www.hhi.fraunhofer.de/vvc
 vvc@hhi.fraunhofer.de
 
-Copyright (c) 2018-2021, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. 
+Copyright (c) 2018-2022, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. 
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -119,14 +119,7 @@ struct NALUnit
 
   static bool isVclNalUnitType(NalUnitType t)
   {
-    return t == NAL_UNIT_CODED_SLICE_TRAIL
-        || t == NAL_UNIT_CODED_SLICE_STSA
-        || t == NAL_UNIT_CODED_SLICE_RADL
-        || t == NAL_UNIT_CODED_SLICE_RASL
-        || t == NAL_UNIT_CODED_SLICE_IDR_W_RADL
-        || t == NAL_UNIT_CODED_SLICE_IDR_N_LP
-        || t == NAL_UNIT_CODED_SLICE_CRA
-        || t == NAL_UNIT_CODED_SLICE_GDR;
+    return t <= NAL_UNIT_RESERVED_IRAP_VCL_11;
   }
 };
 

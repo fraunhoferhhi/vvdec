@@ -14,7 +14,7 @@ Einsteinufer 37
 www.hhi.fraunhofer.de/vvc
 vvc@hhi.fraunhofer.de
 
-Copyright (c) 2018-2021, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V.
+Copyright (c) 2018-2022, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V.
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -269,7 +269,6 @@ EMSCRIPTEN_BINDINGS( vvdec )
     .value( "SIMD_SSE42",   VVDEC_SIMD_SSE42   )
     .value( "SIMD_AVX",     VVDEC_SIMD_AVX     )
     .value( "SIMD_AVX2",    VVDEC_SIMD_AVX2    )
-    .value( "SIMD_AVX512",  VVDEC_SIMD_AVX512  )
   ;
 
   enum_<vvdecRPRUpscaling>( "RPRUpscaling" )

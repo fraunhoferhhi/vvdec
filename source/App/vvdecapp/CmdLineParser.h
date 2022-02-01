@@ -14,7 +14,7 @@ Einsteinufer 37
 www.hhi.fraunhofer.de/vvc
 vvc@hhi.fraunhofer.de
 
-Copyright (c) 2018-2021, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. 
+Copyright (c) 2018-2022, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. 
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -297,19 +297,18 @@ public:
 
         if( rcParams.logLevel > VVDEC_VERBOSE )
         {
-          std::string cll;
+          const char* cll;
           switch( rcParams.simd )
           {
           case VVDEC_SIMD_DEFAULT: cll = "DEFAULT"; break;
-          case VVDEC_SIMD_SCALAR:  cll = "SCALAR"; break;
-          case VVDEC_SIMD_SSE41:   cll = "SSE41"; break;
-          case VVDEC_SIMD_SSE42:   cll = "SSE42"; break;
-          case VVDEC_SIMD_AVX:     cll = "AVX"; break;
-          case VVDEC_SIMD_AVX2:    cll = "AVX2"; break;
-          case VVDEC_SIMD_AVX512:  cll = "AVX512"; break;
-          default: cll = "UNKNOWN"; break;
+          case VVDEC_SIMD_SCALAR:  cll = "SCALAR";  break;
+          case VVDEC_SIMD_SSE41:   cll = "SSE41";   break;
+          case VVDEC_SIMD_SSE42:   cll = "SSE42";   break;
+          case VVDEC_SIMD_AVX:     cll = "AVX";     break;
+          case VVDEC_SIMD_AVX2:    cll = "AVX2";    break;
+          default:                 cll = "UNKNOWN"; break;
           };
-          fprintf( stdout, "[simd] : %s\n", cll.c_str() );
+          fprintf( stdout, "[simd] : %s\n", cll );
         }
       }
       else

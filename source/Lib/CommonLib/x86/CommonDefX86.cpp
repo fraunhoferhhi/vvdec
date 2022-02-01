@@ -14,7 +14,7 @@ Einsteinufer 37
 www.hhi.fraunhofer.de/vvc
 vvc@hhi.fraunhofer.de
 
-Copyright (c) 2018-2021, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V.
+Copyright (c) 2018-2022, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V.
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -50,46 +50,38 @@ THE POSSIBILITY OF SUCH DAMAGE.
  * \brief   This file contains the SIMD x86 common used functions.
  */
 
-#include <map>
+#include <array>
 #include <cstdint>
-#include <string>
 #include "CommonLib/CommonDef.h"
 
 
-#if defined( TARGET_SIMD_X86 ) && !defined( TARGET_SIMD_WASM )
+#ifdef REAL_TARGET_X86
 # if defined( _WIN32 ) && !defined( __MINGW32__ )
 #  include <intrin.h>
 # else
-#  include <immintrin.h>
+#  include <x86intrin.h>  // needed for _xgetbv, which is not provided by simd-everywhere
 #  include <cpuid.h>
 # endif
 #endif
 
 namespace vvdec
 {
-static const std::map<std::string, X86_VEXT> vext_names{ { "SCALAR", SCALAR }, { "SSE41", SSE41 }, { "SSE42", SSE42 }, { "AVX", AVX }, { "AVX2", AVX2 }, { "AVX512", AVX512 } };
-
-#if defined( TARGET_SIMD_WASM )
-
-X86_VEXT read_x86_extension_flags( const std::string& )
-{
-  return SSE42;
-}
-
-#elif defined( TARGET_SIMD_X86 )
+constexpr std::array<const char*, 6> vext_names{ "SCALAR", "SSE41", "SSE42", "AVX", "AVX2", "AVX512" };
 
 #if __GNUC__   // valid for GCC and clang
-# define NO_USE_SIMD __attribute__( ( optimize( "no-tree-vectorize" ) ) )
+# define NO_OPT_SIMD __attribute__( ( optimize( "no-tree-vectorize" ) ) )
 #else
-# define NO_USE_SIMD
+# define NO_OPT_SIMD
 #endif
 
+#ifdef REAL_TARGET_X86
 
 #if defined( __MINGW32__ ) && !defined( __MINGW64__ )
 # define SIMD_UP_TO_SSE42 1
 #else
 # define SIMD_UP_TO_SSE42 0
 #endif
+
 
 /* use __cpuid for windows or inline assembler for gcc and clang */
 #if defined( _WIN32 ) && !defined( __MINGW32__ )
@@ -167,7 +159,7 @@ static inline int64_t xgetbv( int ctr )
 /**
  * \brief Read instruction set extension support flags from CPU register;
  */
-NO_USE_SIMD
+NO_OPT_SIMD
 X86_VEXT _Get_x86_extensions()
 {
   int regs[4] = { 0, 0, 0, 0 };
@@ -196,7 +188,7 @@ X86_VEXT _Get_x86_extensions()
     return ext;   // first check if the cpu supports avx
   if( ( xgetbv( 0 ) & 6 ) != 6 )
     return ext;   // then see if the os uses YMM state management via XSAVE etc...
-#if 0
+#ifndef _WIN32
     // don't detect AVX, as there are problems with MSVC production illegal ops for AVX
     ext = AVX;
 #endif
@@ -225,57 +217,58 @@ X86_VEXT _Get_x86_extensions()
   return ext;
 }
 
-NO_USE_SIMD
-X86_VEXT read_x86_extension_flags( const std::string& extStrId )
+#endif   // REAL_TARGET_X86
+
+NO_OPT_SIMD
+X86_VEXT read_x86_extension_flags( X86_VEXT request )
 {
-  static bool     b_detection_finished( false );
-  static X86_VEXT ext_flags = SCALAR;
+  static bool b_detection_finished( false );
+#ifdef REAL_TARGET_X86
+  static const X86_VEXT max_supported = _Get_x86_extensions();
+  static X86_VEXT       ext_flags     = max_supported;
+#else
+  static const X86_VEXT max_supported = AVX;
+  static X86_VEXT       ext_flags     = SSE42;   // default to SSE42 for WASM and SIMD-everywhere
+#endif
+
+  if( request != UNDEFINED )
+  {
+    if( request > max_supported )
+    {
+      THROW( "requested SIMD level (" << request << ") not supported by current CPU (max " << max_supported << ")." );
+    }
+
+    ext_flags = request;
+
+#ifndef REAL_TARGET_X86
+    // disable AVX2 for non-x86 because the SIMD-Everywhere implementation is buggy
+    ext_flags = std::min( ext_flags, AVX );
+#endif
+  }
 
   if( b_detection_finished )
   {
     return ext_flags;
   }
-
-  if( !extStrId.empty() )
-  {
-    auto search = vext_names.find( extStrId );
-    if( search != vext_names.end() )
-    {
-      ext_flags = search->second;
-    }
-    else
-    {
-      EXIT( "Mode not supported: " << ext_flags << "\n" );
-    }
-  }
-  else
-  {
-    ext_flags = _Get_x86_extensions();
-  }
-
   b_detection_finished = true;
 
   return ext_flags;
 }
 
-#endif   // TARGET_SIMD_X86
+#if defined( TARGET_SIMD_X86 )
 
-
-#if defined( TARGET_SIMD_X86 ) || defined( TARGET_SIMD_WASM )
-
-const char* read_x86_extension( const std::string& extStrId )
+const char* read_x86_extension( X86_VEXT request )
 {
-  static const char extension_not_available[] = "NA";
+  X86_VEXT vext = read_x86_extension_flags( request );
+  if( vext < 0 || vext >= vext_names.size() )
+  {
+    static const char extension_not_available[] = "NA";
+    return extension_not_available;
+  }
 
-  X86_VEXT vext = read_x86_extension_flags( extStrId );
-
-  for( auto it = vext_names.begin(); it != vext_names.end(); ++it )
-    if( it->second == vext )
-      return it->first.c_str();
-
-  return extension_not_available;
+  return vext_names[vext];
 }
 
-#endif   // TARGET_SIMD_X86 || TARGET_SIMD_WASM
+#endif   // TARGET_SIMD_X86
 
 }   // namespace vvdec

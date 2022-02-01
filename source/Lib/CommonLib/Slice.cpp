@@ -14,7 +14,7 @@ Einsteinufer 37
 www.hhi.fraunhofer.de/vvc
 vvc@hhi.fraunhofer.de
 
-Copyright (c) 2018-2021, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. 
+Copyright (c) 2018-2022, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. 
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -683,9 +683,8 @@ void Slice::checkRPL(const ReferencePictureList* pRPL0, const ReferencePictureLi
       }
 
       // Generated reference picture does not have picture header
-      const bool isGeneratedRefPic = pcRefPic->slices[0]->getPicHeader() ? false : true;
-
-      const bool nonReferencePictureFlag = isGeneratedRefPic ? pcRefPic->slices[0]->getPicHeader()->getNonReferencePictureFlag() : pcRefPic->nonReferencePictureFlag;
+      const bool nonReferencePictureFlag = pcRefPic->slices[0]->getPicHeader() ? pcRefPic->slices[0]->getPicHeader()->getNonReferencePictureFlag()
+                                                                               : pcRefPic->nonReferencePictureFlag;
       CHECK( pcRefPic == m_pcPic || nonReferencePictureFlag, "The picture referred to by each entry in RefPicList[ 0 ] or RefPicList[ 1 ] shall not be the current picture and shall have ph_non_ref_pic_flag equal to 0" );
 
       if( i < numActiveEntries[refPicList] )

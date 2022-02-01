@@ -14,7 +14,7 @@ Einsteinufer 37
 www.hhi.fraunhofer.de/vvc
 vvc@hhi.fraunhofer.de
 
-Copyright (c) 2018-2021, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. 
+Copyright (c) 2018-2022, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. 
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -503,7 +503,8 @@ enum NalUnitType
   NAL_UNIT_CODED_SLICE_GDR,         // 10
 
   NAL_UNIT_RESERVED_IRAP_VCL_11,
-  NAL_UNIT_RESERVED_IRAP_VCL_12,
+
+  NAL_UNIT_OPI,                     // 12
   NAL_UNIT_DCI,                     // 13
   NAL_UNIT_VPS,                     // 14
   NAL_UNIT_SPS,                     // 15
