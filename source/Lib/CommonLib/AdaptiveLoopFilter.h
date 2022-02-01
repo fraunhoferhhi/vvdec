@@ -14,7 +14,7 @@ Einsteinufer 37
 www.hhi.fraunhofer.de/vvc
 vvc@hhi.fraunhofer.de
 
-Copyright (c) 2018-2021, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. 
+Copyright (c) 2018-2022, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. 
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -135,18 +135,18 @@ protected:
 #endif
 
 protected:
-  bool isCrossedByVirtualBoundaries( const CodingStructure& cs,
-                                     const Area& pos,
-                                     bool&       clipTop,
-                                     bool&       clipBottom,
-                                     bool&       clipLeft,
-                                     bool&       clipRight,
-                                     int&        numHorVirBndry,
-                                     int&        numVerVirBndry,
-                                     int         horVirBndryPos[],
-                                     int         verVirBndryPos[],
-                                     int&        rasterSliceAlfPad
-                                     );
+  bool isClipOrCrossedByVirtualBoundaries( const CodingStructure& cs,
+                                           const Area& pos,
+                                           bool&       clipTop,
+                                           bool&       clipBottom,
+                                           bool&       clipLeft,
+                                           bool&       clipRight,
+                                           int&        numHorVirBndry,
+                                           int&        numVerVirBndry,
+                                           int         horVirBndryPos[],
+                                           int         verVirBndryPos[],
+                                           int&        rasterSliceAlfPad
+                                           );
 
   static const int        m_fixedFilterSetCoeff   [ALF_FIXED_FILTER_NUM][MAX_NUM_ALF_LUMA_COEFF];
   static const int        m_classToFilterMapping  [NUM_FIXED_FILTER_SETS][MAX_NUM_ALF_CLASSES];

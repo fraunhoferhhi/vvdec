@@ -14,7 +14,7 @@ Einsteinufer 37
 www.hhi.fraunhofer.de/vvc
 vvc@hhi.fraunhofer.de
 
-Copyright (c) 2018-2021, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. 
+Copyright (c) 2018-2022, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. 
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -96,6 +96,8 @@ private:
   uint32_t m_uiSliceSegmentIdx    = 0;
 
   int m_iTargetLayer              = -1;   ///< target stream layer to be decoded
+
+  int m_nonVCLbits                = 0;
 
   Picture* m_pcParsePic           = nullptr;
   Slice*   m_apcSlicePilot        = nullptr;

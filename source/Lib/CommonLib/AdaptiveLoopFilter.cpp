@@ -14,7 +14,7 @@ Einsteinufer 37
 www.hhi.fraunhofer.de/vvc
 vvc@hhi.fraunhofer.de
 
-Copyright (c) 2018-2021, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V.
+Copyright (c) 2018-2022, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V.
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -112,17 +112,17 @@ AdaptiveLoopFilter::AdaptiveLoopFilter()
   }
 }
 
-bool AdaptiveLoopFilter::isCrossedByVirtualBoundaries( const CodingStructure& cs,
-                                                       const Area&            area,
-                                                       bool&                  clipTop,
-                                                       bool&                  clipBottom,
-                                                       bool&                  clipLeft,
-                                                       bool&                  clipRight,
-                                                       int&                   numHorVirBndry,
-                                                       int&                   numVerVirBndry,
-                                                       int                    horVirBndryPos[],
-                                                       int                    verVirBndryPos[],
-                                                       int&                   rasterSliceAlfPad
+bool AdaptiveLoopFilter::isClipOrCrossedByVirtualBoundaries( const CodingStructure& cs,
+                                                             const Area&            area,
+                                                             bool&                  clipTop,
+                                                             bool&                  clipBottom,
+                                                             bool&                  clipLeft,
+                                                             bool&                  clipRight,
+                                                             int&                   numHorVirBndry,
+                                                             int&                   numVerVirBndry,
+                                                             int                    horVirBndryPos[],
+                                                             int                    verVirBndryPos[],
+                                                             int&                   rasterSliceAlfPad
 )
 {
   clipTop        = false;
@@ -173,21 +173,37 @@ bool AdaptiveLoopFilter::isCrossedByVirtualBoundaries( const CodingStructure& cs
   int               ctuSize = sps->getCTUSize();
   const Position    currCtuPos( area.x, area.y );
   const CodingUnit* currCtu = cs.getCU( currCtuPos, CHANNEL_TYPE_LUMA );
-  bool loopFilterAcrossSubPicEnabledFlag = 1;
+  bool loopFilterAcrossSubPicEnabledFlag = true;
+  bool loopFilterAcrossTilesEnabledFlag = true;
+  bool loopFilterAcrossSlicesEnabledFlag = true;
+
   if( sps->getSubPicInfoPresentFlag() )
   {
     loopFilterAcrossSubPicEnabledFlag = pps->getSubPicFromPos( currCtuPos ).getloopFilterAcrossSubPicEnabledFlag();
   }
 
+  if( pps->getNumTiles() > 1 )
+  {
+    loopFilterAcrossTilesEnabledFlag = pps->getLoopFilterAcrossTilesEnabledFlag();
+  }
+
+  if( currCtu->slice->getNumCtuInSlice() != cs.pcv->sizeInCtus )
+  {
+    loopFilterAcrossSlicesEnabledFlag = pps->getLoopFilterAcrossSlicesEnabledFlag();
+  }
+
+  bool restrictAny    = !loopFilterAcrossSlicesEnabledFlag || !loopFilterAcrossTilesEnabledFlag || !loopFilterAcrossSubPicEnabledFlag;
+  bool restrictSlices = !loopFilterAcrossSlicesEnabledFlag;
+
   // top
-  if( area.y >= ctuSize && clipTop == false )
+  if( area.y >= ctuSize && clipTop == false && restrictAny )
   {
     const Position    prevCtuPos( area.x, area.y - ctuSize );
     const CodingUnit* prevCtu = cs.getCU( prevCtuPos, CHANNEL_TYPE_LUMA );
     if( !CU::isAvailable( *currCtu,
                           *prevCtu,
-                          !pps->getLoopFilterAcrossSlicesEnabledFlag(),
-                          !pps->getLoopFilterAcrossTilesEnabledFlag(),
+                          !loopFilterAcrossTilesEnabledFlag,
+                          !loopFilterAcrossTilesEnabledFlag,
                           !loopFilterAcrossSubPicEnabledFlag ) )
     {
       clipTop = true;
@@ -195,7 +211,7 @@ bool AdaptiveLoopFilter::isCrossedByVirtualBoundaries( const CodingStructure& cs
   }
 
   // bottom
-  if( area.y + ctuSize < cs.pcv->lumaHeight && clipBottom == false )
+  if( area.y + ctuSize < cs.pcv->lumaHeight && clipBottom == false && restrictAny )
   {
     const Position    nextCtuPos( area.x, area.y + ctuSize );
     const CodingUnit* nextCtu = cs.getCU( nextCtuPos, CHANNEL_TYPE_LUMA );
@@ -210,7 +226,7 @@ bool AdaptiveLoopFilter::isCrossedByVirtualBoundaries( const CodingStructure& cs
   }
 
   // left
-  if( area.x >= ctuSize && clipLeft == false )
+  if( area.x >= ctuSize && clipLeft == false && restrictAny )
   {
     const Position    prevCtuPos( area.x - ctuSize, area.y );
     const CodingUnit* prevCtu = cs.getCU( prevCtuPos, CHANNEL_TYPE_LUMA );
@@ -225,7 +241,7 @@ bool AdaptiveLoopFilter::isCrossedByVirtualBoundaries( const CodingStructure& cs
   }
 
   // right
-  if( area.x + ctuSize < cs.pcv->lumaWidth && clipRight == false )
+  if( area.x + ctuSize < cs.pcv->lumaWidth && clipRight == false && restrictAny )
   {
     const Position    nextCtuPos( area.x + ctuSize, area.y );
     const CodingUnit* nextCtu = cs.getCU( nextCtuPos, CHANNEL_TYPE_LUMA );
@@ -241,8 +257,8 @@ bool AdaptiveLoopFilter::isCrossedByVirtualBoundaries( const CodingStructure& cs
   }
 
   rasterSliceAlfPad = 0;
-  if ( !clipTop && !clipLeft )
-    {
+  if( !clipTop && !clipLeft && restrictSlices )
+  {
     //top-left CTU
     if ( area.x >= ctuSize && area.y >= ctuSize )
     {
@@ -255,7 +271,7 @@ bool AdaptiveLoopFilter::isCrossedByVirtualBoundaries( const CodingStructure& cs
     }
   }
 
-  if ( !clipBottom && !clipRight )
+  if ( !clipBottom && !clipRight && restrictSlices )
   {
     //bottom-right CTU
     if ( area.x + ctuSize < cs.pcv->lumaWidth && area.y + ctuSize < cs.pcv->lumaHeight )
@@ -597,12 +613,12 @@ void AdaptiveLoopFilter::filterCTU( const CPelUnitBuf&     srcBuf,
   int  verVirBndryPos[] = { 0, 0, 0 };
 
   int rasterSliceAlfPad = 0;
-  bool isCrssByVBs = isCrossedByVirtualBoundaries( cs,
-                                                   Area( ctuPos, Size( srcBuf.Y() ) ),
-                                                   clipTop, clipBottom, clipLeft, clipRight,
-                                                   numHorVirBndry, numVerVirBndry,
-                                                   horVirBndryPos, verVirBndryPos,
-                                                   rasterSliceAlfPad );
+  bool isCrssByVBs = isClipOrCrossedByVirtualBoundaries( cs,
+                                                         Area( ctuPos, Size( srcBuf.Y() ) ),
+                                                         clipTop, clipBottom, clipLeft, clipRight,
+                                                         numHorVirBndry, numVerVirBndry,
+                                                         horVirBndryPos, verVirBndryPos,
+                                                         rasterSliceAlfPad );
   if( isCrssByVBs )
   {
     CHECK( numHorVirBndry >= (int)( sizeof(horVirBndryPos) / sizeof(horVirBndryPos[0]) ), "Too many virtual boundaries" );

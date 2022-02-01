@@ -14,7 +14,7 @@ Einsteinufer 37
 www.hhi.fraunhofer.de/vvc
 vvc@hhi.fraunhofer.de
 
-Copyright (c) 2018-2021, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V.
+Copyright (c) 2018-2022, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V.
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -152,19 +152,19 @@ void DecLibRecon::create( ThreadPool* threadPool, unsigned instanceId )
   m_decodeThreadPool = threadPool;
   m_numDecThreads    = std::max( 1, threadPool ? threadPool->numThreads() : 1 );
 
-  m_predBufSize = 0;
+  m_predBufSize     = 0;
   m_dmvrMvCacheSize = 0;
   m_dmvrMvCache     = nullptr;
 
-  m_cIntraPred = new IntraPrediction[m_numDecThreads];
-  m_cInterPred = new InterPrediction[m_numDecThreads];
-  m_cCuDecoder = new DecCu          [m_numDecThreads];
-  m_cReshaper  = new Reshape        [m_numDecThreads];
-  m_cTrQuant   = new TrQuant*       [m_numDecThreads];
-  m_cTrQuant[0] = new TrQuant;
+  m_num4x4Elements   = 0;
+  m_loopFilterParam  = nullptr;
+  m_motionInfo       = nullptr;
+
+  m_pcThreadResource    = new PerThreadResource*[m_numDecThreads];
+  m_pcThreadResource[0] = new PerThreadResource();
   for( int i = 1; i < m_numDecThreads; i++ )
   {
-    m_cTrQuant[i] = new TrQuant( *m_cTrQuant[0] );
+    m_pcThreadResource[i] = new PerThreadResource( m_pcThreadResource[0]->m_cTrQuant );
   }
 }
 
@@ -185,12 +185,22 @@ void DecLibRecon::destroy()
     m_dmvrMvCacheSize = 0;
   }
 
-  delete[] m_cIntraPred; m_cIntraPred = nullptr;
-  delete[] m_cInterPred; m_cInterPred = nullptr;
-  delete[] m_cCuDecoder; m_cCuDecoder = nullptr;
-  delete[] m_cReshaper;  m_cReshaper  = nullptr;
-  for( int i = 0; i < m_numDecThreads; i++ ) delete m_cTrQuant[i];
-  delete[] m_cTrQuant;   m_cTrQuant   = nullptr;
+  if( m_loopFilterParam )
+  {
+    free( m_loopFilterParam );
+    m_loopFilterParam = nullptr;
+  }
+
+  if( m_motionInfo )
+  {
+    free( m_motionInfo );
+    m_motionInfo = nullptr;
+  }
+
+  m_num4x4Elements = 0;
+
+  for( int i = 0; i < m_numDecThreads; i++ ) delete m_pcThreadResource[i];
+  delete[] m_pcThreadResource; m_pcThreadResource = nullptr;
 }
 
 
@@ -384,16 +394,16 @@ void DecLibRecon::decompressPicture( Picture* pcPic )
   {
     if( sps->getUseReshaper() )
     {
-      m_cReshaper[i].createDec( sps->getBitDepth( CHANNEL_TYPE_LUMA ) );
-      m_cReshaper[i].initSlice( pcPic->slices[0]->getNalUnitLayerId(), *pcPic->slices[0]->getPicHeader(), *pcPic->slices[0]->getVPS() );
+      m_pcThreadResource[i]->m_cReshaper.createDec( sps->getBitDepth( CHANNEL_TYPE_LUMA ) );
+      m_pcThreadResource[i]->m_cReshaper.initSlice( pcPic->slices[0]->getNalUnitLayerId(), *pcPic->slices[0]->getPicHeader(), *pcPic->slices[0]->getVPS() );
     }
 
-    m_cIntraPred[i].init( sps->getChromaFormatIdc(), sps->getBitDepth( CHANNEL_TYPE_LUMA ) );
-    m_cInterPred[i].init( &m_cRdCost, sps->getChromaFormatIdc(), sps->getMaxCUHeight() );
+    m_pcThreadResource[i]->m_cIntraPred.init( sps->getChromaFormatIdc(), sps->getBitDepth( CHANNEL_TYPE_LUMA ) );
+    m_pcThreadResource[i]->m_cInterPred.init( &m_cRdCost, sps->getChromaFormatIdc(), sps->getMaxCUHeight() );
 
     // Recursive structure
-    m_cTrQuant[i] ->init( pcPic );
-    m_cCuDecoder[i].init( &m_cIntraPred[i], &m_cInterPred[i], &m_cReshaper[i], m_cTrQuant[i] );
+    m_pcThreadResource[i]->m_cTrQuant.init( pcPic );
+    m_pcThreadResource[i]->m_cCuDecoder.init( &m_pcThreadResource[i]->m_cIntraPred, &m_pcThreadResource[i]->m_cInterPred, &m_pcThreadResource[i]->m_cReshaper, &m_pcThreadResource[i]->m_cTrQuant );
   }
 
   getCompatibleBuffer( *pcPic->cs, pcPic->cs->getRecoBuf(), m_fltBuf );
@@ -438,7 +448,16 @@ void DecLibRecon::decompressPicture( Picture* pcPic )
 
   pcPic->cs->m_dmvrMvCache = m_dmvrMvCache;
 
-  m_ctuDataBufs.resize( cs.pcv->sizeInCtus );
+  if( m_num4x4Elements != cs.pcv->num4x4CtuBlks * cs.pcv->sizeInCtus )
+  {
+    if( m_loopFilterParam ) free( m_loopFilterParam );
+    if( m_motionInfo      ) free( m_motionInfo );
+
+    m_num4x4Elements = cs.pcv->num4x4CtuBlks * cs.pcv->sizeInCtus;
+
+    m_loopFilterParam = ( LoopFilterParam* ) malloc( sizeof( LoopFilterParam ) * m_num4x4Elements * 2 );
+    m_motionInfo      = ( MotionInfo* )      malloc( sizeof( MotionInfo      ) * m_num4x4Elements );
+  }
   // finished
 
   const int widthInCtus  = cs.pcv->widthInCtus;
@@ -621,7 +640,7 @@ void DecLibRecon::decompressPicture( Picture* pcPic )
       auto& cs = *param->common.cs;
       for( int col = 0; col < cs.pcv->widthInCtus; col++ )
       {
-        param->common.decLib.m_cCuDecoder[tid].TaskFinishMotionInfo( cs, col, param->line );
+        param->common.decLib.m_pcThreadResource[tid]->m_cCuDecoder.TaskFinishMotionInfo( cs, col, param->line );
       }
       ITT_TASKEND( itt_domain_dec, itt_handle_dmvr );
       return true;
@@ -727,18 +746,19 @@ bool DecLibRecon::ctuTask( int tid, CtuTaskParam* param )
 
       for( int ctu = ctuStart; ctu < ctuEnd; ctu++ )
       {
-        CtuData &ctuData = cs.getCtuData( ctu, line );
-        ctuData.motion = decLib.m_ctuDataBufs[ctu + line * cs.pcv->widthInCtus].motion;
+        const int ctuRsAddr = ctu + line * cs.pcv->widthInCtus;
+        CtuData& ctuData    = cs.getCtuData( ctuRsAddr );
+        ctuData.motion      = &decLib.m_motionInfo[cs.pcv->num4x4CtuBlks * ctuRsAddr];
 
         if( !ctuData.slice->isIntra() || cs.sps->getIBCFlag() )
         {
           const UnitArea ctuArea = getCtuArea( cs, ctu, line, true );
-          decLib.m_cCuDecoder[tid].TaskDeriveCtuMotionInfo( cs, ctuArea, param->common.perLineMiHist[line] );
+          decLib.m_pcThreadResource[tid]->m_cCuDecoder.TaskDeriveCtuMotionInfo( cs, ctuArea, param->common.perLineMiHist[line] );
         }
         else
         {
           GCC_WARNING_DISABLE_class_memaccess
-          memset( ctuData.motion, 0, sizeof( CtuDataBuffers::motion ) );
+          memset( ctuData.motion, 0, sizeof( MotionInfo ) * cs.pcv->num4x4CtuBlks );
           GCC_WARNING_RESET
         }
       }
@@ -756,11 +776,11 @@ bool DecLibRecon::ctuTask( int tid, CtuTaskParam* param )
 
       for( int ctu = ctuStart; ctu < ctuEnd; ctu++ )
       {
-        CtuData& ctuData = cs.getCtuData( ctu, line );
-        ctuData.lfParam[0] = decLib.m_ctuDataBufs[ctu + line * cs.pcv->widthInCtus].lfParam[0];
-        ctuData.lfParam[1] = decLib.m_ctuDataBufs[ctu + line * cs.pcv->widthInCtus].lfParam[1];
-        memset( ctuData.lfParam[0], 0, sizeof( CtuDataBuffers::lfParam[0] ) );
-        memset( ctuData.lfParam[1], 0, sizeof( CtuDataBuffers::lfParam[1] ) );
+        const int ctuRsAddr = ctu + line * cs.pcv->widthInCtus;
+        CtuData& ctuData    = cs.getCtuData( ctuRsAddr );
+        ctuData.lfParam[0]  = &decLib.m_loopFilterParam[cs.pcv->num4x4CtuBlks * ( 2 * ctuRsAddr + 0 )];
+        ctuData.lfParam[1]  = &decLib.m_loopFilterParam[cs.pcv->num4x4CtuBlks * ( 2 * ctuRsAddr + 1 )];
+        memset( ctuData.lfParam[0], 0, sizeof( LoopFilterParam ) * 2 * cs.pcv->num4x4CtuBlks );
 
         const UnitArea  ctuArea  = getCtuArea( cs, ctu, line, true );
         decLib.m_cLoopFilter.calcFilterStrengthsCTU( cs, ctuArea );
@@ -797,11 +817,11 @@ bool DecLibRecon::ctuTask( int tid, CtuTaskParam* param )
         const CtuData& ctuData = cs.getCtuData( ctu, line );
         const UnitArea ctuArea = getCtuArea( cs, ctu, line, true );
 
-        decLib.m_cCuDecoder[tid].TaskTrafoCtu( cs, ctuArea );
+        decLib.m_pcThreadResource[tid]->m_cCuDecoder.TaskTrafoCtu( cs, ctuArea );
 
         if( !ctuData.slice->isIntra() )
         {
-          decLib.m_cCuDecoder[tid].TaskInterCtu( cs, ctuArea );
+          decLib.m_pcThreadResource[tid]->m_cCuDecoder.TaskInterCtu( cs, ctuArea );
         }
       }
 
@@ -824,7 +844,7 @@ bool DecLibRecon::ctuTask( int tid, CtuTaskParam* param )
       for( int ctu = ctuStart; ctu < ctuEnd; ctu++ )
       {
         const UnitArea  ctuArea = getCtuArea( cs, ctu, line, true );
-        decLib.m_cCuDecoder[tid].TaskCriticalIntraKernel( cs, ctuArea );
+        decLib.m_pcThreadResource[tid]->m_cCuDecoder.TaskCriticalIntraKernel( cs, ctuArea );
       }
 
       thisCtuState = ( TaskType )( INTRA + 1 );
@@ -854,7 +874,7 @@ bool DecLibRecon::ctuTask( int tid, CtuTaskParam* param )
 
       for( int ctu = ctuStart; ctu < ctuEnd; ctu++ )
       {
-        decLib.m_cReshaper[tid].rspCtu( cs, ctu, line, 0 );
+        decLib.m_pcThreadResource[tid]->m_cReshaper.rspCtu( cs, ctu, line, 0 );
       }
 
       ITT_TASKEND( itt_domain_dec, itt_handle_rsp );

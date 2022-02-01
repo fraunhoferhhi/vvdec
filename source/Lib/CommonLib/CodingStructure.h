@@ -14,7 +14,7 @@ Einsteinufer 37
 www.hhi.fraunhofer.de/vvc
 vvc@hhi.fraunhofer.de
 
-Copyright (c) 2018-2021, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. 
+Copyright (c) 2018-2022, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. 
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -76,22 +76,16 @@ enum PictureType
 
 struct CtuData
 {
-  SAOBlkParam         saoParam;
-  const Slice*        slice;
-  const PPS*          pps;
-  const SPS*          sps;
-  const PicHeader*    ph;
+  SAOBlkParam           saoParam;
+  const Slice*          slice;
+  const PPS*            pps;
+  const SPS*            sps;
+  const PicHeader*      ph;
 
-  CodingUnit*         cuPtr  [MAX_NUM_CHANNEL_TYPE][NUM_PARTS_IN_CTU];
-  LoopFilterParam*    lfParam[NUM_EDGE_DIR];
-  MotionInfo*         motion;
-  ColocatedMotionInfo colMotion                    [NUM_COMOT_IN_CTU];
-};
-
-struct CtuDataBuffers
-{
-  LoopFilterParam lfParam[NUM_EDGE_DIR][NUM_PARTS_IN_CTU];
-  MotionInfo      motion               [NUM_PARTS_IN_CTU];
+  CodingUnit**          cuPtr  [MAX_NUM_CHANNEL_TYPE];
+  LoopFilterParam*      lfParam[NUM_EDGE_DIR];
+  MotionInfo*           motion;
+  ColocatedMotionInfo*  colMotion;
 };
 
 // ---------------------------------------------------------------------------
@@ -198,6 +192,11 @@ public:
   PosType              m_ctuSizeMask[2];
   PosType              m_ctuWidthLog2[2];
 
+  CodingUnit**         m_cuMap;
+  ptrdiff_t            m_cuMapSize;
+  ColocatedMotionInfo* m_colMiMap;
+  ptrdiff_t            m_colMiMapSize;
+
 public:
 
   // in CTU coordinates
@@ -206,8 +205,8 @@ public:
   ptrdiff_t ctuRsAddr( Position pos, ChannelType chType ) const { Position posL = recalcPosition( area.chromaFormat, chType, CH_L, pos ); return ctuRsAddr( posL.x >> pcv->maxCUWidthLog2, posL.y >> pcv->maxCUHeightLog2 ); }
   // 4x4 luma block position within the CTU
   ptrdiff_t inCtuPos ( Position pos, ChannelType chType ) const { return ( unitScale[chType].scaleHor( pos.x ) & m_ctuSizeMask[chType] ) + ( ( unitScale[chType].scaleVer( pos.y ) & m_ctuSizeMask[chType] ) << m_ctuWidthLog2[chType] ); }
-  // 4x4 luma block position within the CTU
-  ptrdiff_t colMotPos( Position pos ) const { return ( g_colMiScaling.scaleHor( pos.x ) & ( m_ctuSizeMask[CH_L] >> 1 ) ) + ( ( g_colMiScaling.scaleVer( pos.y ) & ( m_ctuSizeMask[CH_L] >> 1 ) ) << ( m_ctuWidthLog2[CH_L] - 1 ) ); }
+  // 8x8 luma block position within the CTU
+  ptrdiff_t colMotPos( Position pos )                     const { return ( g_colMiScaling.scaleHor( pos.x ) & ( m_ctuSizeMask[CH_L] >> 1 ) ) + ( ( g_colMiScaling.scaleVer( pos.y ) & ( m_ctuSizeMask[CH_L] >> 1 ) ) << ( m_ctuWidthLog2[CH_L] - 1 ) ); }
 
         CtuData& getCtuData( int col, int line )       { return m_ctuData[ctuRsAddr( col, line )]; }
   const CtuData& getCtuData( int col, int line ) const { return m_ctuData[ctuRsAddr( col, line )]; }
@@ -234,7 +233,7 @@ public:
 
   LoopFilterParam const* getLFPMapPtr   ( const DeblockEdgeDir edgeDir, ptrdiff_t _ctuRsAddr ) const { return m_ctuData[_ctuRsAddr].lfParam[edgeDir]; }
   LoopFilterParam      * getLFPMapPtr   ( const DeblockEdgeDir edgeDir, ptrdiff_t _ctuRsAddr )       { return m_ctuData[_ctuRsAddr].lfParam[edgeDir]; }
-  ptrdiff_t              getLFPMapStride() const { return ( ptrdiff_t( 1 ) << m_ctuWidthLog2[CH_L] ); }
+  ptrdiff_t              get4x4MapStride() const { return ( ptrdiff_t( 1 ) << m_ctuWidthLog2[CH_L] ); }
 
   UnitScale getScaling( const UnitScale::ScaliningType type, const ChannelType chType = CH_L ) const
   {

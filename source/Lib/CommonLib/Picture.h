@@ -14,7 +14,7 @@ Einsteinufer 37
 www.hhi.fraunhofer.de/vvc
 vvc@hhi.fraunhofer.de
 
-Copyright (c) 2018-2021, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. 
+Copyright (c) 2018-2022, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. 
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -150,22 +150,20 @@ public:
   std::chrono::time_point<std::chrono::steady_clock> m_processingStartTime;
   double                                             m_dProcessingTime = 0;
 
-  bool subPicExtStarted               = false;
-  bool borderExtStarted               = false;
-  bool wrapAroundValid                = false;
-  unsigned wrapAroundOffset           = 0;
-  bool referenced                     = false;
-  bool reconstructed                  = false;
-  bool inProgress                     = false;
-  bool neededForOutput                = false;
-  bool wasLost                        = false;
-  bool longTerm                       = false;
-  bool topField                       = false;
-  bool fieldPic                       = false;
-  int  skippedDecCount                = 0;
-  int  m_prevQP[MAX_NUM_CHANNEL_TYPE] = { -1, -1 };
-  bool nonReferencePictureFlag        = false;
-  bool              picCheckedDPH     = false;
+  bool     subPicExtStarted        = false;
+  bool     borderExtStarted        = false;
+  bool     referenced              = false;
+  bool     reconstructed           = false;
+  bool     inProgress              = false;
+  bool     neededForOutput         = false;
+  bool     wasLost                 = false;
+  bool     longTerm                = false;
+  bool     topField                = false;
+  bool     fieldPic                = false;
+  bool     nonReferencePictureFlag = false;
+  int      skippedDecCount         = 0;
+
+  bool              picCheckedDPH = false;
   std::vector<bool> subpicsCheckedDPH;
 
   // As long as this field is true, the picture will not be reused or deleted.
@@ -208,7 +206,6 @@ public:
 
   CodingStructure*    cs = nullptr;
   std::vector<Slice*> slices;
-  unsigned int        numSlices = 1;
 
   seiMessages        seiMessageList;
 

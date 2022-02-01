@@ -14,7 +14,7 @@ Einsteinufer 37
 www.hhi.fraunhofer.de/vvc
 vvc@hhi.fraunhofer.de
 
-Copyright (c) 2018-2021, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. 
+Copyright (c) 2018-2022, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. 
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -76,62 +76,73 @@ int VVDecImpl::init( const vvdecParams& params )
 {
   if( m_bInitialized ){ return VVDEC_ERR_INITIALIZE; }
 
+  try
+  {
 #if ENABLE_TRACING
-  if( !g_trace_ctx )
-  {
-    g_trace_ctx = tracing_init( sTracingFile, sTracingRule );
-  }
-  if( bTracingChannelsList && g_trace_ctx )
-  {
-    std::string sChannelsList;
-    g_trace_ctx->getChannelsList( sChannelsList );
-    msg( INFO, "\nAvailable tracing channels:\n\n%s\n", sChannelsList.c_str() );
-  }
+    if( !g_trace_ctx )
+    {
+      g_trace_ctx = tracing_init( sTracingFile, sTracingRule );
+    }
+    if( bTracingChannelsList && g_trace_ctx )
+    {
+      std::string sChannelsList;
+      g_trace_ctx->getChannelsList( sChannelsList );
+      msg( INFO, "\nAvailable tracing channels:\n\n%s\n", sChannelsList.c_str() );
+    }
 #endif
-  
+
 #ifdef TARGET_SIMD_X86
-  switch( params.simd )
-  {
-  case VVDEC_SIMD_SCALAR: read_x86_extension( "SCALAR" ); break;
-  case VVDEC_SIMD_SSE41 : read_x86_extension( "SSE41"  ); break;
-  case VVDEC_SIMD_SSE42 : read_x86_extension( "SSE42"  ); break;
-  case VVDEC_SIMD_AVX   : read_x86_extension( "AVX"    ); break;
-  case VVDEC_SIMD_AVX2  : read_x86_extension( "AVX2"   ); break;
-  case VVDEC_SIMD_AVX512: read_x86_extension( "AVX512" ); break;
-  case VVDEC_SIMD_DEFAULT:
-  default: break;
-  }
+    switch( params.simd )
+    {
+    case VVDEC_SIMD_SCALAR: read_x86_extension( SCALAR ); break;
+    case VVDEC_SIMD_SSE41 : read_x86_extension( SSE41  ); break;
+    case VVDEC_SIMD_SSE42 : read_x86_extension( SSE42  ); break;
+    case VVDEC_SIMD_AVX   : read_x86_extension( AVX    ); break;
+    case VVDEC_SIMD_AVX2  : read_x86_extension( AVX2   ); break;
+    case VVDEC_SIMD_DEFAULT:
+    default: break;
+    }
 #endif
 
-  m_cDecLib = new DecLib();
+    m_cDecLib.reset( new DecLib() );
 
-  initROM();
+    initROM();
 
-  // create decoder class
+    // create decoder class
 #if RPR_YUV_OUTPUT
-  m_cDecLib->create( params.threads, params.parseThreads, params.upscaleOutput );
+    m_cDecLib->create( params.threads, params.parseThreads, params.upscaleOutput );
 #else
-  m_cDecLib->create( params.threads, params.parseThreads );
+    m_cDecLib->create( params.threads, params.parseThreads );
 #endif
 
-  g_verbosity = MsgLevel( params.logLevel );
-  g_context = this;
+    g_verbosity = MsgLevel( params.logLevel );
+    g_context   = this;
 
-  // initialize decoder class
-  m_cDecLib->setDecodedPictureHashSEIEnabled( (int) params.verifyPictureHash );
-//  if (!m_outputDecodedSEIMessagesFilename.empty())
-//  {
-//    std::ostream &os=m_seiMessageFileStream.is_open() ? m_seiMessageFileStream : std::cout;
-//    m_cDecLib.setDecodedSEIMessageOutputStream(&os);
-//  }
+    // initialize decoder class
+    m_cDecLib->setDecodedPictureHashSEIEnabled( (int) params.verifyPictureHash );
+//    if (!m_outputDecodedSEIMessagesFilename.empty())
+//    {
+//      std::ostream &os=m_seiMessageFileStream.is_open() ? m_seiMessageFileStream : std::cout;
+//      m_cDecLib.setDecodedSEIMessageOutputStream(&os);
+//    }
 
-  m_sDecoderCapabilities = m_cDecLib->getDecoderCapabilities();
+    m_sDecoderCapabilities = m_cDecLib->getDecoderCapabilities();
 
-  m_bRemovePadding = params.removePadding;
-  m_uiSeqNumber    = 0;
-  m_uiSeqNumOutput = 0;
-  m_bInitialized   = true;
-  m_eState         = INTERNAL_STATE_INITIALIZED;
+    m_bRemovePadding = params.removePadding;
+    m_uiSeqNumber    = 0;
+    m_uiSeqNumOutput = 0;
+    m_bInitialized   = true;
+    m_eState         = INTERNAL_STATE_INITIALIZED;
+  }
+  catch( std::exception& e )
+  {
+    std::stringstream css;
+    css << "caught exception during initialization:" << e.what();
+    m_cAdditionalErrorString = css.str();
+    m_eState                 = INTERNAL_STATE_RESTART_REQUIRED;
+    m_bInitialized           = false;
+    return VVDEC_ERR_RESTART_REQUIRED;
+  }
 
   return VVDEC_OK;
 }
@@ -187,7 +198,7 @@ int VVDecImpl::uninit()
 
   // destroy internal classes
   m_cDecLib->destroy();
-  delete m_cDecLib;
+  m_cDecLib.reset();
   destroyROM();
 
 #if defined( __linux__ )

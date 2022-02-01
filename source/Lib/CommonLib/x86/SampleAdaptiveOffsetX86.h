@@ -14,7 +14,7 @@ Einsteinufer 37
 www.hhi.fraunhofer.de/vvc
 vvc@hhi.fraunhofer.de
 
-Copyright (c) 2018-2021, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V.
+Copyright (c) 2018-2022, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V.
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -54,11 +54,6 @@ namespace vvdec
 {
 
 #ifdef TARGET_SIMD_X86
-#  if defined _MSC_VER
-#    include <tmmintrin.h>
-#  else
-#    include <immintrin.h>
-#  endif
 
 #  define SAO_NUM_OFFSETS 4                             /* number of SAO offset values */
 #  define SAO_EO_NUM_CATEGORIES ( SAO_NUM_OFFSETS + 1 ) /* number of different eo categories */

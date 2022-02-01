@@ -14,7 +14,7 @@ Einsteinufer 37
 www.hhi.fraunhofer.de/vvc
 vvc@hhi.fraunhofer.de
 
-Copyright (c) 2018-2021, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. 
+Copyright (c) 2018-2022, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. 
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -57,22 +57,26 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #include <iomanip>
 #include <limits>
 #include <cmath>   // needed for std::log2()
+#include <cstdarg>
 
 #include <functional>
 #include <mutex>
 
+#if defined( __x86_64__ ) || defined( _M_X64 ) || defined( __i386__ ) || defined( __i386 ) || defined( _M_IX86 )
+# define REAL_TARGET_X86 1
+#elif defined( __aarch64__ ) || defined( _M_ARM64 ) || defined( __arm__ ) || defined( _M_ARM )
+# define REAL_TARGET_ARM 1
+#elif defined( __wasm__ ) || defined( __wasm32__ )
+# define REAL_TARGET_WASM 1
+#endif
+
 #if defined( TARGET_SIMD_X86 )
 # ifdef _WIN32
 #  include <intrin.h>
-# elif defined( __GNUC__ ) && !defined( TARGET_SIMD_WASM )
-#  include <x86intrin.h>
-# elif defined( __GNUC__ )
-#  include <immintrin.h>
+//# elif defined( __GNUC__ )
+//#  include <simde/x86/sse2.h>
 # endif
 #endif // TARGET_SIMD_X86
-
-namespace vvdec
-{
 
 #if defined( __INTEL_COMPILER )
 #pragma warning( disable : 1786 )
@@ -119,7 +123,6 @@ inline int64_t abs (int64_t x) { return _abs64(x); };
 # define GCC_WARNING_DISABLE_class_memaccess
 #endif
 
-}   // namespace vvdec
 
 #include "TypeDef.h"
 #include "vvdec/version.h"
@@ -127,52 +130,8 @@ inline int64_t abs (int64_t x) { return _abs64(x); };
 namespace vvdec
 {
 
-
 //! \ingroup CommonLib
 //! \{
-
-// ====================================================================================================================
-// Platform information
-// ====================================================================================================================
-
-#ifdef __GNUC__
-#define NVM_COMPILEDBY  "[GCC %d.%d.%d]", __GNUC__, __GNUC_MINOR__, __GNUC_PATCHLEVEL__
-#ifdef __IA64__
-#define NVM_ONARCH    "[on 64-bit] "
-#else
-#define NVM_ONARCH    "[on 32-bit] "
-#endif
-#endif
-
-#ifdef __INTEL_COMPILER
-# ifndef NVM_COMPILEDBY
-#  define NVM_COMPILEDBY  "[ICC %d]", __INTEL_COMPILER
-# endif
-#elif  _MSC_VER
-#define NVM_COMPILEDBY  "[VS %d]", _MSC_VER
-#endif
-
-#ifndef NVM_COMPILEDBY
-#define NVM_COMPILEDBY "[Unk-CXX]"
-#endif
-
-#ifdef _WIN32
-#define NVM_ONOS        "[Windows]"
-#elif  __linux
-#define NVM_ONOS        "[Linux]"
-#elif  __CYGWIN__
-#define NVM_ONOS        "[Cygwin]"
-#elif __APPLE__
-#define NVM_ONOS        "[Mac OS X]"
-#else
-#define NVM_ONOS "[Unk-OS]"
-#endif
-
-#define NVM_BITS          "[%d bit] ", (sizeof(void*) == 8 ? 64 : 32) ///< used for checking 64-bit O/S
-
-#ifndef NULL
-#define NULL              0
-#endif
 
 // ====================================================================================================================
 // Common constants
@@ -552,8 +511,10 @@ template<class T> struct AlignedDeleter
 
 #if ENABLE_SIMD_OPT
 
-#ifdef TARGET_SIMD_X86
-typedef enum {
+#  ifdef TARGET_SIMD_X86
+typedef enum
+{
+  UNDEFINED = -1,
   SCALAR = 0,
   SSE41,
   SSE42,
@@ -561,14 +522,14 @@ typedef enum {
   AVX2,
   AVX512
 } X86_VEXT;
-#endif
+#  endif
 
-#ifdef TARGET_SIMD_X86
-X86_VEXT read_x86_extension_flags(const std::string &extStrId = std::string());
-const char* read_x86_extension(const std::string &extStrId);
-#endif
+#  ifdef TARGET_SIMD_X86
+X86_VEXT    read_x86_extension_flags( X86_VEXT request = UNDEFINED );
+const char* read_x86_extension      ( X86_VEXT request = UNDEFINED );
+#  endif
 
-#endif //ENABLE_SIMD_OPT
+#endif   // ENABLE_SIMD_OPT
 
 template <typename ValueType> inline ValueType leftShift       (const ValueType value, const int shift) { return (shift >= 0) ? ( value                                  << shift) : ( value                                   >> -shift); }
 template <typename ValueType> inline ValueType rightShift      (const ValueType value, const int shift) { return (shift >= 0) ? ( value                                  >> shift) : ( value                                   << -shift); }
@@ -582,11 +543,12 @@ static inline unsigned int bit_scan_reverse( int a )
   _BitScanReverse( &idx, a );
   return idx;
 }
-#elif defined( __GNUC__ ) && defined( TARGET_SIMD_X86 ) && !defined( TARGET_SIMD_WASM )
-static inline unsigned int bit_scan_reverse( int a )
-{
-  return _bit_scan_reverse( a );
-}
+// disabled because it requires x86intrin.h which conflicts with simd-everywhere
+// #elif defined( __GNUC__ ) && defined( TARGET_SIMD_X86 ) && !defined( REAL_TARGET_WASM )
+// static inline unsigned int bit_scan_reverse( int a )
+// {
+//   return _bit_scan_reverse( a );
+// }
 #elif defined( __GNUC__ )
 static inline unsigned int bit_scan_reverse( int a )
 {

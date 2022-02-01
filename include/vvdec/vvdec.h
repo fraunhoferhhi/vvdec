@@ -14,7 +14,7 @@ Einsteinufer 37
 www.hhi.fraunhofer.de/vvc
 vvc@hhi.fraunhofer.de
 
-Copyright (c) 2018-2021, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. 
+Copyright (c) 2018-2022, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. 
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -120,8 +120,7 @@ typedef enum
   VVDEC_SIMD_SSE41    = 2,
   VVDEC_SIMD_SSE42    = 3,
   VVDEC_SIMD_AVX      = 4,
-  VVDEC_SIMD_AVX2     = 5,
-  VVDEC_SIMD_AVX512   = 6
+  VVDEC_SIMD_AVX2     = 5
 }vvdecSIMD_Extension;
 
 /*

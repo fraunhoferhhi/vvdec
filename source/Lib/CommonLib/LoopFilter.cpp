@@ -14,7 +14,7 @@ Einsteinufer 37
 www.hhi.fraunhofer.de/vvc
 vvc@hhi.fraunhofer.de
 
-Copyright (c) 2018-2021, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. 
+Copyright (c) 2018-2022, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. 
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -62,6 +62,8 @@ THE POSSIBILITY OF SUCH DAMAGE.
 
 #ifdef TARGET_SIMD_X86
 #include "CommonDefX86.h"
+
+#include <simde/x86/sse4.1.h>
 #endif
 
 namespace vvdec
@@ -544,7 +546,7 @@ void LoopFilter::xDeblockCtuArea( CodingStructure& cs, const UnitArea& area, con
   const int csy = getChannelTypeScaleY( CH_C, pcv.chrFormat );
 
   LoopFilterParam const* lfpPtr = cs.getLFPMapPtr( edgeDir, cs.ctuRsAddr( area.Y().pos(), CH_L ) );
-  ptrdiff_t lfpStride           = cs.getLFPMapStride();
+  ptrdiff_t lfpStride           = cs.get4x4MapStride();
 
   const Position lumaPos = area.lumaPos();
   const Position chrmPos = doChroma ? area.chromaPos() : lumaPos;
@@ -703,7 +705,7 @@ void LoopFilter::calcFilterStrengths( const CodingUnit& cu ) const
 
   {
     LoopFilterParam* lfpPtrV   = cu.cs->getLFPMapPtr( EDGE_VER, cu.cs->ctuRsAddr( area.pos(), cu.chType() ) );
-    ptrdiff_t        lfpStride = cu.cs->getLFPMapStride();
+    ptrdiff_t        lfpStride = cu.cs->get4x4MapStride();
                      lfpPtrV  += lfpPos;
 
     for( int y = 0; y < area.height; y += uiPelsInPartY )
@@ -729,7 +731,7 @@ void LoopFilter::calcFilterStrengths( const CodingUnit& cu ) const
 
   {
     LoopFilterParam* lfpPtrH   = cu.cs->getLFPMapPtr( EDGE_HOR, cu.cs->ctuRsAddr( area.pos(), cu.chType() ) );
-    ptrdiff_t        lfpStride = cu.cs->getLFPMapStride();
+    ptrdiff_t        lfpStride = cu.cs->get4x4MapStride();
                      lfpPtrH  += lfpPos;
 
     for( int y = 0; y < area.height; y += uiPelsInPartY )
@@ -800,7 +802,7 @@ void LoopFilter::xSetMaxFilterLengthPQForCodingSubBlocks( const CodingUnit& cu, 
   const int yInc         = edgeDir ? subBlockSize : minCUHeight;
   
   LoopFilterParam* lfpPtrL   = ctuData.lfParam[edgeDir] + cu.cs->inCtuPos( cu.lumaPos(), CH_L );
-  ptrdiff_t        lfpStride = cu.cs->getLFPMapStride();
+  ptrdiff_t        lfpStride = cu.cs->get4x4MapStride();
   const UnitScale  scaling   = cu.cs->getScaling( UnitScale::LF_PARAM_MAP, CHANNEL_TYPE_LUMA );
 
   for( int y = 0; y < cu.Y().height; y += yInc )
@@ -900,7 +902,7 @@ void LoopFilter::xSetMaxFilterLengthPQFromTransformSizes( const CodingUnit& cu, 
     if( vld && perpPos<edgeDir>( currTU.blocks[ch] ) != 0 )
     {
       LoopFilterParam* lfpPtr    = ctuData.lfParam[edgeDir] + cu.cs->inCtuPos( currTU.blocks[ct], ch );
-      ptrdiff_t lfpStride        = cu.cs->getLFPMapStride();
+      ptrdiff_t lfpStride        = cu.cs->get4x4MapStride();
 
       const int         inc      = edgeDir ? pcv.minCUWidth  >> getChannelTypeScaleX( ch, cu.chromaFormat )
                                            : pcv.minCUHeight >> getChannelTypeScaleY( ch, cu.chromaFormat );
@@ -992,7 +994,7 @@ void LoopFilter::xSetEdgeFilterInsidePu( const CodingUnit &cu, const Area &area,
 {
   const PreCalcValues &  pcv       = *cu.cs->pcv;
   LoopFilterParam*       lfpPtr    =  ctuData.lfParam[edgeDir] + cu.cs->inCtuPos( area.pos(), cu.chType() );
-  ptrdiff_t              lfpStride =  cu.cs->getLFPMapStride();
+  ptrdiff_t              lfpStride =  cu.cs->get4x4MapStride();
 
   const int inc = edgeDir ? pcv.minCUWidth  >> getChannelTypeScaleX( cu.chType(), cu.chromaFormat )
                           : pcv.minCUHeight >> getChannelTypeScaleY( cu.chType(), cu.chromaFormat );
@@ -1171,7 +1173,7 @@ void LoopFilter::xGetBoundaryStrengthSingle( LoopFilterParam& lfp, const CodingU
     return;
   }
 
-  const ptrdiff_t pqDiff    = edgeDir ? int( cuQ.cs->getLFPMapStride() ) : 1;
+  const ptrdiff_t pqDiff    = edgeDir ? int( cuQ.cs->get4x4MapStride() ) : 1;
   const ptrdiff_t inCtuPosQ = cuQ.cs->inCtuPos( posQ, chType );
 
   // and now the pred

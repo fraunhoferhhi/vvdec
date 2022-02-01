@@ -14,7 +14,7 @@ Einsteinufer 37
 www.hhi.fraunhofer.de/vvc
 vvc@hhi.fraunhofer.de
 
-Copyright (c) 2018-2021, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. 
+Copyright (c) 2018-2022, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. 
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -79,6 +79,10 @@ CodingStructure::CodingStructure( CUChunkCache* cuChunkCache, TUChunkCache* tuCh
   , m_dmvrMvCache ( nullptr )
   , m_cuCache ( cuChunkCache )
   , m_tuCache ( tuChunkCache )
+  , m_cuMap   ( nullptr )
+  , m_cuMapSize( 0 )
+  , m_colMiMap ( nullptr )
+  , m_colMiMapSize ( 0 )
   , m_IBCBufferWidth( 0 )
 {
   m_dmvrMvCacheOffset = 0;
@@ -98,12 +102,17 @@ void CodingStructure::destroy()
 
   deallocTempInternals();
 
-  if( m_ctuData )
-  {
-    free( m_ctuData );
-    m_ctuData = nullptr;
-    m_ctuDataSize = 0;
-  }
+  if( m_ctuData ) free( m_ctuData );
+  m_ctuData = nullptr;
+  m_ctuDataSize = 0;
+
+  if( m_colMiMap ) free( m_colMiMap );
+  m_colMiMap = nullptr;
+  m_colMiMapSize = 0;
+
+  if( m_cuMap ) free( m_cuMap );
+  m_cuMap = nullptr;
+  m_cuMapSize = 0;
 }
 
 CodingUnit& CodingStructure::addCU( const UnitArea &unit, const ChannelType chType, const TreeType treeType, const ModeType modeType, const CodingUnit *cuLeft, const CodingUnit *cuAbove )
@@ -290,6 +299,23 @@ void CodingStructure::rebindPicBufs()
 
 void CodingStructure::allocTempInternals()
 {
+  const ptrdiff_t ctuCuMapSize    = pcv->num4x4CtuBlks;
+  const ptrdiff_t ctuColMiMapSize = pcv->num8x8CtuBlks;
+
+  if( m_cuMapSize != ctuCuMapSize * pcv->sizeInCtus * 2 )
+  {
+    if( m_cuMap ) free( m_cuMap );
+    m_cuMapSize = ctuCuMapSize * pcv->sizeInCtus * 2;
+    m_cuMap     = ( CodingUnit** ) malloc( sizeof( CodingUnit* ) * m_cuMapSize );
+  }
+
+  if( m_colMiMapSize != ctuColMiMapSize * pcv->sizeInCtus )
+  {
+    if( m_colMiMap ) free( m_colMiMap );
+    m_colMiMapSize = ctuColMiMapSize * pcv->sizeInCtus;
+    m_colMiMap     = ( ColocatedMotionInfo* ) malloc( sizeof( ColocatedMotionInfo ) * m_colMiMapSize );
+  }
+  
   if( m_ctuDataSize != pcv->sizeInCtus )
   {
     m_ctuDataSize = pcv->sizeInCtus;
@@ -330,8 +356,23 @@ void CodingStructure::initStructData()
   m_predBufOffset = 0;
 
   GCC_WARNING_DISABLE_class_memaccess
-  memset( m_ctuData, 0, sizeof( CtuData ) * m_ctuDataSize );
+  memset( m_ctuData,  0, sizeof( CtuData             ) * m_ctuDataSize );
+  memset( m_cuMap,    0, sizeof( CodingUnit*         ) * m_cuMapSize );
+  memset( m_colMiMap, 0, sizeof( ColocatedMotionInfo ) * m_colMiMapSize );
   GCC_WARNING_RESET
+  
+  const ptrdiff_t ctuCuMapSize    = pcv->num4x4CtuBlks;
+  const ptrdiff_t ctuColMiMapSize = pcv->num8x8CtuBlks;
+
+  for( int i = 0; i < pcv->sizeInCtus; i++ )
+  {
+    for( int j = 0; j < 2; j++ )
+    {
+      m_ctuData[i].cuPtr[j] = &m_cuMap[( 2 * i + j ) * ctuCuMapSize];
+    }
+
+    m_ctuData[i].colMotion = &m_colMiMap[i * ctuColMiMapSize];
+  }
 }
 
 MotionBuf CodingStructure::getMotionBuf( const Area& _area )
@@ -426,8 +467,9 @@ const CPelUnitBuf CodingStructure::getPredBuf(const CodingUnit &unit) const
 const ColocatedMotionInfo& CodingStructure::getColInfo( const Position &pos, const Slice*& pColSlice ) const
 {
   const CtuData& ctuData    = getCtuData( ctuRsAddr( pos, CH_L ) );
+  const ptrdiff_t rsPos     = colMotPos( pos );
   const ColocatedMotionInfo&
-                 colMi      = ctuData.colMotion[colMotPos( pos )];
+                 colMi      = ctuData.colMotion[rsPos];
                  pColSlice  = ctuData.slice;
   
   return colMi;

@@ -14,7 +14,7 @@ Einsteinufer 37
 www.hhi.fraunhofer.de/vvc
 vvc@hhi.fraunhofer.de
 
-Copyright (c) 2018-2021, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. 
+Copyright (c) 2018-2022, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. 
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -61,8 +61,6 @@ namespace vvdec
 
 #if ENABLE_SIMD_OPT_INTER
 #ifdef TARGET_SIMD_X86
-
-#define _mm_storeu_si32(p, a) (void)(*(int*)(p) = _mm_cvtsi128_si32((a)))
 
 template<X86_VEXT vext>
 inline void PaddBIO_SIMD( const Pel* refPel, Pel* dstPel, unsigned width, const int shift )
@@ -868,221 +866,280 @@ void gradFilter_SSE( int16_t* src, ptrdiff_t _srcStride, int width, int height, 
 }
 
 template<X86_VEXT vext>
-void prefetchPad_SSE( const Pel* src, const ptrdiff_t srcStride, Pel* dst, const ptrdiff_t dstStride, int width, int height, int padSize )
+void prefetchPadC_SSE( const Pel* src, const ptrdiff_t srcStride, Pel* dst, const ptrdiff_t dstStride, int width, int height )
 {
   _mm_prefetch( ( const char* )  src,            _MM_HINT_T0 );
   _mm_prefetch( ( const char* ) &src[srcStride], _MM_HINT_T0 );
 
-  if( width == 7 && padSize == 1 )
+  if( width == 7 )
   {
     const __m128i sl = _mm_setr_epi8( 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 12, 13 );
+
     __m128i l = _mm_shuffle_epi8( _mm_loadu_si128( ( const __m128i* ) src ), sl );
+    Pel pel0 = *src;
 
-    _mm_storeu_si16 ( ( __m128i* ) ( dst - 1 * dstStride - 1 ), l );
-    _mm_storeu_si128( ( __m128i* ) ( dst - 1 * dstStride     ), l );
-
-    _mm_storeu_si16 ( ( __m128i* ) ( dst - 0 * dstStride - 1 ), l );
-    _mm_storeu_si128( ( __m128i* ) ( dst - 0 * dstStride     ), l );
+    dst[-1-dstStride] = pel0;
+    _mm_storeu_si128( ( __m128i* ) ( dst - 1 * dstStride ), l );
+                                                         
+    dst[-1] = pel0;                                      
+    _mm_storeu_si128( ( __m128i* ) ( dst - 0 * dstStride ), l );
 
     for( height--, dst += dstStride, src += srcStride; height > 0; height--, src += srcStride, dst += dstStride )
     {
       _mm_prefetch( ( const char* ) &src[srcStride], _MM_HINT_T0 );
 
       l = _mm_shuffle_epi8( _mm_loadu_si128( ( const __m128i* ) src ), sl );
+      pel0 = *src;
 
-      _mm_storeu_si16 ( ( __m128i* ) ( dst - 1 ), l );
-      _mm_storeu_si128( ( __m128i* ) ( dst     ), l );
+      dst[-1] = pel0;
+      _mm_storeu_si128( ( __m128i* ) ( dst ), l );
     }
 
-    _mm_storeu_si16 ( ( __m128i* ) ( dst - 1 ), l );
-    _mm_storeu_si128( ( __m128i* ) ( dst     ), l );
+    dst[-1] = pel0;
+    _mm_storeu_si128( ( __m128i* ) ( dst ), l );
   }
-  else if( width == 11 && padSize == 1 )
+  else
   {
-    const __m128i sl = _mm_setr_epi8( 0, 1, 2, 3, 4, 5, 4, 5, 8, 9, 10, 11, 12, 13, 14, 15 );
+    const __m128i sl = _mm_setr_epi8( 0, 1, 2, 3, 4, 5, 4, 5, -1, -1, -1, -1, -1, -1, -1, -1 );
+
     __m128i l0 =                   _mm_loadu_si128( ( const __m128i* ) &src[0] );
     __m128i l1 = _mm_shuffle_epi8( _mm_loadl_epi64( ( const __m128i* ) &src[8] ), sl );
+    Pel pel0 = *src;
 
-    _mm_storeu_si16 ( ( __m128i* ) ( dst - 1 * dstStride - 1 ), l0 );
-    _mm_storeu_si128( ( __m128i* ) ( dst - 1 * dstStride     ), l0 );
+    dst[-1 - dstStride] = pel0;
+    _mm_storeu_si128( ( __m128i* ) ( dst - 1 * dstStride - 0 ), l0 );
     _mm_storel_epi64( ( __m128i* ) ( dst - 1 * dstStride + 8 ), l1 );
 
-    _mm_storeu_si16 ( ( __m128i* ) ( dst - 0 * dstStride - 1 ), l0 );
-    _mm_storeu_si128( ( __m128i* ) ( dst - 0 * dstStride     ), l0 );
+    dst[-1] = pel0;
+    _mm_storeu_si128( ( __m128i* ) ( dst - 0 * dstStride - 0 ), l0 );
     _mm_storel_epi64( ( __m128i* ) ( dst - 0 * dstStride + 8 ), l1 );
 
     for( height--, dst += dstStride, src += srcStride; height > 0; height--, src += srcStride, dst += dstStride )
     {
       _mm_prefetch( ( const char* ) &src[srcStride], _MM_HINT_T0 );
-
+      
       l0 =                   _mm_loadu_si128( ( const __m128i* ) &src[0] );
       l1 = _mm_shuffle_epi8( _mm_loadl_epi64( ( const __m128i* ) &src[8] ), sl );
+      pel0 = *src;
 
-      _mm_storeu_si16 ( ( __m128i* ) ( dst - 1 ), l0 );
-      _mm_storeu_si128( ( __m128i* ) ( dst     ), l0 );
+      dst[-1] = pel0;
+      _mm_storeu_si128( ( __m128i* ) ( dst - 0 ), l0 );
       _mm_storel_epi64( ( __m128i* ) ( dst + 8 ), l1 );
     }
-    
-    _mm_storeu_si16 ( ( __m128i* ) ( dst - 1 ), l0 );
-    _mm_storeu_si128( ( __m128i* ) ( dst     ), l0 );
+
+    dst[-1] = pel0;
+    _mm_storeu_si128( ( __m128i* ) ( dst - 0 ), l0 );
     _mm_storel_epi64( ( __m128i* ) ( dst + 8 ), l1 );
   }
-  else if( width == 15 && padSize == 2 )
+}
+
+template<X86_VEXT vext>
+void prefetchPadL_SSE( const Pel* src, const ptrdiff_t srcStride, Pel* dst, const ptrdiff_t dstStride, int width, int height )
+{
+  _mm_prefetch( ( const char* )  src,            _MM_HINT_T0 );
+  _mm_prefetch( ( const char* ) &src[srcStride], _MM_HINT_T0 );
+
+  if( width == 15 )
   {
-    const __m128i sl = _mm_setr_epi8(  0,  1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 12, 13 );
-    const __m128i sb = _mm_setr_epi8(  0,  1, 0, 1, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15 );
-    const __m128i se = _mm_setr_epi8( 12, 13, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15 );
-    __m128i l0 =                   _mm_loadu_si128( ( const __m128i* ) &src[0] );
-    __m128i l1 = _mm_shuffle_epi8( _mm_loadu_si128( ( const __m128i* ) &src[8] ), sl );
-    __m128i b  = _mm_shuffle_epi8( l0, sb );
-    __m128i e  = _mm_shuffle_epi8( l1, se );
+    const __m128i sb = _mm_setr_epi8( 0, 1, 0, 1, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11 );
 
-    _mm_storeu_si32 ( ( __m128i* ) ( dst - 2 * dstStride -  2 ), b  );
-    _mm_storeu_si128( ( __m128i* ) ( dst - 2 * dstStride      ), l0 );
-    _mm_storeu_si128( ( __m128i* ) ( dst - 2 * dstStride +  8 ), l1 );
-    _mm_storeu_si16 ( ( __m128i* ) ( dst - 2 * dstStride + 16 ), e  );
+    __m128i l0 = _mm_shuffle_epi8( _mm_loadu_si128( ( const __m128i* ) &src[ 0] ), sb );
+    __m128i l1 =                   _mm_loadu_si128( ( const __m128i* ) &src[ 6] );
+    __m128i l3 =                   _mm_set1_epi16 (                     src[14] );
 
-    _mm_storeu_si32 ( ( __m128i* ) ( dst - 1 * dstStride -  2 ), b  );
-    _mm_storeu_si128( ( __m128i* ) ( dst - 1 * dstStride      ), l0 );
-    _mm_storeu_si128( ( __m128i* ) ( dst - 1 * dstStride +  8 ), l1 );
-    _mm_storeu_si16 ( ( __m128i* ) ( dst - 1 * dstStride + 16 ), e  );
-
-    _mm_storeu_si32 ( ( __m128i* ) ( dst - 0 * dstStride -  2 ), b  );
-    _mm_storeu_si128( ( __m128i* ) ( dst - 0 * dstStride      ), l0 );
-    _mm_storeu_si128( ( __m128i* ) ( dst - 0 * dstStride +  8 ), l1 );
-    _mm_storeu_si16 ( ( __m128i* ) ( dst - 0 * dstStride + 16 ), e  );
+    _mm_storeu_si128( ( __m128i* ) ( dst - 2 * dstStride -  2 ), l0 );
+    _mm_storeu_si128( ( __m128i* ) ( dst - 2 * dstStride +  6 ), l1 );
+    _mm_storel_epi64( ( __m128i* ) ( dst - 2 * dstStride + 14 ), l3 );
+    
+    _mm_storeu_si128( ( __m128i* ) ( dst - 1 * dstStride -  2 ), l0 );
+    _mm_storeu_si128( ( __m128i* ) ( dst - 1 * dstStride +  6 ), l1 );
+    _mm_storel_epi64( ( __m128i* ) ( dst - 1 * dstStride + 14 ), l3 );
+    
+    _mm_storeu_si128( ( __m128i* ) ( dst - 0 * dstStride -  2 ), l0 );
+    _mm_storeu_si128( ( __m128i* ) ( dst - 0 * dstStride +  6 ), l1 );
+    _mm_storel_epi64( ( __m128i* ) ( dst - 0 * dstStride + 14 ), l3 );
 
     for( height--, dst += dstStride, src += srcStride; height > 0; height--, src += srcStride, dst += dstStride )
     {
       _mm_prefetch( ( const char* ) &src[srcStride], _MM_HINT_T0 );
-
-      l0 =                   _mm_loadu_si128( ( const __m128i* ) &src[0] );
-      l1 = _mm_shuffle_epi8( _mm_loadu_si128( ( const __m128i* ) &src[8] ), sl );
-      b = _mm_shuffle_epi8( l0, sb );
-      e = _mm_shuffle_epi8( l1, se );
       
-      _mm_storeu_si32 ( ( __m128i* ) ( dst -  2 ), b  );
-      _mm_storeu_si128( ( __m128i* ) ( dst      ), l0 );
-      _mm_storeu_si128( ( __m128i* ) ( dst +  8 ), l1 );
-      _mm_storeu_si16 ( ( __m128i* ) ( dst + 16 ), e  );
+      l0 = _mm_shuffle_epi8( _mm_loadu_si128( ( const __m128i* ) &src[ 0] ), sb );
+      l1 =                   _mm_loadu_si128( ( const __m128i* ) &src[ 6] );
+      l3 =                   _mm_set1_epi16 (                     src[14] );
+      
+      _mm_storeu_si128( ( __m128i* ) ( dst -  2 ), l0 );
+      _mm_storeu_si128( ( __m128i* ) ( dst +  6 ), l1 );
+      _mm_storel_epi64( ( __m128i* ) ( dst + 14 ), l3 );
     }
-    
-    _mm_storeu_si32 ( ( __m128i* ) ( dst -  2 ), b  );
-    _mm_storeu_si128( ( __m128i* ) ( dst      ), l0 );
-    _mm_storeu_si128( ( __m128i* ) ( dst +  8 ), l1 );
-    _mm_storeu_si16 ( ( __m128i* ) ( dst + 16 ), e  );
+
+    _mm_storeu_si128( ( __m128i* ) ( dst -  2 ), l0 );
+    _mm_storeu_si128( ( __m128i* ) ( dst +  6 ), l1 );
+    _mm_storel_epi64( ( __m128i* ) ( dst + 14 ), l3 );
 
     dst += dstStride;
-
-    _mm_storeu_si32 ( ( __m128i* ) ( dst -  2 ), b  );
-    _mm_storeu_si128( ( __m128i* ) ( dst      ), l0 );
-    _mm_storeu_si128( ( __m128i* ) ( dst +  8 ), l1 );
-    _mm_storeu_si16 ( ( __m128i* ) ( dst + 16 ), e  );
-  }
-  else if( width == 23 && padSize == 2 )
-  {
-    const __m128i sl = _mm_setr_epi8(  0,  1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 12, 13 );
-    const __m128i sb = _mm_setr_epi8(  0,  1, 0, 1, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15 );
-    const __m128i se = _mm_setr_epi8( 12, 13, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15 );
-    __m128i l0 =                   _mm_loadu_si128( ( const __m128i* ) &src[ 0] );
-    __m128i l1 =                   _mm_loadu_si128( ( const __m128i* ) &src[ 8] );
-    __m128i l2 = _mm_shuffle_epi8( _mm_loadu_si128( ( const __m128i* ) &src[16] ), sl );
-    __m128i b  = _mm_shuffle_epi8( l0, sb );
-    __m128i e  = _mm_shuffle_epi8( l2, se );
-
-    _mm_storeu_si32 ( ( __m128i* ) ( dst - 2 * dstStride -  2 ), b );
-    _mm_storeu_si128( ( __m128i* ) ( dst - 2 * dstStride      ), l0 );
-    _mm_storeu_si128( ( __m128i* ) ( dst - 2 * dstStride +  8 ), l1 );
-    _mm_storeu_si128( ( __m128i* ) ( dst - 2 * dstStride + 16 ), l2 );
-    _mm_storeu_si16 ( ( __m128i* ) ( dst - 2 * dstStride + 24 ), e );
-
-    _mm_storeu_si32 ( ( __m128i* ) ( dst - 1 * dstStride -  2 ), b );
-    _mm_storeu_si128( ( __m128i* ) ( dst - 1 * dstStride      ), l0 );
-    _mm_storeu_si128( ( __m128i* ) ( dst - 1 * dstStride +  8 ), l1 );
-    _mm_storeu_si128( ( __m128i* ) ( dst - 1 * dstStride + 16 ), l2 );
-    _mm_storeu_si16 ( ( __m128i* ) ( dst - 1 * dstStride + 24 ), e );
-
-    _mm_storeu_si32 ( ( __m128i* ) ( dst - 0 * dstStride -  2 ), b );
-    _mm_storeu_si128( ( __m128i* ) ( dst - 0 * dstStride      ), l0 );
-    _mm_storeu_si128( ( __m128i* ) ( dst - 0 * dstStride +  8 ), l1 );
-    _mm_storeu_si128( ( __m128i* ) ( dst - 0 * dstStride + 16 ), l2 );
-    _mm_storeu_si16 ( ( __m128i* ) ( dst - 0 * dstStride + 24 ), e );
-
-    for( height--, dst += dstStride, src += srcStride; height > 0; height--, src += srcStride, dst += dstStride )
-    {
-      _mm_prefetch( ( const char* ) &src[srcStride], _MM_HINT_T0 );
-
-      l0 =                   _mm_loadu_si128( ( const __m128i* ) &src[ 0] );
-      l1 =                   _mm_loadu_si128( ( const __m128i* ) &src[ 8] );
-      l2 = _mm_shuffle_epi8( _mm_loadu_si128( ( const __m128i* ) &src[16] ), sl );
-      b  = _mm_shuffle_epi8( l0, sb );
-      e  = _mm_shuffle_epi8( l2, se );
-
-      _mm_storeu_si32 ( ( __m128i* ) ( dst -  2 ), b );
-      _mm_storeu_si128( ( __m128i* ) ( dst      ), l0 );
-      _mm_storeu_si128( ( __m128i* ) ( dst +  8 ), l1 );
-      _mm_storeu_si128( ( __m128i* ) ( dst + 16 ), l2 );
-      _mm_storeu_si16 ( ( __m128i* ) ( dst + 24 ), e );
-    }
     
-    _mm_storeu_si32 ( ( __m128i* ) ( dst -  2 ), b );
-    _mm_storeu_si128( ( __m128i* ) ( dst      ), l0 );
-    _mm_storeu_si128( ( __m128i* ) ( dst +  8 ), l1 );
-    _mm_storeu_si128( ( __m128i* ) ( dst + 16 ), l2 );
-    _mm_storeu_si16 ( ( __m128i* ) ( dst + 24 ), e );
-
-    dst += dstStride;
-
-    _mm_storeu_si32 ( ( __m128i* ) ( dst -  2 ), b );
-    _mm_storeu_si128( ( __m128i* ) ( dst      ), l0 );
-    _mm_storeu_si128( ( __m128i* ) ( dst +  8 ), l1 );
-    _mm_storeu_si128( ( __m128i* ) ( dst + 16 ), l2 );
-    _mm_storeu_si16 ( ( __m128i* ) ( dst + 24 ), e );
+    _mm_storeu_si128( ( __m128i* ) ( dst -  2 ), l0 );
+    _mm_storeu_si128( ( __m128i* ) ( dst +  6 ), l1 );
+    _mm_storel_epi64( ( __m128i* ) ( dst + 14 ), l3 );
   }
   else
   {
-    // TODO: fix for 444!
+    const __m128i sb = _mm_setr_epi8( 0, 1, 0, 1, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11 );
 
-    g_pelBufOP.copyBuffer( ( const char* ) src, srcStride * sizeof( Pel ), ( char* ) dst, dstStride * sizeof( Pel ), width * sizeof( Pel ), height );
+    __m128i l0 = _mm_shuffle_epi8( _mm_loadu_si128( ( const __m128i* ) &src[ 0] ), sb );
+    __m128i l1 =                   _mm_loadu_si128( ( const __m128i* ) &src[ 6] );
+    __m128i l2 =                   _mm_loadu_si128( ( const __m128i* ) &src[14] );
+    __m128i l3 =                   _mm_set1_epi16 (                     src[22] );
 
-    /*left and right padding*/
-    Pel* ptrTemp1 = dst;
-    Pel* ptrTemp2 = dst + (width - 1);
-    ptrdiff_t offset = 0;
-    for( int i = 0; i < height; i++ )
+    _mm_storeu_si128( ( __m128i* ) ( dst - 2 * dstStride -  2 ), l0 );
+    _mm_storeu_si128( ( __m128i* ) ( dst - 2 * dstStride +  6 ), l1 );
+    _mm_storeu_si128( ( __m128i* ) ( dst - 2 * dstStride + 14 ), l2 );
+    _mm_storel_epi64( ( __m128i* ) ( dst - 2 * dstStride + 22 ), l3 );
+    
+    _mm_storeu_si128( ( __m128i* ) ( dst - 1 * dstStride -  2 ), l0 );
+    _mm_storeu_si128( ( __m128i* ) ( dst - 1 * dstStride +  6 ), l1 );
+    _mm_storeu_si128( ( __m128i* ) ( dst - 1 * dstStride + 14 ), l2 );
+    _mm_storel_epi64( ( __m128i* ) ( dst - 1 * dstStride + 22 ), l3 );
+    
+    _mm_storeu_si128( ( __m128i* ) ( dst - 0 * dstStride -  2 ), l0 );
+    _mm_storeu_si128( ( __m128i* ) ( dst - 0 * dstStride +  6 ), l1 );
+    _mm_storeu_si128( ( __m128i* ) ( dst - 0 * dstStride + 14 ), l2 );
+    _mm_storel_epi64( ( __m128i* ) ( dst - 0 * dstStride + 22 ), l3 );
+
+    for( height--, dst += dstStride, src += srcStride; height > 0; height--, src += srcStride, dst += dstStride )
     {
-      offset = dstStride * i;
-      for( int j = 1; j <= padSize; j++ )
-      {
-        *(ptrTemp1 - j + offset) = *(ptrTemp1 + offset);
-        *(ptrTemp2 + j + offset) = *(ptrTemp2 + offset);
-      }
+      _mm_prefetch( ( const char* ) &src[srcStride], _MM_HINT_T0 );
+      
+      l0 = _mm_shuffle_epi8( _mm_loadu_si128( ( const __m128i* ) &src[ 0] ), sb );
+      l1 =                   _mm_loadu_si128( ( const __m128i* ) &src[ 6] );
+      l2 =                   _mm_loadu_si128( ( const __m128i* ) &src[14] );
+      l3 =                   _mm_set1_epi16 (                     src[22] );
+      
+      _mm_storeu_si128( ( __m128i* ) ( dst -  2 ), l0 );
+      _mm_storeu_si128( ( __m128i* ) ( dst +  6 ), l1 );
+      _mm_storeu_si128( ( __m128i* ) ( dst + 14 ), l2 );
+      _mm_storel_epi64( ( __m128i* ) ( dst + 22 ), l3 );
     }
-    /*Top and Bottom padding*/
-    int numBytes = (width + padSize + padSize) * sizeof( Pel );
-    ptrTemp1 = (dst - padSize);
-    ptrTemp2 = (dst + (dstStride * (height - 1)) - padSize);
-    for( int i = 1; i <= padSize; i++ )
-    {
-      memcpy( ptrTemp1 - (i * dstStride), (ptrTemp1), numBytes );
-      memcpy( ptrTemp2 + (i * dstStride), (ptrTemp2), numBytes );
-    }
+
+    _mm_storeu_si128( ( __m128i* ) ( dst -  2 ), l0 );
+    _mm_storeu_si128( ( __m128i* ) ( dst +  6 ), l1 );
+    _mm_storeu_si128( ( __m128i* ) ( dst + 14 ), l2 );
+    _mm_storel_epi64( ( __m128i* ) ( dst + 22 ), l3 );
+
+    dst += dstStride;
+    
+    _mm_storeu_si128( ( __m128i* ) ( dst -  2 ), l0 );
+    _mm_storeu_si128( ( __m128i* ) ( dst +  6 ), l1 );
+    _mm_storeu_si128( ( __m128i* ) ( dst + 14 ), l2 );
+    _mm_storel_epi64( ( __m128i* ) ( dst + 22 ), l3 );
   }
 }
+
+#if USE_AVX2
+template<>
+void prefetchPadL_SSE<AVX2>( const Pel* src, const ptrdiff_t srcStride, Pel* dst, const ptrdiff_t dstStride, int width, int height )
+{
+  _mm_prefetch( ( const char* ) src, _MM_HINT_T0 );
+  _mm_prefetch( ( const char* ) &src[srcStride], _MM_HINT_T0 );
+
+  if( width == 15 )
+  {
+    const __m256i sl = _mm256_setr_epi8( 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15,
+                                         0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 10, 11, 10, 11 );
+
+    __m128i l0 = _mm_set1_epi16( src[0] );
+    __m256i l1 = _mm256_shuffle_epi8( _mm256_loadu_si256( ( const __m256i* ) &src[1] ), sl );
+
+    _mm_storel_epi64   ( ( __m128i* ) ( dst - 2 * dstStride -  2 ), l0 );
+    _mm256_storeu_si256( ( __m256i* ) ( dst - 2 * dstStride +  1 ), l1 );
+
+    _mm_storel_epi64   ( ( __m128i* ) ( dst - 1 * dstStride -  2 ), l0 );
+    _mm256_storeu_si256( ( __m256i* ) ( dst - 1 * dstStride +  1 ), l1 );
+
+    _mm_storel_epi64   ( ( __m128i* ) ( dst - 0 * dstStride -  2 ), l0 );
+    _mm256_storeu_si256( ( __m256i* ) ( dst - 0 * dstStride +  1 ), l1 );
+
+    for( height--, dst += dstStride, src += srcStride; height > 0; height--, src += srcStride, dst += dstStride )
+    {
+      _mm_prefetch( ( const char* ) &src[srcStride], _MM_HINT_T0 );
+
+      l0 = _mm_set1_epi16( src[0] );
+      l1 = _mm256_shuffle_epi8( _mm256_loadu_si256( ( const __m256i* ) & src[1] ), sl );
+
+      _mm_storel_epi64   ( ( __m128i* ) ( dst - 2 ), l0 );
+      _mm256_storeu_si256( ( __m256i* ) ( dst + 1 ), l1 );
+    }
+    
+    _mm_storel_epi64   ( ( __m128i* ) ( dst - 2 ), l0 );
+    _mm256_storeu_si256( ( __m256i* ) ( dst + 1 ), l1 );
+
+    dst += dstStride;
+    
+    _mm_storel_epi64   ( ( __m128i* ) ( dst - 2 ), l0 );
+    _mm256_storeu_si256( ( __m256i* ) ( dst + 1 ), l1 );
+  }
+  else
+  {
+    const __m128i sl = _mm_setr_epi8( 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 10, 11, 10, 11 );
+
+    __m128i l0 =                      _mm_set1_epi16(                         src[ 0] );
+    __m256i l1 =                      _mm256_loadu_si256( ( const __m256i* ) &src[ 1] );
+    __m128i l2 = _mm_shuffle_epi8   ( _mm_loadu_si128   ( ( const __m128i* ) &src[17] ), sl );
+
+    _mm_storel_epi64   ( ( __m128i* ) ( dst - 2 * dstStride -  2 ), l0 );
+    _mm256_storeu_si256( ( __m256i* ) ( dst - 2 * dstStride +  1 ), l1 );
+    _mm_storeu_si128   ( ( __m128i* ) ( dst - 2 * dstStride + 17 ), l2 );
+
+    _mm_storel_epi64   ( ( __m128i* ) ( dst - 1 * dstStride -  2 ), l0 );
+    _mm256_storeu_si256( ( __m256i* ) ( dst - 1 * dstStride +  1 ), l1 );
+    _mm_storeu_si128   ( ( __m128i* ) ( dst - 1 * dstStride + 17 ), l2 );
+
+    _mm_storel_epi64   ( ( __m128i* ) ( dst - 0 * dstStride -  2 ), l0 );
+    _mm256_storeu_si256( ( __m256i* ) ( dst - 0 * dstStride +  1 ), l1 );
+    _mm_storeu_si128   ( ( __m128i* ) ( dst - 0 * dstStride + 17 ), l2 );
+
+    for( height--, dst += dstStride, src += srcStride; height > 0; height--, src += srcStride, dst += dstStride )
+    {
+      _mm_prefetch( ( const char* ) &src[srcStride], _MM_HINT_T0 );
+      
+      l0 =                      _mm_set1_epi16(                         src[ 0] );
+      l1 =                      _mm256_loadu_si256( ( const __m256i* ) &src[ 1] );
+      l2 = _mm_shuffle_epi8   ( _mm_loadu_si128   ( ( const __m128i* ) &src[17] ), sl );
+
+      _mm_storel_epi64   ( ( __m128i* ) ( dst -  2 ), l0 );
+      _mm256_storeu_si256( ( __m256i* ) ( dst +  1 ), l1 );
+      _mm_storeu_si128   ( ( __m128i* ) ( dst + 17 ), l2 );
+    }
+    
+    _mm_storel_epi64   ( ( __m128i* ) ( dst -  2 ), l0 );
+    _mm256_storeu_si256( ( __m256i* ) ( dst +  1 ), l1 );
+    _mm_storeu_si128   ( ( __m128i* ) ( dst + 17 ), l2 );
+
+    dst += dstStride;
+    
+    _mm_storel_epi64   ( ( __m128i* ) ( dst -  2 ), l0 );
+    _mm256_storeu_si256( ( __m256i* ) ( dst +  1 ), l1 );
+    _mm_storeu_si128   ( ( __m128i* ) ( dst + 17 ), l2 );
+  }
+
+  _mm256_zeroupper();
+}
+#endif
 
 template<X86_VEXT vext>
 void InterPrediction::_initInterPredictionX86()
 {
   BiOptFlow       = BiOptFlowCoreSIMD  <vext>;
   PaddBIO         = PaddBIO_SIMD       <vext>;
-#if !defined( TARGET_SIMD_WASM ) // profilings show those functions are slower with WASM SIMD emulation than C++->WASM
+#if !defined( REAL_TARGET_WASM ) // profilings show those functions are slower with WASM SIMD emulation than C++->WASM
   BioGradFilter   = gradFilter_SSE     <vext, true>;
   profGradFilter  = gradFilter_SSE     <vext, false>;
 #endif
   applyPROF[0]    = applyPROF_SSE      <vext, false>;
   applyPROF[1]    = applyPROF_SSE      <vext, true>;
   roundIntVector  = roundIntVector_SIMD<vext>;
-  prefetchPad     = prefetchPad_SSE    <vext>;
+  prefetchPad[0]  = prefetchPadL_SSE   <vext>;
+  prefetchPad[2]  = prefetchPadC_SSE   <vext>;
 }
 template void InterPrediction::_initInterPredictionX86<SIMDX86>();
 

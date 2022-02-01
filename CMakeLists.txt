@@ -17,53 +17,40 @@ if( PROJECT_VERSION_RC)
     set( PROJECT_VERSION "${PROJECT_VERSION}-rc${PROJECT_VERSION_RC}" )
 endif()
 
-set( VVDEC_ENABLE_X86_SIMD TRUE  CACHE BOOL "enable x86 intrinsics" )
-set( VVDEC_ENABLE_ARM_SIMD FALSE CACHE BOOL "enable arm intrinsics" )
+list( APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake/modules" )
+message( STATUS "CMAKE_MODULE_PATH: updating module path to: ${CMAKE_MODULE_PATH}" )
 
-if( APPLE )
-  if( DEFINED CMAKE_OSX_ARCHITECTURES )
-    if( CMAKE_OSX_ARCHITECTURES STREQUAL "" )
-      if( CMAKE_HOST_SYSTEM_PROCESSOR STREQUAL "arm64" )
-        set( VVDEC_ENABLE_X86_SIMD FALSE )
-        set( VVDEC_ENABLE_ARM_SIMD TRUE )
-      endif()
-    elseif( CMAKE_OSX_ARCHITECTURES STREQUAL "arm64" )
-      set( VVDEC_ENABLE_X86_SIMD FALSE )
-      set( VVDEC_ENABLE_ARM_SIMD TRUE )
-    endif()
-  else()
-    if( CMAKE_HOST_SYSTEM_PROCESSOR STREQUAL "arm64" )
-      set( VVDEC_ENABLE_X86_SIMD FALSE )
-      set( VVDEC_ENABLE_ARM_SIMD TRUE )
-    endif()
-  endif()
-endif()
+# we enable x86 intrinsics for all target architectures, because they are implemented through simd-everywhere on non-x86
+set( VVDEC_ENABLE_X86_SIMD TRUE  CACHE BOOL "enable x86 intrinsics" )
+
+include( vvdecCompilerSupport )
 
 # enable sse4.1 build for all source files for gcc and clang
 if( VVDEC_ENABLE_X86_SIMD )
   if( UNIX OR MINGW )
-    add_compile_options( "-msse4.1" )
+    # when building for non-x86, but emulating simd using simd-everywhere (e.g. on ARM),
+    # the x86-compiler flags are not understood by the compiler
+    set_if_compiler_supports_flag( FLAG_msse41 -msse4.1 )
+    add_compile_options( ${FLAG_msse41} )
+  endif()
+
+  if( NOT MSVC AND NOT ${CMAKE_SYSTEM_NAME} STREQUAL "Emscripten" )
+    check_missing_intrinsics()
   endif()
 
   set( CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DTARGET_SIMD_X86" )
   set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DTARGET_SIMD_X86" )
 endif()
 
-if( VVDEC_ENABLE_ARM_SIMD )
-  set( CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DTARGET_SIMD_ARM" )
-  set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DTARGET_SIMD_ARM" )
-endif()
+# This potentially brings performance improvements for simd-everywhere, but I haven't
+# seen any, so it's disabled for now (GH)
+#set_if_compiler_supports_flag( FLAG_openmp_simd -fopenmp-simd )
+#add_compile_options( ${FLAG_openmp_simd} )
 
 if( ${CMAKE_SYSTEM_NAME} STREQUAL "Emscripten" )
   set( VVDEC_TARGET_WASM TRUE )
-  # make Emscripten output a html wrapper
-  #set( CMAKE_EXECUTABLE_SUFFIX  ".html" )
-
-  add_compile_definitions( TARGET_SIMD_WASM )
-  add_compile_options( -msimd128 ) # currently breaks running in nodejs (firefox & chrome work)
 
   add_compile_options( -pthread )
-
   add_link_options(
     --bind
     -sWASM_BIGINT
@@ -77,16 +64,18 @@ if( ${CMAKE_SYSTEM_NAME} STREQUAL "Emscripten" )
     -sEXPORT_NAME=CreateVVdeC
     -sEXPORTED_RUNTIME_METHODS=[ccall,cwrap,getValue,setValue,_malloc,callMain,FS]
     -sEXPORTED_FUNCTIONS=@${CMAKE_CURRENT_SOURCE_DIR}/source/Lib/vvdec/wasm_exported_functions.json
-#    --shell-file=${CMAKE_CURRENT_SOURCE_DIR}/web_player/shell.html
 #    --preload-file=${CMAKE_CURRENT_SOURCE_DIR}/ext/bitstreams/AMVR_B_HHI_3/AMVR_B_HHI_3.bit@in.bit
-#    --pre-js=${CMAKE_CURRENT_SOURCE_DIR}/pre.js
   )
+
+  if( VVDEC_ENABLE_X86_SIMD )
+   add_compile_options( -msimd128 )            # needed for all SIMD code, but breaks running in nodejs (firefox & chrome do work)
+
+    add_compile_definitions( TARGET_SIMD_WASM ) # this is currently only used by a single helper function vvdec_get_RGBA_frame()
+                                                # optimized specifically in WASM-SIMD. This has no effect on normal codec operations.
+  endif()
 endif()
 
 
-
-list( APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake/modules" )
-message( STATUS "CMAKE_MODULE_PATH: updating module path to: ${CMAKE_MODULE_PATH}" )
 
 if( NOT CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR )
   # set exception handling
@@ -221,7 +210,7 @@ if( VVDEC_USE_ADDRESS_SANITIZER )
 endif()
 
 if( VVDEC_ENABLE_X86_SIMD )
-  if( ( UNIX OR MINGW ) AND NOT VVDEC_OPT_TARGET_ARCH STREQUAL "" )
+  if( ( UNIX OR MINGW ) AND VVDEC_OPT_TARGET_ARCH )
     set( CMAKE_C_FLAGS   "${CMAKE_C_FLAGS} -march=${VVDEC_OPT_TARGET_ARCH} -mtune=${VVDEC_OPT_TARGET_ARCH}" )
     set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -march=${VVDEC_OPT_TARGET_ARCH} -mtune=${VVDEC_OPT_TARGET_ARCH}" )
   endif()

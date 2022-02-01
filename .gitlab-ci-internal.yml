@@ -41,16 +41,12 @@ variables:
       - if: '$CI_PIPELINE_SOURCE == "schedule"'
       - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
 
-.build_only_macos_arm64_template:
-   extends: .build_only_template
+.build_test_macos_template:
+   extends: .build_test_template
    script:
-      - make osx-arch=arm64 disable-lto=1 all
+      - make osx-arch=${OSX_ARCH} enable-bitstream-download=1 enable-local-bitstream-download=1 disable-lto=1 all
+      - make osx-arch=${OSX_ARCH} test
 
-.build_only_macos_x86_64_template:
-   extends: .build_only_template
-   script:
-      - make osx-arch=x86_64 disable-lto=1 all
-      
 .build_only_ubuntu2004_mingw_template:
    extends: .build_only_template_full
    script:
@@ -162,17 +158,16 @@ test_vc192x:
    tags:
       - vc192x
 
-test_macos:
-   extends: .build_test_template
+test_macos_arm64:
+   extends: .build_test_macos_template
+   variables:
+     OSX_ARCH: arm64
    tags:
-      - macos
+      - macos-arm
 
-build_macos_arm64:
-   extends: .build_only_macos_arm64_template
-   tags:
-      - macos
-
-build_macos_x86_64:
-   extends: .build_only_macos_x86_64_template
+test_macos_x86_64:
+   extends: .build_test_macos_template
+   variables:
+     OSX_ARCH: x86_64
    tags:
       - macos

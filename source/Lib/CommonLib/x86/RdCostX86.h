@@ -14,7 +14,7 @@ Einsteinufer 37
 www.hhi.fraunhofer.de/vvc
 vvc@hhi.fraunhofer.de
 
-Copyright (c) 2018-2021, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. 
+Copyright (c) 2018-2022, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. 
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -80,102 +80,57 @@ Distortion RdCost::xGetSAD_MxN_SIMD( const DistParam &rcDtParam )
 #ifdef USE_AVX2
     __m256i vone   = _mm256_set1_epi16( 1 );
     __m256i vsum32 = _mm256_setzero_si256();
+    __m256i vsum16 = _mm256_setzero_si256();
 
-    if( iRows == 16 && iSubShift == 1 )
+    // sum of 8 unsigned 10-bit ints (0-1023) can maximally be 3 + 10 bits, i.e. fits into 16 bit
+
+    for( int i = 0; i < ( iRows >> 3 ); i++ )
     {
-      if( rcDtParam.bitDepth <= 12 )
-      {
-        for( int i = 0; i < 2; i++ )
-        {
-          __m256i vsum16 = _mm256_setzero_si256();
+      //0
+      __m256i vsrc1 = _mm256_loadu_si256( ( __m256i* )( pSrc1 ) );
+      __m256i vsrc2 = _mm256_loadu_si256( ( __m256i* )( pSrc2 ) );
 
-          //0
-          __m256i vsrc1 = _mm256_loadu_si256( ( __m256i* )( pSrc1 ) );
-          __m256i vsrc2 = _mm256_loadu_si256( ( __m256i* )( pSrc2 ) );
+      pSrc1 += iStrideSrc1; pSrc2 += iStrideSrc2;
+      vsum16 = _mm256_add_epi16( vsum16, _mm256_abs_epi16( _mm256_sub_epi16( vsrc1, vsrc2 ) ) );
 
-          pSrc1 += iStrideSrc1; pSrc2 += iStrideSrc2;
+      // 1
+      vsrc1 = _mm256_loadu_si256( ( __m256i* )( pSrc1 ) ); vsrc2 = _mm256_loadu_si256( ( __m256i* )( pSrc2 ) );
+      pSrc1 += iStrideSrc1; pSrc2 += iStrideSrc2;
+      vsum16 = _mm256_add_epi16( vsum16, _mm256_abs_epi16( _mm256_sub_epi16( vsrc1, vsrc2 ) ) );
 
-          // 2x 12bit abs-diff -> 12 bit 
-          vsum16 = _mm256_abs_epi16( _mm256_sub_epi16( vsrc1, vsrc2 ) );
+      // 2
+      vsrc1 = _mm256_loadu_si256( ( __m256i* )( pSrc1 ) ); vsrc2 = _mm256_loadu_si256( ( __m256i* )( pSrc2 ) );
+      pSrc1 += iStrideSrc1; pSrc2 += iStrideSrc2;
+      vsum16 = _mm256_add_epi16( vsum16, _mm256_abs_epi16( _mm256_sub_epi16( vsrc1, vsrc2 ) ) );
 
-          // 1
-          vsrc1 = _mm256_loadu_si256( ( __m256i* )( pSrc1 ) ); vsrc2 = _mm256_loadu_si256( ( __m256i* )( pSrc2 ) );
-          pSrc1 += iStrideSrc1; pSrc2 += iStrideSrc2;
-          // 2x 12bit sum -> 13 bit
-          vsum16 = _mm256_add_epi16( vsum16, _mm256_abs_epi16( _mm256_sub_epi16( vsrc1, vsrc2 ) ) );
-
-          // 2
-          vsrc1 = _mm256_loadu_si256( ( __m256i* )( pSrc1 ) ); vsrc2 = _mm256_loadu_si256( ( __m256i* )( pSrc2 ) );
-          pSrc1 += iStrideSrc1; pSrc2 += iStrideSrc2;
-          // 13 bit and 12bit sum, or 3x 12 bit sum -> 13 bit
-          vsum16 = _mm256_add_epi16( vsum16, _mm256_abs_epi16( _mm256_sub_epi16( vsrc1, vsrc2 ) ) );
-
-          // 3
-          vsrc1 = _mm256_loadu_si256( ( __m256i* )( pSrc1 ) ); vsrc2 = _mm256_loadu_si256( ( __m256i* )( pSrc2 ) );
-          pSrc1 += iStrideSrc1; pSrc2 += iStrideSrc2;
-          // 4x 12 bit sum -> 14 bit
-          vsum16 = _mm256_add_epi16( vsum16, _mm256_abs_epi16( _mm256_sub_epi16( vsrc1, vsrc2 ) ) );
-
-          vsum32 = _mm256_add_epi32( vsum32, _mm256_madd_epi16( vsum16, vone ) );
-        }
-      }
-      else
-      {
-        for( int i = 0; i < 2; i++ )
-        {
-          //0
-          __m256i vsrc1 = _mm256_loadu_si256( ( __m256i* )( pSrc1 ) );
-          __m256i vsrc2 = _mm256_loadu_si256( ( __m256i* )( pSrc2 ) );
-
-          pSrc1 += iStrideSrc1; pSrc2 += iStrideSrc2;
-
-          vsum32 = _mm256_add_epi32( vsum32, _mm256_madd_epi16( _mm256_abs_epi16( _mm256_sub_epi16( vsrc1, vsrc2 ) ), vone ) );
-
-          // 1
-          vsrc1 = _mm256_loadu_si256( ( __m256i* )( pSrc1 ) ); vsrc2 = _mm256_loadu_si256( ( __m256i* )( pSrc2 ) ); pSrc1 += iStrideSrc1; pSrc2 += iStrideSrc2;
-          vsum32 = _mm256_add_epi32( vsum32, _mm256_madd_epi16( _mm256_abs_epi16( _mm256_sub_epi16( vsrc1, vsrc2 ) ), vone ) );
-
-          // 2
-          vsrc1 = _mm256_loadu_si256( ( __m256i* )( pSrc1 ) ); vsrc2 = _mm256_loadu_si256( ( __m256i* )( pSrc2 ) ); pSrc1 += iStrideSrc1; pSrc2 += iStrideSrc2;
-          vsum32 = _mm256_add_epi32( vsum32, _mm256_madd_epi16( _mm256_abs_epi16( _mm256_sub_epi16( vsrc1, vsrc2 ) ), vone ) );
-
-          // 3
-          vsrc1 = _mm256_loadu_si256( ( __m256i* )( pSrc1 ) ); vsrc2 = _mm256_loadu_si256( ( __m256i* )( pSrc2 ) ); pSrc1 += iStrideSrc1; pSrc2 += iStrideSrc2;
-          vsum32 = _mm256_add_epi32( vsum32, _mm256_madd_epi16( _mm256_abs_epi16( _mm256_sub_epi16( vsrc1, vsrc2 ) ), vone ) );
-        }
-      }
+      // 3
+      vsrc1 = _mm256_loadu_si256( ( __m256i* )( pSrc1 ) ); vsrc2 = _mm256_loadu_si256( ( __m256i* )( pSrc2 ) );
+      pSrc1 += iStrideSrc1; pSrc2 += iStrideSrc2;
+      vsum16 = _mm256_add_epi16( vsum16, _mm256_abs_epi16( _mm256_sub_epi16( vsrc1, vsrc2 ) ) );
     }
-    else
-    {
-      // Do for width that multiple of 16
-      for( int iY = 0; iY < iRows; iY += ( 1 << iSubShift ) )
-      {
-        __m256i vsrc1 = _mm256_loadu_si256( ( __m256i* )( pSrc1 ) );
-        __m256i vsrc2 = _mm256_loadu_si256( ( __m256i* )( pSrc2 ) );
 
-        vsum32 = _mm256_add_epi32( vsum32, _mm256_madd_epi16( _mm256_abs_epi16( _mm256_sub_epi16( vsrc1, vsrc2 ) ), vone ) );
 
-        pSrc1 += iStrideSrc1;
-        pSrc2 += iStrideSrc2;
-      }
-    }
+    vsum32 = _mm256_madd_epi16( vsum16, vone );
     vsum32 = _mm256_hadd_epi32( vsum32, vone );
     vsum32 = _mm256_hadd_epi32( vsum32, vone );
     uiSum =  _mm_cvtsi128_si32( _mm256_castsi256_si128( vsum32 ) ) + _mm_cvtsi128_si32( _mm256_extracti128_si256( vsum32, 1 ) );
 #endif
   }
-  else if( iRows == 16 && iSubShift == 1 && rcDtParam.bitDepth <= 10 )
+  else
   {
     __m128i vone   = _mm_set1_epi16( 1 );
     __m128i vsum32 = _mm_setzero_si128();
+    __m128i vsum16 = _mm_setzero_si128();
 
-    for( int i = 0; i < 2; i++ )
+    // sum of 16 unsigned 10-bit ints (0-1023) can maximally be 4 + 10 bits, i.e. fits into 16 bit
+
+    for( int i = 0; i < ( iRows >> 3 ); i++ )
     {
       //0
       __m128i vsrc1 = _mm_loadu_si128( (const __m128i*)(pSrc1) );
       __m128i vsrc2 = _mm_loadu_si128( (const __m128i*)(pSrc2) );
-
-      __m128i vsum16 = _mm_abs_epi16( _mm_sub_epi16( vsrc1, vsrc2 ) );
+      
+      vsum16 = _mm_add_epi16( vsum16, _mm_abs_epi16( _mm_sub_epi16( vsrc1, vsrc2 ) ) );
 
       if( isWdt16 )
       {
@@ -234,36 +189,13 @@ Distortion RdCost::xGetSAD_MxN_SIMD( const DistParam &rcDtParam )
       }
 
       pSrc1 += iStrideSrc1; pSrc2 += iStrideSrc2;
-
-      vsum32 = _mm_add_epi32( vsum32, _mm_madd_epi16( vsum16, vone ) );
     }
 
+
+    vsum32 = _mm_madd_epi16( vsum16, vone );
     vsum32 = _mm_hadd_epi32( vsum32, vone );
     vsum32 = _mm_hadd_epi32( vsum32, vone );
     uiSum = _mm_cvtsi128_si32( vsum32 );
-  }
-  else
-  {
-    // For width that multiple of 8
-    __m128i vone = _mm_set1_epi16( 1 );
-    __m128i vsum32 = _mm_setzero_si128();
-    for( int iY = 0; iY < iRows; iY+= ( 1 << iSubShift ) )
-    {
-      __m128i vsum16 = _mm_setzero_si128();
-      for( int iX = 0; iX < 16; iX+=8 )
-      {
-        __m128i vsrc1 = _mm_loadu_si128( ( const __m128i* )( &pSrc1[iX] ) );
-        __m128i vsrc2 = _mm_loadu_si128( ( const __m128i* )( &pSrc2[iX] ) );
-        vsum16 = _mm_add_epi16( vsum16, _mm_abs_epi16( _mm_sub_epi16( vsrc1, vsrc2 ) ) );
-      }
-      __m128i vsumtemp = _mm_madd_epi16( vsum16, vone );
-      vsum32 = _mm_add_epi32( vsum32, vsumtemp );
-      pSrc1   += iStrideSrc1;
-      pSrc2   += iStrideSrc2;
-    }
-    vsum32 = _mm_hadd_epi32( vsum32, vone );
-    vsum32 = _mm_hadd_epi32( vsum32, vone );
-    uiSum =  _mm_cvtsi128_si32( vsum32 );
   }
 
   uiSum <<= iSubShift;
@@ -321,21 +253,21 @@ void xGetSADX5_8xN_SIMDImp(const DistParam& rcDtParam, Distortion* cost) {
     diff3 = _mm_abs_epi16(diff3);
     diff4 = _mm_abs_epi16(diff4);
 
-    diff0 = _mm_madd_epi16(diff0, vone);
-    diff1 = _mm_madd_epi16(diff1, vone);
-    if (isCalCentrePos) diff2 = _mm_madd_epi16(diff2, vone);
-    diff3 = _mm_madd_epi16(diff3, vone);
-    diff4 = _mm_madd_epi16(diff4, vone);
-
-    sum0 = _mm_add_epi32(sum0, diff0);
-    sum1 = _mm_add_epi32(sum1, diff1);
+    sum0 = _mm_add_epi16(sum0, diff0);
+    sum1 = _mm_add_epi16(sum1, diff1);
     if (isCalCentrePos) sum2 = _mm_add_epi32(sum2, diff2);
-    sum3 = _mm_add_epi32(sum3, diff3);
-    sum4 = _mm_add_epi32(sum4, diff4);
+    sum3 = _mm_add_epi16(sum3, diff3);
+    sum4 = _mm_add_epi16(sum4, diff4);
 
     INCY(piOrg, iStrideOrg);
     INCY(piCur, iStrideCur);
   }
+
+  sum0 = _mm_madd_epi16( sum0, vone );
+  sum1 = _mm_madd_epi16( sum1, vone );
+  if( isCalCentrePos ) sum2 = _mm_madd_epi16( sum2, vone );
+  sum3 = _mm_madd_epi16( sum3, vone );
+  sum4 = _mm_madd_epi16( sum4, vone );
 
   sum0 = _mm_hadd_epi32(sum0, sum1);
   sum3 = _mm_hadd_epi32(sum3, sum4);
@@ -383,6 +315,8 @@ void xGetSADX5_16xN_SIMDImp(const DistParam& rcDtParam, Distortion* cost) {
 
 #  ifdef USE_AVX2
   if (vext >= AVX2) {
+    // sum of 8 unsigned 10-bit ints (0-1023) can maximally be 3 + 10 bits, i.e. fits into 16 bit
+
     __m256i sum0 = _mm256_setzero_si256();
     __m256i sum1 = _mm256_setzero_si256();
     __m256i sum2 = _mm256_setzero_si256();
@@ -391,230 +325,176 @@ void xGetSADX5_16xN_SIMDImp(const DistParam& rcDtParam, Distortion* cost) {
 
     __m256i vone = _mm256_set1_epi16(1);
 
-    if (height == 16 && iSubShift == 1) {
-      __m256i sumTmp0, sumTmp1, sumTmp2, sumTmp3, sumTmp4;
-      for (int i = 0; i < 2; i++) {
-        __m256i s0 = _mm256_loadu_si256((__m256i*)piOrg);
-        __m256i s1 = _mm256_loadu_si256((__m256i*)piCur);
-        __m256i s2 = _mm256_castsi128_si256(_mm_loadl_epi64((__m128i*)(piOrg + 16)));
-        __m256i s3 = _mm256_castsi128_si256(_mm_loadl_epi64((__m128i*)(piCur + 16)));
-        s2 = _mm256_permute2x128_si256(s0, s2, 0x21);
-        s3 = _mm256_permute2x128_si256(s1, s3, 0x21);
+    for (int i = 0; i < ( height >> 3 ); i++) {
+      __m256i s0 = _mm256_loadu_si256((__m256i*)piOrg);
+      __m256i s1 = _mm256_loadu_si256((__m256i*)piCur);
+      __m256i s2 = _mm256_castsi128_si256(_mm_loadl_epi64((__m128i*)(piOrg + 16)));
+      __m256i s3 = _mm256_castsi128_si256(_mm_loadl_epi64((__m128i*)(piCur + 16)));
+      s2 = _mm256_permute2x128_si256(s0, s2, 0x21);
+      s3 = _mm256_permute2x128_si256(s1, s3, 0x21);
 
-        INCY(piOrg, iStrideOrg);
-        INCY(piCur, iStrideCur);
+      INCY(piOrg, iStrideOrg);
+      INCY(piCur, iStrideCur);
 
-        __m256i org0, org1, org2, org3, org4;
-        org0 = s0;
-        org1 = _mm256_alignr_epi8(s2, s0, 2);
-        if (isCalCentrePos) org2 = _mm256_alignr_epi8(s2, s0, 4);
-        org3 = _mm256_alignr_epi8(s2, s0, 6);
-        org4 = _mm256_alignr_epi8(s2, s0, 8);
+      __m256i org0, org1, org2, org3, org4;
+      org0 = s0;
+      org1 = _mm256_alignr_epi8(s2, s0, 2);
+      if (isCalCentrePos) org2 = _mm256_alignr_epi8(s2, s0, 4);
+      org3 = _mm256_alignr_epi8(s2, s0, 6);
+      org4 = _mm256_alignr_epi8(s2, s0, 8);
 
-        __m256i cur0, cur1, cur2, cur3, cur4;
-        cur4 = s1;
-        cur0 = _mm256_alignr_epi8(s3, s1, 8);
-        cur1 = _mm256_alignr_epi8(s3, s1, 6);
-        if (isCalCentrePos) cur2 = _mm256_alignr_epi8(s3, s1, 4);
-        cur3 = _mm256_alignr_epi8(s3, s1, 2);
+      __m256i cur0, cur1, cur2, cur3, cur4;
+      cur4 = s1;
+      cur0 = _mm256_alignr_epi8(s3, s1, 8);
+      cur1 = _mm256_alignr_epi8(s3, s1, 6);
+      if (isCalCentrePos) cur2 = _mm256_alignr_epi8(s3, s1, 4);
+      cur3 = _mm256_alignr_epi8(s3, s1, 2);
 
-        __m256i diff0, diff1, diff2, diff3, diff4;
-        diff0 = _mm256_sub_epi16(org0, cur0);
-        diff1 = _mm256_sub_epi16(org1, cur1);
-        if (isCalCentrePos) diff2 = _mm256_sub_epi16(org2, cur2);
-        diff3 = _mm256_sub_epi16(org3, cur3);
-        diff4 = _mm256_sub_epi16(org4, cur4);
+      __m256i diff0, diff1, diff2, diff3, diff4;
+      diff0 = _mm256_sub_epi16(org0, cur0);
+      diff1 = _mm256_sub_epi16(org1, cur1);
+      if (isCalCentrePos) diff2 = _mm256_sub_epi16(org2, cur2);
+      diff3 = _mm256_sub_epi16(org3, cur3);
+      diff4 = _mm256_sub_epi16(org4, cur4);
 
-        sumTmp0 = _mm256_abs_epi16(diff0);
-        sumTmp1 = _mm256_abs_epi16(diff1);
-        if (isCalCentrePos) sumTmp2 = _mm256_abs_epi16(diff2);
-        sumTmp3 = _mm256_abs_epi16(diff3);
-        sumTmp4 = _mm256_abs_epi16(diff4);
+      diff0 = _mm256_abs_epi16( diff0 );
+      diff1 = _mm256_abs_epi16( diff1 );
+      if( isCalCentrePos ) diff2 = _mm256_abs_epi16( diff2 );
+      diff3 = _mm256_abs_epi16( diff3 );
+      diff4 = _mm256_abs_epi16( diff4 );
 
-        s0 = _mm256_loadu_si256((__m256i*)piOrg);
-        s1 = _mm256_loadu_si256((__m256i*)piCur);
-        s2 = _mm256_castsi128_si256(_mm_loadl_epi64((__m128i*)(piOrg + 16)));
-        s3 = _mm256_castsi128_si256(_mm_loadl_epi64((__m128i*)(piCur + 16)));
-        s2 = _mm256_permute2x128_si256(s0, s2, 0x21);
-        s3 = _mm256_permute2x128_si256(s1, s3, 0x21);
+      sum0 = _mm256_add_epi16( diff0, sum0 );
+      sum1 = _mm256_add_epi16( diff1, sum1 );
+      if( isCalCentrePos ) sum2 = _mm256_add_epi16( diff2, sum2 );
+      sum3 = _mm256_add_epi16( diff3, sum3 );
+      sum4 = _mm256_add_epi16( diff4, sum4 );
 
-        INCY(piOrg, iStrideOrg);
-        INCY(piCur, iStrideCur);
+      s0 = _mm256_loadu_si256((__m256i*)piOrg);
+      s1 = _mm256_loadu_si256((__m256i*)piCur);
+      s2 = _mm256_castsi128_si256(_mm_loadl_epi64((__m128i*)(piOrg + 16)));
+      s3 = _mm256_castsi128_si256(_mm_loadl_epi64((__m128i*)(piCur + 16)));
+      s2 = _mm256_permute2x128_si256(s0, s2, 0x21);
+      s3 = _mm256_permute2x128_si256(s1, s3, 0x21);
 
-        org0 = s0;
-        org1 = _mm256_alignr_epi8(s2, s0, 2);
-        if (isCalCentrePos) org2 = _mm256_alignr_epi8(s2, s0, 4);
-        org3 = _mm256_alignr_epi8(s2, s0, 6);
-        org4 = _mm256_alignr_epi8(s2, s0, 8);
+      INCY(piOrg, iStrideOrg);
+      INCY(piCur, iStrideCur);
 
-        cur4 = s1;
-        cur0 = _mm256_alignr_epi8(s3, s1, 8);
-        cur1 = _mm256_alignr_epi8(s3, s1, 6);
-        if (isCalCentrePos) cur2 = _mm256_alignr_epi8(s3, s1, 4);
-        cur3 = _mm256_alignr_epi8(s3, s1, 2);
+      org0 = s0;
+      org1 = _mm256_alignr_epi8(s2, s0, 2);
+      if (isCalCentrePos) org2 = _mm256_alignr_epi8(s2, s0, 4);
+      org3 = _mm256_alignr_epi8(s2, s0, 6);
+      org4 = _mm256_alignr_epi8(s2, s0, 8);
 
-        diff0 = _mm256_sub_epi16(org0, cur0);
-        diff1 = _mm256_sub_epi16(org1, cur1);
-        if (isCalCentrePos) diff2 = _mm256_sub_epi16(org2, cur2);
-        diff3 = _mm256_sub_epi16(org3, cur3);
-        diff4 = _mm256_sub_epi16(org4, cur4);
+      cur4 = s1;
+      cur0 = _mm256_alignr_epi8(s3, s1, 8);
+      cur1 = _mm256_alignr_epi8(s3, s1, 6);
+      if (isCalCentrePos) cur2 = _mm256_alignr_epi8(s3, s1, 4);
+      cur3 = _mm256_alignr_epi8(s3, s1, 2);
 
-        diff0 = _mm256_abs_epi16(diff0);
-        diff1 = _mm256_abs_epi16(diff1);
-        if (isCalCentrePos) diff2 = _mm256_abs_epi16(diff2);
-        diff3 = _mm256_abs_epi16(diff3);
-        diff4 = _mm256_abs_epi16(diff4);
+      diff0 = _mm256_sub_epi16(org0, cur0);
+      diff1 = _mm256_sub_epi16(org1, cur1);
+      if (isCalCentrePos) diff2 = _mm256_sub_epi16(org2, cur2);
+      diff3 = _mm256_sub_epi16(org3, cur3);
+      diff4 = _mm256_sub_epi16(org4, cur4);
 
-        sumTmp0 = _mm256_add_epi16(diff0, sumTmp0);
-        sumTmp1 = _mm256_add_epi16(diff1, sumTmp1);
-        if (isCalCentrePos) sumTmp2 = _mm256_add_epi16(diff2, sumTmp2);
-        sumTmp3 = _mm256_add_epi16(diff3, sumTmp3);
-        sumTmp4 = _mm256_add_epi16(diff4, sumTmp4);
+      diff0 = _mm256_abs_epi16(diff0);
+      diff1 = _mm256_abs_epi16(diff1);
+      if (isCalCentrePos) diff2 = _mm256_abs_epi16(diff2);
+      diff3 = _mm256_abs_epi16(diff3);
+      diff4 = _mm256_abs_epi16(diff4);
 
-        s0 = _mm256_loadu_si256((__m256i*)piOrg);
-        s1 = _mm256_loadu_si256((__m256i*)piCur);
-        s2 = _mm256_castsi128_si256(_mm_loadl_epi64((__m128i*)(piOrg + 16)));
-        s3 = _mm256_castsi128_si256(_mm_loadl_epi64((__m128i*)(piCur + 16)));
-        s2 = _mm256_permute2x128_si256(s0, s2, 0x21);
-        s3 = _mm256_permute2x128_si256(s1, s3, 0x21);
+      sum0 = _mm256_add_epi16(diff0, sum0);
+      sum1 = _mm256_add_epi16(diff1, sum1);
+      if (isCalCentrePos) sum2 = _mm256_add_epi16(diff2, sum2);
+      sum3 = _mm256_add_epi16(diff3, sum3);
+      sum4 = _mm256_add_epi16(diff4, sum4);
 
-        INCY(piOrg, iStrideOrg);
-        INCY(piCur, iStrideCur);
+      s0 = _mm256_loadu_si256((__m256i*)piOrg);
+      s1 = _mm256_loadu_si256((__m256i*)piCur);
+      s2 = _mm256_castsi128_si256(_mm_loadl_epi64((__m128i*)(piOrg + 16)));
+      s3 = _mm256_castsi128_si256(_mm_loadl_epi64((__m128i*)(piCur + 16)));
+      s2 = _mm256_permute2x128_si256(s0, s2, 0x21);
+      s3 = _mm256_permute2x128_si256(s1, s3, 0x21);
 
-        org0 = s0;
-        org1 = _mm256_alignr_epi8(s2, s0, 2);
-        if (isCalCentrePos) org2 = _mm256_alignr_epi8(s2, s0, 4);
-        org3 = _mm256_alignr_epi8(s2, s0, 6);
-        org4 = _mm256_alignr_epi8(s2, s0, 8);
+      INCY(piOrg, iStrideOrg);
+      INCY(piCur, iStrideCur);
 
-        cur4 = s1;
-        cur0 = _mm256_alignr_epi8(s3, s1, 8);
-        cur1 = _mm256_alignr_epi8(s3, s1, 6);
-        if (isCalCentrePos) cur2 = _mm256_alignr_epi8(s3, s1, 4);
-        cur3 = _mm256_alignr_epi8(s3, s1, 2);
+      org0 = s0;
+      org1 = _mm256_alignr_epi8(s2, s0, 2);
+      if (isCalCentrePos) org2 = _mm256_alignr_epi8(s2, s0, 4);
+      org3 = _mm256_alignr_epi8(s2, s0, 6);
+      org4 = _mm256_alignr_epi8(s2, s0, 8);
 
-        diff0 = _mm256_sub_epi16(org0, cur0);
-        diff1 = _mm256_sub_epi16(org1, cur1);
-        if (isCalCentrePos) diff2 = _mm256_sub_epi16(org2, cur2);
-        diff3 = _mm256_sub_epi16(org3, cur3);
-        diff4 = _mm256_sub_epi16(org4, cur4);
+      cur4 = s1;
+      cur0 = _mm256_alignr_epi8(s3, s1, 8);
+      cur1 = _mm256_alignr_epi8(s3, s1, 6);
+      if (isCalCentrePos) cur2 = _mm256_alignr_epi8(s3, s1, 4);
+      cur3 = _mm256_alignr_epi8(s3, s1, 2);
 
-        diff0 = _mm256_abs_epi16(diff0);
-        diff1 = _mm256_abs_epi16(diff1);
-        if (isCalCentrePos) diff2 = _mm256_abs_epi16(diff2);
-        diff3 = _mm256_abs_epi16(diff3);
-        diff4 = _mm256_abs_epi16(diff4);
+      diff0 = _mm256_sub_epi16(org0, cur0);
+      diff1 = _mm256_sub_epi16(org1, cur1);
+      if (isCalCentrePos) diff2 = _mm256_sub_epi16(org2, cur2);
+      diff3 = _mm256_sub_epi16(org3, cur3);
+      diff4 = _mm256_sub_epi16(org4, cur4);
 
-        sumTmp0 = _mm256_add_epi16(diff0, sumTmp0);
-        sumTmp1 = _mm256_add_epi16(diff1, sumTmp1);
-        if (isCalCentrePos) sumTmp2 = _mm256_add_epi16(diff2, sumTmp2);
-        sumTmp3 = _mm256_add_epi16(diff3, sumTmp3);
-        sumTmp4 = _mm256_add_epi16(diff4, sumTmp4);
+      diff0 = _mm256_abs_epi16(diff0);
+      diff1 = _mm256_abs_epi16(diff1);
+      if (isCalCentrePos) diff2 = _mm256_abs_epi16(diff2);
+      diff3 = _mm256_abs_epi16(diff3);
+      diff4 = _mm256_abs_epi16(diff4);
 
-        s0 = _mm256_loadu_si256((__m256i*)piOrg);
-        s1 = _mm256_loadu_si256((__m256i*)piCur);
-        s2 = _mm256_castsi128_si256(_mm_loadl_epi64((__m128i*)(piOrg + 16)));
-        s3 = _mm256_castsi128_si256(_mm_loadl_epi64((__m128i*)(piCur + 16)));
-        s2 = _mm256_permute2x128_si256(s0, s2, 0x21);
-        s3 = _mm256_permute2x128_si256(s1, s3, 0x21);
+      sum0 = _mm256_add_epi16( diff0, sum0 );
+      sum1 = _mm256_add_epi16( diff1, sum1 );
+      if( isCalCentrePos ) sum2 = _mm256_add_epi16( diff2, sum2 );
+      sum3 = _mm256_add_epi16( diff3, sum3 );
+      sum4 = _mm256_add_epi16( diff4, sum4 );
 
-        INCY(piOrg, iStrideOrg);
-        INCY(piCur, iStrideCur);
+      s0 = _mm256_loadu_si256((__m256i*)piOrg);
+      s1 = _mm256_loadu_si256((__m256i*)piCur);
+      s2 = _mm256_castsi128_si256(_mm_loadl_epi64((__m128i*)(piOrg + 16)));
+      s3 = _mm256_castsi128_si256(_mm_loadl_epi64((__m128i*)(piCur + 16)));
+      s2 = _mm256_permute2x128_si256(s0, s2, 0x21);
+      s3 = _mm256_permute2x128_si256(s1, s3, 0x21);
 
-        org0 = s0;
-        org1 = _mm256_alignr_epi8(s2, s0, 2);
-        if (isCalCentrePos) org2 = _mm256_alignr_epi8(s2, s0, 4);
-        org3 = _mm256_alignr_epi8(s2, s0, 6);
-        org4 = _mm256_alignr_epi8(s2, s0, 8);
+      INCY(piOrg, iStrideOrg);
+      INCY(piCur, iStrideCur);
 
-        cur4 = s1;
-        cur0 = _mm256_alignr_epi8(s3, s1, 8);
-        cur1 = _mm256_alignr_epi8(s3, s1, 6);
-        if (isCalCentrePos) cur2 = _mm256_alignr_epi8(s3, s1, 4);
-        cur3 = _mm256_alignr_epi8(s3, s1, 2);
+      org0 = s0;
+      org1 = _mm256_alignr_epi8(s2, s0, 2);
+      if (isCalCentrePos) org2 = _mm256_alignr_epi8(s2, s0, 4);
+      org3 = _mm256_alignr_epi8(s2, s0, 6);
+      org4 = _mm256_alignr_epi8(s2, s0, 8);
 
-        diff0 = _mm256_sub_epi16(org0, cur0);
-        diff1 = _mm256_sub_epi16(org1, cur1);
-        if (isCalCentrePos) diff2 = _mm256_sub_epi16(org2, cur2);
-        diff3 = _mm256_sub_epi16(org3, cur3);
-        diff4 = _mm256_sub_epi16(org4, cur4);
+      cur4 = s1;
+      cur0 = _mm256_alignr_epi8(s3, s1, 8);
+      cur1 = _mm256_alignr_epi8(s3, s1, 6);
+      if (isCalCentrePos) cur2 = _mm256_alignr_epi8(s3, s1, 4);
+      cur3 = _mm256_alignr_epi8(s3, s1, 2);
 
-        diff0 = _mm256_abs_epi16(diff0);
-        diff1 = _mm256_abs_epi16(diff1);
-        if (isCalCentrePos) diff2 = _mm256_abs_epi16(diff2);
-        diff3 = _mm256_abs_epi16(diff3);
-        diff4 = _mm256_abs_epi16(diff4);
+      diff0 = _mm256_sub_epi16(org0, cur0);
+      diff1 = _mm256_sub_epi16(org1, cur1);
+      if (isCalCentrePos) diff2 = _mm256_sub_epi16(org2, cur2);
+      diff3 = _mm256_sub_epi16(org3, cur3);
+      diff4 = _mm256_sub_epi16(org4, cur4);
 
-        sumTmp0 = _mm256_add_epi16(diff0, sumTmp0);
-        sumTmp1 = _mm256_add_epi16(diff1, sumTmp1);
-        if (isCalCentrePos) sumTmp2 = _mm256_add_epi16(diff2, sumTmp2);
-        sumTmp3 = _mm256_add_epi16(diff3, sumTmp3);
-        sumTmp4 = _mm256_add_epi16(diff4, sumTmp4);
+      diff0 = _mm256_abs_epi16(diff0);
+      diff1 = _mm256_abs_epi16(diff1);
+      if (isCalCentrePos) diff2 = _mm256_abs_epi16(diff2);
+      diff3 = _mm256_abs_epi16(diff3);
+      diff4 = _mm256_abs_epi16(diff4);
 
-        sumTmp0 = _mm256_madd_epi16(sumTmp0, vone);
-        sumTmp1 = _mm256_madd_epi16(sumTmp1, vone);
-        if (isCalCentrePos) sumTmp2 = _mm256_madd_epi16(sumTmp2, vone);
-        sumTmp3 = _mm256_madd_epi16(sumTmp3, vone);
-        sumTmp4 = _mm256_madd_epi16(sumTmp4, vone);
-
-        sum0 = _mm256_add_epi32(sum0, sumTmp0);
-        sum1 = _mm256_add_epi32(sum1, sumTmp1);
-        if (isCalCentrePos) sum2 = _mm256_add_epi32(sum2, sumTmp2);
-        sum3 = _mm256_add_epi32(sum3, sumTmp3);
-        sum4 = _mm256_add_epi32(sum4, sumTmp4);
-      }
-    } else {
-      for (i = 0; i < height; i += iSubStep) {
-        __m256i s0 = _mm256_loadu_si256((__m256i*)piOrg);
-        __m256i s1 = _mm256_loadu_si256((__m256i*)piCur);
-        __m256i s2 = _mm256_castsi128_si256(_mm_loadl_epi64((__m128i*)(piOrg + 16)));
-        __m256i s3 = _mm256_castsi128_si256(_mm_loadl_epi64((__m128i*)(piCur + 16)));
-        s2 = _mm256_permute2x128_si256(s0, s2, 0x21);
-        s3 = _mm256_permute2x128_si256(s1, s3, 0x21);
-
-        __m256i org0, org1, org2, org3, org4;
-        org0 = s0;
-        org1 = _mm256_alignr_epi8(s2, s0, 2);
-        if (isCalCentrePos) org2 = _mm256_alignr_epi8(s2, s0, 4);
-        org3 = _mm256_alignr_epi8(s2, s0, 6);
-        org4 = _mm256_alignr_epi8(s2, s0, 8);
-
-        __m256i cur0, cur1, cur2, cur3, cur4;
-        cur4 = s1;
-        cur0 = _mm256_alignr_epi8(s3, s1, 8);
-        cur1 = _mm256_alignr_epi8(s3, s1, 6);
-        if (isCalCentrePos) cur2 = _mm256_alignr_epi8(s3, s1, 4);
-        cur3 = _mm256_alignr_epi8(s3, s1, 2);
-
-        __m256i diff0, diff1, diff2, diff3, diff4;
-        diff0 = _mm256_sub_epi16(org0, cur0);
-        diff1 = _mm256_sub_epi16(org1, cur1);
-        if (isCalCentrePos) diff2 = _mm256_sub_epi16(org2, cur2);
-        diff3 = _mm256_sub_epi16(org3, cur3);
-        diff4 = _mm256_sub_epi16(org4, cur4);
-
-        diff0 = _mm256_abs_epi16(diff0);
-        diff1 = _mm256_abs_epi16(diff1);
-        if (isCalCentrePos) diff2 = _mm256_abs_epi16(diff2);
-        diff3 = _mm256_abs_epi16(diff3);
-        diff4 = _mm256_abs_epi16(diff4);
-
-        diff0 = _mm256_madd_epi16(diff0, vone);
-        diff1 = _mm256_madd_epi16(diff1, vone);
-        if (isCalCentrePos) diff2 = _mm256_madd_epi16(diff2, vone);
-        diff3 = _mm256_madd_epi16(diff3, vone);
-        diff4 = _mm256_madd_epi16(diff4, vone);
-
-        sum0 = _mm256_add_epi32(sum0, diff0);
-        sum1 = _mm256_add_epi32(sum1, diff1);
-        if (isCalCentrePos) sum2 = _mm256_add_epi32(sum2, diff2);
-        sum3 = _mm256_add_epi32(sum3, diff3);
-        sum4 = _mm256_add_epi32(sum4, diff4);
-
-        INCY(piOrg, iStrideOrg);
-        INCY(piCur, iStrideCur);
-      }
+      sum0 = _mm256_add_epi16(diff0, sum0);
+      sum1 = _mm256_add_epi16(diff1, sum1);
+      if (isCalCentrePos) sum2 = _mm256_add_epi16(diff2, sum2);
+      sum3 = _mm256_add_epi16(diff3, sum3);
+      sum4 = _mm256_add_epi16(diff4, sum4);
     }
+
+    sum0 = _mm256_madd_epi16( sum0, vone );
+    sum1 = _mm256_madd_epi16( sum1, vone );
+    if( isCalCentrePos ) sum2 = _mm256_madd_epi16( sum2, vone );
+    sum3 = _mm256_madd_epi16( sum3, vone );
+    sum4 = _mm256_madd_epi16( sum4, vone );
 
     sum0 = _mm256_hadd_epi32(sum0, sum1);
     sum3 = _mm256_hadd_epi32(sum3, sum4);
@@ -642,6 +522,8 @@ void xGetSADX5_16xN_SIMDImp(const DistParam& rcDtParam, Distortion* cost) {
   } else
 #  endif
   {
+    // sum of 16 unsigned 10-bit ints (0-1023) can maximally be 4 + 10 bits, i.e. fits into 16 bit
+
     __m128i sum0 = _mm_setzero_si128();
     __m128i sum1 = _mm_setzero_si128();
     __m128i sum2 = _mm_setzero_si128();
@@ -650,11 +532,6 @@ void xGetSADX5_16xN_SIMDImp(const DistParam& rcDtParam, Distortion* cost) {
 
     __m128i vone = _mm_set1_epi16(1);
     for (i = 0; i < height; i += iSubStep) {
-      __m128i sumTmp0 = _mm_setzero_si128();
-      __m128i sumTmp1 = _mm_setzero_si128();
-      __m128i sumTmp2 = _mm_setzero_si128();
-      __m128i sumTmp3 = _mm_setzero_si128();
-      __m128i sumTmp4 = _mm_setzero_si128();
       for (j = 0; j < 16; j += 8) {
         __m128i s0 = _mm_loadu_si128(reinterpret_cast<const __m128i*>(piOrg + j + 0));
         __m128i s1 = _mm_loadu_si128(reinterpret_cast<const __m128i*>(piCur + j + 0));
@@ -688,28 +565,22 @@ void xGetSADX5_16xN_SIMDImp(const DistParam& rcDtParam, Distortion* cost) {
         diff3 = _mm_abs_epi16(diff3);
         diff4 = _mm_abs_epi16(diff4);
 
-        sumTmp0 = _mm_add_epi16(sumTmp0, diff0);
-        sumTmp1 = _mm_add_epi16(sumTmp1, diff1);
-        if (isCalCentrePos) sumTmp2 = _mm_add_epi16(sumTmp2, diff2);
-        sumTmp3 = _mm_add_epi16(sumTmp3, diff3);
-        sumTmp4 = _mm_add_epi16(sumTmp4, diff4);
+        sum0 = _mm_add_epi16(sum0, diff0);
+        sum1 = _mm_add_epi16(sum1, diff1);
+        if (isCalCentrePos) sum2 = _mm_add_epi16(sum2, diff2);
+        sum3 = _mm_add_epi16(sum3, diff3);
+        sum4 = _mm_add_epi16(sum4, diff4);
       }
-
-      sumTmp0 = _mm_madd_epi16(sumTmp0, vone);
-      sumTmp1 = _mm_madd_epi16(sumTmp1, vone);
-      if (isCalCentrePos) sumTmp2 = _mm_madd_epi16(sumTmp2, vone);
-      sumTmp3 = _mm_madd_epi16(sumTmp3, vone);
-      sumTmp4 = _mm_madd_epi16(sumTmp4, vone);
-
-      sum0 = _mm_add_epi32(sum0, sumTmp0);
-      sum1 = _mm_add_epi32(sum1, sumTmp1);
-      if (isCalCentrePos) sum2 = _mm_add_epi32(sum2, sumTmp2);
-      sum3 = _mm_add_epi32(sum3, sumTmp3);
-      sum4 = _mm_add_epi32(sum4, sumTmp4);
 
       INCY(piOrg, iStrideOrg);
       INCY(piCur, iStrideCur);
     }
+
+    sum0 = _mm_madd_epi16( sum0, vone );
+    sum1 = _mm_madd_epi16( sum1, vone );
+    if( isCalCentrePos ) sum2 = _mm_madd_epi16( sum2, vone );
+    sum3 = _mm_madd_epi16( sum3, vone );
+    sum4 = _mm_madd_epi16( sum4, vone );
 
     sum0 = _mm_hadd_epi32(sum0, sum1);
     sum3 = _mm_hadd_epi32(sum3, sum4);

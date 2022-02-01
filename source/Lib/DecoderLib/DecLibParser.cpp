@@ -14,7 +14,7 @@ Einsteinufer 37
 www.hhi.fraunhofer.de/vvc
 vvc@hhi.fraunhofer.de
 
-Copyright (c) 2018-2021, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. 
+Copyright (c) 2018-2022, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. 
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -144,7 +144,7 @@ void DecLibParser::recreateLostPicture( Picture* pcPic )
     pcPic->getRecoBuf().copyFrom( closestPic->getRecoBuf() );
     for( int i = 0; i < pcPic->cs->m_ctuDataSize; i++ )
     {
-      memcpy( pcPic->cs->m_ctuData[i].colMotion, closestPic->cs->m_ctuData[i].colMotion, sizeof( CtuData::colMotion ) );
+      memcpy( pcPic->cs->m_ctuData[i].colMotion, closestPic->cs->m_ctuData[i].colMotion, sizeof( ColocatedMotionInfo ) * pcPic->cs->pcv->num8x8CtuBlks );
     }
 
     pcPic->slices[0]->copySliceInfo( closestPic->slices[0] );
@@ -162,20 +162,62 @@ Picture* DecLibParser::parse( InputNALUnit& nalu, int* pSkipFrame, int iTargetLa
   // ignore all NAL units of layers > 0
   if( m_iTargetLayer >= 0 && nalu.m_nuhLayerId != m_iTargetLayer )   // TBC: ignore bitstreams whose nuh_layer_id is not the target layer id
   {
-    msg( WARNING, "Warning: found NAL unit with nuh_layer_id equal to %d. Ignoring.\n", nalu.m_nuhLayerId);
+    msg( WARNING, "Warning: found NAL unit with nuh_layer_id equal to %d. Ignoring.\n", nalu.m_nuhLayerId );
     return nullptr;
   }
 
-  GCC_EXTRA_WARNING_switch_enum
+  if( !nalu.isVcl() )
+  {
+    if( nalu.m_nalUnitType == NAL_UNIT_SUFFIX_APS || nalu.m_nalUnitType == NAL_UNIT_SUFFIX_SEI )
+    {
+      if( m_pcParsePic )
+      {
+        m_pcParsePic->bits += nalu.m_bits;
+      }
+    }
+    else
+    {
+      m_nonVCLbits += nalu.m_bits;
+    }
+  }
+
+  GCC_EXTRA_WARNING_switch_enum;
   switch( nalu.m_nalUnitType )
   {
-  case NAL_UNIT_VPS:
-    xDecodeVPS( nalu );
-    //    m_vps->m_iTargetLayer = iTargetOlsIdx;
+  case NAL_UNIT_CODED_SLICE_TRAIL:
+  case NAL_UNIT_CODED_SLICE_STSA:
+  case NAL_UNIT_CODED_SLICE_RADL:
+  case NAL_UNIT_CODED_SLICE_RASL:
+  case NAL_UNIT_CODED_SLICE_IDR_W_RADL:
+  case NAL_UNIT_CODED_SLICE_IDR_N_LP:
+  case NAL_UNIT_CODED_SLICE_CRA:
+  case NAL_UNIT_CODED_SLICE_GDR:
+  {
+    const auto ret = xDecodeSliceHead( nalu, pSkipFrame );
+
+    m_parseNewPicture = ( ret == NewPicture );
+
+    if( ret == NewPicture && m_parseFrameList.size() > m_parseFrameDelay )
+    {
+      Picture* pic = getNextDecodablePicture();
+      return pic;
+    }
     return nullptr;
+  }
+
+  case NAL_UNIT_OPI:
+    // NOT IMPLEMENTED
+    return nullptr;
+
   case NAL_UNIT_DCI:
     xDecodeDCI( nalu );
     return nullptr;
+
+  case NAL_UNIT_VPS:
+    xDecodeVPS( nalu );
+    // m_vps->m_iTargetLayer = iTargetOlsIdx;
+    return nullptr;
+
   case NAL_UNIT_SPS:
     xDecodeSPS( nalu );
     return nullptr;
@@ -184,13 +226,39 @@ Picture* DecLibParser::parse( InputNALUnit& nalu, int* pSkipFrame, int iTargetLa
     xDecodePPS( nalu );
     return nullptr;
 
+  case NAL_UNIT_PREFIX_APS:
+  case NAL_UNIT_SUFFIX_APS:
+    xDecodeAPS( nalu );
+    return nullptr;
+
   case NAL_UNIT_PH:
     xDecodePicHeader( nalu );
     return nullptr;
 
-  case NAL_UNIT_PREFIX_APS:
-  case NAL_UNIT_SUFFIX_APS:
-    xDecodeAPS( nalu );
+  case NAL_UNIT_ACCESS_UNIT_DELIMITER:
+  {
+    AUDReader audReader;
+    uint32_t  picType;
+    audReader.parseAccessUnitDelimiter( &( nalu.getBitstream() ), picType );
+    msg( NOTICE, "Note: found NAL_UNIT_ACCESS_UNIT_DELIMITER\n" );
+    return nullptr;
+  }
+
+  case NAL_UNIT_EOS:
+    m_associatedIRAPType[nalu.m_nuhLayerId]     = NAL_UNIT_INVALID;
+    m_pocCRA[nalu.m_nuhLayerId]                 = INIT_POC;
+    m_gdrRecoveryPointPocVal[nalu.m_nuhLayerId] = INIT_POC;
+    m_gdrRecovered[nalu.m_nuhLayerId]           = false;
+    m_pocRandomAccess                           = MAX_INT;
+    m_prevPOC                                   = MAX_INT;
+    m_prevSliceSkipped                          = false;
+    m_skippedPOC                                = 0;
+    setFirstSliceInSequence( true, nalu.m_nuhLayerId );
+    setFirstSliceInPicture( true );
+    m_picListManager.restart();
+    return nullptr;
+
+  case NAL_UNIT_EOB:
     return nullptr;
 
   case NAL_UNIT_PREFIX_SEI:
@@ -203,11 +271,11 @@ Picture* DecLibParser::parse( InputNALUnit& nalu, int* pSkipFrame, int iTargetLa
     if( m_pcParsePic )
     {
       m_pictureSeiNalus.emplace_back( nalu );
-      const SPS *sps = m_parameterSetManager.getActiveSPS();
-      const VPS *vps = m_parameterSetManager.getVPS( sps->getVPSId() );
+      const SPS* sps = m_parameterSetManager.getActiveSPS();
+      const VPS* vps = m_parameterSetManager.getVPS( sps->getVPSId() );
       m_seiReader.parseSEImessage( &( nalu.getBitstream() ), m_pcParsePic->seiMessageList, nalu.m_nalUnitType, nalu.m_nuhLayerId, nalu.m_temporalId, vps, sps, m_HRD, m_pDecodedSEIOutputStream );
 
-      if( m_parseFrameDelay == 0 )  // else it has to be done in finishPicture()
+      if( m_parseFrameDelay == 0 )   // else it has to be done in finishPicture()
       {
         // if parallel parsing is disabled, wait for the picture to finish
         if( m_threadPool->numThreads() == 0 )
@@ -224,80 +292,32 @@ Picture* DecLibParser::parse( InputNALUnit& nalu, int* pSkipFrame, int iTargetLa
     }
     return nullptr;
 
-  case NAL_UNIT_CODED_SLICE_TRAIL:
-  case NAL_UNIT_CODED_SLICE_STSA:
-  case NAL_UNIT_CODED_SLICE_IDR_W_RADL:
-  case NAL_UNIT_CODED_SLICE_IDR_N_LP:
-  case NAL_UNIT_CODED_SLICE_CRA:
-  case NAL_UNIT_CODED_SLICE_GDR:
-  case NAL_UNIT_CODED_SLICE_RADL:
-  case NAL_UNIT_CODED_SLICE_RASL:
-  {
-    const auto ret = xDecodeSliceHead( nalu, pSkipFrame );
-
-    m_parseNewPicture = ( ret == NewPicture );
-
-    if( ret == NewPicture && m_parseFrameList.size() > m_parseFrameDelay )
-    {
-      Picture* pic = getNextDecodablePicture();
-      return pic;
-    }
-
-    return nullptr;
-  }
-  case NAL_UNIT_EOS:
-    m_associatedIRAPType    [nalu.m_nuhLayerId] = NAL_UNIT_INVALID;
-    m_pocCRA                [nalu.m_nuhLayerId] = INIT_POC;
-    m_gdrRecoveryPointPocVal[nalu.m_nuhLayerId] = INIT_POC;
-    m_gdrRecovered          [nalu.m_nuhLayerId] = false;
-    m_pocRandomAccess                           = MAX_INT;
-    m_prevPOC                                   = MAX_INT;
-    m_prevSliceSkipped                          = false;
-    m_skippedPOC                                = 0;
-    setFirstSliceInSequence( true, nalu.m_nuhLayerId );
-    setFirstSliceInPicture( true );
-    m_picListManager.restart();
-    return nullptr;
-
-  case NAL_UNIT_ACCESS_UNIT_DELIMITER:
-    {
-      AUDReader audReader;
-      uint32_t  picType;
-      audReader.parseAccessUnitDelimiter( &( nalu.getBitstream() ), picType );
-      msg( NOTICE, "Note: found NAL_UNIT_ACCESS_UNIT_DELIMITER\n");
-      return nullptr;
-    }
-
-  case NAL_UNIT_EOB:
-    return nullptr;
-
   case NAL_UNIT_FD:
     return nullptr;
 
-  case NAL_UNIT_RESERVED_IRAP_VCL_11:
-  case NAL_UNIT_RESERVED_IRAP_VCL_12:
-    msg( NOTICE, "Note: found reserved VCL NAL unit.\n");
-    xParsePrefixSEIsForUnknownVCLNal();
-    return nullptr;
   case NAL_UNIT_RESERVED_VCL_4:
   case NAL_UNIT_RESERVED_VCL_5:
   case NAL_UNIT_RESERVED_VCL_6:
+  case NAL_UNIT_RESERVED_IRAP_VCL_11:
+    msg( NOTICE, "Note: found reserved VCL NAL unit.\n" );
+    xParsePrefixSEIsForUnknownVCLNal();
+    return nullptr;
   case NAL_UNIT_RESERVED_NVCL_26:
   case NAL_UNIT_RESERVED_NVCL_27:
-    msg( NOTICE, "Note: found reserved NAL unit.\n");
+    msg( NOTICE, "Note: found reserved NAL unit.\n" );
     return nullptr;
   case NAL_UNIT_UNSPECIFIED_28:
   case NAL_UNIT_UNSPECIFIED_29:
   case NAL_UNIT_UNSPECIFIED_30:
   case NAL_UNIT_UNSPECIFIED_31:
-    msg( NOTICE, "Note: found unspecified NAL unit.\n");
+    msg( NOTICE, "Note: found unspecified NAL unit.\n" );
     return nullptr;
   case NAL_UNIT_INVALID:
   default:
     THROW( "Invalid NAL unit type" );
     break;
   }
-  GCC_WARNING_RESET
+  GCC_WARNING_RESET;
 
   return nullptr;
 }
@@ -675,7 +695,7 @@ DecLibParser::SliceHeadResult DecLibParser::xDecodeSliceHead( InputNALUnit& nalu
   // WARNING: don't use m_apcSlicePilot or m_picHeader after this point, because they have been reallocated
 
   m_pcParsePic->neededForOutput = m_pcParsePic->picHeader->getPicOutputFlag();
-  if( m_pcParsePic->numSlices == 0 || m_uiSliceSegmentIdx == m_pcParsePic->numSlices - 1 )
+  if( pps->getNumSlicesInPic() == 0 || m_uiSliceSegmentIdx == pps->getNumSlicesInPic() - 1 )
   {
 #if 0
     // TODO for VPS support:
@@ -756,14 +776,16 @@ Slice*  DecLibParser::xDecodeSliceMain( InputNALUnit &nalu )
   Slice* pcSlice = m_pcParsePic->slices[m_uiSliceSegmentIdx];
   m_pcParsePic->poc          = pcSlice->getPOC();
   m_pcParsePic->layer        = pcSlice->getTLayer();
-  m_pcParsePic->referenced   = true;
+  m_pcParsePic->referenced   = !pcSlice->getPicHeader()->getNonReferencePictureFlag();
   m_pcParsePic->eNalUnitType = nalu.m_nalUnitType;
   m_pcParsePic->cts          = nalu.m_cts;
   m_pcParsePic->dts          = nalu.m_dts;
   m_pcParsePic->rap          = nalu.m_rap;
-  m_pcParsePic->bits         = nalu.m_bits;
+  m_pcParsePic->bits        += nalu.m_bits + m_nonVCLbits;
   m_pcParsePic->layerId      = nalu.m_nuhLayerId;
   m_pcParsePic->subLayerNonReferencePictureDueToSTSA = false;
+
+  m_nonVCLbits = 0;
 
   CHECK( m_pcParsePic->layer != nalu.m_temporalId,
          "Currently parsed pic should have the same temporal layer as the NAL unit" );
@@ -828,13 +850,12 @@ Slice*  DecLibParser::xDecodeSliceMain( InputNALUnit &nalu )
     m_decodingOrderCounter++;
 
     pcSlice->getPic()->subPictures.clear();
+    pcSlice->getPic()->sliceSubpicIdx.clear();
 
     for( int subPicIdx = 0; subPicIdx < pcSlice->getSPS()->getNumSubPics(); subPicIdx++ )
     {
       pcSlice->getPic()->subPictures.push_back( pcSlice->getPPS()->getSubPic( subPicIdx ) );
     }
-    pcSlice->getPic()->numSlices = pcSlice->getPPS()->getNumSlicesInPic();
-    pcSlice->getPic()->sliceSubpicIdx.clear();
   }
 
   pcSlice->getPic()->sliceSubpicIdx.push_back(pcSlice->getPPS()->getSubPicIdxFromSubPicId(pcSlice->getSliceSubPicId()));

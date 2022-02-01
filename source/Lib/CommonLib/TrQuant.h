@@ -14,7 +14,7 @@ Einsteinufer 37
 www.hhi.fraunhofer.de/vvc
 vvc@hhi.fraunhofer.de
 
-Copyright (c) 2018-2021, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. 
+Copyright (c) 2018-2022, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. 
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -62,7 +62,7 @@ THE POSSIBILITY OF SUCH DAMAGE.
 namespace vvdec
 {
 
-typedef void InvTrans(const TCoeff*, TCoeff*, int, int, int, int, const TCoeff, const TCoeff);
+typedef void InvTrans(const TCoeff*, TCoeff*, int, int, int, int, bool, const TCoeff, const TCoeff);
 
 // ====================================================================================================================
 // Class definition
@@ -105,9 +105,13 @@ protected:
 
   bool     m_scalingListEnabledFlag;
 
-  TCoeff*  m_blk;
-  TCoeff*  m_tmp;
-  TCoeff*  m_dqnt;
+  TCoeff   m_blk_ [MAX_TU_SIZE_FOR_PROFILE * MAX_TU_SIZE_FOR_PROFILE + ( MEMORY_ALIGN_DEF_SIZE / sizeof( TCoeff ) )];
+  TCoeff   m_tmp_ [MAX_TU_SIZE_FOR_PROFILE * MAX_TU_SIZE_FOR_PROFILE + ( MEMORY_ALIGN_DEF_SIZE / sizeof( TCoeff ) )];
+  TCoeff   m_dqnt_[MAX_TU_SIZE_FOR_PROFILE * MAX_TU_SIZE_FOR_PROFILE + ( MEMORY_ALIGN_DEF_SIZE / sizeof( TCoeff ) )];
+
+  TCoeff  *m_blk;
+  TCoeff  *m_tmp;
+  TCoeff  *m_dqnt;
 
 private:
   TCoeff   m_tempInMatrix [ 48 ];

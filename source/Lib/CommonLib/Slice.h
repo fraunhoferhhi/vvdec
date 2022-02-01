@@ -14,7 +14,7 @@ Einsteinufer 37
 www.hhi.fraunhofer.de/vvc
 vvc@hhi.fraunhofer.de
 
-Copyright (c) 2018-2021, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. 
+Copyright (c) 2018-2022, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. 
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -2919,6 +2919,8 @@ public:
     , sizeInCtus          ( widthInCtus * heightInCtus )
     , lumaWidth           ( pps.getPicWidthInLumaSamples() )
     , lumaHeight          ( pps.getPicHeightInLumaSamples() )
+    , num4x4CtuBlks       ( ( maxCUWidth * maxCUHeight ) >> ( MIN_CU_LOG2 << 1 ) )
+    , num8x8CtuBlks       ( num4x4CtuBlks >> 2 )
   {}
 
   bool isCorrect( const SPS& sps, const PPS& pps )
@@ -2955,6 +2957,8 @@ public:
   const unsigned     sizeInCtus;
   const unsigned     lumaWidth;
   const unsigned     lumaHeight;
+  const unsigned     num4x4CtuBlks;
+  const unsigned     num8x8CtuBlks;
 };
 
 struct LevelTierFeatures
