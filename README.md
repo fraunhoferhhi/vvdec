@@ -74,7 +74,7 @@ The Fraunhofer Versatile Video Decoder (VVdeC) is a fast H.266/VVC software deco
   </tr>
 </table>
 
-:heavy_check_mark: tested and works :black_square_button: needs testing (might aleady work) :x: does not work
+:white_check_mark: tested and works :black_square_button: needs testing (might aleady work) :x: does not work
 
 ## Information
 
