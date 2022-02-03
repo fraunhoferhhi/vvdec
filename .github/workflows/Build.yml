@@ -56,20 +56,26 @@ jobs:
     steps:
     - uses: actions/checkout@v2
     - run: git fetch --prune --unshallow
-    - if: matrix.config.os != 'windows-2019'
+
+    - name: build
+      if: matrix.config.os != 'windows-2019'
       run: |
         mkdir build
         cd build
         cmake .. -DCMAKE_BUILD_TYPE=Release "-DCMAKE_OSX_ARCHITECTURES=${{ matrix.config.osx_arch }}"
         cmake --build .
-    - if: matrix.config.os == 'windows-2019' && contains( matrix.config.generators, 'Visual Studio' )
+
+    - name: MSVC build
+      if: matrix.config.os == 'windows-2019' && contains( matrix.config.generators, 'Visual Studio' )
       run: |
         mkdir build
         cd build
         cmake .. -G "${{ matrix.config.generators }}" -DCMAKE_BUILD_TYPE=Release -A "${{ matrix.config.msvc_arch }}"
         cmake --build . --config Release
       shell: cmd
-    - if: matrix.config.os == 'windows-2019' && !contains( matrix.config.generators, 'Visual Studio' )
+
+    - name: MinGW build
+      if: matrix.config.os == 'windows-2019' && !contains( matrix.config.generators, 'Visual Studio' )
       run: |
         mkdir build
         cd build
