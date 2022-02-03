@@ -60,7 +60,7 @@ jobs:
     - run: git fetch --prune --unshallow
 
     - name: Ubuntu/Mac/MinGW build
-      if: !contains( matrix.config.generators, 'Visual Studio' )
+      if: ${{ !contains( matrix.config.generators, 'Visual Studio' ) }}
       run: |
         mkdir build
         cd build
