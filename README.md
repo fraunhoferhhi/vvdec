@@ -18,9 +18,9 @@ The Fraunhofer Versatile Video Decoder (VVdeC) is a fast H.266/VVC software deco
   </tr>
   <tr>
     <td>Win32</td>
-    <td>:heavy_check_mark:</td>
+    <td>:white_check_mark:</td>
     <td>x86</td>
-    <td>:heavy_check_mark:</td>
+    <td>:white_check_mark:</td>
     <td></td>
     <td></td>
     <td></td>
@@ -28,21 +28,21 @@ The Fraunhofer Versatile Video Decoder (VVdeC) is a fast H.266/VVC software deco
     <td></td>
     <td></td>
     <td>Edge</td>
-    <td>:heavy_check_mark:</td>
+    <td>:white_check_mark:</td>
   </tr>
   <tr>
     <td>x64</td>
-    <td>:heavy_check_mark:</td>
+    <td>:white_check_mark:</td>
     <td>x86_64</td>
-    <td>:heavy_check_mark:</td>
+    <td>:white_check_mark:</td>
     <td>x64</td>
-    <td>:heavy_check_mark:</td>
+    <td>:white_check_mark:</td>
     <td></td>
     <td></td>
     <td></td>
     <td></td>
     <td>Firefox</td>
-    <td>:heavy_check_mark:</td>
+    <td>:white_check_mark:</td>
   </tr>
   <tr>
     <td>armv7</td>
@@ -56,15 +56,15 @@ The Fraunhofer Versatile Video Decoder (VVdeC) is a fast H.266/VVC software deco
     <td>armv7</td>
     <td>:black_square_button:</td>
     <td>Chrome</td>
-    <td>:heavy_check_mark:</td>
+    <td>:white_check_mark:</td>
   </tr>
   <tr>
     <td>aarch64</td>
     <td>:black_square_button:</td>
     <td>aarch64</td>
-    <td>:heavy_check_mark:</td>
+    <td>:white_check_mark:</td>
     <td>arm64</td>
-    <td>:heavy_check_mark:</td>
+    <td>:white_check_mark:</td>
     <td>aarch64</td>
     <td>:black_square_button:</td>
     <td>arm64</td>
