@@ -53,12 +53,14 @@ jobs:
               os: macos-latest,
               osx_arch: arm64
             }
+    env:
+      CMAKE_GENERATOR: "${{ matrix.config.generators }}"
     steps:
     - uses: actions/checkout@v2
     - run: git fetch --prune --unshallow
 
-    - name: build
-      if: matrix.config.os != 'windows-2019'
+    - name: Ubuntu/Mac/MinGW build
+      if: !contains( matrix.config.generators, 'Visual Studio' )
       run: |
         mkdir build
         cd build
@@ -66,19 +68,10 @@ jobs:
         cmake --build .
 
     - name: MSVC build
-      if: matrix.config.os == 'windows-2019' && contains( matrix.config.generators, 'Visual Studio' )
+      if: contains( matrix.config.generators, 'Visual Studio' )
       run: |
         mkdir build
         cd build
-        cmake .. -G "${{ matrix.config.generators }}" -DCMAKE_BUILD_TYPE=Release -A "${{ matrix.config.msvc_arch }}"
-        cmake --build . --config Release
-      shell: cmd
-
-    - name: MinGW build
-      if: matrix.config.os == 'windows-2019' && !contains( matrix.config.generators, 'Visual Studio' )
-      run: |
-        mkdir build
-        cd build
-        cmake .. -G "${{ matrix.config.generators }}" -DCMAKE_BUILD_TYPE=Release
+        cmake ..  -DCMAKE_BUILD_TYPE=Release -A "${{ matrix.config.msvc_arch }}"
         cmake --build . --config Release
       shell: cmd
