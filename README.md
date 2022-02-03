@@ -1,107 +1,151 @@
 # Fraunhofer Versatile Video Decoder (VVdeC)
 
-Versatile Video Coding (VVC) is the most recent international video coding standard, developed by the Joint Video Experts Team (JVET) of the ITU-T Video Coding Experts Group (VCEG) and the ISO/IEC Moving Picture Experts Group (MPEG). VVC is the successor of the High Efficiency Video Coding (HEVC) standard and will be released by ITU-T as H.266 and by ISO/IEC as MPEG-I Part 3 (ISO/IEC 23090-3). The new standard targets a 50% bit-rate reduction over HEVC at the same visual quality. In addition, VVC proves to be truly versatile by including tools for efficient coding of video content in emerging applications, e.g. high dynamic range (HDR), adaptive streaming, computer generated content as well as immersive applications like 360 degree video and augmented reality (AR).
+The Fraunhofer Versatile Video Decoder (VVdeC) is a fast H.266/VVC software decoder implementation.
 
-The Fraunhofer Versatile Video Decoder (VVdeC) is a fast VVC x86 software decoder implementation. The decoder supports most standard features available in the Main10 profile, with support for some high-level features still pending.
+**All features** of the **VVC Main10** profile are supported by VVdeC.
 
-#  How to build VVdeC?
-
-The software uses CMake to create platform-specific build files. 
-A working CMake installation is required for building the software.
-Download CMake from http://www.cmake.org/ and install it. The following targets are supported: Windows (Visual Studio), Linux (gcc) and MacOS (clang).
-
-## Building using CMake
-
-Open a command prompt on your system and change into the root directory of this project (location of this README.md file).
-
-Create a build directory in the root directory:
-
-    mkdir build
-
-After that use one of the following cmake commands. Feel free to change the commands to satisfy your needs.
-
-Windows sample for Visual Studio 2017 64 Bit:
-
-    cd build
-    cmake .. -G "Visual Studio 15 2017 Win64"
-
-Linux Release Makefile sample:
-
-    cd build
-    cmake .. -DCMAKE_BUILD_TYPE=Release
-
-Linux Debug Makefile sample:
-
-    cd build
-    cmake .. -DCMAKE_BUILD_TYPE=Debug
-
-MacOS-X Xcode sample:
-
-    cd build
-    cmake .. -G "Xcode"
-
-Available CMake switches:
-* VVDEC_ENABLE_BITSTREAM_DOWNLOAD: enables downloading of conformance bitstreams for testing
-* VVDEC_ENABLE_INSTALL: enables creation of the install-target
-    
-## Building using plain make
-
-The project includes an easy to use make interface which bundles the most important use-cases. 
-    
-Remarks:
-* You still need to install CMake to use the make tool
-* For Windows, you can install the make command as a part gnuwin32
-
-Open a command prompt on your system and change into the root directory of this project (location of this README.md file).
-
-To use the default system compiler simply call:
-
-    make all
-
-The project includes a simple test suite based on [JVET conformance bitstreams](https://www.itu.int/wftp3/av-arch/jvet-site/bitstream_exchange/VVC/). To enable it, call the make command with the following argument:
-
-    make enable-bitstream-download=1 ...
-    
-To generate a solution for the default builder on your system simply call:
-
-    make configure
-    
-To run the simple conformance test suite (if the bitstreams are downloaded and available) call:
-
-    make test
-    
-The above call only tests the sequences that are know to work. To run a test over all conformance sequences with supported profile call:
-
-    make test-all
-
-## Build WebAssembly using Emscripten
-
-Install the Emscripten emsdk as documented on the website https://emscripten.org and activate the latest version (tested with 2.0.25).
-
-Ensure the environment variables are set up correctly (e.g. run `source emsdk_env.sh` in the current shell).
-
-Configure the VVdeC project:
-
-    emcmake cmake -B build/wasm
-
-And build the project:
-
-    cmake --build build/wasm
-
-The produced output consists of the `vvdecapp.wasm` binary and the corresponding javascript helpers (`vvdecapp.js`, `vvdecapp.worker.js`).
-
-When importing vvdecapp.js, the function `CreateVVdeC()` creates an instance of the vvdec module, which exposes a similar API to the one defined in `include/vvdec/vvdec.h`.
+## Supported architectures
 
 
-# Contributing
+<table>
+  <tr>
+    <th colspan="2" align="center" valign="center"><strong>Windows</strong></th>
+    <th colspan="2" align="center" valign="center"><strong>Linux</strong></th>
+    <th colspan="2" align="center" valign="center"><strong>MacOS X</strong></th>
+    <th colspan="2" align="center" valign="center"><strong>Android</strong></th>
+    <th colspan="2" align="center" valign="center"><strong>iOS</strong></th>
+    <th colspan="2" align="center" valign="center"><strong>Browser (WASM)</strong></th>
+  </tr>
+  <tr>
+    <td>Win32</td>
+    <td>:white_check_mark:</td>
+    <td>x86</td>
+    <td>:white_check_mark:</td>
+    <td></td>
+    <td></td>
+    <td></td>
+    <td></td>
+    <td></td>
+    <td></td>
+    <td>Edge</td>
+    <td>:white_check_mark:</td>
+  </tr>
+  <tr>
+    <td>x64</td>
+    <td>:white_check_mark:</td>
+    <td>x86_64</td>
+    <td>:white_check_mark:</td>
+    <td>x64</td>
+    <td>:white_check_mark:</td>
+    <td></td>
+    <td></td>
+    <td></td>
+    <td></td>
+    <td>Firefox</td>
+    <td>:white_check_mark:</td>
+  </tr>
+  <tr>
+    <td>armv7</td>
+    <td>:black_square_button:</td>
+    <td>armv7</td>
+    <td>:black_square_button:</td>
+    <td></td>
+    <td></td>
+    <td>armv7</td>
+    <td>:black_square_button:</td>
+    <td>armv7</td>
+    <td>:black_square_button:</td>
+    <td>Chrome</td>
+    <td>:white_check_mark:</td>
+  </tr>
+  <tr>
+    <td>aarch64</td>
+    <td>:black_square_button:</td>
+    <td>aarch64</td>
+    <td>:white_check_mark:</td>
+    <td>arm64</td>
+    <td>:white_check_mark:</td>
+    <td>aarch64</td>
+    <td>:black_square_button:</td>
+    <td>arm64</td>
+    <td>:black_square_button:</td>
+    <td>Safari</td>
+    <td>:x:</td>
+  </tr>
+</table>
+
+:white_check_mark: tested and works :black_square_button: needs testing (might aleady work) :x: does not work
+
+## Information
+
+See the [Wiki-Page](https://github.com/fraunhoferhhi/vvdec/wiki) for more information:
+
+* [Build information](https://github.com/fraunhoferhhi/vvdec/wiki/Build)
+* [Usage documentation](https://github.com/fraunhoferhhi/vvdec/wiki/How-to-use-VVdeC)
+* [License](https://github.com/fraunhoferhhi/vvdec/wiki/License)
+* [Publications](https://github.com/fraunhoferhhi/vvdec/wiki/Publications)
+* [Version history](https://github.com/fraunhoferhhi/vvdec/wiki/Changelog)
+
+## Build
+
+VVdeC uses CMake to describe and mange the build process. A working [CMake](http://www.cmake.org/) installation is required to build the software. In the following, the basic build steps are described. Please refer to the [Wiki](https://github.com/fraunhoferhhi/vvdec/wiki/Build) for the description of all build options.
+
+### How to build using CMake?
+
+To build using CMake, create a `build` directory and generate the project:
+
+```sh
+mkdir build
+cd build
+cmake .. <build options>
+```
+
+To actually build the project, run the following after completing project generation:
+
+```sh
+cmake --build .
+```
+
+For multi-configuration projects (e.g. Visual Studio or Xcode) specify `--config Release` to build the release configuration.
+
+### How to build using GNU Make?
+
+On top of the CMake build system, convinence Makefile is provided to simply the build process. To build using GNU Make please run the following:
+
+```sh
+make install-release <options>
+```
+
+Use the option `enable-bitstream-download=1` in the make command to download the VVC conformance bitstreams for testing.
+
+Other supported build targets include `configure`, `release`, `debug`, `relwithdebinfo`, `test`,  and `clean`. Refer to the Wiki for a full list of supported features.
+
+## Citing
+
+Please use the following citation when referencing VVdeC in literature:
+
+```bibtex
+@InProceedings{VVdeC,
+  author    = {Wieckowski, Adam and Hege, Gabriel and Bartnik, Christian and Lehmann, Christian and Stoffers, Christian and Bross, Benjamin and Marpe, Detlev},
+  booktitle = {Proc. IEEE International Conference on Image Processing (ICIP)},
+  date      = {2020},
+  title     = {Towards A Live Software Decoder Implementation For The Upcoming Versatile Video Coding (VVC) Codec},
+  doi       = {10.1109/ICIP40778.2020.9191199},
+  pages     = {3124-3128},
+}
+
+```
+
+## Contributing
 
 Feel free to contribute. To do so:
 
 * Fork the current-most state of the master branch
 * Apply the desired changes
+* Put your name into [AUTHORS.md](./AUTHORS.md)
 * Create a pull-request to the upstream repository
 
-# License
+## License
 
 Please see [LICENSE.txt](./LICENSE.txt) file for the terms of use of the contents of this repository.
 
