@@ -921,69 +921,174 @@ void LoopFilter::xSetMaxFilterLengthPQFromTransformSizes( const CodingUnit& cu, 
         cuPfstCh = cuPfstCh->blocks[start].contains( posPfst ) ? cuPfstCh : cu.cs->getCU( posPfst, start );
       }
 
-      for( int d = 0, dFst = 0; d < parlSize<edgeDir>( currTU.blocks[ch] ); d += inc, dFst += incFst )
+      bool bSameCUTUSize = perpPos<edgeDir>( currTU.blocks[ch] ) == perpPos<edgeDir>( cu.blocks[ch] );
+      if( ct == end && deriveBdStrngt )
       {
-        const Position  posQ     { currTU.blocks[ch].x + edgeDir * d, currTU.blocks[ch].y + ( 1 - edgeDir ) * d };
-        const Position  posP     = posQ.offset( -( 1 - edgeDir ), -edgeDir );
-        const Position  posPfst  = currTU.blocks[start].offset( edgeDir ? dFst : -1, edgeDir ? -1 : dFst );
-        const int sizeQSide      = perpSize<edgeDir>( currTU.blocks[ch] );
-                        cuP      = parlPos<edgeDir>( cuP->     blocks[ch   ] ) + parlSize<edgeDir>( cuP->     blocks[ch   ] ) > parlPos<edgeDir>( posP )    ? cuP      : cu.cs->getCU( posP,                 ch );
-                        cuPfstCh = start != end && ch == end && deriveBdStrngt
-                                 ? parlPos<edgeDir>( cuPfstCh->blocks[start] ) + parlSize<edgeDir>( cuPfstCh->blocks[start] ) > parlPos<edgeDir>( posPfst ) ? cuPfstCh : cu.cs->getCU( posPfst, ChannelType( start ) )
-                                 : cuP;
-        const TransformUnit &tuP = cuP->firstTU.next == nullptr ? cuP->firstTU : *getTU( *cuP, posP, ch );
-        const int sizePSide      = perpSize<edgeDir>( tuP.blocks[ch] );
-        LoopFilterParam& lfp     = *lfpPtr;
-
-        if( ct == start )
+        if (start != end)
         {
-          lfp.setFilterEdge( cu.chType(), bValue );
-          if( ( lfp.bs || perpPos<edgeDir>( currTU.blocks[ch] ) == perpPos<edgeDir>( cu.blocks[ch] ) ) && bValue )
+          for( int d = 0, dFst = 0; d < parlSize<edgeDir>( currTU.blocks[ch] );  )
           {
-            lfp.bs |= BsSet( 3, MAX_NUM_COMPONENT );
+            const Position  posQ     { currTU.blocks[ch].x + edgeDir * d, currTU.blocks[ch].y + ( 1 - edgeDir ) * d };
+            const Position  posP     = posQ.offset( -( 1 - edgeDir ), -edgeDir );
+            const int sizeQSide      = perpSize<edgeDir>( currTU.blocks[ch] );
+            cuP      = parlPos<edgeDir>( cuP->blocks[ch] ) + parlSize<edgeDir>( cuP->blocks[ch] ) > parlPos<edgeDir>( posP )? cuP: cu.cs->getCU( posP, ch );
+            const Position  posPfst  = currTU.blocks[start].offset( edgeDir ? dFst : -1, edgeDir ? -1 : dFst );
+            cuPfstCh = parlPos<edgeDir>( cuPfstCh->blocks[start] ) + parlSize<edgeDir>( cuPfstCh->blocks[start] ) > parlPos<edgeDir>( posPfst ) ? cuPfstCh : cu.cs->getCU( posPfst, ChannelType( start ) );
+            const TransformUnit &tuP = cuP->firstTU.next == nullptr ? cuP->firstTU : *getTU( *cuP, posP, ch );
+            const int sizePSide      = perpSize<edgeDir>( tuP.blocks[ch] );
+            LoopFilterParam& lfp     = *lfpPtr;
+            lfp.setFilterCMFL( ( sizeQSide >= 8 && sizePSide >= 8 ) ? 1 : 0 );
+            if( bValue )
+              xGetBoundaryStrengthSingle<edgeDir>( lfp, cu, Position( ( area.x + edgeDir * d ) << csx, ( area.y + ( 1 - edgeDir ) * d ) << csy ), *cuPfstCh, ctuData, pqSameCtu );
+            lfp.bs &= ~BsSet( 3, MAX_NUM_COMPONENT );
+            if (!CU::isIntra(cu) && !CU::isIntra(*cuP) && cuP == cuPfstCh && cu.geoFlag() == false && cuP->geoFlag() == false)
+            {
+              int distance = parlPos<edgeDir>( tuP.blocks[ch] ) + parlSize<edgeDir>( tuP.blocks[ch] ) - parlPos<edgeDir>(posQ);
+              if (distance > parlSize<edgeDir>( currTU.blocks[ch] ) - d)
+                distance = parlSize<edgeDir>( currTU.blocks[ch] ) - d; // range check
+              if (distance > inc && !cuP->affineFlag() && !( cuP->mergeFlag() && cuP->mergeType() == MRG_TYPE_SUBPU_ATMVP ))
+              {
+                LoopFilterParam param = lfp;
+                for (int j = inc; j < distance; j += inc, d += inc, dFst += incFst)
+                {
+                  OFFSET( lfpPtr, lfpStride, edgeDir, ( 1 - edgeDir ) );
+                  *lfpPtr = param;
+                }
+              }
+            }
+            OFFSET( lfpPtr, lfpStride, edgeDir, ( 1 - edgeDir ) );
+            d += inc;
+            dFst += incFst;
           }
-          else
-          {
-            lfp.bs |= BsSet( 1, MAX_NUM_COMPONENT );
-          }
-        }
-
-        if( ch == CHANNEL_TYPE_LUMA )
-        {
-          uint8_t maxFLPQ;
-
-          if( lfp.sideMaxFiltLength != 0 )
-          {
-            continue;
-          }
-
-          bool smallBlock = ( sizePSide <= 4 ) || ( sizeQSide <= 4 );
-          if( smallBlock )
-          {
-            maxFLPQ = 17;
-          }
-          else
-          {
-            maxFLPQ   = ( sizePSide >= 32 ) ? ( cuP->affineFlag() ? 5 : 7 ) : 3;
-            maxFLPQ <<= 4;
-            maxFLPQ  += ( sizeQSide >= 32 ) ? 7 : 3;
-          }
-
-          maxFLPQ    += 128;
-          lfp.sideMaxFiltLength = maxFLPQ;
         }
         else
         {
-          lfp.setFilterCMFL( ( sizeQSide >= 8 && sizePSide >= 8 ) ? 1 : 0 );
+          // old logical
+          for( int d = 0, dFst = 0; d < parlSize<edgeDir>( currTU.blocks[ch] ); d += inc, dFst += incFst )
+          {
+            const Position  posQ     { currTU.blocks[ch].x + edgeDir * d, currTU.blocks[ch].y + ( 1 - edgeDir ) * d };
+            const Position  posP     = posQ.offset( -( 1 - edgeDir ), -edgeDir );
+            const Position  posPfst  = currTU.blocks[start].offset( edgeDir ? dFst : -1, edgeDir ? -1 : dFst );
+            const int sizeQSide      = perpSize<edgeDir>( currTU.blocks[ch] );
+            cuP      = parlPos<edgeDir>( cuP->     blocks[ch   ] ) + parlSize<edgeDir>( cuP->     blocks[ch   ] ) > parlPos<edgeDir>( posP )    ? cuP      : cu.cs->getCU( posP,                 ch );
+            cuPfstCh = start != end? parlPos<edgeDir>( cuPfstCh->blocks[start] ) + parlSize<edgeDir>( cuPfstCh->blocks[start] ) > parlPos<edgeDir>( posPfst ) ? cuPfstCh : cu.cs->getCU( posPfst, ChannelType( start ) )
+            : cuP;
+            const TransformUnit &tuP = cuP->firstTU.next == nullptr ? cuP->firstTU : *getTU( *cuP, posP, ch );
+            const int sizePSide      = perpSize<edgeDir>( tuP.blocks[ch] );
+            LoopFilterParam& lfp     = *lfpPtr;
+            lfp.setFilterEdge( cu.chType(), bValue );
+            if( ( lfp.bs || bSameCUTUSize ) && bValue )
+            {
+              lfp.bs |= BsSet( 3, MAX_NUM_COMPONENT );
+            }
+            else
+            {
+              lfp.bs |= BsSet( 1, MAX_NUM_COMPONENT );
+            }
+            if( ch == CHANNEL_TYPE_LUMA )
+            {
+              uint8_t maxFLPQ;
+              
+              bool smallBlock = ( sizePSide <= 4 ) || ( sizeQSide <= 4 );
+              if( smallBlock )
+              {
+                maxFLPQ = 17;
+              }
+              else
+              {
+                maxFLPQ   = ( sizePSide >= 32 ) ? ( cuP->affineFlag() ? 5 : 7 ) : 3;
+                maxFLPQ <<= 4;
+                maxFLPQ  += ( sizeQSide >= 32 ) ? 7 : 3;
+              }
+              
+              maxFLPQ    += 128;
+              lfp.sideMaxFiltLength = maxFLPQ;
+            }
+            else
+            {
+              lfp.setFilterCMFL( ( sizeQSide >= 8 && sizePSide >= 8 ) ? 1 : 0 );
+            }
+            
+            if( bValue )
+              xGetBoundaryStrengthSingle<edgeDir>( lfp, cu, Position( ( area.x + edgeDir * d ) << csx, ( area.y + ( 1 - edgeDir ) * d ) << csy ), *cuPfstCh, ctuData, pqSameCtu );
+            lfp.bs &= ~BsSet( 3, MAX_NUM_COMPONENT );
+            OFFSET( lfpPtr, lfpStride, edgeDir, ( 1 - edgeDir ) );
+          }
         }
-
-        if( ct == end && deriveBdStrngt )
+      }
+      else
+      {
+        for(int d = 0; d < parlSize<edgeDir>( currTU.blocks[ch] );)
         {
-          if( bValue ) xGetBoundaryStrengthSingle<edgeDir>( lfp, cu, Position( ( area.x + edgeDir * d ) << csx, ( area.y + ( 1 - edgeDir ) * d ) << csy ), *cuPfstCh, ctuData, pqSameCtu );
-          lfp.bs &= ~BsSet( 3, MAX_NUM_COMPONENT );
+          const Position  posQ     { currTU.blocks[ch].x + edgeDir * d, currTU.blocks[ch].y + ( 1 - edgeDir ) * d };
+          const Position  posP     = posQ.offset( -( 1 - edgeDir ), -edgeDir );
+          const int sizeQSide      = perpSize<edgeDir>( currTU.blocks[ch] );
+                          cuP      = parlPos<edgeDir>( cuP->blocks[ch] ) + parlSize<edgeDir>( cuP->blocks[ch] ) > parlPos<edgeDir>( posP )? cuP:cu.cs->getCU( posP,                 ch );
+          const TransformUnit &tuP = cuP->firstTU.next == nullptr ? cuP->firstTU : *getTU( *cuP, posP, ch );
+          const int sizePSide      = perpSize<edgeDir>( tuP.blocks[ch] );
+          int distance = parlPos<edgeDir>( tuP.blocks[ch] ) + parlSize<edgeDir>( tuP.blocks[ch] ) - parlPos<edgeDir>(posQ);
+          if (distance > parlSize<edgeDir>( currTU.blocks[ch] ) - d)
+            distance = parlSize<edgeDir>( currTU.blocks[ch] ) - d; // range check
+          if (ch == CHANNEL_TYPE_LUMA)
+          {
+            LoopFilterParam& lfp     = *lfpPtr;
+            lfp.setFilterEdge( cu.chType(), bValue );
+            if( ( lfp.bs || bSameCUTUSize ) && bValue )
+            {
+              lfp.bs |= BsSet( 3, MAX_NUM_COMPONENT );
+            }
+            else
+            {
+              lfp.bs |= BsSet( 1, MAX_NUM_COMPONENT );
+            }
+            uint8_t maxFLPQ;
+            bool smallBlock = ( sizePSide <= 4 ) || ( sizeQSide <= 4 );
+            if( smallBlock )
+            {
+              maxFLPQ = 17;
+            }
+            else
+            {
+              maxFLPQ   = ( sizePSide >= 32 ) ? ( cuP->affineFlag() ? 5 : 7 ) : 3;
+              maxFLPQ <<= 4;
+              maxFLPQ  += ( sizeQSide >= 32 ) ? 7 : 3;
+            }
+            maxFLPQ    += 128;
+            lfp.sideMaxFiltLength = maxFLPQ;
+            if (distance > inc)
+            {
+              LoopFilterParam tmp = lfp;
+              for (int j = inc; j < distance; j += inc, d += inc)
+              {
+                OFFSET( lfpPtr, lfpStride, edgeDir, ( 1 - edgeDir ) );
+                *lfpPtr = tmp;
+              }
+            }
+            d += inc;
+            OFFSET( lfpPtr, lfpStride, edgeDir, ( 1 - edgeDir ) );
+          }
+          else
+          {
+            for (int j = 0; j < distance; j += inc, d += inc)
+            {
+              LoopFilterParam& lfp     = *lfpPtr;
+              if( ct == start )
+              {
+                lfp.setFilterEdge( cu.chType(), bValue );
+                if( ( lfp.bs || bSameCUTUSize ) && bValue )
+                {
+                  lfp.bs |= BsSet( 3, MAX_NUM_COMPONENT );
+                }
+                else
+                {
+                  lfp.bs |= BsSet( 1, MAX_NUM_COMPONENT );
+                }
+              }
+              lfp.setFilterCMFL( ( sizeQSide >= 8 && sizePSide >= 8 ) ? 1 : 0 );
+              OFFSET( lfpPtr, lfpStride, edgeDir, ( 1 - edgeDir ) );
+            }
+          }
         }
-
-        OFFSET( lfpPtr, lfpStride, edgeDir, ( 1 - edgeDir ) );
       }
     }
   }
@@ -999,27 +1104,30 @@ void LoopFilter::xSetEdgeFilterInsidePu( const CodingUnit &cu, const Area &area,
   const int inc = edgeDir ? pcv.minCUWidth  >> getChannelTypeScaleX( cu.chType(), cu.chromaFormat )
                           : pcv.minCUHeight >> getChannelTypeScaleY( cu.chType(), cu.chromaFormat );
 
-  for( int d = 0; d < parlSize<edgeDir>( area ); d += inc )
+  if (bValue)
   {
-    lfpPtr->setFilterEdge( cu.chType(), bValue );
-
-    if( lfpPtr->bs && bValue )
+    for( int d = 0; d < parlSize<edgeDir>( area ); d += inc )
     {
-      lfpPtr->bs |= BsSet( 3, MAX_NUM_COMPONENT );
+      lfpPtr->setFilterEdge( cu.chType(), 1 );
+       if( lfpPtr->bs)
+       {
+         lfpPtr->bs |= BsSet( 3, MAX_NUM_COMPONENT );
+       }
+       OFFSET( lfpPtr, lfpStride, edgeDir, ( 1 - edgeDir ) );
     }
-      
-    OFFSET( lfpPtr, lfpStride, edgeDir, ( 1 - edgeDir ) );
+  }
+  else
+  {
+    for( int d = 0; d < parlSize<edgeDir>( area ); d += inc )
+    {
+      lfpPtr->setFilterEdge( cu.chType(), 0 );
+      OFFSET( lfpPtr, lfpStride, edgeDir, ( 1 - edgeDir ) );
+    }
   }
 }
 
 LFCUParam LoopFilter::xGetLoopfilterParam( const CodingUnit& cu ) const
 {
-  const Slice& slice = *cu.slice;
-  if( slice.getDeblockingFilterDisable() )
-  {
-    return LFCUParam{/*false,*/ false, false};
-  }
-
   const Position pos = cu.blocks[cu.chType()].pos();
 
   const PPS& pps = *cu.pps;
@@ -1094,7 +1202,7 @@ void LoopFilter::xGetBoundaryStrengthSingle( LoopFilterParam& lfp, const CodingU
   {
     const int edgeIdx = ( perpPos<edgeDir>( localPos ) - perpPos<edgeDir>( cuPos ) ) / 4;
 
-    int bsY = ( MODE_INTRA == cuP.predMode() && cuP.bdpcmMode() ) && ( MODE_INTRA == cuQ.predMode() && cuQ.bdpcmMode() ) ? 0 : 2;
+    int bsY = cuP.bdpcmMode() && cuQ.bdpcmMode()? 0 : 2;
 
     if( cuQ.ispMode() && edgeIdx )
     {
