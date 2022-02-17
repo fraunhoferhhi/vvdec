@@ -468,15 +468,11 @@ void AdaptiveLoopFilter::processCTU( CodingStructure & cs, unsigned col, unsigne
   const UnitArea ctuArea( getCtuArea( cs, col, line, true ) );
 
   const unsigned ctuIdx = line * cs.pcv->widthInCtus + col;
-  uint8_t ctuEnableFlag[3] = { cs.picture->getAlfCtuEnableFlag( 0 )[ctuIdx],
-                               cs.picture->getAlfCtuEnableFlag( 1 )[ctuIdx],
-                               cs.picture->getAlfCtuEnableFlag( 2 )[ctuIdx] };
-  ctuEnableFlag[1] += cs.picture->getccAlfFilterControl( 0 )[ctuIdx] > 0 ? 2 : 0;
-  ctuEnableFlag[2] += cs.picture->getccAlfFilterControl( 1 )[ctuIdx] > 0 ? 2 : 0;
-  const uint8_t ctuAlternativeData[2] = { cs.picture->getAlfCtuAlternativeData( 0 )[ctuIdx],
-                                          cs.picture->getAlfCtuAlternativeData( 1 )[ctuIdx] };
+  CtuAlfData currAlfData = cs.picture->getCtuAlfData(ctuIdx);
+  currAlfData.alfCtuEnableFlag[1] += currAlfData.ccAlfFilterControl[0] > 0 ? 2 : 0;
+  currAlfData.alfCtuEnableFlag[2] += currAlfData.ccAlfFilterControl[1] > 0 ? 2 : 0;
 
-  filterCTU( recYuv.subBuf( ctuArea ), m_alfBuf.subBuf( ctuArea ), ctuEnableFlag, ctuAlternativeData, cs.picture->slices[0]->getClpRngs(), chType, cs, ctuIdx, ctuArea.lumaPos(), tid );
+  filterCTU( recYuv.subBuf( ctuArea ), m_alfBuf.subBuf( ctuArea ), currAlfData, cs.picture->slices[0]->getClpRngs(), chType, cs, ctuIdx, ctuArea.lumaPos(), tid );
 }
 
 bool AdaptiveLoopFilter::getAlfSkipPic( const CodingStructure & cs )
@@ -541,19 +537,18 @@ void AdaptiveLoopFilter::filterAreaChroma( const CPelUnitBuf& srcBuf,
                                            const Slice*       slice,
                                            const APS* const*  aps,
                                            const int          ctuIdx,
-                                           const uint8_t      ctuComponentEnableFlag,
-                                           const uint8_t      ctuAlternativeData[2],
+                                           const CtuAlfData&  ctuAlfData,
                                            const ClpRngs&     clpRngs )
 
 {
-  if( ctuComponentEnableFlag & 1 )
+  if( ctuAlfData.alfCtuEnableFlag[compID] & 1 )
   {
     const int  apsIdxChroma = slice->getTileGroupApsIdChroma();
     const APS* curAPS       = aps[apsIdxChroma];
     CHECK( curAPS == NULL, "invalid APS" );
     const AlfSliceParam& alfSliceParam = curAPS->getAlfAPSParam();
 
-    const uint8_t altIdx = ctuAlternativeData[compID - 1];
+    const uint8_t altIdx = ctuAlfData.alfCtuAlternative[compID - 1];
 
     m_filter5x5Blk( nullptr,
                     dstBuf,
@@ -577,7 +572,7 @@ void AdaptiveLoopFilter::filterAreaChroma( const CPelUnitBuf& srcBuf,
 
   if( slice->getTileGroupCcAlfEnabledFlag( compID - 1 ) )
   {
-    const int filterIdx = slice->getPic()->getccAlfFilterControl( compID - 1 )[ctuIdx];
+    const int filterIdx = ctuAlfData.ccAlfFilterControl[compID - 1];
 
     if( filterIdx != 0 )
     {
@@ -592,8 +587,7 @@ void AdaptiveLoopFilter::filterAreaChroma( const CPelUnitBuf& srcBuf,
 
 void AdaptiveLoopFilter::filterCTU( const CPelUnitBuf&     srcBuf,
                                     const PelUnitBuf&      dstBuf,
-                                    const uint8_t          ctuEnableFlag[3],
-                                    const uint8_t          ctuAlternativeData[2],
+                                    const CtuAlfData&      ctuAlfData,
                                     const ClpRngs&         clpRngs,
                                     const ChannelType      chType,
                                     const CodingStructure& cs,
@@ -603,7 +597,6 @@ void AdaptiveLoopFilter::filterCTU( const CPelUnitBuf&     srcBuf,
 {
   const Slice*         slice          = cs.getCtuData( ctuIdx ).cuPtr[0][0]->slice;
   const APS* const*    aps            = slice->getAlfAPSs();
-  const short          filterSetIndex = slice->getPic()->getAlfCtbFilterIndex()[ctuIdx];
   const PreCalcValues& pcv            = *cs.pcv;
 
   bool clipTop = false, clipBottom = false, clipLeft = false, clipRight = false;
@@ -636,9 +629,9 @@ void AdaptiveLoopFilter::filterCTU( const CPelUnitBuf&     srcBuf,
     if( chType < MAX_NUM_CHANNEL_TYPE && toChannelType( compID ) != chType )
       continue;
 #if ALF_FIX
-    if( !ctuEnableFlag[compIdx] && ( compIdx == 0 || !slice->getTileGroupCcAlfEnabledFlag( compIdx-1 ) ) )
+    if( !ctuAlfData.alfCtuEnableFlag[compIdx] && ( compIdx == 0 || !slice->getTileGroupCcAlfEnabledFlag( compIdx-1 ) ) )
 #else
-    if( !ctuEnableFlag[compIdx] )
+    if( !ctuAlfData.alfCtuEnableFlag[compIdx] )
 #endif
     {
       // unfiltered blocks just need to be copied to the destination
@@ -651,7 +644,7 @@ void AdaptiveLoopFilter::filterCTU( const CPelUnitBuf&     srcBuf,
       if( compID == COMPONENT_Y )
       {
         const Area blk( Position( 0, 0 ), Size( srcBuf.get( compID ) ) );
-
+        const short filterSetIndex = ctuAlfData.alfCtbFilterIndex;
         filterAreaLuma( srcBuf, dstBuf, blk, slice, aps, filterSetIndex, clpRngs, tid );
       }
       else
@@ -659,7 +652,7 @@ void AdaptiveLoopFilter::filterCTU( const CPelUnitBuf&     srcBuf,
         const Area blkLuma  ( Position( 0, 0 ), Size( width, height ) );
         const Area blkChroma( Position( 0, 0 ), Size( srcBuf.get( compID ) ) );
 
-        filterAreaChroma( srcBuf, dstBuf, blkLuma, blkChroma, compID, slice, aps, ctuIdx, ctuEnableFlag[compID], ctuAlternativeData, clpRngs );
+        filterAreaChroma( srcBuf, dstBuf, blkLuma, blkChroma, compID, slice, aps, ctuIdx, ctuAlfData, clpRngs );
       }
     }
     else
@@ -734,7 +727,7 @@ void AdaptiveLoopFilter::filterCTU( const CPelUnitBuf&     srcBuf,
           if( compID == COMPONENT_Y )
           {
             const Area blk( xInSrc, yInSrc, w, h );
-
+            const short filterSetIndex = ctuAlfData.alfCtbFilterIndex;
             filterAreaLuma( m_tempBuf[tid], dstBuf, blk, slice, aps, filterSetIndex, clpRngs, tid );
           }
           else
@@ -742,7 +735,7 @@ void AdaptiveLoopFilter::filterCTU( const CPelUnitBuf&     srcBuf,
             const Area blkLuma ( Position( xInSrc,                 yInSrc ),                 Size( w,                 h ) );
             const Area blkChoma( Position( xInSrc >> chromaScaleX, yInSrc >> chromaScaleY ), Size( w >> chromaScaleX, h >> chromaScaleY ) );
 
-            filterAreaChroma( m_tempBuf[tid], dstBuf, blkLuma, blkChoma, compID, slice, aps, ctuIdx, ctuEnableFlag[compID], ctuAlternativeData, clpRngs );
+            filterAreaChroma( m_tempBuf[tid], dstBuf, blkLuma, blkChoma, compID, slice, aps, ctuIdx, ctuAlfData, clpRngs );
           }
           xStart = xEnd;
         }

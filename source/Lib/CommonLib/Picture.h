@@ -235,51 +235,18 @@ public:
 #endif
 
 public:
-  std::vector<uint8_t>  m_ccAlfFilterControl[2];
-        uint8_t*        getccAlfFilterControl( int compIdx )       { return m_ccAlfFilterControl[compIdx].data(); }
-  const uint8_t*        getccAlfFilterControl( int compIdx ) const { return m_ccAlfFilterControl[compIdx].data(); }
-  std::vector<uint8_t>* getccAlfFilterControl()                    { return m_ccAlfFilterControl; }
-  void                  resizeccAlfFilterControl( int numEntries )
+  std::vector<CtuAlfData> m_ctuAlfData;
+  CtuAlfData& getCtuAlfData(int ctuAddr)
   {
-    for( int compIdx = 0; compIdx < 2; compIdx++ )
-    {
-      m_ccAlfFilterControl[compIdx].resize( numEntries );
-      m_ccAlfFilterControl[compIdx].assign( numEntries, 0 );
-    }
+    return m_ctuAlfData[ctuAddr];
   }
-
-  std::vector<uint8_t>  m_alfCtuEnableFlag[MAX_NUM_COMPONENT];
-  uint8_t*              getAlfCtuEnableFlag( int compIdx ) { return m_alfCtuEnableFlag[compIdx].data(); }
-  std::vector<uint8_t>* getAlfCtuEnableFlag()              { return m_alfCtuEnableFlag; }
-  void                  resizeAlfCtuEnableFlag( int numEntries )
+  const CtuAlfData& getCtuAlfData(int ctuAddr) const
   {
-    for( int compIdx = 0; compIdx < MAX_NUM_COMPONENT; compIdx++ )
-    {
-      m_alfCtuEnableFlag[compIdx].resize( numEntries );
-      m_alfCtuEnableFlag[compIdx].assign( numEntries, 0 );
-    }
+    return m_ctuAlfData[ctuAddr];
   }
-
-  std::vector<short>  m_alfCtbFilterIndex;
-        short*        getAlfCtbFilterIndex()       { return m_alfCtbFilterIndex.data(); }
-  const short*        getAlfCtbFilterIndex() const { return m_alfCtbFilterIndex.data(); }
-  std::vector<short>& getAlfCtbFilterIndexVec() { return m_alfCtbFilterIndex; }
-  void                resizeAlfCtbFilterIndex( int numEntries )
+  void resizeCtuAlfData(int numEntries)
   {
-    m_alfCtbFilterIndex.resize( numEntries );
-    m_alfCtbFilterIndex.assign( numEntries, 0 );
-  }
-
-  std::vector<uint8_t>  m_alfCtuAlternative[MAX_NUM_COMPONENT-1];
-  uint8_t*              getAlfCtuAlternativeData( int compIdx ) { return m_alfCtuAlternative[compIdx].data(); }
-  std::vector<uint8_t>* getAlfCtuAlternative()                 { return m_alfCtuAlternative; }
-  void resizeAlfCtuAlternative( int numEntries )
-  {
-    for( int compIdx = 0; compIdx < MAX_NUM_COMPONENT-1; compIdx++ )
-    {
-      m_alfCtuAlternative[compIdx].resize( numEntries );
-      m_alfCtuAlternative[compIdx].assign( numEntries, 0 );
-    }
+    m_ctuAlfData.resize(numEntries);
   }
 
 #if  ENABLE_SIMD_OPT_PICTURE && defined( TARGET_SIMD_X86 )

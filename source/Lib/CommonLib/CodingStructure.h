@@ -94,6 +94,21 @@ struct CtuData
   ColocatedMotionInfo*  colMotion;
 };
 
+struct CtuAlfData
+{
+  uint8_t ccAlfFilterControl[2];
+  uint8_t alfCtuEnableFlag[MAX_NUM_COMPONENT];
+  uint8_t alfCtuAlternative[MAX_NUM_COMPONENT-1];
+  short alfCtbFilterIndex;
+  CtuAlfData()
+  {
+    ccAlfFilterControl[0] = ccAlfFilterControl[1] = 0;
+    alfCtuEnableFlag[0] = alfCtuEnableFlag[1] = alfCtuEnableFlag[2] = 0;
+    alfCtuAlternative[0] = alfCtuAlternative[1] = 0;
+    alfCtbFilterIndex = 0;
+  }
+};
+
 // ---------------------------------------------------------------------------
 // coding structure
 // ---------------------------------------------------------------------------
