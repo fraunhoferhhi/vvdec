@@ -409,7 +409,9 @@ void CABACReader::readAlf(CodingStructure &cs, unsigned int ctuRsAddr, const Par
     int aboveCTUAddr = aboveAvail ? ctuRsAddr - frame_width_in_ctus : -1;
     CtuAlfData& currAlfData = m_slice->getPic()->getCtuAlfData(ctuRsAddr);
     // init currAlfData
+    GCC_WARNING_DISABLE_class_memaccess
     memset(&currAlfData, 0, sizeof(currAlfData));
+    GCC_WARNING_RESET
     CtuAlfData  leftAlfData, aboveAlfData;
     if (leftAvail)
         leftAlfData = m_slice->getPic()->getCtuAlfData(leftCTUAddr);

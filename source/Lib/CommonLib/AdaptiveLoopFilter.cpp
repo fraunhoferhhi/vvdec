@@ -67,6 +67,7 @@ AdaptiveLoopFilter::AdaptiveLoopFilter()
 {
   m_deriveClassificationBlk = deriveClassificationBlk;
   m_filterCcAlf             = filterBlkCcAlf;
+  m_filterCcAlfBoth         = filterBlkCcAlfBoth;
   m_filter5x5Blk            = filterBlk<ALF_FILTER_5>;
   m_filter7x7Blk            = filterBlk<ALF_FILTER_7>;
 
@@ -531,12 +532,10 @@ void AdaptiveLoopFilter::filterAreaLuma( const CPelUnitBuf& srcBuf,
 
 void AdaptiveLoopFilter::filterAreaChroma( const CPelUnitBuf& srcBuf,
                                            const PelUnitBuf&  dstBuf,
-                                           const Area&        blkLuma,
                                            const Area&        blkChroma,
                                            const ComponentID  compID,
                                            const Slice*       slice,
                                            const APS* const*  aps,
-                                           const int          ctuIdx,
                                            const CtuAlfData&  ctuAlfData,
                                            const ClpRngs&     clpRngs )
 
@@ -569,7 +568,19 @@ void AdaptiveLoopFilter::filterAreaChroma( const CPelUnitBuf& srcBuf,
     dstBuf.get( compID ).copyFrom( srcBuf.get( compID ) );
 #endif
   }
+}
 
+void AdaptiveLoopFilter::filterAreaChromaCc( const CPelUnitBuf& srcBuf,
+                                             const PelUnitBuf&  dstBuf,
+                                             const Area&        blkLuma,
+                                             const Area&        blkChroma,
+                                             const ComponentID  compID,
+                                             const Slice*       slice,
+                                             const APS* const*  aps,
+                                             const CtuAlfData&  ctuAlfData,
+                                             const ClpRngs&     clpRngs )
+
+{
   if( slice->getTileGroupCcAlfEnabledFlag( compID - 1 ) )
   {
     const int filterIdx = ctuAlfData.ccAlfFilterControl[compID - 1];
@@ -581,6 +592,53 @@ void AdaptiveLoopFilter::filterAreaChroma( const CPelUnitBuf& srcBuf,
       const int16_t* filterCoeff = aps[apsIdx]->getCcAlfAPSParam().ccAlfCoeff[compID - 1][filterIdx - 1];
 
       m_filterCcAlf( dstBuf.get( compID ), srcBuf, blkChroma, blkLuma, compID, filterCoeff, clpRngs, m_alfVBLumaCTUHeight, m_alfVBLumaPos );
+    }
+  }
+}
+
+void AdaptiveLoopFilter::filterAreaChromaBothCc( const CPelUnitBuf& srcBuf,
+                                                 const PelUnitBuf&  dstBuf,
+                                                 const Area&        blkLuma,
+                                                 const Area&        blkChroma,
+                                                 const Slice*       slice,
+                                                 const APS* const*  aps,
+                                                 const CtuAlfData&  ctuAlfData,
+                                                 const ClpRngs&     clpRngs )
+
+{
+  const int filterIdxCb =
+      slice->getTileGroupCcAlfEnabledFlag(COMPONENT_Cb - 1) ? ctuAlfData.ccAlfFilterControl[COMPONENT_Cb - 1] : 0;
+  const int filterIdxCr =
+      slice->getTileGroupCcAlfEnabledFlag(COMPONENT_Cr - 1) ? ctuAlfData.ccAlfFilterControl[COMPONENT_Cr - 1] : 0;
+  
+  if (filterIdxCb && filterIdxCr) {
+    const Area blk(Position(0, 0), Size(srcBuf.get(COMPONENT_Cb)));
+    int apsIdxCb = slice->getTileGroupCcAlfCbApsId();
+    const int16_t* filterCoeffCb =
+        slice->getAlfAPSs()[apsIdxCb]->getCcAlfAPSParam().ccAlfCoeff[COMPONENT_Cb - 1][filterIdxCb - 1];
+    int apsIdxCr = slice->getTileGroupCcAlfCrApsId();
+    const int16_t* filterCoeffCr =
+        slice->getAlfAPSs()[apsIdxCr]->getCcAlfAPSParam().ccAlfCoeff[COMPONENT_Cr - 1][filterIdxCr - 1];
+
+    m_filterCcAlfBoth( dstBuf.get( COMPONENT_Cb ), dstBuf.get( COMPONENT_Cr ), srcBuf, blkChroma, blkLuma, filterCoeffCb, filterCoeffCr, clpRngs, m_alfVBLumaCTUHeight, m_alfVBLumaPos );
+
+  } else {
+    if (filterIdxCb) {
+      const Area blk(Position(0, 0), Size(srcBuf.get(COMPONENT_Cb)));
+      int apsIdx = slice->getTileGroupCcAlfCbApsId();
+      const int16_t* filterCoeff =
+          slice->getAlfAPSs()[apsIdx]->getCcAlfAPSParam().ccAlfCoeff[COMPONENT_Cb - 1][filterIdxCb - 1];
+
+      m_filterCcAlf( dstBuf.get( COMPONENT_Cb ), srcBuf, blkChroma, blkLuma, COMPONENT_Cb, filterCoeff, clpRngs, m_alfVBLumaCTUHeight, m_alfVBLumaPos );
+    }
+
+    if (filterIdxCr) {
+      const Area blk(Position(0, 0), Size(srcBuf.get(COMPONENT_Cr)));
+      int apsIdx = slice->getTileGroupCcAlfCrApsId();
+      const int16_t* filterCoeff =
+          slice->getAlfAPSs()[apsIdx]->getCcAlfAPSParam().ccAlfCoeff[COMPONENT_Cr - 1][filterIdxCr - 1];
+
+      m_filterCcAlf( dstBuf.get( COMPONENT_Cr ), srcBuf, blkChroma, blkLuma, COMPONENT_Cr, filterCoeff, clpRngs, m_alfVBLumaCTUHeight, m_alfVBLumaPos );
     }
   }
 }
@@ -622,25 +680,26 @@ void AdaptiveLoopFilter::filterCTU( const CPelUnitBuf&     srcBuf,
   const int height = ( ctuPos.y + pcv.maxCUHeight > pcv.lumaHeight ) ? ( pcv.lumaHeight - ctuPos.y ) : pcv.maxCUHeight;
 
   const int numComp = getNumberValidComponents( pcv.chrFormat );
-  for( int compIdx = 0; compIdx < numComp; compIdx++ )
+  
+  if( !isCrssByVBs )
   {
-    const ComponentID compID = ComponentID( compIdx );
-
-    if( chType < MAX_NUM_CHANNEL_TYPE && toChannelType( compID ) != chType )
-      continue;
-#if ALF_FIX
-    if( !ctuAlfData.alfCtuEnableFlag[compIdx] && ( compIdx == 0 || !slice->getTileGroupCcAlfEnabledFlag( compIdx-1 ) ) )
-#else
-    if( !ctuAlfData.alfCtuEnableFlag[compIdx] )
-#endif
+    for( int compIdx = 0; compIdx < numComp; compIdx++ )
     {
-      // unfiltered blocks just need to be copied to the destination
-      dstBuf.get( compID ).copyFrom( srcBuf.get( compID ) );
-      continue;
-    }
+      const ComponentID compID = ComponentID( compIdx );
 
-    if( !isCrssByVBs )
-    {
+      if( chType < MAX_NUM_CHANNEL_TYPE && toChannelType( compID ) != chType )
+        continue;
+  #if ALF_FIX
+      if( !ctuAlfData.alfCtuEnableFlag[compIdx] && ( compIdx == 0 || !slice->getTileGroupCcAlfEnabledFlag( compIdx-1 ) ) )
+  #else
+      if( !ctuAlfData.alfCtuEnableFlag[compIdx] )
+  #endif
+      {
+        // unfiltered blocks just need to be copied to the destination
+        dstBuf.get( compID ).copyFrom( srcBuf.get( compID ) );
+        continue;
+      }
+
       if( compID == COMPONENT_Y )
       {
         const Area blk( Position( 0, 0 ), Size( srcBuf.get( compID ) ) );
@@ -652,94 +711,124 @@ void AdaptiveLoopFilter::filterCTU( const CPelUnitBuf&     srcBuf,
         const Area blkLuma  ( Position( 0, 0 ), Size( width, height ) );
         const Area blkChroma( Position( 0, 0 ), Size( srcBuf.get( compID ) ) );
 
-        filterAreaChroma( srcBuf, dstBuf, blkLuma, blkChroma, compID, slice, aps, ctuIdx, ctuAlfData, clpRngs );
+        filterAreaChroma( srcBuf, dstBuf, blkChroma, compID, slice, aps, ctuAlfData, clpRngs );
       }
     }
-    else
+    
+    // has chroma
+    if(numComp > 1)
     {
-      const int chromaScaleX = getComponentScaleX( compID, srcBuf.chromaFormat );
-      const int chromaScaleY = getComponentScaleY( compID, srcBuf.chromaFormat );
+      const Area blkLuma  ( Position( 0, 0 ), Size( width, height ) );
+      const Area blkChroma( Position( 0, 0 ), Size( srcBuf.get( COMPONENT_Cb ) ) );
+      filterAreaChromaBothCc( srcBuf, dstBuf, blkLuma, blkChroma, slice, aps, ctuAlfData, clpRngs );
+    }
+  }
+  else
+  {
+    for( int compIdx = 0; compIdx < numComp; compIdx++ )
+    {
+      const ComponentID compID = ComponentID( compIdx );
 
-      int yStart = ctuPos.y;
-      for( int i = 0; i <= numHorVirBndry; i++ )
+      if( chType < MAX_NUM_CHANNEL_TYPE && toChannelType( compID ) != chType )
+        continue;
+  #if ALF_FIX
+      if( !ctuAlfData.alfCtuEnableFlag[compIdx] && ( compIdx == 0 || !slice->getTileGroupCcAlfEnabledFlag( compIdx-1 ) ) )
+  #else
+      if( !ctuAlfData.alfCtuEnableFlag[compIdx] )
+  #endif
       {
-        const int  yEnd  = i == numHorVirBndry ? ctuPos.y + srcBuf.Y().height : horVirBndryPos[i];
-        const int  h     = yEnd - yStart;
-        const bool clipT = ( i == 0              && clipTop )    || ( i > 0 )              || ( yStart == 0 );
-        const bool clipB = ( i == numHorVirBndry && clipBottom ) || ( i < numHorVirBndry ) || ( yEnd   == pcv.lumaHeight );
+        // unfiltered blocks just need to be copied to the destination
+        dstBuf.get( compID ).copyFrom( srcBuf.get( compID ) );
+        continue;
+      }
 
-        int xStart = ctuPos.x;
-        for( int j = 0; j <= numVerVirBndry; j++ )
+      // isCrssByVBs
+      {
+        const int chromaScaleX = getComponentScaleX( compID, srcBuf.chromaFormat );
+        const int chromaScaleY = getComponentScaleY( compID, srcBuf.chromaFormat );
+
+        int yStart = ctuPos.y;
+        for( int i = 0; i <= numHorVirBndry; i++ )
         {
-          const int  xEnd  = j == numVerVirBndry ? ctuPos.x + srcBuf.Y().width : verVirBndryPos[j];
-          const int  w     = xEnd - xStart;
-          const bool clipL = ( j == 0              && clipLeft )  || ( j > 0 )              || ( xStart == 0 );
-          const bool clipR = ( j == numVerVirBndry && clipRight ) || ( j < numVerVirBndry ) || ( xEnd  == pcv.lumaWidth );
+          const int  yEnd  = i == numHorVirBndry ? ctuPos.y + srcBuf.Y().height : horVirBndryPos[i];
+          const int  h     = yEnd - yStart;
+          const bool clipT = ( i == 0              && clipTop )    || ( i > 0 )              || ( yStart == 0 );
+          const bool clipB = ( i == numHorVirBndry && clipBottom ) || ( i < numHorVirBndry ) || ( yEnd   == pcv.lumaHeight );
 
-          const int padL = clipL ? 0 : MAX_ALF_PADDING_SIZE;
-          const int padR = clipR ? 0 : MAX_ALF_PADDING_SIZE;
-          const int padT = clipT ? 0 : MAX_ALF_PADDING_SIZE;
-          const int padB = clipB ? 0 : MAX_ALF_PADDING_SIZE;
-
-          const int yInSrc = yStart - ctuPos.y;
-          const int xInSrc = xStart - ctuPos.x;
-
-          const Size     paddedSize( w + padL + padR, h + padT + padB );
-          const Position posInSrc( xInSrc - padL, yInSrc - padT );
-
-          if( compID == COMPONENT_Y || !slice->getTileGroupCcAlfEnabledFlag( compIdx - 1 ) )
+          int xStart = ctuPos.x;
+          for( int j = 0; j <= numVerVirBndry; j++ )
           {
-            auto tmpSubBuf = m_tempBuf[tid].subBuf( Area( posInSrc, paddedSize ) ).bufs[compID];
-            tmpSubBuf.copyFrom( srcBuf.subBuf( Area( posInSrc, paddedSize ) ).bufs[compID] );
+            const int  xEnd  = j == numVerVirBndry ? ctuPos.x + srcBuf.Y().width : verVirBndryPos[j];
+            const int  w     = xEnd - xStart;
+            const bool clipL = ( j == 0              && clipLeft )  || ( j > 0 )              || ( xStart == 0 );
+            const bool clipR = ( j == numVerVirBndry && clipRight ) || ( j < numVerVirBndry ) || ( xEnd  == pcv.lumaWidth );
 
-            // pad top-left unavailable samples for raster slice
-            if( xStart == ctuPos.x && yStart == ctuPos.y && ( rasterSliceAlfPad & 1 ) )
+            const int padL = clipL ? 0 : MAX_ALF_PADDING_SIZE;
+            const int padR = clipR ? 0 : MAX_ALF_PADDING_SIZE;
+            const int padT = clipT ? 0 : MAX_ALF_PADDING_SIZE;
+            const int padB = clipB ? 0 : MAX_ALF_PADDING_SIZE;
+
+            const int yInSrc = yStart - ctuPos.y;
+            const int xInSrc = xStart - ctuPos.x;
+
+            const Size     paddedSize( w + padL + padR, h + padT + padB );
+            const Position posInSrc( xInSrc - padL, yInSrc - padT );
+
+            if( compID == COMPONENT_Y || !slice->getTileGroupCcAlfEnabledFlag( compIdx - 1 ) )
             {
-              tmpSubBuf.padBorderPel( MAX_ALF_PADDING_SIZE, MAX_ALF_PADDING_SIZE, 1 );
+              auto tmpSubBuf = m_tempBuf[tid].subBuf( Area( posInSrc, paddedSize ) ).bufs[compID];
+              tmpSubBuf.copyFrom( srcBuf.subBuf( Area( posInSrc, paddedSize ) ).bufs[compID] );
+
+              // pad top-left unavailable samples for raster slice
+              if( xStart == ctuPos.x && yStart == ctuPos.y && ( rasterSliceAlfPad & 1 ) )
+              {
+                tmpSubBuf.padBorderPel( MAX_ALF_PADDING_SIZE, MAX_ALF_PADDING_SIZE, 1 );
+              }
+
+              // pad bottom-right unavailable samples for raster slice
+              if( xEnd == ctuPos.x + width && yEnd == ctuPos.y + height && ( rasterSliceAlfPad & 2 ) )
+              {
+                tmpSubBuf.padBorderPel( MAX_ALF_PADDING_SIZE, MAX_ALF_PADDING_SIZE, 2 );
+              }
+              tmpSubBuf.extendBorderPel( MAX_ALF_PADDING_SIZE );
+            }
+            else
+            {
+              auto tmpSubBuf = m_tempBuf[tid].subBuf( Area( posInSrc, paddedSize ) );
+              tmpSubBuf.copyFrom( srcBuf.subBuf( Area( posInSrc, paddedSize ) ) );
+
+              // pad top-left unavailable samples for raster slice
+              if( xStart == ctuPos.x && yStart == ctuPos.y && ( rasterSliceAlfPad & 1 ) )
+              {
+                tmpSubBuf.padBorderPel( MAX_ALF_PADDING_SIZE, 1 );
+              }
+
+              // pad bottom-right unavailable samples for raster slice
+              if( xEnd == ctuPos.x + width && yEnd == ctuPos.y + height && ( rasterSliceAlfPad & 2 ) )
+              {
+                tmpSubBuf.padBorderPel( MAX_ALF_PADDING_SIZE, 2 );
+              }
+              tmpSubBuf.extendBorderPel( MAX_ALF_PADDING_SIZE );
             }
 
-            // pad bottom-right unavailable samples for raster slice
-            if( xEnd == ctuPos.x + width && yEnd == ctuPos.y + height && ( rasterSliceAlfPad & 2 ) )
+            if( compID == COMPONENT_Y )
             {
-              tmpSubBuf.padBorderPel( MAX_ALF_PADDING_SIZE, MAX_ALF_PADDING_SIZE, 2 );
+              const Area blk( xInSrc, yInSrc, w, h );
+              const short filterSetIndex = ctuAlfData.alfCtbFilterIndex;
+              filterAreaLuma( m_tempBuf[tid], dstBuf, blk, slice, aps, filterSetIndex, clpRngs, tid );
             }
-            tmpSubBuf.extendBorderPel( MAX_ALF_PADDING_SIZE );
-          }
-          else
-          {
-            auto tmpSubBuf = m_tempBuf[tid].subBuf( Area( posInSrc, paddedSize ) );
-            tmpSubBuf.copyFrom( srcBuf.subBuf( Area( posInSrc, paddedSize ) ) );
-
-            // pad top-left unavailable samples for raster slice
-            if( xStart == ctuPos.x && yStart == ctuPos.y && ( rasterSliceAlfPad & 1 ) )
+            else
             {
-              tmpSubBuf.padBorderPel( MAX_ALF_PADDING_SIZE, 1 );
+              const Area blkLuma ( Position( xInSrc,                 yInSrc ),                 Size( w,                 h ) );
+              const Area blkChoma( Position( xInSrc >> chromaScaleX, yInSrc >> chromaScaleY ), Size( w >> chromaScaleX, h >> chromaScaleY ) );
+
+              filterAreaChroma( m_tempBuf[tid], dstBuf, blkChoma, compID, slice, aps, ctuAlfData, clpRngs );
+              filterAreaChromaCc( m_tempBuf[tid], dstBuf, blkLuma, blkChoma, compID, slice, aps, ctuAlfData, clpRngs );
             }
-
-            // pad bottom-right unavailable samples for raster slice
-            if( xEnd == ctuPos.x + width && yEnd == ctuPos.y + height && ( rasterSliceAlfPad & 2 ) )
-            {
-              tmpSubBuf.padBorderPel( MAX_ALF_PADDING_SIZE, 2 );
-            }
-            tmpSubBuf.extendBorderPel( MAX_ALF_PADDING_SIZE );
+            xStart = xEnd;
           }
-
-          if( compID == COMPONENT_Y )
-          {
-            const Area blk( xInSrc, yInSrc, w, h );
-            const short filterSetIndex = ctuAlfData.alfCtbFilterIndex;
-            filterAreaLuma( m_tempBuf[tid], dstBuf, blk, slice, aps, filterSetIndex, clpRngs, tid );
-          }
-          else
-          {
-            const Area blkLuma ( Position( xInSrc,                 yInSrc ),                 Size( w,                 h ) );
-            const Area blkChoma( Position( xInSrc >> chromaScaleX, yInSrc >> chromaScaleY ), Size( w >> chromaScaleX, h >> chromaScaleY ) );
-
-            filterAreaChroma( m_tempBuf[tid], dstBuf, blkLuma, blkChoma, compID, slice, aps, ctuIdx, ctuAlfData, clpRngs );
-          }
-          xStart = xEnd;
+          yStart = yEnd;
         }
-        yStart = yEnd;
       }
     }
   }
@@ -1325,6 +1414,105 @@ void AdaptiveLoopFilter::filterBlkCcAlf( const PelBuf&      dstBuf,
     chromaPtr += chromaStride * clsSizeY;
 
     lumaPtr += lumaStride * clsSizeY << getComponentScaleY(compId, nChromaFormat);
+  }
+}
+
+void AdaptiveLoopFilter::filterBlkCcAlfBoth( const PelBuf& dstBufCb, const PelBuf& dstBufCr, const CPelUnitBuf &recSrc, const Area &blkDst,
+                                            const Area &blkSrc, const int16_t* filterCoeffCb, const int16_t* filterCoeffCr,
+                                            const ClpRngs &clpRngs, int vbCTUHeight, int vbPos )
+{
+  CHECK(1 << getLog2(vbCTUHeight) != vbCTUHeight, "Not a power of 2");
+
+  ChromaFormat nChromaFormat = recSrc.chromaFormat;
+  const int clsSizeY = 4;
+  const int clsSizeX = 4;
+  const int startHeight = blkDst.y;
+  const int endHeight = blkDst.y + blkDst.height;
+  const int startWidth = blkDst.x;
+  const int endWidth = blkDst.x + blkDst.width;
+  const int scaleX = getComponentScaleX(COMPONENT_Cb, nChromaFormat);
+  const int scaleY = getComponentScaleY(COMPONENT_Cb, nChromaFormat);
+
+  CHECK(startHeight % clsSizeY, "Wrong startHeight in filtering");
+  CHECK(startWidth % clsSizeX, "Wrong startWidth in filtering");
+  CHECK((endHeight - startHeight) % clsSizeY, "Wrong endHeight in filtering");
+  CHECK((endWidth - startWidth) % clsSizeX, "Wrong endWidth in filtering");
+
+  CPelBuf srcBuf = recSrc.get(COMPONENT_Y);
+  const ptrdiff_t lumaStride = srcBuf.stride;
+  const Pel* lumaPtr = srcBuf.buf + blkSrc.y * lumaStride + blkSrc.x;
+
+  const ptrdiff_t cbStride = dstBufCb.stride;
+  const ptrdiff_t crStride = dstBufCr.stride;
+  Pel* cbPtr = dstBufCb.buf + blkDst.y * cbStride + blkDst.x;
+  Pel* crPtr = dstBufCr.buf + blkDst.y * crStride + blkDst.x;
+
+  for (int i = 0; i < endHeight - startHeight; i += clsSizeY) {
+    for (int j = 0; j < endWidth - startWidth; j += clsSizeX) {
+      for (int ii = 0; ii < clsSizeY; ii++) {
+        int row = ii;
+        int col = j;
+        Pel* srcSelfCb = cbPtr + col + row * cbStride;
+        Pel* srcSelfCr = crPtr + col + row * crStride;
+        
+        ptrdiff_t offset1 = lumaStride;
+        ptrdiff_t offset2 = -lumaStride;
+        ptrdiff_t offset3 = 2 * lumaStride;
+        row <<= scaleY;
+        col <<= scaleX;
+        const Pel* srcCross = lumaPtr + col + row * lumaStride;
+        
+        int pos = ((startHeight + i + ii) << scaleY) & (vbCTUHeight - 1);
+        if (scaleY == 0 && (pos == vbPos || pos == vbPos + 1)) {
+          continue;
+        }
+        if (pos == (vbPos - 2) || pos == (vbPos + 1)) {
+          offset3 = offset1;
+        } else if (pos == (vbPos - 1) || pos == vbPos) {
+          offset1 = 0;
+          offset2 = 0;
+          offset3 = 0;
+        }
+        
+        for (int jj = 0; jj < clsSizeX; jj++) {
+          const int jj2 = (jj << scaleX);
+          const int offset0 = 0;
+          
+          int sumCb = 0, sumCr = 0;
+          const int currSrcCross = srcCross[offset0 + jj2];
+          sumCb += filterCoeffCb[0] * (srcCross[offset2 + jj2] - currSrcCross);
+          sumCb += filterCoeffCb[1] * (srcCross[offset0 + jj2 - 1] - currSrcCross);
+          sumCb += filterCoeffCb[2] * (srcCross[offset0 + jj2 + 1] - currSrcCross);
+          sumCb += filterCoeffCb[3] * (srcCross[offset1 + jj2 - 1] - currSrcCross);
+          sumCb += filterCoeffCb[4] * (srcCross[offset1 + jj2] - currSrcCross);
+          sumCb += filterCoeffCb[5] * (srcCross[offset1 + jj2 + 1] - currSrcCross);
+          sumCb += filterCoeffCb[6] * (srcCross[offset3 + jj2] - currSrcCross);
+          
+          sumCr += filterCoeffCr[0] * (srcCross[offset2 + jj2] - currSrcCross);
+          sumCr += filterCoeffCr[1] * (srcCross[offset0 + jj2 - 1] - currSrcCross);
+          sumCr += filterCoeffCr[2] * (srcCross[offset0 + jj2 + 1] - currSrcCross);
+          sumCr += filterCoeffCr[3] * (srcCross[offset1 + jj2 - 1] - currSrcCross);
+          sumCr += filterCoeffCr[4] * (srcCross[offset1 + jj2] - currSrcCross);
+          sumCr += filterCoeffCr[5] * (srcCross[offset1 + jj2 + 1] - currSrcCross);
+          sumCr += filterCoeffCr[6] * (srcCross[offset3 + jj2] - currSrcCross);
+          
+          sumCb = (sumCb + ((1 << 7) >> 1)) >> 7;  // m_scaleBits = 7
+          sumCr = (sumCr + ((1 << 7) >> 1)) >> 7;  // m_scaleBits = 7
+          const int offset = 1 << clpRngs.bd >> 1;
+          sumCb = ClipPel(sumCb + offset, clpRngs) - offset;
+          sumCr = ClipPel(sumCr + offset, clpRngs) - offset;
+          sumCb += srcSelfCb[jj];
+          sumCr += srcSelfCr[jj];
+          srcSelfCb[jj] = ClipPel(sumCb, clpRngs);
+          srcSelfCr[jj] = ClipPel(sumCr, clpRngs);
+        }
+      }
+    }
+
+    cbPtr += cbStride * clsSizeY;
+    crPtr += crStride * clsSizeY;
+
+    lumaPtr += lumaStride * clsSizeY << getComponentScaleY(COMPONENT_Cb, nChromaFormat);
   }
 }
 
