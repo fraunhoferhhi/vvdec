@@ -186,7 +186,10 @@ struct BlockingBarrier: public Barrier
   void wait() const
   {
     std::unique_lock<std::mutex> l( m_lock );
-    m_cond.wait( l, [=] { return !Barrier::isBlocked(); } );
+    if( Barrier::isBlocked() )
+    {
+      m_cond.wait( l, [=] { return !Barrier::isBlocked(); } );
+    }
   }
 
   void setException( std::exception_ptr e ) override
@@ -240,7 +243,7 @@ struct WaitCounter
 
   bool isBlocked() const
   {
-    std::unique_lock<std::mutex> l( const_cast<std::mutex&>( m_lock ) );
+    std::unique_lock<std::mutex> l( m_lock );
     m_done.checkAndRethrowException();
     return 0 != m_count;
   }

@@ -155,9 +155,9 @@ VVDEC_DECL vvdecDecoder* vvdec_decoder_open( vvdecParams *params)
     return nullptr;
   }
 
-  if( (int)params->simd > (int)VVDEC_SIMD_AVX2 || (int)params->simd < (int)VVDEC_SIMD_DEFAULT)
+  if( (int)params->simd > (int)VVDEC_SIMD_MAX || (int)params->simd < (int)VVDEC_SIMD_DEFAULT)
   {
-    vvdec::msg( vvdec::ERROR, "unsupported simd mode. simd must be 0 <= simd <= 5\n" );
+    vvdec::msg( vvdec::ERROR, "unsupported simd mode. simd must be 0 <= simd <= %i\n", (int)VVDEC_SIMD_MAX );
     return nullptr;
   }
 

@@ -323,7 +323,7 @@ const MotionInfo& CodingUnit::getMotionInfo( const Position& pos ) const
 
 MotionBuf CodingUnit::getMotionBuf()
 {
-  return MotionBuf( const_cast<MotionInfo*>( &getMotionInfo() ), cs->get4x4MapStride(), g_miScaling.scaleHor( lwidth() ), g_miScaling.scaleVer( lheight() ) );
+  return MotionBuf( &ctuData->motion[cs->inCtuPos( lumaPos(), CH_L )], cs->get4x4MapStride(), g_miScaling.scaleHor( lwidth() ), g_miScaling.scaleVer( lheight() ) );
 }
 
 CMotionBuf CodingUnit::getMotionBuf() const

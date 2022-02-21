@@ -66,15 +66,15 @@ namespace Mip
   public:
     PredictorMIP();
     void             deriveBoundaryData(const CPelBuf& src, const Area& block, const int bitDepth);
-    void             getPrediction     (int* const result, const int modeIdx, const bool transpose, const int bitDepth);
+    void             getPrediction     (Pel* const result, const int modeIdx, const bool transpose, const int bitDepth);
   private:
-    int m_reducedBoundary          [MIP_MAX_INPUT_SIZE]; // downsampled             boundary of a block
-    int m_reducedBoundaryTransposed[MIP_MAX_INPUT_SIZE]; // downsampled, transposed boundary of a block
+    Pel m_reducedBoundary          [MIP_MAX_INPUT_SIZE]; // downsampled             boundary of a block
+    Pel m_reducedBoundaryTransposed[MIP_MAX_INPUT_SIZE]; // downsampled, transposed boundary of a block
 
     int                                    m_inputOffset;
     int                                    m_inputOffsetTransp;
-    int m_refSamplesTop            [MIP_MAX_WIDTH       ];             // top  reference samples for upsampling
-    int m_refSamplesLeft           [MIP_MAX_HEIGHT     ];            // left reference samples for upsampling
+    Pel m_refSamplesTop            [MIP_MAX_WIDTH       ];             // top  reference samples for upsampling
+    Pel m_refSamplesLeft           [MIP_MAX_HEIGHT     ];            // left reference samples for upsampling
     Size m_blockSize;
     int  m_sizeId;
     int  m_reducedBdrySize;
@@ -84,10 +84,10 @@ namespace Mip
 
     void initPredBlockParams(const Size& block);
 
-    static void boundaryDownsampling1D(int* reducedDst, const int* const fullSrc, const SizeType srcLen, const SizeType dstLen);
+    static void boundaryDownsampling1D(Pel* reducedDst, const Pel* const fullSrc, const SizeType srcLen, const SizeType dstLen);
 
-    void predictionUpsampling( int* const dst, const int* const src ) const;
-    static void predictionUpsampling1D( int* const dst, const int* const src, const int* const bndry,
+    void predictionUpsampling( Pel* const dst, const Pel* const src ) const;
+    static void predictionUpsampling1D( Pel* const dst, const Pel* const src, const Pel* const bndry,
                                         const SizeType srcSizeUpsmpDim, const SizeType srcSizeOrthDim,
                                         const SizeType srcStep, const SizeType srcStride,
                                         const SizeType dstStep, const SizeType dstStride,
@@ -97,7 +97,7 @@ namespace Mip
     const uint8_t* getMatrixData(const int modeIdx) const;
 
 
-    void computeReducedPred( int* const result, const int* const input,
+    void computeReducedPred( Pel* const result, const Pel* const input,
                              const uint8_t* matrix,
                              const bool transpose, const int bitDepth );
   };
@@ -110,11 +110,9 @@ public:
 
   Mip::PredictorMIP m_predictorMip;
   void prepareInputForPred( const CPelBuf &src, const Area& puArea, const int bitDepth, const ComponentID compId );
-  void predBlock( const Size &puSize, const int modeIdx, PelBuf &dst, const bool transpose, const int bitDepth, const ComponentID compId );
+  void predBlock( const Size &puSize, const int modeIdx, PelBuf &dst, const bool transpose, const int bitDepth, const ComponentID compId, Pel* const resultMip );
 private:
-    ComponentID m_component = MAX_NUM_COMPONENT;
-
-  int m_mipResult[MIP_MAX_WIDTH * MIP_MAX_HEIGHT];
+  ComponentID m_component = MAX_NUM_COMPONENT;
 };
 
 }

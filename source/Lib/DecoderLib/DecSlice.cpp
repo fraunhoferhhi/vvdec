@@ -167,8 +167,6 @@ void DecSlice::parseSlice( Slice* slice, InputBitstream* bitstream, int threadId
     ctuData.sps   = slice->getSPS();
     ctuData.ph    = slice->getPicHeader();
 
-    cs.m_lastCU   = nullptr;
-
     cabacReader.coding_tree_unit( cs, slice, ctuArea, prevQP, ctuRsAddr );
 
     if( ctuXPosInCtus == tileXPosInCtus && wavefrontsEnabled )

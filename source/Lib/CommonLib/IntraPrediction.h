@@ -80,12 +80,10 @@ class IntraPrediction
 private:
 
   Pel    m_piYuvExt     [NUM_PRED_BUF][( MAX_TU_SIZE_FOR_PROFILE * 2 + 1 + MAX_REF_LINE_IDX ) * ( MAX_TU_SIZE_FOR_PROFILE * 2 + 1 + MAX_REF_LINE_IDX )];
-  PelBuf m_pelBufISPBase[2];
-  PelBuf m_pelBufISP    [2];
+  PelBuf m_pelBufISPBase[NUM_PRED_BUF];
+  PelBuf m_pelBufISP    [NUM_PRED_BUF];
   int    m_neighborSize [3];
   int    m_lastCUidx;
-
-  Pel  m_yuvCiip        [MAX_NUM_COMPONENT][MAX_TU_SIZE_FOR_PROFILE * MAX_TU_SIZE_FOR_PROFILE];
   static const uint8_t
        m_aucIntraFilter [MAX_NUM_CHANNEL_TYPE][MAX_INTRA_FILTER_DEPTHS];
 
@@ -142,10 +140,7 @@ public:
 
   static bool useFilteredIntraRefSamples( const ComponentID &compID, const PredictionUnit &pu, const UnitArea &tuArea );
 
-  void geneWeightedPred           (const ComponentID compId, PelBuf &pred, const PredictionUnit &pu, Pel *srcBuf);
-  Pel* getPredictorPtr2           (const ComponentID compID) { return m_yuvCiip[compID]; }
-  void switchBuffer               (const PredictionUnit &pu, ComponentID compID, PelBuf srcBuff, Pel *dst);
-  void geneIntrainterPred         (const CodingUnit &cu);
+  void predBlendIntraCiip         (PelUnitBuf &predUnit, const PredictionUnit &pu);
 
   void ( *IntraPredAngleCore4 )         ( Pel* pDstBuf,const ptrdiff_t dstStride,Pel* refMain,int width,int height,int deltaPos,int intraPredAngle,const TFilterCoeff *ff,const bool useCubicFilter,const ClpRng& clpRng);
   void ( *IntraPredAngleCore8 )         ( Pel* pDstBuf,const ptrdiff_t dstStride,Pel* refMain,int width,int height,int deltaPos,int intraPredAngle,const TFilterCoeff *ff,const bool useCubicFilter,const ClpRng& clpRng);

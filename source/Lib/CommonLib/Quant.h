@@ -106,8 +106,7 @@ public:
   void setScalingListDec         ( ScalingList &scalingList);
   void processScalingListDec     ( const int *coeff, int *dequantcoeff, int qpMod6, uint32_t height, uint32_t width, uint32_t ratio, int sizuNum, uint32_t dc);
 
-  Quant();
-  Quant( const Quant& other );
+  Quant( const Quant* other );
   ~Quant();
 
   // initialize class

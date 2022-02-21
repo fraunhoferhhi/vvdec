@@ -84,7 +84,13 @@ public:
           "\n"
           "\t\t [--threads,-t  <int>       ] : number of threads (default: <= 0 auto detection )\n"
           "\t\t [--parsedelay,-p  <int>    ] : maximal number of frames to read before decoding (default: <= 0 auto detection )\n"
-          "\t\t [--simd <int>              ] : used simd extension (0: scalar, 1: sse41, 2: sse42, 3: avx, 4: avx2, 5: avx512) (default: < 0 auto detection)\n"
+#if VVDEC_ARCH_X86
+          "\t\t [--simd <int>              ] : used simd extension (-1: auto, 0: scalar, 1: sse41, 2: sse42, 3: avx, 4: avx2) (default: -1)\n"
+#elif VVDEC_ARCH_ARM
+          "\t\t [--simd <int>              ] : used simd extension (-1: auto, 0: scalar, 1: neon) (default: -1)\n"
+#elif VVDEC_ARCH_WASM
+          "\t\t [--simd <int>              ] : used simd extension (-1: auto, 0: scalar, 1: wasm-simd) (default: -1)\n"
+#endif
           "\n"
           "\t\t [--SEIDecodedPictureHash,-dph ] : enable handling of decoded picture hash SEI messages\n"
           "\t\t [--CheckYuvMD5,-md5 <md5str>  ] : enable calculation of md5 hash over the full YUV output and check against the provided value.\n"
@@ -293,20 +299,32 @@ public:
       {
         if( i_arg == argc-1 ){ fprintf( stderr, " - missing argument for: %s \n", argv[i_arg] ); return -1; }
         i_arg++;
-        rcParams.simd = vvdecSIMD_Extension( std::max( -1, atoi( argv[i_arg++] ) ) + 1 );
+        const int simd_arg = atoi( argv[i_arg++] );
+        if( simd_arg < -1 || simd_arg > VVDEC_SIMD_MAX - 1 )
+        {
+          fprintf( stderr, " - unsupported simd mode. Should be between -1 and %i inclusive.\n", VVDEC_SIMD_MAX - 1 );
+          return -1;
+        }
+        rcParams.simd = vvdecSIMD_Extension( simd_arg + 1 );
 
         if( rcParams.logLevel > VVDEC_VERBOSE )
         {
           const char* cll;
           switch( rcParams.simd )
           {
-          case VVDEC_SIMD_DEFAULT: cll = "DEFAULT"; break;
-          case VVDEC_SIMD_SCALAR:  cll = "SCALAR";  break;
-          case VVDEC_SIMD_SSE41:   cll = "SSE41";   break;
-          case VVDEC_SIMD_SSE42:   cll = "SSE42";   break;
-          case VVDEC_SIMD_AVX:     cll = "AVX";     break;
-          case VVDEC_SIMD_AVX2:    cll = "AVX2";    break;
-          default:                 cll = "UNKNOWN"; break;
+          case VVDEC_SIMD_DEFAULT: cll = "DEFAULT";   break;
+          case VVDEC_SIMD_SCALAR:  cll = "SCALAR";    break;
+#if VVDEC_ARCH_X86
+          case VVDEC_SIMD_SSE41:   cll = "SSE41";     break;
+          case VVDEC_SIMD_SSE42:   cll = "SSE42";     break;
+          case VVDEC_SIMD_AVX:     cll = "AVX";       break;
+          case VVDEC_SIMD_AVX2:    cll = "AVX2";      break;
+#elif VVDEC_ARCH_ARM
+          case VVDEC_SIMD_NEON:    cll = "NEON";      break;
+#elif VVDEC_ARCH_WASM
+          case VVDEC_SIMD_WASM:    cll = "WASM-SIMD"; break;
+#endif
+          default:                 return -1;
           };
           fprintf( stdout, "[simd] : %s\n", cll );
         }

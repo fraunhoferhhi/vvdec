@@ -1743,7 +1743,7 @@ bool PU::addAffineMVPCandUnscaled( const PredictionUnit &pu, const RefPicList &r
       continue;
     }
 
-    xInheritedAffineMv( pu, neibCU, eRefPicListIndex, outputAffineMv );
+    xInheritedAffineMv( pu, pu.affineType() == AFFINEMODEL_6PARAM, neibCU, eRefPicListIndex, outputAffineMv );
 
     if( pu.imv() == 0 )
     {
@@ -1778,7 +1778,7 @@ bool PU::addAffineMVPCandUnscaled( const PredictionUnit &pu, const RefPicList &r
   return false;
 }
 
-void PU::xInheritedAffineMv( const PredictionUnit &pu, const PredictionUnit* puNeighbour, RefPicList eRefPicList, Mv rcMv[3] )
+void PU::xInheritedAffineMv( const PredictionUnit &pu, bool is6param, const PredictionUnit* puNeighbour, RefPicList eRefPicList, Mv rcMv[3] )
 {
   int posNeiX = puNeighbour->Y().pos().x;
   int posNeiY = puNeighbour->Y().pos().y;
@@ -1844,7 +1844,7 @@ void PU::xInheritedAffineMv( const PredictionUnit &pu, const PredictionUnit* puN
   rcMv[1].clipToStorageBitDepth();
 
   // v2
-  if ( pu.affineType() == AFFINEMODEL_6PARAM )
+  if ( is6param )
   {
     horTmp = iMvScaleHor + iDMvHorX * (posCurX - posNeiX) + iDMvVerX * (posCurY + curH - posNeiY);
     verTmp = iMvScaleVer + iDMvHorY * (posCurX - posNeiX) + iDMvVerY * (posCurY + curH - posNeiY);
@@ -2463,18 +2463,17 @@ void PU::getAffineMergeCand( const PredictionUnit &pu, AffineMergeCtx& affMrgCtx
       // derive Mv from Neigh affine PU
       Mv cMv[2][3];
       const PredictionUnit* puNeigh = npu[idx];
-      const_cast<PredictionUnit&>( pu ).setAffineType( puNeigh->affineType() );
 
       if( puNeigh->interDir() != 2 )
       {
-        xInheritedAffineMv( pu, puNeigh, REF_PIC_LIST_0, cMv[0] );
+        xInheritedAffineMv( pu, puNeigh->affineType() == AFFINEMODEL_6PARAM, puNeigh, REF_PIC_LIST_0, cMv[0] );
       }
 
       if( slice.isInterB() )
       {
         if( puNeigh->interDir() != 1 )
         {
-          xInheritedAffineMv( pu, puNeigh, REF_PIC_LIST_1, cMv[1] );
+          xInheritedAffineMv( pu, puNeigh->affineType() == AFFINEMODEL_6PARAM, puNeigh, REF_PIC_LIST_1, cMv[1] );
         }
       }
 

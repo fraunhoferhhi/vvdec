@@ -73,9 +73,7 @@ typedef void InvTrans(const TCoeff*, TCoeff*, int, int, int, int, bool, const TC
 class TrQuant : Quant
 {
 public:
-  TrQuant();
-  TrQuant( const TrQuant& other );
-  ~TrQuant();
+  TrQuant( class InterPrediction* ip, const TrQuant* other = nullptr );
 
   // initialize class
   void init      ( const Picture *pic );
@@ -104,10 +102,6 @@ protected:
   bool     m_rectTUs;
 
   bool     m_scalingListEnabledFlag;
-
-  TCoeff   m_blk_ [MAX_TU_SIZE_FOR_PROFILE * MAX_TU_SIZE_FOR_PROFILE + ( MEMORY_ALIGN_DEF_SIZE / sizeof( TCoeff ) )];
-  TCoeff   m_tmp_ [MAX_TU_SIZE_FOR_PROFILE * MAX_TU_SIZE_FOR_PROFILE + ( MEMORY_ALIGN_DEF_SIZE / sizeof( TCoeff ) )];
-  TCoeff   m_dqnt_[MAX_TU_SIZE_FOR_PROFILE * MAX_TU_SIZE_FOR_PROFILE + ( MEMORY_ALIGN_DEF_SIZE / sizeof( TCoeff ) )];
 
   TCoeff  *m_blk;
   TCoeff  *m_tmp;

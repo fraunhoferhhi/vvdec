@@ -54,7 +54,9 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #include "UnitTools.h"
 #include "ContextModelling.h"
 #include "CodingStructure.h"
-#include "CommonLib/TimeProfiler.h"
+#include "TimeProfiler.h"
+#include "Quant.h"
+#include "InterPrediction.h"
 
 
 #include "dtrace_buffer.h"
@@ -102,7 +104,7 @@ template<int signedMode> void invTransformCbCr( PelBuf &resCb, PelBuf &resCr )
 // TrQuant class member functions
 // ====================================================================================================================
 
-TrQuant::TrQuant()
+TrQuant::TrQuant( class InterPrediction* ip, const TrQuant* other ) : Quant( other )
 {
   // allocate temporary buffers
   m_invICT      = m_invICTMem + maxAbsIctMode;
@@ -114,33 +116,18 @@ TrQuant::TrQuant()
   m_invICT[ 3]  = invTransformCbCr< 3>;
   m_invICT[-3]  = invTransformCbCr<-3>;
 
-  m_tmp  = ( TCoeff* ) ( ( ptrdiff_t ) m_tmp_  + ( MEMORY_ALIGN_DEF_SIZE - ( ( ptrdiff_t ) m_tmp_  & ( MEMORY_ALIGN_DEF_SIZE - 1 ) ) ) );
-  m_blk  = ( TCoeff* ) ( ( ptrdiff_t ) m_blk_  + ( MEMORY_ALIGN_DEF_SIZE - ( ( ptrdiff_t ) m_blk_  & ( MEMORY_ALIGN_DEF_SIZE - 1 ) ) ) );
-  m_dqnt = ( TCoeff* ) ( ( ptrdiff_t ) m_dqnt_ + ( MEMORY_ALIGN_DEF_SIZE - ( ( ptrdiff_t ) m_dqnt_ & ( MEMORY_ALIGN_DEF_SIZE - 1 ) ) ) );
+  static_assert( sizeof( ip->m_acYuvPred[0] ) > sizeof( TCoeff ) * ( MAX_TU_SIZE_FOR_PROFILE * MAX_TU_SIZE_FOR_PROFILE + MEMORY_ALIGN_DEF_SIZE ), "Buffer to small to be reused!" );
+  static_assert( sizeof( ip->m_acYuvPred[1] ) > sizeof( TCoeff ) * ( MAX_TU_SIZE_FOR_PROFILE * MAX_TU_SIZE_FOR_PROFILE + MEMORY_ALIGN_DEF_SIZE ), "Buffer to small to be reused!" );
+  static_assert( sizeof( ip->m_acYuvPred[2] ) > sizeof( TCoeff ) * ( MAX_TU_SIZE_FOR_PROFILE * MAX_TU_SIZE_FOR_PROFILE + MEMORY_ALIGN_DEF_SIZE ), "Buffer to small to be reused!" );
+
+  char* tmp  = ( char* ) ip->m_acYuvPred[0];
+  char* blk  = ( char* ) ip->m_acYuvPred[1];
+  char* dqnt = ( char* ) ip->m_acYuvPred[2];
+
+  m_tmp  = ( TCoeff* ) ( ( ptrdiff_t ) tmp  + ( MEMORY_ALIGN_DEF_SIZE - ( ( ptrdiff_t ) tmp  & ( MEMORY_ALIGN_DEF_SIZE - 1 ) ) ) );
+  m_blk  = ( TCoeff* ) ( ( ptrdiff_t ) blk  + ( MEMORY_ALIGN_DEF_SIZE - ( ( ptrdiff_t ) blk  & ( MEMORY_ALIGN_DEF_SIZE - 1 ) ) ) );
+  m_dqnt = ( TCoeff* ) ( ( ptrdiff_t ) dqnt + ( MEMORY_ALIGN_DEF_SIZE - ( ( ptrdiff_t ) dqnt & ( MEMORY_ALIGN_DEF_SIZE - 1 ) ) ) );
 }
-
-TrQuant::TrQuant( const TrQuant& other ) : Quant( other )
-{
-  // allocate temporary buffers
-  m_invICT      = m_invICTMem + maxAbsIctMode;
-  m_invICT[ 0]  = invTransformCbCr< 0>;
-  m_invICT[ 1]  = invTransformCbCr< 1>;
-  m_invICT[-1]  = invTransformCbCr<-1>;
-  m_invICT[ 2]  = invTransformCbCr< 2>;
-  m_invICT[-2]  = invTransformCbCr<-2>;
-  m_invICT[ 3]  = invTransformCbCr< 3>;
-  m_invICT[-3]  = invTransformCbCr<-3>;
-
-  m_tmp  = ( TCoeff* ) ( ( ptrdiff_t ) m_tmp_  + ( MEMORY_ALIGN_DEF_SIZE - ( ( ptrdiff_t ) m_tmp_  & ( MEMORY_ALIGN_DEF_SIZE - 1 ) ) ) );
-  m_blk  = ( TCoeff* ) ( ( ptrdiff_t ) m_blk_  + ( MEMORY_ALIGN_DEF_SIZE - ( ( ptrdiff_t ) m_blk_  & ( MEMORY_ALIGN_DEF_SIZE - 1 ) ) ) );
-  m_dqnt = ( TCoeff* ) ( ( ptrdiff_t ) m_dqnt_ + ( MEMORY_ALIGN_DEF_SIZE - ( ( ptrdiff_t ) m_dqnt_ & ( MEMORY_ALIGN_DEF_SIZE - 1 ) ) ) );
-}
-
-
-TrQuant::~TrQuant()
-{
-}
-
 
 void TrQuant::xDeQuant(const TransformUnit &tu,
                              CoeffBuf      &dstCoeff,

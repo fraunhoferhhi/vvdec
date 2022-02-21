@@ -265,10 +265,7 @@ EMSCRIPTEN_BINDINGS( vvdec )
   enum_<vvdecSIMD_Extension>( "SIMD_Extension" )
     .value( "SIMD_DEFAULT", VVDEC_SIMD_DEFAULT )
     .value( "SIMD_SCALAR",  VVDEC_SIMD_SCALAR  )
-    .value( "SIMD_SSE41",   VVDEC_SIMD_SSE41   )
-    .value( "SIMD_SSE42",   VVDEC_SIMD_SSE42   )
-    .value( "SIMD_AVX",     VVDEC_SIMD_AVX     )
-    .value( "SIMD_AVX2",    VVDEC_SIMD_AVX2    )
+    .value( "SIMD_WASM",    VVDEC_SIMD_WASM    )
   ;
 
   enum_<vvdecRPRUpscaling>( "RPRUpscaling" )

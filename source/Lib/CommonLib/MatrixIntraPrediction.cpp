@@ -94,14 +94,14 @@ namespace Mip
     //    m_reducedBoundary          .resize( inputSize );
     //    m_reducedBoundaryTransposed.resize( inputSize );
   
-    int* const topReduced = m_reducedBoundary;
+    Pel* const topReduced = m_reducedBoundary;
     boundaryDownsampling1D( topReduced, m_refSamplesTop, block.width, m_reducedBdrySize );
   
-    int* const leftReduced = m_reducedBoundary + m_reducedBdrySize;
+    Pel* const leftReduced = m_reducedBoundary + m_reducedBdrySize;
     boundaryDownsampling1D( leftReduced, m_refSamplesLeft, block.height, m_reducedBdrySize );
   
-    int* const leftReducedTransposed = m_reducedBoundaryTransposed;
-    int* const topReducedTransposed  = m_reducedBoundaryTransposed + m_reducedBdrySize;
+    Pel* const leftReducedTransposed = m_reducedBoundaryTransposed;
+    Pel* const topReducedTransposed  = m_reducedBoundaryTransposed + m_reducedBdrySize;
     for( int x = 0; x < m_reducedBdrySize; x++ )
     {
       topReducedTransposed[x] = topReduced[x];
@@ -127,15 +127,15 @@ namespace Mip
     }
   }
 
-  void PredictorMIP::getPrediction(int* const result, const int modeIdx, const bool transpose, const int bitDepth)
+  void PredictorMIP::getPrediction(Pel* const result, const int modeIdx, const bool transpose, const int bitDepth)
   {
     const bool needUpsampling = ( m_upsmpFactorHor > 1 ) || ( m_upsmpFactorVer > 1 );
 
   const uint8_t* matrix = getMatrixData(modeIdx);
 
-    int bufReducedPred[MIP_MAX_REDUCED_OUTPUT_SAMPLES];
-    int* const       reducedPred     = needUpsampling ? bufReducedPred : result;
-    const int* const reducedBoundary = transpose ? m_reducedBoundaryTransposed : m_reducedBoundary;
+    Pel bufReducedPred[MIP_MAX_REDUCED_OUTPUT_SAMPLES];
+    Pel* const       reducedPred     = needUpsampling ? bufReducedPred : result;
+    const Pel* const reducedBoundary = transpose ? m_reducedBoundaryTransposed : m_reducedBoundary;
     computeReducedPred( reducedPred, reducedBoundary, matrix, transpose, bitDepth );
     if( needUpsampling )
     {
@@ -167,7 +167,7 @@ namespace Mip
 
 
 
-void PredictorMIP::boundaryDownsampling1D(int* reducedDst, const int* const fullSrc, const SizeType srcLen, const SizeType dstLen)
+void PredictorMIP::boundaryDownsampling1D(Pel* reducedDst, const Pel* const fullSrc, const SizeType srcLen, const SizeType dstLen)
 {
   if (dstLen < srcLen)
   {
@@ -189,16 +189,12 @@ void PredictorMIP::boundaryDownsampling1D(int* reducedDst, const int* const full
   }
   else
   {
-    // Copy boundary if no downsampling is needed
-    for (SizeType i = 0; i < dstLen; ++i)
-    {
-      reducedDst[i] = fullSrc[i];
-    }
+    memcpy( reducedDst, fullSrc, dstLen * sizeof( Pel ) );
   }
 }
 
 
-  void PredictorMIP::predictionUpsampling1D( int* const dst, const int* const src, const int* const bndry,
+  void PredictorMIP::predictionUpsampling1D( Pel* const dst, const Pel* const src, const Pel* const bndry,
                                               const SizeType srcSizeUpsmpDim, const SizeType srcSizeOrthDim,
                                               const SizeType srcStep, const SizeType srcStride,
                                               const SizeType dstStep, const SizeType dstStride,
@@ -210,15 +206,15 @@ void PredictorMIP::boundaryDownsampling1D(int* reducedDst, const int* const full
     const int roundingOffset = 1 << (log2UpsmpFactor - 1);
 
     SizeType idxOrthDim = 0;
-    const int* srcLine = src;
-    int* dstLine = dst;
-    const int* bndryLine = bndry + bndryStep - 1;
+    const Pel* srcLine = src;
+    Pel* dstLine = dst;
+    const Pel* bndryLine = bndry + bndryStep - 1;
     while( idxOrthDim < srcSizeOrthDim )
     {
       SizeType idxUpsmpDim = 0;
-      const int* before = bndryLine;
-      const int* behind = srcLine;
-      int* currDst = dstLine;
+      const Pel* before = bndryLine;
+      const Pel* behind = srcLine;
+      Pel* currDst = dstLine;
       while( idxUpsmpDim < srcSizeUpsmpDim )
       {
         SizeType pos = 1;
@@ -247,14 +243,14 @@ void PredictorMIP::boundaryDownsampling1D(int* reducedDst, const int* const full
   }
 
 
-  void PredictorMIP::predictionUpsampling( int* const dst, const int* const src ) const
+  void PredictorMIP::predictionUpsampling( Pel* const dst, const Pel* const src ) const
   {
-    const int* verSrc     = src;
+    const Pel* verSrc     = src;
     SizeType   verSrcStep = m_blockSize.width;
   
     if( m_upsmpFactorHor > 1 )
     {
-      int* const horDst = dst + (m_upsmpFactorVer - 1) * m_blockSize.width;
+      Pel* const horDst = dst + (m_upsmpFactorVer - 1) * m_blockSize.width;
       verSrc = horDst;
       verSrcStep *= m_upsmpFactorVer;
   
@@ -287,15 +283,15 @@ const uint8_t* PredictorMIP::getMatrixData(const int modeIdx) const
     }
 }
 
-  void PredictorMIP::computeReducedPred( int*const result, const int* const input,
+  void PredictorMIP::computeReducedPred( Pel*const result, const Pel* const input,
                                           const uint8_t* matrix,
                                           const bool transpose, const int bitDepth )
   {
     const int inputSize = 2 * m_reducedBdrySize;
 
     // use local buffer for transposed result
-    int resBufTransposed[MIP_MAX_REDUCED_OUTPUT_SAMPLES];
-    int*const resPtr = (transpose) ? resBufTransposed : result;
+    Pel resBufTransposed[MIP_MAX_REDUCED_OUTPUT_SAMPLES];
+    Pel*const resPtr = (transpose) ? resBufTransposed : result;
 
     int sum = 0;
     for( int i = 0; i < inputSize; i++ ) { sum += input[i]; }
@@ -353,16 +349,15 @@ void MatrixIntraPrediction::prepareInputForPred(const CPelBuf &src, const Area& 
   m_predictorMip.deriveBoundaryData(src, puArea, bitDepth);
 }
 
-void MatrixIntraPrediction::predBlock( const Size &puSize, const int intraMode, PelBuf& dst, const bool transpose, const int bitDepth, const ComponentID compId )
+void MatrixIntraPrediction::predBlock( const Size &puSize, const int intraMode, PelBuf& dst, const bool transpose, const int bitDepth, const ComponentID compId, Pel* const resultMip )
 {
   CHECK( m_component != compId, "Boundary has not been prepared for this component." );
-  int* const resultMip = m_mipResult;
 
   m_predictorMip.getPrediction( resultMip, intraMode, transpose, bitDepth );
 
   for( int y = 0; y < puSize.height; y++ )
   {
-    int* const resultLine = &resultMip[y * puSize.width];
+    Pel* const resultLine = &resultMip[y * puSize.width];
     Pel*       dstLine    = dst.bufAt( 0, y );
 
     for( int x = 0; x < puSize.width; x += 4 )

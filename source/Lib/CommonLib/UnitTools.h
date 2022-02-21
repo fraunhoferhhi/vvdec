@@ -143,7 +143,7 @@ namespace PU
   void                  fillIBCMvpCand                   (      PredictionUnit &pu, AMVPInfo &amvpInfo, MotionHist& hist);
   void                  fillAffineMvpCand                (      PredictionUnit &pu, const RefPicList &eRefPicList, const int &refIdx, AffineAMVPInfo &affiAMVPInfo);
   bool                  addMVPCandUnscaled               (const PredictionUnit &pu, const RefPicList &eRefPicList, const int &iRefIdx, const Position &pos, const MvpDir &eDir, AMVPInfo &amvpInfo);
-  void                  xInheritedAffineMv               (const PredictionUnit &pu, const PredictionUnit* puNeighbour, RefPicList eRefPicList, Mv rcMv[3] );
+  void                  xInheritedAffineMv               (const PredictionUnit &pu, bool is6param, const PredictionUnit* puNeighbour, RefPicList eRefPicList, Mv rcMv[3] );
   bool                  xCheckSimilarMotion              (const int mergeCandIndex, const int prevCnt, const MergeCtx& mergeCandList, bool hasPruned[MRG_MAX_NUM_CANDS]);
   bool                  addMergeHMVPCand                 (const CodingStructure &cs, MergeCtx& mrgCtx, MotionHist& hist, bool canFastExit, const int& mrgCandIdx, const uint32_t maxNumMergeCandMin1, int &cnt, const int prevCnt, bool isAvailableSubPu, unsigned subPuMvpPos, bool ibcFlag, bool isGt4x4, bool isInterB  );
   void                  addAMVPHMVPCand                  (const PredictionUnit &pu, MotionHist& hist, const RefPicList eRefPicList, const RefPicList eRefPicList2nd, const int currRefPOC, AMVPInfo &info, uint8_t imv);

@@ -94,15 +94,19 @@ int VVDecImpl::init( const vvdecParams& params )
 #ifdef TARGET_SIMD_X86
     switch( params.simd )
     {
-    case VVDEC_SIMD_SCALAR: read_x86_extension( SCALAR ); break;
-    case VVDEC_SIMD_SSE41 : read_x86_extension( SSE41  ); break;
-    case VVDEC_SIMD_SSE42 : read_x86_extension( SSE42  ); break;
-    case VVDEC_SIMD_AVX   : read_x86_extension( AVX    ); break;
-    case VVDEC_SIMD_AVX2  : read_x86_extension( AVX2   ); break;
+    case VVDEC_SIMD_SCALAR: read_x86_extension_flags( SCALAR ); break;
+#if defined( VVDEC_ARCH_X86 )
+    case VVDEC_SIMD_SSE41 : read_x86_extension_flags( SSE41  ); break;
+    case VVDEC_SIMD_SSE42 : read_x86_extension_flags( SSE42  ); break;
+    case VVDEC_SIMD_AVX   : read_x86_extension_flags( AVX    ); break;
+    case VVDEC_SIMD_AVX2  : read_x86_extension_flags( AVX2   ); break;
+#elif defined( VVDEC_ARCH_ARM ) || defined( VVDEC_ARCH_WASM )
+    case VVDEC_SIMD_MAX   : read_x86_extension_flags( SSE42  ); break;    // SSE42 is emulated through simd-everywhere or emscripten. Using >SSE42 currently brings no advantage.
+#endif
     case VVDEC_SIMD_DEFAULT:
     default: break;
     }
-#endif
+#endif // TARGET_SIMD_X86
 
     m_cDecLib.reset( new DecLib() );
 

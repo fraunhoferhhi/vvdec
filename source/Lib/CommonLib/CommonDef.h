@@ -522,11 +522,9 @@ typedef enum
   AVX2,
   AVX512
 } X86_VEXT;
-#  endif
 
-#  ifdef TARGET_SIMD_X86
 X86_VEXT    read_x86_extension_flags( X86_VEXT request = UNDEFINED );
-const char* read_x86_extension      ( X86_VEXT request = UNDEFINED );
+std::string read_simd_extension_name();
 #  endif
 
 #endif   // ENABLE_SIMD_OPT

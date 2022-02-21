@@ -152,7 +152,7 @@ void DecLib::create(int numDecThreads, int parserFrameDelay)
          << "PARSE_DELAY=" << parserFrameDelay << "; ";
 #if ENABLE_SIMD_OPT
 #  if defined( TARGET_SIMD_X86 )
-  cssCap << "SIMD=" << read_x86_extension();
+  cssCap << "SIMD=" << read_simd_extension_name();
 #  else
   cssCap << "SIMD=SCALAR";
 #  endif
@@ -493,7 +493,12 @@ Picture* DecLib::getNextOutputPic( bool bFlush )
   }
 
   Picture* outPic = m_picListManager.getNextOutputPic( numReorderPicsHighestTid, maxDecPicBufferingHighestTid, bFlush );
-  CHECK( outPic && outPic->done.isBlocked(), "next output-pic is not done yet." );
+  //CHECK( outPic && outPic->done.isBlocked(), "next output-pic is not done yet." );
+  if( outPic && outPic->done.isBlocked() )
+  {
+    outPic->done.wait();
+  }
+
   return outPic;
 }
 

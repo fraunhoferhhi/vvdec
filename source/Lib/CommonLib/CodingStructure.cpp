@@ -85,7 +85,6 @@ CodingStructure::CodingStructure( CUChunkCache* cuChunkCache, TUChunkCache* tuCh
   , m_colMiMapSize ( 0 )
   , m_IBCBufferWidth( 0 )
 {
-  m_dmvrMvCacheOffset = 0;
 }
 
 void CodingStructure::destroy()
@@ -128,22 +127,26 @@ CodingUnit& CodingStructure::addCU( const UnitArea &unit, const ChannelType chTy
   cu->setChType  ( chType );
   cu->setTreeType( treeType );
   cu->setModeType( modeType );
-  
-  CodingUnit *prevCU = cu;
-  std::swap( m_lastCU, prevCU );
 
   const int currRsAddr = ctuRsAddr( unit.blocks[chType].pos(), chType );
-
-  if( prevCU ) prevCU->next = cu;
-
-  cu->idx = ++m_numCUs;
 
   uint32_t numCh = getNumberValidChannels( area.chromaFormat );
 
   CtuData& ctuData = getCtuData( currRsAddr );
-  cu->ctuData = &ctuData;
+  cu->ctuData      = &ctuData;
 
-  cu->predBufOff = m_predBufOffset;
+  if( !ctuData.firstCU )
+  {
+    ctuData.firstCU = cu;
+  }
+
+  cu->idx = ++ctuData.numCUs;
+
+  CodingUnit* prevCU = cu;
+  std::swap( ctuData.lastCU, prevCU );
+  if( prevCU ) prevCU->next = cu;
+
+  cu->predBufOff = ctuData.predBufOffset;
 
   for( uint32_t i = 0; i < numCh; i++ )
   {
@@ -156,11 +159,11 @@ CodingUnit& CodingStructure::addCU( const UnitArea &unit, const ChannelType chTy
 
     if( i )
     {
-      m_predBufOffset += ( cuArea << 1 );
+      ctuData.predBufOffset += ( cuArea << 1 );
     }
     else
     {
-      m_predBufOffset += cuArea;
+      ctuData.predBufOffset += cuArea;
     }
 
     const ptrdiff_t  stride = ptrdiff_t( 1 ) << m_ctuWidthLog2[i];
@@ -185,8 +188,8 @@ CodingUnit& CodingStructure::addCU( const UnitArea &unit, const ChannelType chTy
 
   if( isLuma( chType ) && unit.lheight() >= 8 && unit.lwidth()  >= 8 && unit.Y().area() >= 128 )
   {
-    pu.mvdL0SubPuOff     = m_dmvrMvCacheOffset;
-    m_dmvrMvCacheOffset += std::max<int>( 1, unit.lwidth() >> DMVR_SUBCU_WIDTH_LOG2 ) * std::max<int>( 1, unit.lheight() >> DMVR_SUBCU_HEIGHT_LOG2 );
+    pu.mvdL0SubPuOff           = ctuData.dmvrMvCacheOffset;
+    ctuData.dmvrMvCacheOffset += std::max<int>( 1, unit.lwidth() >> DMVR_SUBCU_WIDTH_LOG2 ) * std::max<int>( 1, unit.lheight() >> DMVR_SUBCU_HEIGHT_LOG2 );
   }
 
   return *cu;
@@ -212,7 +215,7 @@ TransformUnit& CodingStructure::addTU( const UnitArea &unit, const ChannelType c
     cu.lastTU       = tu;
   }
 
-  tu->idx               = ++m_numTUs;
+  tu->idx               = ++cu.ctuData->numTUs;
   tu->cu                =  &cu;
   tu->setChType         (   chType );
   tu->UnitArea::operator=(  unit );
@@ -241,30 +244,11 @@ void CodingStructure::addEmptyTUs( Partitioner &partitioner, CodingUnit& cu )
   }
 }
 
-CUTraverser CodingStructure::traverseCUs( const UnitArea& unit )
+CUTraverser CodingStructure::traverseCUs( const int ctuRsAddr )
 {
-  ChannelType lastChan  = unit.chromaFormat != CHROMA_400 ? CH_C : CH_L;
-  CodingUnit* firstCU   = getCU( unit.lumaPos(), CH_L );
-  CodingUnit* lastCU    = getCU( unit.block( getFirstComponentOfChannel( lastChan ) ).bottomRight(), lastChan );
+  CtuData& ctuData = m_ctuData[ctuRsAddr];
 
-  CHECKD( !firstCU || !lastCU || ctuRsAddr( firstCU->lumaPos(), CH_L ) != ctuRsAddr( lastCU->blocks[lastChan].pos(), lastChan ), "First CU and/or Last CU non-existent not in the same CTU!" );
-
-  if( lastCU ) lastCU = lastCU->next;
-
-  return CUTraverser( firstCU, lastCU );
-}
-
-cCUTraverser CodingStructure::traverseCUs( const UnitArea& unit ) const
-{
-  ChannelType lastChan      = unit.chromaFormat != CHROMA_400 ? CH_C : CH_L;
-  const CodingUnit* firstCU = getCU( unit.lumaPos(), CH_L );
-  const CodingUnit* lastCU  = getCU( unit.block( getFirstComponentOfChannel( lastChan ) ).bottomRight(), lastChan );
-
-  CHECKD( !firstCU || !lastCU || ctuRsAddr( firstCU->lumaPos(), CH_L ) != ctuRsAddr( lastCU->blocks[lastChan].pos(), lastChan ), "First CU and/or Last CU non-existent not in the same CTU!" );
-
-  if( lastCU ) lastCU = lastCU->next;
-
-  return cCUTraverser( firstCU, lastCU );
+  return CUTraverser( ctuData.firstCU, ctuData.lastCU->next );
 }
 
 // coding utilities
@@ -326,20 +310,12 @@ void CodingStructure::allocTempInternals()
 
 void CodingStructure::deallocTempInternals()
 {
-  m_numCUs = 0;
-  m_numTUs = 0;
-  m_lastCU = nullptr;
-
   m_cuCache.releaseAll();
   m_tuCache.releaseAll();
 }
 
 void CodingStructure::initStructData()
 {
-  m_numCUs = 0;
-  m_numTUs = 0;
-  m_lastCU = nullptr;
-
   m_cuCache.releaseAll();
   m_tuCache.releaseAll();
 
@@ -351,16 +327,15 @@ void CodingStructure::initStructData()
   m_ctuWidthLog2[0] = pcv->maxCUWidthLog2 - unitScale[CH_L].posx;
   m_ctuWidthLog2[1] = m_ctuWidthLog2[0]; // same for luma and chroma, because of the 2x2 blocks
 
-  m_dmvrMvCacheOffset = 0;
-
-  m_predBufOffset = 0;
-
   GCC_WARNING_DISABLE_class_memaccess
   memset( m_ctuData,  0, sizeof( CtuData             ) * m_ctuDataSize );
   memset( m_cuMap,    0, sizeof( CodingUnit*         ) * m_cuMapSize );
   memset( m_colMiMap, 0, sizeof( ColocatedMotionInfo ) * m_colMiMapSize );
   GCC_WARNING_RESET
-  
+
+  const ptrdiff_t ctuSampleSizeL  = pcv->maxCUHeight * pcv->maxCUWidth;
+  const ptrdiff_t ctuSampleSizeC  = isChromaEnabled( pcv->chrFormat ) ? ( ctuSampleSizeL >> ( getChannelTypeScaleX( CH_C, pcv->chrFormat) + getChannelTypeScaleY( CH_C, pcv->chrFormat ) ) ) : 0;
+  const ptrdiff_t ctuSampleSize   = ctuSampleSizeL + 2 * ctuSampleSizeC;
   const ptrdiff_t ctuCuMapSize    = pcv->num4x4CtuBlks;
   const ptrdiff_t ctuColMiMapSize = pcv->num8x8CtuBlks;
 
@@ -371,7 +346,9 @@ void CodingStructure::initStructData()
       m_ctuData[i].cuPtr[j] = &m_cuMap[( 2 * i + j ) * ctuCuMapSize];
     }
 
-    m_ctuData[i].colMotion = &m_colMiMap[i * ctuColMiMapSize];
+    m_ctuData[i].colMotion         = &m_colMiMap[i * ctuColMiMapSize];
+    m_ctuData[i].predBufOffset     = i * ctuSampleSize;
+    m_ctuData[i].dmvrMvCacheOffset = i * pcv->num8x8CtuBlks;
   }
 }
 
@@ -491,7 +468,7 @@ const CodingUnit* CodingStructure::getCURestricted( const Position &pos, const C
   {
     cu = curCu.ctuData->cuPtr[_chType][inCtuPos( pos, _chType )];
   }
-  else if( ydiff > 0 || xdiff > ( 1 - sps->getEntropyCodingSyncEnabledFlag() ) )
+  else if( ydiff > 0 || xdiff > ( 1 - sps->getEntropyCodingSyncEnabledFlag() ) || ( ydiff == 0 && xdiff > 0 ) )
   {
     return nullptr;
   }
@@ -500,7 +477,7 @@ const CodingUnit* CodingStructure::getCURestricted( const Position &pos, const C
     cu = getCU( pos, _chType );
   }
 
-  if( !cu || cu->idx > curCu.idx ) return nullptr;
+  if( !cu || ( sameCTU && cu->idx > curCu.idx ) ) return nullptr;
   else if( sameCTU ) return cu;
 
   if( cu->slice->getIndependentSliceIdx() == curCu.slice->getIndependentSliceIdx() && cu->tileIdx == curCu.tileIdx )

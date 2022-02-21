@@ -257,18 +257,34 @@ X86_VEXT read_x86_extension_flags( X86_VEXT request )
 
 #if defined( TARGET_SIMD_X86 )
 
-const char* read_x86_extension( X86_VEXT request )
+std::string read_simd_extension_name()
 {
-  X86_VEXT vext = read_x86_extension_flags( request );
+  X86_VEXT vext = read_x86_extension_flags();
   if( vext < 0 || vext >= vext_names.size() )
   {
     static const char extension_not_available[] = "NA";
     return extension_not_available;
   }
 
-  return vext_names[vext];
-}
+# if REAL_TARGET_X86
 
+  return vext_names[vext];
+
+# else   // !REAL_TARGET_X86
+  if( vext == SCALAR )
+  {
+    return vext_names[vext];
+  }
+  else
+  {
+#  if defined( REAL_TARGET_ARM )
+    return std::string( "NEON/SIMDE(" ) + vext_names[vext] + ")" ;
+#  elif defined( REAL_TARGET_WASM )
+    return std::string( "WASM/Emscripten(" ) + vext_names[vext] + ")";
+#  endif
+  }
+# endif   // !REAL_TARGET_X86
+}
 #endif   // TARGET_SIMD_X86
 
 }   // namespace vvdec

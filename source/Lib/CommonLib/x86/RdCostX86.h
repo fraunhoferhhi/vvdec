@@ -282,11 +282,9 @@ void xGetSADX5_8xN_SIMDImp(const DistParam& rcDtParam, Distortion* cost) {
   sum0 = _mm_srli_epi32(sum0, (1 + (DISTORTION_PRECISION_ADJUSTMENT(rcDtParam.bitDepth))));
   if (isCalCentrePos) sum2 = _mm_srli_epi32(sum2, (1 + (DISTORTION_PRECISION_ADJUSTMENT(rcDtParam.bitDepth))));
 
-  cost[0] = (_mm_cvtsi128_si32(sum0));
-  cost[1] = (_mm_extract_epi32(sum0, 1));
+  _mm_storel_epi64( ( __m128i* ) &cost[0], sum0 );
   if (isCalCentrePos) cost[2] = (_mm_cvtsi128_si32(sum2));
-  cost[3] = (_mm_extract_epi32(sum0, 2));
-  cost[4] = (_mm_extract_epi32(sum0, 3));
+  _mm_storel_epi64( ( __m128i* ) &cost[3], _mm_unpackhi_epi64( sum0, sum0 ) );
 }
 
 template <X86_VEXT vext>
@@ -509,17 +507,16 @@ void xGetSADX5_16xN_SIMDImp(const DistParam& rcDtParam, Distortion* cost) {
 
     sum0134 = _mm_srli_epi32(sum0134, (1 + (DISTORTION_PRECISION_ADJUSTMENT(rcDtParam.bitDepth))));
 
-    cost[0] = (_mm_cvtsi128_si32(sum0134));
-    cost[1] = (_mm_extract_epi32(sum0134, 1));
+    _mm_storel_epi64( ( __m128i* ) &cost[0], sum0134 );
     if (isCalCentrePos) {
       int tmp = _mm_cvtsi128_si32(_mm256_castsi256_si128(sum2)) + _mm256_extract_epi32(sum2, 4);
       tmp <<= iSubShift;
       tmp >>= (1 + (DISTORTION_PRECISION_ADJUSTMENT(rcDtParam.bitDepth)));
       cost[2] = tmp;
     }
-    cost[3] = (_mm_extract_epi32(sum0134, 2));
-    cost[4] = (_mm_extract_epi32(sum0134, 3));
-  } else
+    _mm_storel_epi64( ( __m128i* ) &cost[3], _mm_unpackhi_epi64( sum0134, sum0134 ) );
+  }
+  else
 #  endif
   {
     // sum of 16 unsigned 10-bit ints (0-1023) can maximally be 4 + 10 bits, i.e. fits into 16 bit
@@ -595,11 +592,9 @@ void xGetSADX5_16xN_SIMDImp(const DistParam& rcDtParam, Distortion* cost) {
     sum0 = _mm_srli_epi32(sum0, (1 + (DISTORTION_PRECISION_ADJUSTMENT(rcDtParam.bitDepth))));
     if (isCalCentrePos) sum2 = _mm_srli_epi32(sum2, (1 + (DISTORTION_PRECISION_ADJUSTMENT(rcDtParam.bitDepth))));
 
-    cost[0] = (_mm_cvtsi128_si32(sum0));
-    cost[1] = (_mm_extract_epi32(sum0, 1));
+    _mm_storel_epi64( ( __m128i* ) &cost[0], sum0 );
     if (isCalCentrePos) cost[2] = (_mm_cvtsi128_si32(sum2));
-    cost[3] = (_mm_extract_epi32(sum0, 2));
-    cost[4] = (_mm_extract_epi32(sum0, 3));
+    _mm_storel_epi64( ( __m128i* ) &cost[3], _mm_unpackhi_epi64( sum0, sum0 ) );
   }
 }
 

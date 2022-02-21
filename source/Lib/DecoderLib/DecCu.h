@@ -71,11 +71,11 @@ class DecCu
 {
   // Task definition
 public:
-  void TaskDeriveCtuMotionInfo ( CodingStructure& cs, const UnitArea& ctuArea,  MotionHist& hist );
-  void TaskInterCtu            ( CodingStructure& cs, const UnitArea& ctuArea );
-  void TaskTrafoCtu            ( CodingStructure& cs, const UnitArea& ctuArea );
-  void TaskCriticalIntraKernel ( CodingStructure& cs, const UnitArea& ctuArea );
-  void TaskFinishMotionInfo    ( CodingStructure &cs, const int col, const int row );
+  void TaskDeriveCtuMotionInfo ( CodingStructure& cs, const int ctuRsAddr, const UnitArea& ctuArea,  MotionHist& hist );
+  void TaskInterCtu            ( CodingStructure& cs, const int ctuRsAddr, const UnitArea& ctuArea );
+  void TaskTrafoCtu            ( CodingStructure& cs, const int ctuRsAddr, const UnitArea& ctuArea );
+  void TaskCriticalIntraKernel ( CodingStructure& cs, const int ctuRsAddr, const UnitArea& ctuArea );
+  void TaskFinishMotionInfo    ( CodingStructure &cs, const int ctuRsAddr, const int col, const int row );
 
 public:
   DecCu();

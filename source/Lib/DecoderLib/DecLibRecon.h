@@ -129,14 +129,14 @@ struct FinishPicTaskParam
 
 struct PerThreadResource
 {
-  TrQuant         m_cTrQuant;
   IntraPrediction m_cIntraPred;
   InterPrediction m_cInterPred;
-  DecCu           m_cCuDecoder;
+  TrQuant         m_cTrQuant;
   Reshape         m_cReshaper;
+  DecCu           m_cCuDecoder;
 
-  explicit PerThreadResource() = default;
-  explicit PerThreadResource( TrQuant& trQuant0 ) : m_cTrQuant( trQuant0 ) {}
+  explicit PerThreadResource() : m_cTrQuant( &m_cInterPred ) {}
+  explicit PerThreadResource( TrQuant& trQuant0 ) : m_cTrQuant( &m_cInterPred, &trQuant0 ) {}
 };
 
 /// decoder class

@@ -205,7 +205,7 @@ typedef       int16_t         TFilterCoeff;      ///< filter coefficient
 typedef       int             Intermediate_Int;  ///< used as intermediate value in calculations
 #endif
 
-typedef       uint64_t        Distortion;        ///< distortion measurement
+typedef       uint32_t        Distortion;        ///< distortion measurement
 
 typedef       uint16_t        SplitSeries;       ///< used to encoded the splits that caused a particular CU size
 
@@ -876,7 +876,7 @@ public:
   size_type       max_size() const              { return N; }
   size_type       byte_capacity() const         { return sizeof(_arr); }
 
-  void            erase( const_iterator _pos )  { iterator it   = const_cast<iterator>( _pos ) - 1;
+  void            erase( const_iterator _pos )  { iterator it   = begin() + ( _pos - 1 - begin() );
                                                   iterator last = end() - 1;
                                                   while( ++it != last ) *it = *( it + 1 );
                                                   _size--; }

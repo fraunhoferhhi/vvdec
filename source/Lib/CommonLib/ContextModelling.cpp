@@ -56,6 +56,8 @@ THE POSSIBILITY OF SUCH DAMAGE.
 namespace vvdec
 {
 
+static const int prefix_ctx[8] = { 0, 0, 0, 3, 6, 10, 15, 21 };
+
 CoeffCodingContext::CoeffCodingContext( const TransformUnit& tu, ComponentID component, bool signHide )
   : m_chType                    (toChannelType(component))
   , m_width                     (tu.block(component).width)
@@ -77,10 +79,10 @@ CoeffCodingContext::CoeffCodingContext( const TransformUnit& tu, ComponentID com
   , m_CtxSetLastY               (Ctx::LastY[m_chType])
   , m_maxLastPosX               (g_uiGroupIdx[std::min<unsigned>(JVET_C0024_ZERO_OUT_TH, m_width)  - 1])
   , m_maxLastPosY               (g_uiGroupIdx[std::min<unsigned>(JVET_C0024_ZERO_OUT_TH, m_height) - 1])
-  , m_lastOffsetX               (0)
-  , m_lastOffsetY               (0)
-  , m_lastShiftX                (0)
-  , m_lastShiftY                (0)
+  , m_lastOffsetX               (isLuma( m_chType ) ? prefix_ctx[ m_log2BlockWidth  ] : 0)
+  , m_lastOffsetY               (isLuma( m_chType ) ? prefix_ctx[ m_log2BlockHeight ] : 0)
+  , m_lastShiftX                (isChroma( m_chType ) ? Clip3( 0, 2, int( m_width  >> 3 ) ) : (m_log2BlockWidth  + 1) >> 2 )
+  , m_lastShiftY                (isChroma( m_chType ) ? Clip3( 0, 2, int( m_height >> 3 ) ) : (m_log2BlockHeight + 1) >> 2 )
   , m_scanPosLast               (-1)
   , m_subSetId                  (-1)
   , m_subSetPos                 (-1)
@@ -105,19 +107,6 @@ CoeffCodingContext::CoeffCodingContext( const TransformUnit& tu, ComponentID com
   , m_regBinLimit               ( ( TU::getTbAreaAfterCoefZeroOut( tu, component ) * ( isLuma( component ) ? MAX_TU_LEVEL_CTX_CODED_BIN_CONSTRAINT_LUMA : MAX_TU_LEVEL_CTX_CODED_BIN_CONSTRAINT_CHROMA ) ) >> 4 )
   , m_ts                        (tu.mtsIdx( component ) == MTS_SKIP)
 {
-  if (m_chType == CHANNEL_TYPE_CHROMA)
-  {
-    const_cast<int&>(m_lastShiftX) = Clip3( 0, 2, int( m_width  >> 3) );
-    const_cast<int&>(m_lastShiftY) = Clip3( 0, 2, int( m_height >> 3) );
-  }
-  else
-  {
-    static const int prefix_ctx[8]  = { 0, 0, 0, 3, 6, 10, 15, 21 };
-    const_cast<int&>(m_lastOffsetX) = prefix_ctx[ m_log2BlockWidth  ];
-    const_cast<int&>(m_lastOffsetY) = prefix_ctx[ m_log2BlockHeight ];
-    const_cast<int&>(m_lastShiftX)  = (m_log2BlockWidth  + 1) >> 2;
-    const_cast<int&>(m_lastShiftY)  = (m_log2BlockHeight + 1) >> 2;
-  }
 }
 
 void CoeffCodingContext::initSubblock( int SubsetId, bool sigGroupFlag )

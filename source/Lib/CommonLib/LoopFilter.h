@@ -120,8 +120,8 @@ public:
   /// picture-level deblocking filter
   void loopFilterPic              ( CodingStructure& cs ) const;
   void loopFilterPicLine          ( CodingStructure& cs, const ChannelType chType,                   const int ctuLine, const int offset = 0, DeblockEdgeDir edgeDir = NUM_EDGE_DIR ) const;
-  void loopFilterCTU              ( CodingStructure & cs, const ChannelType chType, const int ctuCol, const int ctuLine, const int offset = 0, DeblockEdgeDir edgeDir = NUM_EDGE_DIR ) const;
-  void calcFilterStrengthsCTU     ( CodingStructure & cs, const UnitArea& ctuArea );
+  void loopFilterCTU              ( CodingStructure& cs, const ChannelType chType, const int ctuCol, const int ctuLine, const int offset = 0, DeblockEdgeDir edgeDir = NUM_EDGE_DIR ) const;
+  void calcFilterStrengthsCTU     ( CodingStructure& cs, const int ctuRsAddr );
 };
 
 }
