@@ -88,7 +88,7 @@ TimeProfiler2D *g_timeProfiler = nullptr;
 //! \ingroup CommonLib
 //! \{
 
-std::atomic<int> romInitialized(0);
+std::atomic_bool romInitialized(0);
 
 MsgLevel g_verbosity = VERBOSE;
 void    *g_context = nullptr;
@@ -268,12 +268,12 @@ void initROM()
   //     to them into each class/function that needs them.
   //  B: For really const values just precalculate them all and put them intot a header
   //     to include everywhere where needed.
-  if (romInitialized > 0)
+  bool expected = false;
+
+  if( !romInitialized.compare_exchange_strong( expected, true ) )
   {
-    romInitialized++;
     return;
   }
-  romInitialized++;
 
   //const SizeIndexInfoLog2 &sizeInfo = g_sizeIdxInfo;
 

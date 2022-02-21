@@ -1464,7 +1464,7 @@ void InterPrediction::motionCompensationGeo( PredictionUnit &pu, PelUnitBuf &pre
 
   const UnitArea localUnitArea( pu.cs->area.chromaFormat, Area( 0, 0, pu.lwidth(), pu.lheight() ) );
 
-  PelUnitBuf tmpGeoBuf0 = isChromaEnabled( pu.chromaFormat ) ? PelUnitBuf( pu.chromaFormat, PelBuf( m_geoPartBuf[0], localUnitArea.Y() ), PelBuf( m_geoPartBuf[1], localUnitArea.Cb() ), PelBuf( m_geoPartBuf[2], localUnitArea.Cr() ) ) : PelUnitBuf( pu.chromaFormat, PelBuf( m_geoPartBuf[0], localUnitArea.Y() ) );
+  PelUnitBuf tmpGeoBuf0 = isChromaEnabled( pu.chromaFormat ) ? PelUnitBuf( pu.chromaFormat, PelBuf( m_acYuvPred[0], localUnitArea.Y() ), PelBuf( m_acYuvPred[1], localUnitArea.Cb() ), PelBuf( m_acYuvPred[2], localUnitArea.Cr() ) ) : PelUnitBuf( pu.chromaFormat, PelBuf( m_acYuvPred[0], localUnitArea.Y() ) );
 
   uint8_t locInterDir = pu.interDirrefIdxGeo0() >> 4;
   CHECKD( !( locInterDir == 1 || locInterDir == 2 ), "Should not happen" );
@@ -1690,7 +1690,7 @@ void xSubPelErrorSrfc(uint64_t *sadBuffer, int32_t *deltaMv)
   return;
 }
 
-void InterPrediction::xBIPMVRefine( DistParam &cDistParam, const Pel *pRefL0, const Pel *pRefL1, uint64_t& minCost, int16_t *deltaMV, uint64_t *pSADsArray)
+void InterPrediction::xBIPMVRefine( DistParam &cDistParam, const Pel *pRefL0, const Pel *pRefL1, Distortion& minCost, int16_t *deltaMV, Distortion *pSADsArray)
 {
   const ptrdiff_t refStride = m_biLinearBufStride;
 
@@ -1773,7 +1773,7 @@ void InterPrediction::xFinalPaddedMCForDMVR(PredictionUnit& pu, PelUnitBuf &pcYu
   }
 }
 
-void xDMVRSubPixelErrorSurface( bool notZeroCost, int16_t *totalDeltaMV, int16_t *deltaMV, uint64_t *pSADsArray )
+void xDMVRSubPixelErrorSurface( bool notZeroCost, int16_t *totalDeltaMV, int16_t *deltaMV, Distortion*pSADsArray )
 {
   int sadStride = ( ( ( 2 * DMVR_NUM_ITERATION ) + 1 ) );
   uint64_t sadbuffer[5];
@@ -1896,7 +1896,7 @@ void InterPrediction::xProcessDMVR( PredictionUnit& pu, PelUnitBuf &pcYuvDst, co
           subPu.blocks[2].x = x >> scaleX; subPu.blocks[2].y = y >> scaleY;
         }
 
-        uint64_t *pSADsArray = &m_SADsArray[( ( ( 2 * DMVR_NUM_ITERATION ) + 1 ) * ( ( 2 * DMVR_NUM_ITERATION ) + 1 ) ) >> 1];
+        Distortion *pSADsArray = &m_SADsArray[( ( ( 2 * DMVR_NUM_ITERATION ) + 1 ) * ( ( 2 * DMVR_NUM_ITERATION ) + 1 ) ) >> 1];
 
         Pel *biPredSubPuL0 = biLinearPredL0 + xStart + yStart * m_biLinearBufStride;
         Pel *biPredSubPuL1 = biLinearPredL1 + xStart + yStart * m_biLinearBufStride;
@@ -1904,7 +1904,7 @@ void InterPrediction::xProcessDMVR( PredictionUnit& pu, PelUnitBuf &pcYuvDst, co
         cDistParam.cur.buf = biPredSubPuL0;
         cDistParam.org.buf = biPredSubPuL1;
 
-        uint64_t   minCost = cDistParam.distFunc( cDistParam );
+        Distortion minCost = cDistParam.distFunc( cDistParam );
       
         bool notZeroCost        = true;
         int16_t totalDeltaMV[2] = { 0, 0 };

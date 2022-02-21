@@ -74,7 +74,7 @@ namespace vvdec
 void         initROM();
 void         destroyROM();
 
-extern std::atomic<int> romInitialized;
+extern std::atomic_bool romInitialized;
 
 // ====================================================================================================================
 // Data structure related table & variable

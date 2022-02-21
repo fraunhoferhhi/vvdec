@@ -237,21 +237,9 @@ static void DeQuantPCMCore( const int     maxX,
   }
 }
 
-Quant::Quant() : m_dequantCoefBuf( nullptr ), m_ownDequantCoeff( false )
+Quant::Quant( const Quant* other ) : m_dequantCoefBuf( nullptr ), m_ownDequantCoeff( false )
 {
-  xInitScalingList( nullptr );
-
-  DeQuant    = DeQuantCore;
-  DeQuantPCM = DeQuantPCMCore;
-#if ENABLE_SIMD_OPT_QUANT && defined( TARGET_SIMD_X86 )
-
-  initQuantX86();
-#endif
-}
-
-Quant::Quant( const Quant& other ) : m_dequantCoefBuf( nullptr ), m_ownDequantCoeff( false )
-{
-  xInitScalingList( &other );
+  xInitScalingList( other );
 
   DeQuant    = DeQuantCore;
   DeQuantPCM = DeQuantPCMCore;

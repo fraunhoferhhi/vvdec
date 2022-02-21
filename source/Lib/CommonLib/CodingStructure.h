@@ -82,6 +82,12 @@ struct CtuData
   const SPS*            sps;
   const PicHeader*      ph;
 
+  CodingUnit           *firstCU, *lastCU;
+  unsigned              numCUs, numTUs;
+
+  ptrdiff_t             predBufOffset;
+  ptrdiff_t             dmvrMvCacheOffset;
+
   CodingUnit**          cuPtr  [MAX_NUM_CHANNEL_TYPE];
   LoopFilterParam*      lfParam[NUM_EDGE_DIR];
   MotionInfo*           motion;
@@ -115,10 +121,7 @@ public:
   size_t            m_ctuDataSize;
 
   Pel*              m_predBuf;
-  ptrdiff_t         m_predBufOffset;
-  
   Mv*               m_dmvrMvCache;
-  ptrdiff_t         m_dmvrMvCacheOffset;
   // end of partially borrowed data
   
   CodingStructure( CUChunkCache* cuChunkCache, TUChunkCache* tuChunkCache );
@@ -166,9 +169,7 @@ public:
   CodingUnit&     addCU(const UnitArea &unit, const ChannelType _chType, const TreeType treeType, const ModeType modeType, const CodingUnit* cuLeft, const CodingUnit* cuAbove );
   TransformUnit&  addTU(const UnitArea &unit, const ChannelType _chType, CodingUnit &cu);
   void            addEmptyTUs(Partitioner &partitioner, CodingUnit& cu);
-  CUTraverser     traverseCUs(const UnitArea& _unit);
-
-  cCUTraverser    traverseCUs(const UnitArea& _unit) const;
+  CUTraverser     traverseCUs(const int ctuRsAddr);
 
   void initStructData();
 
@@ -177,16 +178,11 @@ public:
 
   void createInternals(const UnitArea& _unit);
 
-  unsigned   m_numCUs;
-  unsigned   m_numTUs;
-
   CUCache    m_cuCache;
   TUCache    m_tuCache;
 
   PelStorage m_reco;
   PelStorage m_rec_wrap;
-
-  CodingUnit* m_lastCU = nullptr;
 
   size_t               m_widthInCtus;
   PosType              m_ctuSizeMask[2];

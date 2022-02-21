@@ -77,6 +77,7 @@ class Mv;
 
 class InterPrediction : public WeightPrediction
 {
+  friend class TrQuant; // for the access to the shared buffers m_acYuvPRed
 protected:
   InterpolationFilter  m_if;
 
@@ -88,6 +89,7 @@ protected:
   Pel                  m_bdofBlock[NUM_REF_PIC_LIST_01][( MAX_BDOF_APPLICATION_REGION + ( 2 * BIO_ALIGN_SIZE + BIO_ALIGN_SIZE ) + 16 )
                                                       * ( MAX_BDOF_APPLICATION_REGION + ( 2 * BIO_EXTEND_SIZE + 2 ) + 2 )];
   Pel                  m_acYuvPred[MAX_NUM_COMPONENT][MAX_CU_SIZE * MAX_CU_SIZE];
+  // TrQuant will use m_acYuvPred as its internal buffers
   Pel                  m_tmpBlock[MAX_CU_SIZE * (MAX_CU_SIZE + NTAPS_LUMA)];
 
   /*buffers for padded data*/
@@ -102,9 +104,7 @@ protected:
                                                Mv(-2, 0), Mv(-1, 0), Mv(0, 0), Mv(1, 0), Mv(2, 0),
                                                Mv(-2, 1), Mv(-1, 1), Mv(0, 1), Mv(1, 1), Mv(2, 1),
                                                Mv(-2, 2), Mv(-1, 2), Mv(0, 2), Mv(1, 2), Mv(2, 2) };
-  uint64_t             m_SADsArray[((2 * DMVR_NUM_ITERATION) + 1) * ((2 * DMVR_NUM_ITERATION) + 1)];
-
-  Pel                  m_geoPartBuf[MAX_NUM_COMPONENT][GEO_MAX_CU_SIZE * GEO_MAX_CU_SIZE];
+  Distortion           m_SADsArray[((2 * DMVR_NUM_ITERATION) + 1) * ((2 * DMVR_NUM_ITERATION) + 1)];
 
   ChromaFormat         m_currChromaFormat = NUM_CHROMA_FORMAT;
 
@@ -181,7 +181,7 @@ public:
 private:
   void    xPrefetchPad               ( PredictionUnit& pu, PelUnitBuf &pcPad, RefPicList refId, bool forLuma );
   void    xFinalPaddedMCForDMVR      ( PredictionUnit& pu, PelUnitBuf &pcYuvSrc0, PelUnitBuf &pcYuvSrc1, PelUnitBuf &pcPad0, PelUnitBuf &pcPad1, const bool bioApplied, const Mv startMV[NUM_REF_PIC_LIST_01] );
-  void xBIPMVRefine(DistParam &cDistParam, const Pel *pRefL0, const Pel *pRefL1, uint64_t& minCost, int16_t *deltaMV, uint64_t *pSADsArray);
+  void xBIPMVRefine(DistParam &cDistParam, const Pel *pRefL0, const Pel *pRefL1, Distortion& minCost, int16_t *deltaMV, Distortion *pSADsArray);
   void xinitMC(PredictionUnit& pu, const ClpRngs &clpRngs);
   void xProcessDMVR(PredictionUnit& pu, PelUnitBuf &pcYuvDst, const ClpRngs &clpRngs, const bool bioApplied );
   void xFillIBCBuffer(CodingUnit &cu);

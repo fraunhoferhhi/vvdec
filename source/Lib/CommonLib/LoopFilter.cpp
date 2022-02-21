@@ -464,11 +464,11 @@ void LoopFilter::loopFilterPicLine( CodingStructure &cs, const ChannelType chTyp
 #endif
 }
 
-void LoopFilter::calcFilterStrengthsCTU( CodingStructure& cs, const UnitArea& ctuArea )
+void LoopFilter::calcFilterStrengthsCTU( CodingStructure& cs, const int ctuRsAddr )
 {
   PROFILER_SCOPE_AND_STAGE( 1, g_timeProfiler, P_DBFILTER );
 
-  for( auto &currCU : cs.traverseCUs( clipArea( ctuArea, *cs.picture ) ) )
+  for( auto &currCU : cs.traverseCUs( ctuRsAddr ) )
   {
     if( currCU.slice->getDeblockingFilterDisable() )
     {

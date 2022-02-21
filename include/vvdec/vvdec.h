@@ -64,6 +64,13 @@ extern "C" {
 
 VVDEC_NAMESPACE_BEGIN
 
+#if defined( __x86_64__ ) || defined( _M_X64 ) || defined( __i386__ ) || defined( __i386 ) || defined( _M_IX86 )
+# define VVDEC_ARCH_X86 1
+#elif defined( __aarch64__ ) || defined( _M_ARM64 ) || defined( __arm__ ) || defined( _M_ARM )
+# define VVDEC_ARCH_ARM 1
+#elif defined( __wasm__ ) || defined( __wasm32__ )
+# define VVDEC_ARCH_WASM 1
+#endif
 
 /* vvdecDecoder:
  * opaque handler for the decoder */
@@ -117,10 +124,19 @@ typedef enum
 {
   VVDEC_SIMD_DEFAULT  = 0,
   VVDEC_SIMD_SCALAR   = 1,
+#if VVDEC_ARCH_X86
   VVDEC_SIMD_SSE41    = 2,
   VVDEC_SIMD_SSE42    = 3,
   VVDEC_SIMD_AVX      = 4,
-  VVDEC_SIMD_AVX2     = 5
+  VVDEC_SIMD_AVX2     = 5,
+  VVDEC_SIMD_MAX      = VVDEC_SIMD_AVX2
+#elif VVDEC_ARCH_ARM
+  VVDEC_SIMD_NEON     = 2,
+  VVDEC_SIMD_MAX      = VVDEC_SIMD_NEON
+#elif VVDEC_ARCH_WASM
+  VVDEC_SIMD_WASM     = 2,
+  VVDEC_SIMD_MAX      = VVDEC_SIMD_WASM
+#endif
 }vvdecSIMD_Extension;
 
 /*

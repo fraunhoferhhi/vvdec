@@ -64,11 +64,10 @@ namespace vvdec
 //! \ingroup DecoderLib
 //! \{
 
-void DecCu::TaskDeriveCtuMotionInfo( CodingStructure &cs, const UnitArea &ctuArea, MotionHist& hist )
+void DecCu::TaskDeriveCtuMotionInfo( CodingStructure &cs, const int ctuRsAddr, const UnitArea &ctuArea, MotionHist& hist )
 {
   PROFILER_SCOPE_AND_STAGE_EXT( 1, g_timeProfiler, P_CONTROL_PARSE_DERIVE_LL, cs, CH_L );
 
-  const unsigned  ctuRsAddr      = getCtuAddr( Position( ctuArea.lumaPos().x, ctuArea.lumaPos().y ), *cs.pcv );
   const unsigned  ctuXPosInCtus  = ctuRsAddr % cs.pcv->widthInCtus;
   const unsigned  tileColIdx     = cs.pps->ctuToTileCol( ctuXPosInCtus );
   const unsigned  tileXPosInCtus = cs.pps->getTileColumnBd( tileColIdx );
@@ -79,7 +78,7 @@ void DecCu::TaskDeriveCtuMotionInfo( CodingStructure &cs, const UnitArea &ctuAre
     hist.motionLutIbc.resize(0);
   }
   
-  for( auto &currCU : cs.traverseCUs( ctuArea ) )
+  for( auto &currCU : cs.traverseCUs( ctuRsAddr ) )
   {
     CHECK( !ctuArea.blocks[currCU.chType()].contains( currCU.blocks[currCU.chType()] ),
            "Traversing CU at (" << currCU.blocks[currCU.chType()].x << "," << currCU.blocks[currCU.chType()].y
@@ -109,11 +108,11 @@ void DecCu::TaskDeriveCtuMotionInfo( CodingStructure &cs, const UnitArea &ctuAre
   }
 }
 
-void DecCu::TaskTrafoCtu( CodingStructure &cs, const UnitArea &ctuArea )
+void DecCu::TaskTrafoCtu( CodingStructure &cs, const int ctuRsAddr, const UnitArea &ctuArea )
 {
   PROFILER_SCOPE_AND_STAGE_EXT( 1, g_timeProfiler, P_ITRANS_REC, cs, CH_L );
 
-  for( auto &currCU : cs.traverseCUs( ctuArea ) )
+  for( auto &currCU : cs.traverseCUs( ctuRsAddr ) )
   {
     CHECK( !ctuArea.blocks[currCU.chType()].contains( currCU.blocks[currCU.chType()] ), "Should never happen!" );
 
@@ -124,11 +123,11 @@ void DecCu::TaskTrafoCtu( CodingStructure &cs, const UnitArea &ctuArea )
   }
 }
 
-void DecCu::TaskInterCtu( CodingStructure &cs, const UnitArea &ctuArea )
+void DecCu::TaskInterCtu( CodingStructure &cs, const int ctuRsAddr, const UnitArea &ctuArea )
 {
   PROFILER_SCOPE_AND_STAGE_EXT( 1, g_timeProfiler, P_CONTROL_PARSE_DERIVE_LL, cs, CH_L );
 
-  for( auto &currCU: cs.traverseCUs( ctuArea ) )
+  for( auto &currCU: cs.traverseCUs( ctuRsAddr ) )
   {
     CHECK( !ctuArea.blocks[currCU.chType()].contains( currCU.blocks[currCU.chType()] ), "Should never happen!" );
 
@@ -139,10 +138,10 @@ void DecCu::TaskInterCtu( CodingStructure &cs, const UnitArea &ctuArea )
   }
 }
 
-void DecCu::TaskCriticalIntraKernel( CodingStructure &cs, const UnitArea &ctuArea )
+void DecCu::TaskCriticalIntraKernel( CodingStructure &cs, const int ctuRsAddr, const UnitArea &ctuArea )
 {
   PROFILER_SCOPE_AND_STAGE_EXT( 1, g_timeProfiler, P_CONTROL_PARSE_DERIVE_LL, cs, CH_L );
-  for( auto &currCU : cs.traverseCUs( ctuArea ) )
+  for( auto &currCU : cs.traverseCUs( ctuRsAddr ) )
   {
     CHECK( !ctuArea.blocks[currCU.chType()].contains( currCU.blocks[currCU.chType()] ), "Should never happen!" );
 
@@ -162,17 +161,17 @@ void DecCu::TaskCriticalIntraKernel( CodingStructure &cs, const UnitArea &ctuAre
   }
 }
 
-void DecCu::TaskFinishMotionInfo( CodingStructure &cs, const int col, const int row )
+void DecCu::TaskFinishMotionInfo( CodingStructure &cs, const int ctuRsAddr, const int col, const int row )
 {
   PROFILER_SCOPE_AND_STAGE_EXT( 1, g_timeProfiler, P_CONTROL_PARSE_DERIVE_LL, cs, CH_L );
 
   // first, finish DMVR motion
 
-  UnitArea    ctuArea= getCtuArea( cs, col, row, true );
-  MotionBuf   mb     = cs.getMotionBuf( ctuArea.Y() );
-  MotionInfo* orgPtr = mb.buf;
+  UnitArea    ctuArea = getCtuArea( cs, col, row, true );
+  MotionBuf   mb      = cs.getMotionBuf( ctuArea.Y() );
+  MotionInfo* orgPtr  = mb.buf;
 
-  for( CodingUnit &cu : cs.traverseCUs( ctuArea ) )
+  for( CodingUnit &cu : cs.traverseCUs( ctuRsAddr ) )
   {
     CHECKD( !ctuArea.blocks[cu.chType()].contains( cu.blocks[cu.chType()] ), "Should never happen!" );
 
@@ -218,7 +217,7 @@ void DecCu::TaskFinishMotionInfo( CodingStructure &cs, const int col, const int 
     }
   }
 
-  CtuData &ctuData = cs.getCtuData( col, row );
+  CtuData &ctuData = cs.getCtuData( ctuRsAddr );
 
   const int size4x4 = cs.get4x4MapStride();
 
@@ -432,14 +431,11 @@ void DecCu::predAndReco( CodingUnit& cu, bool doCiipIntra )
     }
     else
     {
-      if( doCiipIntra )
-        m_pcIntraPred->geneIntrainterPred( cu );
-
       // inter prediction
       CHECK( CU::isIBC( cu ) && cu.ciipFlag(),       "IBC and CIIP cannot be used together"   );
       CHECK( CU::isIBC( cu ) && cu.affineFlag(),     "IBC and AFFINE cannot be used together" );
       CHECK( CU::isIBC( cu ) && cu.geoFlag(),        "IBC and GEO cannot be used together"    );
-      CHECK(CU::isIBC(cu) && cu.mmvdFlag(),          "IBC and MMVD cannot be used together"     );
+      CHECK( CU::isIBC( cu ) && cu.mmvdFlag(),       "IBC and MMVD cannot be used together"     );
 
       if( !CU::isIBC( cu ) && !doCiipIntra )
       {
@@ -455,13 +451,7 @@ void DecCu::predAndReco( CodingUnit& cu, bool doCiipIntra )
 
     if( cu.ciipFlag() && doCiipIntra )
     {
-      m_pcIntraPred->geneWeightedPred( COMPONENT_Y, predBuf.Y(), cu, m_pcIntraPred->getPredictorPtr2( COMPONENT_Y ) );
-
-      if( isChromaEnabled( cu.chromaFormat ) && cu.chromaSize().width > 2 )
-      {
-        m_pcIntraPred->geneWeightedPred( COMPONENT_Cb, predBuf.Cb(), cu, m_pcIntraPred->getPredictorPtr2( COMPONENT_Cb ) );
-        m_pcIntraPred->geneWeightedPred( COMPONENT_Cr, predBuf.Cr(), cu, m_pcIntraPred->getPredictorPtr2( COMPONENT_Cr ) );
-      }
+      m_pcIntraPred->predBlendIntraCiip( predBuf, cu );
     }
 
     DTRACE    ( g_trace_ctx, D_TMP, "pred " );

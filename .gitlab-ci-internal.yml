@@ -18,11 +18,13 @@ variables:
       - if: '$CI_PIPELINE_SOURCE == "web"'
       - if: '$CI_PIPELINE_SOURCE == "schedule"'
       - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+      - if: '$CI_COMMIT_BRANCH == "master"'
 
 .build_only_template_full:
    extends: .build_only_template
    rules:
       - if: '$FULL_BUILD == "1"'
+      - if: '$CI_COMMIT_BRANCH == "master"'
 
 .build_test_template:
    stage: build
@@ -43,6 +45,7 @@ variables:
       - if: '$CI_PIPELINE_SOURCE == "web"'
       - if: '$CI_PIPELINE_SOURCE == "schedule"'
       - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+      - if: '$CI_COMMIT_BRANCH == "master"'
 
 .build_test_macos_template:
    extends: .build_test_template
@@ -56,10 +59,6 @@ variables:
       - make msvc-arch=${MSVC_ARCH} enable-bitstream-download=1 enable-local-bitstream-download=1 disable-lto=1 all
       - make msvc-arch=${MSVC_ARCH} test
 
-.build_only_ubuntu2004_mingw_template:
-   extends: .build_only_template_full
-   script:
-      - make toolchainfile=cmake/toolchains/x86_64-w64-mingw32-gcc-posix-ubuntu2004.cmake disable-lto=1 all
 
 build_gcc5_ubuntu1804:
    extends: .build_only_template_full
@@ -142,7 +141,9 @@ build_clang10_ubuntu2004:
       - ubuntu2004
 
 build_mingw_ubuntu2004:
-   extends: .build_only_ubuntu2004_mingw_template
+   extends: .build_only_template_full
+   variables:
+     toolchainfile: cmake/toolchains/x86_64-w64-mingw32-gcc-posix-ubuntu2004.cmake
    tags:
       - ubuntu2004
 
@@ -194,26 +195,22 @@ test_macos_x86_64:
 
 
 rebuild_emscripten_docker_image:
-   stage: build
+   extends: .build_only_template
    script:
       - echo -n $CI_REGISTRY_PASSWORD | docker login -u $CI_REGISTRY_USER --password-stdin $CI_REGISTRY
       - mkdir -p empty_context
       - if [[ $REBUILD_DOCKER_IMAGE = 1 ]] ; then NO_CACHE_ARG=--no-cache=true ; fi
       - docker build -t $CI_REGISTRY_IMAGE/emscripten-hhi:latest $NO_CACHE_ARG -f .emscripten.dockerfile empty_context
       - docker push $CI_REGISTRY_IMAGE/emscripten-hhi:latest
-   rules:
-      - if: '$CI_PIPELINE_SOURCE == "web"'
-      - if: '$CI_PIPELINE_SOURCE == "schedule"'
-      - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
    tags:
       - docker-build
 
 build_wasm:
-   extends: .build_test_template
+   extends: .build_only_template
    image: $CI_REGISTRY_IMAGE/emscripten-hhi:latest
    script:
      - source /opt/emsdk/emsdk_env.sh
-     - emcmake cmake -B build/wasm -DVVDEC_ENABLE_X86_SIMD=TRUE
+     - emcmake cmake -GNinja -B build/wasm -DVVDEC_ENABLE_X86_SIMD=TRUE
      - cmake --build build/wasm
      - cmake --build build/wasm -t install
    needs:
