@@ -91,7 +91,7 @@ public:
   void        sao                       ( CodingStructure&              cs,     unsigned        ctuRsAddr );
   void        readAlf                   ( CodingStructure&              cs,     unsigned        ctuRsAddr, const Partitioner& partitioner);
 
-  short       readAlfCtuFilterIndex2    ( CodingStructure&              cs,     unsigned        ctuRsAddr );
+  short       readAlfCtuFilterIndex     ( CodingStructure&              cs,     unsigned        ctuRsAddr );
 
   // coding (quad)tree (clause 7.3.11.4)
   bool        coding_tree               ( CodingStructure&              cs,     Partitioner&    pm,       CUCtx& cuCtx );

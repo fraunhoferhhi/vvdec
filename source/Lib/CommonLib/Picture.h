@@ -235,19 +235,6 @@ public:
 #endif
 
 public:
-  std::vector<CtuAlfData> m_ctuAlfData;
-  CtuAlfData& getCtuAlfData(int ctuAddr)
-  {
-    return m_ctuAlfData[ctuAddr];
-  }
-  const CtuAlfData& getCtuAlfData(int ctuAddr) const
-  {
-    return m_ctuAlfData[ctuAddr];
-  }
-  void resizeCtuAlfData(int numEntries)
-  {
-    m_ctuAlfData.resize(numEntries);
-  }
 
 #if  ENABLE_SIMD_OPT_PICTURE && defined( TARGET_SIMD_X86 )
   void initPictureX86();
