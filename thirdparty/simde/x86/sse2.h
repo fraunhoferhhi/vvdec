@@ -5915,10 +5915,9 @@ simde_mm_slli_epi32 (simde__m128i a, const int imm8)
     r_,
     a_ = simde__m128i_to_private(a);
 
-
   #if defined(SIMDE_ARM_NEON_A32V7_NATIVE)
-    const int cnt = (imm8 & ~15) ? 15 : imm8;
-    r_.neon_i16 = vshlq_s32(a_.neon_i32, vdupq_n_s32(HEDLEY_STATIC_CAST(int32_t, cnt)));
+    const int cnt = (imm8 & ~31) ? 31 : imm8;
+    r_.neon_i32 = vshlq_s32(a_.neon_i32, vdupq_n_s32(HEDLEY_STATIC_CAST(int32_t, cnt)));
   #elif defined(SIMDE_VECTOR_SUBSCRIPT_SCALAR)
     r_.i32 = a_.i32 << imm8;
   #else
