@@ -1241,32 +1241,32 @@ void PU::getInterMergeCandidates( const PredictionUnit &pu, MergeCtx& mrgCtx, Mo
     }
   }
 
-  uint32_t uiArrayAddr = cnt;
+  int iArrayAddr = cnt;
 
   int iNumRefIdx = slice.isInterB() ? std::min(slice.getNumRefIdx(REF_PIC_LIST_0), slice.getNumRefIdx(REF_PIC_LIST_1)) : slice.getNumRefIdx(REF_PIC_LIST_0);
 
   int r = 0;
   int refcnt = 0;
   // second condition needed for gcc-10 overflow checking. Required for now. TODO: fix properly
-  while (uiArrayAddr < maxNumMergeCand && uiArrayAddr < MRG_MAX_NUM_CANDS)
+  while (iArrayAddr < maxNumMergeCand && iArrayAddr < MRG_MAX_NUM_CANDS)
   {
-    mrgCtx.interDirNeighbours [uiArrayAddr     ] = 1;
-    mrgCtx.BcwIdx             [uiArrayAddr     ] = BCW_DEFAULT;
-    mrgCtx.mvFieldNeighbours  [uiArrayAddr << 1] . setMvField(Mv(0, 0), r);
-    mrgCtx.useAltHpelIf       [uiArrayAddr     ] = false;
+    mrgCtx.interDirNeighbours [iArrayAddr     ] = 1;
+    mrgCtx.BcwIdx             [iArrayAddr     ] = BCW_DEFAULT;
+    mrgCtx.mvFieldNeighbours  [iArrayAddr << 1] . setMvField(Mv(0, 0), r);
+    mrgCtx.useAltHpelIf       [iArrayAddr     ] = false;
 
     if (slice.isInterB())
     {
-      mrgCtx.interDirNeighbours [ uiArrayAddr          ] = 3;
-      mrgCtx.mvFieldNeighbours  [(uiArrayAddr << 1) + 1].setMvField(Mv(0, 0), r);
+      mrgCtx.interDirNeighbours [ iArrayAddr          ] = 3;
+      mrgCtx.mvFieldNeighbours  [(iArrayAddr << 1) + 1].setMvField(Mv(0, 0), r);
     }
 
-    if ( mrgCtx.interDirNeighbours[uiArrayAddr] == 1 && cu.slice->getRefPOC(REF_PIC_LIST_0, mrgCtx.mvFieldNeighbours[uiArrayAddr << 1].mfRefIdx) == cu.slice->getPOC())
+    if ( mrgCtx.interDirNeighbours[iArrayAddr] == 1 && cu.slice->getRefPOC(REF_PIC_LIST_0, mrgCtx.mvFieldNeighbours[iArrayAddr << 1].mfRefIdx) == cu.slice->getPOC())
     {
-      mrgCtx.mrgTypeNeighbours[uiArrayAddr] = MRG_TYPE_IBC;
+      mrgCtx.mrgTypeNeighbours[iArrayAddr] = MRG_TYPE_IBC;
     }
 
-    uiArrayAddr++;
+    iArrayAddr++;
 
     if (refcnt == iNumRefIdx - 1)
     {
@@ -1278,7 +1278,7 @@ void PU::getInterMergeCandidates( const PredictionUnit &pu, MergeCtx& mrgCtx, Mo
       ++refcnt;
     }
   }
-  mrgCtx.numValidMergeCand = uiArrayAddr;
+  mrgCtx.numValidMergeCand = iArrayAddr;
 }
 
 bool PU::checkDMVRCondition( const PredictionUnit& pu )
