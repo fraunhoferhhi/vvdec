@@ -89,14 +89,6 @@ void DecSlice::parseSlice( Slice* slice, InputBitstream* bitstream, int threadId
   const bool      wavefrontsEnabled           = cs.sps->getEntropyCodingSyncEnabledFlag();
   const bool      entryPointPresent           = cs.sps->getEntryPointsPresentFlag();
 
-  if( startCtuTsAddr == 0 )
-  {
-    cs.picture->resizeccAlfFilterControl( cs.pcv->sizeInCtus );
-    cs.picture->resizeAlfCtuEnableFlag  ( cs.pcv->sizeInCtus );
-    cs.picture->resizeAlfCtbFilterIndex ( cs.pcv->sizeInCtus );
-    cs.picture->resizeAlfCtuAlternative ( cs.pcv->sizeInCtus );
-  }
-
   AdaptiveLoopFilter::reconstructCoeffAPSs( *slice );
 
   CABACReader cabacReader;

@@ -74,9 +74,21 @@ enum PictureType
 // num collocated motion
 #define NUM_COMOT_IN_CTU ( MAX_CU_SIZE * MAX_CU_SIZE ) >> ( ( MIN_CU_LOG2 + 1 ) << 1 )
 
+
+struct CtuAlfData
+{
+  uint8_t ccAlfFilterControl[MAX_NUM_COMPONENT - 1];
+  uint8_t alfCtuEnableFlag  [MAX_NUM_COMPONENT];
+  uint8_t alfCtuAlternative [MAX_NUM_COMPONENT - 1];
+  short   alfCtbFilterIndex;
+
+  CtuAlfData() : ccAlfFilterControl{ 0, 0 }, alfCtuEnableFlag{ 0, 0, 0 } {}
+};
+
 struct CtuData
 {
   SAOBlkParam           saoParam;
+  CtuAlfData            alfParam;
   const Slice*          slice;
   const PPS*            pps;
   const SPS*            sps;
@@ -93,7 +105,6 @@ struct CtuData
   MotionInfo*           motion;
   ColocatedMotionInfo*  colMotion;
 };
-
 // ---------------------------------------------------------------------------
 // coding structure
 // ---------------------------------------------------------------------------

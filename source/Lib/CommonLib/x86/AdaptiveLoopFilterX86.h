@@ -1759,12 +1759,337 @@ void simdFilterBlkCcAlf<AVX2>( const PelBuf&      dstBuf,
 #endif
 
 template <X86_VEXT vext>
+void simdFilterBlkCcAlfBoth( const PelBuf& dstBufCb, const PelBuf& dstBufCr, const CPelUnitBuf& recSrcY,
+                             const Area& blkDst, const Area& blkSrc, const int16_t* filterCoeffCb,
+                             const int16_t* filterCoeffCr, const ClpRngs& clpRngs, int vbCTUHeight,
+                             int vbPos)
+{
+  CHECK(1 << getLog2(vbCTUHeight) != vbCTUHeight, "Not a power of 2");
+  
+  static constexpr int scaleBits = 7;  // 8-bits
+  static constexpr int clsSizeY = 4;
+  static constexpr int clsSizeX = 4;
+  
+  ChromaFormat nChromaFormat = recSrcY.chromaFormat;
+  const int startHeight = blkDst.y;
+  const int endHeight = blkDst.y + blkDst.height;
+  const int startWidth = blkDst.x;
+  const int endWidth = blkDst.x + blkDst.width;
+  const int scaleX = getComponentScaleX(COMPONENT_Cb, nChromaFormat);
+  const int scaleY = getComponentScaleY(COMPONENT_Cb, nChromaFormat);
+  
+  CHECKD(startHeight % clsSizeY, "Wrong startHeight in filtering");
+  CHECKD(startWidth % clsSizeX, "Wrong startWidth in filtering");
+  CHECKD((endHeight - startHeight) % clsSizeY, "Wrong endHeight in filtering");
+  CHECKD((endWidth - startWidth) % clsSizeX, "Wrong endWidth in filtering");
+  
+  const CPelBuf &srcBuf = recSrcY.get(COMPONENT_Y);
+  const ptrdiff_t lumaStride = srcBuf.stride;
+  const Pel *lumaPtr = srcBuf.buf + blkSrc.y * lumaStride + blkSrc.x;
+  
+  const ptrdiff_t cbStride = dstBufCb.stride;
+  const ptrdiff_t crStride = dstBufCr.stride;
+  Pel *cbPtr = dstBufCb.buf + blkDst.y * cbStride + blkDst.x;
+  Pel *crPtr = dstBufCr.buf + blkDst.y * crStride + blkDst.x;
+  
+  if (getChannelTypeScaleX(CH_C, nChromaFormat) == 1) {
+    __m128i xfilterCoeffCb[4];
+    xfilterCoeffCb[0] = _mm_set1_epi32((filterCoeffCb[1] & 0xffff) | (filterCoeffCb[2] << 16));
+    xfilterCoeffCb[1] = _mm_set1_epi32((filterCoeffCb[0] & 0xffff) | (filterCoeffCb[3] << 16));
+    xfilterCoeffCb[2] = _mm_set1_epi32((filterCoeffCb[4] & 0xffff) | (filterCoeffCb[5] << 16));
+    xfilterCoeffCb[3] = _mm_set1_epi32((filterCoeffCb[6] & 0xffff));
+    __m128i xfilterCoeffCr[4];
+    xfilterCoeffCr[0] = _mm_set1_epi32((filterCoeffCr[1] & 0xffff) | (filterCoeffCr[2] << 16));
+    xfilterCoeffCr[1] = _mm_set1_epi32((filterCoeffCr[0] & 0xffff) | (filterCoeffCr[3] << 16));
+    xfilterCoeffCr[2] = _mm_set1_epi32((filterCoeffCr[4] & 0xffff) | (filterCoeffCr[5] << 16));
+    xfilterCoeffCr[3] = _mm_set1_epi32((filterCoeffCr[6] & 0xffff));
+    
+    for (int i = 0; i < endHeight - startHeight; i += clsSizeY) {
+      for (int j = 0; j < endWidth - startWidth; j += clsSizeX) {
+        for (int ii = 0; ii < clsSizeY; ii++) {
+          int row = ii;
+          int col = j;
+          Pel *srcSelfCb = cbPtr + col + row * cbStride;
+          Pel *srcSelfCr = crPtr + col + row * crStride;
+          
+          ptrdiff_t offset1 = lumaStride;
+          ptrdiff_t offset2 = -lumaStride;
+          ptrdiff_t offset3 = 2 * lumaStride;
+          row <<= scaleY;
+          col <<= scaleX;
+          const Pel *srcCross = lumaPtr + col + row * lumaStride;
+          
+          int pos = ((startHeight + i + ii) << scaleY) & (vbCTUHeight - 1);
+          if (pos == (vbPos - 2) || pos == (vbPos + 1)) {
+            offset3 = offset1;
+          } else if (pos == (vbPos - 1) || pos == vbPos) {
+            offset1 = 0;
+            offset2 = 0;
+            offset3 = 0;
+          }
+          
+          const int offset0 = 0;
+          
+          __m128i xin0 = _mm_loadu_si128((const __m128i *)&srcCross[offset0 - 1]);
+          __m128i xsrcCross = _mm_loadu_si128((const __m128i *)&srcCross[offset0]);
+          __m128i xsumCb = _mm_set1_epi32(1 << (scaleBits - 1));
+          __m128i xsumCr = xsumCb;
+          
+          xin0 = _mm_blend_epi16(xin0, xsrcCross, 0 + 2 + 8 + 32 + 128);
+          
+          xsrcCross = _mm_shufflelo_epi16(xsrcCross, (0 << 0) + (0 << 2) + (2 << 4) + (2 << 6));
+          xsrcCross = _mm_shufflehi_epi16(xsrcCross, (0 << 0) + (0 << 2) + (2 << 4) + (2 << 6));
+          
+          xin0 = _mm_sub_epi16(xin0, xsrcCross);
+          __m128i xinCb = _mm_madd_epi16(xin0, xfilterCoeffCb[0]);
+          __m128i xinCr = _mm_madd_epi16(xin0, xfilterCoeffCr[0]);
+          
+          xsumCb = _mm_add_epi32(xsumCb, xinCb);
+          xsumCr = _mm_add_epi32(xsumCr, xinCr);
+          
+          xin0 = _mm_loadu_si128((const __m128i *)&srcCross[offset2]);
+          __m128i xin1 = _mm_loadu_si128((const __m128i *)&srcCross[offset1 - 2]);
+          xin0 = _mm_blend_epi16(xin0, xin1, 0 + 2 + 8 + 32 + 128);
+          
+          xin0 = _mm_sub_epi16(xin0, xsrcCross);
+          xinCb = _mm_madd_epi16(xin0, xfilterCoeffCb[1]);
+          xinCr = _mm_madd_epi16(xin0, xfilterCoeffCr[1]);
+          
+          xsumCb = _mm_add_epi32(xsumCb, xinCb);
+          xsumCr = _mm_add_epi32(xsumCr, xinCr);
+          
+          xin0 = _mm_loadu_si128((const __m128i *)&srcCross[offset1]);
+          xin0 = _mm_sub_epi16(xin0, xsrcCross);
+          xinCb = _mm_madd_epi16(xin0, xfilterCoeffCb[2]);
+          xinCr = _mm_madd_epi16(xin0, xfilterCoeffCr[2]);
+          
+          xsumCb = _mm_add_epi32(xsumCb, xinCb);
+          xsumCr = _mm_add_epi32(xsumCr, xinCr);
+          
+          xin0 = _mm_loadu_si128((const __m128i *)&srcCross[offset3]);
+          xin0 = _mm_sub_epi16(xin0, xsrcCross);
+          xinCb = _mm_madd_epi16(xin0, xfilterCoeffCb[3]);
+          xinCr = _mm_madd_epi16(xin0, xfilterCoeffCr[3]);
+          
+          xsumCb = _mm_add_epi32(xsumCb, xinCb);
+          xsumCr = _mm_add_epi32(xsumCr, xinCr);
+          xsumCb = _mm_srai_epi32(xsumCb, scaleBits);
+          xsumCr = _mm_srai_epi32(xsumCr, scaleBits);
+          
+          __m128i xsum = _mm_packs_epi32(xsumCb, xsumCr);
+          xin0 = _mm_set1_epi16(1 << clpRngs.bd >> 1);
+          xsum = _mm_add_epi16(xsum, xin0);
+          
+          xsum = _mm_max_epi16(_mm_setzero_si128(), xsum);
+          xsum = _mm_min_epi16(_mm_set1_epi16(clpRngs.max()), xsum);
+          xsum = _mm_sub_epi16(xsum, xin0);
+          
+          xsumCb = xsum;
+          xsumCr = _mm_srli_si128(xsum, 8);
+          
+          xin0 = _mm_loadl_epi64((const __m128i *)&srcSelfCb[0]);
+          xin1 = _mm_loadl_epi64((const __m128i *)&srcSelfCr[0]);
+          xin0 = _mm_add_epi16(xsumCb, xin0);
+          xin1 = _mm_add_epi16(xsumCr, xin1);
+          
+          xin0 = _mm_max_epi16(_mm_setzero_si128(), xin0);
+          xin1 = _mm_max_epi16(_mm_setzero_si128(), xin1);
+          xin0 = _mm_min_epi16(_mm_set1_epi16(clpRngs.max()), xin0);
+          xin1 = _mm_min_epi16(_mm_set1_epi16(clpRngs.max()), xin1);
+          
+          _mm_storel_epi64((__m128i *)&srcSelfCb[0], xin0);
+          _mm_storel_epi64((__m128i *)&srcSelfCr[0], xin1);
+        }
+      }
+      
+      cbPtr += cbStride * clsSizeY;
+      crPtr += crStride * clsSizeY;
+      lumaPtr += lumaStride * clsSizeY << getComponentScaleY(COMPONENT_Cb, nChromaFormat);
+    }
+  } else {
+    // TODO: implement for 444 subsampling
+    AdaptiveLoopFilter::filterBlkCcAlfBoth( dstBufCb, dstBufCr, recSrcY, blkDst, blkSrc, filterCoeffCb,
+                                            filterCoeffCr, clpRngs, vbCTUHeight, vbPos );
+  }
+}
+
+#  if USE_AVX2
+template <>
+void simdFilterBlkCcAlfBoth<AVX2>( const PelBuf& dstBufCb, const PelBuf& dstBufCr, const CPelUnitBuf& recSrcY,
+                                   const Area& blkDst, const Area& blkSrc, const int16_t* filterCoeffCb,
+                                   const int16_t* filterCoeffCr, const ClpRngs& clpRngs, int vbCTUHeight,
+                                   int vbPos)
+{
+  if (blkDst.width & 7) {
+    simdFilterBlkCcAlfBoth<SSE42>( dstBufCb, dstBufCr, recSrcY, blkDst, blkSrc, filterCoeffCb, filterCoeffCr, clpRngs, vbCTUHeight, vbPos );
+    return;
+  }
+  
+  CHECK(1 << getLog2(vbCTUHeight) != vbCTUHeight, "Not a power of 2");
+
+  static constexpr int scaleBits = 7;  // 8-bits
+  static constexpr int clsSizeY = 4;
+  static constexpr int clsSizeX = 4;
+
+  ChromaFormat nChromaFormat = recSrcY.chromaFormat;
+  const int startHeight = blkDst.y;
+  const int endHeight = blkDst.y + blkDst.height;
+  const int startWidth = blkDst.x;
+  const int endWidth = blkDst.x + blkDst.width;
+//  const int scaleX = getComponentScaleX(COMPONENT_Cb, nChromaFormat);
+  const int scaleY = getComponentScaleY(COMPONENT_Cb, nChromaFormat);
+
+  CHECK(startHeight % clsSizeY, "Wrong startHeight in filtering");
+  CHECK(startWidth % clsSizeX, "Wrong startWidth in filtering");
+  CHECK((endHeight - startHeight) % clsSizeY, "Wrong endHeight in filtering");
+  CHECK((endWidth - startWidth) % clsSizeX, "Wrong endWidth in filtering");
+
+  const CPelBuf &srcBuf = recSrcY.get(COMPONENT_Y);
+  const ptrdiff_t lumaStride = srcBuf.stride;
+  const Pel *lumaPtr = srcBuf.buf + blkSrc.y * lumaStride + blkSrc.x;
+
+  const ptrdiff_t cbStride = dstBufCb.stride;
+  const ptrdiff_t crStride = dstBufCr.stride;
+  Pel *cbPtr = dstBufCb.buf + blkDst.y * cbStride + blkDst.x;
+  Pel *crPtr = dstBufCr.buf + blkDst.y * crStride + blkDst.x;
+
+  if (getChannelTypeScaleX(CH_C, nChromaFormat) == 1) {
+    static constexpr int scaleX = 1;
+
+    __m256i vfilterCoeffCb[4];
+    vfilterCoeffCb[0] = _mm256_set1_epi32((filterCoeffCb[1] & 0xffff) | (filterCoeffCb[2] << 16));
+    vfilterCoeffCb[1] = _mm256_set1_epi32((filterCoeffCb[0] & 0xffff) | (filterCoeffCb[3] << 16));
+    vfilterCoeffCb[2] = _mm256_set1_epi32((filterCoeffCb[4] & 0xffff) | (filterCoeffCb[5] << 16));
+    vfilterCoeffCb[3] = _mm256_set1_epi32((filterCoeffCb[6] & 0xffff));
+    __m256i vfilterCoeffCr[4];
+    vfilterCoeffCr[0] = _mm256_set1_epi32((filterCoeffCr[1] & 0xffff) | (filterCoeffCr[2] << 16));
+    vfilterCoeffCr[1] = _mm256_set1_epi32((filterCoeffCr[0] & 0xffff) | (filterCoeffCr[3] << 16));
+    vfilterCoeffCr[2] = _mm256_set1_epi32((filterCoeffCr[4] & 0xffff) | (filterCoeffCr[5] << 16));
+    vfilterCoeffCr[3] = _mm256_set1_epi32((filterCoeffCr[6] & 0xffff));
+    
+    __m128i xmax16 = _mm_set1_epi16(clpRngs.max());
+    __m256i vmax16 = _mm256_set1_epi16(clpRngs.max());
+    __m256i vin0_0 = _mm256_set1_epi16(1 << clpRngs.bd >> 1);
+
+    for (int i = 0; i < endHeight - startHeight; i += clsSizeY) {
+      for (int j = 0; j < endWidth - startWidth; j += 8) {
+        for (int ii = 0; ii < clsSizeY; ii++) {
+          int row = ii;
+          int col = j;
+          Pel *srcSelfCb = cbPtr + col + row * cbStride;
+          Pel *srcSelfCr = crPtr + col + row * crStride;
+
+          ptrdiff_t offset1 = lumaStride;
+          ptrdiff_t offset2 = -lumaStride;
+          ptrdiff_t offset3 = 2 * lumaStride;
+          row <<= scaleY;
+          col <<= scaleX;
+          const Pel *srcCross = lumaPtr + col + row * lumaStride;
+
+          int pos = ((startHeight + i + ii) << scaleY) & (vbCTUHeight - 1);
+          if (pos == (vbPos - 2) || pos == (vbPos + 1)) {
+            offset3 = offset1;
+          } else if (pos == (vbPos - 1) || pos == vbPos) {
+            offset1 = 0;
+            offset2 = 0;
+            offset3 = 0;
+          }
+
+          const int offset0 = 0;
+
+          __m256i vin0 = _mm256_loadu_si256((const __m256i *)&srcCross[offset0 - 1]);
+          __m256i vsrcCross = _mm256_loadu_si256((const __m256i *)&srcCross[offset0]);
+          __m256i vsumCb = _mm256_set1_epi32(1 << (scaleBits - 1));
+          __m256i vsumCr = vsumCb;
+
+          vin0 = _mm256_blend_epi16(vin0, vsrcCross, 0 + 2 + 8 + 32 + 128);
+
+          vsrcCross = _mm256_shufflelo_epi16(vsrcCross, (0 << 0) + (0 << 2) + (2 << 4) + (2 << 6));
+          vsrcCross = _mm256_shufflehi_epi16(vsrcCross, (0 << 0) + (0 << 2) + (2 << 4) + (2 << 6));
+
+          vin0 = _mm256_sub_epi16(vin0, vsrcCross);
+          __m256i vinCb = _mm256_madd_epi16(vin0, vfilterCoeffCb[0]);
+          __m256i vinCr = _mm256_madd_epi16(vin0, vfilterCoeffCr[0]);
+
+          vsumCb = _mm256_add_epi32(vsumCb, vinCb);
+          vsumCr = _mm256_add_epi32(vsumCr, vinCr);
+
+          vin0 = _mm256_loadu_si256((const __m256i *)&srcCross[offset2]);
+          __m256i vin1 = _mm256_loadu_si256((const __m256i *)&srcCross[offset1 - 2]);
+          vin0 = _mm256_blend_epi16(vin0, vin1, 2 + 8 + 32 + 128);
+
+          vin0 = _mm256_sub_epi16(vin0, vsrcCross);
+          vinCb = _mm256_madd_epi16(vin0, vfilterCoeffCb[1]);
+          vinCr = _mm256_madd_epi16(vin0, vfilterCoeffCr[1]);
+
+          vsumCb = _mm256_add_epi32(vsumCb, vinCb);
+          vsumCr = _mm256_add_epi32(vsumCr, vinCr);
+
+          vin0 = _mm256_loadu_si256((const __m256i *)&srcCross[offset1]);
+          vin0 = _mm256_sub_epi16(vin0, vsrcCross);
+          vinCb = _mm256_madd_epi16(vin0, vfilterCoeffCb[2]);
+          vinCr = _mm256_madd_epi16(vin0, vfilterCoeffCr[2]);
+
+          vsumCb = _mm256_add_epi32(vsumCb, vinCb);
+          vsumCr = _mm256_add_epi32(vsumCr, vinCr);
+
+          vin0 = _mm256_loadu_si256((const __m256i *)&srcCross[offset3]);
+          vin0 = _mm256_sub_epi16(vin0, vsrcCross);
+          vinCb = _mm256_madd_epi16(vin0, vfilterCoeffCb[3]);
+          vinCr = _mm256_madd_epi16(vin0, vfilterCoeffCr[3]);
+
+          vsumCb = _mm256_add_epi32(vsumCb, vinCb);
+          vsumCr = _mm256_add_epi32(vsumCr, vinCr);
+          vsumCb = _mm256_srai_epi32(vsumCb, scaleBits);
+          vsumCr = _mm256_srai_epi32(vsumCr, scaleBits);
+
+          __m256i vsum = _mm256_packs_epi32(vsumCb, vsumCr);
+          vsum = _mm256_permute4x64_epi64(vsum, (0 << 0) + (2 << 2) + (1 << 4) + (3 << 6));
+          
+          vin0 = vin0_0;
+          vsum = _mm256_add_epi16(vsum, vin0);
+
+          vsum = _mm256_max_epi16(_mm256_setzero_si256(), vsum);
+          vsum = _mm256_min_epi16(vmax16, vsum);
+          vsum = _mm256_sub_epi16(vsum, vin0);
+
+          __m128i xin0 = _mm_loadu_si128((const __m128i *)&srcSelfCb[0]);
+          __m128i xin1 = _mm_loadu_si128((const __m128i *)&srcSelfCr[0]);
+          __m128i vaddCb = _mm256_castsi256_si128(vsum);
+          __m128i vaddCr = _mm256_extracti128_si256(vsum, 1);
+          xin0 = _mm_add_epi16(xin0, vaddCb);
+          xin1 = _mm_add_epi16(xin1, vaddCr);
+
+          xin0 = _mm_max_epi16(_mm_setzero_si128(), xin0);
+          xin1 = _mm_max_epi16(_mm_setzero_si128(), xin1);
+          xin0 = _mm_min_epi16(xmax16, xin0);
+          xin1 = _mm_min_epi16(xmax16, xin1);
+
+          _mm_storeu_si128((__m128i *)&srcSelfCb[0], xin0);
+          _mm_storeu_si128((__m128i *)&srcSelfCr[0], xin1);
+        }
+      }
+      
+      cbPtr += cbStride * clsSizeY;
+      crPtr += crStride * clsSizeY;
+      lumaPtr += lumaStride * clsSizeY << getComponentScaleY(COMPONENT_Cb, nChromaFormat);
+    }
+  } else {
+    // TODO: implement for 444 subsampling
+    AdaptiveLoopFilter::filterBlkCcAlfBoth( dstBufCb, dstBufCr, recSrcY, blkDst, blkSrc, filterCoeffCb,
+                                            filterCoeffCr, clpRngs, vbCTUHeight, vbPos );
+  }
+}
+#  endif
+
+template <X86_VEXT vext>
 void AdaptiveLoopFilter::_initAdaptiveLoopFilterX86()
 {
   m_deriveClassificationBlk = simdDeriveClassificationBlk<vext>;
   m_filter5x5Blk            = simdFilter5x5Blk<vext>;
   m_filter7x7Blk            = simdFilter7x7Blk<vext>;
   m_filterCcAlf             = simdFilterBlkCcAlf<vext>;
+  m_filterCcAlfBoth         = simdFilterBlkCcAlfBoth<vext>;
 }
 
 template void AdaptiveLoopFilter::_initAdaptiveLoopFilterX86<SIMDX86>();
