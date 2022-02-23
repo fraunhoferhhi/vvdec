@@ -5893,9 +5893,9 @@ simde_mm_slli_epi16 (simde__m128i a, const int imm8)
 //        ((imm8) > 15) ? \
 //          vandq_s16(simde__m128i_to_neon_i16(a), vdupq_n_s16(0)) : \
 //          vshlq_n_s16(simde__m128i_to_neon_i16(a), ((imm8) & 15))))
-//#elif defined(SIMDE_WASM_SIMD128_NATIVE)
-//  #define simde_mm_slli_epi16(a, imm8) \
-//    ((imm8 < 16) ? wasm_i16x8_shl(simde__m128i_to_private(a).wasm_v128, imm8) : wasm_i16x8_const(0,0,0,0,0,0,0,0))
+#elif defined(SIMDE_WASM_SIMD128_NATIVE)
+  #define simde_mm_slli_epi16(a, imm8) \
+    ((imm8 < 16) ? wasm_i16x8_shl(simde__m128i_to_private(a).wasm_v128, imm8) : wasm_i16x8_const(0,0,0,0,0,0,0,0))
 //#elif defined(SIMDE_POWER_ALTIVEC_P6_NATIVE)
 //  #define simde_mm_slli_epi16(a, imm8) \
 //    ((imm8 & ~15) ? simde_mm_setzero_si128() : simde__m128i_from_altivec_i16(vec_sl(simde__m128i_to_altivec_i16(a), vec_splat_u16(HEDLEY_STATIC_CAST(unsigned short, imm8)))))
@@ -5939,24 +5939,24 @@ simde_mm_slli_epi32 (simde__m128i a, const int imm8)
 //        ((imm8) > 31) ? \
 //          vandq_s32(simde__m128i_to_neon_i32(a), vdupq_n_s32(0)) : \
 //          vshlq_n_s32(simde__m128i_to_neon_i32(a), ((imm8) & 31))))
-//#elif defined(SIMDE_WASM_SIMD128_NATIVE)
-//  #define simde_mm_slli_epi32(a, imm8) \
-//    ((imm8 < 32) ? wasm_i32x4_shl(simde__m128i_to_private(a).wasm_v128, imm8) : wasm_i32x4_const(0,0,0,0))
-//#elif defined(SIMDE_POWER_ALTIVEC_P6_NATIVE)
-//  #define simde_mm_slli_epi32(a, imm8) \
-//     (__extension__ ({ \
-//       simde__m128i ret; \
-//       if ((imm8) <= 0) { \
-//         ret = a; \
-//       } else if ((imm8) > 31) { \
-//         ret = simde_mm_setzero_si128(); \
-//       } else { \
-//         ret = simde__m128i_from_altivec_i32( \
-//           vec_sl(simde__m128i_to_altivec_i32(a), \
-//             vec_splats(HEDLEY_STATIC_CAST(unsigned int, (imm8) & 31)))); \
-//       } \
-//       ret; \
-//     }))
+#elif defined(SIMDE_WASM_SIMD128_NATIVE)
+  #define simde_mm_slli_epi32(a, imm8) \
+    ((imm8 < 32) ? wasm_i32x4_shl(simde__m128i_to_private(a).wasm_v128, imm8) : wasm_i32x4_const(0,0,0,0))
+#elif defined(SIMDE_POWER_ALTIVEC_P6_NATIVE)
+  #define simde_mm_slli_epi32(a, imm8) \
+     (__extension__ ({ \
+       simde__m128i ret; \
+       if ((imm8) <= 0) { \
+         ret = a; \
+       } else if ((imm8) > 31) { \
+         ret = simde_mm_setzero_si128(); \
+       } else { \
+         ret = simde__m128i_from_altivec_i32( \
+           vec_sl(simde__m128i_to_altivec_i32(a), \
+             vec_splats(HEDLEY_STATIC_CAST(unsigned int, (imm8) & 31)))); \
+       } \
+       ret; \
+     }))
 #endif
 #if defined(SIMDE_X86_SSE2_ENABLE_NATIVE_ALIASES)
   #define _mm_slli_epi32(a, imm8) simde_mm_slli_epi32(a, imm8)
