@@ -2644,8 +2644,8 @@ simde_mm_cvtpd_ps (simde__m128d a) {
 
     #if defined(SIMDE_ARM_NEON_A64V8_NATIVE)
       r_.neon_f32 = vcombine_f32(vcvt_f32_f64(a_.neon_f64), vdup_n_f32(0.0f));
-    #elif defined(SIMDE_POWER_ALTIVEC_P7_NATIVE)
-      r_.altivec_f32 = vec_float2(a_.altivec_f64, vec_splats(0.0));
+//    #elif defined(SIMDE_POWER_ALTIVEC_P7_NATIVE)
+//      r_.altivec_f32 = vec_float2(a_.altivec_f64, vec_splats(0.0));
     #elif defined(SIMDE_WASM_SIMD128_NATIVE)
       r_.wasm_v128 = wasm_f32x4_demote_f64x2_zero(a_.wasm_v128);
     #elif HEDLEY_HAS_BUILTIN(__builtin_shufflevector) && HEDLEY_HAS_BUILTIN(__builtin_convertvector)
