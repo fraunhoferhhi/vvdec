@@ -452,6 +452,11 @@ void  IntraPredSampleFilter_SIMD(Pel *ptrSrc,const ptrdiff_t srcStride,PelBuf &p
     __m256i vbdmax   = _mm256_set1_epi32( clpRng.max() );
     __m256i wl16,wl16start;
 
+#ifndef REAL_TARGET_X86
+    // on some platforms gcc thinks this is used uninitialized with simd-everywhere
+    wl16start = _mm256_setzero_si256();
+#endif
+
     if (scale==0)
     {
       wl16start = _mm256_set_epi16(0,0,0,0,0,0,0,0,0,0,0,0,0,2,8,32);

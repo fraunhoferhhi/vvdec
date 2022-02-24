@@ -1487,6 +1487,11 @@ static void simdInterpolateN2_2D( const ClpRng& clpRng, const Pel* src, const pt
 #endif
     __m128i mmLast4H;
 
+#ifndef REAL_TARGET_X86
+    // on some platforms gcc thinks this is used uninitialized with simd-everywhere
+    mmLastH[0] = _mm_setzero_si128();
+#endif
+
     for( int row = -1; row < height; row++ )
     {
       _mm_prefetch( ( const char * ) &src[srcStride], _MM_HINT_T0 );

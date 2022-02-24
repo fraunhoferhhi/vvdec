@@ -136,6 +136,9 @@ typedef enum
 #elif VVDEC_ARCH_WASM
   VVDEC_SIMD_WASM     = 2,
   VVDEC_SIMD_MAX      = VVDEC_SIMD_WASM
+#else
+  VVDEC_SIMD_SIMDE_ANY= 2,
+  VVDEC_SIMD_MAX      = VVDEC_SIMD_SIMDE_ANY
 #endif
 }vvdecSIMD_Extension;
 

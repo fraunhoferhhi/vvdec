@@ -323,6 +323,8 @@ public:
           case VVDEC_SIMD_NEON:    cll = "NEON";      break;
 #elif VVDEC_ARCH_WASM
           case VVDEC_SIMD_WASM:    cll = "WASM-SIMD"; break;
+#else
+          case VVDEC_SIMD_SIMDE_ANY:cll = "SIMDE-ANY"; break;
 #endif
           default:                 return -1;
           };

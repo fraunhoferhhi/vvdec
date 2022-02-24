@@ -74,7 +74,9 @@ The Fraunhofer Versatile Video Decoder (VVdeC) is a fast H.266/VVC software deco
   </tr>
 </table>
 
-:white_check_mark: tested and works :black_square_button: needs testing (might aleady work) :x: does not work
+:white_check_mark: tested and works :black_square_button: needs testing (might already work) :x: does not work
+
+Other architectures and platforms might work, see the [Wiki](https://github.com/fraunhoferhhi/vvdec/wiki#supported-architectures).
 
 ## Information
 
@@ -110,7 +112,7 @@ For multi-configuration projects (e.g. Visual Studio or Xcode) specify `--config
 
 ### How to build using GNU Make?
 
-On top of the CMake build system, convinence Makefile is provided to simplify the build process. To build using GNU Make please run the following:
+On top of the CMake build system, convenience Makefile is provided to simplify the build process. To build using GNU Make please run the following:
 
 ```sh
 make install-release <options>
