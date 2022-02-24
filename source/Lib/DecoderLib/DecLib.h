@@ -133,6 +133,7 @@ private:
   int      finishPicture    ( Picture* pcPic, MsgLevel msgl = INFO );
 #endif
   Picture* getNextOutputPic ( bool bFlush = false );
+  void     blockAndFinishPictures( Picture* pcPic = nullptr );   // iterate over DecLibRecon instances and wait to finish picture(s)
   void     xCheckNalUnitConstraintFlags( const ConstraintInfo *cInfo, uint32_t naluType );
 };
 

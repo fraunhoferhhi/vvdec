@@ -150,18 +150,27 @@ public:
   std::chrono::time_point<std::chrono::steady_clock> m_processingStartTime;
   double                                             m_dProcessingTime = 0;
 
-  bool             subPicExtStarted = false;
-  bool             borderExtStarted = false;
-  bool             referenced       = false;
-  std::atomic_bool reconstructed{ false };
-  bool             inProgress              = false;
-  bool             neededForOutput         = false;
-  bool             wasLost                 = false;
-  bool             longTerm                = false;
-  bool             topField                = false;
-  bool             fieldPic                = false;
-  bool             nonReferencePictureFlag = false;
-  int              skippedDecCount         = 0;
+  enum PicStateEnum
+  {
+    parsing,
+    parsed,
+    reconstructing,
+    reconstructed,
+    finished
+  };
+  using PicState = std::atomic<PicStateEnum>;
+
+  bool     subPicExtStarted = false;
+  bool     borderExtStarted = false;
+  bool     referenced       = false;
+  PicState progress{ parsing };
+  bool     neededForOutput         = false;
+  bool     wasLost                 = false;
+  bool     longTerm                = false;
+  bool     topField                = false;
+  bool     fieldPic                = false;
+  bool     nonReferencePictureFlag = false;
+  int      skippedDecCount         = 0;
 
   bool              picCheckedDPH = false;
   std::vector<bool> subpicsCheckedDPH;

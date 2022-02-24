@@ -136,7 +136,7 @@ Picture* PicListManager::getNewPicBuffer( const SPS& sps, const PPS& pps, const 
   for( PicList::iterator itPic = m_cPicList.begin(); itPic != m_cPicList.end(); ++itPic )
   {
     Picture* pic = *itPic;
-    if( pic->inProgress || pic->referenced || pic->neededForOutput || pic->lockedByApplication )
+    if( pic->progress < Picture::reconstructed || pic->referenced || pic->neededForOutput || pic->lockedByApplication )
     {
       continue;
     }
@@ -258,7 +258,7 @@ void PicListManager::applyDoneReferencePictureMarking()
 
     // mark the picture as "unused for reference" if it is not in
     // the Reference Picture List
-    CHECK( !itPic->reconstructed, "all pictures, for which we apply reference pic marking should have been reconstructed" )
+    CHECK( itPic->progress < Picture::reconstructed, "all pictures, for which we apply reference pic marking should have been reconstructed" )
     if( !isReference )
     {
       itPic->referenced = false;
@@ -275,7 +275,7 @@ Picture* PicListManager::findClosestPic( int iLostPoc )
   Picture* closestPic = nullptr;
   for( auto& rpcPic: m_cPicList )
   {
-    if( rpcPic->reconstructed && abs( rpcPic->getPOC() - iLostPoc ) < closestPoc
+    if( rpcPic->progress >= Picture::reconstructed && abs( rpcPic->getPOC() - iLostPoc ) < closestPoc
         && abs( rpcPic->getPOC() - iLostPoc ) != 0 )
     {
       closestPoc = abs( rpcPic->getPOC() - iLostPoc );
@@ -303,7 +303,7 @@ Picture* PicListManager::getNextOutputPic( uint32_t numReorderPicsHighestTid,
   bool foundOutputPic = false;
   for( auto itPic = seqStart; itPic != m_cPicList.cend(); ++itPic )
   {
-    if( !(*itPic)->reconstructed )
+    if( (*itPic)->progress < Picture::finished )
     {
       seqEnd = itPic;
       break;
@@ -342,15 +342,19 @@ Picture* PicListManager::getNextOutputPic( uint32_t numReorderPicsHighestTid,
   for( auto& p: m_cPicList )
   {
     char stateC = ' ';
-    if     ( !p->neededForOutput )                  stateC = 'o';
-    else if( p->reconstructed )                     stateC = 'X';
-    else if( p->inProgress )                        stateC = 'x';
-    else if( !p->slices[0]->parseDone.isBlocked() ) stateC = '.';
-
-    if( stateC == 'o' )
-    {
-      if( p->referenced )          stateC = 'R';
-      if( p->lockedByApplication ) stateC = 'L';
+    switch (p->progress) {
+    case Picture::parsing:        stateC = 'p'; break;
+    case Picture::parsed:         stateC = '.'; break;
+    case Picture::reconstructing: stateC = 'x'; break;
+    default:
+    case Picture::reconstructed:
+    case Picture::finished:       stateC = 'X';
+      if( !p->neededForOutput )
+      {
+        stateC = 'o';
+        if( p->lockedByApplication ) stateC = 'L';
+        else if( p->referenced )     stateC = 'R';
+      }
     }
     std::cout << p->poc << stateC << ' ';
   }
@@ -359,7 +363,7 @@ Picture* PicListManager::getNextOutputPic( uint32_t numReorderPicsHighestTid,
 //  std::cout << "range: ";
 //  for( auto& p: picRange )
 //  {
-//    std::cout << p->poc << ( p->reconstructed ? "x" : " " ) << " ";
+//    std::cout << p->poc << ( p->progress >= Picture::finished ? "x" : " " ) << " ";
 //  }
   std::cout << std::flush;
 #endif
@@ -384,12 +388,12 @@ Picture* PicListManager::getNextOutputPic( uint32_t numReorderPicsHighestTid,
   {
     for( auto& pcPic: picRange )
     {
-      if( pcPic->neededForOutput && pcPic->reconstructed )
+      if( pcPic->neededForOutput && pcPic->progress >= Picture::finished )
       {
         numPicsNotYetDisplayed++;
         dpbFullness++;
       }
-      else if( pcPic->referenced && pcPic->reconstructed )   // !reconstructed means parsing started but not decoding
+      else if( pcPic->referenced && pcPic->progress >= Picture::finished )
       {
         dpbFullness++;
       }
@@ -399,7 +403,7 @@ Picture* PicListManager::getNextOutputPic( uint32_t numReorderPicsHighestTid,
   IF_DEBUG_PIC_ORDER( std::cout << "   " << numPicsNotYetDisplayed << '/' << numReorderPicsHighestTid << " "<< dpbFullness << '/' << maxDecPicBufferingHighestTid << "   " );
 
   Picture * lowestPOCPic = nullptr;
-  if( numPicsNotYetDisplayed > numReorderPicsHighestTid + ( m_firstOutputPic ? m_parallelDecInst + 1 : 0 )
+  if( numPicsNotYetDisplayed > numReorderPicsHighestTid + ( m_firstOutputPic ? MAX_OUT_OF_ORDER_PICS : 0 )
 //      || dpbFullness > maxDecPicBufferingHighestTid
       || bFlush )
   {
@@ -408,7 +412,7 @@ Picture* PicListManager::getNextOutputPic( uint32_t numReorderPicsHighestTid,
     {
       //CHECK( pcPic->fieldPic, "Interlaced not suported" );
 
-      if( pcPic->neededForOutput && pcPic->reconstructed &&
+      if( pcPic->neededForOutput && pcPic->progress >= Picture::finished &&
           ( lowestPOCPic==nullptr || pcPic->poc < lowestPOCPic->poc ) )
       {
         lowestPOCPic = pcPic;

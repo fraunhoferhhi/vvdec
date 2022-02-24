@@ -866,7 +866,7 @@ void Slice::checkLeadingPictureRestrictions( const PicListRange & rcListPic ) co
   // loop through all pictures in the reference picture buffer
   for( auto & pcPic: rcListPic )
   {
-    if( !pcPic->reconstructed || pcPic->wasLost )
+    if( pcPic->progress < Picture::reconstructed || pcPic->wasLost )
     {
       continue;
     }

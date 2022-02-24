@@ -195,7 +195,13 @@ void DecSlice::parseSlice( Slice* slice, InputBitstream* bitstream, int threadId
     pic->ctuParsedBarrier[ctuRsAddr].unlock();
 #endif
 
-    if( ctuRsAddr + 1 == pic->cs->pcv->sizeInCtus ) pic->parseDone.unlock();
+    if( ctuRsAddr + 1 == pic->cs->pcv->sizeInCtus )
+    {
+      Picture::PicStateEnum expected = Picture::parsing;
+      pic->progress.compare_exchange_strong( expected, Picture::parsed );   // if RECO_WHILE_PARSE reconstruction can already have started, so we make sure to not overwrite that state
+
+      pic->parseDone.unlock();
+    }
   }
 }
 

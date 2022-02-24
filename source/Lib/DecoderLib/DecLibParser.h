@@ -148,7 +148,7 @@ private:
 
   unsigned int              m_numDecThreads   = 0;
   unsigned int              m_parseFrameDelay = 0;
-  std::deque<Picture*>      m_parseFrameList;
+  PicList                   m_parseFrameList;
   int                       m_maxPicReconSkip = 1;
 
   CUChunkCache              m_cuChunkCache;

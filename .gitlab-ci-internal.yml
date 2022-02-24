@@ -210,6 +210,7 @@ build_wasm:
    image: $CI_REGISTRY_IMAGE/emscripten-hhi:latest
    script:
      - source /opt/emsdk/emsdk_env.sh
+     - emcc --version
      - emcmake cmake -GNinja -B build/wasm -DVVDEC_ENABLE_X86_SIMD=TRUE
      - cmake --build build/wasm
      - cmake --build build/wasm -t install

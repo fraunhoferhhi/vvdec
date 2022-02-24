@@ -74,6 +74,8 @@ namespace vvdec
 #define RECO_WHILE_PARSE                                  1
 #define ALLOW_MIDER_LF_DURING_PICEXT                      1
 
+#define MAX_OUT_OF_ORDER_PICS                             3 // maximum number of pictures, that are reconstructed out of order
+
 #define JVET_O1170_CHECK_BV_AT_DECODER                    0 // For decoder to check if a BV is valid or not
 
 #define DISABLE_CONFROMANCE_CHECK                         1
@@ -768,9 +770,15 @@ public:
 # define __PRETTY_FUNCTION__ __FUNCSIG__
 #endif
 
+#if !NDEBUG  // for non MSVC compiler, define _DEBUG if in debug mode to have same behavior between MSVC and others in debug
+#ifndef _DEBUG
+#define _DEBUG 1
+#endif
+#endif
+
 // if a check fails with THROW or CHECK, please check if ported correctly from assert in revision 1196)
 #define THROW(x)               throw( Exception( "\nERROR: In function \"" ) << __PRETTY_FUNCTION__ << "\" in " << __FILE__ << ":" << __LINE__ << ": " << x )
-//#define THROW(x)                { std::cerr << "\nERROR: In function \"" << __FUNCTION__ << "\" in " << __FILE__ << ":" << __LINE__ << ": " << x << std::endl; abort(); }
+#define ABORT(x)               { std::cerr << "\nERROR: In function \"" << __FUNCTION__ << "\" in " << __FILE__ << ":" << __LINE__ << ": " << x << std::endl; abort(); }
 #define THROW_RECOVERABLE(x)   throw( RecoverableException( "\nERROR: In function \"" ) << __PRETTY_FUNCTION__ << "\" in " << __FILE__ << ":" << __LINE__ << ": " << x )
 #define CHECK(c,x)             if(c){ THROW( x << "\nERROR CONDITION: " << #c ); }
 #define CHECK_RECOVERABLE(c,x) if(c){ THROW_RECOVERABLE( x << "\nERROR CONDITION: " << #c ); }
@@ -778,14 +786,8 @@ public:
 #define EXIT(x)                throw( Exception( "\n" ) << x << "\n" )
 #define CHECK_NULLPTR(_ptr)    CHECK( !( _ptr ), "Accessing an empty pointer!" )
 
-#if !NDEBUG  // for non MSVC compiler, define _DEBUG if in debug mode to have same behavior between MSVC and others in debug
-#ifndef _DEBUG
-#define _DEBUG 1
-#endif
-#endif
-
 #if defined( _DEBUG )
-#define CHECKD(c,x)         if(c){ THROW(x); }
+#define CHECKD(c,x)            if(c){ ABORT( x << "\nERROR CONDITION: " << #c ); }
 #else
 #define CHECKD(c,x)
 #endif   // _DEBUG

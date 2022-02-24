@@ -378,7 +378,7 @@ void DecLibRecon::decompressPicture( Picture* pcPic )
 {
   CodingStructure& cs = *pcPic->cs;
 
-  pcPic->inProgress = true;
+  pcPic->progress = Picture::reconstructing;
 
 #ifdef TRACE_ENABLE_ITT
   // mark start of frame
@@ -632,7 +632,7 @@ void DecLibRecon::decompressPicture( Picture* pcPic )
         param->decLib->swapBufs( cs );
       }
 
-      param->pic->reconstructed = true;
+      param->pic->progress = Picture::reconstructed;
 #ifdef TRACE_ENABLE_ITT
       // mark end of frame
       __itt_frame_end_v3( picture->m_itt_decLibInst, nullptr );
@@ -713,7 +713,6 @@ Picture* DecLibRecon::waitForPrevDecompressedPic()
   m_currDecompPic->done.wait();
   ITT_TASKEND( itt_domain_dec, itt_handle_waitTasks );
 
-  m_currDecompPic->inProgress = false;
   return std::exchange( m_currDecompPic, nullptr );
 }
 

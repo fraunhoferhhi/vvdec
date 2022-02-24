@@ -126,8 +126,7 @@ void Picture::resetForUse()
   subPicExtStarted        = false;
   borderExtStarted        = false;
   referenced              = false;
-  reconstructed           = false;
-  inProgress              = false;
+  progress                = Picture::parsing;
   neededForOutput         = false;
   wasLost                 = false;
   longTerm                = false;
