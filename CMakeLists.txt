@@ -10,7 +10,7 @@ if( NOT CMAKE_VERSION VERSION_LESS 3.12.0 )
 endif()
 
 # project name
-project( vvdec VERSION 1.3.0 )
+project( vvdec VERSION 1.4.0 )
 # set alternative version numbering for release candidates
 #set( PROJECT_VERSION_RC rc1 )
 if( PROJECT_VERSION_RC)
