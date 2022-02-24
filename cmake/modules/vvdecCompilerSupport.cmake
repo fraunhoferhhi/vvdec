@@ -38,7 +38,7 @@ endfunction()
 
 function( _check_intrinsic symbol_name compiler_flags code )
   set( CMAKE_REQUIRED_FLAGS       "${CMAKE_REQUIRED_FLAGS} ${compiler_flags}")
-  set( CMAKE_REQUIRED_INCLUDES    "${CMAKE_CURRENT_SOURCE_DIR}/include/3rd_party/" )
+  set( CMAKE_REQUIRED_INCLUDES    "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/" )
 
   check_c_source_compiles("
     #include <simde/simde-arch.h>

@@ -119,7 +119,7 @@ target_include_directories( ${LIB_NAME} PRIVATE           $<BUILD_INTERFACE:${CM
                                         SYSTEM INTERFACE  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../../include> $<BUILD_INTERFACE:${CMAKE_BINARY_DIR}> )
 target_include_directories( ${LIB_NAME} PRIVATE . .. ../DecoderLib ../CommonLib ../CommonLib/x86 ../libmd5 )
 
-target_include_directories( ${LIB_NAME} SYSTEM PRIVATE ../../../include/3rd_party )
+target_include_directories( ${LIB_NAME} SYSTEM PRIVATE ../../../thirdparty )
 
 target_link_libraries( ${LIB_NAME} ${INTEL_ITT_LINK_TARGET} Threads::Threads )
 

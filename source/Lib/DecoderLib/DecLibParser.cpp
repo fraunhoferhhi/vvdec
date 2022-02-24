@@ -129,8 +129,8 @@ void DecLibParser::destroy()
 void DecLibParser::recreateLostPicture( Picture* pcPic )
 {
   auto closestPic = m_picListManager.findClosestPic( pcPic->poc );
-  CHECK( !closestPic,                "found no Picture to replace lost Picture" );
-  CHECK( !closestPic->reconstructed, "closest Picture is not yet reconstructed" )
+  CHECK( !closestPic,                                   "found no Picture to replace lost Picture" );
+  CHECK( closestPic->progress < Picture::reconstructed, "closest Picture is not yet reconstructed" )
   if( closestPic )
   {
     // the next not-lost picture in the parseFrameList should be the one, that referenced this picture
@@ -150,7 +150,7 @@ void DecLibParser::recreateLostPicture( Picture* pcPic )
     pcPic->slices[0]->copySliceInfo( closestPic->slices[0] );
     pcPic->slices[0]->setPOC( pcPic->poc );
 
-    pcPic->reconstructed = true;
+    pcPic->progress = Picture::reconstructed;
 
     pcPic->parseDone.unlock();
     pcPic->done.unlock();
@@ -337,34 +337,37 @@ Picture* DecLibParser::getNextDecodablePicture()
     return pic;
   }
 
+  if( m_parseFrameList.front()->skippedDecCount >= MAX_OUT_OF_ORDER_PICS )
+  {
+    Picture* pic = m_parseFrameList.front();
+    m_parseFrameList.pop_front();
+    return pic;
+  }
+
   // try to find next picture, that is parsed and has all reference pictures decoded
   for( auto picIt = m_parseFrameList.begin(); picIt != m_parseFrameList.end(); ++picIt )
   {
     Picture* pic = *picIt;
 
-    // allow skipping the next pic in coding order m_maxPicReconSkip times
-    if( pic->skippedDecCount >= m_maxPicReconSkip )
-      break;
-
     if( pic->parseDone.isBlocked() )
       continue;
 
     bool allRefPicsDone = true;
-    const CodingStructure& cs = *pic->cs;
-    if( std::any_of( cs.picture->slices.begin(), cs.picture->slices.end(), []( const Slice* pcSlice ) { return !pcSlice->isIntra(); } ) )
+    for( const Slice* slice: pic->slices )
     {
+      if( slice->isIntra() )
+      {
+        continue;
+      }
       for( int iDir = REF_PIC_LIST_0; iDir < NUM_REF_PIC_LIST_01 && allRefPicsDone; ++iDir )
       {
-        for( const Slice* slice : cs.picture->slices )
+        for( int iRefIdx = 0; iRefIdx < slice->getNumRefIdx( (RefPicList) iDir ) && allRefPicsDone; iRefIdx++ )
         {
-          for( int iRefIdx = 0; iRefIdx < slice->getNumRefIdx( ( RefPicList ) iDir ) && allRefPicsDone; iRefIdx++ )
+          const Picture* refPic = slice->getRefPic( (RefPicList) iDir, iRefIdx );
+          if( refPic->done.isBlocked() )
           {
-            const Picture* refPic = slice->getRefPic( ( RefPicList ) iDir, iRefIdx );
-            if( refPic->done.isBlocked() )
-            {
-              allRefPicsDone = false;
-              break;
-            }
+            allRefPicsDone = false;
+            break;
           }
         }
       }
@@ -372,20 +375,20 @@ Picture* DecLibParser::getNextDecodablePicture()
 
     if( allRefPicsDone )
     {
-      if( picIt != m_parseFrameList.begin() )
+      // increase skip count for all previous pictures
+      for( auto& skipped: PicListRange{ m_parseFrameList.begin(), picIt } )
       {
-        // count how often the next pic in coding order has been skipped
-        m_parseFrameList.front()->skippedDecCount++;
+        skipped->skippedDecCount++;
       }
 
       m_parseFrameList.erase( picIt );
       return pic;
     }
 
-    if( pic->getTLayer() < m_parseFrameList.front()->getTLayer() )
-    {
-      break;
-    }
+//    if( pic->getTLayer() < m_parseFrameList.front()->getTLayer() )
+//    {
+//      break;
+//    }
   }
 
   // if no picture has all reference-pictures decoded, use next pic in (regular) decoding order.
@@ -1385,6 +1388,7 @@ Picture* DecLibParser::prepareLostPicture( int iLostPoc, const int layerId )
   cFillPic->referenced      = true;
   cFillPic->neededForOutput = false;
   cFillPic->wasLost         = true;
+  cFillPic->progress        = Picture::parsed;
   cFillPic->poc             = iLostPoc;
   cFillPic->eNalUnitType    = naluType;
   cFillPic->rap             = isIRAP;
@@ -1426,7 +1430,7 @@ void DecLibParser::prepareUnavailablePicture( const PPS *pps, int iUnavailablePo
   {
     m_prevTid0POC = cFillPic->slices[0]->getPOC();
   }
-  cFillPic->reconstructed = true;
+  cFillPic->progress        = Picture::reconstructed;
   cFillPic->neededForOutput = false;
   // picture header is not derived for generated reference picture
   cFillPic->slices[0]->setPicHeader( nullptr );
@@ -1556,10 +1560,10 @@ void DecLibParser::checkNoOutputPriorPics()
     return;
   }
 
-  auto pcListPic = m_picListManager.getPicListRange( m_picListManager.getBackPic() );   // TODO: really front pic here? not back?
+  auto pcListPic = m_picListManager.getPicListRange( m_picListManager.getBackPic() );
   for( auto& pcPicTmp: pcListPic )
   {
-    if( pcPicTmp->reconstructed && pcPicTmp->getPOC() < m_lastPOCNoOutputPriorPics )
+    if( pcPicTmp->progress >= Picture::reconstructed && pcPicTmp->getPOC() < m_lastPOCNoOutputPriorPics )
     {
       pcPicTmp->neededForOutput = false;
     }

@@ -10,7 +10,7 @@ if( NOT CMAKE_VERSION VERSION_LESS 3.12.0 )
 endif()
 
 # project name
-project( vvdec VERSION 1.3.0 )
+project( vvdec VERSION 1.4.0 )
 # set alternative version numbering for release candidates
 #set( PROJECT_VERSION_RC rc1 )
 if( PROJECT_VERSION_RC)
@@ -349,11 +349,9 @@ foreach( BITSTREAM IN LISTS BITSTREAM_FILES )
 
   if( EXISTS ${BITSTREAM_FILE} )
     read_bitstream_yuv_md5( ${BITSTREAM_FILE} RX_MD5_HASH )
-    add_test( NAME Test:${BITSTREAM_SHORT}.bit COMMAND ${VVDEC_TESTS_DEBUGGER_COMMAND} $<TARGET_FILE:vvdecapp> -b ${BITSTREAM_FILE} -md5 ${RX_MD5_HASH})
-    set_tests_properties( Test:${BITSTREAM_SHORT}.bit PROPERTIES TIMEOUT 120 )
+    add_test( NAME Test:${BITSTREAM_SHORT}.bit COMMAND ${VVDEC_TESTS_DEBUGGER_COMMAND} $<TARGET_FILE:vvdecapp> -b ${BITSTREAM_FILE} -md5 ${RX_MD5_HASH} )
   else()
     add_test( NAME MISSING:${BITSTREAM_SHORT}.bit COMMAND ${VVDEC_TESTS_DEBUGGER_COMMAND} $<TARGET_FILE:vvdecapp> -b ${BITSTREAM_FILE} -dph )
-    set_tests_properties( MISSING:${BITSTREAM_SHORT}.bit PROPERTIES TIMEOUT 120 )
 
     set( MISSING_BITSTREAM_FILES TRUE )
   endif()
@@ -366,14 +364,17 @@ foreach( BITSTREAM IN LISTS BITSTREAM_FAULTY_FILES )
   if( EXISTS ${BITSTREAM_FILE} )
     read_bitstream_yuv_md5( ${BITSTREAM_FILE} RX_MD5_HASH )
     add_test( NAME Faulty:${BITSTREAM_SHORT}.bit COMMAND ${VVDEC_TESTS_DEBUGGER_COMMAND} $<TARGET_FILE:vvdecapp> -b ${BITSTREAM_FILE} -dph -md5 ${RX_MD5_HASH} )
-    set_tests_properties( Faulty:${BITSTREAM_SHORT}.bit PROPERTIES TIMEOUT 120 )
   else()
     add_test( NAME MISSING:${BITSTREAM_SHORT}.bit COMMAND ${VVDEC_TESTS_DEBUGGER_COMMAND} $<TARGET_FILE:vvdecapp> -b ${BITSTREAM_FILE} -dph )
-    set_tests_properties( MISSING:${BITSTREAM_SHORT}.bit PROPERTIES TIMEOUT 120 )
 
     set( MISSING_BITSTREAM_FILES TRUE )
   endif()
 endforeach()
+
+get_directory_property( ALL_TESTS TESTS )
+set_tests_properties( ${ALL_TESTS} PROPERTIES
+                      TIMEOUT 120
+                      FAIL_REGULAR_EXPRESSION "WARNING:" )
 
 add_custom_target( test-ok  USES_TERMINAL COMMAND ${CMAKE_CTEST_COMMAND} -C $<CONFIG> -R "\"^(Test|MISSING)\"" )
 add_custom_target( test-all USES_TERMINAL COMMAND ${CMAKE_CTEST_COMMAND} -C $<CONFIG> -R "\"^(Test|MISSING|Faulty)\"" )
