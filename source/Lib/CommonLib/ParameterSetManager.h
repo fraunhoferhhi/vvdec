@@ -176,7 +176,7 @@ public:
     APS*                           lmcsAps;
     APS*                           scalingListAps;
   };
-  ActivePSs xActivateParameterSets( const Slice* pSlicePilot, const PicHeader* picHeader );
+  ActivePSs xActivateParameterSets( const bool isFirstSlice, const Slice* pPilot, const PicHeader* picHeader );
   //! store sequence parameter set and take ownership of it
   void                  storeSPS( SPS* sps, const std::vector<uint8_t>& naluData ) { m_spsMap.storePS( sps->getSPSId(), sps, &naluData ); }
   //! get pointer to existing sequence parameter set

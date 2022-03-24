@@ -219,7 +219,7 @@ bool CABACReader::dt_implicit_qt_split( CodingStructure& cs, Partitioner& partit
 
 short CABACReader::readAlfCtuFilterIndex( CodingStructure& cs, unsigned ctuRsAddr )
 {
-  const unsigned numAps               = m_slice->getTileGroupNumAps();
+  const unsigned numAps               = m_slice->getNumAlfAps();
   const unsigned numAvailableFiltSets = numAps + NUM_FIXED_FILTER_SETS;
   uint32_t filtIndex = 0;
 
@@ -407,11 +407,11 @@ void CABACReader::readAlf( CodingStructure& cs, unsigned int ctuRsAddr, const Pa
   if( leftAvail )  leftAlfData  = cs.getCtuData( ctuRsAddr -                   1 ).alfParam;
   if( aboveAvail ) aboveAlfData = cs.getCtuData( ctuRsAddr - frame_width_in_ctus ).alfParam;
 
-  if( m_slice->getTileGroupAlfEnabledFlag( COMPONENT_Y ) )
+  if( m_slice->getAlfEnabledFlag( COMPONENT_Y ) )
   {
     for( int compIdx = 0; compIdx < MAX_NUM_COMPONENT; compIdx++ )
     {
-      if( m_slice->getTileGroupAlfEnabledFlag( ( ComponentID ) compIdx ) )
+      if( m_slice->getAlfEnabledFlag( ( ComponentID ) compIdx ) )
       {
         //uint8_t* ctbAlfFlag = m_slice->getPic()->getAlfCtuEnableFlag( compIdx );
         int ctx = 0;
@@ -427,7 +427,7 @@ void CABACReader::readAlf( CodingStructure& cs, unsigned int ctuRsAddr, const Pa
 
         if( isChroma( ( ComponentID ) compIdx ) )
         {
-          const int apsIdx                  = m_slice->getTileGroupApsIdChroma();
+          const int apsIdx                  = m_slice->getAlfApsIdChroma();
           CHECK( m_slice->getAlfAPSs()[apsIdx] == nullptr, "APS not initialized" );
           const AlfSliceParam& alfParam     = m_slice->getAlfAPSs()[apsIdx]->getAlfAPSParam();
           const int numAlts                 = alfParam.numAlternativesChroma;
@@ -446,7 +446,7 @@ void CABACReader::readAlf( CodingStructure& cs, unsigned int ctuRsAddr, const Pa
   }
   for( int compIdx = 1; compIdx < getNumberValidComponents( cs.pcv->chrFormat ); compIdx++ )
   {
-    if( m_slice->getTileGroupCcAlfEnabledFlag( compIdx - 1 ) )
+    if( m_slice->getCcAlfEnabledFlag( compIdx - 1 ) )
     {
       int ctxt = 0;
       ctxt += ( leftAlfData.ccAlfFilterControl[compIdx - 1] ) ? 1 : 0;
@@ -457,7 +457,7 @@ void CABACReader::readAlf( CodingStructure& cs, unsigned int ctuRsAddr, const Pa
 
       if ( idcVal )
       {
-        const int apsIdx        = compIdx == 1 ? m_slice->getTileGroupCcAlfCbApsId() : m_slice->getTileGroupCcAlfCrApsId();
+        const int apsIdx        = compIdx == 1 ? m_slice->getCcAlfCbApsId() : m_slice->getCcAlfCrApsId();
         const int filterCount   = m_slice->getAlfAPSs()[apsIdx]->getCcAlfAPSParam().ccAlfFilterCount[compIdx - 1];
         while ( ( idcVal != filterCount ) && m_BinDecoder.decodeBinEP() )
         {

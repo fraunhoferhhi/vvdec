@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en-us">
+
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+  <title>Emscripten-Generated Code</title>
+  <style>
+    .controls {
+      text-align: center;
+    }
+
+    .controls>* {
+      margin: 0.2em;
+    }
+
+  </style>
+</head>
+
+<body>
+  <hr />
+  <div class="controls">
+    <select id="selectBitstream"></select>
+    <label for="checkRunAll">decode all</label><input id="checkRunAll" type="checkbox" value="Run All" checked>
+    <br>
+    <label for="numThreads">threads:</label><input id="numThreads" type="number" value="10" min="0" max="20">
+    <label for="logLevel">log level:</label><input id="logLevel" type="number" value="3" min="0" max="6">
+    <br>
+    <input id="buttonRun" type="button" value="Run" disabled>
+  </div>
+  The decoder logs go to the JavaScript console (F12 in most browsers).
+  <hr />
+  <textarea id="output" rows="40" style="width: 100%;"></textarea>
+  <hr>
+  <script type="text/javascript" src="shell.js"></script>
+  <!-- {{{ SCRIPT }}} -->
+</body>
+
+</html>

@@ -2619,14 +2619,14 @@ private:
 
   uint32_t                   m_sliceSubPicId                 = false;
 
-  APS*                       m_alfApss[ALF_CTB_MAX_NUM_APS]               = { 0 };
-  bool                       m_tileGroupAlfEnabledFlag[MAX_NUM_COMPONENT] = { false, false, false };
-  int                        m_tileGroupNumAps                            = 0;
-  std::vector<int>           m_tileGroupLumaApsId;
-  int                        m_tileGroupChromaApsId                       = -1;
-  bool                       m_tileGroupCcAlfEnabledFlags[2]              = { false, false };
-  int                        m_tileGroupCcAlfCbApsId                      = -1;
-  int                        m_tileGroupCcAlfCrApsId                      = -1;
+  APS*                       m_alfApss[ALF_CTB_MAX_NUM_APS]      = { 0 };
+  bool                       m_alfEnabledFlag[MAX_NUM_COMPONENT] = { false, false, false };
+  int                        m_numAlfAps                         = 0;
+  std::vector<int>           m_lumaAlfApsId;
+  int                        m_chromaAlfApsId                    = -1;
+  bool                       m_ccAlfEnabledFlags[2]              = { false, false };
+  int                        m_ccAlfCbApsId                      = -1;
+  int                        m_ccAlfCrApsId                      = -1;
 
 public:
                               Slice();
@@ -2644,7 +2644,8 @@ public:
   void                        setPPS( const PPS* pcPPS )                             { m_pcPPS = pcPPS;                                              }
   const PPS*                  getPPS() const                                         { return m_pcPPS;                                               }
 
-  void                        setAlfAPSs( std::shared_ptr<APS> apss[ALF_CTB_MAX_NUM_APS] ) { for( int i=0; i<ALF_CTB_MAX_NUM_APS; ++i ) { m_alfApss[i] = apss[i].get(); }  }
+  void                        setAlfApss( std::shared_ptr<APS> apss[ALF_CTB_MAX_NUM_APS] ) { for( int i = 0; i < ALF_CTB_MAX_NUM_APS; ++i ) { m_alfApss[i] = apss[i].get(); } }
+  void                        setAlfApss(                 APS *apss[ALF_CTB_MAX_NUM_APS] ) { for( int i = 0; i < ALF_CTB_MAX_NUM_APS; ++i ) { m_alfApss[i] = apss[i]; } }
   void                        clearAlfAPSs()                                         { memset( m_alfApss, 0, sizeof( m_alfApss ) );                  }
   APS**                       getAlfAPSs()                                           { return m_alfApss;                                             }
   const APS* const*           getAlfAPSs() const                                     { return m_alfApss;                                             }
@@ -2841,32 +2842,32 @@ public:
   ClpRngs&                    getClpRngs()                                            { return m_clpRngs; }
   unsigned                    getMinPictureDistance()                           const ;
 
-  void                        resetTileGroupAlfEnabledFlag()                          { memset(m_tileGroupAlfEnabledFlag, 0, sizeof(m_tileGroupAlfEnabledFlag)); }
-  bool                        getTileGroupAlfEnabledFlag(ComponentID compId)    const { return m_tileGroupAlfEnabledFlag[compId]; }
-  void                        setTileGroupAlfEnabledFlag(ComponentID compId, bool b)  { m_tileGroupAlfEnabledFlag[compId] = b; }
-  int                         getTileGroupNumAps()                              const { return m_tileGroupNumAps; }
-  void                        setTileGroupNumAps(int i)                               { m_tileGroupNumAps = i; }
-  int                         getTileGroupApsIdChroma()                         const { return m_tileGroupChromaApsId; }
-  void                        setTileGroupApsIdChroma(int i)                          { m_tileGroupChromaApsId = i; }
-  std::vector<int32_t>        getTileGroupApsIdLuma()                           const { return m_tileGroupLumaApsId; }
-  void                        setAlfAPSids( const std::vector<int> & ApsIDs )
+  void                        resetAlfEnabledFlag()                          { memset(m_alfEnabledFlag, 0, sizeof(m_alfEnabledFlag)); }
+  bool                        getAlfEnabledFlag(ComponentID compId)    const { return m_alfEnabledFlag[compId]; }
+  void                        setAlfEnabledFlag(ComponentID compId, bool b)  { m_alfEnabledFlag[compId] = b; }
+  int                         getNumAlfAps()                           const { return m_numAlfAps; }
+  void                        setNumAlfAps(int i)                            { m_numAlfAps = i; }
+  int                         getAlfApsIdChroma()                      const { return m_chromaAlfApsId; }
+  void                        setAlfApsIdChroma( int i ) { m_chromaAlfApsId = i; }
+  std::vector<int32_t>        getAlfApsIdLuma()                        const { return m_lumaAlfApsId; }
+  void                        setAlfApsIdLuma( const std::vector<int> & ApsIDs )
   {
-    m_tileGroupLumaApsId.resize( m_tileGroupNumAps );
-    m_tileGroupLumaApsId.assign( ApsIDs.begin(), ApsIDs.end() );
+    m_lumaAlfApsId.resize( m_numAlfAps );
+    m_lumaAlfApsId.assign( ApsIDs.begin(), ApsIDs.end() );
   }
-  void                        resetTileGroupCcAlfEnabledFlags()                       { m_tileGroupCcAlfEnabledFlags[0] = false; m_tileGroupCcAlfEnabledFlags[1] = false; }
+  void                        resetCcAlfEnabledFlags()                       { m_ccAlfEnabledFlags[0] = false; m_ccAlfEnabledFlags[1] = false; }
   
-  void                        setTileGroupCcAlfCbEnabledFlag(bool b)                  { m_tileGroupCcAlfEnabledFlags[0] = b; }
-  void                        setTileGroupCcAlfCrEnabledFlag(bool b)                  { m_tileGroupCcAlfEnabledFlags[1] = b; }
-  void                        setTileGroupCcAlfCbApsId(int i)                         { m_tileGroupCcAlfCbApsId = i; }
-  void                        setTileGroupCcAlfCrApsId(int i)                         { m_tileGroupCcAlfCrApsId = i; }
+  void                        setCcAlfCbEnabledFlag(bool b)                  { m_ccAlfEnabledFlags[0] = b; }
+  void                        setCcAlfCrEnabledFlag(bool b)                  { m_ccAlfEnabledFlags[1] = b; }
+  void                        setCcAlfCbApsId(int i)                         { m_ccAlfCbApsId = i; }
+  void                        setCcAlfCrApsId(int i)                         { m_ccAlfCrApsId = i; }
 
-  bool                        getTileGroupCcAlfEnabledFlag(int cmpntIdx)       const  { return m_tileGroupCcAlfEnabledFlags[cmpntIdx]; }
+  bool                        getCcAlfEnabledFlag(int cmpntIdx)       const  { return m_ccAlfEnabledFlags[cmpntIdx]; }
 
-  bool                        getTileGroupCcAlfCbEnabledFlag()                 const  { return m_tileGroupCcAlfEnabledFlags[0]; }
-  bool                        getTileGroupCcAlfCrEnabledFlag()                 const  { return m_tileGroupCcAlfEnabledFlags[1]; }
-  int                         getTileGroupCcAlfCbApsId()                       const  { return m_tileGroupCcAlfCbApsId; }
-  int                         getTileGroupCcAlfCrApsId()                       const  { return m_tileGroupCcAlfCrApsId; }
+  bool                        getCcAlfCbEnabledFlag()                 const { return m_ccAlfEnabledFlags[0]; }
+  bool                        getCcAlfCrEnabledFlag()                 const { return m_ccAlfEnabledFlags[1]; }
+  int                         getCcAlfCbApsId()                       const { return m_ccAlfCbApsId; }
+  int                         getCcAlfCrApsId()                       const { return m_ccAlfCrApsId; }
 
   void                        scaleRefPicList( PicHeader *picHeader );
   bool                        checkRPR();

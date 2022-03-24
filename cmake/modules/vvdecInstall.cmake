@@ -57,6 +57,12 @@ install_targets( RelWithDebInfo )
 install_lib_pdb( vvdec )
 install_exe_pdb( vvdecapp )
 
+# install emscripten generated files
+if( ${CMAKE_SYSTEM_NAME} STREQUAL "Emscripten" )
+  install( PROGRAMS $<TARGET_FILE_DIR:vvdecapp>/vvdecapp.wasm DESTINATION ${RUNTIME_DEST} )
+  install( PROGRAMS $<TARGET_FILE_DIR:vvdecapp>/vvdecapp.worker.js DESTINATION ${RUNTIME_DEST} )
+endif()
+
 # configure version file
 configure_file( cmake/install/vvdecConfigVersion.cmake.in ${CMAKE_CURRENT_BINARY_DIR}/vvdecConfigVersion.cmake @ONLY )
 

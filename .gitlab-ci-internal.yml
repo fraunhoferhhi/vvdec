@@ -35,6 +35,7 @@ variables:
       key:
         files:
           - cmake/modules/define_bitstream_files.cmake
+      when: always
    variables:
      CTEST_OUTPUT_ON_FAILURE: 1
      CTEST_PARALLEL_LEVEL: 2
@@ -194,28 +195,50 @@ test_macos_x86_64:
       - macos
 
 
-rebuild_emscripten_docker_image:
+.rebuild_docker_image_template:
    extends: .build_only_template
    script:
       - echo -n $CI_REGISTRY_PASSWORD | docker login -u $CI_REGISTRY_USER --password-stdin $CI_REGISTRY
       - mkdir -p empty_context
       - if [[ $REBUILD_DOCKER_IMAGE = 1 ]] ; then NO_CACHE_ARG=--no-cache=true ; fi
-      - docker build -t $CI_REGISTRY_IMAGE/emscripten-hhi:latest $NO_CACHE_ARG -f .emscripten.dockerfile empty_context
-      - docker push $CI_REGISTRY_IMAGE/emscripten-hhi:latest
+      - docker build -t $DOCKER_IMAGE_TAG $NO_CACHE_ARG -f $DOCKERFILE empty_context
+      - docker push $DOCKER_IMAGE_TAG
+   variables:
+      DOCKERFILE: ""
+      DOCKER_IMAGE_TAG: ""
    tags:
       - docker-build
 
-build_wasm:
-   extends: .build_only_template
-   image: $CI_REGISTRY_IMAGE/emscripten-hhi:latest
+rebuild_emscripten_docker_image:
+   extends: .rebuild_docker_image_template
+   variables:
+      DOCKERFILE: ".emscripten.dockerfile"
+      DOCKER_IMAGE_TAG: "$CI_REGISTRY_IMAGE/emscripten-hhi:latest"
+
+rebuild_selenium_docker_image:
+   extends: .rebuild_docker_image_template
+   variables:
+      DOCKERFILE: ".selenium.dockerfile"
+      DOCKER_IMAGE_TAG: "$CI_REGISTRY_IMAGE/selenium-debian:bullseye"
+
+
+test_wasm:
+   extends: .build_test_template
+   image: $CI_REGISTRY_IMAGE/selenium-debian:bullseye
    script:
      - source /opt/emsdk/emsdk_env.sh
      - emcc --version
-     - emcmake cmake -GNinja -B build/wasm -DVVDEC_ENABLE_X86_SIMD=TRUE
+     - emcmake cmake -GNinja -B build/wasm -DVVDEC_ENABLE_X86_SIMD=TRUE  -DVVDEC_ENABLE_BITSTREAM_DOWNLOAD=ON -DVVDEC_ENABLE_LOCAL_BITSTREAM_DOWNLOAD=ON
      - cmake --build build/wasm
      - cmake --build build/wasm -t install
+     - python3 tests/wasm/wasm_test-server.py &
+     - python3 tests/wasm/run_tests.py
    needs:
-     - job: rebuild_emscripten_docker_image
+     - job: rebuild_selenium_docker_image
        optional: true
+   artifacts:
+      name: "vvdec-wasm"
+      paths:
+        - install/
    tags:
      - docker

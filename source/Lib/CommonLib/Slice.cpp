@@ -305,8 +305,8 @@ void Slice::initSlice()
 
   m_substreamSizes.clear();
   m_cabacInitFlag        = false;
-  resetTileGroupAlfEnabledFlag();
-  resetTileGroupCcAlfEnabledFlags();
+  resetAlfEnabledFlag();
+  resetCcAlfEnabledFlags();
   m_sliceMap.initSliceMap();
 }
 
@@ -349,16 +349,16 @@ void Slice::inheritFromPicHeader( PicHeader *picHeader, const PPS *pps, const SP
   setSaoEnabledFlag(CHANNEL_TYPE_LUMA,     picHeader->getSaoEnabledFlag(CHANNEL_TYPE_LUMA));
   setSaoEnabledFlag(CHANNEL_TYPE_CHROMA,   picHeader->getSaoEnabledFlag(CHANNEL_TYPE_CHROMA));
 
-  setTileGroupAlfEnabledFlag(COMPONENT_Y,  picHeader->getAlfEnabledFlag(COMPONENT_Y));
-  setTileGroupAlfEnabledFlag(COMPONENT_Cb, picHeader->getAlfEnabledFlag(COMPONENT_Cb));
-  setTileGroupAlfEnabledFlag(COMPONENT_Cr, picHeader->getAlfEnabledFlag(COMPONENT_Cr));
-  setTileGroupNumAps(picHeader->getNumAlfAps());
-  setAlfAPSids( picHeader->getAlfAPSIds() );
-  setTileGroupApsIdChroma(picHeader->getAlfApsIdChroma());   
-  setTileGroupCcAlfCbEnabledFlag(picHeader->getCcAlfEnabledFlag(COMPONENT_Cb));
-  setTileGroupCcAlfCrEnabledFlag(picHeader->getCcAlfEnabledFlag(COMPONENT_Cr));
-  setTileGroupCcAlfCbApsId(picHeader->getCcAlfCbApsId());
-  setTileGroupCcAlfCrApsId(picHeader->getCcAlfCrApsId());
+  setAlfEnabledFlag(COMPONENT_Y,  picHeader->getAlfEnabledFlag(COMPONENT_Y));
+  setAlfEnabledFlag(COMPONENT_Cb, picHeader->getAlfEnabledFlag(COMPONENT_Cb));
+  setAlfEnabledFlag(COMPONENT_Cr, picHeader->getAlfEnabledFlag(COMPONENT_Cr));
+  setNumAlfAps(picHeader->getNumAlfAps());
+  setAlfApsIdLuma( picHeader->getAlfAPSIds() );
+  setAlfApsIdChroma(picHeader->getAlfApsIdChroma());   
+  setCcAlfCbEnabledFlag(picHeader->getCcAlfEnabledFlag(COMPONENT_Cb));
+  setCcAlfCrEnabledFlag(picHeader->getCcAlfEnabledFlag(COMPONENT_Cr));
+  setCcAlfCbApsId(picHeader->getCcAlfCbApsId());
+  setCcAlfCrApsId(picHeader->getCcAlfCrApsId());
 }
 
 void  Slice::setNumEntryPoints( const SPS *sps, const PPS *pps )
@@ -808,15 +808,15 @@ void Slice::copySliceInfo(Slice *pSrc, bool cpyAlmostAll)
 
   m_cabacInitFlag                 = pSrc->m_cabacInitFlag;
   memcpy( m_alfApss,                 pSrc->m_alfApss,                 sizeof( m_alfApss ) );
-  memcpy( m_tileGroupAlfEnabledFlag, pSrc->m_tileGroupAlfEnabledFlag, sizeof(m_tileGroupAlfEnabledFlag));
-  m_tileGroupNumAps               = pSrc->m_tileGroupNumAps;
-  m_tileGroupLumaApsId            = pSrc->m_tileGroupLumaApsId;
-  m_tileGroupChromaApsId          = pSrc->m_tileGroupChromaApsId;
+  memcpy( m_alfEnabledFlag, pSrc->m_alfEnabledFlag, sizeof(m_alfEnabledFlag));
+  m_numAlfAps               = pSrc-> m_numAlfAps;
+  m_lumaAlfApsId            = pSrc-> m_lumaAlfApsId;
+  m_chromaAlfApsId          = pSrc-> m_chromaAlfApsId;
 
-  m_tileGroupCcAlfEnabledFlags[0]          = pSrc->m_tileGroupCcAlfEnabledFlags[0];
-  m_tileGroupCcAlfEnabledFlags[1]          = pSrc->m_tileGroupCcAlfEnabledFlags[1];
-  m_tileGroupCcAlfCbApsId                   = pSrc->m_tileGroupCcAlfCbApsId;
-  m_tileGroupCcAlfCrApsId                   = pSrc->m_tileGroupCcAlfCrApsId;
+  m_ccAlfEnabledFlags[0]          = pSrc->m_ccAlfEnabledFlags[0];
+  m_ccAlfEnabledFlags[1]          = pSrc->m_ccAlfEnabledFlags[1];
+  m_ccAlfCbApsId                  = pSrc->m_ccAlfCbApsId;
+  m_ccAlfCrApsId                  = pSrc->m_ccAlfCrApsId;
 }
 
 void Slice::checkLeadingPictureRestrictions( const PicListRange & rcListPic ) const
