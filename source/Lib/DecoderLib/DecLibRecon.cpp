@@ -585,27 +585,31 @@ void DecLibRecon::decompressPicture( Picture* pcPic )
       if( line < heightInCtus && col < numTasksPerLine )
       {
         CBarrierVec ctuBarriesrs = picBarriers;
+        const int   ctuStart     = col * numColPerTask;
+        const int   ctuEnd       = std::min( ctuStart + numColPerTask, widthInCtus );
 
 #if RECO_WHILE_PARSE
-        // make sure that none of the getCU neighborhood accesses will go void
-        const int ctuStart = std::max( col * numColPerTask                 - 1,           0 );
-        const int ctuEnd   = std::min( col * numColPerTask + numColPerTask + 1, widthInCtus );
+        const int   depStart     = std::max( ctuStart - 1, 0 );
+        const int   depEnd       = std::min( ctuEnd   + 1, widthInCtus );
 
-        for( int ctu = ctuStart; ctu < ctuEnd; ctu++ )
+        // make sure that none of the getCU neighborhood accesses will go void
+        for( int ctu = depStart; ctu < depEnd; ctu++ )
         {
           ctuBarriesrs.push_back( &pcPic->ctuParsedBarrier[line * widthInCtus + ctu] );
         }
         if( line )
         {
-          for( int ctu = ctuStart; ctu < ctuEnd; ctu++ )
+          for( int ctu = depStart; ctu < depEnd; ctu++ )
           {
             ctuBarriesrs.push_back( &pcPic->ctuParsedBarrier[( line - 1 ) * widthInCtus + ctu] );
           }
         }
 #endif
-        CtuTaskParam* param = &tasksCtu[line * numTasksPerLine + col];
-        param->line         = line;
-        param->col          = col;
+        CtuTaskParam* param    = &tasksCtu[line * numTasksPerLine + col];
+        param->taskLine        = line;
+        param->taskCol         = col;
+        param->ctuEnd          = ctuEnd;
+        param->ctuStart        = ctuStart;
         param->numColPerTask   = numColPerTask;
         param->numTasksPerLine = numTasksPerLine;
 
@@ -715,21 +719,22 @@ Picture* DecLibRecon::waitForPrevDecompressedPic()
 template<bool onlyCheckReadyState>
 bool DecLibRecon::ctuTask( int tid, CtuTaskParam* param )
 {
-  const int       col          = param->col;
-  const int       line         = param->line;
+  const int       taskCol      = param->taskCol;
+  const int       line         = param->taskLine;
+  const int       col          = taskCol;
 
   auto&           cs           = *param->common.cs;
   auto&           decLib       = param->common.decLib;
-  const int       widthInCtus  = param->numTasksPerLine;
+  const int       tasksPerLine = param->numTasksPerLine;
   const int       heightInCtus = cs.pcv->heightInCtus;
 
-  CtuState&       thisCtuState =  param->common.ctuStates[line * widthInCtus + col];
-  const CtuState* thisLine     = &param->common.ctuStates[line * widthInCtus];
-  const CtuState* lineAbove    = thisLine - widthInCtus;
-  const CtuState* lineBelow    = thisLine + widthInCtus;
+  CtuState&       thisCtuState =  param->common.ctuStates[line * tasksPerLine + taskCol];
+  const CtuState* thisLine     = &param->common.ctuStates[line * tasksPerLine];
+  const CtuState* lineAbove    = thisLine - tasksPerLine;
+  const CtuState* lineBelow    = thisLine + tasksPerLine;
 
-  const int       ctuStart     = col * param->numColPerTask;
-  const int       ctuEnd       = std::min<int>( ctuStart + param->numColPerTask, cs.pcv->widthInCtus );
+  const int       ctuStart     = param->ctuStart;
+  const int       ctuEnd       = param->ctuEnd;
 
   try
   {
@@ -744,10 +749,21 @@ bool DecLibRecon::ctuTask( int tid, CtuTaskParam* param )
 
     case MIDER:
     {
-      if( col > 0 && thisLine[col - 1] <= MIDER )
+      if( col > 0 && thisLine[col - 1] <= MIDER_cont )
         return false;
-      if( line > 0 && lineAbove[std::min( col + 1, widthInCtus - 1 )] <= MIDER )
-        return false;
+      if( line > 0 )
+      {
+        if( col + 1 < tasksPerLine )
+        {
+          if( lineAbove[col + 1] <= MIDER )
+            return false;
+        }
+        else
+        {
+          if( lineAbove[col] <= MIDER_cont )
+            return false;
+        }
+      }
       if( onlyCheckReadyState )
         return true;
 
@@ -770,8 +786,11 @@ bool DecLibRecon::ctuTask( int tid, CtuTaskParam* param )
           memset( ctuData.motion, 0, sizeof( MotionInfo ) * cs.pcv->num4x4CtuBlks );
           GCC_WARNING_RESET
         }
+
+        thisCtuState = MIDER_cont;
       }
-      thisCtuState = ( TaskType )( MIDER + 1 );
+
+      thisCtuState = LF_INIT;
 
       ITT_TASKEND( itt_domain_dec, itt_handle_mider );
     }
@@ -794,7 +813,7 @@ bool DecLibRecon::ctuTask( int tid, CtuTaskParam* param )
         decLib.m_cLoopFilter.calcFilterStrengthsCTU( cs, ctuRsAddr );
       }
 
-      thisCtuState = ( TaskType )( LF_INIT + 1 );
+      thisCtuState = INTER;
 
       ITT_TASKEND( itt_domain_dec, itt_handle_lfcl );
     }
@@ -834,17 +853,28 @@ bool DecLibRecon::ctuTask( int tid, CtuTaskParam* param )
         }
       }
 
-      thisCtuState = ( TaskType )( INTER + 1 );
+      thisCtuState = INTRA;
 
       ITT_TASKEND( itt_domain_dec, itt_handle_inter );
     }
 
     case INTRA:
     {
-      if( col > 0 && thisLine[col - 1] <= INTRA )
+      if( col > 0 && thisLine[col - 1] <= INTRA_cont )
         return false;
-      if( line > 0 && lineAbove[std::min( col + 1, widthInCtus - 1 )] <= INTRA )
-        return false;
+      if( line > 0 )
+      {
+        if( col + 1 < tasksPerLine )
+        {
+          if( lineAbove[col + 1] <= INTRA )
+            return false;
+        }
+        else
+        {
+          if( lineAbove[col] <= INTRA_cont )
+            return false;
+        }
+      }
       if( onlyCheckReadyState )
         return true;
 
@@ -855,9 +885,11 @@ bool DecLibRecon::ctuTask( int tid, CtuTaskParam* param )
         const int ctuRsAddr    = ctu + line * cs.pcv->widthInCtus;
         const UnitArea ctuArea = getCtuArea( cs, ctu, line, true );
         decLib.m_pcThreadResource[tid]->m_cCuDecoder.TaskCriticalIntraKernel( cs, ctuRsAddr, ctuArea );
+
+        thisCtuState = INTRA_cont;
       }
 
-      thisCtuState = ( TaskType )( INTRA + 1 );
+      thisCtuState = RSP;
 
       ITT_TASKEND( itt_domain_dec, itt_handle_intra );
     }
@@ -870,11 +902,11 @@ bool DecLibRecon::ctuTask( int tid, CtuTaskParam* param )
       // - Z can be reshaped when it is no more an intra prediction source for X in the next line
 
 
-      if     ( line + 1 < heightInCtus && col + 1 < widthInCtus && lineBelow[col + 1] < RSP )
+      if     ( line + 1 < heightInCtus && col + 1 < tasksPerLine && lineBelow[col + 1] < INTRA_cont )
         return false;
-      else if( line + 1 < heightInCtus &&                          lineBelow[col]     < RSP )
+      else if( line + 1 < heightInCtus &&                           lineBelow[col]     < RSP )
         return false;
-      else if(                            col + 1 < widthInCtus && thisLine [col + 1] < RSP ) // need this for the last line
+      else if(                            col + 1 < tasksPerLine && thisLine [col + 1] < INTRA_cont ) // need this for the last line
         return false;
 
       if( onlyCheckReadyState )
@@ -889,7 +921,7 @@ bool DecLibRecon::ctuTask( int tid, CtuTaskParam* param )
 
       ITT_TASKEND( itt_domain_dec, itt_handle_rsp );
 
-      thisCtuState = ( TaskType )( RSP + 1 );
+      thisCtuState = LF_V;
     }
 
     case LF_V:
@@ -904,9 +936,11 @@ bool DecLibRecon::ctuTask( int tid, CtuTaskParam* param )
       for( int ctu = ctuStart; ctu < ctuEnd; ctu++ )
       {
         decLib.m_cLoopFilter.loopFilterCTU( cs, MAX_NUM_CHANNEL_TYPE, ctu, line, 0, EDGE_VER );
+
+        thisCtuState = LF_V_cont;
       }
 
-      thisCtuState = ( TaskType )( LF_V + 1 );
+      thisCtuState = LF_H;
 
       ITT_TASKEND( itt_domain_dec, itt_handle_lfl );
     }
@@ -916,10 +950,10 @@ bool DecLibRecon::ctuTask( int tid, CtuTaskParam* param )
       if( line > 0 && lineAbove[col] < LF_H )
         return false;
 
-      if( line > 0 && col + 1 < widthInCtus && lineAbove[col + 1] < LF_H )
+      if( line > 0 && col + 1 < tasksPerLine && lineAbove[col + 1] < LF_V_cont )
         return false;
 
-      if( col + 1 < widthInCtus && thisLine[col + 1] < LF_H )
+      if(             col + 1 < tasksPerLine && thisLine[col + 1] < LF_V_cont )
         return false;
 
       if( onlyCheckReadyState )
@@ -932,7 +966,7 @@ bool DecLibRecon::ctuTask( int tid, CtuTaskParam* param )
         decLib.m_cLoopFilter.loopFilterCTU( cs, MAX_NUM_CHANNEL_TYPE, ctu, line, 0, EDGE_HOR );
       }
 
-      thisCtuState = ( TaskType )( LF_H + 1 );
+      thisCtuState = PRESAO;
 
       ITT_TASKEND( itt_domain_dec, itt_handle_lfl );
     }
@@ -940,12 +974,12 @@ bool DecLibRecon::ctuTask( int tid, CtuTaskParam* param )
     case PRESAO:
     {
       // only last CTU processes full line
-      if( col == widthInCtus - 1 )
+      if( col == tasksPerLine - 1 )
       {
         if( line > 0 && lineAbove[col] <= PRESAO )
           return false;
 
-        for( int c = 0; c < widthInCtus; ++c )
+        for( int c = 0; c < tasksPerLine; ++c )
         {
           if( thisLine[c] < PRESAO )
             return false;
@@ -966,14 +1000,14 @@ bool DecLibRecon::ctuTask( int tid, CtuTaskParam* param )
 
         ITT_TASKEND( itt_domain_dec, itt_handle_presao );
       }
-      else if( thisLine[widthInCtus - 1] <= PRESAO )   // wait for last CTU to finish PRESAO
+      else if( thisLine[tasksPerLine - 1] <= PRESAO )   // wait for last CTU to finish PRESAO
       {
         return false;
       }
       if( onlyCheckReadyState )
         return true;
 
-      thisCtuState = ( TaskType )( PRESAO + 1 );
+      thisCtuState = SAO;
     }
 
     case SAO:
@@ -1001,12 +1035,14 @@ bool DecLibRecon::ctuTask( int tid, CtuTaskParam* param )
         for( int ctu = ctuStart; ctu < ctuEnd; ctu++ )
         {
           AdaptiveLoopFilter::prepareCTU( cs, ctu, line );
+
+          thisCtuState = SAO_cont;
         }
 
         ITT_TASKEND( itt_domain_dec, itt_handle_alf );
       }
 
-      thisCtuState = ( TaskType )( SAO + 1 );
+      thisCtuState = ALF;
     }
 
     case ALF:
@@ -1016,24 +1052,24 @@ bool DecLibRecon::ctuTask( int tid, CtuTaskParam* param )
         const bool a = line > 0;
         const bool b = line + 1 < heightInCtus;
         const bool c = col > 0;
-        const bool d = col + 1 < widthInCtus;
+        const bool d = col + 1 < tasksPerLine;
 
         if( a )
         {
           if( c && lineAbove[col - 1] < ALF ) return false;
           if(      lineAbove[col    ] < ALF ) return false;
-          if( d && lineAbove[col + 1] < ALF ) return false;
+          if( d && lineAbove[col + 1] < SAO_cont ) return false;
         }
 
         if( b )
         {
           if( c && lineBelow[col - 1] < ALF ) return false;
           if(      lineBelow[col    ] < ALF ) return false;
-          if( d && lineBelow[col + 1] < ALF ) return false;
+          if( d && lineBelow[col + 1] < SAO_cont ) return false;
         }
 
         if( c && thisLine[col - 1] < ALF ) return false;
-        if( d && thisLine[col + 1] < ALF ) return false;
+        if( d && thisLine[col + 1] < SAO_cont ) return false;
 
         if( onlyCheckReadyState )
           return true;
@@ -1048,7 +1084,7 @@ bool DecLibRecon::ctuTask( int tid, CtuTaskParam* param )
       else if( onlyCheckReadyState )
         return true;
 
-      thisCtuState = ( TaskType )( ALF + 1 );
+      thisCtuState = DONE;
     }
 
     default:

@@ -104,21 +104,27 @@ int main( int argc, char* argv[] )
 
   if(  argc > 1 && (!strcmp( (const char*) argv[1], "--help" ) || !strcmp( (const char*) argv[1], "-help" )) )
   {
-    vvdecoderapp::CmdLineParser::print_usage( cAppname, params );
+    vvdecoderapp::CmdLineParser::print_usage( cAppname, params, false );
     return 0;
   }
+
 
   int iRet = vvdecoderapp::CmdLineParser::parse_command_line(  argc, argv, params, cBitstreamFile, cOutputFile, iMaxFrames, iLoopCount, cExpectedYuvMD5, y4mOutput);
   if( iRet != 0 )
   {
     if( iRet == 2 )
     {
-      vvdecoderapp::CmdLineParser::print_usage( cAppname, params);
+      vvdecoderapp::CmdLineParser::print_usage( cAppname, params, false );
       return 0;
     }
     else if( iRet == 3 )
     {
-      std::cout << cAppname  << " version " << vvdec_get_version()<< std::endl;
+      vvdecoderapp::CmdLineParser::print_usage( cAppname, params, true );
+      return 0;
+    }
+    else if( iRet == 4 )
+    {
+      std::cout << cAppname << " version " << vvdec_get_version() << std::endl;
       return 0;
     }
 

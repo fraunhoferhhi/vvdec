@@ -106,25 +106,6 @@ struct MvField
   }
 };
 
-struct ColocatedMotionInfo
-{
-  Mv       mv      [NUM_REF_PIC_LIST_01];
-  int8_t   coRefIdx[NUM_REF_PIC_LIST_01] = { CO_NOT_VALID, CO_NOT_VALID };
-
-  int interDir() const
-  {
-    int
-    interDir  = coRefIdx[0] != CO_NOT_VALID ? 1 : 0;
-    interDir += coRefIdx[1] != CO_NOT_VALID ? 2 : 0;
-    return interDir;
-  }
-
-  bool isInter() const
-  {
-    return interDir() != 0;
-  }
-};
-
 struct MotionInfo
 {
   Mv       mv      [NUM_REF_PIC_LIST_01];
@@ -157,6 +138,42 @@ struct MotionInfo
     interDir  = miRefIdx[0] != MI_NOT_VALID ? 1 : 0;
     interDir += miRefIdx[1] != MI_NOT_VALID ? 2 : 0;
     return interDir;
+  }
+};
+
+struct ColocatedMotionInfo
+{
+  Mv       mv      [NUM_REF_PIC_LIST_01];
+  int8_t   coRefIdx[NUM_REF_PIC_LIST_01] = { CO_NOT_VALID, CO_NOT_VALID };
+
+  int interDir() const
+  {
+    int
+    interDir  = coRefIdx[0] != CO_NOT_VALID ? 1 : 0;
+    interDir += coRefIdx[1] != CO_NOT_VALID ? 2 : 0;
+    return interDir;
+  }
+
+  bool isInter() const
+  {
+    return interDir() != 0;
+  }
+
+  ColocatedMotionInfo &operator=( const MotionInfo &rhs )
+  {
+    static_assert( sizeof( MotionInfo ) == sizeof( ColocatedMotionInfo ), "MotionInfo and ColocatedMotionInfo require the same memory layout" );
+    static_assert( std::is_standard_layout<MotionInfo>         ::value &&
+                   std::is_standard_layout<ColocatedMotionInfo>::value,
+                   "offsetof is only valid for standard layout types" );
+    static_assert( offsetof( MotionInfo, mv )       == offsetof( ColocatedMotionInfo, mv ) &&
+                   offsetof( MotionInfo, miRefIdx ) == offsetof( ColocatedMotionInfo, coRefIdx ),
+                   "MotionInfo and ColocatedMotionInfo require the same memory layout" );
+
+    GCC_WARNING_DISABLE_class_memaccess
+    memcpy( this, &rhs, sizeof( MotionInfo ) );
+    GCC_WARNING_RESET
+
+    return *this;
   }
 };
 

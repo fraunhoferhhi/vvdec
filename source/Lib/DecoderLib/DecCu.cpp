@@ -230,10 +230,7 @@ void DecCu::TaskFinishMotionInfo( CodingStructure &cs, const int ctuRsAddr, cons
     {
       //if( src->isInter() )
       {
-        dst->mv[0]       = src->mv[0];
-        dst->mv[1]       = src->mv[1];
-        dst->coRefIdx[0] = src->miRefIdx[0];
-        dst->coRefIdx[1] = src->miRefIdx[1];
+        *dst = *src;
       }
     }
   }

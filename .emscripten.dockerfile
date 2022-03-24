@@ -1,3 +1,5 @@
+# vim: filetype=dockerfile
+
 FROM vigitlab.fe.hhi.de:5050/pub/dockerimages/ubuntu_2004_dev:latest
 
 LABEL maintainer="Gabriel Hege" \

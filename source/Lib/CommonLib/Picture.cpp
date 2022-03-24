@@ -306,7 +306,7 @@ Slice* Picture::allocateNewSlice( Slice** pilot )
   slice->setPPS( cs->pps.get() );
   slice->setSPS( cs->sps.get() );
   slice->setVPS( cs->vps.get() );
-  slice->setAlfAPSs( cs->alfApss );
+  slice->setAlfApss( cs->alfApss );
   slice->setPic( this );
 
   return slice;

@@ -74,7 +74,7 @@ class DecCu;
 
 enum TaskType
 {
-  /*TRAFO=-1,*/ MIDER, LF_INIT, INTER, INTRA, RSP, LF_V, LF_H, PRESAO, SAO, ALF, DONE, DMVR
+  /*TRAFO=-1,*/ MIDER, MIDER_cont, LF_INIT, INTER, INTRA, INTRA_cont, RSP, LF_V, LF_V_cont, LF_H, PRESAO, SAO, SAO_cont, ALF, DONE, DMVR
 };
 using CtuState = std::atomic<TaskType>;
 
@@ -108,8 +108,10 @@ struct LineTaskParam
 struct CtuTaskParam
 {
   CommonTaskParam& common;
-  int              line;
-  int              col;
+  int              taskLine;
+  int              taskCol;
+  int              ctuStart;
+  int              ctuEnd;
   int              numColPerTask;
   int              numTasksPerLine;
 };

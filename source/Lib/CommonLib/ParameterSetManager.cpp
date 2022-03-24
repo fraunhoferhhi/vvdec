@@ -71,7 +71,7 @@ void updateParameterSetChangedFlag( bool&                       bChanged,
   bChanged = (*pNewData != *pOldData);
 }
 
-ParameterSetManager::ActivePSs ParameterSetManager::xActivateParameterSets( const Slice* pSlicePilot, const PicHeader* picHeader )
+ParameterSetManager::ActivePSs ParameterSetManager::xActivateParameterSets( const bool isFirstSlice, const Slice* pSlicePilot, const PicHeader* picHeader )
 {
   PPS* pps = getPPS( picHeader->getPPSId() );
   CHECK( pps == 0, "No PPS present" );
@@ -79,34 +79,38 @@ ParameterSetManager::ActivePSs ParameterSetManager::xActivateParameterSets( cons
   SPS* sps = getSPS( pps->getSPSId() );
   CHECK( sps == 0, "No SPS present" );
 
-  if( !pps->pcv )
+  if( isFirstSlice )
   {
-    pps->pcv = std::make_unique<PreCalcValues>( *sps, *pps );
-  }
-  else
-  {
-    CHECK( !pps->pcv->isCorrect( *sps, *pps ), "PPS has PCV already, but values chaged???" );
+    if( !pps->pcv )
+    {
+      pps->pcv = std::make_unique<PreCalcValues>( *sps, *pps );
+    }
+    else
+    {
+      CHECK( !pps->pcv->isCorrect( *sps, *pps ), "PPS has PCV already, but values chaged???" );
+    }
+
+    sps->clearChangedFlag();
+    pps->clearChangedFlag();
+
+    if( false == activatePPS( picHeader->getPPSId(), pSlicePilot->isIRAP() ) )
+    {
+      THROW_RECOVERABLE( "Parameter set activation failed!" );
+    }
+
+    m_alfAPSs.fill( nullptr );
+    m_apsMap.clearActive();
   }
 
-  sps->clearChangedFlag();
-  pps->clearChangedFlag();
-
-  if( false == activatePPS( picHeader->getPPSId(), pSlicePilot->isIRAP() ) )
-  {
-    THROW_RECOVERABLE( "Parameter set activation failed!" );
-  }
-
-  m_alfAPSs.fill( nullptr );
-  m_apsMap.clearActive();
   // luma APSs
-  for( int i = 0; i < pSlicePilot->getTileGroupApsIdLuma().size(); i++ )
+  for( int i = 0; i < pSlicePilot->getAlfApsIdLuma().size(); i++ )
   {
-    int apsId = pSlicePilot->getTileGroupApsIdLuma()[i];
+    int apsId = pSlicePilot->getAlfApsIdLuma()[i];
     APS* alfApsL = getAPS( apsId, ALF_APS );
 
     if( alfApsL )
     {
-      alfApsL->clearChangedFlag();
+      if( isFirstSlice ) alfApsL->clearChangedFlag();
       m_alfAPSs[apsId] = alfApsL;
       if( false == activateAPS( apsId, ALF_APS ) )
       {
@@ -120,14 +124,14 @@ ParameterSetManager::ActivePSs ParameterSetManager::xActivateParameterSets( cons
     }
   }
 
-  if( pSlicePilot->getTileGroupAlfEnabledFlag( COMPONENT_Cb ) || pSlicePilot->getTileGroupAlfEnabledFlag( COMPONENT_Cr ) )
+  if( pSlicePilot->getAlfEnabledFlag( COMPONENT_Cb ) || pSlicePilot->getAlfEnabledFlag( COMPONENT_Cr ) )
   {
     // chroma APS
-    int apsId = pSlicePilot->getTileGroupApsIdChroma();
+    int apsId = pSlicePilot->getAlfApsIdChroma();
     APS* alfApsC = getAPS( apsId, ALF_APS );
     if( alfApsC )
     {
-      alfApsC->clearChangedFlag();
+      if( isFirstSlice ) alfApsC->clearChangedFlag();
       m_alfAPSs[apsId] = alfApsC;
       if( false == activateAPS( apsId, ALF_APS ) )
       {
@@ -137,11 +141,11 @@ ParameterSetManager::ActivePSs ParameterSetManager::xActivateParameterSets( cons
              "When sps_ccalf_enabled_flag is 0, the values of alf_cc_cb_filter_signal_flag and alf_cc_cr_filter_signal_flag shall be equal to 0" );
     }
   }
-  if( pSlicePilot->getTileGroupCcAlfCbEnabledFlag() )
+  if( pSlicePilot->getCcAlfCbEnabledFlag() )
   {
-    if( !m_alfAPSs[pSlicePilot->getTileGroupCcAlfCbApsId()] )
+    if( !m_alfAPSs[pSlicePilot->getCcAlfCbApsId()] )
     {
-      int apsId = pSlicePilot->getTileGroupCcAlfCbApsId();
+      int apsId = pSlicePilot->getCcAlfCbApsId();
       APS *aps = getAPS( apsId, ALF_APS );
       if( aps )
       {
@@ -155,11 +159,11 @@ ParameterSetManager::ActivePSs ParameterSetManager::xActivateParameterSets( cons
     }
   }
 
-  if( pSlicePilot->getTileGroupCcAlfCrEnabledFlag() )
+  if( pSlicePilot->getCcAlfCrEnabledFlag() )
   {
-    if( !m_alfAPSs[pSlicePilot->getTileGroupCcAlfCrApsId()] )
+    if( !m_alfAPSs[pSlicePilot->getCcAlfCrApsId()] )
     {
-      int apsId = pSlicePilot->getTileGroupCcAlfCrApsId();
+      int apsId = pSlicePilot->getCcAlfCrApsId();
       APS *aps = getAPS( apsId, ALF_APS );
       if( aps )
       {
@@ -181,7 +185,7 @@ ParameterSetManager::ActivePSs ParameterSetManager::xActivateParameterSets( cons
 
   if( lmcsAPS )
   {
-    lmcsAPS->clearChangedFlag();
+    if( isFirstSlice ) lmcsAPS->clearChangedFlag();
     if( false == activateAPS( picHeader->getLmcsAPSId(), LMCS_APS ) )
     {
       THROW( "LMCS APS activation failed!" );
@@ -202,7 +206,7 @@ ParameterSetManager::ActivePSs ParameterSetManager::xActivateParameterSets( cons
 
   if( scalingListAPS )
   {
-    scalingListAPS->clearChangedFlag();
+    if( isFirstSlice ) scalingListAPS->clearChangedFlag();
 
     if( false == activateAPS( picHeader->getScalingListAPSId(), SCALING_LIST_APS ) )
     {

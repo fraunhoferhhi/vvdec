@@ -886,121 +886,121 @@ Slice*  DecLibParser::xDecodeSliceMain( InputNALUnit &nalu )
   pcSlice->scaleRefPicList( m_pcParsePic->cs->picHeader );
 
 
-    if (!pcSlice->isIntra())
-    {
-      const int iCurrPOC  = pcSlice->getPOC();
+  if (!pcSlice->isIntra())
+  {
+    const int iCurrPOC  = pcSlice->getPOC();
 
-      bool bLowDelay = true;
-      for( int iRefIdx = 0; iRefIdx < pcSlice->getNumRefIdx( REF_PIC_LIST_0 ) && bLowDelay; iRefIdx++ )
+    bool bLowDelay = true;
+    for( int iRefIdx = 0; iRefIdx < pcSlice->getNumRefIdx( REF_PIC_LIST_0 ) && bLowDelay; iRefIdx++ )
+    {
+      if( pcSlice->getRefPic( REF_PIC_LIST_0, iRefIdx )->getPOC() > iCurrPOC )
       {
-        if( pcSlice->getRefPic( REF_PIC_LIST_0, iRefIdx )->getPOC() > iCurrPOC )
+        bLowDelay = false;
+      }
+    }
+    if( pcSlice->isInterB() )
+    {
+      for( int iRefIdx = 0; iRefIdx < pcSlice->getNumRefIdx( REF_PIC_LIST_1 ) && bLowDelay; iRefIdx++ )
+      {
+        if( pcSlice->getRefPic( REF_PIC_LIST_1, iRefIdx )->getPOC() > iCurrPOC )
         {
           bLowDelay = false;
         }
       }
-      if( pcSlice->isInterB() )
-      {
-        for( int iRefIdx = 0; iRefIdx < pcSlice->getNumRefIdx( REF_PIC_LIST_1 ) && bLowDelay; iRefIdx++ )
-        {
-          if( pcSlice->getRefPic( REF_PIC_LIST_1, iRefIdx )->getPOC() > iCurrPOC )
-          {
-            bLowDelay = false;
-          }
-        }
-      }
-
-      pcSlice->setCheckLDC( bLowDelay );
     }
 
-    if( pcSlice->getSPS()->getUseSMVD() && !pcSlice->getCheckLDC() && !pcSlice->getPicHeader()->getMvdL1ZeroFlag() )
+    pcSlice->setCheckLDC( bLowDelay );
+  }
+
+  if( pcSlice->getSPS()->getUseSMVD() && !pcSlice->getCheckLDC() && !pcSlice->getPicHeader()->getMvdL1ZeroFlag() )
+  {
+    int currPOC = pcSlice->getPOC();
+
+    int forwardPOC = currPOC;
+    int backwardPOC = currPOC;
+    int ref = 0;
+    int refIdx0 = -1;
+    int refIdx1 = -1;
+
+    // search nearest forward POC in List 0
+    for ( ref = 0; ref < pcSlice->getNumRefIdx( REF_PIC_LIST_0 ); ref++ )
     {
-      int currPOC = pcSlice->getPOC();
+      int poc = pcSlice->getRefPic( REF_PIC_LIST_0, ref )->getPOC();
+      const bool isRefLongTerm = pcSlice->getRefPic( REF_PIC_LIST_0, ref )->longTerm;
+      if( poc < currPOC && ( poc > forwardPOC || refIdx0 == -1 ) && !isRefLongTerm )
+      {
+        forwardPOC = poc;
+        refIdx0 = ref;
+      }
+    }
 
-      int forwardPOC = currPOC;
-      int backwardPOC = currPOC;
-      int ref = 0;
-      int refIdx0 = -1;
-      int refIdx1 = -1;
+    // search nearest backward POC in List 1
+    for ( ref = 0; ref < pcSlice->getNumRefIdx( REF_PIC_LIST_1 ); ref++ )
+    {
+      int poc = pcSlice->getRefPic( REF_PIC_LIST_1, ref )->getPOC();
+      const bool isRefLongTerm = pcSlice->getRefPic( REF_PIC_LIST_1, ref )->longTerm;
+      if( poc > currPOC && ( poc < backwardPOC || refIdx1 == -1 ) && !isRefLongTerm )
+      {
+        backwardPOC = poc;
+        refIdx1 = ref;
+      }
+    }
 
-      // search nearest forward POC in List 0
+    if ( !(forwardPOC < currPOC && backwardPOC > currPOC) )
+    {
+      forwardPOC = currPOC;
+      backwardPOC = currPOC;
+      refIdx0 = -1;
+      refIdx1 = -1;
+
+      // search nearest backward POC in List 0
       for ( ref = 0; ref < pcSlice->getNumRefIdx( REF_PIC_LIST_0 ); ref++ )
       {
         int poc = pcSlice->getRefPic( REF_PIC_LIST_0, ref )->getPOC();
         const bool isRefLongTerm = pcSlice->getRefPic( REF_PIC_LIST_0, ref )->longTerm;
-        if( poc < currPOC && ( poc > forwardPOC || refIdx0 == -1 ) && !isRefLongTerm )
+        if( poc > currPOC && ( poc < backwardPOC || refIdx0 == -1 ) && !isRefLongTerm )
         {
-          forwardPOC = poc;
+          backwardPOC = poc;
           refIdx0 = ref;
         }
       }
 
-      // search nearest backward POC in List 1
+      // search nearest forward POC in List 1
       for ( ref = 0; ref < pcSlice->getNumRefIdx( REF_PIC_LIST_1 ); ref++ )
       {
         int poc = pcSlice->getRefPic( REF_PIC_LIST_1, ref )->getPOC();
         const bool isRefLongTerm = pcSlice->getRefPic( REF_PIC_LIST_1, ref )->longTerm;
-        if( poc > currPOC && ( poc < backwardPOC || refIdx1 == -1 ) && !isRefLongTerm )
+        if( poc < currPOC && ( poc > forwardPOC || refIdx1 == -1 ) && !isRefLongTerm )
         {
-          backwardPOC = poc;
+          forwardPOC = poc;
           refIdx1 = ref;
         }
       }
+    }
 
-      if ( !(forwardPOC < currPOC && backwardPOC > currPOC) )
-      {
-        forwardPOC = currPOC;
-        backwardPOC = currPOC;
-        refIdx0 = -1;
-        refIdx1 = -1;
-
-        // search nearest backward POC in List 0
-        for ( ref = 0; ref < pcSlice->getNumRefIdx( REF_PIC_LIST_0 ); ref++ )
-        {
-          int poc = pcSlice->getRefPic( REF_PIC_LIST_0, ref )->getPOC();
-          const bool isRefLongTerm = pcSlice->getRefPic( REF_PIC_LIST_0, ref )->longTerm;
-          if( poc > currPOC && ( poc < backwardPOC || refIdx0 == -1 ) && !isRefLongTerm )
-          {
-            backwardPOC = poc;
-            refIdx0 = ref;
-          }
-        }
-
-        // search nearest forward POC in List 1
-        for ( ref = 0; ref < pcSlice->getNumRefIdx( REF_PIC_LIST_1 ); ref++ )
-        {
-          int poc = pcSlice->getRefPic( REF_PIC_LIST_1, ref )->getPOC();
-          const bool isRefLongTerm = pcSlice->getRefPic( REF_PIC_LIST_1, ref )->longTerm;
-          if( poc < currPOC && ( poc > forwardPOC || refIdx1 == -1 ) && !isRefLongTerm )
-          {
-            forwardPOC = poc;
-            refIdx1 = ref;
-          }
-        }
-      }
-
-      if ( forwardPOC < currPOC && backwardPOC > currPOC )
-      {
-        pcSlice->setBiDirPred( true, refIdx0, refIdx1 );
-      }
-      else
-      {
-        pcSlice->setBiDirPred( false, -1, -1 );
-      }
+    if ( forwardPOC < currPOC && backwardPOC > currPOC )
+    {
+      pcSlice->setBiDirPred( true, refIdx0, refIdx1 );
     }
     else
     {
       pcSlice->setBiDirPred( false, -1, -1 );
     }
+  }
+  else
+  {
+    pcSlice->setBiDirPred( false, -1, -1 );
+  }
 
-    //---------------
-    pcSlice->setRefPOCList();
-    NalUnitInfo naluInfo;
-    naluInfo.m_nalUnitType = nalu.m_nalUnitType;
-    naluInfo.m_nuhLayerId = nalu.m_nuhLayerId;
-    naluInfo.m_firstCTUinSlice = pcSlice->getFirstCtuRsAddrInSlice();
-    naluInfo.m_POC = pcSlice->getPOC();
-    xCheckMixedNalUnit( pcSlice, nalu );
-    m_nalUnitInfo[naluInfo.m_nuhLayerId].push_back( naluInfo );
+  //---------------
+  pcSlice->setRefPOCList();
+  NalUnitInfo naluInfo;
+  naluInfo.m_nalUnitType = nalu.m_nalUnitType;
+  naluInfo.m_nuhLayerId = nalu.m_nuhLayerId;
+  naluInfo.m_firstCTUinSlice = pcSlice->getFirstCtuRsAddrInSlice();
+  naluInfo.m_POC = pcSlice->getPOC();
+  xCheckMixedNalUnit( pcSlice, nalu );
+  m_nalUnitInfo[naluInfo.m_nuhLayerId].push_back( naluInfo );
 
   if( m_bFirstSliceInPicture )
   {
@@ -1081,9 +1081,11 @@ Picture * DecLibParser::xActivateParameterSets( const int layerId )
 {
   Picture * pcPic = nullptr;
 
+  ParameterSetManager::ActivePSs paramSets;
+
   if( m_bFirstSliceInPicture )
   {
-    auto paramSets = m_parameterSetManager.xActivateParameterSets( m_apcSlicePilot, m_picHeader.get() );
+              paramSets = m_parameterSetManager.xActivateParameterSets( m_bFirstSliceInPicture, m_apcSlicePilot, m_picHeader.get() );
     const SPS*  sps     = paramSets.sps;
     const PPS*  pps     = paramSets.pps;
           APS** alfApss = paramSets.alfAPSs->data();
@@ -1145,6 +1147,16 @@ Picture * DecLibParser::xActivateParameterSets( const int layerId )
     pcPic->setPicHead( m_picHeader );
     pSlice->setPicHeader( m_picHeader.get() );
     m_picHeader = std::make_shared<PicHeader>();
+  }
+  else
+  {
+    paramSets = m_parameterSetManager.xActivateParameterSets( m_bFirstSliceInPicture, pSlice, pcPic->picHeader.get() );
+    pSlice->setAlfApss( paramSets.alfAPSs->data() );
+
+    for( int i = 0; i < ALF_CTB_MAX_NUM_APS; ++i )
+    {
+      pcPic->cs->alfApss[i] = paramSets.alfAPSs->data()[i] ? paramSets.alfAPSs->data()[i]->getSharedPtr() : nullptr;
+    }
   }
 
   const VPS*  vps     = pSlice->getVPS();

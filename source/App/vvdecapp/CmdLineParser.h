@@ -62,43 +62,58 @@ public:
   /// Destructor
   virtual ~CmdLineParser() {}
 
-  static void print_usage( std::string cApp, vvdecParams& rcParams )
+  static void print_usage( std::string cApp, vvdecParams& rcParams, bool fullHelp )
   {
-      printf( "\n Usage:  %s  [param1] [pararm2] [...] \n", cApp.c_str() );
-      std::cout << "\n"
-          "\t File input Options\n"
-          "\t\t [--bitstream,-b <str>      ] : bitstream input file\n"
-          "\t\t [--frames,-f  <int>        ] : max. frames to decode (default: -1 all frames) \n"
-          "\n"
-          "\t YUV output options\n"
-          "\n"
-          "\t\t [--output,-o  <str>        ] : yuv output file (default: not set)\n"
-          "\t\t [--upscale,-uo             ] : set upscaling mode for RPR pictures(default: 0: off, 1: copy without rescaling, 2: rescale to target resolution)\n"
-          "\t\t [--y4m                     ] : force y4m output (for pipe output; auto enable for .y4m output file extension)\n"
-          "\n"
-          "\t Decoder Options\n"
-          "\n"
-          "\t\t [--threads,-t  <int>       ] : number of threads (default: <= 0 auto detection )\n"
-          "\t\t [--parsedelay,-p  <int>    ] : maximal number of frames to read before decoding (default: <= 0 auto detection )\n"
+    std::cout <<   std::endl;
+    std::cout <<   " Usage:  " << cApp << "  [param1] [pararm2] [...]" << std::endl;
+    std::cout <<   std::endl;
+    std::cout <<   "\t File input Options" << std::endl;
+    std::cout <<   std::endl;
+    std::cout <<   "\t\t [--bitstream,-b <str>      ] : bitstream input file" << std::endl;
+    std::cout <<   "\t\t [--frames,-f  <int>        ] : max. frames to decode (default: -1 all frames)" << std::endl;
+    std::cout <<   std::endl;
+    std::cout <<   "\t YUV output options" << std::endl;
+    std::cout <<   std::endl;
+    std::cout <<   "\t\t [--output,-o  <str>        ] : yuv output file (default: not set)" << std::endl;
+    if( fullHelp )
+    {
+      std::cout << "\t\t [--upscale,-uo             ] : set upscaling mode for RPR pictures(default: 0: off, 1: copy without rescaling, 2: rescale to target resolution)" << std::endl;
+    }
+    std::cout <<   "\t\t [--y4m                     ] : force y4m output (for pipe output; auto enable for .y4m output file extension)" << std::endl;
+    std::cout <<   std::endl;
+    std::cout <<   "\t Decoder Options" << std::endl;
+    std::cout <<   std::endl;
+    std::cout <<   "\t\t [--threads,-t  <int>       ] : number of threads (default: <= 0 auto detection )" << std::endl;
+    if( fullHelp )
+    {
+      std::cout << "\t\t [--parsedelay,-p  <int>    ] : maximal number of frames to read before decoding (default: <= 0 auto detection )" << std::endl;
 #if VVDEC_ARCH_X86
-          "\t\t [--simd <int>              ] : used simd extension (-1: auto, 0: scalar, 1: sse41, 2: sse42, 3: avx, 4: avx2) (default: -1)\n"
+      std::cout << "\t\t [--simd <int>              ] : used simd extension (-1: auto, 0: scalar, 1: sse41, 2: sse42, 3: avx, 4: avx2) (default: -1)" << std::endl;
 #elif VVDEC_ARCH_ARM
-          "\t\t [--simd <int>              ] : used simd extension (-1: auto, 0: scalar, 1: neon) (default: -1)\n"
+      std::cout << "\t\t [--simd <int>              ] : used simd extension (-1: auto, 0: scalar, 1: neon) (default: -1)" << std::endl;
 #elif VVDEC_ARCH_WASM
-          "\t\t [--simd <int>              ] : used simd extension (-1: auto, 0: scalar, 1: wasm-simd) (default: -1)\n"
+      std::cout << "\t\t [--simd <int>              ] : used simd extension (-1: auto, 0: scalar, 1: wasm-simd) (default: -1)" << std::endl;
 #endif
-          "\n"
-          "\t\t [--SEIDecodedPictureHash,-dph ] : enable handling of decoded picture hash SEI messages\n"
-          "\t\t [--CheckYuvMD5,-md5 <md5str>  ] : enable calculation of md5 hash over the full YUV output and check against the provided value.\n"
-          "\n"
-          "\t General Options\n"
-          "\n"
-          "\t\t [--loops,-L  <int>         ] : number of decoder loops (default: 0, -1 endless)\n"
-          "\t\t [--verbosity,-v  <int>     ] : verbosity level (0: silent, 1: error, 2: warning, 3: info, 4: notice, 5: verbose, 6: debug) (default: " << (int)rcParams.logLevel << ")\n"
-          "\t\t [--version                 ] : show version\n"
-          "\t\t [--help,-h                 ] : show help\n"
-          "\n" ;
+    }
+    std::cout <<   std::endl;
+    if( fullHelp )
+    {
+      std::cout << "\t\t [--SEIDecodedPictureHash,-dph ] : enable handling of decoded picture hash SEI messages" << std::endl;
+      std::cout << "\t\t [--CheckYuvMD5,-md5 <md5str>  ] : enable calculation of md5 hash over the full YUV output and check against the provided value." << std::endl;
       std::cout << std::endl;
+    }
+    std::cout << "\t General Options" << std::endl;
+    std::cout << std::endl;
+    if( fullHelp )
+    {
+      std::cout << "\t\t [--loops,-L  <int>         ] : number of decoder loops (default: 0, -1 endless)" << std::endl;
+    }
+    std::cout <<   "\t\t [--verbosity,-v  <int>     ] : verbosity level (0: silent, 1: error, 2: warning, 3: info, 4: notice, 5: verbose, 6: debug) (default: " << ( int ) rcParams.logLevel << ")" << std::endl;
+    std::cout <<   "\t\t [--version                 ] : show version" << std::endl;
+    std::cout <<   "\t\t [--help,-h                 ] : show help" << std::endl;
+    std::cout <<   "\t\t [--fullhelp                ] : show full help including expert options" << std::endl;
+    std::cout <<   std::endl;
+    std::cout <<   std::endl;
   }
 
 
@@ -144,10 +159,16 @@ public:
         iRet = 2;
         return iRet;
       }
-      else if( !strcmp( (const char*)argv[i_arg], "--version" ) )
+      else if( !strcmp( ( const char* ) argv[i_arg], "--fullhelp" ) )
       {
         i_arg++;
         iRet = 3;
+        return iRet;
+      }
+      else if( !strcmp( (const char*)argv[i_arg], "--version" ) )
+      {
+        i_arg++;
+        iRet = 4;
         return iRet;
       }
       else
