@@ -6,5 +6,5 @@ includedir=@CMAKE_INSTALL_PREFIX@/@CMAKE_INSTALL_INCLUDEDIR@
 Name: libvvdec
 Description: Fraunhofer Versatile Video Decoder (VVdeC)
 Version: @PROJECT_VERSION@
-Libs: -L${libdir} -lvvdec -lstdc++
+Libs: -L${libdir} -lvvdec -lstdc++ -lm
 Cflags: -I${includedir}

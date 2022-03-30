@@ -2411,7 +2411,7 @@ void simdFilter16xX_N8( const ClpRng& clpRng, const Pel* src, const ptrdiff_t sr
     int vcoeffh[4];
     int vcoeffv[4];
     
-    __m256i vsrcv  [8];
+    __m256i vsrcv[9];
 
     for( int i = 0; i < 8; i += 2 )
     {
@@ -2454,20 +2454,21 @@ void simdFilter16xX_N8( const ClpRng& clpRng, const Pel* src, const ptrdiff_t sr
       }
       else
       {
-        for( int i = 0; i < 7; i++ )
-        {
-          vsrcv[i] = vsrcv[i + 1];
-        }
-        vsrcv[7] = vsum;
-        
+        vsrcv[8] = vsum;
+
         vsuma = vsumb = _mm256_set1_epi32( offset2nd );
 
-        for( int i=0; i<8; i+=2 )
+        for( int i = 0; i < 8; i += 2 )
         {
-          __m256i vsrca = _mm256_unpacklo_epi16( vsrcv[i], vsrcv[i+1] );
-          __m256i vsrcb = _mm256_unpackhi_epi16( vsrcv[i], vsrcv[i+1] );
-          vsuma  = _mm256_add_epi32( vsuma, _mm256_madd_epi16( vsrca, _mm256_set1_epi32( vcoeffv[i/2] ) ) );
-          vsumb  = _mm256_add_epi32( vsumb, _mm256_madd_epi16( vsrcb, _mm256_set1_epi32( vcoeffv[i/2] ) ) );
+          const __m256i vsrc0 = vsrcv[i + 1];
+          const __m256i vsrc1 = vsrcv[i + 2];
+          const __m256i vsrca = _mm256_unpacklo_epi16( vsrc0, vsrc1 );
+          const __m256i vsrcb = _mm256_unpackhi_epi16( vsrc0, vsrc1 );
+          const __m256i vcff  = _mm256_set1_epi32( vcoeffv[i / 2] );
+          vsuma         = _mm256_add_epi32( vsuma, _mm256_madd_epi16( vsrca, vcff ) );
+          vsumb         = _mm256_add_epi32( vsumb, _mm256_madd_epi16( vsrcb, vcff ) );
+          vsrcv[i]      = vsrc0;
+          vsrcv[i + 1]  = vsrc1;
         }
 
         vsuma = _mm256_srai_epi32 ( vsuma, shift2nd );
@@ -2515,28 +2516,30 @@ void simdFilter16xX_N8( const ClpRng& clpRng, const Pel* src, const ptrdiff_t sr
 
     __m128i vsum, vsuma, vsumb;
 
-    __m128i vsrcv[2][8];
+    __m128i vsrcv[2][9];
 
     for( int row = 0; row < extHeight; row++ )
     {
       _mm_prefetch( ( const char* ) src + 2 * srcStride, _MM_HINT_T0 );
 
+      __m128i vsrc3 = _mm_loadu_si128( ( const __m128i * ) & src[0] );
+
       for( int j = 0; j < 2; j++ )
       {
         __m128i vsrca0, vsrca1, vsrcb0, vsrcb1;
-        __m128i vsrc0 = _mm_loadu_si128( ( const __m128i* ) &src[(j << 3) + 0] );
+        __m128i vsrc0 = vsrc3;
         __m128i vsrc1 = _mm_loadu_si128( ( const __m128i* ) &src[(j << 3) + 4] );
 
         vsrca0 = _mm_shuffle_epi8 ( vsrc0, vshuf0 );
         vsrca1 = _mm_shuffle_epi8 ( vsrc0, vshuf1 );  
-        vsrc0  = _mm_loadu_si128  ( ( const __m128i* ) &src[(j << 3) + 8] );
+        vsrc3  = _mm_loadu_si128  ( ( const __m128i* ) &src[(j << 3) + 8] );
         vsuma  = _mm_add_epi32    ( _mm_madd_epi16( vsrca0, _mm_set1_epi32( vcoeffh[0] ) ), _mm_madd_epi16( vsrca1, _mm_set1_epi32( vcoeffh[1] ) ) );
         vsrcb0 = _mm_shuffle_epi8 ( vsrc1, vshuf0 );
         vsrcb1 = _mm_shuffle_epi8 ( vsrc1, vshuf1 );
         vsumb  = _mm_add_epi32    ( _mm_madd_epi16( vsrcb0, _mm_set1_epi32( vcoeffh[0] ) ), _mm_madd_epi16( vsrcb1, _mm_set1_epi32( vcoeffh[1] ) ) );
         vsrc1  = _mm_add_epi32    ( _mm_madd_epi16( vsrcb0, _mm_set1_epi32( vcoeffh[2] ) ), _mm_madd_epi16( vsrcb1, _mm_set1_epi32( vcoeffh[3] ) ) );
-        vsrca0 = _mm_shuffle_epi8 ( vsrc0, vshuf0 );
-        vsrca1 = _mm_shuffle_epi8 ( vsrc0, vshuf1 );
+        vsrca0 = _mm_shuffle_epi8( vsrc3, vshuf0 );
+        vsrca1 = _mm_shuffle_epi8( vsrc3, vshuf1 );
         vsrc0  = _mm_add_epi32    ( _mm_madd_epi16( vsrca0, _mm_set1_epi32( vcoeffh[2] ) ), _mm_madd_epi16( vsrca1, _mm_set1_epi32( vcoeffh[3] ) ) );
         vsuma  = _mm_add_epi32    ( vsuma, vsrc1 );
         vsumb  = _mm_add_epi32    ( vsumb, vsrc0 );
@@ -2555,21 +2558,21 @@ void simdFilter16xX_N8( const ClpRng& clpRng, const Pel* src, const ptrdiff_t sr
         }
         else
         {
-          for( int i = 0; i < 7; i++ )
-          {
-            vsrcv[j][i] = vsrcv[j][i + 1];
-          }
-          vsrcv[j][7] = vsum;
+          vsrcv[j][8] = vsum;
 
           vsuma = vsumb = _mm_set1_epi32( offset2nd );
 
           for( int i = 0; i < 8; i += 2 )
           {
-            vsrca0 = _mm_unpacklo_epi16( vsrcv[j][i], vsrcv[j][i+1] );
-            vsrcb0 = _mm_unpackhi_epi16( vsrcv[j][i], vsrcv[j][i+1] );
-
-            vsuma = _mm_add_epi32( vsuma, _mm_madd_epi16( vsrca0, _mm_set1_epi32( vcoeffv[i / 2] ) ) );
-            vsumb = _mm_add_epi32( vsumb, _mm_madd_epi16( vsrcb0, _mm_set1_epi32( vcoeffv[i / 2] ) ) );
+            vsrc0 = vsrcv[j][i + 1];
+            vsrc1 = vsrcv[j][i + 2];
+            vsrca0 = _mm_unpacklo_epi16( vsrc0, vsrc1 );
+            vsrcb0 = _mm_unpackhi_epi16( vsrc0, vsrc1 );
+            const __m128i vcff = _mm_set1_epi32( vcoeffv[i / 2] );
+            vsuma = _mm_add_epi32( vsuma, _mm_madd_epi16( vsrca0, vcff ) );
+            vsumb = _mm_add_epi32( vsumb, _mm_madd_epi16( vsrcb0, vcff ) );
+            vsrcv[j][i] = vsrc0;
+            vsrcv[j][i + 1] = vsrc1;
           }
 
           vsuma = _mm_srai_epi32( vsuma, shift2nd );

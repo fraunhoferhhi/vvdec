@@ -145,6 +145,7 @@ public:
 
    int init( const vvdecParams& params );
    int uninit();
+   int reset();
 
    void setLoggingCallback( vvdecLoggingCallback callback );
 
@@ -192,9 +193,9 @@ private:
   typedef std::map<uint64_t,FrameStorage>    frameStorageMap;
   typedef frameStorageMap::value_type        frameStorageMapType;
 public:
-   bool                                    m_bInitialized = false;
+   bool                                    m_bInitialized   = false;
    bool                                    m_bRemovePadding = false; // copy picture before output to remove padding
-   VVDecInternalState                      m_eState       = INTERNAL_STATE_UNINITIALIZED;
+   VVDecInternalState                      m_eState         = INTERNAL_STATE_UNINITIALIZED;
 
    std::unique_ptr<DecLib>                 m_cDecLib;
 
