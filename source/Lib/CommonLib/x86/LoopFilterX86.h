@@ -181,16 +181,10 @@ static inline void xPelFilterLumaLoopVer( Pel* piSrc, const ptrdiff_t step, cons
   va45 = _mm_unpacklo_epi32( va01a23hi, va45a67hi );
   va67 = _mm_unpackhi_epi32( va01a23hi, va45a67hi );
 
-  __m128i vzr = _mm_setzero_si128();
-
-  _mm_storel_epi64( ( __m128i* ) &piSrc[-4 + 0 * step], _mm_unpacklo_epi64( va01, vzr ) );
-  _mm_storel_epi64( ( __m128i* ) &piSrc[-4 + 1 * step], _mm_unpackhi_epi64( va01, vzr ) );
-  _mm_storel_epi64( ( __m128i* ) &piSrc[-4 + 2 * step], _mm_unpacklo_epi64( va23, vzr ) );
-  _mm_storel_epi64( ( __m128i* ) &piSrc[-4 + 3 * step], _mm_unpackhi_epi64( va23, vzr ) );
-  _mm_storel_epi64( ( __m128i* ) &piSrc[ 0 + 0 * step], _mm_unpacklo_epi64( va45, vzr ) );
-  _mm_storel_epi64( ( __m128i* ) &piSrc[ 0 + 1 * step], _mm_unpackhi_epi64( va45, vzr ) );
-  _mm_storel_epi64( ( __m128i* ) &piSrc[ 0 + 2 * step], _mm_unpacklo_epi64( va67, vzr ) );
-  _mm_storel_epi64( ( __m128i* ) &piSrc[ 0 + 3 * step], _mm_unpackhi_epi64( va67, vzr ) );
+  _mm_storeu_si128( ( __m128i* ) &piSrc[-4 + 0 * step], _mm_unpacklo_epi64( va01, va45 ) );
+  _mm_storeu_si128( ( __m128i* ) &piSrc[-4 + 1 * step], _mm_unpackhi_epi64( va01, va45 ) );
+  _mm_storeu_si128( ( __m128i* ) &piSrc[-4 + 2 * step], _mm_unpacklo_epi64( va23, va67 ) );
+  _mm_storeu_si128( ( __m128i* ) &piSrc[-4 + 3 * step], _mm_unpackhi_epi64( va23, va67 ) );
 }
 
 template<X86_VEXT vext>
@@ -349,79 +343,175 @@ static void xPelFilterLumaX86( Pel* piSrc, const ptrdiff_t step, const ptrdiff_t
 #endif
 }
 
-static const int  dbCoeffs7[7] = { 59, 50, 41, 32, 23, 14,  5 };
-static const int  dbCoeffs5[5] = { 58, 45, 32, 19,  6 };
-static const int  dbCoeffs3[3] = { 53, 32, 11 };
-static const int  tc7[7]       = { 6, 5, 4, 3, 2, 1, 1 };
-static const int  tc3[3]       = { 6, 4, 2 };
+static constexpr short  dbCoeffs7[8] = { 59, 50, 41, 32, 23, 14,  5,  0 };
+static constexpr short  dbCoeffs5[8] = { 58, 45, 32, 19,  6,  0,  0,  0 };
+static constexpr short  dbCoeffs3[8] = { 53, 32, 11,  0,  0,  0,  0,  0 };
+static constexpr short  tc7[8]       = { 6, 5, 4, 3, 2, 1, 1, 0 };
+static constexpr short  tc5[8]       = { 6, 5, 4, 3, 2, 0, 0, 0 };
+static constexpr short  tc3[8]       = { 6, 4, 2, 0, 0, 0, 0, 0 };
 
 template<X86_VEXT vext>
 static inline void xFilteringPandQX86Hor( Pel* src, ptrdiff_t step, const ptrdiff_t offset, int numberPSide, int numberQSide, int tc )
 {
   CHECKD( step != 1, "Offset has to be '1' for vertical edge filtering!" );
 
-  const int* dbCoeffsP  = numberPSide == 7 ? dbCoeffs7 : ( numberPSide == 5 ) ? dbCoeffs5 : dbCoeffs3;
-  const int* dbCoeffsQ  = numberQSide == 7 ? dbCoeffs7 : ( numberQSide == 5 ) ? dbCoeffs5 : dbCoeffs3;
-  const int* tcP        = numberPSide == 3 ? tc3 : tc7;
-  const int* tcQ        = numberQSide == 3 ? tc3 : tc7;
+  const short* dbCoeffsP  = numberPSide == 7 ? dbCoeffs7 : ( numberPSide == 5 ) ? dbCoeffs5 : dbCoeffs3;
+  const short* dbCoeffsQ  = numberQSide == 7 ? dbCoeffs7 : ( numberQSide == 5 ) ? dbCoeffs5 : dbCoeffs3;
+  const short* tcP        = numberPSide == 7 ? tc7 : ( numberPSide == 5 ) ? tc5 : tc3;
+  const short* tcQ        = numberQSide == 7 ? tc7 : ( numberQSide == 5 ) ? tc5 : tc3;
 
-  uint64_t refPx4 = 0, refQx4 = 0, refMiddlex4 = 0;
+  __m128i refP, refQ, refM;
 
-  for( int i = 0; i < DEBLOCK_SMALLEST_BLOCK / 2; i++ )
   {
-    Pel* srcP = src + step * i - offset;
-    Pel* srcQ = src + step * i;
+    Pel *srcP = src - offset;
+    Pel *srcQ = src;
 
-    Pel refMiddle = 0;
-    const Pel refP = ( srcP[-numberPSide * offset] + srcP[-( numberPSide - 1 ) * offset] + 1 ) >> 1;
-    const Pel refQ = ( srcQ[ numberQSide * offset] + srcQ[ ( numberQSide - 1 ) * offset] + 1 ) >> 1;
+    __m128i srcp1 = _mm_loadl_epi64( ( const __m128i * ) &srcP[-  numberPSide       * offset] );
+    __m128i srcp2 = _mm_loadl_epi64( ( const __m128i * ) &srcP[-( numberPSide - 1 ) * offset] );
+
+    refP = _mm_add_epi16( srcp1, srcp2 );
+    refP = _mm_add_epi16( refP, _mm_set1_epi16( 1 ) );
+    refP = _mm_srli_epi16( refP, 1 );
+
+    __m128i srcq1 = _mm_loadl_epi64( ( const __m128i * ) &srcQ[  numberQSide       * offset] );
+    __m128i srcq2 = _mm_loadl_epi64( ( const __m128i * ) &srcQ[( numberQSide - 1 ) * offset] );
+
+    refQ = _mm_add_epi16( srcq1, srcq2 );
+    refQ = _mm_add_epi16( refQ, _mm_set1_epi16( 1 ) );
+    refQ = _mm_srli_epi16( refQ, 1 );
+
+    __m128i srcp0 = _mm_loadl_epi64( ( const __m128i * ) srcP );
+    __m128i srcq0 = _mm_loadl_epi64( ( const __m128i * ) srcQ );
 
     if( numberPSide == numberQSide )
     {
-      if( numberPSide == 5 )
+      refM = _mm_add_epi16( srcp0, srcq0 );
+      if( numberQSide == 7 ) refM = _mm_slli_epi16( refM, 1 );
+      
+      srcp0 = _mm_loadl_epi64( ( const __m128i * ) &srcP[-1 * offset] );
+      srcp1 = _mm_loadl_epi64( ( const __m128i * ) &srcP[-2 * offset] );
+      srcq0 = _mm_loadl_epi64( ( const __m128i * ) &srcQ[ 1 * offset] );
+      srcq1 = _mm_loadl_epi64( ( const __m128i * ) &srcQ[ 2 * offset] );
+
+      refM = _mm_add_epi16( refM, _mm_add_epi16( srcp0, srcq0 ) );
+      refM = _mm_add_epi16( refM, _mm_add_epi16( srcp1, srcq1 ) );
+      if( numberQSide == 5 ) refM = _mm_slli_epi16( refM, 1 );
+      refM  = _mm_add_epi16( refM, _mm_add_epi16( srcp2, srcq2 ) );
+      srcp2 = _mm_loadl_epi64( ( const __m128i * ) &srcP[-3 * offset] );
+      srcq2 = _mm_loadl_epi64( ( const __m128i * ) &srcQ[ 3 * offset] );
+      refM  = _mm_add_epi16( refM, _mm_add_epi16( srcp2, srcq2 ) );
+
+      if( numberPSide == 7 )
       {
-        refMiddle = ( 2 * ( srcP[0] + srcQ[0] + srcP[-offset] + srcQ[offset] + srcP[-2 * offset] + srcQ[2 * offset] ) + srcP[-3 * offset] + srcQ[3 * offset] + srcP[-4 * offset] + srcQ[4 * offset] + 8 ) >> 4;
+        srcp1 = _mm_loadl_epi64( ( const __m128i * ) &srcP[-4 * offset] );
+        srcp2 = _mm_loadl_epi64( ( const __m128i * ) &srcP[-5 * offset] );
+        srcq1 = _mm_loadl_epi64( ( const __m128i * ) &srcQ[ 4 * offset] );
+        srcq2 = _mm_loadl_epi64( ( const __m128i * ) &srcQ[ 5 * offset] );
+
+        refM = _mm_add_epi16( refM, _mm_add_epi16( srcp1, srcq1 ) );
+        refM = _mm_add_epi16( refM, _mm_add_epi16( srcp2, srcq2 ) );
       }
-      else
-      {
-        refMiddle = ( 2 * ( srcP[0] + srcQ[0] ) + srcP[-offset] + srcQ[offset] + srcP[-2 * offset] + srcQ[2 * offset] + srcP[-3 * offset] + srcQ[3 * offset] + srcP[-4 * offset] + srcQ[4 * offset] + srcP[-5 * offset] + srcQ[5 * offset] + +srcP[-6 * offset] + srcQ[6 * offset] + 8 ) >> 4;
-      }
+
+      refM = _mm_add_epi16( refM, _mm_set1_epi16( 8 ) );
+      refM = _mm_srli_epi16( refM, 4 );
     }
     else
     {
-      Pel* srcPt = srcP;
-      Pel* srcQt = srcQ;
-      ptrdiff_t offsetP = -offset;
-      ptrdiff_t offsetQ = offset;
+      Pel *srcPt = srcP;
+      Pel *srcQt = srcQ;
 
       int newNumberQSide = numberQSide;
       int newNumberPSide = numberPSide;
+      int offsett = offset;
 
       if( numberQSide > numberPSide )
       {
         std::swap( srcPt, srcQt );
-        std::swap( offsetP, offsetQ );
         newNumberQSide = numberPSide;
         newNumberPSide = numberQSide;
+        offsett = -offset;
+        srcp1 = srcp0;
+        srcp0 = srcq0;
+        srcq0 = srcp1;
       }
 
-      if( newNumberPSide == 7 && newNumberQSide == 5 )
+      if( newNumberPSide == 5 )
       {
-        refMiddle = ( 2 * ( srcP[0] + srcQ[0] + srcP[-offset] + srcQ[offset] ) + srcP[-2 * offset] + srcQ[2 * offset] + srcP[-3 * offset] + srcQ[3 * offset] + srcP[-4 * offset] + srcQ[4 * offset] + srcP[-5 * offset] + srcQ[5 * offset] + 8 ) >> 4;
+        refM = _mm_add_epi16( srcp0, srcq0 );
+
+        srcp0 = _mm_loadl_epi64( ( const __m128i * ) &srcPt[-1 * offsett] );
+        srcp1 = _mm_loadl_epi64( ( const __m128i * ) &srcPt[-2 * offsett] );
+        srcp2 = _mm_loadl_epi64( ( const __m128i * ) &srcPt[-3 * offsett] );
+        srcq0 = _mm_loadl_epi64( ( const __m128i * ) &srcQt[ 1 * offsett] );
+        srcq1 = _mm_loadl_epi64( ( const __m128i * ) &srcQt[ 2 * offsett] );
+        srcq2 = _mm_loadl_epi64( ( const __m128i * ) &srcQt[ 3 * offsett] );
+
+        refM = _mm_add_epi16( refM, _mm_add_epi16( srcp0, srcq0 ) );
+        refM = _mm_add_epi16( refM, _mm_add_epi16( srcp1, srcq1 ) );
+        refM = _mm_add_epi16( refM, _mm_add_epi16( srcp2, srcq2 ) );
+
+        refM = _mm_add_epi16( refM, _mm_set1_epi16( 4 ) );
+        refM = _mm_srli_epi16( refM, 3 );
       }
-      else if( newNumberPSide == 7 && newNumberQSide == 3 )
+      else if( newNumberQSide == 3 )
       {
-        refMiddle = ( 2 * ( srcPt[0] + srcQt[0] ) + srcQt[0] + 2 * ( srcQt[offsetQ] + srcQt[2 * offsetQ] ) + srcPt[offsetP] + srcQt[offsetQ] + srcPt[2 * offsetP] + srcPt[3 * offsetP] + srcPt[4 * offsetP] + srcPt[5 * offsetP] + srcPt[6 * offsetP] + 8 ) >> 4;
+        refM  = _mm_slli_epi16( _mm_add_epi16( srcq0, srcp0 ), 1 );
+        refM  = _mm_add_epi16( refM, srcq0 );
+
+        srcq1 = _mm_loadl_epi64( ( const __m128i * ) &srcQt[1 * offsett] );
+        srcq2 = _mm_loadl_epi64( ( const __m128i * ) &srcQt[2 * offsett] );
+
+        refM  = _mm_add_epi16( refM, _mm_slli_epi16( _mm_add_epi16( srcq1, srcq2 ), 1 ) );
+        refM  = _mm_add_epi16( refM, srcq1 );
+
+        srcp1 = _mm_loadl_epi64( ( const __m128i * ) &srcPt[-1 * offsett] );
+        srcp2 = _mm_loadl_epi64( ( const __m128i * ) &srcPt[-2 * offsett] );
+
+        refM  = _mm_add_epi16( refM, _mm_add_epi16( srcp1, srcp2 ) );
+
+        srcp1 = _mm_loadl_epi64( ( const __m128i * ) &srcPt[-3 * offsett] );
+        srcp2 = _mm_loadl_epi64( ( const __m128i * ) &srcPt[-4 * offsett] );
+
+        refM  = _mm_add_epi16( refM, _mm_add_epi16( srcp1, srcp2 ) );
+
+        srcp1 = _mm_loadl_epi64( ( const __m128i * ) &srcPt[-5 * offsett] );
+        srcp2 = _mm_loadl_epi64( ( const __m128i * ) &srcPt[-6 * offsett] );
+
+        refM  = _mm_add_epi16( refM, _mm_add_epi16( srcp1, srcp2 ) );
+              
+        refM  = _mm_add_epi16( refM, _mm_set1_epi16( 8 ) );
+        refM  = _mm_srli_epi16( refM, 4 );
       }
       else
       {
-        refMiddle = ( srcP[0] + srcQ[0] + srcP[-offset] + srcQ[offset] + srcP[-2 * offset] + srcQ[2 * offset] + srcP[-3 * offset] + srcQ[3 * offset] + 4 ) >> 3;
+        refM  = _mm_add_epi16( srcp0, srcq0 );
+      
+        srcp1 = _mm_loadl_epi64( ( const __m128i * ) &srcPt[-1 * offsett] );
+        srcp2 = _mm_loadl_epi64( ( const __m128i * ) &srcPt[-2 * offsett] );
+        srcq1 = _mm_loadl_epi64( ( const __m128i * ) &srcQt[ 1 * offsett] );
+        srcq2 = _mm_loadl_epi64( ( const __m128i * ) &srcQt[ 2 * offsett] );
+
+        refM  = _mm_add_epi16( refM, _mm_add_epi16( srcp1, srcq1 ) );
+        refM  = _mm_slli_epi16( refM, 1 );
+        refM  = _mm_add_epi16( refM, _mm_add_epi16( srcp2, srcq2 ) );
+        
+        srcp1 = _mm_loadl_epi64( ( const __m128i * ) &srcPt[-3 * offsett] );
+        srcp2 = _mm_loadl_epi64( ( const __m128i * ) &srcPt[-4 * offsett] );
+        srcq1 = _mm_loadl_epi64( ( const __m128i * ) &srcQt[ 3 * offsett] );
+        srcq2 = _mm_loadl_epi64( ( const __m128i * ) &srcQt[ 4 * offsett] );
+
+        refM  = _mm_add_epi16( refM, _mm_add_epi16( srcp1, srcq1 ) );
+        refM  = _mm_add_epi16( refM, _mm_add_epi16( srcp2, srcq2 ) );
+              
+        srcp1 = _mm_loadl_epi64( ( const __m128i * ) &srcPt[-5 * offsett] );
+        srcq1 = _mm_loadl_epi64( ( const __m128i * ) &srcQt[ 5 * offsett] );
+
+        refM  = _mm_add_epi16( refM, _mm_add_epi16( srcp1, srcq1 ) );
+              
+        refM  = _mm_add_epi16( refM, _mm_set1_epi16( 8 ) );
+        refM  = _mm_srli_epi16( refM, 4 );
       }
     }
-
-    refPx4      |= ( int64_t( refP      ) << ( int64_t( i ) << 4 ) );
-    refQx4      |= ( int64_t( refQ      ) << ( int64_t( i ) << 4 ) );
-    refMiddlex4 |= ( int64_t( refMiddle ) << ( int64_t( i ) << 4 ) );
   }
 
   Pel* srcP = src - offset;
@@ -429,8 +519,8 @@ static inline void xFilteringPandQX86Hor( Pel* src, ptrdiff_t step, const ptrdif
 
   for( int pos = 0; pos < numberPSide; pos++ )
   {
-    __m128i vref1 = _mm_set_epi64x( 0, refPx4 );
-    __m128i vref0 = _mm_set_epi64x( 0, refMiddlex4 );
+    __m128i vref1 = refP;
+    __m128i vref0 = refM;
     __m128i vsrc  = _mm_loadl_epi64( ( const __m128i* ) &srcP[-offset * pos] );
     __m128i vmax  = _mm_set1_epi16( ( tc * tcP[pos] ) >> 1 );
     __m128i vmin  = _mm_sub_epi16( vsrc, vmax );
@@ -447,8 +537,8 @@ static inline void xFilteringPandQX86Hor( Pel* src, ptrdiff_t step, const ptrdif
 
   for( int pos = 0; pos < numberQSide; pos++ )
   {
-    __m128i vref1 = _mm_set_epi64x( 0, refQx4 );
-    __m128i vref0 = _mm_set_epi64x( 0, refMiddlex4 );
+    __m128i vref1 = refQ;
+    __m128i vref0 = refM;
     __m128i vsrc  = _mm_loadl_epi64( ( const __m128i* ) &srcQ[offset * pos] );
     __m128i vmax  = _mm_set1_epi16( ( tc * tcQ[pos] ) >> 1 );
     __m128i vmin  = _mm_sub_epi16( vsrc, vmax );
@@ -470,72 +560,106 @@ static inline void xFilteringPandQX86Ver( Pel* src, ptrdiff_t step, const ptrdif
 {
   CHECKD( offset != 1, "Offset has to be '1' for vertical edge filtering!" );
 
-  const int* dbCoeffsP = numberPSide == 7 ? dbCoeffs7 : ( numberPSide == 5 ) ? dbCoeffs5 : dbCoeffs3;
-  const int* dbCoeffsQ = numberQSide == 7 ? dbCoeffs7 : ( numberQSide == 5 ) ? dbCoeffs5 : dbCoeffs3;
-  const int* tcP       = numberPSide == 3 ? tc3 : tc7;
-  const int* tcQ       = numberQSide == 3 ? tc3 : tc7;
+  _mm_prefetch( ( const char * ) ( src - numberPSide ), _MM_HINT_T0 );
+  _mm_prefetch( ( const char * ) ( src + numberQSide ), _MM_HINT_T0 );
 
-#if USE_AVX2
-  short tcQarr[8] = { 0, 0, 0, 0, 0, 0, 0, 0 };
-  short tcParr[8] = { 0, 0, 0, 0, 0, 0, 0, 0 };
-  short dbQarr[8] = { 0, 0, 0, 0, 0, 0, 0, 0 };
-  short dbParr[8] = { 0, 0, 0, 0, 0, 0, 0, 0 };
+  const short* dbCoeffsP = numberPSide == 7 ? dbCoeffs7 : ( numberPSide == 5 ) ? dbCoeffs5 : dbCoeffs3;
+  const short* dbCoeffsQ = numberQSide == 7 ? dbCoeffs7 : ( numberQSide == 5 ) ? dbCoeffs5 : dbCoeffs3;
+  const short* tcP       = numberPSide == 7 ? tc7 : ( numberPSide == 5 ) ? tc5: tc3;
+  const short* tcQ       = numberQSide == 7 ? tc7 : ( numberQSide == 5 ) ? tc5: tc3;
 
-  for( int i = 0; i < numberQSide; i++ ) tcQarr[    i] = static_cast<short>( ( tcQ      [i] * tc ) >> 1 );
-  for( int i = 0; i < numberPSide; i++ ) tcParr[7 - i] = static_cast<short>( ( tcP      [i] * tc ) >> 1 );
-  for( int i = 0; i < numberQSide; i++ ) dbQarr[    i] = static_cast<short>( dbCoeffsQ[i]               );
-  for( int i = 0; i < numberPSide; i++ ) dbParr[7 - i] = static_cast<short>( dbCoeffsP[i]               );
+        __m128i vtc    = _mm_set1_epi16  ( tc );
+  const __m128i shInv  = _mm_setr_epi8   ( 14, 15, 12, 13, 10, 11, 8, 9, 6, 7, 4, 5, 2, 3, 0, 1 );
+  const __m128i tcQarr = _mm_srli_epi16( _mm_mullo_epi16( _mm_loadu_si128 ( ( const __m128i * ) tcQ ), vtc ), 1 );
+  const __m128i tcParr = _mm_srli_epi16( _mm_mullo_epi16( _mm_shuffle_epi8( _mm_loadu_si128( ( const __m128i * ) tcP ), shInv ), vtc ), 1 );
+  const __m128i dbQarr = _mm_loadu_si128 ( ( const __m128i * ) dbCoeffsQ );
+  const __m128i dbParr = _mm_shuffle_epi8( _mm_loadu_si128( ( const __m128i * ) dbCoeffsP ), shInv );
 
-#endif
+  __m128i vtmp, vmin, vmax, vsrcq, vsrcp;
+
   for( int i = 0; i < DEBLOCK_SMALLEST_BLOCK / 2; i++ )
   {
     Pel* srcP = src + step * i - offset;
     Pel* srcQ = src + step * i;
 
+    _mm_prefetch( ( const char * ) ( srcP + step - numberPSide ), _MM_HINT_T0 );
+    _mm_prefetch( ( const char * ) ( srcQ + step + numberQSide ), _MM_HINT_T0 );
+
+    vsrcq = _mm_loadu_si128( ( const __m128i * )   srcQ );
+    vsrcp = _mm_loadu_si128( ( const __m128i * ) ( srcP - 7 * offset ) );
+
+    vtmp = _mm_hadd_epi16( vsrcp, vsrcq );
+    vtmp = _mm_add_epi16 ( vtmp, _mm_set1_epi16( 1 ) );
+    vtmp = _mm_srli_epi16( vtmp, 1 );
+    int getP = 3 - ( numberPSide >> 1 ), getQ = 4 + ( numberQSide >> 1 );
+    getP <<= 1; getQ <<= 1;
+    vtmp = _mm_shuffle_epi8( vtmp, _mm_setr_epi8( getP, getP + 1, getQ, getQ + 1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1 ) );
+
+    const Pel refP = _mm_extract_epi16( vtmp, 0 );
+    const Pel refQ = _mm_extract_epi16( vtmp, 1 );
+
+    if( numberPSide == 7 )      vtmp = _mm_srli_si128( vsrcp,  2 );
+    else if( numberPSide == 5 ) vtmp = _mm_srli_si128( vsrcp,  6 );
+    else if( numberPSide == 3 ) vtmp = _mm_srli_si128( vsrcp, 10 );
+    __m128i
+    vtmq = _mm_shuffle_epi8( vsrcq, _mm_sub_epi8( shInv, _mm_set1_epi8( ( 8 - numberQSide ) << 1 ) ) );
     Pel refMiddle = 0;
-    const Pel refP = ( srcP[-numberPSide * offset] + srcP[-( numberPSide - 1 ) * offset] + 1 ) >> 1;
-    const Pel refQ = ( srcQ[ numberQSide * offset] + srcQ[ ( numberQSide - 1 ) * offset] + 1 ) >> 1;
 
     if( numberPSide == numberQSide )
     {
-      if( numberPSide == 5 )
-      {
-        refMiddle = ( 2 * ( srcP[0] + srcQ[0] + srcP[-offset] + srcQ[offset] + srcP[-2 * offset] + srcQ[2 * offset] ) + srcP[-3 * offset] + srcQ[3 * offset] + srcP[-4 * offset] + srcQ[4 * offset] + 8 ) >> 4;
-      }
-      else
-      {
-        refMiddle = ( 2 * ( srcP[0] + srcQ[0] ) + srcP[-offset] + srcQ[offset] + srcP[-2 * offset] + srcQ[2 * offset] + srcP[-3 * offset] + srcQ[3 * offset] + srcP[-4 * offset] + srcQ[4 * offset] + srcP[-5 * offset] + srcQ[5 * offset] + +srcP[-6 * offset] + srcQ[6 * offset] + 8 ) >> 4;
-      }
+      vtmp = _mm_add_epi16( vtmp, vtmq );
+      vtmq = numberPSide == 5 ? _mm_setr_epi16( 1, 1, 2, 2, 2, 0, 0, 0 ) : _mm_setr_epi16( 1, 1, 1, 1, 1, 1, 2, 0 );
+      vtmp = _mm_madd_epi16( vtmp, vtmq );
+      vtmp = _mm_hadd_epi32( vtmp, vtmp );
+      vtmp = _mm_hadd_epi32( vtmp, vtmp );
+
+      refMiddle = ( _mm_extract_epi32( vtmp, 0 ) + 8 ) >> 4;
     }
     else
     {
-      Pel* srcPt = srcP;
-      Pel* srcQt = srcQ;
-      ptrdiff_t offsetP = -offset;
-      ptrdiff_t offsetQ = offset;
-
       int newNumberQSide = numberQSide;
       int newNumberPSide = numberPSide;
 
       if( numberQSide > numberPSide )
       {
-        std::swap( srcPt, srcQt );
-        std::swap( offsetP, offsetQ );
         newNumberQSide = numberPSide;
         newNumberPSide = numberQSide;
       }
 
       if( newNumberPSide == 7 && newNumberQSide == 5 )
       {
-        refMiddle = ( 2 * ( srcP[0] + srcQ[0] + srcP[-offset] + srcQ[offset] ) + srcP[-2 * offset] + srcQ[2 * offset] + srcP[-3 * offset] + srcQ[3 * offset] + srcP[-4 * offset] + srcQ[4 * offset] + srcP[-5 * offset] + srcQ[5 * offset] + 8 ) >> 4;
+        vtmp = _mm_add_epi16( vsrcp, _mm_shuffle_epi8( vsrcq, shInv ) );
+        vtmq = _mm_setr_epi16( 0, 0, 1, 1, 1, 1, 2, 2 );
+        vtmp = _mm_madd_epi16( vtmp, vtmq );
+        vtmp = _mm_hadd_epi32( vtmp, vtmp );
+        vtmp = _mm_hadd_epi32( vtmp, vtmp );
+        refMiddle = ( _mm_extract_epi32( vtmp, 0 ) + 8 ) >> 4;
       }
       else if( newNumberPSide == 7 && newNumberQSide == 3 )
       {
-        refMiddle = ( 2 * ( srcPt[0] + srcQt[0] ) + srcQt[0] + 2 * ( srcQt[offsetQ] + srcQt[2 * offsetQ] ) + srcPt[offsetP] + srcQt[offsetQ] + srcPt[2 * offsetP] + srcPt[3 * offsetP] + srcPt[4 * offsetP] + srcPt[5 * offsetP] + srcPt[6 * offsetP] + 8 ) >> 4;
+        if( numberQSide > numberPSide )
+        {
+          vmin = vtmp;
+          vtmp = vtmq;
+          vtmq = vmin;
+        }
+
+        vtmq = _mm_shuffle_epi8( vtmq, _mm_setr_epi8( 0, 1, 2, 3, 4, 5, 0, 1, 2, 3,  4,  5,  2,  3,  4,  5 ) );
+        vtmp = _mm_shuffle_epi8( vtmp, _mm_setr_epi8( 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 12, 13 ) );
+        vtmp = _mm_add_epi16( vtmp, vtmq );
+        vtmq = _mm_set1_epi16( 1 );
+        vtmp = _mm_madd_epi16( vtmp, vtmq );
+        vtmp = _mm_hadd_epi32( vtmp, vtmp );
+        vtmp = _mm_hadd_epi32( vtmp, vtmp );
+        refMiddle = ( _mm_extract_epi32( vtmp, 0 ) + 8 ) >> 4;
       }
       else
       {
-        refMiddle = ( srcP[0] + srcQ[0] + srcP[-offset] + srcQ[offset] + srcP[-2 * offset] + srcQ[2 * offset] + srcP[-3 * offset] + srcQ[3 * offset] + 4 ) >> 3;
+        vtmp = _mm_add_epi16( vsrcp, _mm_shuffle_epi8( vsrcq, shInv ) );
+        vtmq = _mm_set1_epi16( 1 );
+        vtmp = _mm_madd_epi16( vtmp, vtmq );
+        vtmp = _mm_hadd_epi32( vtmp, vtmp );
+        refMiddle = ( _mm_extract_epi32( vtmp, 3 ) + 4 ) >> 3;
       }
     }
 
@@ -543,18 +667,16 @@ static inline void xFilteringPandQX86Ver( Pel* src, ptrdiff_t step, const ptrdif
     if( vext >= AVX2 )
     {
       __m256i ydbp, ytmp, ydst;
-      __m128i vtmp, vmin, vmax, vsrcq;
 
       // P-part
-      vsrcq
-           = _mm_loadu_si128      ( ( const __m128i * ) srcQ );
-      vtmp = _mm_loadu_si128      ( ( const __m128i * ) ( srcP - 7 * offset ) );
-      vmax = _mm_loadu_si128      ( ( const __m128i * ) tcParr );
-      vmin = _mm_sub_epi16        ( vtmp, vmax );
-      vmax = _mm_add_epi16        ( vtmp, vmax );
-      vtmp = _mm_loadu_si128      ( ( const __m128i * ) dbParr );
-      ytmp = _mm256_cvtepu16_epi32( vtmp );
-      ytmp = _mm256_or_si256      ( ytmp, _mm256_slli_si256( ytmp, 2 ) );
+      vmax = tcParr;
+      vmin = _mm_sub_epi16        ( vsrcp, vmax );
+      vmax = _mm_add_epi16        ( vsrcp, vmax );
+      vtmp = dbParr;
+      ytmp = _mm256_inserti128_si256(
+               _mm256_castsi128_si256(
+                 _mm_unpacklo_epi16( dbParr, dbParr ) ),
+               _mm_unpackhi_epi16( dbParr, dbParr ), 1 );
       ydbp = _mm256_abs_epi16     ( _mm256_sub_epi16( _mm256_set1_epi32( 64 ), ytmp ) );
       ytmp = _mm256_set1_epi32    ( refP | ( refMiddle << 16 ) );
       ydst = _mm256_madd_epi16    ( ydbp, ytmp );
@@ -580,12 +702,14 @@ static inline void xFilteringPandQX86Ver( Pel* src, ptrdiff_t step, const ptrdif
       }
       
       // Q-part
-      vmax = _mm_loadu_si128      ( ( const __m128i * ) tcQarr );
+      vmax = tcQarr;
       vmin = _mm_sub_epi16        ( vsrcq, vmax );
       vmax = _mm_add_epi16        ( vsrcq, vmax );
-      vtmp = _mm_loadu_si128      ( ( const __m128i * ) dbQarr );
-      ytmp = _mm256_cvtepu16_epi32( vtmp );
-      ytmp = _mm256_or_si256      ( ytmp, _mm256_slli_si256( ytmp, 2 ) );
+      vtmp = dbQarr;
+      ytmp = _mm256_inserti128_si256(
+               _mm256_castsi128_si256(
+                 _mm_unpacklo_epi16( dbQarr, dbQarr ) ),
+               _mm_unpackhi_epi16( dbQarr, dbQarr ), 1 );
       ydbp = _mm256_abs_epi16     ( _mm256_sub_epi16( _mm256_set1_epi32( 64 ), ytmp ) );
       ytmp = _mm256_set1_epi32    ( refQ | ( refMiddle << 16 ) );
       ydst = _mm256_madd_epi16    ( ydbp, ytmp );
@@ -604,22 +728,71 @@ static inline void xFilteringPandQX86Ver( Pel* src, ptrdiff_t step, const ptrdif
       }
     }
     else
-#endif
+#endif// en
     {
-      int srcval;
+      __m128i ydb1, ydb2, ytm1, ytm2;
 
-      for( int pos = 0; pos < numberPSide; pos++ )
+      // P-part
+      vmax = tcParr;
+      vmin = _mm_sub_epi16        ( vsrcp, vmax );
+      vmax = _mm_add_epi16        ( vsrcp, vmax );
+      ydb1 = _mm_unpacklo_epi16   ( dbParr, dbParr );
+      ydb2 = _mm_unpackhi_epi16   ( dbParr, dbParr );
+      ydb1 = _mm_abs_epi16        ( _mm_sub_epi16( _mm_set1_epi32( 64 ), ydb1 ) );
+      ydb2 = _mm_abs_epi16        ( _mm_sub_epi16( _mm_set1_epi32( 64 ), ydb2 ) );
+      ytm1 = _mm_unpacklo_epi16   ( _mm_set1_epi16( refP ), _mm_set1_epi16( refMiddle ) );
+      ytm2 = ytm1;
+      ytm1 = _mm_madd_epi16       ( ydb1, ytm1 );
+      ytm2 = _mm_madd_epi16       ( ydb2, ytm2 );
+      ytm1 = _mm_add_epi32        ( ytm1, _mm_set1_epi32( 32 ) );
+      ytm2 = _mm_add_epi32        ( ytm2, _mm_set1_epi32( 32 ) );
+      ytm1 = _mm_srli_epi32       ( ytm1, 6 );
+      ytm2 = _mm_srli_epi32       ( ytm2, 6 );
+      vtmp = _mm_packs_epi32      ( ytm1, ytm2 );
+
+      vtmp = _mm_max_epi16( _mm_min_epi16( vtmp, vmax ), vmin );
+      if( numberPSide == 7 )
       {
-        srcval = srcP[-offset * pos];
-        int cvalue = ( tc * tcP[pos] ) >> 1;
-        srcP[-offset * pos] = Clip3( srcval - cvalue, srcval + cvalue, ( ( refMiddle * dbCoeffsP[pos] + refP * ( 64 - dbCoeffsP[pos] ) + 32 ) >> 6 ) );
+        vtmp = _mm_srli_si128( vtmp, 2 );
+        _mm_storeu_si128( ( __m128i * ) ( srcP - 6 ), vtmp );
       }
-
-      for( int pos = 0; pos < numberQSide; pos++ )
+      else if( numberPSide == 5 )
       {
-        srcval = srcQ[offset * pos];
-        int cvalue = ( tc * tcQ[pos] ) >> 1;
-        srcQ[offset * pos] = Clip3( srcval - cvalue, srcval + cvalue, ( ( refMiddle * dbCoeffsQ[pos] + refQ * ( 64 - dbCoeffsQ[pos] ) + 32 ) >> 6 ) );
+        vtmp = _mm_srli_si128( vtmp, 6 );
+        _mm_storeu_si128( ( __m128i * ) ( srcP - 4 ), vtmp );
+      }
+      else
+      {
+        vtmp = _mm_srli_si128( vtmp, 10 );
+        _mm_storel_epi64( ( __m128i * ) ( srcP - 2 ), vtmp );
+      }
+      
+      // Q-part
+      vmax = tcQarr;
+      vmin = _mm_sub_epi16        ( vsrcq, vmax );
+      vmax = _mm_add_epi16        ( vsrcq, vmax );
+      ydb1 = _mm_unpacklo_epi16   ( dbQarr, dbQarr );
+      ydb2 = _mm_unpackhi_epi16   ( dbQarr, dbQarr );
+      ydb1 = _mm_abs_epi16        ( _mm_sub_epi16( _mm_set1_epi32( 64 ), ydb1 ) );
+      ydb2 = _mm_abs_epi16        ( _mm_sub_epi16( _mm_set1_epi32( 64 ), ydb2 ) );
+      ytm1 = _mm_unpacklo_epi16   ( _mm_set1_epi16( refQ ), _mm_set1_epi16( refMiddle ) );
+      ytm2 = ytm1;
+      ytm1 = _mm_madd_epi16       ( ydb1, ytm1 );
+      ytm2 = _mm_madd_epi16       ( ydb2, ytm2 );
+      ytm1 = _mm_add_epi32        ( ytm1, _mm_set1_epi32( 32 ) );
+      ytm2 = _mm_add_epi32        ( ytm2, _mm_set1_epi32( 32 ) );
+      ytm1 = _mm_srli_epi32       ( ytm1, 6 );
+      ytm2 = _mm_srli_epi32       ( ytm2, 6 );
+      vtmp = _mm_packs_epi32      ( ytm1, ytm2 );
+
+      vtmp = _mm_max_epi16( _mm_min_epi16( vtmp, vmax ), vmin );
+      if( numberQSide != 3 )
+      {
+        _mm_storeu_si128( ( __m128i * ) srcQ, vtmp );
+      }
+      else
+      {
+        _mm_storel_epi64( ( __m128i * ) srcQ, vtmp );
       }
     }
   }

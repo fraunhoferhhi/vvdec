@@ -100,37 +100,64 @@ static inline int rightShiftMSB( int numer, int denom )
 }
 
 template<X86_VEXT vext>
-static inline void addBIOAvg4_SSE(const int16_t* src0, const int16_t* src1, int16_t* dst, ptrdiff_t dstStride, const int16_t* gradX0, const int16_t* gradX1, const int16_t* gradY0, const int16_t* gradY1, ptrdiff_t widthG, int tmpx, int tmpy, int shift, int offset, const ClpRng& clpRng)
+inline void addBIOAvg4_2x_SSE(const int16_t* src0,   const int16_t* src1,
+                                           int16_t* dst,    ptrdiff_t dstStride,
+                                     const int16_t* gradX0, const int16_t* gradX1,
+                                     const int16_t* gradY0, const int16_t* gradY1,
+                                          ptrdiff_t widthG,
+                                           int tmpx0, int tmpy0, int tmpx1, int tmpy1,
+                                           int shift, int offset, const ClpRng& clpRng)
 {
   const ptrdiff_t src0Stride = widthG;
   const ptrdiff_t src1Stride = widthG;
   const ptrdiff_t gradStride = widthG;
-
-  __m128i mm_tmpx    = _mm_set1_epi32( ( tmpx & 0xffff ) | ( tmpy << 16 ) );
-  __m128i mm_offset  = _mm_set1_epi32( offset );
-  __m128i vibdimin   = _mm_set1_epi16( clpRng.min() );
-  __m128i vibdimax   = _mm_set1_epi16( clpRng.max() );
+  
+  __m128i mm_tmpx0  = _mm_set1_epi32( ( tmpx0 & 0xffff ) | ( tmpy0 << 16 ) );
+  __m128i mm_tmpx1  = _mm_set1_epi32( ( tmpx1 & 0xffff ) | ( tmpy1 << 16 ) );
+  __m128i mm_offset = _mm_set1_epi32( offset );
+  __m128i vibdimin  = _mm_set1_epi16( clpRng.min() );
+  __m128i vibdimax  = _mm_set1_epi16( clpRng.max() );
   __m128i mm_a;
   __m128i mm_b;
   __m128i mm_sum;
 
+  __m128i mm_gx0, mm_gx1, mm_gy0, mm_gy1, mm_s0, mm_s1, mm_tmp;
+
   for( int y = 0; y < 4; y++, dst += dstStride, src0 += src0Stride, src1 += src1Stride, gradX0 += gradStride, gradX1 += gradStride, gradY0 += gradStride, gradY1 += gradStride )
   {
-    mm_a   = _mm_unpacklo_epi16 ( _mm_loadl_epi64( (const __m128i *) gradX0 ), _mm_loadl_epi64( (const __m128i *) gradY0 ) );
-    mm_b   = _mm_unpacklo_epi16 ( _mm_loadl_epi64( (const __m128i *) gradX1 ), _mm_loadl_epi64( (const __m128i *) gradY1 ) );
+    mm_gx0 = _mm_loadu_si128    ( ( const __m128i* ) gradX0 );
+    mm_gx1 = _mm_loadu_si128    ( ( const __m128i* ) gradX1 );
+    mm_gy0 = _mm_loadu_si128    ( ( const __m128i* ) gradY0 );
+    mm_gy1 = _mm_loadu_si128    ( ( const __m128i* ) gradY1 );
+    mm_s0  = _mm_loadu_si128    ( ( const __m128i* ) src0 );
+    mm_s1  = _mm_loadu_si128    ( ( const __m128i* ) src1 );
+
+    mm_a   = _mm_unpacklo_epi16 ( mm_gx0, mm_gy0 );
+    mm_b   = _mm_unpacklo_epi16 ( mm_gx1, mm_gy1 );
     mm_a   = _mm_sub_epi16      ( mm_a, mm_b );
-    mm_sum = _mm_madd_epi16     ( mm_a, mm_tmpx );
-    mm_a   = _mm_cvtepi16_epi32 ( _mm_loadl_epi64( (const __m128i *) ( src0 ) ) );
-    mm_b   = _mm_cvtepi16_epi32 ( _mm_loadl_epi64( (const __m128i *) ( src1 ) ) );
+    mm_sum = _mm_madd_epi16     ( mm_a, mm_tmpx0 );
+    mm_a   = _mm_cvtepi16_epi32 ( mm_s0 );
+    mm_b   = _mm_cvtepi16_epi32 ( mm_s1 );
+    mm_tmp = _mm_add_epi32      ( _mm_add_epi32( mm_sum, mm_a ), _mm_add_epi32( mm_b, mm_offset ) );
+    
+    mm_a   = _mm_unpackhi_epi16 ( mm_gx0, mm_gy0 );
+    mm_b   = _mm_unpackhi_epi16 ( mm_gx1, mm_gy1 );
+    mm_a   = _mm_sub_epi16      ( mm_a, mm_b );
+    mm_sum = _mm_madd_epi16     ( mm_a, mm_tmpx1 );
+    mm_a   = _mm_cvtepi16_epi32 ( _mm_unpackhi_epi64( mm_s0, mm_s0 ) );
+    mm_b   = _mm_cvtepi16_epi32 ( _mm_unpackhi_epi64( mm_s1, mm_s0 ) );
     mm_sum = _mm_add_epi32      ( _mm_add_epi32( mm_sum, mm_a ), _mm_add_epi32( mm_b, mm_offset ) );
-    mm_sum = _mm_packs_epi32    ( _mm_srai_epi32( mm_sum, shift ), mm_a );
+
+    mm_sum = _mm_packs_epi32    ( _mm_srai_epi32( mm_tmp, shift ), _mm_srai_epi32( mm_sum, shift ) );
     mm_sum = _mm_min_epi16      ( vibdimax, _mm_max_epi16( vibdimin, mm_sum ) );
-    _mm_storel_epi64            ( (__m128i *) dst, mm_sum );
+
+    _mm_storeu_si128            ( (__m128i *) dst, mm_sum );
   }
 }
 
 #if USE_AVX2
-static inline void addBIOAvg4_2x_AVX2(const int16_t* src0, const int16_t* src1, int16_t* dst, ptrdiff_t dstStride, const int16_t* gradX0, const int16_t* gradX1, const int16_t* gradY0, const int16_t* gradY1, ptrdiff_t widthG, int tmpx0, int tmpx1, int tmpy0, int tmpy1, int shift, int offset, const ClpRng& clpRng)
+template<>
+inline void addBIOAvg4_2x_SSE<AVX2>(const int16_t* src0, const int16_t* src1, int16_t* dst, ptrdiff_t dstStride, const int16_t* gradX0, const int16_t* gradX1, const int16_t* gradY0, const int16_t* gradY1, ptrdiff_t widthG, int tmpx0, int tmpx1, int tmpy0, int tmpy1, int shift, int offset, const ClpRng& clpRng)
 {
   const ptrdiff_t src0Stride = widthG;
   const ptrdiff_t src1Stride = widthG;
@@ -174,10 +201,10 @@ static inline void calcBIOSums_SSE(const Pel* srcY0Tmp, const Pel* srcY1Tmp, con
   static constexpr int shift5 = 1;
   const int srcStride = widthG;
 
-  __m128i sumAbsGXTmp = _mm_setzero_si128();
-  __m128i sumDIXTmp = _mm_setzero_si128();
-  __m128i sumAbsGYTmp = _mm_setzero_si128();
-  __m128i sumDIYTmp = _mm_setzero_si128();
+  __m128i sumAbsGXTmp    = _mm_setzero_si128();
+  __m128i sumDIXTmp      = _mm_setzero_si128();
+  __m128i sumAbsGYTmp    = _mm_setzero_si128();
+  __m128i sumDIYTmp      = _mm_setzero_si128();
   __m128i sumSignGyGxTmp = _mm_setzero_si128();
 
   for (int y = 0; y < 6; y++)
@@ -188,7 +215,7 @@ static inline void calcBIOSums_SSE(const Pel* srcY0Tmp, const Pel* srcY1Tmp, con
     __m128i loadGradX1 = _mm_loadu_si128((__m128i*)(gradX1));
     __m128i loadGradY0 = _mm_loadu_si128((__m128i*)(gradY0));
     __m128i loadGradY1 = _mm_loadu_si128((__m128i*)(gradY1));
-    __m128i subTemp1 = _mm_sub_epi16(shiftSrcY1Tmp, shiftSrcY0Tmp);
+    __m128i subTemp1  = _mm_sub_epi16(shiftSrcY1Tmp, shiftSrcY0Tmp);
     __m128i packTempX = _mm_srai_epi16(_mm_add_epi16(loadGradX0, loadGradX1), shift5);
     __m128i packTempY = _mm_srai_epi16(_mm_add_epi16(loadGradY0, loadGradY1), shift5);
     __m128i gX = _mm_abs_epi16(packTempX);
@@ -197,11 +224,11 @@ static inline void calcBIOSums_SSE(const Pel* srcY0Tmp, const Pel* srcY1Tmp, con
     __m128i dIY       = _mm_sign_epi16(subTemp1,  packTempY );
     __m128i signGY_GX = _mm_sign_epi16(packTempX, packTempY );
 
-    sumAbsGXTmp = _mm_add_epi16(sumAbsGXTmp, gX);
-    sumDIXTmp = _mm_add_epi16(sumDIXTmp, dIX);
-    sumAbsGYTmp = _mm_add_epi16(sumAbsGYTmp, gY);
-    sumDIYTmp = _mm_add_epi16(sumDIYTmp, dIY);
-    sumSignGyGxTmp = _mm_add_epi16(sumSignGyGxTmp, signGY_GX);
+    sumAbsGXTmp     = _mm_add_epi16(sumAbsGXTmp, gX);
+    sumDIXTmp       = _mm_add_epi16(sumDIXTmp, dIX);
+    sumAbsGYTmp     = _mm_add_epi16(sumAbsGYTmp, gY);
+    sumDIYTmp       = _mm_add_epi16(sumDIYTmp, dIY);
+    sumSignGyGxTmp  = _mm_add_epi16(sumSignGyGxTmp, signGY_GX);
     srcY0Tmp += srcStride;
     srcY1Tmp += srcStride;
     gradX0 += widthG;
@@ -414,6 +441,8 @@ void BiOptFlowCoreSIMD( const Pel* srcY0,
   int OffPos;
   int OffPad = 0;
 
+  int tmpx0, tmpy0, tmpx1, tmpy1;
+
   for( int yu = 0; yu < yUnit; yu++, srcY0 += ( stridePredMC << 2 ), srcY1 += ( stridePredMC << 2 ), dstY += ( dstStride << 2 ), offsetPos += ( widthG << 2 ) )
   {
     srcY0Temp = srcY0;
@@ -423,29 +452,41 @@ void BiOptFlowCoreSIMD( const Pel* srcY0,
     OffPos = offsetPos;
     OffPad = ( ( yu * widthG ) << 2 );
 
-#if USE_AVX2
     for( int xu = 0; xu < xUnit; xu += 2, srcY0Temp += 8, srcY1Temp += 8, dstY0 += 8, OffPos += 8, OffPad += 8 )
     {
-      int tmpx0, tmpy0, tmpx1, tmpy1;
+#if USE_AVX2
+      calcBIOSums2x_AVX2( srcY0Temp, srcY1Temp,
+                          gradX0 + OffPad, gradX1 + OffPad, gradY0 + OffPad, gradY1 + OffPad,
+                          stridePredMC,
+                          bitDepth, limit,
+                          tmpx0, tmpx1, tmpy0, tmpy1 );
 
-      //calcBIOSums_SSE<vext>( srcY0Temp + 0, srcY1Temp + 0, gradX0 + OffPad + 0, gradX1 + OffPad + 0, gradY0 + OffPad + 0, gradY1 + OffPad + 0, stridePredMC, bitDepth, limit, tmpx, tmpy );
-      //calcBIOSums_SSE<vext>( srcY0Temp + 0, srcY1Temp + 0, gradX0 + OffPad + 0, gradX1 + OffPad + 0, gradY0 + OffPad + 0, gradY1 + OffPad + 0, stridePredMC, bitDepth, limit, tmpx, tmpy );
-      calcBIOSums2x_AVX2( srcY0Temp, srcY1Temp, gradX0 + OffPad, gradX1 + OffPad, gradY0 + OffPad, gradY1 + OffPad, stridePredMC, bitDepth, limit, tmpx0, tmpx1, tmpy0, tmpy1 );
-
-      //addBIOAvg4_SSE<vext>( srcY0Temp + stridePredMC + 1 + 0, srcY1Temp + stridePredMC + 1 + 0, dstY0 + 0, dstStride, gradX0 + OffPos + 0, gradX1 + OffPos + 0, gradY0 + OffPos + 0, gradY1 + OffPos + 0, widthG, tmpx0, tmpy0, shiftNum, offset, clpRng );
-      //addBIOAvg4_SSE<vext>( srcY0Temp + stridePredMC + 1 + 4, srcY1Temp + stridePredMC + 1 + 4, dstY0 + 4, dstStride, gradX0 + OffPos + 4, gradX1 + OffPos + 4, gradY0 + OffPos + 4, gradY1 + OffPos + 4, widthG, tmpx1, tmpy1, shiftNum, offset, clpRng );
-      addBIOAvg4_2x_AVX2( srcY0Temp + stridePredMC + 1, srcY1Temp + stridePredMC + 1, dstY0, dstStride, gradX0 + OffPos, gradX1 + OffPos, gradY0 + OffPos, gradY1 + OffPos, widthG, tmpx0, tmpx1, tmpy0, tmpy1, shiftNum, offset, clpRng );
-    }  // xu
+      addBIOAvg4_2x_SSE<vext>( srcY0Temp + stridePredMC + 1,
+                               srcY1Temp + stridePredMC + 1,
+                               dstY0, dstStride,
+                               gradX0 + OffPos, gradX1 + OffPos, gradY0 + OffPos, gradY1 + OffPos, widthG,
+                               tmpx0, tmpx1, tmpy0, tmpy1,
+                               shiftNum, offset, clpRng );
 #else
-    for( int xu = 0; xu < xUnit; xu++, srcY0Temp += 4, srcY1Temp += 4, dstY0 += 4, OffPos += 4, OffPad += 4 )
-    {
-      int tmpx, tmpy;
+      calcBIOSums_SSE<vext>( srcY0Temp + 0, srcY1Temp + 0,
+                             gradX0 + OffPad + 0, gradX1 + OffPad + 0, gradY0 + OffPad + 0, gradY1 + OffPad + 0,
+                             stridePredMC,
+                             bitDepth, limit,
+                             tmpx0, tmpy0 );
+      calcBIOSums_SSE<vext>( srcY0Temp + 4, srcY1Temp + 4,
+                             gradX0 + OffPad + 4, gradX1 + OffPad + 4, gradY0 + OffPad + 4, gradY1 + OffPad + 4,
+                             stridePredMC,
+                             bitDepth, limit,
+                             tmpx1, tmpy1 );
 
-      calcBIOSums_SSE<vext>( srcY0Temp, srcY1Temp, gradX0 + OffPad, gradX1 + OffPad, gradY0 + OffPad, gradY1 + OffPad, stridePredMC, bitDepth, limit, tmpx, tmpy );
-
-      addBIOAvg4_SSE<vext> ( srcY0Temp + stridePredMC + 1, srcY1Temp + stridePredMC + 1, dstY0, dstStride, gradX0 + OffPos, gradX1 + OffPos, gradY0 + OffPos, gradY1 + OffPos, widthG, tmpx, tmpy, shiftNum, offset, clpRng );
-    }  // xu
+      addBIOAvg4_2x_SSE<vext>( srcY0Temp + stridePredMC + 1,
+                               srcY1Temp + stridePredMC + 1,
+                               dstY0, dstStride,
+                               gradX0 + OffPos, gradX1 + OffPos, gradY0 + OffPos, gradY1 + OffPos, widthG,
+                               tmpx0, tmpy0, tmpx1, tmpy1,
+                               shiftNum, offset, clpRng );
 #endif
+    }  // xu
   }  // yu
 #if USE_AVX2
 

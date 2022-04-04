@@ -151,6 +151,23 @@ int VVDecImpl::uninit()
 {
   if( !m_bInitialized ){ return VVDEC_ERR_INITIALIZE; }
 
+  reset();
+
+  // destroy internal classes
+  m_cDecLib->destroy();
+  m_cDecLib.reset();
+  destroyROM();
+
+  m_bInitialized = false;
+  m_eState       = INTERNAL_STATE_UNINITIALIZED;
+
+  return VVDEC_OK;
+}
+
+int VVDecImpl::reset()
+{
+  if( !m_bInitialized ){ return VVDEC_ERR_INITIALIZE; }
+
   bool bFlushDecoder = true;
   while( bFlushDecoder)
   {
@@ -196,20 +213,18 @@ int VVDecImpl::uninit()
   }
   m_cFrameStorageMap.clear();
 
-  // destroy internal classes
-  m_cDecLib->destroy();
-  m_cDecLib.reset();
-  destroyROM();
-
-#if defined( __linux__ )
+#if defined( __linux__ ) && !defined( ANDROID )
   malloc_trim(0);
 #endif
 
-  m_bInitialized = false;
-  m_eState       = INTERNAL_STATE_UNINITIALIZED;
+  m_uiSeqNumber    = 0;
+  m_uiSeqNumOutput = 0;
+  m_eState         = INTERNAL_STATE_INITIALIZED;
 
   return VVDEC_OK;
 }
+
+
 
 void VVDecImpl::setLoggingCallback( vvdecLoggingCallback callback )
 {
@@ -219,9 +234,11 @@ void VVDecImpl::setLoggingCallback( vvdecLoggingCallback callback )
 int VVDecImpl::decode( vvdecAccessUnit& rcAccessUnit, vvdecFrame** ppcFrame )
 {
   if( !m_bInitialized )      { return VVDEC_ERR_INITIALIZE; }
-  if( m_eState == INTERNAL_STATE_FINALIZED )        { m_cErrorString = "decoder already flushed, please reinit."; return VVDEC_ERR_RESTART_REQUIRED; }
   if( m_eState == INTERNAL_STATE_RESTART_REQUIRED ) { m_cErrorString = "restart required, please reinit."; return VVDEC_ERR_RESTART_REQUIRED; }
-  if( m_eState == INTERNAL_STATE_FLUSHING )         { m_cErrorString = "decoder already received flush indication, please reinit."; return VVDEC_ERR_RESTART_REQUIRED; }
+  if( m_eState == INTERNAL_STATE_FINALIZED || m_eState == INTERNAL_STATE_FLUSHING )
+  {
+    reset();
+  }
 
   if( m_eState == INTERNAL_STATE_INITIALIZED ){ m_eState = INTERNAL_STATE_TUNING_IN; }
 
