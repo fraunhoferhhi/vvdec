@@ -1344,7 +1344,7 @@ int convertMvFixedToFloat(int32_t val)
     int round = (1 << scale) >> 1;
     int n     = (val + round) >> scale;
     exponent  = scale + ((n ^ sign) >> (MV_MANTISSA_BITCOUNT - 1));
-    mantissa  = (n & MV_MANTISSA_UPPER_LIMIT) | (sign << (MV_MANTISSA_BITCOUNT - 1));
+    mantissa  = (n & MV_MANTISSA_UPPER_LIMIT) | (sign *(1<< (MV_MANTISSA_BITCOUNT - 1)));
   }
   else
   {
@@ -1352,14 +1352,14 @@ int convertMvFixedToFloat(int32_t val)
     mantissa = val;
   }
 
-  return exponent | (mantissa << MV_EXPONENT_BITCOUNT);
+  return exponent | (mantissa *(1<< MV_EXPONENT_BITCOUNT));
 }
 
 int convertMvFloatToFixed(int val)
 {
   int exponent = val & MV_EXPONENT_MASK;
   int mantissa = val >> MV_EXPONENT_BITCOUNT;
-  return exponent == 0 ? mantissa : (mantissa ^ MV_MANTISSA_LIMIT) << (exponent - 1);
+  return exponent == 0 ? mantissa : (mantissa ^ MV_MANTISSA_LIMIT) *(1<< (exponent - 1));
 }
 
 int roundMvComp(int x)
@@ -1806,12 +1806,12 @@ void PU::xInheritedAffineMv( const PredictionUnit &pu, bool is6param, const Pred
   int shift = MAX_CU_DEPTH;
   int iDMvHorX, iDMvHorY, iDMvVerX, iDMvVerY;
 
-  iDMvHorX = (mvRT - mvLT).getHor() << (shift - getLog2(neiW));
-  iDMvHorY = (mvRT - mvLT).getVer() << (shift - getLog2(neiW));
+  iDMvHorX = (mvRT - mvLT).getHor() *(1<< (shift - getLog2(neiW)));
+  iDMvHorY = (mvRT - mvLT).getVer() *(1<< (shift - getLog2(neiW)));
   if ( puNeighbour->affineType() == AFFINEMODEL_6PARAM && !isTopCtuBoundary )
   {
-    iDMvVerX = (mvLB - mvLT).getHor() << (shift - getLog2(neiH));
-    iDMvVerY = (mvLB - mvLT).getVer() << (shift - getLog2(neiH));
+    iDMvVerX = (mvLB - mvLT).getHor() *(1<< (shift - getLog2(neiH)));
+    iDMvVerY = (mvLB - mvLT).getVer() *(1<< (shift - getLog2(neiH)));
   }
   else
   {
@@ -1819,8 +1819,8 @@ void PU::xInheritedAffineMv( const PredictionUnit &pu, bool is6param, const Pred
     iDMvVerY = iDMvHorX;
   }
 
-  int iMvScaleHor = mvLT.getHor() << shift;
-  int iMvScaleVer = mvLT.getVer() << shift;
+  int iMvScaleHor = mvLT.getHor() *(1<< shift);
+  int iMvScaleVer = mvLT.getVer() *(1<< shift);
   int horTmp, verTmp;
 
   // v0
@@ -2274,8 +2274,8 @@ void PU::getAffineControlPointCand( const PredictionUnit &pu, MotionInfo mi[4], 
         break;
 
       case 5: // 5 : LT, LB
-        vx = (cMv[l][0].hor << shift) + ((cMv[l][2].ver - cMv[l][0].ver) << shiftHtoW);
-        vy = (cMv[l][0].ver << shift) - ((cMv[l][2].hor - cMv[l][0].hor) << shiftHtoW);
+        vx = (cMv[l][0].hor *(1<< shift)) + ((cMv[l][2].ver - cMv[l][0].ver) *(1<< shiftHtoW));
+        vy = (cMv[l][0].ver *(1<< shift)) - ((cMv[l][2].hor - cMv[l][0].hor) *(1<< shiftHtoW));
         roundAffineMv( vx, vy, shift );
         cMv[l][1].set( vx, vy );
         cMv[l][1].clipToStorageBitDepth();
@@ -2705,13 +2705,13 @@ void PU::setAllAffineMv( PredictionUnit& pu, Mv affLT, Mv affRT, Mv affLB, RefPi
 
   int deltaMvHorX, deltaMvHorY, deltaMvVerX, deltaMvVerY;
 
-  deltaMvHorX = ( affRT - affLT ).getHor() << ( shift - getLog2( width ) );
-  deltaMvHorY = ( affRT - affLT ).getVer() << ( shift - getLog2( width ) );
+  deltaMvHorX = ( affRT - affLT ).getHor() *(1<< ( shift - getLog2( width )) );
+  deltaMvHorY = ( affRT - affLT ).getVer() *(1<< ( shift - getLog2( width )) );
 
   if ( pu.affineType() == AFFINEMODEL_6PARAM )
   {
-    deltaMvVerX = ( affLB - affLT ).getHor() << ( shift - getLog2( height ) );
-    deltaMvVerY = ( affLB - affLT ).getVer() << ( shift - getLog2( height ) );
+    deltaMvVerX = ( affLB - affLT ).getHor() *(1<< ( shift - getLog2( height )) );
+    deltaMvVerY = ( affLB - affLT ).getVer() *(1<< ( shift - getLog2( height )) );
   }
   else
   {
@@ -2719,8 +2719,8 @@ void PU::setAllAffineMv( PredictionUnit& pu, Mv affLT, Mv affRT, Mv affLB, RefPi
     deltaMvVerY =  deltaMvHorX;
   }
 
-  const int mvScaleHor = affLT.getHor() << shift;
-  const int mvScaleVer = affLT.getVer() << shift;
+  const int mvScaleHor = affLT.getHor() *(1<< shift);
+  const int mvScaleVer = affLT.getVer() *(1<< shift);
 
   MotionBuf mb = pu.getMotionBuf();
 
@@ -3157,7 +3157,7 @@ bool PU::isBiPredFromDifferentDirEqDistPoc( const PredictionUnit& pu )
 {
   if( pu.refIdx[0] >= 0 && pu.refIdx[1] >= 0 )
   {
-    if( pu.slice->getRefPic(REF_PIC_LIST_0, pu.refIdx[0])->longTerm || pu.slice->getRefPic(REF_PIC_LIST_1, pu.refIdx[1])->longTerm )
+    if( pu.slice->getIsUsedAsLongTerm( REF_PIC_LIST_0, pu.refIdx[0] ) || pu.slice->getIsUsedAsLongTerm( REF_PIC_LIST_1, pu.refIdx[1] ) )
     {
       return false;
     }
@@ -3312,10 +3312,10 @@ void PU::spanGeoMotionInfo( PredictionUnit &pu, MergeCtx &geoMrgCtx, const uint8
   }
   for (int y = 0; y < mb.height; y++)
   {
-    lookUpY = (((4 * y + offsetY) << 1) + 5) * g_Dis[distanceY];
+    lookUpY = (((4 * y + offsetY) *2) + 5) * g_Dis[distanceY];
     for (int x = 0; x < mb.width; x++)
     {
-      motionIdx = (((4 * x + offsetX) << 1) + 5) * g_Dis[distanceX] + lookUpY;
+      motionIdx = (((4 * x + offsetX) *2) + 5) * g_Dis[distanceX] + lookUpY;
       tpmMask = abs(motionIdx) < 32 ? 2 : (motionIdx <= 0 ? (1 - isFlip) : isFlip);
       if (tpmMask == 2)
       {
@@ -3843,16 +3843,16 @@ bool PU::isRefPicSameSize( const PredictionUnit& pu )
 
   if( pu.refIdx[0] >= 0 )
   {
-    int refPicWidth  = pu.slice->getRefPic( REF_PIC_LIST_0, pu.refIdx[0] )->unscaledPic->cs->pps->getPicWidthInLumaSamples();
-    int refPicHeight = pu.slice->getRefPic( REF_PIC_LIST_0, pu.refIdx[0] )->unscaledPic->cs->pps->getPicHeightInLumaSamples();
+    int refPicWidth  = pu.slice->getRefPic( REF_PIC_LIST_0, pu.refIdx[0] )->cs->pps->getPicWidthInLumaSamples();
+    int refPicHeight = pu.slice->getRefPic( REF_PIC_LIST_0, pu.refIdx[0] )->cs->pps->getPicHeightInLumaSamples();
 
     samePicSize = refPicWidth == curPicWidth && refPicHeight == curPicHeight;
   }
 
   if( pu.refIdx[1] >= 0 )
   {
-    int refPicWidth  = pu.slice->getRefPic( REF_PIC_LIST_1, pu.refIdx[1] )->unscaledPic->cs->pps->getPicWidthInLumaSamples();
-    int refPicHeight = pu.slice->getRefPic( REF_PIC_LIST_1, pu.refIdx[1] )->unscaledPic->cs->pps->getPicHeightInLumaSamples();
+    int refPicWidth  = pu.slice->getRefPic( REF_PIC_LIST_1, pu.refIdx[1] )->cs->pps->getPicWidthInLumaSamples();
+    int refPicHeight = pu.slice->getRefPic( REF_PIC_LIST_1, pu.refIdx[1] )->cs->pps->getPicHeightInLumaSamples();
 
     samePicSize = samePicSize && ( refPicWidth == curPicWidth && refPicHeight == curPicHeight );
   }

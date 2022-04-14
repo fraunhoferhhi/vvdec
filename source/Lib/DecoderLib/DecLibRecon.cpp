@@ -391,7 +391,7 @@ void DecLibRecon::decompressPicture( Picture* pcPic )
     if( sps->getUseReshaper() )
     {
       m_pcThreadResource[i]->m_cReshaper.createDec( sps->getBitDepth( CHANNEL_TYPE_LUMA ) );
-      m_pcThreadResource[i]->m_cReshaper.initSlice( pcPic->slices[0]->getNalUnitLayerId(), *pcPic->slices[0]->getPicHeader(), *pcPic->slices[0]->getVPS() );
+      m_pcThreadResource[i]->m_cReshaper.initSlice( pcPic->slices[0]->getNalUnitLayerId(), *pcPic->slices[0]->getPicHeader(), pcPic->slices[0]->getVPS() );
     }
 
     m_pcThreadResource[i]->m_cIntraPred.init( sps->getChromaFormatIdc(), sps->getBitDepth( CHANNEL_TYPE_LUMA ) );
@@ -589,21 +589,9 @@ void DecLibRecon::decompressPicture( Picture* pcPic )
         const int   ctuEnd       = std::min( ctuStart + numColPerTask, widthInCtus );
 
 #if RECO_WHILE_PARSE
-        const int   depStart     = std::max( ctuStart - 1, 0 );
-        const int   depEnd       = std::min( ctuEnd   + 1, widthInCtus );
+        // wait for the last CTU in the current line to be parsed
+        ctuBarriesrs.push_back( &pcPic->ctuParsedBarrier[( line + 1 ) * widthInCtus - 1] );
 
-        // make sure that none of the getCU neighborhood accesses will go void
-        for( int ctu = depStart; ctu < depEnd; ctu++ )
-        {
-          ctuBarriesrs.push_back( &pcPic->ctuParsedBarrier[line * widthInCtus + ctu] );
-        }
-        if( line )
-        {
-          for( int ctu = depStart; ctu < depEnd; ctu++ )
-          {
-            ctuBarriesrs.push_back( &pcPic->ctuParsedBarrier[( line - 1 ) * widthInCtus + ctu] );
-          }
-        }
 #endif
         CtuTaskParam* param    = &tasksCtu[line * numTasksPerLine + col];
         param->taskLine        = line;
@@ -621,29 +609,6 @@ void DecLibRecon::decompressPicture( Picture* pcPic )
                                                           ctuTask<true> );
       }
     }
-  }
-
-  {
-    static auto finishPicTask = []( int, FinishPicTaskParam* param )
-    {
-      CodingStructure& cs = *param->pic->cs;
-      if( cs.sps->getUseALF() && !AdaptiveLoopFilter::getAlfSkipPic( cs ) )
-      {
-        param->decLib->swapBufs( cs );
-      }
-
-      param->pic->progress = Picture::reconstructed;
-#ifdef TRACE_ENABLE_ITT
-      // mark end of frame
-      __itt_frame_end_v3( picture->m_itt_decLibInst, nullptr );
-#endif
-      param->pic->stopProcessingTimer();
-
-      return true;
-    };
-
-    taskFinishPic = FinishPicTaskParam( this, pcPic );
-    m_decodeThreadPool->addBarrierTask<FinishPicTaskParam>( finishPicTask, &taskFinishPic, nullptr, &pcPic->done, { pcPic->m_ctuTaskCounter.donePtr() } );
   }
 
   if( pcPic->referenced )
@@ -678,14 +643,31 @@ void DecLibRecon::decompressPicture( Picture* pcPic )
     }
   }
 
-  static auto clearDataTask = []( int tid, Picture* pcPic )
   {
-    auto& cs = *pcPic->cs;
-    cs.deallocTempInternals();
-    return true;
-  };
+    static auto finishPicTask = []( int, FinishPicTaskParam* param )
+    {
+      CodingStructure& cs = *param->pic->cs;
 
-  m_decodeThreadPool->addBarrierTask<Picture>( clearDataTask, pcPic, nullptr, nullptr, { pcPic->m_ctuTaskCounter.donePtr(), pcPic->m_motionTaskCounter.donePtr() } );
+      if( cs.sps->getUseALF() && !AdaptiveLoopFilter::getAlfSkipPic( cs ) )
+      {
+        param->decLib->swapBufs( cs );
+      }
+
+      cs.deallocTempInternals();
+
+      param->pic->progress = Picture::reconstructed;
+#ifdef TRACE_ENABLE_ITT
+      // mark end of frame
+      __itt_frame_end_v3( picture->m_itt_decLibInst, nullptr );
+#endif
+      param->pic->stopProcessingTimer();
+
+      return true;
+    };
+
+    taskFinishPic = FinishPicTaskParam( this, pcPic );
+    m_decodeThreadPool->addBarrierTask<FinishPicTaskParam>( finishPicTask, &taskFinishPic, nullptr, &pcPic->done, { pcPic->m_motionTaskCounter.donePtr(), pcPic->m_ctuTaskCounter.donePtr() } );
+  }
 
   if( m_decodeThreadPool->numThreads() == 0 )
   {

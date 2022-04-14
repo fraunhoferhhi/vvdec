@@ -96,8 +96,8 @@ public:
     int delta1 = m_delta1[bin] - m_state[1];
     delta0 = delta0 >> m_rate0;
     delta1 = delta1 >> m_rate1;
-    m_state[0] += delta0 << 5;
-    m_state[1] += delta1 << 1;
+    m_state[0] += delta0 *(1<< 5);
+    m_state[1] += delta1 *2;
   }
   void setLog2WindowSize(uint8_t log2WindowSize)
   {

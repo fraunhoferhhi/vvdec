@@ -180,7 +180,6 @@ private:
   void xBIPMVRefine(DistParam &cDistParam, const Pel *pRefL0, const Pel *pRefL1, Distortion& minCost, int16_t *deltaMV, Distortion *pSADsArray);
   void xinitMC(PredictionUnit& pu, const ClpRngs &clpRngs);
   void xProcessDMVR(PredictionUnit& pu, PelUnitBuf &pcYuvDst, const ClpRngs &clpRngs, const bool bioApplied );
-  void xFillIBCBuffer(CodingUnit &cu);
 #if JVET_O1170_CHECK_BV_AT_DECODER
   void resetIBCBuffer(const ChromaFormat chromaFormatIDC, const int ctuSize);
   void resetVPDUforIBC(const ChromaFormat chromaFormatIDC, const int ctuSize, const int vSize, const int xPos, const int yPos);

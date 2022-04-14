@@ -323,7 +323,7 @@ unsigned BinDecoder::decodeBin( unsigned ctxId )
   bitsNeeded  += numBits & ( a | b );
   
   const int c = ~(bitsNeeded >> 31);
-  Value += m_Bitstream->readByteFlag(c) << bitsNeeded;
+  Value      += m_Bitstream->readByteFlag( c ) << ( bitsNeeded & 31 );
   bitsNeeded -= c & 8;
   
   //if( Value < SR )

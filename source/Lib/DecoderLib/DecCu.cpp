@@ -137,6 +137,8 @@ void DecCu::TaskInterCtu( CodingStructure &cs, const int ctuRsAddr, const UnitAr
 void DecCu::TaskCriticalIntraKernel( CodingStructure &cs, const int ctuRsAddr, const UnitArea &ctuArea )
 {
   PROFILER_SCOPE_AND_STAGE_EXT( 1, g_timeProfiler, P_CONTROL_PARSE_DERIVE_LL, cs, CH_L );
+  const CtuData &ctuData = cs.getCtuData( ctuRsAddr );
+
   for( auto &currCU : cs.traverseCUs( ctuRsAddr ) )
   {
     CHECK( !ctuArea.blocks[currCU.chType()].contains( currCU.blocks[currCU.chType()] ), "Should never happen!" );
@@ -150,9 +152,9 @@ void DecCu::TaskCriticalIntraKernel( CodingStructure &cs, const int ctuRsAddr, c
       finishLMCSAndReco( currCU );
     }
 
-    if( cs.sps->getIBCFlag() )
+    if( cs.sps->getIBCFlag() && cs.hasIbcBlock[ctuData.lineIdx] )
     {
-      cs.fillIBCbuffer( currCU, ctuArea.Y().y / cs.sps->getMaxCUHeight() );
+      cs.fillIBCbuffer( currCU, ctuData.lineIdx );
     }
   }
 }

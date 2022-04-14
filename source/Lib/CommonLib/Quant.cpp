@@ -168,7 +168,7 @@ static void DeQuantCore( const int              maxX,
         if( level )
         {
           const TCoeff           clipQCoef = TCoeff(Clip3<Intermediate_Int>(inputMinimum, inputMaximum, level));
-          const Intermediate_Int iCoeffQ   = (Intermediate_Int(clipQCoef) * scale) << leftShift;
+          const Intermediate_Int iCoeffQ   = (Intermediate_Int(clipQCoef) * scale) *(1<<leftShift);
 
           piCoef[n] = TCoeff(Clip3<Intermediate_Int>(transformMinimum,transformMaximum,iCoeffQ));
         }
@@ -223,7 +223,7 @@ static void DeQuantPCMCore( const int     maxX,
         if( level )
         {
           const TCoeff           clipQCoef = TCoeff(Clip3<Intermediate_Int>(inputMinimum, inputMaximum, level));
-          const Intermediate_Int iCoeffQ   = (Intermediate_Int(clipQCoef) * scale) << leftShift;
+          const Intermediate_Int iCoeffQ   = (Intermediate_Int(clipQCoef) * scale) *(1<< leftShift);
 
           piCoef[n] = TCoeff(Clip3<Intermediate_Int>(transformMinimum,transformMaximum,iCoeffQ));
         }
@@ -464,7 +464,7 @@ void Quant::dequant( const TransformUnit& tu, CoeffBuf& dstCoeff, const Componen
                 scale = piDequantCoef[n];
 
                 const TCoeff           clipQCoef = TCoeff(Clip3<Intermediate_Int>(inputMinimum, inputMaximum, level));
-                const Intermediate_Int iCoeffQ   = (Intermediate_Int(clipQCoef) * scale) << leftShift;
+                const Intermediate_Int iCoeffQ   = (Intermediate_Int(clipQCoef) * scale) *(1<< leftShift);
 
                 piCoef[n] = TCoeff(Clip3<Intermediate_Int>(transformMinimum,transformMaximum,iCoeffQ));
               }
@@ -481,7 +481,7 @@ void Quant::dequant( const TransformUnit& tu, CoeffBuf& dstCoeff, const Componen
  * \param scalingList quantized matrix address
  * \param format      chroma format
  */
-void Quant::setScalingListDec( ScalingList& scalingList )
+void Quant::setScalingListDec( const ScalingList& scalingList )
 {
   const int minimumQp = 0;
   const int maximumQp = SCALING_LIST_REM_NUM;
@@ -704,7 +704,7 @@ void Quant::init( const Picture *pic )
 
   if( slice && slice->getExplicitScalingListUsed() )
   {
-    std::shared_ptr<APS> scalingListAPS = slice->getPicHeader()->getScalingListAPS();
+    const std::shared_ptr<const APS> scalingListAPS = slice->getPicHeader()->getScalingListAPS();
     if( slice->getNalUnitLayerId() != scalingListAPS->getLayerId() )
     {
       CHECK( scalingListAPS->getLayerId() > slice->getNalUnitLayerId(), "Layer Id of APS cannot be greater than layer Id of VCL NAL unit the refer to it" );
@@ -727,7 +727,7 @@ void Quant::init( const Picture *pic )
         CHECK( isCurrLayerInOls && !isRefLayerInOls, "When VCL NAl unit in layer A refers to APS in layer B, all OLS that contains layer A shall also contains layer B" );
       }
     }
-    ScalingList scalingList = scalingListAPS->getScalingList();
+    const ScalingList& scalingList = scalingListAPS->getScalingList();
     if( m_ownDequantCoeff )
       setScalingListDec(scalingList);
     setUseScalingList(true);

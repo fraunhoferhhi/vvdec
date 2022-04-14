@@ -927,7 +927,7 @@ struct AlfSliceParam
   int              tLayer;
   bool             newFilterFlag      [MAX_NUM_CHANNEL_TYPE];
 
-  std::mutex       recostructMutex;   // this must be the last member, so we can clear the rest of the struct using memset()
+  mutable std::mutex recostructMutex;   // this must be the last member, so we can clear the rest of the struct using memset()
 
   AlfSliceParam()
   {

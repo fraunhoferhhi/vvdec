@@ -488,23 +488,24 @@ void Slice::constructSingleRefPicList(const PicListRange& rcListPic, RefPicList 
   {
     Picture* pcRefPic = nullptr;
 
+    bool longTerm = false;
+
     if( !rRPL.isRefPicLongterm( ii ) )
     {
-      pcRefPic           = xGetRefPic( rcListPic, getPOC() + rRPL.getRefPicIdentifier( ii ), m_pcPic->layerId );
-      pcRefPic->longTerm = false;
+      pcRefPic = xGetRefPic( rcListPic, getPOC() + rRPL.getRefPicIdentifier( ii ), m_pcPic->layerId );
     }
     else
     {
       int ltrpPoc = rRPL.calcLTRefPOC( getPOC(), getSPS()->getBitsForPOC(), ii );
 
-      pcRefPic           = xGetLongTermRefPic( rcListPic, ltrpPoc, rRPL.getDeltaPocMSBPresentFlag( ii ), m_pcPic->layerId );
-      pcRefPic->longTerm = true;
+      pcRefPic = xGetLongTermRefPic( rcListPic, ltrpPoc, rRPL.getDeltaPocMSBPresentFlag( ii ), m_pcPic->layerId );
+      longTerm = true;
     }
 
     m_apcRefPicList    [listId][ii] = pcRefPic;
-    m_bIsUsedAsLongTerm[listId][ii] = pcRefPic->longTerm;
+    m_bIsUsedAsLongTerm[listId][ii] = longTerm;
 
-    rRPL.setRefPicLongterm( ii,pcRefPic->longTerm );
+    rRPL.setRefPicLongterm( ii, longTerm );
   }
 }
 
@@ -1063,7 +1064,7 @@ void  Slice::initWpAcDcParam()
 void  Slice::getWpScaling( RefPicList e, int iRefIdx, WPScalingParam *&wp ) const
 {
   CHECK(e>=NUM_REF_PIC_LIST_01, "Invalid picture reference list");
-  wp = (WPScalingParam*) m_weightPredTable[e][iRefIdx];
+  wp = (iRefIdx>=0) ?  (WPScalingParam*) m_weightPredTable[e][iRefIdx] : (WPScalingParam*) m_weightPredTable[e][0]; // iRefIdx can be -1
 }
 
 //! reset Default WP tables settings : no weight.
@@ -1663,8 +1664,6 @@ void PPS::checkSliceMap()
 
 void PPS::finalizePPSPartitioning( const SPS* pcSPS )
 {
-  if( m_partitioningInitialized ) return;
-
   // initialize tile/slice info for no partitioning case
   if( getNoPicPartitionFlag() )
   {
@@ -1694,8 +1693,6 @@ void PPS::finalizePPSPartitioning( const SPS* pcSPS )
   }
 
   initSubPic( *pcSPS );
-
-  m_partitioningInitialized = true;
 }
 
 
@@ -1968,9 +1965,6 @@ void Slice::scaleRefPicList( PicHeader *picHeader )
   const PPS* pps = getPPS();
 
   bool refPicIsSameRes = false;
-   
-  // this is needed for IBC
-  m_pcPic->unscaledPic = m_pcPic;
 
   if( m_eSliceType == I_SLICE )
   {
@@ -1998,58 +1992,14 @@ void Slice::scaleRefPicList( PicHeader *picHeader )
       {
         refPicIsSameRes = true;
       }
-
-      m_scaledRefPicList[refList][rIdx] = m_apcRefPicList[refList][rIdx];
-    }
-  }
-
-  // make the scaled reference picture list as the default reference picture list
-  for( int refList = 0; refList < NUM_REF_PIC_LIST_01; refList++ )
-  {
-    if( refList == 1 && m_eSliceType != B_SLICE )
-    {
-      continue;
-    }
-
-    for( int rIdx = 0; rIdx < m_aiNumRefIdx[refList]; rIdx++ )
-    {
-      m_savedRefPicList[refList][rIdx] = m_apcRefPicList[refList][rIdx];
-      m_apcRefPicList[refList][rIdx] = m_scaledRefPicList[refList][rIdx];
-
-      // allow the access of the unscaled version in xPredInterBlk()
-      m_apcRefPicList[refList][rIdx]->unscaledPic = m_savedRefPicList[refList][rIdx];
     }
   }
   
   //Make sure that TMVP is disabled when there are no reference pictures with the same resolution
-  if(!refPicIsSameRes)
+  if( !refPicIsSameRes )
   {
-    CHECK(getPicHeader()->getEnableTMVPFlag() != 0, "TMVP cannot be enabled in pictures that have no reference pictures with the same resolution")
+    CHECK( getPicHeader()->getEnableTMVPFlag() != 0, "TMVP cannot be enabled in pictures that have no reference pictures with the same resolution" )
   }
-}
-
-bool Slice::checkRPR()
-{
-  const PPS* pps = getPPS();
-
-  for( int refList = 0; refList < NUM_REF_PIC_LIST_01; refList++ )
-  {
-
-    if( refList == 1 && m_eSliceType != B_SLICE )
-    {
-      continue;
-    }
-
-    for( int rIdx = 0; rIdx < m_aiNumRefIdx[refList]; rIdx++ )
-    {
-      if( m_scaledRefPicList[refList][rIdx]->cs->pcv->lumaWidth != pps->getPicWidthInLumaSamples() || m_scaledRefPicList[refList][rIdx]->cs->pcv->lumaHeight != pps->getPicHeightInLumaSamples() )
-      {
-        return true;
-      }
-    }
-  }
-
-  return false;
 }
 
 bool             operator == (const ConstraintInfo& op1, const ConstraintInfo& op2)

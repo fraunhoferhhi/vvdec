@@ -121,7 +121,7 @@ public:
   void (*paddPicBorderTop) (Pel *pi, ptrdiff_t stride,int width,int xmargin,int ymargin);
   void (*paddPicBorderLeftRight) (Pel *pi, ptrdiff_t stride,int width,int xmargin,int height);
 
-  void finalInit( CUChunkCache* cuChunkCache, TUChunkCache* tuChunkCache, const SPS * sps, const PPS * pps, PicHeader *picHeader, APS* alfApss[ALF_CTB_MAX_NUM_APS], APS * lmcsAps, APS* scalingListAps, bool phPSupdate = true );
+  void finalInit( CUChunkCache* cuChunkCache, TUChunkCache* tuChunkCache, const SPS * sps, const PPS * pps, PicHeader *picHeader, const APS* const alfApss[ALF_CTB_MAX_NUM_APS], const APS * lmcsAps, const APS* scalingListAps, bool phPSupdate = true );
   int      getPOC()                           const { return poc; }
   uint64_t getCts()                           const { return cts; }
   uint64_t getDts()                           const { return dts; }
@@ -145,6 +145,7 @@ public:
 
   std::chrono::time_point<std::chrono::steady_clock> m_processingStartTime;
   double                                             m_dProcessingTime = 0;
+  std::mutex                                         m_timerMutex;
 
   enum PicStateEnum
   {
@@ -194,7 +195,6 @@ public:
 
   PelStorage     m_bufs[NUM_PIC_TYPES];
   uint32_t       margin      = 0;
-  const Picture* unscaledPic = nullptr;
 
   WaitCounter     m_ctuTaskCounter;
   WaitCounter     m_motionTaskCounter;

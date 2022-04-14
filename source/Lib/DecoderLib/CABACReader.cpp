@@ -931,6 +931,7 @@ void CABACReader::cu_skip_flag( CodingUnit& cu )
       //cu.setRootCbf    ( false );
       cu.setPredMode   ( MODE_IBC );
       //cu.setMmvdFlag   ( false );
+      cu.cs->hasIbcBlock[cu.ctuData->lineIdx] = 1;
     }
 
     return;
@@ -955,6 +956,7 @@ void CABACReader::cu_skip_flag( CodingUnit& cu )
         //cu.setRootCbf    ( false );
         cu.setPredMode   ( MODE_IBC );
         //cu.setMmvdFlag   ( false );
+        cu.cs->hasIbcBlock[cu.ctuData->lineIdx] = 1;
         return;
       }
 
@@ -967,6 +969,7 @@ void CABACReader::cu_skip_flag( CodingUnit& cu )
         cu.setPredMode           ( MODE_IBC );
         //cu.setMmvdFlag           ( false );
         //cu.setRegularMergeFlag   ( false );
+        cu.cs->hasIbcBlock[cu.ctuData->lineIdx] = 1;
       }
       else
       {
@@ -1089,6 +1092,7 @@ void CABACReader::pred_mode( CodingUnit& cu )
     if( m_BinDecoder.decodeBin( Ctx::IBCFlag( ctxidx ) ) )
     {
       cu.setPredMode( MODE_IBC );
+      cu.cs->hasIbcBlock[cu.ctuData->lineIdx] = 1;
     }
   }
 }
@@ -1161,6 +1165,7 @@ void CABACReader::cu_pred_data( CodingUnit &cu )
   if( !cu.Y().valid() ) // dual tree chroma CU
   {
     cu.setPredMode( MODE_IBC );
+    cu.cs->hasIbcBlock[cu.ctuData->lineIdx] = 1;
     return;
   }
 

@@ -65,6 +65,14 @@ ifneq ($(toolchainfile),)
 CONFIG_OPTIONS += -DCMAKE_TOOLCHAIN_FILE=$(toolchainfile)
 endif
 
+ifneq ($(address-sanitizer),)
+CONFIG_OPTIONS += -DVVDEC_USE_ADDRESS_SANITIZER=$(address-sanitizer)
+endif
+
+ifneq ($(thread-sanitizer),)
+CONFIG_OPTIONS += -DVVDEC_USE_THREAD_SANITIZER=$(thread-sanitizer)
+endif
+
 ifeq ($(j),)
 # Query cmake for the number of cores
 NUM_JOBS := $(shell cmake -P cmake/modules/vvdecNumCores.cmake)

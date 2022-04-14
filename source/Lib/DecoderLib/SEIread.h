@@ -75,7 +75,7 @@ protected:
   void xParseSEIPictureTiming                 (vvdecSEI* s,    uint32_t payloadSize, const uint32_t temporalId, const vvdecSEIBufferingPeriod& bp, std::ostream *pDecodedMessageOutputStream);
   void xParseSEIScalableNesting               (vvdecSEI* s, const NalUnitType nalUnitType, const uint32_t nuhLayerId, uint32_t payloadSize, const VPS *vps, const SPS *sps, std::ostream *decodedMessageOutputStream);
   void xCheckScalableNestingConstraints       (const vvdecSEIScalableNesting* sei, const NalUnitType nalUnitType, const VPS* vps);
-  void xParseSEIFrameFieldinfo                (vvdecSEI* s, const vvdecSEIPictureTiming& pt, uint32_t payloadSize, std::ostream *pDecodedMessageOutputStream);
+  void xParseSEIFrameFieldinfo                (vvdecSEI* s,    uint32_t payloadSize, std::ostream *pDecodedMessageOutputStream);
   void xParseSEIDependentRAPIndication        (vvdecSEI* s,    uint32_t payLoadSize,                     std::ostream *pDecodedMessageOutputStream);
   void xParseSEIFramePacking                  (vvdecSEI* s,    uint32_t payloadSize,                     std::ostream *pDecodedMessageOutputStream);
   void xParseSEIParameterSetsInclusionIndication(vvdecSEI* s,  uint32_t payloadSize,                     std::ostream* pDecodedMessageOutputStream);

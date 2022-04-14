@@ -1982,7 +1982,6 @@ private:
   bool             m_wpInfoInPhFlag                      = false;
   bool             m_qpDeltaInfoInPhFlag                 = false;
   bool             m_mixedNaluTypesInPicFlag             = false;
-  bool             m_partitioningInitialized             = false;
 
   bool             m_scalingListPresentFlag              = false;;
   ScalingList      m_scalingList;                       //!< ScalingList class
@@ -2203,14 +2202,13 @@ public:
   bool                    getConformanceWindowPresentFlag() const                         { return m_conformanceWindowPresentFlag;        }
   Window&                 getConformanceWindow()                                          { return  m_conformanceWindow; }
   const Window&           getConformanceWindow() const                                    { return  m_conformanceWindow; }
-  void                    setConformanceWindow( Window& conformanceWindow )               { m_conformanceWindow = conformanceWindow; }
+  void                    setConformanceWindow( const Window& conformanceWindow )         { m_conformanceWindow = conformanceWindow; }
   Window&                 getScalingWindow()                                              { return  m_scalingWindow; }
   const Window&           getScalingWindow()                                        const { return  m_scalingWindow; }
-  void                    setScalingWindow( Window& scalingWindow )                       { m_scalingWindow = scalingWindow; }
+  void                    setScalingWindow( const Window& scalingWindow )                 { m_scalingWindow = scalingWindow; }
   int                     getMixedNaluTypesInPicFlag() const                              { return m_mixedNaluTypesInPicFlag; }
   void                    setMixedNaluTypesInPicFlag( const bool flag )                   { m_mixedNaluTypesInPicFlag = flag; }
   void                    finalizePPSPartitioning( const SPS* pcSPS );
-  void                    checkPPSPartitioningFinalized() const                           { CHECK( !m_partitioningInitialized, "PPS partitioning info has not been finalized!" ); }
 };
 
 class APS: public BasePS<APS>
@@ -2237,20 +2235,24 @@ public:
   int                    getAPSType() const                                               { return m_APSType;                             }
   void                   setAPSType(int type)                                             { m_APSType = type;                             }
 
-  void                   setAlfAPSParam(AlfSliceParam& alfAPSParam)                       { m_alfAPSParam = alfAPSParam;                  }
+  void                   setAlfAPSParam( AlfSliceParam& alfAPSParam )                     { m_alfAPSParam = alfAPSParam;                  }
         AlfSliceParam&   getAlfAPSParam()                                                 { return m_alfAPSParam;                         }
   const AlfSliceParam&   getAlfAPSParam() const                                           { return m_alfAPSParam;                         }
-  void                   setCcAlfAPSParam(CcAlfFilterParam& ccAlfAPSParam)                { m_ccAlfAPSParam = ccAlfAPSParam;              }
+  AlfSliceParam&         getMutableAlfAPSParam() const                                    { m_alfAPSParam.recostructMutex.lock(); return const_cast<AlfSliceParam&>( m_alfAPSParam ); }
+  void                   releaseMutableAlfAPSParam( AlfSliceParam& alfAPSParam ) const    { alfAPSParam.recostructMutex.unlock(); }
+  void                   setCcAlfAPSParam( CcAlfFilterParam& ccAlfAPSParam )              { m_ccAlfAPSParam = ccAlfAPSParam;              }
   CcAlfFilterParam&      getCcAlfAPSParam()                                               { return m_ccAlfAPSParam;                       }
   const CcAlfFilterParam& getCcAlfAPSParam() const                                        { return m_ccAlfAPSParam;                       }
 
   void                   setTemporalId(int i)                                             { m_alfAPSParam.tLayer = i;                     }
-  int                    getTemporalId()                                                  { return m_alfAPSParam.tLayer;                  }
+  int                    getTemporalId()                                            const { return m_alfAPSParam.tLayer;                  }
   void                   setLayerId( int i )                                              { m_layerId = i;                                }
   int                    getLayerId()                                               const { return m_layerId;                             }
-  void                   setReshaperAPSInfo(SliceReshapeInfo& reshapeAPSInfo)             { m_reshapeAPSInfo = reshapeAPSInfo;            }
+  void                   setReshaperAPSInfo( SliceReshapeInfo& reshapeAPSInfo )           { m_reshapeAPSInfo = reshapeAPSInfo;            }
+  const SliceReshapeInfo& getReshaperAPSInfo()                                      const { return m_reshapeAPSInfo;                      }
   SliceReshapeInfo&      getReshaperAPSInfo()                                             { return m_reshapeAPSInfo;                      }
   void                   setScalingList( ScalingList& scalingListAPSInfo )                { m_scalingListApsInfo = scalingListAPSInfo;    }
+  const ScalingList&     getScalingList()                                           const { return m_scalingListApsInfo;                  }
   ScalingList&           getScalingList()                                                 { return m_scalingListApsInfo;                  }
   void                   setHasPrefixNalUnitType( bool b )                                { m_hasPrefixNalUnitType = b;                   }
   bool                   getHasPrefixNalUnitType() const                                  { return m_hasPrefixNalUnitType;                }
@@ -2342,11 +2344,11 @@ private:
   int                         m_deblockingFilterCrTcOffsetDiv2                = 0;                         //!< tc offset for deblocking filter
   bool                        m_lmcsEnabledFlag                               = false;  //!< lmcs enabled flag
   int                         m_lmcsApsId                                     = -1;     //!< lmcs APS ID
-  std::shared_ptr<APS>        m_lmcsAps                                       = nullptr; //!< lmcs APS
+  std::shared_ptr<const APS>  m_lmcsAps                                       = nullptr; //!< lmcs APS
   bool                        m_lmcsChromaResidualScaleFlag                   = false;  //!< lmcs chroma residual scale flag
   bool                        m_explicitScalingListEnabledFlag                = false;  //!< explicit quantization scaling list enabled
   int                         m_scalingListApsId                              = -1;     //!< quantization scaling list APS ID
-  std::shared_ptr<APS>        m_scalingListAps                                = nullptr; //!< quantization scaling list APS
+  std::shared_ptr<const APS>  m_scalingListAps                                = nullptr; //!< quantization scaling list APS
   unsigned                    m_minQT[3]                                      = { 0, 0, 0 }; //!< minimum quad-tree size  0: I slice luma; 1: P/B slice; 2: I slice chroma
   unsigned                    m_maxMTTHierarchyDepth[3]                       = { 0, 0, 0 }; //!< maximum MTT depth
   unsigned                    m_maxBTSize[3]                                  = { 0, 0, 0 }; //!< maximum BT size
@@ -2474,15 +2476,15 @@ public:
   void                        setLmcsEnabledFlag(bool b)                                { m_lmcsEnabledFlag = b;                                                                       }
   bool                        getLmcsEnabledFlag()                                      { return m_lmcsEnabledFlag;                                                                    }
   const bool                  getLmcsEnabledFlag() const                                { return m_lmcsEnabledFlag;                                                                    }
-  void                        setLmcsAPS(std::shared_ptr<APS> aps)                      { m_lmcsAps = aps; m_lmcsApsId = (aps) ? aps->getAPSId() : -1;                                 }
-  std::shared_ptr<APS>        getLmcsAPS() const                                        { return m_lmcsAps;                                                                            }
+  void                        setLmcsAPS(std::shared_ptr<const APS> aps)                { m_lmcsAps = aps; m_lmcsApsId = (aps) ? aps->getAPSId() : -1;                                 }
+  std::shared_ptr<const APS>  getLmcsAPS() const                                        { return m_lmcsAps;                                                                            }
   void                        setLmcsAPSId(int id)                                      { m_lmcsApsId = id;                                                                            }
   int                         getLmcsAPSId() const                                      { return m_lmcsApsId;                                                                          }
   void                        setLmcsChromaResidualScaleFlag(bool b)                    { m_lmcsChromaResidualScaleFlag = b;                                                           }
   bool                        getLmcsChromaResidualScaleFlag()                          { return m_lmcsChromaResidualScaleFlag;                                                        }
   const bool                  getLmcsChromaResidualScaleFlag() const                    { return m_lmcsChromaResidualScaleFlag;                                                        }
-  void                        setScalingListAPS(std::shared_ptr<APS> aps)               { m_scalingListAps = aps; m_scalingListApsId = ( aps ) ? aps->getAPSId() : -1;                 }
-  std::shared_ptr<APS>        getScalingListAPS() const                                 { return m_scalingListAps;                                                                     }
+  void                        setScalingListAPS(std::shared_ptr<const APS> aps)         { m_scalingListAps = aps; m_scalingListApsId = ( aps ) ? aps->getAPSId() : -1;                 }
+  std::shared_ptr<const APS>  getScalingListAPS() const                                 { return m_scalingListAps;                                                                     }
   void                        setScalingListAPSId( int id )                             { m_scalingListApsId = id;                                                                     }
   int                         getScalingListAPSId() const                               { return m_scalingListApsId;                                                                   }
   void                        setExplicitScalingListEnabledFlag( bool b )               { m_explicitScalingListEnabledFlag = b;                                                        }
@@ -2587,8 +2589,6 @@ private:
   Picture*                   m_apcRefPicList      [NUM_REF_PIC_LIST_01][MAX_NUM_REF + 1] = { { nullptr } };   // entry 0 in m_apcRefPicList is nullptr!
   int                        m_aiRefPOCList       [NUM_REF_PIC_LIST_01][MAX_NUM_REF + 1] = { { 0 } };
   bool                       m_bIsUsedAsLongTerm  [NUM_REF_PIC_LIST_01][MAX_NUM_REF + 1] = { { false } };
-  Picture*                   m_scaledRefPicList   [NUM_REF_PIC_LIST_01][MAX_NUM_REF + 1] = { { nullptr } };
-  Picture*                   m_savedRefPicList    [NUM_REF_PIC_LIST_01][MAX_NUM_REF + 1] = { { nullptr } };
   std::pair<int, int>        m_scalingRatio       [NUM_REF_PIC_LIST_01][MAX_NUM_REF_PICS];
 
   // access channel
@@ -2619,7 +2619,7 @@ private:
 
   uint32_t                   m_sliceSubPicId                 = false;
 
-  APS*                       m_alfApss[ALF_CTB_MAX_NUM_APS]      = { 0 };
+  const APS*                 m_alfApss[ALF_CTB_MAX_NUM_APS]      = { 0 };
   bool                       m_alfEnabledFlag[MAX_NUM_COMPONENT] = { false, false, false };
   int                        m_numAlfAps                         = 0;
   std::vector<int>           m_lumaAlfApsId;
@@ -2644,10 +2644,10 @@ public:
   void                        setPPS( const PPS* pcPPS )                             { m_pcPPS = pcPPS;                                              }
   const PPS*                  getPPS() const                                         { return m_pcPPS;                                               }
 
-  void                        setAlfApss( std::shared_ptr<APS> apss[ALF_CTB_MAX_NUM_APS] ) { for( int i = 0; i < ALF_CTB_MAX_NUM_APS; ++i ) { m_alfApss[i] = apss[i].get(); } }
-  void                        setAlfApss(                 APS *apss[ALF_CTB_MAX_NUM_APS] ) { for( int i = 0; i < ALF_CTB_MAX_NUM_APS; ++i ) { m_alfApss[i] = apss[i]; } }
+  void                        setAlfApss( std::shared_ptr<const APS> apss[ALF_CTB_MAX_NUM_APS] ) { for( int i = 0; i < ALF_CTB_MAX_NUM_APS; ++i ) { m_alfApss[i] = apss[i].get(); } }
+  void                        setAlfApss(                 const APS *apss[ALF_CTB_MAX_NUM_APS] ) { for( int i = 0; i < ALF_CTB_MAX_NUM_APS; ++i ) { m_alfApss[i] = apss[i]; } }
   void                        clearAlfAPSs()                                         { memset( m_alfApss, 0, sizeof( m_alfApss ) );                  }
-  APS**                       getAlfAPSs()                                           { return m_alfApss;                                             }
+  const APS**                 getAlfAPSs()                                           { return m_alfApss;                                             }
   const APS* const*           getAlfAPSs() const                                     { return m_alfApss;                                             }
   void                        setSaoEnabledFlag(ChannelType chType, bool s)          { m_saoEnabledFlag[chType] = s;                                 }
   bool                        getSaoEnabledFlag(ChannelType chType) const            { return m_saoEnabledFlag[chType];                              }
@@ -2703,7 +2703,8 @@ public:
   bool                        getColFromL0Flag() const                               { return m_colFromL0Flag;                                       }
   uint32_t                    getColRefIdx() const                                   { return m_colRefIdx;                                           }
   void                        checkColRefIdx(uint32_t curSliceSegmentIdx, const Picture* pic);
-  bool                        getIsUsedAsLongTerm(int i, int j) const                { return m_bIsUsedAsLongTerm[i][j];                             }
+  bool                        getIsUsedAsLongTerm(int i, int j) const                {
+    return (j>=0) ? m_bIsUsedAsLongTerm[i][j] : m_bIsUsedAsLongTerm[i][0];                             }
   void                        setIsUsedAsLongTerm(int i, int j, bool value)          { m_bIsUsedAsLongTerm[i][j] = value;                            }
   bool                        getCheckLDC() const                                    { return m_bCheckLDC;                                           }
   int                         getList1IdxToList0Idx( int list1Idx ) const            { return m_list1IdxToList0Idx[list1Idx];                        }
@@ -2870,7 +2871,6 @@ public:
   int                         getCcAlfCrApsId()                       const { return m_ccAlfCrApsId; }
 
   void                        scaleRefPicList( PicHeader *picHeader );
-  bool                        checkRPR();
   const std::pair<int, int>&  getScalingRatio( const RefPicList refPicList, const int refIdx )  const { return m_scalingRatio[refPicList][refIdx]; }
   void                        setNumEntryPoints( const SPS *sps, const PPS *pps );
   uint32_t                    getNumEntryPoints( ) const { return m_numEntryPoints;  }

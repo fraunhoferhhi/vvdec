@@ -215,7 +215,7 @@ const CPelUnitBuf Picture::getRecoBuf(const UnitArea &unit, bool wrap)     const
        PelUnitBuf Picture::getRecoBuf( bool wrap )                               { return wrap ? m_bufs[PIC_RECON_WRAP] : m_bufs[PIC_RECONSTRUCTION]; }
 const CPelUnitBuf Picture::getRecoBuf( bool wrap )                         const { return wrap ? m_bufs[PIC_RECON_WRAP] : m_bufs[PIC_RECONSTRUCTION]; }
 
-void Picture::finalInit( CUChunkCache* cuChunkCache, TUChunkCache* tuChunkCache, const SPS *sps, const PPS *pps, PicHeader* picHeader, APS* alfApss[ALF_CTB_MAX_NUM_APS], APS* lmcsAps, APS* scalingListAps, bool phPSupdate )
+void Picture::finalInit( CUChunkCache* cuChunkCache, TUChunkCache* tuChunkCache, const SPS *sps, const PPS *pps, PicHeader* picHeader, const APS* const alfApss[ALF_CTB_MAX_NUM_APS], const APS* lmcsAps, const APS* scalingListAps, bool phPSupdate )
 {
   SEI_internal::deleteSEIs( seiMessageList );
   clearSliceBuffer();
@@ -546,11 +546,13 @@ PelBuf Picture::getOriginBuf( const PictureType &type, const ComponentID compID 
 
 void Picture::startProcessingTimer()
 {
+  std::lock_guard<std::mutex> lock( m_timerMutex );
   m_processingStartTime = std::chrono::steady_clock::now();
 }
 
 void Picture::stopProcessingTimer()
 {
+  std::lock_guard<std::mutex> lock( m_timerMutex );
   auto endTime = std::chrono::steady_clock::now();
   m_dProcessingTime += std::chrono::duration<double>(endTime - m_processingStartTime).count();
 }

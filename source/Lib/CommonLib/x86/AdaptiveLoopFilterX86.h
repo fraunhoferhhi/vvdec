@@ -1461,9 +1461,9 @@ void simdFilterBlkCcAlf( const PelBuf&      dstBuf,
   if( getChannelTypeScaleX( CH_C, nChromaFormat ) == 1 )
   {
     __m128i xfilterCoeff[4];
-    xfilterCoeff[0] = _mm_set1_epi32( ( filterCoeff[1] & 0xffff ) | ( filterCoeff[2] << 16 ) );
-    xfilterCoeff[1] = _mm_set1_epi32( ( filterCoeff[0] & 0xffff ) | ( filterCoeff[3] << 16 ) );
-    xfilterCoeff[2] = _mm_set1_epi32( ( filterCoeff[4] & 0xffff ) | ( filterCoeff[5] << 16 ) );
+    xfilterCoeff[0] = _mm_set1_epi32( ( filterCoeff[1] & 0xffff ) | ( filterCoeff[2] *(1<< 16 )) );
+    xfilterCoeff[1] = _mm_set1_epi32( ( filterCoeff[0] & 0xffff ) | ( filterCoeff[3] *(1<< 16 )) );
+    xfilterCoeff[2] = _mm_set1_epi32( ( filterCoeff[4] & 0xffff ) | ( filterCoeff[5] *(1<< 16 )) );
     xfilterCoeff[3] = _mm_set1_epi32( ( filterCoeff[6] & 0xffff ) );
 
     for( int i = 0; i < endHeight - startHeight; i += clsSizeY )
@@ -1642,9 +1642,9 @@ void simdFilterBlkCcAlf<AVX2>( const PelBuf&      dstBuf,
     static constexpr int scaleX = 1;
 
     __m256i vfilterCoeff[4];
-    vfilterCoeff[0] = _mm256_set1_epi32( ( filterCoeff[1] & 0xffff ) | ( filterCoeff[2] << 16 ) );
-    vfilterCoeff[1] = _mm256_set1_epi32( ( filterCoeff[0] & 0xffff ) | ( filterCoeff[3] << 16 ) );
-    vfilterCoeff[2] = _mm256_set1_epi32( ( filterCoeff[4] & 0xffff ) | ( filterCoeff[5] << 16 ) );
+    vfilterCoeff[0] = _mm256_set1_epi32( ( filterCoeff[1] & 0xffff ) | ( filterCoeff[2] *(1<< 16 )) );
+    vfilterCoeff[1] = _mm256_set1_epi32( ( filterCoeff[0] & 0xffff ) | ( filterCoeff[3] *(1<< 16 )) );
+    vfilterCoeff[2] = _mm256_set1_epi32( ( filterCoeff[4] & 0xffff ) | ( filterCoeff[5] *(1<< 16 )) );
     vfilterCoeff[3] = _mm256_set1_epi32( ( filterCoeff[6] & 0xffff ) );
     __m128i xmax16  = _mm_set1_epi16   ( clpRngs.max() );
     __m256i vmax32  = _mm256_set1_epi32( clpRngs.max() );
@@ -1790,14 +1790,14 @@ void simdFilterBlkCcAlfBoth( const PelBuf& dstBufCb, const PelBuf& dstBufCr, con
   
   if (getChannelTypeScaleX(CH_C, nChromaFormat) == 1) {
     __m128i xfilterCoeffCb[4];
-    xfilterCoeffCb[0] = _mm_set1_epi32((filterCoeffCb[1] & 0xffff) | (filterCoeffCb[2] << 16));
-    xfilterCoeffCb[1] = _mm_set1_epi32((filterCoeffCb[0] & 0xffff) | (filterCoeffCb[3] << 16));
-    xfilterCoeffCb[2] = _mm_set1_epi32((filterCoeffCb[4] & 0xffff) | (filterCoeffCb[5] << 16));
+    xfilterCoeffCb[0] = _mm_set1_epi32((filterCoeffCb[1] & 0xffff) | (filterCoeffCb[2] *(1<< 16)));
+    xfilterCoeffCb[1] = _mm_set1_epi32((filterCoeffCb[0] & 0xffff) | (filterCoeffCb[3] *(1<< 16)));
+    xfilterCoeffCb[2] = _mm_set1_epi32((filterCoeffCb[4] & 0xffff) | (filterCoeffCb[5] *(1<< 16)));
     xfilterCoeffCb[3] = _mm_set1_epi32((filterCoeffCb[6] & 0xffff));
     __m128i xfilterCoeffCr[4];
-    xfilterCoeffCr[0] = _mm_set1_epi32((filterCoeffCr[1] & 0xffff) | (filterCoeffCr[2] << 16));
-    xfilterCoeffCr[1] = _mm_set1_epi32((filterCoeffCr[0] & 0xffff) | (filterCoeffCr[3] << 16));
-    xfilterCoeffCr[2] = _mm_set1_epi32((filterCoeffCr[4] & 0xffff) | (filterCoeffCr[5] << 16));
+    xfilterCoeffCr[0] = _mm_set1_epi32((filterCoeffCr[1] & 0xffff) | (filterCoeffCr[2] *(1<< 16)));
+    xfilterCoeffCr[1] = _mm_set1_epi32((filterCoeffCr[0] & 0xffff) | (filterCoeffCr[3] *(1<< 16)));
+    xfilterCoeffCr[2] = _mm_set1_epi32((filterCoeffCr[4] & 0xffff) | (filterCoeffCr[5] *(1<< 16)));
     xfilterCoeffCr[3] = _mm_set1_epi32((filterCoeffCr[6] & 0xffff));
     
     for (int i = 0; i < endHeight - startHeight; i += clsSizeY) {
@@ -1953,14 +1953,14 @@ void simdFilterBlkCcAlfBoth<AVX2>( const PelBuf& dstBufCb, const PelBuf& dstBufC
     static constexpr int scaleX = 1;
 
     __m256i vfilterCoeffCb[4];
-    vfilterCoeffCb[0] = _mm256_set1_epi32((filterCoeffCb[1] & 0xffff) | (filterCoeffCb[2] << 16));
-    vfilterCoeffCb[1] = _mm256_set1_epi32((filterCoeffCb[0] & 0xffff) | (filterCoeffCb[3] << 16));
-    vfilterCoeffCb[2] = _mm256_set1_epi32((filterCoeffCb[4] & 0xffff) | (filterCoeffCb[5] << 16));
+    vfilterCoeffCb[0] = _mm256_set1_epi32((filterCoeffCb[1] & 0xffff) | (filterCoeffCb[2] *(1<< 16)));
+    vfilterCoeffCb[1] = _mm256_set1_epi32((filterCoeffCb[0] & 0xffff) | (filterCoeffCb[3] *(1<< 16)));
+    vfilterCoeffCb[2] = _mm256_set1_epi32((filterCoeffCb[4] & 0xffff) | (filterCoeffCb[5] *(1<< 16)));
     vfilterCoeffCb[3] = _mm256_set1_epi32((filterCoeffCb[6] & 0xffff));
     __m256i vfilterCoeffCr[4];
-    vfilterCoeffCr[0] = _mm256_set1_epi32((filterCoeffCr[1] & 0xffff) | (filterCoeffCr[2] << 16));
-    vfilterCoeffCr[1] = _mm256_set1_epi32((filterCoeffCr[0] & 0xffff) | (filterCoeffCr[3] << 16));
-    vfilterCoeffCr[2] = _mm256_set1_epi32((filterCoeffCr[4] & 0xffff) | (filterCoeffCr[5] << 16));
+    vfilterCoeffCr[0] = _mm256_set1_epi32((filterCoeffCr[1] & 0xffff) | (filterCoeffCr[2] *(1<< 16)));
+    vfilterCoeffCr[1] = _mm256_set1_epi32((filterCoeffCr[0] & 0xffff) | (filterCoeffCr[3] *(1<< 16)));
+    vfilterCoeffCr[2] = _mm256_set1_epi32((filterCoeffCr[4] & 0xffff) | (filterCoeffCr[5] *(1<< 16)));
     vfilterCoeffCr[3] = _mm256_set1_epi32((filterCoeffCr[6] & 0xffff));
     
     __m128i xmax16 = _mm_set1_epi16(clpRngs.max());
