@@ -114,6 +114,7 @@ if( CMAKE_CXX_COMPILER_ID STREQUAL "GNU" OR
 
   # enable address sanitizer
   set( VVDEC_USE_ADDRESS_SANITIZER          OFF CACHE BOOL   "Enable or disable address sanitizer" )
+  set( VVDEC_USE_THREAD_SANITIZER           OFF CACHE BOOL   "Enable or disable thread sanitizer" )
 
   # add -march=native
   set( VVDEC_OPT_TARGET_ARCH                ""  CACHE STRING "Enable or disable building with architecture specific optimization" )
@@ -216,7 +217,20 @@ endif()
 if( VVDEC_USE_ADDRESS_SANITIZER )
   # add compile options
   add_compile_options( "-fsanitize=address" )
+  add_compile_options( "-fno-omit-frame-pointer" )
+  add_compile_options( "-fsanitize=undefined" )
+  add_compile_options( "-fsanitize=leak" )
   add_link_options( "-fsanitize=address" )
+  add_link_options( "-fno-omit-frame-pointer" )
+  add_link_options( "-fsanitize=undefined" )
+  add_link_options( "-fsanitize=leak" )
+endif()
+
+# set thread sanitizer compiler arguments
+if( VVDEC_USE_THREAD_SANITIZER )
+  # add compile options
+  add_compile_options( "-fsanitize=thread" )
+  add_link_options( "-fsanitize=thread" )
 endif()
 
 if( VVDEC_ENABLE_X86_SIMD )

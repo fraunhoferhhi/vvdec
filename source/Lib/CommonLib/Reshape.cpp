@@ -113,23 +113,23 @@ void  Reshape::destroy()
   m_invLUT = nullptr;
 }
 
-void  Reshape::initSlice( int nalUnitLayerId, const PicHeader& picHeader, const VPS& vps )
+void  Reshape::initSlice( int nalUnitLayerId, const PicHeader& picHeader, const VPS* vps )
 {
   if( picHeader.getLmcsEnabledFlag() )
   {
     if( nalUnitLayerId != picHeader.getLmcsAPS()->getLayerId() )
     {
-      for (int i = 0; i < vps.getNumOutputLayerSets(); i++ )
+      for (int i = 0; i < vps->getNumOutputLayerSets(); i++ )
       {
         bool isCurrLayerInOls = false;
         bool isRefLayerInOls = false;
-        for( int j = vps.getNumLayersInOls(i) - 1; j >= 0; j-- )
+        for( int j = vps->getNumLayersInOls(i) - 1; j >= 0; j-- )
         {
-          if( vps.getLayerIdInOls(i, j) == nalUnitLayerId )
+          if( vps->getLayerIdInOls(i, j) == nalUnitLayerId )
           {
             isCurrLayerInOls = true;
           }
-          if( vps.getLayerIdInOls(i, j) == picHeader.getLmcsAPS()->getLayerId() )
+          if( vps->getLayerIdInOls(i, j) == picHeader.getLmcsAPS()->getLayerId() )
           {
             isRefLayerInOls = true;
           }
@@ -138,7 +138,7 @@ void  Reshape::initSlice( int nalUnitLayerId, const PicHeader& picHeader, const 
       }
     }
 
-    SliceReshapeInfo& sInfo = picHeader.getLmcsAPS()->getReshaperAPSInfo();
+    const SliceReshapeInfo& sInfo = picHeader.getLmcsAPS()->getReshaperAPSInfo();
     m_sliceReshapeInfo.sliceReshaperEnableFlag       = true;
     m_sliceReshapeInfo.sliceReshaperModelPresentFlag = true;
     m_sliceReshapeInfo.enableChromaAdj               = picHeader.getLmcsChromaResidualScaleFlag();

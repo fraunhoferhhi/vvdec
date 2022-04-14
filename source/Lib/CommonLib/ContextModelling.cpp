@@ -292,11 +292,11 @@ void MergeCtx::setMergeInfo( PredictionUnit& pu, int candIdx )
 {
   CHECK( candIdx >= numValidMergeCand, "Merge candidate does not exist" );
 
-  pu.setMergeFlag            ( true );
-  pu.setMmvdFlag             ( false );
+  //pu.setMergeFlag            ( true );
+  //pu.setMmvdFlag             ( false );
   pu.setInterDir             ( interDirNeighbours[candIdx] );
   pu.setImv                  ( ( !pu.geoFlag() && useAltHpelIf[candIdx] ) ? IMV_HPEL : 0 );
-  pu.setMergeIdx             ( candIdx );
+  //pu.setMergeIdx             ( candIdx );
   pu.setMergeType            ( mrgTypeNeighbours[candIdx] );
   pu.mv  [REF_PIC_LIST_0][0] = mvFieldNeighbours[(candIdx << 1) + 0].mv;
   pu.mv  [REF_PIC_LIST_1][0] = mvFieldNeighbours[(candIdx << 1) + 1].mv;
@@ -465,11 +465,11 @@ void MergeCtx::setMmvdMergeCandiInfo( PredictionUnit& pu, int candIdx )
     pu.refIdx[REF_PIC_LIST_1]    = refList1;
   }
 
-  pu.setMmvdFlag        ( true );
+  //pu.setMmvdFlag        ( true );
   pu.mmvdIdx            = candIdx;
-  pu.setMergeFlag       ( true );
+  //pu.setMergeFlag       ( true );
   //pu.setMergeIdx        ( candIdx );
-  pu.setMergeType       ( MRG_TYPE_DEFAULT_N );
+  //pu.setMergeType       ( MRG_TYPE_DEFAULT_N );
   pu.mvpIdx [L0]        = NOT_VALID;
   pu.mvpIdx [L1]        = NOT_VALID;
   pu.setImv             ( mmvdUseAltHpelIf[fPosBaseIdx] ? IMV_HPEL : 0 );

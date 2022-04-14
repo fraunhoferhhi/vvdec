@@ -342,6 +342,11 @@ struct CodingUnit : public UnitArea
   
   int8_t            chromaQpAdj;
   int8_t            qp;
+  uint8_t           _interDir       : 2;
+  uint8_t           _imv            : 2;                                  
+  uint8_t           _bcw            : 3;
+  uint8_t           _mergeType      : 2;
+  bool              _dmvrCond;      // avoid data races in a separate bit
 
   uint8_t           _sbtInfo;
   uint8_t           qtDepth         : 3;
@@ -361,29 +366,24 @@ struct CodingUnit : public UnitArea
   uint8_t           _lfnstIdx       : 2;
                                     
   uint8_t           _ispIdx         : 2;                                 
-  bool              _dmvrCond       : 1;
   bool              _ciipFlag       : 1;
   bool              _mergeFlag      : 1;
   bool              _mmvdFlag       : 1;
   bool              _affineFlag     : 1;
   bool              _geoFlag        : 1;
                                     
-  uint8_t           _mergeType      : 2;
   uint8_t           _mrgIdx         : 3;
   uint8_t           _geoMrgIdx0     : 3;
                                     
   uint8_t           _geoMrgIdx1     : 3;
   uint8_t           _affineType     : 2;
-  uint8_t           _interDir       : 2;
   bool              _mipFlag        : 1;
-                                    
-  uint8_t           _bcw            : 3;
+  
   uint8_t           _multiRefIdx    : 2;
   bool              planeCbfY       : 1;
   bool              planeCbfU       : 1;
   bool              planeCbfV       : 1;
   
-  uint8_t           _imv            : 2;
   uint8_t           _smvd           : 2;
 
   uint8_t            _geoDir0, _geoDir1;

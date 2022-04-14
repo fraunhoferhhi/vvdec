@@ -89,6 +89,7 @@ struct CtuData
   const PPS*            pps;
   const SPS*            sps;
   const PicHeader*      ph;
+  int                   lineIdx, colIdx, ctuIdx;
 
   CodingUnit           *firstCU, *lastCU;
   unsigned              numCUs, numTUs;
@@ -119,8 +120,8 @@ public:
   std::shared_ptr<const SPS> sps;
   std::shared_ptr<const PPS> pps;
   PicHeader                 *picHeader;
-  std::shared_ptr<APS>       alfApss[ALF_CTB_MAX_NUM_APS];
-  std::shared_ptr<APS>       lmcsAps;
+  std::shared_ptr<const APS> alfApss[ALF_CTB_MAX_NUM_APS];
+  std::shared_ptr<const APS> lmcsAps;
   const PreCalcValues*       pcv;
 
   // data for which memory is partially borrowed from DecLibRecon
@@ -219,6 +220,7 @@ public:
 
   int m_IBCBufferWidth;
   std::vector<PelStorage> m_virtualIBCbuf;
+  std::vector<char>       hasIbcBlock;
   void initVIbcBuf( int numCtuLines, ChromaFormat chromaFormatIDC, int ctuSize );
   void fillIBCbuffer( CodingUnit &cu, int lineIdx );
 

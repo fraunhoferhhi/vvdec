@@ -158,7 +158,7 @@ void  WeightPrediction::getWpScaling(const Slice                *pcSlice,
 
 static inline Pel weightBidir( int w0, Pel P0, int w1, Pel P1, int round, int shift, int offset, const ClpRng& clpRng )
 {
-  return ClipPel( ( ( w0*( P0 + IF_INTERNAL_OFFS ) + w1 * ( P1 + IF_INTERNAL_OFFS ) + round + ( offset << ( shift - 1 ) ) ) >> shift ), clpRng );
+  return ClipPel( ( ( w0*( P0 + IF_INTERNAL_OFFS ) + w1 * ( P1 + IF_INTERNAL_OFFS ) + round + ( offset * ( 1 << ( shift - 1 ) ) ) ) >> shift ), clpRng );
 }
 
 void WeightPrediction::addWeightBi(const PelUnitBuf           &pcYuvSrc0,
@@ -194,7 +194,7 @@ void WeightPrediction::addWeightBi(const PelUnitBuf           &pcYuvSrc0,
     const int  shift    = wp0[compID].shift + shiftNum;
     const int  round    = (enableRounding[compID] && (shift > 0)) ? (1 << (shift - 1)) : 0;
     const int  w1       = wp1[compID].w;
-    const int  applyOffset = round + ( offset << ( shift - 1 ) ) + ( w0 + w1 ) * IF_INTERNAL_OFFS;
+    const int  applyOffset = round + ( offset * ( 1 << ( shift - 1 ) ) ) + ( w0 + w1 ) * IF_INTERNAL_OFFS;
 
     const int  iHeight  = rpcYuvDst.bufs[compID].height;
     const int  iWidth   = rpcYuvDst.bufs[compID].width;

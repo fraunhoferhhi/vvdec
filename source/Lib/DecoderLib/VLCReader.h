@@ -142,11 +142,11 @@ public:
 
   void  parseVPS                 ( VPS* pcVPS );
   void  parseDCI                 ( DCI* dci );
-  void  parseSPS                 ( SPS* pcSPS, ParameterSetManager* parameterSetManager );
-  void  parsePPS                 ( PPS* pcPPS, ParameterSetManager* parameterSetManager );
+  void  parseSPS                 ( SPS* pcSPS, const ParameterSetManager* parameterSetManager );
+  void  parsePPS                 ( PPS* pcPPS, const ParameterSetManager* parameterSetManager );
   void  parseAPS                 ( APS* pcAPS);
-  void  parsePictureHeader       ( PicHeader* picHeader, ParameterSetManager* parameterSetManager, bool readRbspTrailingBits );
-  void  parseSliceHeader         ( Slice* pcSlice, PicHeader* parsedPicHeader, ParameterSetManager* parameterSetManager, const int prevTid0POC, Picture* parsePic , bool& firstSliceInPic );
+  void  parsePictureHeader       ( PicHeader* picHeader, const ParameterSetManager* parameterSetManager, bool readRbspTrailingBits );
+  void  parseSliceHeader         ( Slice* pcSlice, PicHeader* parsedPicHeader, const ParameterSetManager* parameterSetManager, const int prevTid0POC, Picture* parsePic , bool& firstSliceInPic );
 
 private:
   void  parseAlfAps              ( APS* pcAPS );
@@ -162,7 +162,7 @@ private:
   void  parseRefPicList          ( ReferencePictureList* rpl, int rplIdx, const SPS* pcSPS );
   void  copyRefPicList           ( const SPS* pcSPS, ReferencePictureList* source_rpl, ReferencePictureList* dest_rpl );
 
-  void  checkAlfNaluTidAndPicTid ( const Slice* pcSlice, const PicHeader* picHeader, ParameterSetManager* parameterSetManager);
+  void  checkAlfNaluTidAndPicTid ( const Slice* pcSlice, const PicHeader* picHeader, const ParameterSetManager* parameterSetManager);
 
   void  parsePredWeightTable     ( Slice* pcSlice, const SPS *sps );
   void  parsePredWeightTable     ( PicHeader *picHeader, const SPS *sps );

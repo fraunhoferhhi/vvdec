@@ -81,14 +81,7 @@ ParameterSetManager::ActivePSs ParameterSetManager::xActivateParameterSets( cons
 
   if( isFirstSlice )
   {
-    if( !pps->pcv )
-    {
-      pps->pcv = std::make_unique<PreCalcValues>( *sps, *pps );
-    }
-    else
-    {
-      CHECK( !pps->pcv->isCorrect( *sps, *pps ), "PPS has PCV already, but values chaged???" );
-    }
+    CHECK( !pps->pcv->isCorrect( *sps, *pps ), "PPS has PCV already, but values chaged???" );
 
     sps->clearChangedFlag();
     pps->clearChangedFlag();
@@ -106,7 +99,7 @@ ParameterSetManager::ActivePSs ParameterSetManager::xActivateParameterSets( cons
   for( int i = 0; i < pSlicePilot->getAlfApsIdLuma().size(); i++ )
   {
     int apsId = pSlicePilot->getAlfApsIdLuma()[i];
-    APS* alfApsL = getAPS( apsId, ALF_APS );
+    APS *alfApsL = getAPS( apsId, ALF_APS );
 
     if( alfApsL )
     {
@@ -128,7 +121,7 @@ ParameterSetManager::ActivePSs ParameterSetManager::xActivateParameterSets( cons
   {
     // chroma APS
     int apsId = pSlicePilot->getAlfApsIdChroma();
-    APS* alfApsC = getAPS( apsId, ALF_APS );
+    APS* alfApsC = getAPS( apsId , ALF_APS );
     if( alfApsC )
     {
       if( isFirstSlice ) alfApsC->clearChangedFlag();

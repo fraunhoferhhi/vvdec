@@ -1413,7 +1413,7 @@ int isLeftAvailable(const TransformUnit &tu, const ChannelType &chType, const Po
   return neighborSize;
 }
 // LumaRecPixels
-void IntraPrediction::xGetLumaRecPixels(const PredictionUnit &pu, CompArea chromaArea)
+NO_THREAD_SANITIZE void IntraPrediction::xGetLumaRecPixels(const PredictionUnit &pu, CompArea chromaArea)
 {
   int iDstStride = 0;
   Pel* pDst0 = 0;
@@ -1888,7 +1888,7 @@ void IntraPrediction::xGetLMParameters(const PredictionUnit &pu, const Component
       int v = DivSigTable[normDiff] | 8;
       x += normDiff != 0;
 
-      int y = getLog2( abs( diffC ) ) + 1;
+      int y = diffC == 0 ? 0 : getLog2( abs( diffC ) ) + 1;
       int add = 1 << y >> 1;
       a = (diffC * v + add) >> y;
       iShift = 3 + x - y;

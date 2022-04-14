@@ -143,7 +143,7 @@ public:
     return ps;
   }
 
-  T* getFirstPS()
+  T* getFirstPS() const
   {
     return ( m_paramsetMap.begin() == m_paramsetMap.end() ) ? NULL : m_paramsetMap.begin()->second.parameterSet.get();
   }
@@ -166,22 +166,22 @@ public:
   ~ParameterSetManager() = default;
 
   void           storeVPS( VPS *vps, const std::vector<uint8_t> &naluData )        { m_vpsMap.storePS( vps->getVPSId(), vps, &naluData ); }
-  VPS*           getVPS( int vpsId )                                               { if( !vpsId ) return nullptr; return m_vpsMap.getPS( vpsId ); };
+  const VPS*     getVPS( int vpsId )                                         const { if( !vpsId ) return nullptr; return m_vpsMap.getPS( vpsId ); };
 
   struct ActivePSs
   {
     const SPS*                     sps;
     const PPS*                     pps;
-    std::array<APS*, ALF_CTB_MAX_NUM_APS>* alfAPSs;
-    APS*                           lmcsAps;
-    APS*                           scalingListAps;
+    std::array<const APS*, ALF_CTB_MAX_NUM_APS>* alfAPSs;
+    const APS*                     lmcsAps;
+    const APS*                     scalingListAps;
   };
   ActivePSs xActivateParameterSets( const bool isFirstSlice, const Slice* pPilot, const PicHeader* picHeader );
   //! store sequence parameter set and take ownership of it
   void                  storeSPS( SPS* sps, const std::vector<uint8_t>& naluData ) { m_spsMap.storePS( sps->getSPSId(), sps, &naluData ); }
   //! get pointer to existing sequence parameter set
-  SPS*                  getSPS( int spsId )                                        { return m_spsMap.getPS( spsId );                      }
-  SPS*                  getFirstSPS()                                              { return m_spsMap.getFirstPS();                        }
+  const SPS*            getSPS( int spsId )                                  const { return m_spsMap.getPS( spsId );                      }
+  const SPS*            getFirstSPS()                                        const { return m_spsMap.getFirstPS();                        }
   //! activate a SPS from a active parameter sets SEI message
   //! \returns true, if activation is successful
   // bool                  activateSPSWithSEI(int SPSId);
@@ -190,27 +190,32 @@ public:
   //! store picture parameter set and take ownership of it
   void                  storePPS( PPS* pps, const std::vector<uint8_t>& naluData ) { m_ppsMap.storePS( pps->getPPSId(), pps, &naluData ); }
   //! get pointer to existing picture parameter set
-  PPS*                  getPPS( int ppsId )                                        { return m_ppsMap.getPS( ppsId );                      }
-  PPS*                  getFirstPPS()                                              { return m_ppsMap.getFirstPS();                        }
+  const PPS*            getPPS( int ppsId )                                  const { return m_ppsMap.getPS( ppsId );                      }
+  const PPS*            getFirstPPS()                                        const { return m_ppsMap.getFirstPS();                        }
   //! activate a PPS and depending on isIDR parameter also SPS
   //! \returns true, if activation is successful
   bool                  activatePPS( int ppsId, bool isIRAP );
 
   // getter only used by DecLibParser::prepareLostPicture(). Is it really needed?
-  std::array<APS*, ALF_CTB_MAX_NUM_APS>& getAlfAPSs()                              { return m_alfAPSs; }
+  const std::array<const APS*, ALF_CTB_MAX_NUM_APS>& getAlfAPSs()            const { return m_alfAPSs; }
   void                  storeAPS( APS* aps, const std::vector<uint8_t>& naluData ) { m_apsMap.storePS( ( aps->getAPSId() << NUM_APS_TYPE_LEN ) + aps->getAPSType(), aps, &naluData ); }
-  APS*                  getAPS        ( int apsId, int apsType )                   { return m_apsMap.getPS        ( ( apsId << NUM_APS_TYPE_LEN ) + apsType );                        }
-  APS*                  getAPS_nothrow( int apsId, int apsType )                   { return m_apsMap.getPS_nothrow( ( apsId << NUM_APS_TYPE_LEN ) + apsType );                        }
-  APS*                  getFirstAPS()                                              { return m_apsMap.getFirstPS();                                                                    }
+  const APS*            getAPS        ( int apsId, int apsType )             const { return m_apsMap.getPS        ( ( apsId << NUM_APS_TYPE_LEN ) + apsType );                        }
+  const APS*            getAPS_nothrow( int apsId, int apsType )             const { return m_apsMap.getPS_nothrow( ( apsId << NUM_APS_TYPE_LEN ) + apsType );                        }
+  const APS*            getFirstAPS()                                        const { return m_apsMap.getFirstPS();                                                                    }
   bool                  activateAPS( int apsId, int apsType );
 
 protected:
+
+  SPS*                  getSPS( int spsId )                                        { return m_spsMap.getPS( spsId ); }
+  PPS*                  getPPS( int ppsId )                                        { return m_ppsMap.getPS( ppsId );                      }
+  APS*                  getAPS( int apsId, int apsType )                           { return m_apsMap.getPS        ( ( apsId << NUM_APS_TYPE_LEN ) + apsType );                        }
+
   ParameterSetMap<SPS, MAX_NUM_SPS>                    m_spsMap;
   ParameterSetMap<PPS, MAX_NUM_PPS>                    m_ppsMap;
   ParameterSetMap<APS, ALF_CTB_MAX_NUM_APS * MAX_NUM_APS_TYPE> m_apsMap;
   ParameterSetMap<VPS, MAX_NUM_VPS>                    m_vpsMap;
 
-  std::array<APS*, ALF_CTB_MAX_NUM_APS> m_alfAPSs;
+  std::array<const APS*, ALF_CTB_MAX_NUM_APS> m_alfAPSs;
   
   int m_activeDPSId = -1;   // -1 for nothing active
   int m_activeSPSId = -1;   // -1 for nothing active

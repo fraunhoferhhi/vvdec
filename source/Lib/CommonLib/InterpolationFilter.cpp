@@ -641,7 +641,7 @@ void InterpolationFilter::filter(const ClpRng& clpRng, const Pel* src, const ptr
   else
   {
     shift -= (isFirst) ? headRoom : 0;
-    offset = (isFirst) ? -IF_INTERNAL_OFFS << shift : 0;
+    offset = (isFirst) ? -IF_INTERNAL_OFFS *(1<< shift) : 0;
   }
 
   if (biMCForDMVR)
@@ -878,14 +878,14 @@ void InterpolationFilter::filterXxY_N4( const ClpRng& clpRng, const Pel* src, co
   {
     shift1st  -= headRoom;
     shift2nd  += headRoom;
-    offset1st  = -IF_INTERNAL_OFFS << shift1st;
+    offset1st  = -IF_INTERNAL_OFFS *(1<< shift1st);
     offset2nd  = 1 << ( shift2nd - 1 );
     offset2nd += IF_INTERNAL_OFFS << IF_FILTER_PREC;
   }
   else
   {
     shift1st -= headRoom;
-    offset1st = -IF_INTERNAL_OFFS << shift1st;
+    offset1st = -IF_INTERNAL_OFFS *(1<< shift1st);
     offset2nd = 0;
   }
 
@@ -958,14 +958,14 @@ void InterpolationFilter::filterXxY_N8( const ClpRng& clpRng, const Pel* src, co
   {
     shift1st  -= headRoom;
     shift2nd  += headRoom;
-    offset1st  = -IF_INTERNAL_OFFS << shift1st;
+    offset1st  = -IF_INTERNAL_OFFS *(1<< shift1st);
     offset2nd  = 1 << ( shift2nd - 1 );
     offset2nd += IF_INTERNAL_OFFS << IF_FILTER_PREC;
   }
   else
   {
     shift1st -= headRoom;
-    offset1st = -IF_INTERNAL_OFFS << shift1st;
+    offset1st = -IF_INTERNAL_OFFS *(1<< shift1st);
     offset2nd = 0;
   }
 
@@ -1297,7 +1297,7 @@ void InterpolationFilter::xWeightedGeoBlk(const PredictionUnit &pu, const uint32
   }
   else if (g_angle2mirror[angle] == 1)
   {
-    stepX = -1 << scaleX;
+    stepX = -1 *(1<< scaleX);
     stepY = (GEO_WEIGHT_MASK_SIZE << scaleY) + pu.lwidth();
     weight = &g_globalGeoWeights[g_angle2mask[angle]][g_weightOffset[splitDir][hIdx][wIdx][1] * GEO_WEIGHT_MASK_SIZE + (GEO_WEIGHT_MASK_SIZE - 1 - g_weightOffset[splitDir][hIdx][wIdx][0])];
   }

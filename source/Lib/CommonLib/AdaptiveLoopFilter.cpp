@@ -837,37 +837,39 @@ void AdaptiveLoopFilter::filterCTU( const CPelUnitBuf&     srcBuf,
 
 void AdaptiveLoopFilter::reconstructCoeffAPSs( Slice& slice )
 {
-  // luma
   const SPS*  sps = slice.getSPS();
-        APS** aps = slice.getAlfAPSs();
+  const APS** aps = slice.getAlfAPSs();
 
+  // luma
   if( slice.getAlfEnabledFlag( COMPONENT_Y ) )
   {
     for( int i = 0; i < slice.getNumAlfAps(); i++ )
     {
-      int  apsIdx = slice.getAlfApsIdLuma()[i];
-      APS* curAPS = aps[apsIdx];
+      int        apsIdx = slice.getAlfApsIdLuma()[i];
+      const APS* curAPS = aps[apsIdx];
       CHECK( curAPS == NULL, "invalid APS" );
-      AlfSliceParam& alfSliceParamTmp = curAPS->getAlfAPSParam();
+
+      AlfSliceParam& alfSliceParamTmp = curAPS->getMutableAlfAPSParam();
       reconstructCoeff( alfSliceParamTmp, CHANNEL_TYPE_LUMA, sps->getBitDepths().recon );
+      curAPS->releaseMutableAlfAPSParam( alfSliceParamTmp );
     }
   }
 
   // chroma
   if( slice.getAlfEnabledFlag( COMPONENT_Cb ) || slice.getAlfEnabledFlag( COMPONENT_Cr ) )
   {
-    int  apsIdxChroma = slice.getAlfApsIdChroma();
-    APS* curAPS       = aps[apsIdxChroma];
+    int        apsIdxChroma = slice.getAlfApsIdChroma();
+    const APS* curAPS       = aps[apsIdxChroma];
     CHECK( curAPS == NULL, "invalid APS" );
-    AlfSliceParam& alfSliceParamTmp = curAPS->getAlfAPSParam();
+
+    AlfSliceParam& alfSliceParamTmp = curAPS->getMutableAlfAPSParam();
     reconstructCoeff( alfSliceParamTmp, CHANNEL_TYPE_CHROMA, sps->getBitDepths().recon );
+    curAPS->releaseMutableAlfAPSParam( alfSliceParamTmp );
   }
 }
 
 void AdaptiveLoopFilter::reconstructCoeff( AlfSliceParam& alfSliceParam, ChannelType channel, const int inputBitDepth[MAX_NUM_CHANNEL_TYPE] )
 {
-  std::lock_guard<std::mutex> l( alfSliceParam.recostructMutex );
-
   if( isChroma( channel ) && alfSliceParam.chrmFinalDone )
   {
     return;

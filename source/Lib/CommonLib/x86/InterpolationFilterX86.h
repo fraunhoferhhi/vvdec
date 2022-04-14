@@ -909,7 +909,7 @@ static void simdInterpolateVerM2( const int16_t* src, ptrdiff_t srcStride, int16
   CHECK( out[6] != 0, "" );
   CHECK( out[7] != 0, "" );
 #else
-  vsrc = _mm_setr_epi32( *reinterpret_cast<const int32_t*>( &src[0] ), *reinterpret_cast<const int32_t*>( &src[1 * srcStride] ), *reinterpret_cast<const int32_t*>( &src[2 * srcStride] ), 0 );
+  vsrc = _mm_setr_epi16( src[0], src[1], src[1 * srcStride], src[1 * srcStride + 1], src[2 * srcStride], src[2 * srcStride + 1], 0, 0 );
 #endif
 
   for( int row = 0; row < height; row++ )
@@ -921,7 +921,7 @@ static void simdInterpolateVerM2( const int16_t* src, ptrdiff_t srcStride, int16
     // workaround for GCC-11+, TODO: understand the problem
     vnl  = _mm_loadu_si32( (const __m128i*) & src[nextLine] );
 #else
-    vnl  = _mm_setr_epi32   ( *reinterpret_cast<const int32_t*>( &src[nextLine] ), 0, 0, 0 );
+    vnl  = _mm_setr_epi16   ( src[nextLine], src[nextLine + 1], 0, 0, 0, 0, 0, 0 );
 #endif
     vnl  = _mm_slli_si128   ( vnl, 12 );
     vsrc = _mm_or_si128     ( vsrc, vnl );
@@ -1705,7 +1705,7 @@ static void simdFilter( const ClpRng& clpRng, const Pel* src, const ptrdiff_t sr
     else
     {
       shift -= ( isFirst ) ? headRoom : 0;
-      offset = ( isFirst ) ? -IF_INTERNAL_OFFS << shift : 0;
+      offset = ( isFirst ) ? -IF_INTERNAL_OFFS *(1<< shift) : 0;
     }
   }
 
@@ -1886,14 +1886,14 @@ void simdFilter4x4_N6( const ClpRng& clpRng, const Pel* src, const ptrdiff_t src
   {
     shift1st  -= headRoom;
     shift2nd  += headRoom;
-    offset1st  = -IF_INTERNAL_OFFS << shift1st;
-    offset2nd  = 1 << ( shift2nd - 1 );
+    offset1st  = -IF_INTERNAL_OFFS *(1<< shift1st);
+    offset2nd  = 1 *(1<< ( shift2nd - 1 ));
     offset2nd += IF_INTERNAL_OFFS << IF_FILTER_PREC;
   }
   else
   {
     shift1st -= headRoom;
-    offset1st = -IF_INTERNAL_OFFS << shift1st;
+    offset1st = -IF_INTERNAL_OFFS *(1<< shift1st);
     offset2nd = 0;
   }
 
@@ -2143,14 +2143,14 @@ void simdFilter4x4_N4( const ClpRng& clpRng, const Pel* src, const ptrdiff_t src
   {
     shift1st  -= headRoom;
     shift2nd  += headRoom;
-    offset1st  = -IF_INTERNAL_OFFS << shift1st;
+    offset1st  = -IF_INTERNAL_OFFS *(1<< shift1st);
     offset2nd  = 1 << ( shift2nd - 1 );
     offset2nd += IF_INTERNAL_OFFS << IF_FILTER_PREC;
   }
   else
   {
     shift1st -= headRoom;
-    offset1st = -IF_INTERNAL_OFFS << shift1st;
+    offset1st = -IF_INTERNAL_OFFS *(1<< shift1st);
     offset2nd = 0;
   }
 
@@ -2382,7 +2382,7 @@ void simdFilter16xX_N8( const ClpRng& clpRng, const Pel* src, const ptrdiff_t sr
   // negative for bit depths greater than 14, shift will remain non-negative for bit depths of 8->20
 
   shift1st -= headRoom;
-  offset1st = -IF_INTERNAL_OFFS << shift1st;
+  offset1st = -IF_INTERNAL_OFFS *(1<< shift1st);
 
   if( isLast )
   {
@@ -2415,8 +2415,8 @@ void simdFilter16xX_N8( const ClpRng& clpRng, const Pel* src, const ptrdiff_t sr
 
     for( int i = 0; i < 8; i += 2 )
     {
-      vcoeffh[i/2] = ( coeffH[i] & 0xffff ) | ( coeffH[i+1] << 16 );
-      vcoeffv[i/2] = ( coeffV[i] & 0xffff ) | ( coeffV[i+1] << 16 );
+      vcoeffh[i/2] = ( coeffH[i] & 0xffff ) | ( coeffH[i+1] *(1<< 16 ));
+      vcoeffv[i/2] = ( coeffV[i] & 0xffff ) | ( coeffV[i+1] *(1<< 16 ));
     }
 
     for( int row = 0; row < extHeight; row++ )
@@ -2510,8 +2510,8 @@ void simdFilter16xX_N8( const ClpRng& clpRng, const Pel* src, const ptrdiff_t sr
 
     for( int i = 0; i < 8; i += 2 )
     {
-      vcoeffh[i/2] = ( coeffH[i] & 0xffff ) | ( coeffH[i+1] << 16 );
-      vcoeffv[i/2] = ( coeffV[i] & 0xffff ) | ( coeffV[i+1] << 16 );
+      vcoeffh[i/2] = ( coeffH[i] & 0xffff ) | ( coeffH[i+1] *(1<< 16 ));
+      vcoeffv[i/2] = ( coeffV[i] & 0xffff ) | ( coeffV[i+1] *(1<< 16 ));
     }
 
     __m128i vsum, vsuma, vsumb;
@@ -2617,7 +2617,7 @@ void simdFilter16xX_N4( const ClpRng& clpRng, const Pel* src, const ptrdiff_t sr
   // negative for bit depths greater than 14, shift will remain non-negative for bit depths of 8->20
 
   shift1st -= headRoom;
-  offset1st = -IF_INTERNAL_OFFS << shift1st;
+  offset1st = -IF_INTERNAL_OFFS *(1<< shift1st);
 
   if( isLast )
   {
@@ -2663,7 +2663,7 @@ void simdFilter8xX_N8( const ClpRng& clpRng, const Pel* src, const ptrdiff_t src
   // negative for bit depths greater than 14, shift will remain non-negative for bit depths of 8->20
 
   shift1st -= headRoom;
-  offset1st = -IF_INTERNAL_OFFS << shift1st;
+  offset1st = -IF_INTERNAL_OFFS *(1<< shift1st);
 
   if( isLast )
   {
@@ -2700,8 +2700,8 @@ void simdFilter8xX_N8( const ClpRng& clpRng, const Pel* src, const ptrdiff_t src
 
     for( int i = 0; i < 8; i += 2 )
     {
-      vcoeffh[i / 2] = ( coeffH[i] & 0xffff ) | ( coeffH[i + 1] << 16 );
-      vcoeffv[i / 2] = ( coeffV[i] & 0xffff ) | ( coeffV[i + 1] << 16 );
+      vcoeffh[i / 2] = ( coeffH[i] & 0xffff ) | ( coeffH[i + 1] *(1<< 16 ));
+      vcoeffv[i / 2] = ( coeffV[i] & 0xffff ) | ( coeffV[i + 1] *(1<< 16 ));
     }
 
     for( int row = 0; row < extHeight; row++ )
@@ -2797,8 +2797,8 @@ void simdFilter8xX_N8( const ClpRng& clpRng, const Pel* src, const ptrdiff_t src
 
     for( int i = 0; i < 8; i += 2 )
     {
-      vcoeffh[i/2] = ( coeffH[i] & 0xffff ) | ( coeffH[i+1] << 16 );
-      vcoeffv[i/2] = ( coeffV[i] & 0xffff ) | ( coeffV[i+1] << 16 );
+      vcoeffh[i/2] = ( coeffH[i] & 0xffff ) | ( coeffH[i+1] *(1<< 16 ));
+      vcoeffv[i/2] = ( coeffV[i] & 0xffff ) | ( coeffV[i+1] *(1<< 16 ));
     }
 
     __m128i vsum, vsuma, vsumb;
@@ -2899,7 +2899,7 @@ void simdFilter8xX_N4( const ClpRng& clpRng, const Pel* src, const ptrdiff_t src
   // negative for bit depths greater than 14, shift will remain non-negative for bit depths of 8->20
 
   shift1st -= headRoom;
-  offset1st = -IF_INTERNAL_OFFS << shift1st;
+  offset1st = -IF_INTERNAL_OFFS *(1<< shift1st);
 
   if( isLast )
   {
@@ -2941,8 +2941,8 @@ void simdFilter8xX_N4( const ClpRng& clpRng, const Pel* src, const ptrdiff_t src
 
     for( int i = 0; i < 4; i += 2 )
     {
-      vcoeffh[i / 2] = ( coeffH[i] & 0xffff ) | ( coeffH[i + 1] << 16 );
-      vcoeffv[i / 2] = ( coeffV[i] & 0xffff ) | ( coeffV[i + 1] << 16 );
+      vcoeffh[i / 2] = ( coeffH[i] & 0xffff ) | ( coeffH[i + 1] *(1<< 16 ));
+      vcoeffv[i / 2] = ( coeffV[i] & 0xffff ) | ( coeffV[i + 1] *(1<< 16 ));
     }
 
     __m256i vsum;
@@ -3027,8 +3027,8 @@ void simdFilter8xX_N4( const ClpRng& clpRng, const Pel* src, const ptrdiff_t src
 
     for( int i = 0; i < 4; i += 2 )
     {
-      vcoeffh[i/2] = ( coeffH[i] & 0xffff ) | ( coeffH[i+1] << 16 );
-      vcoeffv[i/2] = ( coeffV[i] & 0xffff ) | ( coeffV[i+1] << 16 );
+      vcoeffh[i/2] = ( coeffH[i] & 0xffff ) | ( coeffH[i+1] *(1<< 16 ));
+      vcoeffv[i/2] = ( coeffV[i] & 0xffff ) | ( coeffV[i+1] *(1<< 16 ));
     }
 
     __m128i vsum, vsuma, vsumb;
@@ -3164,7 +3164,7 @@ void xWeightedGeoBlk_SSE(const PredictionUnit &pu, const uint32_t width, const u
   const __m128i mmMax = _mm_set1_epi16(clpRng.max());
 
   if (compIdx != COMPONENT_Y && pu.chromaFormat == CHROMA_420)
-    stepY <<= 1;
+    stepY *= 2;
   if (width == 4)
   {
     // it will occur to chroma only

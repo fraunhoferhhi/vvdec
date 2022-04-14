@@ -82,7 +82,7 @@ public:
   void createDec(int bitDepth);
   void destroy();
 
-  void initSlice( int nalUnitLayerId, const PicHeader& picHeader, const VPS& vps );
+  void initSlice( int nalUnitLayerId, const PicHeader& picHeader, const VPS* vps );
   void rspLine  ( CodingStructure &cs, int ln, const int offset ) const;
   void rspCtu   ( CodingStructure &cs, int col, int ln, const int offset ) const;
   void rspBufFwd( PelBuf& buf ) const;

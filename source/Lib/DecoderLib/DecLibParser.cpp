@@ -464,11 +464,11 @@ DecLibParser::SliceHeadResult DecLibParser::xDecodeSliceHead( InputNALUnit& nalu
     m_HLSReader.parseSliceHeader( m_apcSlicePilot, m_picHeader.get(), &m_parameterSetManager, m_prevTid0POC, m_pcParsePic, m_bFirstSliceInPicture );
   }
   
-  PPS *pps = m_parameterSetManager.getPPS( m_apcSlicePilot->getPicHeader()->getPPSId() );
+  const PPS *pps = static_cast<const ParameterSetManager&>( m_parameterSetManager ).getPPS( m_apcSlicePilot->getPicHeader()->getPPSId() );
   CHECK( pps == 0, "No PPS present" );
-  SPS *sps = m_parameterSetManager.getSPS( pps->getSPSId() );
+  const SPS *sps = static_cast< const ParameterSetManager&>( m_parameterSetManager ).getSPS( pps->getSPSId() );
   CHECK( sps == 0, "No SPS present" );
-  VPS *vps = m_parameterSetManager.getVPS( sps->getVPSId() );
+  const VPS *vps = static_cast<const ParameterSetManager&>( m_parameterSetManager ).getVPS( sps->getVPSId() );
   CHECK( sps->getVPSId() > 0 && vps == 0, "Invalid VPS" );
   if( sps->getVPSId() == 0 && m_prevLayerID != MAX_INT )
   {
@@ -604,7 +604,7 @@ DecLibParser::SliceHeadResult DecLibParser::xDecodeSliceHead( InputNALUnit& nalu
   }
   if( sps->getVPSId() > 0 )
   {
-    VPS *vps = m_parameterSetManager.getVPS( sps->getVPSId() );
+    const VPS *vps = m_parameterSetManager.getVPS( sps->getVPSId() );
     CHECK( vps == 0, "No VPS present" );
     if( ( vps->getOlsModeIdc() == 0
           && vps->getGeneralLayerIdx( nalu.m_nuhLayerId ) < ( vps->getMaxLayers() - 1 )
@@ -650,11 +650,6 @@ DecLibParser::SliceHeadResult DecLibParser::xDecodeSliceHead( InputNALUnit& nalu
   }
 
   m_prevLayerID = nalu.m_nuhLayerId;
-
-  if( !pps->pcv )
-  {
-    pps->pcv = std::make_unique<PreCalcValues>( *sps, *pps );
-  }
 
   //detect lost reference picture and insert copy of earlier frame.
   for( const auto rplIdx: { REF_PIC_LIST_0, REF_PIC_LIST_1 } )
@@ -926,7 +921,7 @@ Slice*  DecLibParser::xDecodeSliceMain( InputNALUnit &nalu )
     for ( ref = 0; ref < pcSlice->getNumRefIdx( REF_PIC_LIST_0 ); ref++ )
     {
       int poc = pcSlice->getRefPic( REF_PIC_LIST_0, ref )->getPOC();
-      const bool isRefLongTerm = pcSlice->getRefPic( REF_PIC_LIST_0, ref )->longTerm;
+      const bool isRefLongTerm = pcSlice->getIsUsedAsLongTerm( REF_PIC_LIST_0, ref );
       if( poc < currPOC && ( poc > forwardPOC || refIdx0 == -1 ) && !isRefLongTerm )
       {
         forwardPOC = poc;
@@ -938,7 +933,7 @@ Slice*  DecLibParser::xDecodeSliceMain( InputNALUnit &nalu )
     for ( ref = 0; ref < pcSlice->getNumRefIdx( REF_PIC_LIST_1 ); ref++ )
     {
       int poc = pcSlice->getRefPic( REF_PIC_LIST_1, ref )->getPOC();
-      const bool isRefLongTerm = pcSlice->getRefPic( REF_PIC_LIST_1, ref )->longTerm;
+      const bool isRefLongTerm = pcSlice->getIsUsedAsLongTerm( REF_PIC_LIST_1, ref );
       if( poc > currPOC && ( poc < backwardPOC || refIdx1 == -1 ) && !isRefLongTerm )
       {
         backwardPOC = poc;
@@ -957,7 +952,7 @@ Slice*  DecLibParser::xDecodeSliceMain( InputNALUnit &nalu )
       for ( ref = 0; ref < pcSlice->getNumRefIdx( REF_PIC_LIST_0 ); ref++ )
       {
         int poc = pcSlice->getRefPic( REF_PIC_LIST_0, ref )->getPOC();
-        const bool isRefLongTerm = pcSlice->getRefPic( REF_PIC_LIST_0, ref )->longTerm;
+        const bool isRefLongTerm = pcSlice->getIsUsedAsLongTerm( REF_PIC_LIST_0, ref );
         if( poc > currPOC && ( poc < backwardPOC || refIdx0 == -1 ) && !isRefLongTerm )
         {
           backwardPOC = poc;
@@ -969,7 +964,7 @@ Slice*  DecLibParser::xDecodeSliceMain( InputNALUnit &nalu )
       for ( ref = 0; ref < pcSlice->getNumRefIdx( REF_PIC_LIST_1 ); ref++ )
       {
         int poc = pcSlice->getRefPic( REF_PIC_LIST_1, ref )->getPOC();
-        const bool isRefLongTerm = pcSlice->getRefPic( REF_PIC_LIST_1, ref )->longTerm;
+        const bool isRefLongTerm = pcSlice->getIsUsedAsLongTerm( REF_PIC_LIST_1, ref );
         if( poc < currPOC && ( poc > forwardPOC || refIdx1 == -1 ) && !isRefLongTerm )
         {
           forwardPOC = poc;
@@ -1088,9 +1083,9 @@ Picture * DecLibParser::xActivateParameterSets( const int layerId )
               paramSets = m_parameterSetManager.xActivateParameterSets( m_bFirstSliceInPicture, m_apcSlicePilot, m_picHeader.get() );
     const SPS*  sps     = paramSets.sps;
     const PPS*  pps     = paramSets.pps;
-          APS** alfApss = paramSets.alfAPSs->data();
-          APS*  lmcsAPS = paramSets.lmcsAps;
-          APS*  scalingListAPS = paramSets.scalingListAps;
+    const APS** alfApss = paramSets.alfAPSs->data();
+    const APS*  lmcsAPS = paramSets.lmcsAps;
+    const APS*  scalingListAPS = paramSets.scalingListAps;
 
     xParsePrefixSEImessages();
 
@@ -1165,7 +1160,7 @@ Picture * DecLibParser::xActivateParameterSets( const int layerId )
 
   if( !m_bFirstSliceInPicture )
   {
-    APS*  lmcsAPS = pSlice->getPicHeader()->getLmcsAPS().get();
+    const APS*  lmcsAPS = pSlice->getPicHeader()->getLmcsAPS().get();
 
     // check that the current active PPS has not changed...
     if( sps->getChangedFlag() )
@@ -1178,7 +1173,7 @@ Picture * DecLibParser::xActivateParameterSets( const int layerId )
     }
     for( int i = 0; i < ALF_CTB_MAX_NUM_APS; i++ )
     {
-      APS* aps = m_parameterSetManager.getAPS_nothrow( i, ALF_APS );
+      const APS* aps = m_parameterSetManager.getAPS_nothrow( i, ALF_APS );
       if( aps && aps->getChangedFlag() )
       {
         EXIT("Error - a new APS has been decoded while processing a picture");
@@ -1348,7 +1343,7 @@ Picture* DecLibParser::prepareLostPicture( int iLostPoc, const int layerId )
   msg( INFO, "inserting lost poc : %d\n", iLostPoc );
 
   Picture* cFillPic = m_picListManager.getNewPicBuffer( *m_parameterSetManager.getFirstSPS(), *m_parameterSetManager.getFirstPPS(), 0, layerId, m_parameterSetManager.getVPS( m_parameterSetManager.getFirstSPS()->getVPSId() ) );
-  cFillPic->finalInit( &m_cuChunkCache, &m_tuChunkCache, m_parameterSetManager.getFirstSPS(), m_parameterSetManager.getFirstPPS(), m_picHeader.get(), m_parameterSetManager.getAlfAPSs().data(), nullptr, nullptr, false ); //TODO: check this
+  cFillPic->finalInit( &m_cuChunkCache, &m_tuChunkCache, m_parameterSetManager.getFirstSPS(), m_parameterSetManager.getFirstPPS(), m_picHeader.get(), static_cast<const ParameterSetManager&>( m_parameterSetManager ).getAlfAPSs().data(), nullptr, nullptr, false ); //TODO: check this
   cFillPic->cs->allocTempInternals();
   cFillPic->cs->initStructData();
 
@@ -1414,7 +1409,7 @@ void DecLibParser::prepareUnavailablePicture( const PPS *pps, int iUnavailablePo
 {
   msg( INFO, "inserting unavailable poc : %d\n", iUnavailablePoc );
   Picture* cFillPic = m_picListManager.getNewPicBuffer( *m_parameterSetManager.getFirstSPS(), *m_parameterSetManager.getFirstPPS(), 0, layerId, m_parameterSetManager.getVPS( m_parameterSetManager.getFirstSPS()->getVPSId() ) );
-  APS* nullAlfApss[ALF_CTB_MAX_NUM_APS] = { nullptr, };
+  const APS* nullAlfApss[ALF_CTB_MAX_NUM_APS] = { nullptr, };
   cFillPic->finalInit( &m_cuChunkCache, &m_tuChunkCache, m_parameterSetManager.getFirstSPS(), m_parameterSetManager.getFirstPPS(), m_picHeader.get(), nullAlfApss, nullptr, nullptr, false ); //TODO: check this
   cFillPic->cs->allocTempInternals();
   cFillPic->cs->initStructData();

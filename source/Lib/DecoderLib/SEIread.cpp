@@ -195,7 +195,6 @@ void SEIReader::xReadSEImessage( seiMessages& seiList, const NalUnitType nalUnit
   setBitstream(bs->extractSubstream(payloadSize * 8));
 
   const vvdecSEIBufferingPeriod *bp = NULL;
-  const vvdecSEIPictureTiming   *pt = NULL;
 
   vvdecSEI *s = NULL;
   vvdecSEIPayloadType type = (vvdecSEIPayloadType)payloadType;
@@ -258,7 +257,7 @@ void SEIReader::xReadSEImessage( seiMessages& seiList, const NalUnitType nalUnit
       break;
     case VVDEC_FRAME_FIELD_INFO:
         s = SEI_internal::allocSEI( type ) ;
-        xParseSEIFrameFieldinfo( s, *pt, payloadSize, pDecodedMessageOutputStream);
+        xParseSEIFrameFieldinfo( s, payloadSize, pDecodedMessageOutputStream);
       break;
     case VVDEC_DEPENDENT_RAP_INDICATION:
         s = SEI_internal::allocSEI( type ) ;
@@ -962,7 +961,7 @@ void SEIReader::xParseSEIPictureTiming(vvdecSEI* s, uint32_t payloadSize, const 
   sei->ptDisplayElementalPeriods = symbol+1;
 }
 
-void SEIReader::xParseSEIFrameFieldinfo(vvdecSEI* s, const vvdecSEIPictureTiming& pt, uint32_t payloadSize, std::ostream *pDecodedMessageOutputStream)
+void SEIReader::xParseSEIFrameFieldinfo(vvdecSEI* s, uint32_t payloadSize, std::ostream *pDecodedMessageOutputStream)
 {
   CHECK( !s || s->payload == NULL, "allocation error in vvdecSEIFrameFieldInfo" );
 
@@ -997,8 +996,6 @@ void SEIReader::xParseSEIFrameFieldinfo(vvdecSEI* s, const vvdecSEIPictureTiming
     }
     sei_read_code( pDecodedMessageOutputStream, 8, symbol, "ffi_display_elemental_periods_minus1" );
     sei->displayElementalPeriods = symbol+1;
-    if( pt.ptDisplayElementalPeriods != sei->displayElementalPeriods )
-      msg( WARNING, "Warning: display_elemental_periods_minus1 is different in picture timing and frame field information SEI messages!");
   }
   sei_read_code( pDecodedMessageOutputStream, 2, symbol,   "source_scan_type" );
   sei->sourceScanType = symbol;

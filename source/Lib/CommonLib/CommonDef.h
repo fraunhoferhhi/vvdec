@@ -497,6 +497,16 @@ template<class T> struct AlignedDeleter
 #    define CLANG_VERSION_AT_LEAST(x,y) 0
 #endif
 
+#if defined( __GNUC__ ) 
+#if __has_attribute( no_sanitize )
+#    define NO_THREAD_SANITIZE __attribute__( ( no_sanitize( "thread" ) ) )
+#else
+#    define NO_THREAD_SANITIZE
+#endif
+#else
+#    define NO_THREAD_SANITIZE
+#endif
+
 #ifdef __GNUC__
 #    define ALWAYS_INLINE __attribute__((always_inline)) inline
 #elif defined _MSC_VER

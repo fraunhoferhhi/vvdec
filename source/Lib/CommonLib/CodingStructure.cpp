@@ -90,9 +90,6 @@ void CodingStructure::destroy()
   m_reco.destroy();
   m_rec_wrap.destroy();
 
-  m_cuCache.releaseAll();
-  m_tuCache.releaseAll();
-  
   m_virtualIBCbuf.clear();
 
   deallocTempInternals();
@@ -335,16 +332,28 @@ void CodingStructure::initStructData()
   const ptrdiff_t ctuCuMapSize    = pcv->num4x4CtuBlks;
   const ptrdiff_t ctuColMiMapSize = pcv->num8x8CtuBlks;
 
-  for( int i = 0; i < pcv->sizeInCtus; i++ )
-  {
-    for( int j = 0; j < 2; j++ )
-    {
-      m_ctuData[i].cuPtr[j] = &m_cuMap[( 2 * i + j ) * ctuCuMapSize];
-    }
+  hasIbcBlock.clear();
+  hasIbcBlock.resize( pcv->heightInCtus, 0 );
 
-    m_ctuData[i].colMotion         = &m_colMiMap[i * ctuColMiMapSize];
-    m_ctuData[i].predBufOffset     = i * ctuSampleSize;
-    m_ctuData[i].dmvrMvCacheOffset = i * pcv->num8x8CtuBlks;
+  for( int y = 0; y < pcv->heightInCtus; y++ )
+  {
+    for( int x = 0; x < pcv->widthInCtus; x++ )
+    {
+      int i = y * pcv->widthInCtus + x;
+
+      m_ctuData[i].lineIdx = y;
+      m_ctuData[i].colIdx  = x;
+      m_ctuData[i].ctuIdx  = i;
+
+      for( int j = 0; j < 2; j++ )
+      {
+        m_ctuData[i].cuPtr[j] = &m_cuMap[( 2 * i + j ) * ctuCuMapSize];
+      }
+
+      m_ctuData[i].colMotion         = &m_colMiMap[i * ctuColMiMapSize];
+      m_ctuData[i].predBufOffset     = i * ctuSampleSize;
+      m_ctuData[i].dmvrMvCacheOffset = i * pcv->num8x8CtuBlks;
+    }
   }
 }
 
@@ -535,25 +544,22 @@ void CodingStructure::initVIbcBuf( int numCtuLines, ChromaFormat chromaFormatIDC
 
 void CodingStructure::fillIBCbuffer( CodingUnit &cu, int lineIdx )
 {
-  for( TransformUnit &tu : TUTraverser( &cu.firstTU, cu.lastTU->next ) )
+  for( const CompArea &area : cu.blocks )
   {
-    for( const CompArea &area : tu.blocks )
-    {
-      if (!area.valid())
-        continue;
+    if (!area.valid())
+      continue;
 
-      const unsigned int lcuWidth = sps->getMaxCUWidth();
-      const int shiftSampleHor = getComponentScaleX(area.compID(), cu.chromaFormat);
-      const int shiftSampleVer = getComponentScaleY(area.compID(), cu.chromaFormat);
-      const int ctuSizeVerLog2 = getLog2(lcuWidth) - shiftSampleVer;
-      const int pux = area.x & ((m_IBCBufferWidth >> shiftSampleHor) - 1);
-      const int puy = area.y & (( 1 << ctuSizeVerLog2 ) - 1);
-      const CompArea dstArea = CompArea(area.compID(), Position(pux, puy), Size(area.width, area.height));
-      CPelBuf srcBuf = getRecoBuf(area);
-      PelBuf dstBuf = m_virtualIBCbuf[lineIdx].getBuf(dstArea);
+    const unsigned int lcuWidth = sps->getMaxCUWidth();
+    const int shiftSampleHor = getComponentScaleX(area.compID(), cu.chromaFormat);
+    const int shiftSampleVer = getComponentScaleY(area.compID(), cu.chromaFormat);
+    const int ctuSizeVerLog2 = getLog2(lcuWidth) - shiftSampleVer;
+    const int pux = area.x & ((m_IBCBufferWidth >> shiftSampleHor) - 1);
+    const int puy = area.y & (( 1 << ctuSizeVerLog2 ) - 1);
+    const CompArea dstArea = CompArea(area.compID(), Position(pux, puy), Size(area.width, area.height));
+    CPelBuf srcBuf = getRecoBuf(area);
+    PelBuf dstBuf = m_virtualIBCbuf[lineIdx].getBuf(dstArea);
 
-      dstBuf.copyFrom(srcBuf);
-    }
+    dstBuf.copyFrom(srcBuf);
   }
 }
 

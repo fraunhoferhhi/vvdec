@@ -267,7 +267,8 @@ void InputBitstream::read (uint32_t uiNumberOfBits, uint32_t& ruiBits)
    * n=9, len(H)=3: ---- -VVV, mask=0x07, shift_up=9-3=6 */
   uiNumberOfBits -= m_num_held_bits;
   retval = m_held_bits & ~(0xff << m_num_held_bits);
-  retval <<= uiNumberOfBits;
+  retval = retval ? (retval << uiNumberOfBits) : 0;   // sanity error when retval=0 && uiNumberOfBits=32
+
 
   /* number of whole bytes that need to be loaded to form retval */
   /* n=32, len(H)=0, load 4bytes, shift_down=0
