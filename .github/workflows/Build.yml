@@ -65,7 +65,8 @@ jobs:
         mkdir build
         cd build
         cmake .. -DCMAKE_BUILD_TYPE=Release "-DCMAKE_OSX_ARCHITECTURES=${{ matrix.config.osx_arch }}"
-        cmake --build .
+        cmake --build . --config Release
+        cd ../
 
     - name: MSVC build
       if: contains( matrix.config.generators, 'Visual Studio' )
@@ -74,4 +75,47 @@ jobs:
         cd build
         cmake ..  -DCMAKE_BUILD_TYPE=Release -A "${{ matrix.config.msvc_arch }}"
         cmake --build . --config Release
+        cd ../
       shell: cmd
+    - name: Upload a Windows x64 Build Artifact
+      if: contains( matrix.config.msvc_arch, 'x64' )
+      uses: actions/upload-artifact@v3.0.0
+      with:
+        name: Windows x64 vvdec
+        path: bin/release-static/vvdecapp.exe
+    - name: Upload a Windows x86 Build Artifact
+      if: contains( matrix.config.msvc_arch, 'Win32' )
+      uses: actions/upload-artifact@v3.0.0
+      with:
+        name: Windows x86 vvdec
+        path: bin/release-static/vvdecapp.exe
+    - name: Upload a Windows MinGW Build Artifact
+      if: contains( matrix.config.generators, 'MinGW Makefiles' )
+      uses: actions/upload-artifact@v3.0.0
+      with:
+        name: Windows MinGW vvdec
+        path: bin/release-static/vvdecapp.exe
+    - name: Upload a Mac OS x64 Build Artifact
+      if: contains( matrix.config.osx_arch, 'x86_64' )
+      uses: actions/upload-artifact@v3.0.0
+      with:
+        name: Mac OS x64 vvdec
+        path: bin/release-static/vvdecapp
+    - name: Upload a Mac OS ARM Build Artifact
+      if: contains( matrix.config.osx_arch, 'arm64' )
+      uses: actions/upload-artifact@v3.0.0
+      with:
+        name: Mac OS ARM64 vvdec
+        path: bin/release-static/vvdecapp
+    - name: Upload a Ubuntu 18.04 Build Artifact
+      if: contains( matrix.config.os, 'ubuntu-18.04' )
+      uses: actions/upload-artifact@v3.0.0
+      with:
+        name: Ubuntu 18.04 vvdec
+        path: bin/release-static/vvdecapp
+    - name: Upload a Ubuntu 20.04 Build Artifact
+      if: contains( matrix.config.os, 'ubuntu-20.04' )
+      uses: actions/upload-artifact@v3.0.0
+      with:
+        name: Ubuntu 20.04 vvdec
+        path: bin/release-static/vvdecapp
