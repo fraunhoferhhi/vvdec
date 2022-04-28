@@ -397,6 +397,7 @@ Picture* PicListManager::getNextOutputPic( uint32_t numReorderPicsHighestTid,
   }
 
   IF_DEBUG_PIC_ORDER( std::cout << "   " << numPicsNotYetDisplayed << '/' << numReorderPicsHighestTid << " "<< dpbFullness << '/' << maxDecPicBufferingHighestTid << "   " );
+  (void)dpbFullness;
 
   Picture * lowestPOCPic = nullptr;
   if( numPicsNotYetDisplayed > numReorderPicsHighestTid + ( m_firstOutputPic ? MAX_OUT_OF_ORDER_PICS : 0 )
