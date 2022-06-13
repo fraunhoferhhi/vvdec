@@ -550,7 +550,7 @@ void AdaptiveLoopFilter::filterAreaChroma( const CPelUnitBuf& srcBuf,
                     srcBuf,
                     blkChroma,
                     compID,
-                    alfSliceParam.chromaCoeff + altIdx * MAX_NUM_ALF_CHROMA_COEFF,
+                    alfSliceParam.chromaCoeff    + altIdx * MAX_NUM_ALF_CHROMA_COEFF,
                     alfSliceParam.chrmClippFinal + altIdx * MAX_NUM_ALF_CHROMA_COEFF,
                     clpRngs,
                     m_alfVBChmaCTUHeight,
@@ -911,15 +911,16 @@ void AdaptiveLoopFilter::reconstructCoeff( AlfSliceParam& alfSliceParam, Channel
       const int clipIdx = alfSliceParam.nonLinearFlagLuma ? alfSliceParam.lumaClipp[filterIdx * MAX_NUM_ALF_LUMA_COEFF + coeffIdx] : 0;
       alfSliceParam.lumaClippFinal[classIdx * MAX_NUM_ALF_LUMA_COEFF + coeffIdx] = m_alfClippVls[inputBitDepth[channel] - 8][clipIdx];
     }
+#if ALF_PRE_TRANSPOSE
 
     for( int tranposeIdx = 1; tranposeIdx < 4; tranposeIdx++ )
     {
       short* coef = alfSliceParam.lumaCoeffFinal + classIdx * MAX_NUM_ALF_LUMA_COEFF;
       short* txcf = alfSliceParam.lumaCoeffFinal + classIdx * MAX_NUM_ALF_LUMA_COEFF + tranposeIdx * MAX_NUM_ALF_CLASSES * MAX_NUM_ALF_LUMA_COEFF;
-
+    
       short* coefClp = alfSliceParam.lumaClippFinal + classIdx * MAX_NUM_ALF_LUMA_COEFF;
       short* txcfClp = alfSliceParam.lumaClippFinal + classIdx * MAX_NUM_ALF_LUMA_COEFF + tranposeIdx * MAX_NUM_ALF_CLASSES * MAX_NUM_ALF_LUMA_COEFF;
-
+    
       if( tranposeIdx == 1 )
       {
         short tcff[] = { coef[9], coef[4], coef[10], coef[8], coef[1], coef[5], coef[11], coef[7], coef[3], coef[0], coef[2], coef[6], coef[12] };
@@ -942,6 +943,7 @@ void AdaptiveLoopFilter::reconstructCoeff( AlfSliceParam& alfSliceParam, Channel
         memcpy( txcfClp, tcffClp, sizeof( tcffClp ) );
       }
     }
+#endif
   }
 
   alfSliceParam.lumaFinalDone = true;

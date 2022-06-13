@@ -375,7 +375,7 @@ static void simdFilterCopy( const ClpRng& clpRng, const Pel* src, const ptrdiff_
 
 // SIMD interpolation horizontal, block width modulo 8
 template<X86_VEXT vext, int N, bool shiftBack>
-static void simdInterpolateHorM1(const int16_t* src, int srcStride, int16_t* dst, int dstStride, int width, int height, int shift, int offset, const ClpRng& clpRng, int16_t const* coeff)
+static void simdInterpolateHorM1(const int16_t* src, ptrdiff_t srcStride, int16_t* dst, ptrdiff_t dstStride, int width, int height, int shift, int offset, const ClpRng& clpRng, int16_t const* coeff)
 {
   _mm_prefetch((const char*)src, _MM_HINT_T0);
   _mm_prefetch((const char*)src + srcStride, _MM_HINT_T0);
@@ -892,7 +892,7 @@ static void simdInterpolateVerM2( const int16_t* src, ptrdiff_t srcStride, int16
 
   __m128i vsrc, vnl, vsum, vtmp;
 
-  const int nextLine = srcStride * ( N - 1 );
+  const ptrdiff_t nextLine = srcStride * ( N - 1 );
 
 #if 0
   // workaround for GCC-11+, TODO: understand the problem
@@ -1483,10 +1483,8 @@ static void simdInterpolateN2_2D( const ClpRng& clpRng, const Pel* src, const pt
 #endif
     __m128i mmLast4H;
 
-#ifndef REAL_TARGET_X86
-    // on some platforms gcc thinks this is used uninitialized with simd-everywhere
+    // workaround for over-sensitive compilers
     mmLastH[0] = _mm_setzero_si128();
-#endif
 
     for( int row = -1; row < height; row++ )
     {
@@ -1528,7 +1526,7 @@ static void simdInterpolateN2_2D( const ClpRng& clpRng, const Pel* src, const pt
         mmFiltered      = _mm_add_epi16  ( mmFiltered, _mm_mullo_epi16( _mm_sub_epi16( mmPix1, mmPix ), mmCoeffH ) );
         mmFiltered      = _mm_srai_epi16 ( mmFiltered, shift1st );
 
-        int idx = x >> 3;
+        int idx = x >> 3; 
         __m128i mLast = mmLastH[idx];
         mmLastH[idx] = mmFiltered;
 

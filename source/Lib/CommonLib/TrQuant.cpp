@@ -76,6 +76,33 @@ InvTrans *fastInvTrans[NUM_TRANS_TYPE][g_numTransformMatrixSizes] =
 //! \ingroup CommonLib
 //! \{
 
+static void invLfnstNxNCore( int* src, int* dst, const uint32_t mode, const uint32_t index, const uint32_t size, int zeroOutSize )
+{
+  int             maxLog2TrDynamicRange =  15;
+  const TCoeff    outputMinimum         = -( 1 << maxLog2TrDynamicRange );
+  const TCoeff    outputMaximum         =  ( 1 << maxLog2TrDynamicRange ) - 1;
+  const int8_t*   trMat                 =  ( size > 4 ) ? g_lfnst8x8[ mode ][ index ][ 0 ] : g_lfnst4x4[ mode ][ index ][ 0 ];
+  const int       trSize                =  ( size > 4 ) ? 48 : 16;
+  int             resi;
+  int*            out                   =  dst;
+
+  CHECK( index > 2, "wrong" );
+
+  for( int j = 0; j < trSize; j++, trMat += 16 )
+  {
+    resi = 0;
+    const int8_t* trMatTmp = trMat;
+    int*          srcPtr   = src;
+
+    for( int i = 0; i < zeroOutSize; i++ )
+    {
+      resi += *srcPtr++ * *trMatTmp++;
+    }
+
+    *out++ = Clip3( outputMinimum, outputMaximum, ( int ) ( resi + 64 ) >> 7 );
+  }
+}
+
 static inline int64_t square( const int d ) { return d * (int64_t)d; }
 
 template<int signedMode> void invTransformCbCr( PelBuf &resCb, PelBuf &resCr )
@@ -112,6 +139,8 @@ TrQuant::TrQuant( class InterPrediction* ip, const TrQuant* other ) : Quant( oth
   m_invICT[ 3]  = invTransformCbCr< 3>;
   m_invICT[-3]  = invTransformCbCr<-3>;
 
+  m_invLfnstNxN = invLfnstNxNCore;
+
   static_assert( sizeof( ip->m_acYuvPred[0] ) > sizeof( TCoeff ) * ( MAX_TU_SIZE_FOR_PROFILE * MAX_TU_SIZE_FOR_PROFILE + MEMORY_ALIGN_DEF_SIZE ), "Buffer to small to be reused!" );
   static_assert( sizeof( ip->m_acYuvPred[1] ) > sizeof( TCoeff ) * ( MAX_TU_SIZE_FOR_PROFILE * MAX_TU_SIZE_FOR_PROFILE + MEMORY_ALIGN_DEF_SIZE ), "Buffer to small to be reused!" );
   static_assert( sizeof( ip->m_acYuvPred[2] ) > sizeof( TCoeff ) * ( MAX_TU_SIZE_FOR_PROFILE * MAX_TU_SIZE_FOR_PROFILE + MEMORY_ALIGN_DEF_SIZE ), "Buffer to small to be reused!" );
@@ -123,6 +152,10 @@ TrQuant::TrQuant( class InterPrediction* ip, const TrQuant* other ) : Quant( oth
   m_tmp  = ( TCoeff* ) ( ( ptrdiff_t ) tmp  + ( MEMORY_ALIGN_DEF_SIZE - ( ( ptrdiff_t ) tmp  & ( MEMORY_ALIGN_DEF_SIZE - 1 ) ) ) );
   m_blk  = ( TCoeff* ) ( ( ptrdiff_t ) blk  + ( MEMORY_ALIGN_DEF_SIZE - ( ( ptrdiff_t ) blk  & ( MEMORY_ALIGN_DEF_SIZE - 1 ) ) ) );
   m_dqnt = ( TCoeff* ) ( ( ptrdiff_t ) dqnt + ( MEMORY_ALIGN_DEF_SIZE - ( ( ptrdiff_t ) dqnt & ( MEMORY_ALIGN_DEF_SIZE - 1 ) ) ) );
+
+#if defined( TARGET_SIMD_X86 ) && ENABLE_SIMD_TCOEFF_OPS
+  initTrQuantX86();
+#endif
 }
 
 void TrQuant::xDeQuant(const TransformUnit &tu,
@@ -137,33 +170,6 @@ void TrQuant::xDeQuant(const TransformUnit &tu,
 void TrQuant::init( const Picture *pic )
 {
   Quant::init( pic );
-}
-
-void TrQuant::invLfnstNxN( int* src, int* dst, const uint32_t mode, const uint32_t index, const uint32_t size, int zeroOutSize )
-{
-  int             maxLog2TrDynamicRange =  15;
-  const TCoeff    outputMinimum         = -( 1 << maxLog2TrDynamicRange );
-  const TCoeff    outputMaximum         =  ( 1 << maxLog2TrDynamicRange ) - 1;
-  const int8_t*   trMat                 =  ( size > 4 ) ? g_lfnst8x8[ mode ][ index ][ 0 ] : g_lfnst4x4[ mode ][ index ][ 0 ];
-  const int       trSize                =  ( size > 4 ) ? 48 : 16;
-  int             resi;
-  int*            out                   =  dst;
-
-  CHECK( index > 2, "wrong" );
-
-  for( int j = 0; j < trSize; j++, trMat++ )
-  {
-    resi = 0;
-    const int8_t* trMatTmp = trMat;
-    int*          srcPtr   = src;
-
-    for( int i = 0; i < zeroOutSize; i++, trMatTmp += trSize )
-    {
-      resi += *srcPtr++ * *trMatTmp;
-    }
-
-    *out++ = Clip3( outputMinimum, outputMaximum, ( int ) ( resi + 64 ) >> 7 );
-  }
 }
 
 uint32_t TrQuant::getLFNSTIntraMode( int wideAngPredMode )
@@ -233,7 +239,7 @@ void TrQuant::xInvLfnst( TransformUnit &tu, const ComponentID& compID )
       *dst++ = coeffTemp[ scan[y] ];
     }
 
-    invLfnstNxN( m_tempInMatrix, m_tempOutMatrix, g_lfnstLut[ intraMode ], lfnstIdx - 1, sbSize, ( tu4x4Flag || tu8x8Flag ) ? 8 : 16 );
+    m_invLfnstNxN( m_tempInMatrix, m_tempOutMatrix, g_lfnstLut[ intraMode ], lfnstIdx - 1, sbSize, ( tu4x4Flag || tu8x8Flag ) ? 8 : 16 );
 
     lfnstTemp = m_tempOutMatrix; // inverse spectral rearrangement
 

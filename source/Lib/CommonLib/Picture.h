@@ -126,7 +126,7 @@ public:
   uint64_t getCts()                           const { return cts; }
   uint64_t getDts()                           const { return dts; }
   uint32_t getTLayer()                        const { return layer; }
-  uint64_t getNaluBits()                      const { return bits; }
+  uint32_t getNaluBits()                      const { return bits; }
   bool     getRap()                           const { return rap; }
 
   Pel*   getOrigin( const PictureType &type, const ComponentID compID ) const;
@@ -183,7 +183,7 @@ public:
   uint32_t    depth        = 0;
   int         layerId      = NOT_VALID;
   NalUnitType eNalUnitType = NAL_UNIT_INVALID;
-  uint64_t    bits         = 0;   // input nal bit count
+  uint32_t    bits         = 0;   // input nal bit count
   bool        rap          = 0;   // random access point flag
   int         decodingOrderNumber = 0;
 

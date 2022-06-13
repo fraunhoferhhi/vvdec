@@ -197,43 +197,40 @@ void PredictorMIP::boundaryDownsampling1D(Pel* reducedDst, const Pel* const full
                                               const SizeType bndryStep,
                                               const unsigned int upsmpFactor )
   {
-    const int log2UpsmpFactor = getLog2( upsmpFactor );
+    const Pel log2UpsmpFactor = getLog2( upsmpFactor );
     CHECKD( upsmpFactor <= 1, "Upsampling factor must be at least 2." );
-    const int roundingOffset = 1 << (log2UpsmpFactor - 1);
+    const int roundingOffset = 1 << ( log2UpsmpFactor - 1 );
 
-    SizeType idxOrthDim = 0;
-    const Pel* srcLine = src;
-    Pel* dstLine = dst;
+    const Pel* srcLine   = src;
+          Pel* dstLine   = dst;
     const Pel* bndryLine = bndry + bndryStep - 1;
-    while( idxOrthDim < srcSizeOrthDim )
-    {
-      SizeType idxUpsmpDim = 0;
-      const Pel* before = bndryLine;
-      const Pel* behind = srcLine;
-      Pel* currDst = dstLine;
-      while( idxUpsmpDim < srcSizeUpsmpDim )
-      {
-        SizeType pos = 1;
-        int scaledBefore = ( *before ) << log2UpsmpFactor;
-        int scaledBehind = 0;
-        while( pos <= upsmpFactor )
-        {
-          scaledBefore -= *before;
-          scaledBehind += *behind;
-          *currDst = (scaledBefore + scaledBehind + roundingOffset) >> log2UpsmpFactor;
 
-          pos++;
-          currDst += dstStep;
+    for( int k = 0; k < srcSizeOrthDim; k++ )
+    {
+      const Pel* before  = bndryLine;
+      const Pel* behind  = srcLine;
+            Pel* currDst = dstLine;
+
+      for( int j = 0; j < srcSizeUpsmpDim; j++ )
+      {
+        Pel valBehind = *behind;
+        Pel valBefore = *before;
+        Pel valDiff   = valBehind - valBefore;
+        Pel scaledVal = ( valBefore << log2UpsmpFactor ) + roundingOffset;
+
+        for( int i = 0; i < upsmpFactor; i++ )
+        {
+          scaledVal += valDiff;
+          *currDst   = scaledVal >> log2UpsmpFactor;
+          currDst   += dstStep;
         }
 
-        idxUpsmpDim++;
-        before = behind;
+        before  = behind;
         behind += srcStep;
       }
 
-      idxOrthDim++;
-      srcLine += srcStride;
-      dstLine += dstStride;
+      srcLine   += srcStride;
+      dstLine   += dstStride;
       bndryLine += bndryStep;
     }
   }

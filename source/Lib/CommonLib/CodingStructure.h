@@ -149,8 +149,8 @@ public:
   {
     if( area.blocks[_chType].contains( pos ) )
     {
-      ptrdiff_t rsAddr = ctuRsAddr( pos, _chType );
-      ptrdiff_t inCtu  = inCtuPos ( pos, _chType );
+      int rsAddr = ctuRsAddr( pos, _chType );
+      int inCtu  = inCtuPos ( pos, _chType );
       return getCtuData( rsAddr ).cuPtr[_chType][inCtu];
     }
     else return nullptr;
@@ -160,8 +160,8 @@ public:
   {
     if( area.blocks[_chType].contains( pos ) )
     {
-      ptrdiff_t rsAddr = ctuRsAddr( pos, _chType );
-      ptrdiff_t inCtu  = inCtuPos ( pos, _chType );
+      int rsAddr = ctuRsAddr( pos, _chType );
+      int inCtu  = inCtuPos ( pos, _chType );
       return getCtuData( rsAddr ).cuPtr[_chType][inCtu];
     }
     else return nullptr;
@@ -192,7 +192,7 @@ public:
   PelStorage m_reco;
   PelStorage m_rec_wrap;
 
-  size_t               m_widthInCtus;
+  unsigned int         m_widthInCtus;
   PosType              m_ctuSizeMask[2];
   PosType              m_ctuWidthLog2[2];
 
@@ -204,13 +204,13 @@ public:
 public:
 
   // in CTU coordinates
-  ptrdiff_t ctuRsAddr( int col, int line ) const { return col + ( line * m_widthInCtus ); }
+  int ctuRsAddr( int col, int line ) const { return col + ( line * m_widthInCtus ); }
   // in sample coordinates
-  ptrdiff_t ctuRsAddr( Position pos, ChannelType chType ) const { Position posL = recalcPosition( area.chromaFormat, chType, CH_L, pos ); return ctuRsAddr( posL.x >> pcv->maxCUWidthLog2, posL.y >> pcv->maxCUHeightLog2 ); }
+  int ctuRsAddr( Position pos, ChannelType chType ) const { Position posL = recalcPosition( area.chromaFormat, chType, CH_L, pos ); return ctuRsAddr( posL.x >> pcv->maxCUWidthLog2, posL.y >> pcv->maxCUHeightLog2 ); }
   // 4x4 luma block position within the CTU
-  ptrdiff_t inCtuPos ( Position pos, ChannelType chType ) const { return ( unitScale[chType].scaleHor( pos.x ) & m_ctuSizeMask[chType] ) + ( ( unitScale[chType].scaleVer( pos.y ) & m_ctuSizeMask[chType] ) << m_ctuWidthLog2[chType] ); }
+  int inCtuPos ( Position pos, ChannelType chType ) const { return ( unitScale[chType].scaleHor( pos.x ) & m_ctuSizeMask[chType] ) + ( ( unitScale[chType].scaleVer( pos.y ) & m_ctuSizeMask[chType] ) << m_ctuWidthLog2[chType] ); }
   // 8x8 luma block position within the CTU
-  ptrdiff_t colMotPos( Position pos )                     const { return ( g_colMiScaling.scaleHor( pos.x ) & ( m_ctuSizeMask[CH_L] >> 1 ) ) + ( ( g_colMiScaling.scaleVer( pos.y ) & ( m_ctuSizeMask[CH_L] >> 1 ) ) << ( m_ctuWidthLog2[CH_L] - 1 ) ); }
+  int colMotPos( Position pos )                     const { return ( g_colMiScaling.scaleHor( pos.x ) & ( m_ctuSizeMask[CH_L] >> 1 ) ) + ( ( g_colMiScaling.scaleVer( pos.y ) & ( m_ctuSizeMask[CH_L] >> 1 ) ) << ( m_ctuWidthLog2[CH_L] - 1 ) ); }
 
         CtuData& getCtuData( int col, int line )       { return m_ctuData[ctuRsAddr( col, line )]; }
   const CtuData& getCtuData( int col, int line ) const { return m_ctuData[ctuRsAddr( col, line )]; }

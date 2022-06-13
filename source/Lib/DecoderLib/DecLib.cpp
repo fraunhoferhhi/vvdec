@@ -470,7 +470,7 @@ void DecLib::checkPictureHashSEI( Picture* pcPic )
     {
       // this warning is only enabled, when running with parse delay enabled, because otherwise we don't know here if the last DPH Suffix-SEI has already been
       // parsed
-      int checkedSubpicCount = std::count( pcPic->subpicsCheckedDPH.cbegin(), pcPic->subpicsCheckedDPH.cend(), true );
+      auto checkedSubpicCount = std::count( pcPic->subpicsCheckedDPH.cbegin(), pcPic->subpicsCheckedDPH.cend(), true );
       if( checkedSubpicCount != pcPic->subPictures.size() )
       {
         msg( WARNING, "Warning: missing decoded picture hash SEI message for SubPics (%u/%u).\n", checkedSubpicCount, pcPic->subPictures.size() );

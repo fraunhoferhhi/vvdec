@@ -797,7 +797,7 @@ bool VVDecImpl::isNalUnitSlice( vvdecNalType t )
       || t == VVC_NAL_UNIT_CODED_SLICE_GDR;
 }
 
-int VVDecImpl::copyComp( const unsigned char* pucSrc, unsigned char* pucDest, unsigned int uiWidth, unsigned int uiHeight, int iStrideSrc, int iStrideDest, int iBytesPerSample  )
+int VVDecImpl::copyComp( const unsigned char* pucSrc, unsigned char* pucDest, unsigned int uiWidth, unsigned int uiHeight, ptrdiff_t iStrideSrc, ptrdiff_t iStrideDest, int iBytesPerSample  )
 {
   if( NULL != pucSrc && NULL != pucDest )
   {
@@ -1106,8 +1106,8 @@ int VVDecImpl::xCreateFrame( vvdecFrame& rcFrame, const CPelUnitBuf& rcPicBuf, u
   rcFrame.planes[VVDEC_CT_Y].width          = uiWidth;
   rcFrame.planes[VVDEC_CT_Y].height         = uiHeight;
   rcFrame.planes[VVDEC_CT_Y].bytesPerSample = rcBitDepths.recon[CHANNEL_TYPE_LUMA] > 8 ? 2 : 1;
-  rcFrame.planes[VVDEC_CT_Y].stride         = bCreateStorage  ? uiWidth*rcFrame.planes[VVDEC_CT_Y].bytesPerSample
-                                                              : rcPicBuf.get(COMPONENT_Y).stride * rcFrame.planes[VVDEC_CT_Y].bytesPerSample;
+  rcFrame.planes[VVDEC_CT_Y].stride         = bCreateStorage  ? uiWidth                                    * rcFrame.planes[VVDEC_CT_Y].bytesPerSample
+                                                              : (uint32_t)rcPicBuf.get(COMPONENT_Y).stride * rcFrame.planes[VVDEC_CT_Y].bytesPerSample;
 
   size_t nBufSize = 0;
   size_t nLSize   = rcFrame.planes[VVDEC_CT_Y].stride * uiHeight;
@@ -1156,8 +1156,8 @@ int VVDecImpl::xCreateFrame( vvdecFrame& rcFrame, const CPelUnitBuf& rcPicBuf, u
         }
         else
         {
-          rcFrame.planes[VVDEC_CT_U].stride         = rcPicBuf.get(COMPONENT_Cb).stride * rcFrame.planes[CHANNEL_TYPE_CHROMA].bytesPerSample;
-          rcFrame.planes[VVDEC_CT_V].stride         = rcPicBuf.get(COMPONENT_Cr).stride * rcFrame.planes[CHANNEL_TYPE_CHROMA].bytesPerSample;
+          rcFrame.planes[VVDEC_CT_U].stride         = (uint32_t)rcPicBuf.get(COMPONENT_Cb).stride * rcFrame.planes[CHANNEL_TYPE_CHROMA].bytesPerSample;
+          rcFrame.planes[VVDEC_CT_V].stride         = (uint32_t)rcPicBuf.get(COMPONENT_Cr).stride * rcFrame.planes[CHANNEL_TYPE_CHROMA].bytesPerSample;
         }
 
         nCSize = rcFrame.planes[VVDEC_CT_U].stride*uiCHeight;
@@ -1187,8 +1187,8 @@ int VVDecImpl::xCreateFrame( vvdecFrame& rcFrame, const CPelUnitBuf& rcPicBuf, u
         }
         else
         {
-          rcFrame.planes[VVDEC_CT_U].stride         = rcPicBuf.get(COMPONENT_Cb).stride * rcFrame.planes[CHANNEL_TYPE_CHROMA].bytesPerSample;
-          rcFrame.planes[VVDEC_CT_V].stride         = rcPicBuf.get(COMPONENT_Cr).stride * rcFrame.planes[CHANNEL_TYPE_CHROMA].bytesPerSample;
+          rcFrame.planes[VVDEC_CT_U].stride         = (uint32_t)rcPicBuf.get(COMPONENT_Cb).stride * rcFrame.planes[CHANNEL_TYPE_CHROMA].bytesPerSample;
+          rcFrame.planes[VVDEC_CT_V].stride         = (uint32_t)rcPicBuf.get(COMPONENT_Cr).stride * rcFrame.planes[CHANNEL_TYPE_CHROMA].bytesPerSample;
         }
 
         uint32_t nCSize = rcFrame.planes[VVDEC_CT_U].stride*uiCHeight;
@@ -1214,8 +1214,8 @@ int VVDecImpl::xCreateFrame( vvdecFrame& rcFrame, const CPelUnitBuf& rcPicBuf, u
         }
         else
         {
-          rcFrame.planes[VVDEC_CT_U].stride         = rcPicBuf.get(COMPONENT_Cb).stride * rcFrame.planes[CHANNEL_TYPE_CHROMA].bytesPerSample;
-          rcFrame.planes[VVDEC_CT_V].stride         = rcPicBuf.get(COMPONENT_Cr).stride * rcFrame.planes[CHANNEL_TYPE_CHROMA].bytesPerSample;
+          rcFrame.planes[VVDEC_CT_U].stride         = (uint32_t)rcPicBuf.get(COMPONENT_Cb).stride * rcFrame.planes[CHANNEL_TYPE_CHROMA].bytesPerSample;
+          rcFrame.planes[VVDEC_CT_V].stride         = (uint32_t)rcPicBuf.get(COMPONENT_Cr).stride * rcFrame.planes[CHANNEL_TYPE_CHROMA].bytesPerSample;
         }
 
         nBufSize = nLSize*3;

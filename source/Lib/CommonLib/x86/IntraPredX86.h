@@ -446,12 +446,8 @@ void  IntraPredSampleFilter_SIMD(Pel *ptrSrc,const ptrdiff_t srcStride,PelBuf &p
     __m256i w32 = _mm256_set_epi32(32,32,32,32,32,32,32,32);
     __m256i vbdmin   = _mm256_set1_epi32( clpRng.min() );
     __m256i vbdmax   = _mm256_set1_epi32( clpRng.max() );
-    __m256i wl16,wl16start;
-
-#ifndef REAL_TARGET_X86
-    // on some platforms gcc thinks this is used uninitialized with simd-everywhere
-    wl16start = _mm256_setzero_si256();
-#endif
+    __m256i wl16;
+    __m256i wl16start;
 
     if (scale==0)
     {
@@ -465,6 +461,11 @@ void  IntraPredSampleFilter_SIMD(Pel *ptrSrc,const ptrdiff_t srcStride,PelBuf &p
     {
       wl16start = _mm256_set_epi16(0,0,0,0,1,1,2,2,4,4,8,8,16,16,32,32);
     }
+    else
+    {
+      THROW( "Wrong scale (" << scale << ")" );
+    }
+
 
     if (uiDirMode == PLANAR_IDX || uiDirMode == DC_IDX )
     {

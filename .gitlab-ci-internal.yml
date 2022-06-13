@@ -1,244 +1,293 @@
 stages:
-   - build
+  - build
 
 variables:
-    FULL_BUILD:
-       value: "0"
-       description: "Enable full build with various cpompilers."
-    REBUILD_DOCKER_IMAGE:
-       value: "0"
-       description: "rebuild and publish docker image with latest emscripten"
+  FULL_BUILD:
+    value: "0"
+    description: "Enable full build with various cpompilers."
+  REBUILD_DOCKER_IMAGE:
+    value: "0"
+    description: "rebuild and publish docker image with latest emscripten"
+  CCACHE_DIR: "${CI_PROJECT_DIR}/ext/ccache"
+  CCACHE_MAXSIZE: 500M
 
-.build_only_template:
-   stage: build
-   interruptible: true
-   script:
-      - make disable-lto=1 all
-   rules:
-      - if: '$CI_PIPELINE_SOURCE == "web"'
-      - if: '$CI_PIPELINE_SOURCE == "schedule"'
-      - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
-      - if: '$CI_COMMIT_BRANCH == "master"'
-
-.build_only_template_full:
-   extends: .build_only_template
-   rules:
-      - if: '$FULL_BUILD == "1"'
-      - if: '$CI_COMMIT_BRANCH == "master"'
-
-.build_test_template:
-   stage: build
-   interruptible: true
-   cache:
-      paths:
-         - ext/
+.base_template:
+  stage: build
+  interruptible: true
+  after_script: [ccache -s]
+  cache:
+    - paths:
+        - ext/bitstreams
       key:
         files:
           - cmake/modules/define_bitstream_files.cmake
       when: always
-   variables:
-     CTEST_OUTPUT_ON_FAILURE: 1
-     CTEST_PARALLEL_LEVEL: 2
-   script:
-      - make enable-bitstream-download=1 enable-local-bitstream-download=1 disable-lto=1 all
-      - make test
-   rules:
-      - if: '$CI_PIPELINE_SOURCE == "web"'
-      - if: '$CI_PIPELINE_SOURCE == "schedule"'
-      - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
-      - if: '$CI_COMMIT_BRANCH == "master"'
+    - paths:
+        - ext/ccache
+      key: $CI_JOB_NAME
+      when: always
+  tags:
+    - docker
+
+.build_only_template:
+  extends: .base_template
+  script:
+    - make disable-lto=1 all
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "web"'
+    - if: '$CI_PIPELINE_SOURCE == "schedule"'
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+    - if: '$CI_COMMIT_BRANCH == "master"'
+
+.build_only_template_full:
+  extends: .build_only_template
+  rules:
+    - if: '$FULL_BUILD == "1"'
+    - if: '$CI_COMMIT_BRANCH == "master"'
+
+.build_test_template:
+  extends: .base_template
+  variables:
+    CTEST_OUTPUT_ON_FAILURE: 1
+    CTEST_PARALLEL_LEVEL: 2
+  script:
+    - make enable-bitstream-download=1 enable-local-bitstream-download=1 disable-lto=1 all
+    - make test
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "web"'
+    - if: '$CI_PIPELINE_SOURCE == "schedule"'
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+    - if: '$CI_COMMIT_BRANCH == "master"'
+    - if: '$CI_COMMIT_BRANCH == "develop"'
+      when: delayed
+      start_in: 1 hour
 
 .build_test_macos_template:
-   extends: .build_test_template
-   script:
-      - make osx-arch=${OSX_ARCH} enable-bitstream-download=1 enable-local-bitstream-download=1 disable-lto=1 all
-      - make osx-arch=${OSX_ARCH} test
+  extends: .build_test_template
+  script:
+    - make osx-arch=${OSX_ARCH} enable-bitstream-download=1 enable-local-bitstream-download=1 disable-lto=1 all
+    - make osx-arch=${OSX_ARCH} test
 
 .build_test_msvc_template:
-   extends: .build_test_template
-   script:
-      - make msvc-arch=${MSVC_ARCH} enable-bitstream-download=1 enable-local-bitstream-download=1 disable-lto=1 all
-      - make msvc-arch=${MSVC_ARCH} test
+  extends: .build_test_template
+  script:
+    - make msvc-arch=${MSVC_ARCH} enable-bitstream-download=1 enable-local-bitstream-download=1 disable-lto=1 all
+    - make msvc-arch=${MSVC_ARCH} test
 
 
 build_gcc5_ubuntu1804:
-   extends: .build_only_template_full
-   variables:
-     CC: gcc-5
-     CXX: g++-5
-   tags:
-      - ubuntu1804
+  extends: .build_only_template_full
+  image: $CI_REGISTRY/pub/dockerimages/ubuntu_1804_full:latest
+  variables:
+    CC: gcc-5
+    CXX: g++-5
 
 build_gcc6_ubuntu1804:
-   extends: .build_only_template_full
-   variables:
-     CC: gcc-6
-     CXX: g++-6
-   tags:
-      - ubuntu1804
+  extends: .build_only_template_full
+  image: $CI_REGISTRY/pub/dockerimages/ubuntu_1804_full:latest
+  variables:
+    CC: gcc-6
+    CXX: g++-6
 
 build_gcc7_ubuntu2004:
-   extends: .build_only_template_full
-   variables:
-     CC: gcc-7
-     CXX: g++-7
-   tags:
-      - ubuntu2004
+  extends: .build_only_template_full
+  image: $CI_REGISTRY/pub/dockerimages/ubuntu_2004_full:latest
+  variables:
+    CC: gcc-7
+    CXX: g++-7
 
 build_gcc8_ubuntu2004:
-   extends: .build_only_template_full
-   variables:
-     CC: gcc-8
-     CXX: g++-8
-   tags:
-      - ubuntu2004
+  extends: .build_only_template_full
+  image: $CI_REGISTRY/pub/dockerimages/ubuntu_2004_full:latest
+  variables:
+    CC: gcc-8
+    CXX: g++-8
 
 build_gcc9_ubuntu2004:
-   extends: .build_only_template_full
-   variables:
-     CC: gcc-9
-     CXX: g++-9
-   tags:
-      - ubuntu2004
+  extends: .build_only_template_full
+  image: $CI_REGISTRY/pub/dockerimages/ubuntu_2004_full:latest
+  variables:
+    CC: gcc-9
+    CXX: g++-9
 
 build_gcc10_ubuntu2004:
-   extends: .build_only_template
-   variables:
-     CC: gcc-10
-     CXX: g++-10
-   tags:
-      - ubuntu2004
+  extends: .build_only_template_full
+  image: $CI_REGISTRY/pub/dockerimages/ubuntu_2004_full:latest
+  variables:
+    CC: gcc-10
+    CXX: g++-10
+
+build_gcc11_ubuntu2204:
+  extends: .build_only_template_full
+  image: $CI_REGISTRY/pub/dockerimages/ubuntu_2204_full:latest
+  variables:
+    CC: gcc-11
+    CXX: g++-11
+
+build_gcc12_ubuntu2204:
+  extends: .build_only_template
+  image: $CI_REGISTRY/pub/dockerimages/ubuntu_2204_full:latest
+  variables:
+    CC: gcc-12
+    CXX: g++-12
 
 build_clang7_ubuntu2004:
-   extends: .build_only_template_full
-   variables:
-     CC: clang-7
-     CXX: clang++-7
-   tags:
-      - ubuntu2004
+  extends: .build_only_template_full
+  image: $CI_REGISTRY/pub/dockerimages/ubuntu_2004_full:latest
+  variables:
+    CC: clang-7
+    CXX: clang++-7
 
 build_clang8_ubuntu2004:
-   extends: .build_only_template_full
-   variables:
-     CC: clang-8
-     CXX: clang++-8
-   tags:
-      - ubuntu2004
+  extends: .build_only_template_full
+  image: $CI_REGISTRY/pub/dockerimages/ubuntu_2004_full:latest
+  variables:
+    CC: clang-8
+    CXX: clang++-8
 
 build_clang9_ubuntu2004:
-   extends: .build_only_template_full
-   variables:
-     CC: clang-9
-     CXX: clang++-9
-   tags:
-      - ubuntu2004
+  extends: .build_only_template_full
+  image: $CI_REGISTRY/pub/dockerimages/ubuntu_2004_full:latest
+  variables:
+    CC: clang-9
+    CXX: clang++-9
 
 build_clang10_ubuntu2004:
-   extends: .build_only_template_full
-   variables:
-     CC: clang-10
-     CXX: clang++-10
-   tags:
-      - ubuntu2004
+  extends: .build_only_template_full
+  image: $CI_REGISTRY/pub/dockerimages/ubuntu_2004_full:latest
+  variables:
+    CC: clang-10
+    CXX: clang++-10
+
+build_clang11_ubuntu2204:
+  extends: .build_only_template_full
+  image: $CI_REGISTRY/pub/dockerimages/ubuntu_2204_full:latest
+  variables:
+    CC: clang-11
+    CXX: clang++-11
+
+build_clang12_ubuntu2204:
+  extends: .build_only_template_full
+  image: $CI_REGISTRY/pub/dockerimages/ubuntu_2204_full:latest
+  variables:
+    CC: clang-12
+    CXX: clang++-12
+
+build_clang13_ubuntu2204:
+  extends: .build_only_template_full
+  image: $CI_REGISTRY/pub/dockerimages/ubuntu_2204_full:latest
+  variables:
+    CC: clang-13
+    CXX: clang++-13
+
+build_clang14_ubuntu2204:
+  extends: .build_only_template_full
+  image: $CI_REGISTRY/pub/dockerimages/ubuntu_2204_full:latest
+  variables:
+    CC: clang-14
+    CXX: clang++-14
 
 build_mingw_ubuntu2004:
-   extends: .build_only_template_full
-   variables:
-     toolchainfile: cmake/toolchains/x86_64-w64-mingw32-gcc-posix-ubuntu2004.cmake
-   tags:
-      - ubuntu2004
+  extends: .build_only_template_full
+  image: $CI_REGISTRY/pub/dockerimages/ubuntu_2004_full:latest
+  variables:
+    toolchainfile: cmake/toolchains/x86_64-w64-mingw32-gcc-posix-ubuntu2004.cmake
+
+build_ios:
+  extends: .build_only_template_full
+  variables:
+    CONFIG_OPTIONS: -DCMAKE_SYSTEM_NAME=iOS
+    # build only libvvdec:
+    BUILD_TOOL_OPTIONS: "-t vvdec"
+  script:
+    # static build only:
+    - make disable-lto=1 static
+  tags:
+    - macos-arm
 
 
 test_ubuntu1804:
-   extends: .build_test_template
-   tags:
-      - ubuntu1804
+  extends: .build_test_template
+  image: $CI_REGISTRY/pub/dockerimages/ubuntu_1804_dev:latest
 
 test_ubuntu2004:
-   extends: .build_test_template
-   tags:
-      - ubuntu2004
+  extends: .build_test_template
+  image: $CI_REGISTRY/pub/dockerimages/ubuntu_2004_dev:latest
+
+test_ubuntu2204:
+  extends: .build_test_template
+  image: $CI_REGISTRY/pub/dockerimages/ubuntu_2204_dev:latest
 
 test_vc191x:
-   extends: .build_test_msvc_template
-   variables:
-     MSVC_ARCH: x64
-   tags:
-      - vc191x
+  extends: .build_test_msvc_template
+  variables:
+    MSVC_ARCH: x64
+  tags:
+    - vc191x
 
 test_vc192x:
-   extends: .build_test_msvc_template
-   variables:
-     MSVC_ARCH: x64
-   tags:
-      - vc192x
+  extends: .build_test_msvc_template
+  variables:
+    MSVC_ARCH: x64
+  tags:
+    - vc192x
 
 test_vc192x_Win32:
-   extends: .build_test_msvc_template
-   variables:
-     MSVC_ARCH: Win32
-   tags:
-      - vc192x
+  extends: .build_test_msvc_template
+  variables:
+    MSVC_ARCH: Win32
+  tags:
+    - vc192x
 
 test_macos_arm64:
-   extends: .build_test_macos_template
-   variables:
-     OSX_ARCH: arm64
-   tags:
-      - macos-arm
+  extends: .build_test_macos_template
+  variables:
+    OSX_ARCH: arm64
+  tags:
+    - macos-arm
 
 test_macos_x86_64:
-   extends: .build_test_macos_template
-   variables:
-     OSX_ARCH: x86_64
-   tags:
-      - macos
+  extends: .build_test_macos_template
+  variables:
+    OSX_ARCH: x86_64
+  tags:
+    - macos-x86_64
 
 
 .rebuild_docker_image_template:
-   extends: .build_only_template
-   script:
-      - echo -n $CI_REGISTRY_PASSWORD | docker login -u $CI_REGISTRY_USER --password-stdin $CI_REGISTRY
-      - mkdir -p empty_context
-      - if [[ $REBUILD_DOCKER_IMAGE = 1 ]] ; then NO_CACHE_ARG=--no-cache=true ; fi
-      - docker build -t $DOCKER_IMAGE_TAG $NO_CACHE_ARG -f $DOCKERFILE empty_context
-      - docker push $DOCKER_IMAGE_TAG
-   variables:
-      DOCKERFILE: ""
-      DOCKER_IMAGE_TAG: ""
-   tags:
-      - docker-build
-
-rebuild_emscripten_docker_image:
-   extends: .rebuild_docker_image_template
-   variables:
-      DOCKERFILE: ".emscripten.dockerfile"
-      DOCKER_IMAGE_TAG: "$CI_REGISTRY_IMAGE/emscripten-hhi:latest"
+  extends: .build_only_template
+  script:
+    - echo -n $CI_REGISTRY_PASSWORD | docker login -u $CI_REGISTRY_USER --password-stdin $CI_REGISTRY
+    - mkdir -p empty_context
+    - if [[ $REBUILD_DOCKER_IMAGE = 1 ]] ; then NO_CACHE_ARG=--no-cache=true ; fi
+    - docker build -t $DOCKER_IMAGE_TAG $NO_CACHE_ARG -f $DOCKERFILE empty_context
+    - docker push $DOCKER_IMAGE_TAG
+  variables:
+    DOCKERFILE: ""
+    DOCKER_IMAGE_TAG: ""
+  tags:
+    - docker-build
 
 rebuild_selenium_docker_image:
-   extends: .rebuild_docker_image_template
-   variables:
-      DOCKERFILE: ".selenium.dockerfile"
-      DOCKER_IMAGE_TAG: "$CI_REGISTRY_IMAGE/selenium-debian:bullseye"
-
+  extends: .rebuild_docker_image_template
+  variables:
+    DOCKERFILE: ".selenium.dockerfile"
+    DOCKER_IMAGE_TAG: "$CI_REGISTRY_IMAGE/selenium-debian:bullseye"
+  rules:
+    - if: '$CI_PROJECT_PATH == "git/vvdec"'
 
 test_wasm:
-   extends: .build_test_template
-   image: $CI_REGISTRY_IMAGE/selenium-debian:bullseye
-   script:
-     - source /opt/emsdk/emsdk_env.sh
-     - emcc --version
-     - emcmake cmake -GNinja -B build/wasm -DVVDEC_ENABLE_X86_SIMD=TRUE  -DVVDEC_ENABLE_BITSTREAM_DOWNLOAD=ON -DVVDEC_ENABLE_LOCAL_BITSTREAM_DOWNLOAD=ON
-     - cmake --build build/wasm
-     - cmake --build build/wasm -t install
-     - python3 tests/wasm/wasm_test-server.py &
-     - python3 tests/wasm/run_tests.py
-   needs:
-     - job: rebuild_selenium_docker_image
-       optional: true
-   artifacts:
-      name: "vvdec-wasm"
-      paths:
-        - install/
-   tags:
-     - docker
+  extends: .build_test_template
+  image: $CI_REGISTRY/git/vvdec/selenium-debian:bullseye
+  script:
+    - source /opt/emsdk/emsdk_env.sh
+    - emcc --version
+    - emcmake cmake -GNinja -B build/wasm -DVVDEC_ENABLE_X86_SIMD=TRUE -DVVDEC_ENABLE_BITSTREAM_DOWNLOAD=ON -DVVDEC_ENABLE_LOCAL_BITSTREAM_DOWNLOAD=ON
+    - cmake --build build/wasm
+    - cmake --build build/wasm -t install
+    - python3 tests/wasm/wasm_test-server.py &
+    - python3 tests/wasm/run_tests.py
+  artifacts:
+    name: "vvdec-wasm"
+    paths:
+      - install/

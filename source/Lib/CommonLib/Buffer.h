@@ -88,9 +88,9 @@ struct PelBufferOps
   void ( *fillN_CU )      (       CodingUnit** ptr, ptrdiff_t ptrStride, int width, int height, CodingUnit* cuPtr );
 
   void (*sampleRateConv)  ( const std::pair<int, int> scalingRatio, const std::pair<int, int> compScale,
-                            const Pel* orgSrc, const int orgStride, const int orgWidth, const int orgHeight,
+                            const Pel* orgSrc, const ptrdiff_t orgStride, const int orgWidth, const int orgHeight,
                             const int beforeScaleLeftOffset, const int beforeScaleTopOffset,
-                            Pel* scaledSrc, const int scaledStride, const int scaledWidth, const int scaledHeight,
+                            Pel* scaledSrc, const ptrdiff_t scaledStride, const int scaledWidth, const int scaledHeight,
                             const int afterScaleLeftOffset, const int afterScaleTopOffset,
                             const int bitDepth, const bool useLumaFilter, const bool horCollocatedPositionFlag, const bool verCollocatedPositionFlag );
 };
@@ -120,7 +120,15 @@ struct AreaBuf : public Size
   AreaBuf( T *_buf, const ptrdiff_t &_stride, const Size &size )                                : Size( size ),            buf( _buf ), stride( _stride )    { }
   AreaBuf( T *_buf, const SizeType &_width, const SizeType &_height )                           : Size( _width, _height ), buf( _buf ), stride( _width )     { }
   AreaBuf( T *_buf, const ptrdiff_t &_stride, const SizeType &_width, const SizeType &_height ) : Size( _width, _height ), buf( _buf ), stride( _stride )    { }
-  AreaBuf( const AreaBuf<typename std::remove_const<T>::type >& other )                         : Size( other ),           buf( other.buf ), stride( other.stride ) { }
+
+  AreaBuf( const AreaBuf& )  = default;
+  AreaBuf(       AreaBuf&& ) = default;
+  AreaBuf& operator=( const AreaBuf& )  = default;
+  AreaBuf& operator=(       AreaBuf&& ) = default;
+
+  // conversion from AreaBuf<const T> to AreaBuf<T>
+  template<bool T_IS_CONST = std::is_const<T>::value>
+  AreaBuf( const AreaBuf<typename std::remove_const_t<T>>& other, std::enable_if_t<T_IS_CONST>* = 0) : Size( other ), buf( other.buf ), stride( other.stride ) { }
 
   void fill                 ( const T &val );
   void memset               ( const int val );
@@ -593,10 +601,10 @@ void AreaBuf<T>::extendBorderPel(unsigned margin, bool left, bool right, bool to
 template<typename T>
 void AreaBuf<T>::padBorderPel( unsigned marginX, unsigned marginY, int dir )
 {
-  T*  p = buf;
-  int s = stride;
-  int h = height;
-  int w = width;
+  T*   p = buf;
+  auto s = stride;
+  int  h = height;
+  int  w = width;
 
   CHECK( w  > s, "Size of buffer too small to extend" );
 
@@ -667,7 +675,6 @@ template<typename T>
 struct UnitBuf
 {
   typedef static_vector<AreaBuf<T>,       MAX_NUM_COMPONENT> UnitBufBuffers;
-  typedef static_vector<AreaBuf<const T>, MAX_NUM_COMPONENT> ConstUnitBufBuffers;
 
   ChromaFormat chromaFormat;
   UnitBufBuffers bufs;
@@ -679,14 +686,15 @@ struct UnitBuf
   UnitBuf( const ChromaFormat &_chromaFormat,       AreaBuf<T> &&blkY ) : chromaFormat( _chromaFormat ), bufs{ std::forward<AreaBuf<T> >(blkY) } { }
   UnitBuf( const ChromaFormat &_chromaFormat, const AreaBuf<T>  &blkY, const AreaBuf<T>  &blkCb, const AreaBuf<T>  &blkCr ) : chromaFormat( _chromaFormat ), bufs{ blkY, blkCb, blkCr } { if( chromaFormat == CHROMA_400 ) bufs.resize( 1 ); }
   UnitBuf( const ChromaFormat &_chromaFormat,       AreaBuf<T> &&blkY,       AreaBuf<T> &&blkCb,       AreaBuf<T> &&blkCr ) : chromaFormat( _chromaFormat ), bufs{ std::forward<AreaBuf<T> >(blkY), std::forward<AreaBuf<T> >(blkCb), std::forward<AreaBuf<T> >(blkCr) } { if( chromaFormat == CHROMA_400 ) bufs.resize( 1 ); }
-  UnitBuf( const UnitBuf<typename std::remove_const<T>::type>& other ) : chromaFormat( other.chromaFormat ), bufs{}
-  {
-    // TODO: delete to avoid unneccessary copying
-    for( auto &buf : other.bufs )
-    {
-      bufs.push_back( buf );
-    }
-  }
+
+  UnitBuf( const UnitBuf& other )  = default;
+  UnitBuf(       UnitBuf&& other ) = default;
+  UnitBuf& operator=( const UnitBuf& other )  = default;
+  UnitBuf& operator=(       UnitBuf&& other ) = default;
+
+  // conversion from UnitBuf<const T> to UnitBuf<T>
+  template<bool T_IS_COST = std::is_const<T>::value>
+  UnitBuf( const UnitBuf<typename std::remove_const_t<T>>& other, std::enable_if_t<T_IS_COST>* = 0 ) : chromaFormat( other.chromaFormat ), bufs( other.bufs ) { }
 
         AreaBuf<T>& get( const ComponentID comp )        { return bufs[comp]; }
   const AreaBuf<T>& get( const ComponentID comp )  const { return bufs[comp]; }

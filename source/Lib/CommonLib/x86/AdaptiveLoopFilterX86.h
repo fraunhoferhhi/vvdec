@@ -962,7 +962,7 @@ void simdFilter5x5Blk<AVX2>( const AlfClassifier*,
 }
 
 #endif
-#if 0
+#if !ALF_PRE_TRANSPOSE
 constexpr uint16_t sh(int x)
 {
   return 0x0202 * (x & 7) + 0x0100 + 0x1010 * (x & 8);
@@ -1030,37 +1030,33 @@ static void simdFilter7x7Blk( const AlfClassifier*   classifier,
       for (int k = 0; k < 2; ++k)
       {
         const AlfClassifier &cl = classifier[( i / 4 ) * ( AdaptiveLoopFilter::m_CLASSIFICATION_BLK_SIZE / 4 ) + ( j / 4 ) + k];
-        const short *coef = filterSet + cl.classIdx * MAX_NUM_ALF_LUMA_COEFF + cl.transposeIdx * MAX_NUM_ALF_LUMA_COEFF * MAX_NUM_ALF_CLASSES;
-        const short *clip = fClipSet  + cl.classIdx * MAX_NUM_ALF_LUMA_COEFF + cl.transposeIdx * MAX_NUM_ALF_LUMA_COEFF * MAX_NUM_ALF_CLASSES;
 
-#if 0
+#if !ALF_PRE_TRANSPOSE
         const int transposeIdx = cl.transposeIdx;
         const int classIdx     = cl.classIdx;
 
         static_assert(sizeof(*filterSet) == 2, "ALF coeffs must be 16-bit wide");
 
-        __m128i rawCoeff0, rawCoeff1;
+        const __m128i rawCoeff0 = _mm_loadu_si128( ( const __m128i * ) ( filterSet + classIdx * MAX_NUM_ALF_LUMA_COEFF ) );
+        const __m128i rawCoeff1 = _mm_loadl_epi64( ( const __m128i * ) ( filterSet + classIdx * MAX_NUM_ALF_LUMA_COEFF + 8 ) );
 
-        if (isPCMFilterDisabled && classIdx == AdaptiveLoopFilter::m_ALF_UNUSED_CLASSIDX
-            && transposeIdx == AdaptiveLoopFilter::m_ALF_UNUSED_TRANSPOSIDX)
-        {
-          rawCoeff0 = _mm_setzero_si128();
-          rawCoeff1 = _mm_setzero_si128();
-        }
-        else
-        {
-          rawCoeff0 = _mm_loadu_si128((const __m128i *) (filterSet + classIdx * MAX_NUM_ALF_LUMA_COEFF));
-          rawCoeff1 = _mm_loadl_epi64((const __m128i *) (filterSet + classIdx * MAX_NUM_ALF_LUMA_COEFF + 8));
-        }
+        const __m128i rawClip0 = _mm_loadu_si128( ( const __m128i * ) ( fClipSet + classIdx * MAX_NUM_ALF_LUMA_COEFF ) );
+        const __m128i rawClip1 = _mm_loadl_epi64( ( const __m128i * ) ( fClipSet + classIdx * MAX_NUM_ALF_LUMA_COEFF + 8 ) );
 
-        const __m128i s0 = _mm_loadu_si128((const __m128i *) shuffleTab[transposeIdx][0]);
-        const __m128i s1 = _mm_xor_si128(s0, _mm_set1_epi8((char)0x80));
-        const __m128i s2 = _mm_loadu_si128((const __m128i *) shuffleTab[transposeIdx][1]);
-        const __m128i s3 = _mm_xor_si128(s2, _mm_set1_epi8((char)0x80));
+        const __m128i s0 = _mm_loadu_si128( ( const __m128i * ) shuffleTab[transposeIdx][0] );
+        const __m128i s1 = _mm_xor_si128  ( s0, _mm_set1_epi8( -128 ) );
+        const __m128i s2 = _mm_loadu_si128( ( const __m128i * ) shuffleTab[transposeIdx][1] );
+        const __m128i s3 = _mm_xor_si128  ( s2, _mm_set1_epi8( -128 ) );
 
-        const __m128i rawCoeffLo = _mm_or_si128(_mm_shuffle_epi8(rawCoeff0, s0), _mm_shuffle_epi8(rawCoeff1, s1));
-        const __m128i rawCoeffHi = _mm_or_si128(_mm_shuffle_epi8(rawCoeff0, s2), _mm_shuffle_epi8(rawCoeff1, s3));
+        const __m128i rawCoeffLo = _mm_or_si128( _mm_shuffle_epi8( rawCoeff0, s0 ), _mm_shuffle_epi8( rawCoeff1, s1 ) );
+        const __m128i rawCoeffHi = _mm_or_si128( _mm_shuffle_epi8( rawCoeff0, s2 ), _mm_shuffle_epi8( rawCoeff1, s3 ) );
+
+        const __m128i rawClipLo = _mm_or_si128( _mm_shuffle_epi8( rawClip0, s0 ), _mm_shuffle_epi8( rawClip1, s1 ) );
+        const __m128i rawClipHi = _mm_or_si128( _mm_shuffle_epi8( rawClip0, s2 ), _mm_shuffle_epi8( rawClip1, s3 ) );
 #else
+        const short *coef = filterSet + cl.classIdx * MAX_NUM_ALF_LUMA_COEFF + cl.transposeIdx * MAX_NUM_ALF_LUMA_COEFF * MAX_NUM_ALF_CLASSES;
+        const short *clip = fClipSet  + cl.classIdx * MAX_NUM_ALF_LUMA_COEFF + cl.transposeIdx * MAX_NUM_ALF_LUMA_COEFF * MAX_NUM_ALF_CLASSES;
+
         const __m128i rawCoeffLo = _mm_loadu_si128( ( const __m128i * ) ( coef ) );
         const __m128i rawCoeffHi = _mm_loadl_epi64( ( const __m128i * ) ( coef + 8 ) );
         const __m128i rawClipLo  = _mm_loadu_si128( ( const __m128i * ) ( clip ) );
@@ -1207,6 +1203,7 @@ static void simdFilter7x7Blk( const AlfClassifier*   classifier,
 }
 
 #if USE_AVX2
+
 template<>
 void simdFilter7x7Blk<AVX2>( const AlfClassifier* classifier,
                              const PelUnitBuf&    recDst,
@@ -1252,45 +1249,93 @@ void simdFilter7x7Blk<AVX2>( const AlfClassifier* classifier,
   {
     for (size_t j = 0; j < width; j += STEP_X)
     {
-      for (int k = 0; k < 2; ++k)
+#if 0
+      const AlfClassifier *lhs = &classifier[( i / 4 ) * ( AdaptiveLoopFilter::m_CLASSIFICATION_BLK_SIZE / 4 ) + ( j / 4 ) - 4];
+      const AlfClassifier *rhs = &classifier[( i / 4 ) * ( AdaptiveLoopFilter::m_CLASSIFICATION_BLK_SIZE / 4 ) + ( j / 4 )];
+
+      if( !j || !!memcmp( lhs, rhs, sizeof( AlfClassifier ) * 4 ) )
+#endif
       {
-        const AlfClassifier &cl0 = classifier[( i / 4 ) * ( AdaptiveLoopFilter::m_CLASSIFICATION_BLK_SIZE / 4 ) + ( j / 4 ) + k];
-        const short *coef0 = filterSet + cl0.classIdx * MAX_NUM_ALF_LUMA_COEFF + cl0.transposeIdx * MAX_NUM_ALF_LUMA_COEFF * MAX_NUM_ALF_CLASSES;
-        const short *clip0 = fClipSet  + cl0.classIdx * MAX_NUM_ALF_LUMA_COEFF + cl0.transposeIdx * MAX_NUM_ALF_LUMA_COEFF * MAX_NUM_ALF_CLASSES;
+        for (int k = 0; k < 2; ++k)
+        {
+          const AlfClassifier &cl0 = classifier[( i / 4 ) * ( AdaptiveLoopFilter::m_CLASSIFICATION_BLK_SIZE / 4 ) + ( j / 4 ) + k];
+          const AlfClassifier &cl1 = classifier[( i / 4 ) * ( AdaptiveLoopFilter::m_CLASSIFICATION_BLK_SIZE / 4 ) + ( j / 4 ) + k + 2];
+#if !ALF_PRE_TRANSPOSE
+          const int transposeIdx0 = cl0.transposeIdx;
+          const int classIdx0     = cl0.classIdx;
 
-        const __m128i rawCoeffLo0 = _mm_loadu_si128( ( const __m128i * ) ( coef0 ) );
-        const __m128i rawCoeffHi0 = _mm_loadl_epi64( ( const __m128i * ) ( coef0 + 8 ) );
-        const __m128i rawClipLo0  = _mm_loadu_si128( ( const __m128i * ) ( clip0 ) );
-        const __m128i rawClipHi0  = _mm_loadl_epi64( ( const __m128i * ) ( clip0 + 8 ) );
+          const int transposeIdx1 = cl1.transposeIdx;
+          const int classIdx1     = cl1.classIdx;
+
+          static_assert(sizeof(*filterSet) == 2, "ALF coeffs must be 16-bit wide");
+
+          const __m128i rawCoeff00 = _mm_loadu_si128( ( const __m128i * ) ( filterSet + classIdx0 * MAX_NUM_ALF_LUMA_COEFF ) );
+          const __m128i rawCoeff01 = _mm_loadl_epi64( ( const __m128i * ) ( filterSet + classIdx0 * MAX_NUM_ALF_LUMA_COEFF + 8 ) );
+          
+          const __m128i rawClip00 = _mm_loadu_si128( ( const __m128i * ) ( fClipSet + classIdx0 * MAX_NUM_ALF_LUMA_COEFF ) );
+          const __m128i rawClip01 = _mm_loadl_epi64( ( const __m128i * ) ( fClipSet + classIdx0 * MAX_NUM_ALF_LUMA_COEFF + 8 ) );
+          
+          const __m128i rawCoeff10 = _mm_loadu_si128( ( const __m128i * ) ( filterSet + classIdx1 * MAX_NUM_ALF_LUMA_COEFF ) );
+          const __m128i rawCoeff11 = _mm_loadl_epi64( ( const __m128i * ) ( filterSet + classIdx1 * MAX_NUM_ALF_LUMA_COEFF + 8 ) );
+          
+          const __m128i rawClip10 = _mm_loadu_si128( ( const __m128i * ) ( fClipSet + classIdx1 * MAX_NUM_ALF_LUMA_COEFF ) );
+          const __m128i rawClip11 = _mm_loadl_epi64( ( const __m128i * ) ( fClipSet + classIdx1 * MAX_NUM_ALF_LUMA_COEFF + 8 ) );
+
+          const __m256i rawCoeff0 = _mm256_inserti128_si256( _mm256_castsi128_si256( rawCoeff00 ), rawCoeff10, 1 );
+          const __m256i rawCoeff1 = _mm256_inserti128_si256( _mm256_castsi128_si256( rawCoeff01 ), rawCoeff11, 1 );
+
+          const __m256i rawClip0 = _mm256_inserti128_si256( _mm256_castsi128_si256( rawClip00 ), rawClip10, 1 );
+          const __m256i rawClip1 = _mm256_inserti128_si256( _mm256_castsi128_si256( rawClip01 ), rawClip11, 1 );
+          
+          const __m256i s0 = _mm256_loadu2_m128i( ( const __m128i * ) shuffleTab[transposeIdx0][0], ( const __m128i * ) shuffleTab[transposeIdx1][0] );
+          const __m256i s2 = _mm256_loadu2_m128i( ( const __m128i * ) shuffleTab[transposeIdx0][1], ( const __m128i * ) shuffleTab[transposeIdx1][1] );
+
+          const __m256i s1 = _mm256_xor_si256  ( s0, _mm256_set1_epi8( -128 ) );
+          const __m256i s3 = _mm256_xor_si256  ( s2, _mm256_set1_epi8( -128 ) );
+
+          const __m256i rawCoeffLo = _mm256_or_si256( _mm256_shuffle_epi8( rawCoeff0, s0 ), _mm256_shuffle_epi8( rawCoeff1, s1 ) );
+          const __m256i rawCoeffHi = _mm256_or_si256( _mm256_shuffle_epi8( rawCoeff0, s2 ), _mm256_shuffle_epi8( rawCoeff1, s3 ) );
+
+          const __m256i rawClipLo = _mm256_or_si256( _mm256_shuffle_epi8( rawClip0, s0 ), _mm256_shuffle_epi8( rawClip1, s1 ) );
+          const __m256i rawClipHi = _mm256_or_si256( _mm256_shuffle_epi8( rawClip0, s2 ), _mm256_shuffle_epi8( rawClip1, s3 ) );
+#else
+          const short *coef0 = filterSet + cl0.classIdx * MAX_NUM_ALF_LUMA_COEFF + cl0.transposeIdx * MAX_NUM_ALF_LUMA_COEFF * MAX_NUM_ALF_CLASSES;
+          const short *clip0 = fClipSet  + cl0.classIdx * MAX_NUM_ALF_LUMA_COEFF + cl0.transposeIdx * MAX_NUM_ALF_LUMA_COEFF * MAX_NUM_ALF_CLASSES;
+
+          const __m128i rawCoeffLo0 = _mm_loadu_si128( ( const __m128i * ) ( coef0 ) );
+          const __m128i rawCoeffHi0 = _mm_loadl_epi64( ( const __m128i * ) ( coef0 + 8 ) );
+          const __m128i rawClipLo0  = _mm_loadu_si128( ( const __m128i * ) ( clip0 ) );
+          const __m128i rawClipHi0  = _mm_loadl_epi64( ( const __m128i * ) ( clip0 + 8 ) );
         
-        const AlfClassifier &cl1 = classifier[( i / 4 ) * ( AdaptiveLoopFilter::m_CLASSIFICATION_BLK_SIZE / 4 ) + ( j / 4 ) + k + 2];
-        const short *coef1 = filterSet + cl1.classIdx * MAX_NUM_ALF_LUMA_COEFF + cl1.transposeIdx * MAX_NUM_ALF_LUMA_COEFF * MAX_NUM_ALF_CLASSES;
-        const short *clip1 = fClipSet  + cl1.classIdx * MAX_NUM_ALF_LUMA_COEFF + cl1.transposeIdx * MAX_NUM_ALF_LUMA_COEFF * MAX_NUM_ALF_CLASSES;
+          const short *coef1 = filterSet + cl1.classIdx * MAX_NUM_ALF_LUMA_COEFF + cl1.transposeIdx * MAX_NUM_ALF_LUMA_COEFF * MAX_NUM_ALF_CLASSES;
+          const short *clip1 = fClipSet  + cl1.classIdx * MAX_NUM_ALF_LUMA_COEFF + cl1.transposeIdx * MAX_NUM_ALF_LUMA_COEFF * MAX_NUM_ALF_CLASSES;
 
-        const __m128i rawCoeffLo1 = _mm_loadu_si128( ( const __m128i * ) ( coef1 ) );
-        const __m128i rawCoeffHi1 = _mm_loadl_epi64( ( const __m128i * ) ( coef1 + 8 ) );
-        const __m128i rawClipLo1  = _mm_loadu_si128( ( const __m128i * ) ( clip1 ) );
-        const __m128i rawClipHi1  = _mm_loadl_epi64( ( const __m128i * ) ( clip1 + 8 ) );
+          const __m128i rawCoeffLo1 = _mm_loadu_si128( ( const __m128i * ) ( coef1 ) );
+          const __m128i rawCoeffHi1 = _mm_loadl_epi64( ( const __m128i * ) ( coef1 + 8 ) );
+          const __m128i rawClipLo1  = _mm_loadu_si128( ( const __m128i * ) ( clip1 ) );
+          const __m128i rawClipHi1  = _mm_loadl_epi64( ( const __m128i * ) ( clip1 + 8 ) );
 
-        const __m256i rawCoeffLo = _mm256_inserti128_si256( _mm256_castsi128_si256( rawCoeffLo0 ), rawCoeffLo1, 1 );
-        const __m256i rawCoeffHi = _mm256_inserti128_si256( _mm256_castsi128_si256( rawCoeffHi0 ), rawCoeffHi1, 1 );
+          const __m256i rawCoeffLo = _mm256_inserti128_si256( _mm256_castsi128_si256( rawCoeffLo0 ), rawCoeffLo1, 1 );
+          const __m256i rawCoeffHi = _mm256_inserti128_si256( _mm256_castsi128_si256( rawCoeffHi0 ), rawCoeffHi1, 1 );
 
-        const __m256i rawClipLo = _mm256_inserti128_si256( _mm256_castsi128_si256( rawClipLo0 ), rawClipLo1, 1 );
-        const __m256i rawClipHi = _mm256_inserti128_si256( _mm256_castsi128_si256( rawClipHi0 ), rawClipHi1, 1 );
+          const __m256i rawClipLo = _mm256_inserti128_si256( _mm256_castsi128_si256( rawClipLo0 ), rawClipLo1, 1 );
+          const __m256i rawClipHi = _mm256_inserti128_si256( _mm256_castsi128_si256( rawClipHi0 ), rawClipHi1, 1 );
+#endif
 
-        params[k][0][0] = _mm256_shuffle_epi32( rawCoeffLo, 0x00 );
-        params[k][0][1] = _mm256_shuffle_epi32( rawCoeffLo, 0x55 );
-        params[k][0][2] = _mm256_shuffle_epi32( rawCoeffLo, 0xaa );
-        params[k][0][3] = _mm256_shuffle_epi32( rawCoeffLo, 0xff );
-        params[k][0][4] = _mm256_shuffle_epi32( rawCoeffHi, 0x00 );
-        params[k][0][5] = _mm256_shuffle_epi32( rawCoeffHi, 0x55 );
+          params[k][0][0] = _mm256_shuffle_epi32( rawCoeffLo, 0x00 );
+          params[k][0][1] = _mm256_shuffle_epi32( rawCoeffLo, 0x55 );
+          params[k][0][2] = _mm256_shuffle_epi32( rawCoeffLo, 0xaa );
+          params[k][0][3] = _mm256_shuffle_epi32( rawCoeffLo, 0xff );
+          params[k][0][4] = _mm256_shuffle_epi32( rawCoeffHi, 0x00 );
+          params[k][0][5] = _mm256_shuffle_epi32( rawCoeffHi, 0x55 );
 
-        params[k][1][0] = _mm256_shuffle_epi32( rawClipLo, 0x00 );
-        params[k][1][1] = _mm256_shuffle_epi32( rawClipLo, 0x55 );
-        params[k][1][2] = _mm256_shuffle_epi32( rawClipLo, 0xaa );
-        params[k][1][3] = _mm256_shuffle_epi32( rawClipLo, 0xff );
-        params[k][1][4] = _mm256_shuffle_epi32( rawClipHi, 0x00 );
-        params[k][1][5] = _mm256_shuffle_epi32( rawClipHi, 0x55 );
+          params[k][1][0] = _mm256_shuffle_epi32( rawClipLo, 0x00 );
+          params[k][1][1] = _mm256_shuffle_epi32( rawClipLo, 0x55 );
+          params[k][1][2] = _mm256_shuffle_epi32( rawClipLo, 0xaa );
+          params[k][1][3] = _mm256_shuffle_epi32( rawClipLo, 0xff );
+          params[k][1][4] = _mm256_shuffle_epi32( rawClipHi, 0x00 );
+          params[k][1][5] = _mm256_shuffle_epi32( rawClipHi, 0x55 );
+        }
       }
 
       {
