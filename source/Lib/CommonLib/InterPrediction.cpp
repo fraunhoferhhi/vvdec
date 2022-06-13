@@ -1704,7 +1704,7 @@ void InterPrediction::xBIPMVRefine( DistParam &cDistParam, const Pel *pRefL0, co
     cDistParam.distFuncX5(cDistParam, pSADsArray, ver != 0);
 
     for (int hor = -2; hor <= 2; hor++, pSADsArray++) {
-      uint64_t cost = *pSADsArray;
+      Distortion cost = *pSADsArray;
 
       if (cost < minCost) {
         minCost = cost;

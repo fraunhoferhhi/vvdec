@@ -1267,9 +1267,9 @@ void fillN_CU_SIMD( CodingUnit** ptr, ptrdiff_t ptrStride, int width, int height
 
 template<X86_VEXT vext>
 void sampleRateConvSIMD_8tap( const std::pair<int, int> scalingRatio, const std::pair<int, int> compScale,
-                              const Pel* orgSrc, const int orgStride, const int orgWidth, const int orgHeight,
+                              const Pel* orgSrc, const ptrdiff_t orgStride, const int orgWidth, const int orgHeight,
                               const int beforeScaleLeftOffset, const int beforeScaleTopOffset,
-                              Pel* scaledSrc, const int scaledStride, const int scaledWidth, const int scaledHeight,
+                              Pel* scaledSrc, const ptrdiff_t scaledStride, const int scaledWidth, const int scaledHeight,
                               const int afterScaleLeftOffset, const int afterScaleTopOffset,
                               const int bitDepth )
 {
@@ -1536,9 +1536,9 @@ void sampleRateConvSIMD_8tap( const std::pair<int, int> scalingRatio, const std:
 
 template<X86_VEXT vext>
 void sampleRateConvSIMD_4tap( const std::pair<int, int> scalingRatio, const std::pair<int, int> compScale,
-                              const Pel* orgSrc, const int orgStride, const int orgWidth, const int orgHeight,
+                              const Pel* orgSrc, const ptrdiff_t orgStride, const int orgWidth, const int orgHeight,
                               const int beforeScaleLeftOffset, const int beforeScaleTopOffset,
-                              Pel* scaledSrc, const int scaledStride, const int scaledWidth, const int scaledHeight,
+                              Pel* scaledSrc, const ptrdiff_t scaledStride, const int scaledWidth, const int scaledHeight,
                               const int afterScaleLeftOffset, const int afterScaleTopOffset,
                               const int bitDepth,
                               const bool horCollocatedPositionFlag, const bool verCollocatedPositionFlag )
@@ -1732,9 +1732,9 @@ void sampleRateConvSIMD_4tap( const std::pair<int, int> scalingRatio, const std:
 
 template<X86_VEXT vext>
 void sampleRateConvSIMD( const std::pair<int, int> scalingRatio, const std::pair<int, int> compScale,
-                         const Pel* orgSrc, const int orgStride, const int orgWidth, const int orgHeight,
+                         const Pel* orgSrc, const ptrdiff_t orgStride, const int orgWidth, const int orgHeight,
                          const int beforeScaleLeftOffset, const int beforeScaleTopOffset,
-                         Pel* scaledSrc, const int scaledStride, const int scaledWidth, const int scaledHeight,
+                         Pel* scaledSrc, const ptrdiff_t scaledStride, const int scaledWidth, const int scaledHeight,
                          const int afterScaleLeftOffset, const int afterScaleTopOffset,
                          const int bitDepth, const bool useLumaFilter,
                          const bool horCollocatedPositionFlag, const bool verCollocatedPositionFlag )

@@ -182,7 +182,7 @@ private:
    int xHandleOutput( Picture* pcPic );
    bool isFrameConverted( vvdecFrame* frame );
 
-   static int copyComp( const unsigned char* pucSrc, unsigned char* pucDest, unsigned int uiWidth, unsigned int uiHeight, int iStrideSrc, int iStrideDest, int iBytesPerSample );
+   static int copyComp( const unsigned char* pucSrc, unsigned char* pucDest, unsigned int uiWidth, unsigned int uiHeight, ptrdiff_t iStrideSrc, ptrdiff_t iStrideDest, int iBytesPerSample );
 
    void vvdec_picAttributes_default(vvdecPicAttributes *attributes);
    void vvdec_frame_default(vvdecFrame *frame);

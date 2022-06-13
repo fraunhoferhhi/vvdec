@@ -217,7 +217,7 @@ void DecCu::TaskFinishMotionInfo( CodingStructure &cs, const int ctuRsAddr, cons
 
   CtuData &ctuData = cs.getCtuData( ctuRsAddr );
 
-  const int size4x4 = cs.get4x4MapStride();
+  const int size4x4 = (int)cs.get4x4MapStride();
 
   const MotionInfo          *src = ctuData.motion;
         ColocatedMotionInfo *dst = ctuData.colMotion;
@@ -300,14 +300,21 @@ void DecCu::predAndReco( CodingUnit& cu, bool doCiipIntra )
         {
           PROFILER_SCOPE_AND_STAGE_EXT( 1, g_timeProfiler, P_INTRAPRED, cs, compID );
 
-          if( chType == CHANNEL_TYPE_LUMA )
+          if( cu.planeCbf( compID ) )
           {
-            Position pos = Position( tu.Y().x - cu.lumaPos().x, tu.Y().y - cu.lumaPos().y );
-            piPred = cs.getPredBuf( cu ).Y().subBuf( pos, tu.lumaSize() );
+            if( chType == CHANNEL_TYPE_LUMA )
+            {
+              Position pos = Position( tu.Y().x - cu.lumaPos().x, tu.Y().y - cu.lumaPos().y );
+              piPred = cs.getPredBuf( cu ).Y().subBuf( pos, tu.lumaSize() );
+            }
+            else
+            {
+              piPred = cs.getPredBuf( cu ).Cb().subBuf( Position( 0, 0 ), tu.chromaSize() );
+            }
           }
           else
           {
-            piPred = cs.getPredBuf( cu ).Cb().subBuf( Position( 0, 0 ), tu.chromaSize() );
+            piPred = cs.getRecoBuf( area );
           }
 
           const PredictionUnit &pu      = cu;
@@ -394,7 +401,7 @@ void DecCu::predAndReco( CodingUnit& cu, bool doCiipIntra )
         {
           piReco.reconstruct( piPred, piResi, slice.clpRng( compID ) );
         }
-        else
+        else if( cu.planeCbf( compID ) )
         {
           piReco.copyFrom( piPred );
         }

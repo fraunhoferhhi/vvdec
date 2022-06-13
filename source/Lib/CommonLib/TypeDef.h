@@ -86,6 +86,8 @@ namespace vvdec
 
 #define TBC                                               0
 
+#define ALF_PRE_TRANSPOSE                                 1
+
 #define JVET_R0270                                        TBC // JVET-S0270: Treating picture with mixed RASL and RADL slices as RASL picture
 #define JVET_S0155_EOS_NALU_CHECK                         TBC // JVET-S0155: Constraints on EOS NAL units
 
@@ -798,7 +800,7 @@ template<typename T, size_t N>
 class static_vector
 {
   T _arr[ N ];
-  size_t _size;
+  size_t _size = 0;
 
 public:
 
@@ -814,11 +816,20 @@ public:
 
   static const size_type max_num_elements = N;
 
-  static_vector() : _size( 0 )                                 { }
+  static_vector()                                        = default;
+  static_vector( const static_vector<T, N>& )            = default;
+  static_vector( static_vector<T, N>&& )                 = default;
+  static_vector& operator=( const static_vector<T, N>& ) = default;
+  static_vector& operator=( static_vector<T, N>&& )      = default;
+
   static_vector( size_t N_ ) : _size( N_ )                     { CHECKD( _size > N, "capacity exceeded" ); }
   static_vector( size_t N_, const T& _val ) : _size( 0 )       { resize( N_, _val ); }
   template<typename It>
   static_vector( It _it1, It _it2 ) : _size( 0 )               { while( _it1 < _it2 ) _arr[ _size++ ] = *_it1++; }
+  template<typename Iterable,
+           typename IS_ITERABLE = decltype( std::cbegin( std::declval<Iterable>() ), std::cend( std::declval<Iterable>() ) )>
+  explicit static_vector( const Iterable& iterable ) : _size( 0 ) { for( auto& e: iterable ) { push_back( e ); } }
+
   static_vector( std::initializer_list<T> _il ) : _size( 0 )
   {
     typename std::initializer_list<T>::iterator _src1 = _il.begin();
@@ -921,8 +932,13 @@ struct AlfSliceParam
   bool             lumaCoeffSummed = false;
   bool             lumaFinalDone   = false;
   bool             chrmFinalDone   = false;
+#if ALF_PRE_TRANSPOSE
   short            lumaCoeffFinal     [MAX_NUM_ALF_TRANSPOSE_ID * MAX_NUM_ALF_CLASSES * MAX_NUM_ALF_LUMA_COEFF];
   short            lumaClippFinal     [MAX_NUM_ALF_TRANSPOSE_ID * MAX_NUM_ALF_CLASSES * MAX_NUM_ALF_LUMA_COEFF];
+#else
+  short            lumaCoeffFinal     [MAX_NUM_ALF_CLASSES * MAX_NUM_ALF_LUMA_COEFF];
+  short            lumaClippFinal     [MAX_NUM_ALF_CLASSES * MAX_NUM_ALF_LUMA_COEFF];
+#endif
   short            chrmClippFinal     [MAX_NUM_ALF_ALTERNATIVES_CHROMA * MAX_NUM_ALF_CHROMA_COEFF];
   int              tLayer;
   bool             newFilterFlag      [MAX_NUM_CHANNEL_TYPE];

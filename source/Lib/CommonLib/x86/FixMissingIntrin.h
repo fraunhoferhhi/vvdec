@@ -94,6 +94,15 @@ static inline __m128i _mm_loadu_si64( const void* p )
 static inline void _mm256_zeroupper() {}  // NOOP
 #endif
 
+#ifdef MISSING_INTRIN_mm256_loadu2_m128i
+#if USE_AVX2
+static inline __m256i _mm256_loadu2_m128i( __m128i const* hiaddr, __m128i const* loaddr )
+{
+  return _mm256_inserti128_si256( _mm256_castsi128_si256( _mm_loadu_si128( hiaddr ) ), _mm_loadu_si128( loaddr ), 1 );
+}
+#endif
+#endif
+
 }   // namespace vvdec
 
 #endif   // TARGET_SIMD_X86

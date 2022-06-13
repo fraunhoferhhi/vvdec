@@ -53,9 +53,9 @@ namespace vvdec
 {
 
 #define OUTPUT(...) { sprintf( cStr, __VA_ARGS__ ); m_str << cStr; }
-#define OUTSTR( _w, ... ) { m_str << std::setw( _w ) << __VA_ARGS__; }
-#define OUTSTRC( _w, _c ) { m_str << std::setfill( _c ) << std::setw( _w  ) << _c << std::setfill( ' ' ); }
-#define OUTSTRF( _w, _p, ... ) { m_str << std::fixed << std::setw( _w ) << std::setprecision(_p) << __VA_ARGS__; }
+#define OUTSTR( _w, ... ) { m_str << std::setw( (int)_w ) << __VA_ARGS__; }
+#define OUTSTRC( _w, _c ) { m_str << std::setfill( _c ) << std::setw( (int)_w  ) << _c << std::setfill( ' ' ); }
+#define OUTSTRF( _w, _p, ... ) { m_str << std::fixed << std::setw( (int)_w ) << std::setprecision(_p) << __VA_ARGS__; }
 #define OUTPUT_COND_SIZE_IDX(_stype,_idx,...) { sprintf( cStr, __VA_ARGS__ ); m_str << cStr; }
 #define MIN_SIZE_IDX 2
 #define IDX_TO_SIZE(_i) (1<<_i)

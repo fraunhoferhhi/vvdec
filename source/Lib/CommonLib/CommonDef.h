@@ -561,13 +561,13 @@ static inline unsigned int bit_scan_reverse( int a )
 #endif
 
 #if ENABLE_SIMD_LOG2
-static inline int getLog2( long val )
+static inline int getLog2( int val )
 {
   return bit_scan_reverse( val );
 }
 #else
 extern int8_t g_aucLog2[MAX_CU_SIZE + 1];
-static inline int getLog2( long val )
+static inline int getLog2( int val )
 {
   CHECKD( g_aucLog2[2] != 1, "g_aucLog2[] has not been initialized yet." );
   if( val > 0 && val < (int) sizeof( g_aucLog2 ) )

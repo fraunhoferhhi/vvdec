@@ -215,7 +215,7 @@ static int readBitstreamFromFile( std::ifstream *f, vvdecAccessUnit* pcAccessUni
   unsigned char* pBuf = pcAccessUnit->payload;
   pcAccessUnit->payloadUsedSize = 0;
 
-  int curfilpos = f->tellg();
+  auto curfilpos = f->tellg();
   if( curfilpos < 0 )
   {
     if( bLoop )

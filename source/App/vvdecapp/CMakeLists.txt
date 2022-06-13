@@ -34,4 +34,6 @@ source_group( "Header Files"   FILES ${INC_FILES} )
 source_group( "Resource Files" FILES ${RESOURCE_FILE} )
 
 # set the folder where to place the projects
-set_target_properties( ${EXE_NAME}  PROPERTIES FOLDER app )
+set_target_properties( ${EXE_NAME} PROPERTIES
+    FOLDER app
+    XCODE_ATTRIBUTE_PRODUCT_BUNDLE_IDENTIFIER de.fraunhofer.hhi.vvdec )

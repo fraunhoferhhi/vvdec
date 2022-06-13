@@ -132,7 +132,7 @@ extern const TMatrixCoeff g_trCoreDST7P8 [  8][  8];
 extern const TMatrixCoeff g_trCoreDST7P16[ 16][ 16];
 extern const TMatrixCoeff g_trCoreDST7P32[ 32][ 32];
 
-extern const     int8_t   g_lfnst8x8[ 4 ][ 2 ][ 16 ][ 48 ];
+extern const     int8_t   g_lfnst8x8[ 4 ][ 2 ][ 48 ][ 16 ];
 extern const     int8_t   g_lfnst4x4[ 4 ][ 2 ][ 16 ][ 16 ];
 
 extern const     uint8_t  g_lfnstLut[ NUM_INTRA_MODE + NUM_EXT_LUMA_MODE - 1 ];

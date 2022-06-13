@@ -429,7 +429,7 @@ static inline void xFilteringPandQX86Hor( Pel* src, ptrdiff_t step, const ptrdif
 
       int newNumberQSide = numberQSide;
       int newNumberPSide = numberPSide;
-      int offsett = offset;
+      ptrdiff_t offsett = offset;
 
       if( numberQSide > numberPSide )
       {

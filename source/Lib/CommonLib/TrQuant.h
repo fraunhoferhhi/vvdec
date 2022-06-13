@@ -109,6 +109,7 @@ private:
   static const int maxAbsIctMode = 3;
   void   (*m_invICTMem[1+2*maxAbsIctMode])(PelBuf&,PelBuf&);
   void  (**m_invICT)(PelBuf&,PelBuf&);
+  void ( *m_invLfnstNxN )( int* src, int* dst, const uint32_t mode, const uint32_t index, const uint32_t size, int zeroOutSize );
 
   // dequantization
   void xDeQuant( const TransformUnit &tu,
