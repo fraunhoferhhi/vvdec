@@ -408,7 +408,7 @@ void AreaBuf<T>::copyFrom( const AreaBuf<const T> &other ) const
 
   if( ptrdiff_t( width ) == stride && stride == other.stride )
   {
-    memcpy( buf, other.buf, width * height * sizeof( T ) );
+    ::memcpy( (void*)buf, other.buf, width * height * sizeof( T ) );
   }
   else
   {
@@ -418,7 +418,7 @@ void AreaBuf<T>::copyFrom( const AreaBuf<const T> &other ) const
 
     for( unsigned y = 0; y < height; y++ )
     {
-      memcpy( dst, src, width * sizeof( T ) );
+      ::memcpy( (void*)dst, src, width * sizeof( T ) );
 
       dst += stride;
       src += srcStride;
