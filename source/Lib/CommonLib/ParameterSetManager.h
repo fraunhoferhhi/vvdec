@@ -166,7 +166,7 @@ public:
   ~ParameterSetManager() = default;
 
   void           storeVPS( VPS *vps, const std::vector<uint8_t> &naluData )        { m_vpsMap.storePS( vps->getVPSId(), vps, &naluData ); }
-  const VPS*     getConstVPS( int vpsId )                                    const { if( !vpsId ) return nullptr; return m_vpsMap.getPS( vpsId ); };
+  const VPS*     getVPS( int vpsId )                                         const { if( !vpsId ) return nullptr; return m_vpsMap.getPS( vpsId ); };
 
   struct ActivePSs
   {
