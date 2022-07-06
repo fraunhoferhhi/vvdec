@@ -268,7 +268,7 @@ Picture* DecLibParser::parse( InputNALUnit& nalu, int* pSkipFrame, int iTargetLa
     {
       m_pictureSeiNalus.emplace_back( nalu );
       const SPS* sps = m_parameterSetManager.getActiveSPS();
-      const VPS* vps = m_parameterSetManager.getVPS( sps->getVPSId() );
+      const VPS *vps = m_parameterSetManager.getConstVPS( sps->getVPSId() );
       m_seiReader.parseSEImessage( &( nalu.getBitstream() ), m_pcParsePic->seiMessageList, nalu.m_nalUnitType, nalu.m_nuhLayerId, nalu.m_temporalId, vps, sps, m_HRD, m_pDecodedSEIOutputStream );
 
       if( m_parseFrameDelay == 0 )   // else it has to be done in finishPicture()
@@ -468,7 +468,7 @@ DecLibParser::SliceHeadResult DecLibParser::xDecodeSliceHead( InputNALUnit& nalu
   CHECK( pps == 0, "No PPS present" );
   const SPS *sps = static_cast< const ParameterSetManager&>( m_parameterSetManager ).getSPS( pps->getSPSId() );
   CHECK( sps == 0, "No SPS present" );
-  const VPS *vps = static_cast<const ParameterSetManager&>( m_parameterSetManager ).getVPS( sps->getVPSId() );
+  const VPS *vps = static_cast<const ParameterSetManager&>( m_parameterSetManager ).getConstVPS( sps->getVPSId() );
   CHECK( sps->getVPSId() > 0 && vps == 0, "Invalid VPS" );
   if( sps->getVPSId() == 0 && m_prevLayerID != MAX_INT )
   {
@@ -604,7 +604,7 @@ DecLibParser::SliceHeadResult DecLibParser::xDecodeSliceHead( InputNALUnit& nalu
   }
   if( sps->getVPSId() > 0 )
   {
-    const VPS *vps = m_parameterSetManager.getVPS( sps->getVPSId() );
+    const VPS *vps = m_parameterSetManager.getConstVPS( sps->getVPSId() );
     CHECK( vps == 0, "No VPS present" );
     if( ( vps->getOlsModeIdc() == 0
           && vps->getGeneralLayerIdx( nalu.m_nuhLayerId ) < ( vps->getMaxLayers() - 1 )
@@ -1083,6 +1083,7 @@ Picture * DecLibParser::xActivateParameterSets( const int layerId )
               paramSets = m_parameterSetManager.xActivateParameterSets( m_bFirstSliceInPicture, m_apcSlicePilot, m_picHeader.get() );
     const SPS*  sps     = paramSets.sps;
     const PPS*  pps     = paramSets.pps;
+    const VPS*  vps     = paramSets.vps;
     const APS** alfApss = paramSets.alfAPSs->data();
     const APS*  lmcsAPS = paramSets.lmcsAps;
     const APS*  scalingListAPS = paramSets.scalingListAps;
@@ -1097,7 +1098,7 @@ Picture * DecLibParser::xActivateParameterSets( const int layerId )
 #endif
 
     //  Get a new picture buffer. This will also set up m_pcPic, and therefore give us a SPS and PPS pointer that we can use.
-    pcPic = m_picListManager.getNewPicBuffer( *sps, *pps, m_apcSlicePilot->getTLayer(), layerId, m_parameterSetManager.getVPS( sps->getVPSId() ) );
+    pcPic = m_picListManager.getNewPicBuffer( *sps, *pps, m_apcSlicePilot->getTLayer(), layerId, m_parameterSetManager.getConstVPS( sps->getVPSId() ) );
     // assign these fields already, because they are needed by PicListManager::getPicListRange() and Slice::applyReferencePictureSet()
     pcPic->poc          = m_apcSlicePilot->getPOC();
     pcPic->eNalUnitType = m_apcSlicePilot->getNalUnitType();
@@ -1105,7 +1106,7 @@ Picture * DecLibParser::xActivateParameterSets( const int layerId )
 #if !DISABLE_CONFROMANCE_CHECK
     m_apcSlicePilot->checkLeadingPictureRestrictions( m_picListManager.getPicListRange( pcPic ) );
 #endif
-    pcPic->finalInit( &m_cuChunkCache, &m_tuChunkCache, sps, pps, m_picHeader.get(), alfApss, lmcsAPS, scalingListAPS );
+    pcPic->finalInit( &m_cuChunkCache, &m_tuChunkCache, sps, pps, vps, m_picHeader.get(), alfApss, lmcsAPS, scalingListAPS );
 
     // Set Field/Frame coding mode
     bool isField    = false;
@@ -1342,8 +1343,8 @@ Picture* DecLibParser::prepareLostPicture( int iLostPoc, const int layerId )
 {
   msg( INFO, "inserting lost poc : %d\n", iLostPoc );
 
-  Picture* cFillPic = m_picListManager.getNewPicBuffer( *m_parameterSetManager.getFirstSPS(), *m_parameterSetManager.getFirstPPS(), 0, layerId, m_parameterSetManager.getVPS( m_parameterSetManager.getFirstSPS()->getVPSId() ) );
-  cFillPic->finalInit( &m_cuChunkCache, &m_tuChunkCache, m_parameterSetManager.getFirstSPS(), m_parameterSetManager.getFirstPPS(), m_picHeader.get(), static_cast<const ParameterSetManager&>( m_parameterSetManager ).getAlfAPSs().data(), nullptr, nullptr, false ); //TODO: check this
+  Picture* cFillPic = m_picListManager.getNewPicBuffer( *m_parameterSetManager.getFirstSPS(), *m_parameterSetManager.getFirstPPS(), 0, layerId, m_parameterSetManager.getConstVPS( m_parameterSetManager.getFirstSPS()->getVPSId() ) );
+  cFillPic->finalInit( &m_cuChunkCache, &m_tuChunkCache, m_parameterSetManager.getFirstSPS(), m_parameterSetManager.getFirstPPS(), m_parameterSetManager.getConstVPS( m_parameterSetManager.getFirstSPS()->getVPSId() ), m_picHeader.get(), static_cast<const ParameterSetManager&>( m_parameterSetManager ).getAlfAPSs().data(), nullptr, nullptr, false ); //TODO: check this
   cFillPic->cs->allocTempInternals();
   cFillPic->cs->initStructData();
 
@@ -1408,9 +1409,9 @@ Picture* DecLibParser::prepareLostPicture( int iLostPoc, const int layerId )
 void DecLibParser::prepareUnavailablePicture( const PPS *pps, int iUnavailablePoc, const int layerId, const bool longTermFlag, const int temporalId )
 {
   msg( INFO, "inserting unavailable poc : %d\n", iUnavailablePoc );
-  Picture* cFillPic = m_picListManager.getNewPicBuffer( *m_parameterSetManager.getFirstSPS(), *m_parameterSetManager.getFirstPPS(), 0, layerId, m_parameterSetManager.getVPS( m_parameterSetManager.getFirstSPS()->getVPSId() ) );
+  Picture* cFillPic = m_picListManager.getNewPicBuffer( *m_parameterSetManager.getFirstSPS(), *m_parameterSetManager.getFirstPPS(), 0, layerId, m_parameterSetManager.getConstVPS( m_parameterSetManager.getFirstSPS()->getVPSId() ) );
   const APS* nullAlfApss[ALF_CTB_MAX_NUM_APS] = { nullptr, };
-  cFillPic->finalInit( &m_cuChunkCache, &m_tuChunkCache, m_parameterSetManager.getFirstSPS(), m_parameterSetManager.getFirstPPS(), m_picHeader.get(), nullAlfApss, nullptr, nullptr, false ); //TODO: check this
+  cFillPic->finalInit( &m_cuChunkCache, &m_tuChunkCache, m_parameterSetManager.getFirstSPS(), m_parameterSetManager.getFirstPPS(), m_parameterSetManager.getConstVPS( m_parameterSetManager.getFirstSPS()->getVPSId() ), m_picHeader.get(), nullAlfApss, nullptr, nullptr, false ); //TODO: check this
   cFillPic->cs->allocTempInternals();
   cFillPic->cs->initStructData();
 
@@ -1451,7 +1452,7 @@ void DecLibParser::xParsePrefixSEImessages()
   {
     InputNALUnit& nalu = m_prefixSEINALUs.front();
     const SPS *sps = m_parameterSetManager.getActiveSPS();
-    const VPS *vps = m_parameterSetManager.getVPS(sps->getVPSId());
+    const VPS *vps = m_parameterSetManager.getConstVPS(sps->getVPSId());
     m_seiReader.parseSEImessage( &(nalu.getBitstream()), m_seiMessageList, nalu.m_nalUnitType, nalu.m_nuhLayerId, nalu.m_temporalId, vps, sps, m_HRD, m_pDecodedSEIOutputStream );
     m_prefixSEINALUs.pop_front();
   }

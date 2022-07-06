@@ -1018,7 +1018,7 @@ public:
   std::vector<int>                       m_dpbMaxTemporalId;
   std::vector<int>                       m_targetOutputLayerIdSet;                  ///< set of LayerIds to be outputted
   std::vector<int>                       m_targetLayerIdSet;                        ///< set of LayerIds to be included in the sub-bitstream extraction process.
-  int                                    m_iTargetLayer                   = -1;
+  int                                    m_iTargetLayer                   = 0;
   std::vector<int>                       m_numOutputLayersInOls;
   std::vector<int>                       m_numLayersInOls;
   std::vector<std::vector<int>>          m_layerIdInOls;

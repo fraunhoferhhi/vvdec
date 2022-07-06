@@ -79,12 +79,15 @@ ParameterSetManager::ActivePSs ParameterSetManager::xActivateParameterSets( cons
   SPS* sps = getSPS( pps->getSPSId() );
   CHECK( sps == 0, "No SPS present" );
 
+  VPS* vps = getVPS( sps->getVPSId() );
+
   if( isFirstSlice )
   {
     CHECK( !pps->pcv->isCorrect( *sps, *pps ), "PPS has PCV already, but values chaged???" );
 
     sps->clearChangedFlag();
     pps->clearChangedFlag();
+    if( vps ) vps->clearChangedFlag();
 
     if( false == activatePPS( picHeader->getPPSId(), pSlicePilot->isIRAP() ) )
     {
@@ -210,7 +213,7 @@ ParameterSetManager::ActivePSs ParameterSetManager::xActivateParameterSets( cons
            "The value of aps_chroma_present_flag of the APS NAL unit having aps_params_type equal to SCALING_APS and adaptation_parameter_set_id equal to ph_scaling_list_aps_id shall be equal to ChromaArrayType  = =  0 ? 0 : 1" );
   }
 
-  return { sps, pps, &m_alfAPSs, lmcsAPS, scalingListAPS };
+  return { sps, pps, vps, &m_alfAPSs, lmcsAPS, scalingListAPS };
 }
 
 //! activate a PPS and depending on isIDR parameter also SPS

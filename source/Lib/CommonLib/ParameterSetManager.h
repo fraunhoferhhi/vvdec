@@ -166,12 +166,13 @@ public:
   ~ParameterSetManager() = default;
 
   void           storeVPS( VPS *vps, const std::vector<uint8_t> &naluData )        { m_vpsMap.storePS( vps->getVPSId(), vps, &naluData ); }
-  const VPS*     getVPS( int vpsId )                                         const { if( !vpsId ) return nullptr; return m_vpsMap.getPS( vpsId ); };
+  const VPS*     getConstVPS( int vpsId )                                    const { if( !vpsId ) return nullptr; return m_vpsMap.getPS( vpsId ); };
 
   struct ActivePSs
   {
     const SPS*                     sps;
     const PPS*                     pps;
+    const VPS*                     vps;
     std::array<const APS*, ALF_CTB_MAX_NUM_APS>* alfAPSs;
     const APS*                     lmcsAps;
     const APS*                     scalingListAps;
@@ -209,6 +210,7 @@ protected:
   SPS*                  getSPS( int spsId )                                        { return m_spsMap.getPS( spsId ); }
   PPS*                  getPPS( int ppsId )                                        { return m_ppsMap.getPS( ppsId );                      }
   APS*                  getAPS( int apsId, int apsType )                           { return m_apsMap.getPS        ( ( apsId << NUM_APS_TYPE_LEN ) + apsType );                        }
+  VPS*                  getVPS( int vpsId )                                        { if( !vpsId ) return nullptr; return m_vpsMap.getPS( vpsId ); };
 
   ParameterSetMap<SPS, MAX_NUM_SPS>                    m_spsMap;
   ParameterSetMap<PPS, MAX_NUM_PPS>                    m_ppsMap;
