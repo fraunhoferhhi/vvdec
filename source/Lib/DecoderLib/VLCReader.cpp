@@ -1287,7 +1287,7 @@ void HLSyntaxReader::parseSPS( SPS* pcSPS, const ParameterSetManager *parameterS
   uint32_t uiCode = 0;
 
   READ_CODE( 4, uiCode, "sps_seq_parameter_set_id" );                        pcSPS->setSPSId( uiCode );
-  READ_CODE( 4, uiCode, "sps_video_parameter_set_id" );                      pcSPS->setVPSId( uiCode );
+  READ_CODE( 4, uiCode, "sps_video_parameter_set_id" );                      int vpsId = uiCode; //pcSPS->setVPSId( vpsId ); // TODO: change to support VPS
   READ_CODE( 3, uiCode, "sps_max_sub_layers_minus1" );                       pcSPS->setMaxTLayers( uiCode + 1 );
   CHECK( uiCode > 6, "Invalid maximum number of T-layer signalled" );
   READ_CODE( 2, uiCode, "sps_chroma_format_idc" );                           pcSPS->setChromaFormatIdc( ChromaFormat( uiCode ) );
@@ -1299,7 +1299,7 @@ void HLSyntaxReader::parseSPS( SPS* pcSPS, const ParameterSetManager *parameterS
   pcSPS->setMaxCUHeight( pcSPS->getCTUSize() );
   READ_FLAG( uiCode, "sps_ptl_dpb_hrd_params_present_flag" );                pcSPS->setPtlDpbHrdParamsPresentFlag( uiCode );
 
-  if( !pcSPS->getVPSId() )
+  if( !vpsId )
   {
     CHECK( !pcSPS->getPtlDpbHrdParamsPresentFlag(), "When sps_video_parameter_set_id is equal to 0, the value of sps_ptl_dpb_hrd_params_present_flag shall be equal to 1" );
   }
@@ -1657,7 +1657,7 @@ void HLSyntaxReader::parseSPS( SPS* pcSPS, const ParameterSetManager *parameterS
   READ_FLAG( uiCode, "sps_weighted_bipred_flag" );                           pcSPS->setUseWPBiPred( uiCode ? true : false );
 
   READ_FLAG( uiCode, "sps_long_term_ref_pics_flag" );                        pcSPS->setLongTermRefsPresent( uiCode );
-  if( pcSPS->getVPSId() > 0 )
+  if( vpsId > 0 )
   {
     READ_FLAG( uiCode, "sps_inter_layer_ref_pics_present_flag" );            pcSPS->setInterLayerPresentFlag( uiCode );
   }
