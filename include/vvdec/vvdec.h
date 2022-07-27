@@ -344,6 +344,31 @@ typedef struct vvdecHrd
   uint32_t   hrdCpbCnt;
 }vvdecHrd;
 
+static const int VVDEC_MAX_CPB_CNT = 32;
+
+typedef enum
+{
+  VVDEC_GENEREAL_NAL_HRD_PARAM = 0,
+  VVDEC_GENEREAL_VCL_HRD_PARAM = 1,
+  VVDEC_NUM_GENEREAL_HRD_PARAM = 2
+}vvdecGeneralHrdParamsType;
+
+/*
+  The struct vvdecHrd contains information about the Output Layer Set HRD
+*/
+typedef struct vvdecOlsHrd
+{
+  bool     fixedPicRateGeneralFlag;
+  bool     fixedPicRateWithinCvsFlag;
+  uint32_t elementDurationInTc;
+  bool     lowDelayHrdFlag;
+
+  uint32_t bitRateValueMinus1  [VVDEC_MAX_CPB_CNT][VVDEC_NUM_GENEREAL_HRD_PARAM];
+  uint32_t cpbSizeValueMinus1  [VVDEC_MAX_CPB_CNT][VVDEC_NUM_GENEREAL_HRD_PARAM];
+  uint32_t ducpbSizeValueMinus1[VVDEC_MAX_CPB_CNT][VVDEC_NUM_GENEREAL_HRD_PARAM];
+  uint32_t duBitRateValueMinus1[VVDEC_MAX_CPB_CNT][VVDEC_NUM_GENEREAL_HRD_PARAM];
+  bool     cbrFlag             [VVDEC_MAX_CPB_CNT][VVDEC_NUM_GENEREAL_HRD_PARAM];
+}vvdecOlsHrd;
 
 /*
   The struct vvdecPicAttributes contains additional picture side information
@@ -358,6 +383,7 @@ typedef struct vvdecPicAttributes
   uint32_t        bits;                // bits of the compr. image packet
   vvdecVui       *vui;                 // if available, pointer to VUI (Video Usability Information)
   vvdecHrd       *hrd;                 // if available, pointer to HRD (Hypothetical Reference Decoder)
+  vvdecOlsHrd    *olsHrd;              // if available, pointer to OLS HRD (Output Layer Set Hypothetical Reference Decoder)
 } vvdecPicAttributes;
 
 /*

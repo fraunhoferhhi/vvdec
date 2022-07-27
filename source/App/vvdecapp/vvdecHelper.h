@@ -367,15 +367,14 @@ static int writeY4MHeader( std::ostream *f, vvdecFrame *frame )
     {
       if( frame->picAttributes->hrd->numUnitsInTick && frame->picAttributes->hrd->timeScale )
       {
-        if( frame->picAttributes->hrd->numUnitsInTick != 1001)
+        frameRate  = frame->picAttributes->hrd->timeScale;
+        frameScale = frame->picAttributes->hrd->numUnitsInTick;
+
+        if( frame->picAttributes->olsHrd )
         {
-          frameRate = frame->picAttributes->hrd->timeScale / frame->picAttributes->hrd->numUnitsInTick;
-          frameScale=1;
-        }
-        else
-        {
-          frameRate  = frame->picAttributes->hrd->timeScale;
-          frameScale = frame->picAttributes->hrd->numUnitsInTick;
+          // if the OLS HRD is present and indicates a non-constant frame-rate, producing a Y4M is no possible
+          //if( !frame->picAttributes->olsHrd->fixedPicRateGeneralFlag && !frame->picAttributes->olsHrd->fixedPicRateWithinCvsFlag ) return -1;
+          frameScale *= frame->picAttributes->olsHrd->elementDurationInTc;
         }
       }
     }

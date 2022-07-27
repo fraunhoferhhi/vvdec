@@ -2489,8 +2489,16 @@ void CABACReader::residual_coding( TransformUnit& tu, ComponentID compID, CUCtx&
     }
   }
 
-  tu.maxScanPosX [compID] = maxX - 1;
-  tu.maxScanPosY [compID] = maxY - 1;
+  if( cctx.scanPosLast() == 0 )
+  {
+    tu.maxScanPosX[compID] = 0;
+    tu.maxScanPosY[compID] = 0;
+  }
+  else
+  {
+    tu.maxScanPosX[compID] = maxX - 1;
+    tu.maxScanPosY[compID] = maxY - 1;
+  }
 }
 
 void CABACReader::ts_flag( TransformUnit& tu, ComponentID compID )

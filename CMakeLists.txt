@@ -247,7 +247,7 @@ if( VVDEC_ENABLE_LINK_TIME_OPT )
 
   if( CMAKE_CXX_COMPILER_ID STREQUAL "GNU" )
     # enable parallel link-time optimization for GCC
-    add_link_options( $<$<CONFIG:Release,RelWithDebInfo,MinSizeRel>:-flto=auto> )
+    add_link_options( $<$<OR:$<CONFIG:Release>,$<CONFIG:RelWithDebInfo>,$<CONFIG:MinSizeRel>>:-flto=auto> )
   endif()
 endif()
 

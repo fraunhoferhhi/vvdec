@@ -1059,6 +1059,35 @@ int VVDecImpl::xAddPicture( Picture* pcPic )
         cFrame.picAttributes->hrd->hrdCpbCnt                        = hrd->getHrdCpbCntMinus1()+1;
       }
     }
+    
+    if( pcPic->slices.front()->getSPS()->getOlsHrdParameters() )
+    {
+      const OlsHrdParams* ols = pcPic->slices.front()->getSPS()->getOlsHrdParameters();
+      if( ols != NULL )
+      {
+        cFrame.picAttributes->olsHrd = new vvdecOlsHrd;
+        memset( ( void* ) cFrame.picAttributes->olsHrd, 0, sizeof( vvdecOlsHrd ) );
+        cFrame.picAttributes->olsHrd->fixedPicRateGeneralFlag       = ols->getFixedPicRateGeneralFlag();
+        cFrame.picAttributes->olsHrd->fixedPicRateWithinCvsFlag     = ols->getFixedPicRateWithinCvsFlag();
+        cFrame.picAttributes->olsHrd->elementDurationInTc           = ols->getElementDurationInTcMinus1() + 1;
+        cFrame.picAttributes->olsHrd->lowDelayHrdFlag               = ols->getLowDelayHrdFlag();
+
+        for( int j = 0; j < 2; j++ )
+        {
+          if( j == 0 && !cFrame.picAttributes->hrd->generalNalHrdParamsPresentFlag ) continue;
+          if( j == 1 && !cFrame.picAttributes->hrd->generalVclHrdParamsPresentFlag ) continue;
+
+          for( int i = 0; i < cFrame.picAttributes->hrd->hrdCpbCnt; i++ )
+          {
+            cFrame.picAttributes->olsHrd->bitRateValueMinus1  [i][j] = ols->getBitRateValueMinus1( i, j );
+            cFrame.picAttributes->olsHrd->cpbSizeValueMinus1  [i][j] = ols->getCpbSizeValueMinus1( i, j );
+            cFrame.picAttributes->olsHrd->ducpbSizeValueMinus1[i][j] = ols->getDuCpbSizeValueMinus1( i, j );
+            cFrame.picAttributes->olsHrd->duBitRateValueMinus1[i][j] = ols->getDuBitRateValueMinus1( i, j );
+            cFrame.picAttributes->olsHrd->cbrFlag             [i][j] = ols->getCbrFlag( i, j );
+          }
+        }
+      }
+    }
   }
 
   m_rcFrameList.push_back( cFrame );
@@ -1494,6 +1523,11 @@ void VVDecImpl::vvdec_frame_reset(vvdecFrame *frame )
     if( frame->picAttributes->hrd )
     {
       delete frame->picAttributes->hrd;
+    }
+
+    if( frame->picAttributes->olsHrd )
+    {
+      delete frame->picAttributes->olsHrd;
     }
 
     delete frame->picAttributes;
