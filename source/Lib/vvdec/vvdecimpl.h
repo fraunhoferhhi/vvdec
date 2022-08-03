@@ -134,16 +134,20 @@ public:
     }
 
     bool isAllocated(){ return m_isAllocated; }
-
+    bool isExternAllocator(){ return m_isExternAllocator; }
+    void setExternAllocator(){ m_isExternAllocator = true; }
+   
   private:
     bool           m_isAllocated = false;
     unsigned char *m_ptr         = nullptr;     // pointer to plane buffer
     size_t         m_size        = 0;
+    bool           m_isExternAllocator = false;
   };
 
 public:
 
-   int init( const vvdecParams& params );
+   int init( const vvdecParams& params, vvdecCreateBufferCallback callbackCreateBuf = nullptr, vvdecUnrefBufferCallback callbackUnrefBuf = nullptr );
+
    int uninit();
    int reset();
 
@@ -204,6 +208,7 @@ public:
 
    std::list<Picture*>                     m_pcLibPictureList;       // internal picture list
    frameStorageMap                         m_cFrameStorageMap;       // map of frame storage class( converted frames)
+   UserAllocator                           m_cUserAllocator;         // user allocator object, valid if buffers are managed external
 
    std::string                             m_sDecoderInfo;
    std::string                             m_sDecoderCapabilities;

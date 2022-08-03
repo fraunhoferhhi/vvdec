@@ -107,6 +107,7 @@ public:
     if( fullHelp )
     {
       std::cout << "\t\t [--loops,-L  <int>         ] : number of decoder loops (default: 0, -1 endless)" << std::endl;
+      std::cout << "\t\t [--extern                  ] : use extern picture buffer allocator, instead internal buffer manager" << std::endl;
     }
     std::cout <<   "\t\t [--verbosity,-v  <int>     ] : verbosity level (0: silent, 1: error, 2: warning, 3: info, 4: notice, 5: verbose, 6: debug) (default: " << ( int ) rcParams.logLevel << ")" << std::endl;
     std::cout <<   "\t\t [--version                 ] : show version" << std::endl;
@@ -118,7 +119,7 @@ public:
 
 
   static int parse_command_line( int argc, char* argv[] , vvdecParams& rcParams, std::string& rcBitstreamFile, std::string& rcOutputFile,
-                                 int& riFrames, int& riLoops, std::string& rcExpectYuvMD5, bool& useY4mFormat )
+                                 int& riFrames, int& riLoops, std::string& rcExpectYuvMD5, bool& useY4mFormat, bool &useExternAllocator)
   {
     int iRet = 0;
     /* Check command line parameters */
@@ -223,6 +224,19 @@ public:
       {
         i_arg++;
         useY4mFormat = true;
+
+        if( i_arg < argc )
+        {
+          if( std::isdigit(argv[i_arg][0]))
+          {
+            i_arg++;
+          }
+        }
+      }
+      else if( !strcmp( (const char*)argv[i_arg], "--extern" ) )
+      {
+        i_arg++;
+        useExternAllocator = true;
 
         if( i_arg < argc )
         {

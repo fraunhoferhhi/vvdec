@@ -91,9 +91,9 @@ public:
   ~DecLib() = default;
 
 #if RPR_YUV_OUTPUT
-  void create( int numDecThreads, int parserFrameDelay, int upscaledOutput );
+  void create( int numDecThreads, int parserFrameDelay, const UserAllocator& userAllocator, int upscaledOutput );
 #else
-  void create( int numDecThreads, int parserFrameDelay );
+  void create( int numDecThreads, int parserFrameDelay, const UserAllocator& userAllocator );
 #endif
   void destroy();
 

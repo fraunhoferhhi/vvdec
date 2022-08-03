@@ -59,6 +59,7 @@ VVDEC_DECL void vvdec_params_default(vvdecParams *params)
   params->verifyPictureHash            = false;                // verify picture, if digest is available, true: check hash in SEI messages if available, false: ignore SEI message
   params->removePadding                = false;                // copy output pictures to new buffer to remove padding (stride==width)
   params->simd                         = VVDEC_SIMD_DEFAULT;   // set specific simd optimization (default: max. availalbe)
+  params->opaque                       = nullptr;              // opaque pointer for private user data ( can be used to carry caller specific data or contexts )
 }
 
 VVDEC_DECL vvdecParams* vvdec_params_alloc()
@@ -131,35 +132,46 @@ VVDEC_DECL const char* vvdec_get_version()
   return VVDEC_VERSION;
 }
 
-VVDEC_DECL vvdecDecoder* vvdec_decoder_open( vvdecParams *params)
+int paramCheck( vvdecParams *params )
 {
+  int ret = 0;
   if (nullptr == params)
   {
     vvdec::msg( vvdec::ERROR, "vvdec_Params_t is null\n" );
-    return nullptr;
+    return -1;
   }
 
   if( params->threads > 64 )
   {
     vvdec::msg( vvdec::ERROR, "threads must be <= 64\n" );
-    return nullptr;
+    ret = -1;
   }
 
   if( params->parseThreads > 64 )
   {
     vvdec::msg( vvdec::ERROR, "parseThreads must be <= 64\n" );
-    return nullptr;
+    ret = -1;
   }
 
   if( (int)params->simd > (int)VVDEC_SIMD_MAX || (int)params->simd < (int)VVDEC_SIMD_DEFAULT)
   {
     vvdec::msg( vvdec::ERROR, "unsupported simd mode. simd must be 0 <= simd <= %i\n", (int)VVDEC_SIMD_MAX );
-    return nullptr;
+    ret = -1;
   }
 
   if( (int)params->upscaleOutput > (int)VVDEC_UPSCALING_RESCALE || (int)params->upscaleOutput < (int)VVDEC_UPSCALING_OFF )
   {
     vvdec::msg( vvdec::ERROR, "unsupported upscaleOutput mode. must be 0 <= upscaleOutput <= 2\n" );
+    ret = -1;
+  }
+
+  return ret;
+}
+
+VVDEC_DECL vvdecDecoder* vvdec_decoder_open( vvdecParams *params)
+{
+  if ( 0 != paramCheck( params ))
+  {
     return nullptr;
   }
 
@@ -184,6 +196,49 @@ VVDEC_DECL vvdecDecoder* vvdec_decoder_open( vvdecParams *params)
 
   return (vvdecDecoder*)decCtx;
 }
+
+VVDEC_DECL vvdecDecoder* vvdec_decoder_open_with_allocator( vvdecParams *params,
+                                              vvdecCreateBufferCallback  callbackBufAlloc,
+                                              vvdecUnrefBufferCallback   callbackBufUnref )
+{
+  if ( 0 != paramCheck( params ))
+  {
+    return nullptr;
+  }
+
+  if ( params->removePadding )
+  {
+    vvdec::msg( vvdec::ERROR, "cannot use removePadding when vvdecCreateBufferCallback is set (not implemented yet)\n" );
+    return nullptr;
+  }
+  if ( params->upscaleOutput )
+  {
+    vvdec::msg( vvdec::ERROR, "cannot use upscaleOutput when vvdecCreateBufferCallback is set (not implemented yet)\n" );
+    return nullptr;
+  }
+
+  vvdec::VVDecImpl* decCtx = new vvdec::VVDecImpl();
+  if (!decCtx)
+  {
+    vvdec::msg( vvdec::ERROR, "cannot allocate memory for VVdeC decoder\n" );
+    return nullptr;
+  }
+
+  int ret = decCtx->init(*params, callbackBufAlloc, callbackBufUnref );
+  if (ret != 0)
+  {
+    const std::string initErr( std::move( decCtx->m_cAdditionalErrorString.c_str() ) );
+
+    // Error initializing the decoder
+    delete decCtx;
+
+    vvdec::msg( vvdec::ERROR, "cannot init the VVdeC decoder:\n%s\n", initErr.c_str() );
+    return nullptr;
+  }
+
+  return (vvdecDecoder*)decCtx;
+}
+
 
 VVDEC_DECL int vvdec_decoder_close(vvdecDecoder *dec)
 {

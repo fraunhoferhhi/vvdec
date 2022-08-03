@@ -43,6 +43,7 @@ POSSIBILITY OF SUCH DAMAGE.
 #pragma once
 
 #include "CommonDef.h"
+#include "Common.h"
 
 #include <list>
 
@@ -71,6 +72,8 @@ private:
   PicList m_cPicList;   //  Dynamic buffer
   int     m_parseFrameDelay = -1;
   int     m_parallelDecInst = 1;
+  bool    m_upscaleOutputEnabled  = false;
+  UserAllocator m_userAllocator;
   int     m_tuneInDelay     = 0;
   bool    m_firstOutputPic  = true;
 
@@ -78,7 +81,7 @@ public:
   PicListManager() = default;
   ~PicListManager() { deleteBuffers(); }
 
-  void create( int frameDelay, int decInstances );
+  void create( int frameDelay, int decInstances, bool upscaleOutputEnabled, const UserAllocator& userAllocator );
   void restart()
   {
     m_firstOutputPic = true;

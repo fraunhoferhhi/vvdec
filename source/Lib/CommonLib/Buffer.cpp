@@ -622,7 +622,8 @@ PelStorage::PelStorage()
 {
   for( uint32_t i = 0; i < MAX_NUM_COMPONENT; i++ )
   {
-    m_origin[i] = nullptr;
+    m_origin[i]        = nullptr;
+    m_allocator[i]     = nullptr;
   }
 }
 
@@ -636,7 +637,7 @@ void PelStorage::create( const UnitArea &_UnitArea )
   create( _UnitArea.chromaFormat, _UnitArea.blocks[0] );
 }
 
-void PelStorage::create( const ChromaFormat _chromaFormat, const Size& _size, const unsigned _maxCUSize, const unsigned _margin, const unsigned _alignmentByte, const bool _scaleChromaMargin )
+void PelStorage::create( const ChromaFormat _chromaFormat, const Size& _size, const unsigned _maxCUSize, const unsigned _margin, const unsigned _alignmentByte, const bool _scaleChromaMargin, const UserAllocator* userAlloc )
 {
   CHECK( !bufs.empty(), "Trying to re-create an already initialized buffer" );
 
@@ -691,7 +692,16 @@ void PelStorage::create( const ChromaFormat _chromaFormat, const Size& _size, co
     CHECK( !area, "Trying to create a buffer with zero area" );
 
     m_origSi[i] = Size{ totalWidth, totalHeight };
-    m_origin[i] = ( Pel* ) xMalloc( Pel, area );
+    if( userAlloc && userAlloc->enabled )
+    {
+      m_origin[i] = ( Pel* ) userAlloc->create( userAlloc->opaque, (vvdecComponentType)i, sizeof(Pel)*area, MEMORY_ALIGN_DEF_SIZE, &m_allocator[i] );
+      m_externAllocator = true;
+      m_userAlloc       = userAlloc;
+    }
+    else
+    {
+      m_origin[i] = ( Pel* ) xMalloc( Pel, area );
+    }
     Pel* topLeft = m_origin[i] + totalWidth * ymargin + xmargin;
     bufs.push_back( PelBuf( topLeft, totalWidth, _size.width >> scaleX, _size.height >> scaleY ) );
   }
@@ -726,6 +736,9 @@ void PelStorage::swap( PelStorage& other )
     std::swap( bufs[i].buf,    other.bufs[i].buf );
     std::swap( bufs[i].stride, other.bufs[i].stride );
     std::swap( m_origin[i],    other.m_origin[i] );
+    std::swap( m_allocator[i], other.m_allocator[i] );
+    std::swap( m_externAllocator, other.m_externAllocator );
+    std::swap( m_userAlloc, other.m_userAlloc );
   }
 }
 
@@ -736,7 +749,15 @@ void PelStorage::destroy()
   {
     if( m_origin[i] )
     {
-      xFree( m_origin[i] );
+      if ( !m_externAllocator )
+      {
+        xFree( m_origin[i] );
+      }
+      else if( m_allocator[i])
+      {
+        CHECK( m_userAlloc->unref == nullptr, "vvdecUnrefBufferCallback not valid, cannot unref picture buffer" )
+        m_userAlloc->unref( m_userAlloc->opaque, m_allocator[i] );
+      }
       m_origin[i] = nullptr;
     }
   }

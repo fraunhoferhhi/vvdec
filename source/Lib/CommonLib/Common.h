@@ -47,6 +47,7 @@ POSSIBILITY OF SUCH DAMAGE.
 #pragma once
 
 #include "CommonDef.h"
+#include "vvdec/vvdec.h"
 
 namespace vvdec
 {
@@ -172,5 +173,20 @@ inline Area clipArea(const Area &_area, const Area &boundingBox)
 
   return area;
 }
+
+struct UserAllocator
+{
+  constexpr UserAllocator() : enabled( false), create( nullptr ), unref(nullptr), opaque (nullptr) {}
+  constexpr UserAllocator(vvdecCreateBufferCallback allocCallback, vvdecUnrefBufferCallback unrefCallback, void *ctx) 
+  : enabled ( true           )
+  , create  ( allocCallback  )
+  , unref   ( unrefCallback)
+  , opaque  ( ctx            ) {}
+  bool                        enabled = false;
+  vvdecCreateBufferCallback   create  = nullptr;
+  vvdecUnrefBufferCallback    unref   = nullptr;
+  void                       *opaque  = nullptr;
+};
+
 
 }

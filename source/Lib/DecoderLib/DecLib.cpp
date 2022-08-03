@@ -109,9 +109,9 @@ DecLib::DecLib()
 }
 
 #if RPR_YUV_OUTPUT
-void DecLib::create(int numDecThreads, int parserFrameDelay, int upscaledOutput)
+void DecLib::create(int numDecThreads, int parserFrameDelay, const UserAllocator& userAllocator, int upscaledOutput )
 #else
-void DecLib::create(int numDecThreads, int parserFrameDelay)
+void DecLib::create(int numDecThreads, int parserFrameDelay, const UserAllocator& userAllocator )
 #endif
 {
   // run constructor again to ensure all variables, especially in DecLibParser have been reset
@@ -131,16 +131,19 @@ void DecLib::create(int numDecThreads, int parserFrameDelay)
     parserFrameDelay = numDecThreads;
   }
   m_parseFrameDelay = parserFrameDelay;
+
+  bool upscalingEnabled = false;
 #if RPR_YUV_OUTPUT
   m_upscaledOutput = upscaledOutput;
+  upscalingEnabled = upscaledOutput;
 #endif
-  m_picListManager.create( m_parseFrameDelay, ( int ) m_decLibRecon.size() );
+  m_picListManager.create( m_parseFrameDelay, ( int ) m_decLibRecon.size(), upscalingEnabled, userAllocator );
   m_decLibParser.create  ( m_decodeThreadPool.get(), m_parseFrameDelay, ( int ) m_decLibRecon.size(), numDecThreads );
     
   int id=0;
   for( auto &dec: m_decLibRecon )
   {
-    dec.create( m_decodeThreadPool.get(), id++ );
+    dec.create( m_decodeThreadPool.get(), id++, upscalingEnabled );
   }
 
   std::stringstream cssCap;
@@ -257,6 +260,7 @@ Picture* DecLib::flushPic()
   if( outPic )
   {
     CHECK( outPic->progress != Picture::finished, "all pictures should have been finished by now" );
+    outPic->referenced = false;
     return outPic;
   }
 
