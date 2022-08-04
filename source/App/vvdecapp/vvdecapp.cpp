@@ -74,6 +74,171 @@ void msgFncErr( void *, int, const char* fmt, va_list args )
   vfprintf( stderr, fmt, args );
 }
 
+// this static variables are only needed for testing purposes, to check if external allocator is working properly
+static std::vector<void*> extAllocVec;
+static std::vector<void*> extFreeVec;
+static unsigned extRefCount;
+static unsigned extUnrefCount;
+
+class BufferStorage
+{
+public:
+BufferStorage()  = default;
+~BufferStorage()
+{
+  if ( _isAllocated ) destroy();
+}
+
+int create( size_t size, size_t alignment )
+{
+  if( size == 0 ){ return VVDEC_ERR_ALLOCATE; }
+
+#if  ( _WIN32 && ( _MSC_VER > 1300 ) ) || defined (__MINGW64_VERSION_MAJOR)
+  _ptr = (unsigned char *)_aligned_malloc( sizeof(unsigned char)*(size), alignment );
+#elif defined (__MINGW32__)
+  _ptr = (unsigned char *)__mingw_aligned_malloc( sizeof(unsigned char)*(size), alignment )
+#else
+  if( posix_memalign( (void**)&_ptr, alignment, sizeof(unsigned char)*(size) ) )
+  {
+    return -1;
+  }
+#endif
+
+  _size        = size;
+  _isAllocated = true;
+  return 0;
+}
+
+int buffer_ref()
+{
+  if( !_isAllocated) { return VVDEC_ERR_ALLOCATE; }
+  _usecnt++;
+  extRefCount++;
+  return 0;
+}
+
+int buffer_unref()
+{
+  if( !_isAllocated) { return VVDEC_ERR_ALLOCATE; }
+  if( 0 == _usecnt ) { return VVDEC_ERR_ALLOCATE; }
+  _usecnt--;
+  extUnrefCount++;
+
+  if ( _usecnt == 0 )
+  {
+    destroy();
+  }
+
+  return 0;
+}
+
+unsigned char * getStorage() { return _ptr; }
+size_t          size()       { return _size; }
+bool            isUsed()     { return _isAllocated; }
+
+private:
+int destroy()
+{
+  if( !_isAllocated) { return VVDEC_ERR_ALLOCATE; }
+
+#if     ( _WIN32 && ( _MSC_VER > 1300 ) ) || defined (__MINGW64_VERSION_MAJOR)
+_aligned_free  ( _ptr );
+#elif defined (__MINGW32__)
+__mingw_aligned_free( _ptr );
+#else
+  free (_ptr);
+#endif
+
+  _isAllocated = false;
+  _size        = 0;
+  return 0;
+}
+
+private:
+bool           _isAllocated = false;
+unsigned char *_ptr         = nullptr;     // pointer to plane buffer
+size_t         _size        = 0;
+uint32_t       _usecnt      = 0;
+
+};
+
+
+void* picBufferCreateFnc( void *, vvdecComponentType, uint32_t size, uint32_t alignment, void **application_data )
+{
+  BufferStorage* s = new BufferStorage();
+  //std::cout << "create(" << plane << ") " << size << " ptr " << (void*)s << std::endl;
+  extAllocVec.push_back( (void*)s  );
+
+  if( 0 != s->create(size, alignment) )
+  {
+    delete s;
+    return nullptr;
+  }
+  // add a buffer reference to the created buffer
+  s->buffer_ref();
+  *application_data = (void*)s;
+  return (void*)s->getStorage();
+}
+
+void picBufferUnrefFnc( void *, void *application_data )
+{
+  BufferStorage* s = (BufferStorage*)application_data;
+  //std::cout << "destroy ptr  " << (void*)s << std::endl;
+  extFreeVec.push_back( (void*)s  );
+
+  // remove buffer reference and free memory when all references are released
+  s->buffer_unref();
+  if( !s->isUsed() )
+    delete s;
+}
+
+
+int unrefBuf( void*& allocator )
+{
+  if( allocator )
+  {
+    BufferStorage* s = (BufferStorage*)allocator;
+    s->buffer_unref();
+    if( !s->isUsed() )
+      delete s;
+  }
+
+  return 0;
+}
+
+/* refFrame
+  create a new reference to all plane buffers
+*/
+void refFrame( vvdecFrame *frame )
+{
+  for( auto p : frame->planes )
+  {
+    if( p.allocator )
+    {
+      BufferStorage* s = (BufferStorage*)p.allocator ;
+      s->buffer_ref();
+    }
+  }
+}
+
+/* unrefFrame
+   unreference frame after it is rendered 
+   when all buffer references are release the buffer must be freed
+*/
+void unrefFrame( vvdecFrame *frame )
+{
+  for( auto p : frame->planes )
+  {
+    if( p.allocator )
+    {
+      BufferStorage* s = (BufferStorage*)p.allocator;
+      s->buffer_unref();
+      if( !s->isUsed() )
+        delete s;
+    }
+  }
+}
+
 int main( int argc, char* argv[] )
 {
   std::string cAppname = argv[0];
@@ -96,6 +261,7 @@ int main( int argc, char* argv[] )
   int         iMaxFrames     = -1;
   int         iLoopCount     = 1;
   bool        y4mOutput      = false;
+  bool        externAllocator = false;
   std::string cExpectedYuvMD5;
   vvdecParams params;
   vvdec_params_default(&params);
@@ -109,7 +275,7 @@ int main( int argc, char* argv[] )
   }
 
 
-  int iRet = vvdecoderapp::CmdLineParser::parse_command_line(  argc, argv, params, cBitstreamFile, cOutputFile, iMaxFrames, iLoopCount, cExpectedYuvMD5, y4mOutput);
+  int iRet = vvdecoderapp::CmdLineParser::parse_command_line(  argc, argv, params, cBitstreamFile, cOutputFile, iMaxFrames, iLoopCount, cExpectedYuvMD5, y4mOutput, externAllocator );
   if( iRet != 0 )
   {
     if( iRet == 2 )
@@ -228,7 +394,15 @@ int main( int argc, char* argv[] )
     }
 
     // initialize the decoder
-    dec = vvdec_decoder_open( &params );
+    if( externAllocator )
+    {
+      dec = vvdec_decoder_open_with_allocator( &params, picBufferCreateFnc, picBufferUnrefFnc );
+    }
+    else
+    {
+      dec = vvdec_decoder_open( &params );
+    }
+
     if( nullptr == dec )
     {
       *logStream << "cannot init decoder" << std::endl;
@@ -373,6 +547,8 @@ int main( int argc, char* argv[] )
 
         if( NULL != pcFrame && pcFrame->ctsValid )
         {
+          if ( externAllocator ) refFrame( pcFrame ); 
+
           if (!bOutputInfoWritten)
           {
             if( params.logLevel >= VVDEC_INFO )
@@ -402,6 +578,12 @@ int main( int argc, char* argv[] )
           {
             vvdecSEIContentLightLevelInfo* p = reinterpret_cast<vvdecSEIContentLightLevelInfo *>(sei->payload);
             *logStream << "vvdecapp [info]: CONTENT_LIGHT_LEVEL_INFO: " << p->maxContentLightLevel << "," << p->maxPicAverageLightLevel << std::endl;
+          }
+          sei = vvdec_find_frame_sei( dec, VVDEC_MASTERING_DISPLAY_COLOUR_VOLUME, pcFrame );
+          if( sei )
+          {
+            vvdecSEIMasteringDisplayColourVolume* p = reinterpret_cast<vvdecSEIMasteringDisplayColourVolume *>(sei->payload);
+            *logStream << "vvdecapp [info]: VVDEC_MASTERING_DISPLAY_COLOUR_VOLUME: lumaMin,Max" << p->minLuminance << "," << p->maxLuminance << std::endl;
           }
 #endif
 
@@ -443,7 +625,10 @@ int main( int argc, char* argv[] )
                   return iRet;
                 }
               }
+              
+              if ( externAllocator ) unrefFrame( pcPrevField );
               vvdec_frame_unref( dec, pcPrevField );
+              
               pcPrevField = nullptr;
             }
           }
@@ -457,6 +642,7 @@ int main( int argc, char* argv[] )
           // free picture memory
           if( !pcPrevField || pcPrevField != pcFrame)
           {
+            if ( externAllocator ) unrefFrame( pcFrame );             
             vvdec_frame_unref( dec, pcFrame );
           }
         }
@@ -502,6 +688,8 @@ int main( int argc, char* argv[] )
 
       if( NULL != pcFrame  )
       {
+        if ( externAllocator ) refFrame( pcFrame );
+
         uiFrames++;
 
         if( pcFrame->frameFormat == VVDEC_FF_PROGRESSIVE )
@@ -542,6 +730,8 @@ int main( int argc, char* argv[] )
                 return iRet;
               }
             }
+
+            if ( externAllocator ) unrefFrame( pcPrevField );
             vvdec_frame_unref( dec, pcPrevField );
             pcPrevField = nullptr;
           }
@@ -556,6 +746,7 @@ int main( int argc, char* argv[] )
         // free picture memory
         if( !pcPrevField || pcPrevField != pcFrame)
         {
+          if ( externAllocator ) unrefFrame( pcFrame );
           vvdec_frame_unref( dec, pcFrame );
         }
 
@@ -669,6 +860,16 @@ int main( int argc, char* argv[] )
     {
       *logStream <<"vvdecapp [info]: avg. fps for " << dFpsPerLoopVec.size() << " loops: " << dFpsSum/dFpsPerLoopVec.size() << " Hz " << std::endl;
     }
+  }
+
+  if( externAllocator )
+  {
+   if ( (extAllocVec.size() != extFreeVec.size()) || ( extRefCount != extUnrefCount ) )
+   {
+      *logStream <<"vvdecapp [error]: extern alloc/free mismatch (allocated " << extAllocVec.size() << ", free " << extFreeVec.size() << ")" 
+                 << " refcount " << extRefCount << " unrefcount " << extUnrefCount << std::endl;
+      return -1;
+   }
   }
 
   return 0;

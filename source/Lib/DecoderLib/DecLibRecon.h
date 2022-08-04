@@ -149,6 +149,7 @@ private:
 
   int                  m_numDecThreads = 0;
   ThreadPool*          m_decodeThreadPool;
+  bool                 m_upscaleOutputEnabled = false;
 
   Picture*             m_currDecompPic = nullptr;
 #if TRACE_ENABLE_ITT
@@ -179,7 +180,7 @@ public:
   DecLibRecon( const DecLibRecon& )  = delete;
   DecLibRecon( const DecLibRecon&& ) = delete;
 
-  void create( ThreadPool* threadPool, unsigned instanceId );
+  void create( ThreadPool* threadPool, unsigned instanceId, bool upscaleOutputEnabled );
   void destroy();
 
   void     decompressPicture( Picture* pcPic );

@@ -126,7 +126,7 @@ DecLibRecon::DecLibRecon()
 
 }
 
-void DecLibRecon::create( ThreadPool* threadPool, unsigned instanceId )
+void DecLibRecon::create( ThreadPool* threadPool, unsigned instanceId, bool upscaleOutputEnabled )
 {
   // run constructor again to ensure all variables, especially in DecLibParser have been reset
   this->~DecLibRecon();
@@ -148,6 +148,7 @@ void DecLibRecon::create( ThreadPool* threadPool, unsigned instanceId )
   m_decodeThreadPool = threadPool;
   m_numDecThreads    = std::max( 1, threadPool ? threadPool->numThreads() : 1 );
 
+  m_upscaleOutputEnabled = upscaleOutputEnabled;
   m_predBufSize     = 0;
   m_dmvrMvCacheSize = 0;
   m_dmvrMvCache     = nullptr;
@@ -200,7 +201,7 @@ void DecLibRecon::destroy()
 }
 
 
-static void getCompatibleBuffer( const CodingStructure& cs, const CPelUnitBuf& srcBuf, PelStorage& destBuf )
+static void getCompatibleBuffer( const CodingStructure& cs, const CPelUnitBuf& srcBuf, PelStorage& destBuf, const UserAllocator* userAllocator )
 {
   if( !destBuf.bufs.empty() )
   {
@@ -225,7 +226,7 @@ static void getCompatibleBuffer( const CodingStructure& cs, const CPelUnitBuf& s
   }
   if( destBuf.bufs.empty() )
   {
-    destBuf.create( cs.picture->chromaFormat, cs.picture->lumaSize(), cs.pcv->maxCUWidth, cs.picture->margin, MEMORY_ALIGN_DEF_SIZE );
+    destBuf.create( cs.picture->chromaFormat, cs.picture->lumaSize(), cs.pcv->maxCUWidth, cs.picture->margin, MEMORY_ALIGN_DEF_SIZE, true, userAllocator );
   }
 }
 
@@ -402,7 +403,7 @@ void DecLibRecon::decompressPicture( Picture* pcPic )
     m_pcThreadResource[i]->m_cCuDecoder.init( &m_pcThreadResource[i]->m_cIntraPred, &m_pcThreadResource[i]->m_cInterPred, &m_pcThreadResource[i]->m_cReshaper, &m_pcThreadResource[i]->m_cTrQuant );
   }
 
-  getCompatibleBuffer( *pcPic->cs, pcPic->cs->getRecoBuf(), m_fltBuf );
+  getCompatibleBuffer( *pcPic->cs, pcPic->cs->getRecoBuf(), m_fltBuf, pcPic->getUserAllocator() );
 
   const uint32_t  log2SaoOffsetScaleLuma   = (uint32_t) std::max(0, sps->getBitDepth(CHANNEL_TYPE_LUMA  ) - MAX_SAO_TRUNCATED_BITDEPTH);
   const uint32_t  log2SaoOffsetScaleChroma = (uint32_t) std::max(0, sps->getBitDepth(CHANNEL_TYPE_CHROMA) - MAX_SAO_TRUNCATED_BITDEPTH);

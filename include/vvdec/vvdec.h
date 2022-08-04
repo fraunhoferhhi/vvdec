@@ -74,6 +74,10 @@ typedef struct vvdecDecoder vvdecDecoder;
 
 /* vvdecLoggingCallback:
    callback function to receive messages of the decoder library
+  \param[in]  void*  pointer to calling vvdec instance
+  \param[in]  int    verbosity level
+  \param[in]  const char* fmt
+  \param[in]  va_list arguments list
 */
 typedef void (*vvdecLoggingCallback)(void*, int, const char*, va_list);
 
@@ -243,7 +247,8 @@ typedef enum
 {
   VVDEC_CT_Y = 0,                      // Y component
   VVDEC_CT_U = 1,                      // U component
-  VVDEC_CT_V = 2                       // V component
+  VVDEC_CT_V = 2,                      // V component
+  VVDEC_MAX_NUM_COMPONENT = 3
 }vvdecComponentType;
 
 
@@ -344,8 +349,6 @@ typedef struct vvdecHrd
   uint32_t   hrdCpbCnt;
 }vvdecHrd;
 
-static const int VVDEC_MAX_CPB_CNT = 32;
-
 typedef enum
 {
   VVDEC_GENEREAL_NAL_HRD_PARAM = 0,
@@ -354,7 +357,7 @@ typedef enum
 }vvdecGeneralHrdParamsType;
 
 /*
-  The struct vvdecHrd contains information about the Output Layer Set HRD
+  The struct vvdecOlsHrd contains information about the Output Layer Set HRD
 */
 typedef struct vvdecOlsHrd
 {
@@ -363,11 +366,11 @@ typedef struct vvdecOlsHrd
   uint32_t elementDurationInTc;
   bool     lowDelayHrdFlag;
 
-  uint32_t bitRateValueMinus1  [VVDEC_MAX_CPB_CNT][VVDEC_NUM_GENEREAL_HRD_PARAM];
-  uint32_t cpbSizeValueMinus1  [VVDEC_MAX_CPB_CNT][VVDEC_NUM_GENEREAL_HRD_PARAM];
-  uint32_t ducpbSizeValueMinus1[VVDEC_MAX_CPB_CNT][VVDEC_NUM_GENEREAL_HRD_PARAM];
-  uint32_t duBitRateValueMinus1[VVDEC_MAX_CPB_CNT][VVDEC_NUM_GENEREAL_HRD_PARAM];
-  bool     cbrFlag             [VVDEC_MAX_CPB_CNT][VVDEC_NUM_GENEREAL_HRD_PARAM];
+  uint32_t bitRateValueMinus1  [32][VVDEC_NUM_GENEREAL_HRD_PARAM];
+  uint32_t cpbSizeValueMinus1  [32][VVDEC_NUM_GENEREAL_HRD_PARAM];
+  uint32_t ducpbSizeValueMinus1[32][VVDEC_NUM_GENEREAL_HRD_PARAM];
+  uint32_t duBitRateValueMinus1[32][VVDEC_NUM_GENEREAL_HRD_PARAM];
+  bool     cbrFlag             [32][VVDEC_NUM_GENEREAL_HRD_PARAM];
 }vvdecOlsHrd;
 
 /*
@@ -392,11 +395,12 @@ typedef struct vvdecPicAttributes
 */
 typedef struct vvdecPlane
 {
-  unsigned char* ptr;                  // pointer to plane buffer
+  unsigned char *ptr;                  // pointer to plane buffer
   uint32_t       width;                // width of the plane
   uint32_t       height;               // height of the plane
   uint32_t       stride;               // stride (width + left margin + right margins) of plane in samples
   uint32_t       bytesPerSample;       // number of bytes per sample
+  void          *allocator;            // opaque pointer to memory allocator (only valid, when memory is maintained by application)
 } vvdecPlane;
 
 /*
@@ -405,7 +409,7 @@ typedef struct vvdecPlane
 */
 typedef struct vvdecFrame
 {
-  vvdecPlane          planes[ 3 ];     // component plane for yuv
+  vvdecPlane          planes[ VVDEC_MAX_NUM_COMPONENT ]; // component plane for yuv
   uint32_t            numPlanes;       // number of color components
   uint32_t            width;           // width of the luminance plane
   uint32_t            height;          // height of the luminance plane
@@ -431,7 +435,29 @@ typedef struct vvdecParams
   bool                verifyPictureHash; // verify picture, if digest is available, true: check hash in SEI messages if available, false: ignore SEI message
   bool                removePadding;     // copy output pictures to new buffer to remove padding (stride==width) ( default: false )
   vvdecSIMD_Extension simd;              // set specific simd optimization (default: max. availalbe)
+  void               *opaque;            // opaque pointer for private user data ( can be used to carry application specific data or contexts )
 } vvdecParams;
+
+/* vvdecCreateBufferCallback
+ callback to allocate picture buffer memory, if picture memory is maintained by the caller.
+ For each plane an own memory buffer is needed separatly
+ \param[in]  void*     pointer to private data of the user (defined in vvdecParams::opaque)
+ \param[in]  vvdecComponentType  plane type
+ \param[in]  uint32_t  memory size in bytes 
+ \param[in]  uint32_t  alignement in bytes
+ \param[out] void**    address of opaque pointer to memory allocator
+ \retval[ ]  void*     pointer to the allocaded block, NULL if the block cannot be allocated. 
+*/
+typedef void* (*vvdecCreateBufferCallback)(void*, vvdecComponentType , uint32_t , uint32_t , void ** );
+
+/* vvdecUnrefBufferCallback
+ callback to unreference picture buffer memory, if picture memory is maintained by the caller.
+ This callback is called, when a buffer reference is not needed anymore by the decoder.
+ When the buffer does not have references anymore it must be released/deallocated by the caller.
+ \param[in]  void*     pointer to private data of the user (defined in vvdecParams::opaque)
+ \param[in]  void*     opaque pointer to memory allocator
+*/
+typedef void (*vvdecUnrefBufferCallback)(void*, void * );
 
 /* vvdec_params_default:
   Initialize vvdec_params structure to default values
@@ -463,10 +489,28 @@ VVDEC_DECL const char* vvdec_get_version( void );
   Other possibilities for an unsuccessful memory initialization, or an machine with
   insufficient CPU-capabilities.
   \param[in]  vvdec_params_t pointer of vvdec_params struct that holds initial decoder parameters.
-  \retval     vvdec_params_t pointer of the decoder handler if successful, otherwise NULL
+  \retval     vvdecDecoder   pointer of the decoder handler if successful, otherwise NULL
   \pre        The decoder must not be initialized (pointer of decoder handler must be null).
 */
 VVDEC_DECL vvdecDecoder* vvdec_decoder_open( vvdecParams *);
+
+/* vvdec_decoder_open_with_allocator
+  This method initializes the decoder instance, by using an external picture buffer manager.
+  This method is used to initially set up the decoder with the assigned decoder parameter struct
+  and the extern buffer allocator callbacks.
+  Be aware of a vvdecFrame may still be used internally after already returned to the caller.
+  That means a picture mustn´t be changed or removed till the vvdecUnrefBufferCallback of all plane buffers have been emitted.
+
+  The method fails if the assigned parameter struct does not pass the consistency check.
+  Other possibilities for an unsuccessful memory initialization, or an machine with
+  insufficient CPU-capabilities.
+  \param[in]  vvdec_params_t pointer of vvdec_params struct that holds initial decoder parameters.
+  \param[in]  vvdecCreateBufferCallback implementation of the callback that is called when picture buffer needs to be allocated
+  \param[in]  vvdecUnrefBufferCallback implementation of the callback that is called to unreference a picture buffer
+  \retval     vvdecDecoder pointer of the decoder handler if successful, otherwise NULL
+  \pre        The decoder must not be initialized (pointer of decoder handler must be null).
+*/
+VVDEC_DECL vvdecDecoder* vvdec_decoder_open_with_allocator ( vvdecParams *, vvdecCreateBufferCallback, vvdecUnrefBufferCallback );
 
 /* vvdec_decoder_close
  This method resets the decoder instance.

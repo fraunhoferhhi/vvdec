@@ -97,12 +97,12 @@ void paddPicBorderLeftRightCore(Pel *pi, ptrdiff_t stride,int width,int xmargin,
    }
 }
 
-void Picture::create(const ChromaFormat &_chromaFormat, const Size &size, const unsigned _maxCUSize, const unsigned _margin, const int _layerId)
+void Picture::create(const ChromaFormat &_chromaFormat, const Size &size, const unsigned _maxCUSize, const unsigned _margin, const int _layerId, UserAllocator* _userAllocator )
 {
   layerId = _layerId;
   UnitArea::operator=( UnitArea( _chromaFormat, Area( Position{ 0, 0 }, size ) ) );
   margin            = _margin;
-  m_bufs[PIC_RECONSTRUCTION].create( _chromaFormat, size, _maxCUSize, _margin, MEMORY_ALIGN_DEF_SIZE );
+  m_bufs[PIC_RECONSTRUCTION].create( _chromaFormat, size, _maxCUSize, _margin, MEMORY_ALIGN_DEF_SIZE, true, _userAllocator );
 }
 
 void Picture::createWrapAroundBuf( const bool isWrapAround, const unsigned _maxCUSize )
@@ -542,6 +542,26 @@ Pel* Picture::getOrigin( const PictureType &type, const ComponentID compID ) con
 PelBuf Picture::getOriginBuf( const PictureType &type, const ComponentID compID )
 {
   return m_bufs[type].getOriginBuf( compID );
+}
+
+Size Picture::getBufSize( const PictureType &type, const ComponentID compID ) const
+{
+  return m_bufs[type].getBufSize( compID );
+}
+
+void* Picture::getBufAllocator( const ComponentID compID )
+{
+  return m_bufs[PIC_RECONSTRUCTION].getBufAllocator( compID );
+}
+
+bool Picture::isExternAllocator() const
+{
+  return m_bufs[PIC_RECONSTRUCTION].isExternAllocator();
+}
+
+const UserAllocator* Picture::getUserAllocator() const 
+{ 
+  return m_bufs[PIC_RECONSTRUCTION].getUserAllocator();
 }
 
 void Picture::startProcessingTimer()

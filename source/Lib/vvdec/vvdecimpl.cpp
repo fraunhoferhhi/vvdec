@@ -68,7 +68,7 @@ VVDecImpl::~VVDecImpl()
 
 }
 
-int VVDecImpl::init( const vvdecParams& params )
+int VVDecImpl::init( const vvdecParams& params, vvdecCreateBufferCallback createBufCallback, vvdecUnrefBufferCallback unrefBufCallback )
 {
   if( m_bInitialized ){ return VVDEC_ERR_INITIALIZE; }
 
@@ -104,15 +104,27 @@ int VVDecImpl::init( const vvdecParams& params )
     }
 #endif // TARGET_SIMD_X86
 
+    if( createBufCallback && unrefBufCallback )
+    {
+      m_cUserAllocator.enabled = true;
+      m_cUserAllocator.create  = createBufCallback;
+      m_cUserAllocator.unref   = unrefBufCallback;
+      m_cUserAllocator.opaque  = params.opaque;
+    }
+    else
+    {
+      m_cUserAllocator = UserAllocator();
+    }
+
     m_cDecLib.reset( new DecLib() );
 
     initROM();
 
     // create decoder class
 #if RPR_YUV_OUTPUT
-    m_cDecLib->create( params.threads, params.parseThreads, params.upscaleOutput );
+    m_cDecLib->create( params.threads, params.parseThreads, m_cUserAllocator, params.upscaleOutput );
 #else
-    m_cDecLib->create( params.threads, params.parseThreads );
+    m_cDecLib->create( params.threads, params.parseThreads, m_cUserAllocator );
 #endif
 
     g_verbosity = MsgLevel( params.logLevel );
@@ -850,8 +862,6 @@ int VVDecImpl::xAddPicture( Picture* pcPic )
 //                                  ? pcPic->cs->sps->getVuiParameters()->getDefaultDisplayWindow()
 //                                  : Window();
   const Window  defDisp =  Window();
-
-
   int confLeft   = conf.getWindowLeftOffset()   * SPS::getWinUnitX(pcPic->cs->sps->getChromaFormatIdc())  + defDisp.getWindowLeftOffset();
   int confRight  = conf.getWindowRightOffset()  * SPS::getWinUnitX(pcPic->cs->sps->getChromaFormatIdc())  + defDisp.getWindowRightOffset();
   int confTop    = conf.getWindowTopOffset()    * SPS::getWinUnitY(pcPic->cs->sps->getChromaFormatIdc())  + defDisp.getWindowTopOffset();
@@ -872,7 +882,7 @@ int VVDecImpl::xAddPicture( Picture* pcPic )
 
   if ((uiWidth == 0) || (uiHeight == 0))
   {
-    msg( ERROR, "objectUnref: %dx%d luma sample output picture!\n", uiWidth, uiHeight );
+    msg( ERROR, "vvdecimpl::xAddPicture: %dx%d luma sample output picture!\n", uiWidth, uiHeight );
     return VVDEC_ERR_UNSPECIFIED;
   }
 
@@ -903,13 +913,21 @@ int VVDecImpl::xAddPicture( Picture* pcPic )
 
   const int maxComponent = getNumberValidComponents( cPicBuf.chromaFormat );
 
+  if( m_cUserAllocator.enabled && !bCreateStorage )
+  {
+    for( int comp=0; comp < maxComponent; comp++ )
+    {
+      cFrame.planes[comp].allocator = pcPic->getBufAllocator( (ComponentID)comp );
+    }
+  }
+
   if( bCreateStorage )
   {
 #if RPR_YUV_OUTPUT
     if( m_cDecLib->getUpscaledOutput() == (int)VVDEC_UPSCALING_RESCALE )
     {
       PelStorage upscaledPic;
-      upscaledPic.create( cPicBuf.chromaFormat, Size( orgWidth, orgHeight ) );
+      upscaledPic.create( cPicBuf.chromaFormat, Size( orgWidth, orgHeight ), 0, 0, 0, true, &m_cUserAllocator );
       
       int xScale = ( ( uiWidth  << SCALE_RATIO_BITS ) + ( orgWidth  >> 1 ) ) / orgWidth;
       int yScale = ( ( uiHeight << SCALE_RATIO_BITS ) + ( orgHeight >> 1 ) ) / orgHeight;
@@ -932,8 +950,8 @@ int VVDecImpl::xAddPicture( Picture* pcPic )
                  cFrame.planes[comp].ptr,
                  cFrame.planes[comp].width, cFrame.planes[comp].height,
                  area.stride<<1, cFrame.planes[comp].stride, uiBytesPerSample  );
+        cFrame.planes[comp].allocator = upscaledPic.getBufAllocator( (ComponentID)comp );
       }
-
       upscaledPic.destroy();
     }
     else
@@ -954,13 +972,13 @@ int VVDecImpl::xAddPicture( Picture* pcPic )
         const CPelBuf     area        = cPicBuf.get(compID);
         unsigned int uiBytesPerSample = bitDepths.recon[0] > 8 ? 2 : 1;
   
-        const ptrdiff_t   planeOffset = (confLeft >> csx) + (confTop >> csy) * area.stride;
+        const ptrdiff_t   planeOffset = ((confLeft >> csx) + ((confTop >> csy) * area.stride)) * uiBytesPerSample;
         const unsigned char* pucOrigin   = (const unsigned char*)area.buf;
 
-       copyComp(  pucOrigin + planeOffset,
-           cFrame.planes[comp].ptr,
-           cFrame.planes[comp].width, cFrame.planes[comp].height,
-           area.stride<<1, cFrame.planes[comp].stride, uiBytesPerSample  );
+        copyComp(  pucOrigin + planeOffset,
+                   cFrame.planes[comp].ptr,
+                   cFrame.planes[comp].width, cFrame.planes[comp].height,
+                    area.stride<<1, cFrame.planes[comp].stride, uiBytesPerSample  );
       }
     }
   }
@@ -1220,7 +1238,7 @@ int VVDecImpl::xCreateFrame( vvdecFrame& rcFrame, const CPelUnitBuf& rcPicBuf, u
           rcFrame.planes[VVDEC_CT_V].stride         = (uint32_t)rcPicBuf.get(COMPONENT_Cr).stride * rcFrame.planes[CHANNEL_TYPE_CHROMA].bytesPerSample;
         }
 
-        uint32_t nCSize = rcFrame.planes[VVDEC_CT_U].stride*uiCHeight;
+        nCSize = rcFrame.planes[VVDEC_CT_U].stride*uiCHeight;
         nBufSize = nLSize + (nCSize<<1);
         break;
       }
@@ -1246,7 +1264,7 @@ int VVDecImpl::xCreateFrame( vvdecFrame& rcFrame, const CPelUnitBuf& rcPicBuf, u
           rcFrame.planes[VVDEC_CT_U].stride         = (uint32_t)rcPicBuf.get(COMPONENT_Cb).stride * rcFrame.planes[CHANNEL_TYPE_CHROMA].bytesPerSample;
           rcFrame.planes[VVDEC_CT_V].stride         = (uint32_t)rcPicBuf.get(COMPONENT_Cr).stride * rcFrame.planes[CHANNEL_TYPE_CHROMA].bytesPerSample;
         }
-
+        nCSize   = nLSize;
         nBufSize = nLSize*3;
         break;
       }
@@ -1259,23 +1277,38 @@ int VVDecImpl::xCreateFrame( vvdecFrame& rcFrame, const CPelUnitBuf& rcPicBuf, u
     if( nBufSize == 0 ){ return VVDEC_ERR_ALLOCATE; }
 
     FrameStorage frameStorage;
-    frameStorage.allocateStorage( nBufSize );
-    rcFrame.planes[VVDEC_CT_Y].ptr = frameStorage.getStorage();
-
-    m_cFrameStorageMap.insert( frameStorageMapType( rcFrame.sequenceNumber, frameStorage));
-
-    switch( rcPicBuf.chromaFormat )
+    
+    if( m_cUserAllocator.enabled )
     {
-      case CHROMA_400:
-          break;
-      case CHROMA_420:
-      case CHROMA_422:
-      case CHROMA_444:
-          rcFrame.planes[VVDEC_CT_U].ptr  = rcFrame.planes[VVDEC_CT_Y].ptr + nLSize;
-          rcFrame.planes[VVDEC_CT_V].ptr  = rcFrame.planes[VVDEC_CT_Y].ptr + (nLSize + nCSize);
-          break;
-      default: break;
+      frameStorage.setExternAllocator();
+      if( nLSize == 0 ){ return VVDEC_ERR_ALLOCATE; }
+      rcFrame.planes[VVDEC_CT_Y].ptr = ( unsigned char* ) m_cUserAllocator.create( m_cUserAllocator.opaque, VVDEC_CT_Y, (uint32_t)nLSize, MEMORY_ALIGN_DEF_SIZE, &rcFrame.planes[VVDEC_CT_Y].allocator );
+
+      for ( int plane = 1; plane < rcFrame.numPlanes; plane++ )
+      {
+        if( nCSize == 0 ){ return VVDEC_ERR_ALLOCATE; }
+        rcFrame.planes[plane].ptr = ( unsigned char* ) m_cUserAllocator.create( m_cUserAllocator.opaque, (vvdecComponentType)plane, (uint32_t)nCSize, MEMORY_ALIGN_DEF_SIZE, &rcFrame.planes[plane].allocator );
+      }
     }
+    else
+    {
+      frameStorage.allocateStorage( nBufSize );
+      rcFrame.planes[VVDEC_CT_Y].ptr = frameStorage.getStorage();
+            
+      switch( rcPicBuf.chromaFormat )
+      {
+        case CHROMA_400:
+            break;
+        case CHROMA_420:
+        case CHROMA_422:
+        case CHROMA_444:
+            rcFrame.planes[VVDEC_CT_U].ptr  = rcFrame.planes[VVDEC_CT_Y].ptr + nLSize;
+            rcFrame.planes[VVDEC_CT_V].ptr  = rcFrame.planes[VVDEC_CT_Y].ptr + (nLSize + nCSize);
+            break;
+        default: break;
+      }
+    }
+    m_cFrameStorageMap.insert( frameStorageMapType( rcFrame.sequenceNumber, frameStorage));
   }
 
   return 0;
@@ -1436,9 +1469,9 @@ bool VVDecImpl::isFrameConverted( vvdecFrame* frame )
   frameStorageMap::iterator storageIter =  m_cFrameStorageMap.find( frame->sequenceNumber );
   if( storageIter != m_cFrameStorageMap.end() )
   {
-    if( storageIter->second.isAllocated() )
+    if( storageIter->second.isAllocated() || storageIter->second.isExternAllocator() )
     {
-      return true;;
+      return true;
     }
   }
 
@@ -1481,12 +1514,14 @@ void VVDecImpl::vvdec_plane_default(vvdecPlane *plane)
   plane->width   = 0;            ///< width of the plane
   plane->height  = 0;            ///< height of the plane
   plane->stride  = 0;            ///< stride (width + left margin + right margins) of plane in samples
-  plane->bytesPerSample = 1;     ///< offset to first sample in bytes
+  plane->bytesPerSample = 1;     ///< number of bytes per sample
+  plane->allocator = nullptr;    ///< opaque pointer to memory allocator (only valid, when memory is maintained by caller)
 }
 
 void VVDecImpl::vvdec_frame_reset(vvdecFrame *frame )
 {
   bool bIsInternalLibStorage = true;
+  bool bIsExternAllocator    = false;
   frameStorageMap::iterator storageIter =  m_cFrameStorageMap.find( frame->sequenceNumber );
   if( storageIter != m_cFrameStorageMap.end() )
   {
@@ -1494,6 +1529,10 @@ void VVDecImpl::vvdec_frame_reset(vvdecFrame *frame )
     {
       storageIter->second.freeStorage();
       bIsInternalLibStorage = false;
+    }
+    else if( storageIter->second.isExternAllocator() )
+    {
+      bIsExternAllocator = true;
     }
 
     m_cFrameStorageMap.erase (storageIter);
@@ -1532,6 +1571,18 @@ void VVDecImpl::vvdec_frame_reset(vvdecFrame *frame )
 
     delete frame->picAttributes;
     frame->picAttributes = NULL;
+  }
+  
+  if( m_cUserAllocator.enabled && m_cUserAllocator.unref && bIsExternAllocator )
+  {
+    // unref the buffer that has been converted (e.g. to 8bit) and is not needed internal anymore
+    for( uint32_t i = 0; i < frame->numPlanes; i++ )
+    {
+      if( frame->planes[i].allocator )
+      {
+        m_cUserAllocator.unref( m_cUserAllocator.opaque, frame->planes[i].allocator );
+      }
+    }
   }
 
   vvdec_frame_default( frame );

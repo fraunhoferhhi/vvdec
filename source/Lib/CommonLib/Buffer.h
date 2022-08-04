@@ -937,7 +937,7 @@ struct PelStorage : public PelUnitBuf
   void swap( PelStorage& other );
   void createFromBuf( PelUnitBuf buf );
   void create( const UnitArea &_unit );
-  void create( const ChromaFormat _chromaFormat, const Size& _size, const unsigned _maxCUSize = 0, const unsigned _margin = 0, const unsigned _alignment = 0, const bool _scaleChromaMargin = true );
+  void create( const ChromaFormat _chromaFormat, const Size& _size, const unsigned _maxCUSize = 0, const unsigned _margin = 0, const unsigned _alignment = 0, const bool _scaleChromaMargin = true, const UserAllocator* userAlloc = nullptr );
   void destroy();
 
          PelBuf getBuf( const CompArea &blk );
@@ -951,10 +951,19 @@ struct PelStorage : public PelUnitBuf
   Pel *getOrigin( const int id ) const { return m_origin[id]; }
   PelBuf getOriginBuf( const int id ) { return PelBuf( m_origin[id], m_origSi[id] ); }
 
+  Size  getBufSize( const int id )      const { return  m_origSi[id];     }
+  void *getBufAllocator( const int id ) const { return m_allocator[id];   }
+  bool  isExternAllocator()             const { return m_externAllocator; }
+
+  const UserAllocator* getUserAllocator() const { return m_userAlloc; }
+
 private:
 
-  Size m_origSi[MAX_NUM_COMPONENT];
-  Pel *m_origin[MAX_NUM_COMPONENT];
+  Size    m_origSi[MAX_NUM_COMPONENT];
+  Pel    *m_origin[MAX_NUM_COMPONENT];
+  void   *m_allocator[MAX_NUM_COMPONENT];
+  bool    m_externAllocator = false;
+  const UserAllocator* m_userAlloc  = nullptr;
 };
 
 }

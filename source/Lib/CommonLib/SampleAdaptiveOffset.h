@@ -154,7 +154,7 @@ protected:
                          int                  numVerVirBndry );
 
   void invertQuantOffsets     ( ComponentID compIdx, int typeIdc, int typeAuxInfo, int* dstOffsets, int* srcOffsets ) const;
-  void reconstructBlkSAOParam ( SAOBlkParam& recParam, SAOBlkParam* mergeList[] ) const;
+  void reconstructBlkSAOParam ( SAOBlkParam& recParam, SAOBlkParam* mergeList[NUM_SAO_MERGE_TYPES] ) const;
   int  getMergeList           ( CodingStructure& cs, int ctuRsAddr, SAOBlkParam* mergeList[NUM_SAO_MERGE_TYPES] );
   void offsetCTU              ( const UnitArea& area, const CPelUnitBuf& src, PelUnitBuf& res, SAOBlkParam& saoblkParam, CodingStructure& cs, std::vector<int8_t> &signLineBuf1, std::vector<int8_t> &signLineBuf2 );
 

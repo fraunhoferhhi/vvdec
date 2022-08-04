@@ -68,7 +68,7 @@ struct Picture : public UnitArea
   Picture() = default;
   ~Picture() = default;
 
-  void create(const ChromaFormat &_chromaFormat, const Size &size, const unsigned _maxCUSize, const unsigned margin, const int layerId);
+  void create(const ChromaFormat &_chromaFormat, const Size &size, const unsigned _maxCUSize, const unsigned margin, const int layerId, UserAllocator* userAlloc = nullptr );
   void createWrapAroundBuf( const bool isWrapAround, const unsigned _maxCUSize );
   void resetForUse();
   void destroy();
@@ -131,6 +131,11 @@ public:
 
   Pel*   getOrigin( const PictureType &type, const ComponentID compID ) const;
   PelBuf getOriginBuf( const PictureType &type, const ComponentID compID );
+
+  Size   getBufSize( const PictureType &type, const ComponentID compID ) const;
+  void*  getBufAllocator( const ComponentID compID );
+  bool   isExternAllocator() const;
+  const  UserAllocator* getUserAllocator() const;
 
   int  getDecodingOrderNumber()               const { return decodingOrderNumber; }
   void setDecodingOrderNumber(const int val)        { decodingOrderNumber = val;  }
