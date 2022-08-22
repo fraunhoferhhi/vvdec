@@ -53,8 +53,6 @@ POSSIBILITY OF SUCH DAMAGE.
 #endif
 
 #include <atomic>
-#include <stdio.h>
-#include <iostream>
 
 namespace vvdec
 {
@@ -98,7 +96,7 @@ extern const uint32_t   ctxIndMap4x4[4*4];
 extern const uint32_t   g_uiGroupIdx[ MAX_TU_SIZE_FOR_PROFILE ];
 extern const uint32_t   g_uiMinInGroup[ LAST_SIGNIFICANT_GROUPS ];
 extern const uint32_t   g_auiGoRiceParsCoeff     [ 32 ];
-inline uint32_t g_auiGoRicePosCoeff0(int st, uint32_t ricePar)
+static inline uint32_t g_auiGoRicePosCoeff0(int st, uint32_t ricePar)
 {
   return (st < 2 ? 1 : 2) << ricePar;
 }
@@ -151,10 +149,10 @@ extern const int       g_ictModes[2][4];
 class SizeIndexInfoLog2
 {
 public:
-  constexpr inline SizeType numAllWidths()            const { return MAX_LOG2_TU_SIZE_PLUS_ONE; }
-  constexpr inline SizeType numAllHeights()           const { return MAX_LOG2_TU_SIZE_PLUS_ONE; }
-  constexpr inline SizeType sizeFrom( SizeType idx )  const { return (1 << idx); }
-            inline SizeType idxFrom( SizeType size )  const { return getLog2(size); }
+  constexpr static inline SizeType numAllWidths()           { return MAX_LOG2_TU_SIZE_PLUS_ONE; }
+  constexpr static inline SizeType numAllHeights()          { return MAX_LOG2_TU_SIZE_PLUS_ONE; }
+  constexpr static inline SizeType sizeFrom( SizeType idx ) { return (1 << idx); }
+            static inline SizeType idxFrom( SizeType size ) { return getLog2(size); }
 };
 
 extern const SizeIndexInfoLog2 g_sizeIdxInfo;
@@ -226,4 +224,5 @@ extern int16_t         g_globalGeoWeights   [GEO_NUM_PRESTORED_MASK][GEO_WEIGHT_
 extern const int8_t    g_angle2mask         [GEO_NUM_ANGLES];
 extern const int8_t    g_Dis                [GEO_NUM_ANGLES];
 extern const int8_t    g_angle2mirror       [GEO_NUM_ANGLES];
-}
+
+}   // namespace vvdec
