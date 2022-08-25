@@ -54,7 +54,7 @@ file( GLOB MD5_INC_FILES "../libmd5/*.h" )
 file( GLOB PUBLIC_INC_FILES  "../../../include/${LIB_NAME}/*.h" )
 
 # get all source files
-set( SRC_FILES ${BASE_SRC_FILES} ${X86_SRC_FILES} ${SSE41_SRC_FILES} ${SSE42_SRC_FILES} ${AVX_SRC_FILES} ${AVX2_SRC_FILES} ${MD5_SRC_FILES} )
+set( SRC_FILES ${BASE_SRC_FILES} ${X86_SRC_FILES} ${MD5_SRC_FILES} )
 
 # get all include files
 file( GLOB PRIVATE_INC_FILES ${BASE_INC_FILES} ${X86_INC_FILES} ${MD5_INC_FILES}  )
@@ -94,11 +94,26 @@ if( VVDEC_ENABLE_X86_SIMD )
     set_if_compiler_supports_flag( FLAG_msse42 -msse4.2 )
     set_if_compiler_supports_flag( FLAG_mavx   -mavx    )
     set_if_compiler_supports_flag( FLAG_mavx2  -mavx2   )
-    set_property( SOURCE ${SSE41_SRC_FILES} APPEND PROPERTY COMPILE_FLAGS "$<$<CXX_COMPILER_ID:GNU>:-fno-lto> ${FLAG_msse41}" )
-    set_property( SOURCE ${SSE42_SRC_FILES} APPEND PROPERTY COMPILE_FLAGS "$<$<CXX_COMPILER_ID:GNU>:-fno-lto> ${FLAG_msse42}" )
-    set_property( SOURCE ${AVX_SRC_FILES}   APPEND PROPERTY COMPILE_FLAGS "$<$<CXX_COMPILER_ID:GNU>:-fno-lto> ${FLAG_mavx}"   )
-    set_property( SOURCE ${AVX2_SRC_FILES}  APPEND PROPERTY COMPILE_FLAGS "$<$<CXX_COMPILER_ID:GNU>:-fno-lto> ${FLAG_mavx2}"  )
+    set_property( SOURCE ${SSE41_SRC_FILES} APPEND PROPERTY COMPILE_FLAGS "${FLAG_msse41}" )
+    set_property( SOURCE ${SSE42_SRC_FILES} APPEND PROPERTY COMPILE_FLAGS "${FLAG_msse42}" )
+    set_property( SOURCE ${AVX_SRC_FILES}   APPEND PROPERTY COMPILE_FLAGS "${FLAG_mavx}"   )
+    set_property( SOURCE ${AVX2_SRC_FILES}  APPEND PROPERTY COMPILE_FLAGS "${FLAG_mavx2}"  )
   endif()
+
+  add_library( ${LIB_NAME}_x86_simd OBJECT ${SSE41_SRC_FILES} ${SSE42_SRC_FILES} ${AVX_SRC_FILES} ${AVX2_SRC_FILES} )
+  # disble LTO for the files compiled with special architecture flags
+  set_target_properties( ${LIB_NAME}_x86_simd PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE        OFF )
+  set_target_properties( ${LIB_NAME}_x86_simd PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELWITHDEBINFO OFF )
+  set_target_properties( ${LIB_NAME}_x86_simd PROPERTIES INTERPROCEDURAL_OPTIMIZATION_MINSIZEREL     OFF )
+
+  target_compile_definitions( ${LIB_NAME}_x86_simd PRIVATE ${LIB_NAME_UC}_SOURCE )
+  target_compile_options( ${LIB_NAME}_x86_simd PRIVATE $<$<OR:$<CXX_COMPILER_ID:Clang>,$<CXX_COMPILER_ID:AppleClang>>:-Wall -Werror -Wno-unused-function -Wno-enum-compare-switch -Wno-unknown-attributes>
+                                                       $<$<CXX_COMPILER_ID:GNU>:-Wall -Werror -Wno-unused-function -Wno-sign-compare -fdiagnostics-show-option -Wno-ignored-attributes>
+                                                       $<$<CXX_COMPILER_ID:MSVC>:/W4 /WX /wd4100 /wd4127 /wd4244 /wd4245 /wd4389 /wd4456 /wd4457 /wd4458 /wd4459 /wd4505 /wd4701 /wd4702 /wd4703> )
+
+  target_include_directories( ${LIB_NAME}_x86_simd PRIVATE $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../../include> $<BUILD_INTERFACE:${CMAKE_BINARY_DIR}> )
+  target_include_directories( ${LIB_NAME}_x86_simd PRIVATE . .. ../DecoderLib ../CommonLib ../CommonLib/x86 ../libmd5 )
+  target_include_directories( ${LIB_NAME}_x86_simd SYSTEM PRIVATE ../../../thirdparty )
 endif()
 
 # set resource file for MSVC compilers
@@ -106,7 +121,7 @@ if( MSVC )
   set( RESOURCE_FILE ${LIB_NAME}.rc )
 endif()
 
-add_library( ${LIB_NAME} ${SRC_FILES} ${INC_FILES} ${NATVIS_FILES} ${RESOURCE_FILE} )
+add_library( ${LIB_NAME} ${SRC_FILES} $<$<TARGET_EXISTS:${LIB_NAME}_x86_simd>:$<TARGET_OBJECTS:${LIB_NAME}_x86_simd>> ${INC_FILES} ${NATVIS_FILES} ${RESOURCE_FILE} )
 
 target_compile_definitions( ${LIB_NAME} PRIVATE ${LIB_NAME_UC}_SOURCE )
 target_compile_definitions( ${LIB_NAME} PUBLIC $<$<AND:$<PLATFORM_ID:Windows>,$<STREQUAL:$<TARGET_PROPERTY:${LIB_NAME},TYPE>,SHARED_LIBRARY>>:${LIB_NAME_UC}_DYN_LINK> )
