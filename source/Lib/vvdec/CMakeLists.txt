@@ -94,10 +94,10 @@ if( VVDEC_ENABLE_X86_SIMD )
     set_if_compiler_supports_flag( FLAG_msse42 -msse4.2 )
     set_if_compiler_supports_flag( FLAG_mavx   -mavx    )
     set_if_compiler_supports_flag( FLAG_mavx2  -mavx2   )
-    set_property( SOURCE ${SSE41_SRC_FILES} APPEND PROPERTY COMPILE_FLAGS ${FLAG_msse41} )
-    set_property( SOURCE ${SSE42_SRC_FILES} APPEND PROPERTY COMPILE_FLAGS ${FLAG_msse42} )
-    set_property( SOURCE ${AVX_SRC_FILES}   APPEND PROPERTY COMPILE_FLAGS ${FLAG_mavx}   )
-    set_property( SOURCE ${AVX2_SRC_FILES}  APPEND PROPERTY COMPILE_FLAGS ${FLAG_mavx2}  )
+    set_property( SOURCE ${SSE41_SRC_FILES} APPEND PROPERTY COMPILE_FLAGS "$<$<CXX_COMPILER_ID:GNU>:-fno-lto> ${FLAG_msse41}" )
+    set_property( SOURCE ${SSE42_SRC_FILES} APPEND PROPERTY COMPILE_FLAGS "$<$<CXX_COMPILER_ID:GNU>:-fno-lto> ${FLAG_msse42}" )
+    set_property( SOURCE ${AVX_SRC_FILES}   APPEND PROPERTY COMPILE_FLAGS "$<$<CXX_COMPILER_ID:GNU>:-fno-lto> ${FLAG_mavx}"   )
+    set_property( SOURCE ${AVX2_SRC_FILES}  APPEND PROPERTY COMPILE_FLAGS "$<$<CXX_COMPILER_ID:GNU>:-fno-lto> ${FLAG_mavx2}"  )
   endif()
 endif()
 
@@ -125,6 +125,4 @@ target_link_libraries( ${LIB_NAME} ${INTEL_ITT_LINK_TARGET} Threads::Threads )
 
 # set the folder where to place the projects
 set_target_properties( ${LIB_NAME} PROPERTIES FOLDER lib )
-
-
 
