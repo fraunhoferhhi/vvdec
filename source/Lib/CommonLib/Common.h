@@ -54,6 +54,7 @@ namespace vvdec
 
 typedef int32_t PosType;
 typedef uint32_t SizeType;
+
 struct Position
 {
   PosType x;
@@ -137,27 +138,27 @@ struct UnitScale
   constexpr Area     scale( const Area    &_area ) const { return Area{ scale( _area.pos() ), scale( _area.size() ) }; }
 };
 
-constexpr inline ptrdiff_t rsAddr(const Position &pos, const ptrdiff_t stride, const UnitScale &unitScale )
+constexpr static inline ptrdiff_t rsAddr(const Position &pos, const ptrdiff_t stride, const UnitScale &unitScale )
 {
   return ( ptrdiff_t )(stride >> unitScale.posx) * ( ptrdiff_t )(pos.y >> unitScale.posy) + ( ptrdiff_t )(pos.x >> unitScale.posx);
 }
 
-constexpr inline ptrdiff_t rsAddr(const Position &pos, const Position &origin, const ptrdiff_t stride, const UnitScale &unitScale )
+constexpr static inline ptrdiff_t rsAddr(const Position &pos, const Position &origin, const ptrdiff_t stride, const UnitScale &unitScale )
 {
   return (stride >> unitScale.posx) * ((pos.y - origin.y) >> unitScale.posy) + ((pos.x - origin.x) >> unitScale.posx);
 }
 
-constexpr inline ptrdiff_t rsAddr(const Position &pos, const ptrdiff_t stride )
+constexpr static inline ptrdiff_t rsAddr(const Position &pos, const ptrdiff_t stride )
 {
   return stride * ( ptrdiff_t )pos.y + ( ptrdiff_t )pos.x;
 }
 
-constexpr inline ptrdiff_t rsAddr(const Position &pos, const Position &origin, const ptrdiff_t stride )
+constexpr static inline ptrdiff_t rsAddr(const Position &pos, const Position &origin, const ptrdiff_t stride )
 {
   return stride * (pos.y - origin.y) + (pos.x - origin.x);
 }
 
-inline Area clipArea(const Area &_area, const Area &boundingBox)
+static inline Area clipArea(const Area &_area, const Area &boundingBox)
 {
   Area area = _area;
 
@@ -188,5 +189,4 @@ struct UserAllocator
   void                       *opaque  = nullptr;
 };
 
-
-}
+}   // namespace vvdec

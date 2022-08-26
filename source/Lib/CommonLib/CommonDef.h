@@ -400,14 +400,11 @@ struct ClpRngTemplate
 };
 
 typedef ClpRngTemplate<Pel> ClpRng;
+typedef ClpRng ClpRngs;
 
-struct ClpRngs : ClpRng
-{
-};
-
-template <typename T> constexpr inline T Clip3  ( const T minVal, const T maxVal, const T a) { return std::min<T> (std::max<T> (minVal, a) , maxVal); }  ///< general min/max clip
-template <typename T> constexpr inline T ClipBD ( const T x, const int bitDepth )            { return Clip3( T( 0 ), T( ( 1 << bitDepth ) - 1 ), x ); }
-template <typename T> constexpr inline T ClipPel( const T a, const ClpRng& clpRng )          { return ClipBD( a, clpRng.bd ); }  ///< clip reconstruction
+template <typename T> constexpr static inline T Clip3  ( const T minVal, const T maxVal, const T a) { return std::min<T> (std::max<T> (minVal, a) , maxVal); }  ///< general min/max clip
+template <typename T> constexpr static inline T ClipBD ( const T x, const int bitDepth )            { return Clip3( T( 0 ), T( ( 1 << bitDepth ) - 1 ), x ); }
+template <typename T> constexpr static inline T ClipPel( const T a, const ClpRng& clpRng )          { return ClipBD( a, clpRng.bd ); }  ///< clip reconstruction
 
 static void default_msgFnc( void *, int level, const char* fmt, va_list args )
 {
@@ -418,14 +415,8 @@ extern MsgLevel g_verbosity;
 extern void    *g_context;
 extern std::function<void( void*, int, const char*, va_list )> g_msgFnc;
 
-}
 
-#include <stdarg.h>
-
-namespace vvdec
-{
-
-inline void msg( MsgLevel level, const char* fmt, ... )
+static inline void msg( MsgLevel level, const char* fmt, ... )
 {
   if ( vvdec::g_msgFnc && vvdec::g_verbosity >= level )
   {
@@ -453,7 +444,7 @@ inline void msg( MsgLevel level, const char* fmt, ... )
 #else
 namespace detail {
 template<typename T>
-T* aligned_malloc(size_t len, size_t alignement) {
+static inline T* aligned_malloc(size_t len, size_t alignement) {
   T* p = NULL;
   if( posix_memalign( (void**)&p, alignement, sizeof(T)*(len) ) )
   {
@@ -461,7 +452,7 @@ T* aligned_malloc(size_t len, size_t alignement) {
   }
   return p;
 }
-}
+}   // namespace detail
 #define xMalloc( type, len )        detail::aligned_malloc<type>( len, MEMORY_ALIGN_DEF_SIZE )
 #define xFree( ptr )                free( ptr )
 #endif
@@ -535,10 +526,10 @@ std::string read_simd_extension_name();
 
 #endif   // ENABLE_SIMD_OPT
 
-template <typename ValueType> inline ValueType leftShift       (const ValueType value, const int shift) { return (shift >= 0) ? ( value                                  << shift) : ( value                                   >> -shift); }
-template <typename ValueType> inline ValueType rightShift      (const ValueType value, const int shift) { return (shift >= 0) ? ( value                                  >> shift) : ( value                                   << -shift); }
-template <typename ValueType> inline ValueType leftShift_round (const ValueType value, const int shift) { return (shift >= 0) ? ( value                                  << shift) : ((value + (ValueType(1) << (-shift - 1))) >> -shift); }
-template <typename ValueType> inline ValueType rightShift_round(const ValueType value, const int shift) { return (shift >= 0) ? ((value + (ValueType(1) << (shift - 1))) >> shift) : ( value                                   << -shift); }
+template <typename ValueType> static inline ValueType leftShift       (const ValueType value, const int shift) { return (shift >= 0) ? ( value                                  << shift) : ( value                                   >> -shift); }
+template <typename ValueType> static inline ValueType rightShift      (const ValueType value, const int shift) { return (shift >= 0) ? ( value                                  >> shift) : ( value                                   << -shift); }
+template <typename ValueType> static inline ValueType leftShift_round (const ValueType value, const int shift) { return (shift >= 0) ? ( value                                  << shift) : ((value + (ValueType(1) << (-shift - 1))) >> -shift); }
+template <typename ValueType> static inline ValueType rightShift_round(const ValueType value, const int shift) { return (shift >= 0) ? ((value + (ValueType(1) << (shift - 1))) >> shift) : ( value                                   << -shift); }
 
 #if defined( _WIN32 ) && defined( TARGET_SIMD_X86 )
 static inline unsigned int bit_scan_reverse( int a )

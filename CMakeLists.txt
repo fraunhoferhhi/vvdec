@@ -3,11 +3,8 @@
 # minimum required cmake version
 cmake_minimum_required( VERSION 3.12.0 FATAL_ERROR )
 
-# set cmake policy
-if( NOT CMAKE_VERSION VERSION_LESS 3.12.0 )
-  # Use latest policy
-  cmake_policy( VERSION ${CMAKE_MAJOR_VERSION}.${CMAKE_MINOR_VERSION} )
-endif()
+# Use latest policy
+cmake_policy( VERSION ${CMAKE_MAJOR_VERSION}.${CMAKE_MINOR_VERSION} )
 
 # project name
 project( vvdec VERSION 1.5.0 )
@@ -144,7 +141,7 @@ else()
   set( VVDEC_OUTPUT_DIR_POSTFIX static )
 endif()
 
-set( VVDEC_TOPLEVEL_OUTPUT_DIRS              ON  CACHE BOOL   "Put build artifacts into ${CMAKE_SOURCE_DIR}/{bin,lib}/" )
+set( VVDEC_TOPLEVEL_OUTPUT_DIRS              OFF CACHE BOOL   "Put build artifacts into ${CMAKE_SOURCE_DIR}/{bin,lib}/" )
 
 if( VVDEC_TOPLEVEL_OUTPUT_DIRS )
   # Using CMake's default library name convention which is the same for all configurations.
