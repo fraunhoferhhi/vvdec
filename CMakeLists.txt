@@ -141,7 +141,7 @@ else()
   set( VVDEC_OUTPUT_DIR_POSTFIX static )
 endif()
 
-set( VVDEC_TOPLEVEL_OUTPUT_DIRS              OFF CACHE BOOL   "Put build artifacts into ${CMAKE_SOURCE_DIR}/{bin,lib}/" )
+set( VVDEC_TOPLEVEL_OUTPUT_DIRS              ON  CACHE BOOL   "Put build artifacts into ${CMAKE_SOURCE_DIR}/{bin,lib}/" )
 
 if( VVDEC_TOPLEVEL_OUTPUT_DIRS )
   # Using CMake's default library name convention which is the same for all configurations.
