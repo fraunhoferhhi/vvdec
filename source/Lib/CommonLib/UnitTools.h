@@ -151,7 +151,7 @@ namespace PU
   void                  getAffineMergeCand               (const PredictionUnit &pu, AffineMergeCtx& affMrgCtx, const int mrgCandIdx = -1 );
   void                  setAllAffineMvField              (      PredictionUnit &pu, MvField *mvField, RefPicList eRefList );
   void                  setAllAffineMv                   (      PredictionUnit &pu, Mv affLT, Mv affRT, Mv affLB, RefPicList eRefList, bool clipCPMVs = false );
-  bool                  getInterMergeSubPuMvpCand        (const PredictionUnit &pu, MergeCtx &mrgCtx, bool& LICFlag, const int count);
+  bool                  getInterMergeSubPuMvpCand        (const PredictionUnit &pu, MergeCtx &mrgCtx, const int count);
   bool                  isBiPredFromDifferentDirEqDistPoc(const PredictionUnit &pu);
   void                  restrictBiPredMergeCandsOne      (      PredictionUnit &pu);
 

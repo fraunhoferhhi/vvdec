@@ -2398,7 +2398,6 @@ void PU::getAffineMergeCand( const PredictionUnit &pu, AffineMergeCtx& affMrgCtx
   if ( enableSubPuMvp && slice.getPicHeader()->getEnableTMVPFlag() )
   {
     MergeCtx mrgCtx = *affMrgCtx.mrgCtx;
-    bool tmpLICFlag = false;
 
     CHECKD( mrgCtx.subPuMvpMiBuf.area() == 0 || !mrgCtx.subPuMvpMiBuf.buf, "Buffer not initialized" );
 
@@ -2427,7 +2426,7 @@ void PU::getAffineMergeCand( const PredictionUnit &pu, AffineMergeCtx& affMrgCtx
 
     mrgCtx.numValidMergeCand = pos;
 
-    isAvailableSubPu = getInterMergeSubPuMvpCand( pu, mrgCtx, tmpLICFlag, pos );
+    isAvailableSubPu = getInterMergeSubPuMvpCand( pu, mrgCtx, pos );
 
     if( isAvailableSubPu )
     {
@@ -2912,7 +2911,7 @@ void clipColPos(int& posX, int& posY, const PredictionUnit& pu)
   posY = std::min(verMax, std::max(verMin, posY));
 }
 
-bool PU::getInterMergeSubPuMvpCand(const PredictionUnit &pu, MergeCtx& mrgCtx, bool& LICFlag, const int count )
+bool PU::getInterMergeSubPuMvpCand(const PredictionUnit &pu, MergeCtx& mrgCtx, const int count )
 {
   const Slice   &slice = *pu.slice;
 
@@ -2936,7 +2935,6 @@ bool PU::getInterMergeSubPuMvpCand(const PredictionUnit &pu, MergeCtx& mrgCtx, b
   ////////          GET Initial Temporal Vector                  ////////
   ///////////////////////////////////////////////////////////////////////
   Mv cTempVector    = cTMv;
-  bool  tempLICFlag = false;
 
   // compute the location of the current PU
   Position puPos  = pu.lumaPos();
@@ -2980,7 +2978,6 @@ bool PU::getInterMergeSubPuMvpCand(const PredictionUnit &pu, MergeCtx& mrgCtx, b
         // set as default, for further motion vector field spanning
         mrgCtx.mvFieldNeighbours[(count << 1) + currRefListId].setMvField(cColMv, 0);
         mrgCtx.interDirNeighbours[count] |= (1 << currRefListId);
-        LICFlag = tempLICFlag;
         mrgCtx.BcwIdx[count] = BCW_DEFAULT;
         found = true;
       }
@@ -3027,6 +3024,7 @@ bool PU::getInterMergeSubPuMvpCand(const PredictionUnit &pu, MergeCtx& mrgCtx, b
         const Slice* pColSlice;
         const ColocatedMotionInfo&
                      colMi = pColPic->cs->getColInfo( colPos, pColSlice );
+        bool found = false;
 
         if (colMi.isInter())
         {
@@ -3037,10 +3035,12 @@ bool PU::getInterMergeSubPuMvpCand(const PredictionUnit &pu, MergeCtx& mrgCtx, b
             {
               mi.miRefIdx[currRefListId] = 1;
               mi.mv[currRefListId] = cColMv;
+              found = true;
             }
           }
         }
-        else
+        
+        if( !found )
         {
           // intra coded, in this case, no motion vector is available for list 0 or list 1, so use default
           mi.mv[0] = mrgCtx.mvFieldNeighbours[(count << 1) + 0].mv;
