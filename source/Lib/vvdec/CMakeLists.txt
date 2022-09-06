@@ -85,6 +85,12 @@ add_compile_options( "$<$<OR:$<CXX_COMPILER_ID:Clang>,$<CXX_COMPILER_ID:AppleCla
 add_compile_options( "$<$<CXX_COMPILER_ID:GNU>:-Wall;-Werror;-Wno-unused-function;-Wno-sign-compare;-fdiagnostics-show-option;-Wno-ignored-attributes>" )
 add_compile_options( "$<$<CXX_COMPILER_ID:MSVC>:/W4;/WX;/wd4100;/wd4127;/wd4244;/wd4245;/wd4389;/wd4456;/wd4457;/wd4458;/wd4459;/wd4505;/wd4701;/wd4702;/wd4703>" )
 
+# don't export all symbols from shared libraries by default (gcc: -fvisibility=hidden), only those marked as VVDEC_DECL
+#  behavior similar to __declspec(dllexport) on windows
+set( CMAKE_C_VISIBILITY_PRESET hidden )
+set( CMAKE_CXX_VISIBILITY_PRESET hidden )
+
+set( CMAKE_VISIBILITY_INLINES_HIDDEN TRUE )
 
 if( VVDEC_ENABLE_X86_SIMD )
   # set needed compile definitions
@@ -132,7 +138,7 @@ endif()
 
 add_library( ${LIB_NAME} ${SRC_FILES} $<$<TARGET_EXISTS:${LIB_NAME}_x86_simd>:$<TARGET_OBJECTS:${LIB_NAME}_x86_simd>> ${INC_FILES} ${NATVIS_FILES} ${RESOURCE_FILE} )
 
-target_compile_definitions( ${LIB_NAME} PUBLIC $<$<AND:$<PLATFORM_ID:Windows>,$<STREQUAL:$<TARGET_PROPERTY:${LIB_NAME},TYPE>,SHARED_LIBRARY>>:${LIB_NAME_UC}_DYN_LINK> )
+target_compile_definitions( ${LIB_NAME} PUBLIC $<$<STREQUAL:$<TARGET_PROPERTY:${LIB_NAME},TYPE>,SHARED_LIBRARY>:${LIB_NAME_UC}_DYN_LINK> )
 
 target_include_directories( ${LIB_NAME} SYSTEM INTERFACE $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../../include> $<BUILD_INTERFACE:${CMAKE_BINARY_DIR}> )
 

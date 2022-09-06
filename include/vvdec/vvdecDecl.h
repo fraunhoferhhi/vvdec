@@ -52,7 +52,9 @@ POSSIBILITY OF SUCH DAMAGE.
 #     define VVDEC_DECL __declspec(dllimport)
 #   endif  // VVDEC_SOURCE
 # endif // VVDEC_DYN_LINK
-#endif // _WIN32
+#elif defined( __GNUC__ )
+#  define VVDEC_DECL __attribute__( ( visibility( "default" ) ) )
+#endif // __GNUC__
 
 #if !defined( VVDEC_DECL )
 # define VVDEC_DECL

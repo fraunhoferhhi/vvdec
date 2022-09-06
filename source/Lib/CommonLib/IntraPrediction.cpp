@@ -1664,20 +1664,25 @@ NO_THREAD_SANITIZE void IntraPrediction::xGetLumaRecPixels(const PredictionUnit 
                   + pRecSrc0[( (ADDR) << logSubWidthC ) - 1 + iRecStride] * c5_6tap   \
                   + offset_6tap ) >> shift_6tap
 
-#define GET_LUMA_REC_PIX_OP1(ADDR)                                                        \
-  pDst0[ADDR] = !(ADDR) ? (   pRecSrc0[( (ADDR) << logSubWidthC )    ]              * c0_6tap   \
-                            + pRecSrc0[( (ADDR) << logSubWidthC ) + 1]              * c1_6tap   \
-                            + pRecSrc0[( (ADDR) << logSubWidthC )]              * c2_6tap   \
-                            + pRecSrc0[( (ADDR) << logSubWidthC )     + iRecStride] * c3_6tap   \
-                            + pRecSrc0[( (ADDR) << logSubWidthC ) + 1 + iRecStride] * c4_6tap   \
-                            + pRecSrc0[( (ADDR) << logSubWidthC ) + iRecStride] * c5_6tap   \
-                            + offset_6tap ) >> shift_6tap                                       \
-                        : GET_LUMA_REC_PIX_OP2(ADDR)
-  
+#define GET_LUMA_REC_PIX_OP1(ADDR)                          \
+  if( !(ADDR) )                                             \
+  {                                                         \
+    pDst0[0] = (   pRecSrc0[0    ]              * c0_6tap   \
+                 + pRecSrc0[0 + 1]              * c1_6tap   \
+                 + pRecSrc0[0]                  * c2_6tap   \
+                 + pRecSrc0[0     + iRecStride] * c3_6tap   \
+                 + pRecSrc0[0 + 1 + iRecStride] * c4_6tap   \
+                 + pRecSrc0[0     + iRecStride] * c5_6tap   \
+                 + offset_6tap ) >> shift_6tap;             \
+  }                                                         \
+  else                                                      \
+  {                                                         \
+    GET_LUMA_REC_PIX_OP2(ADDR);                             \
+  }
+
   int width  = uiCWidth;
   int height = uiCHeight;
 
-GCC_WARNING_DISABLE_sequence_point
   if( bLeftAvaillable )
   {
     if( pu.chromaFormat == CHROMA_420 )
@@ -1694,7 +1699,6 @@ GCC_WARNING_DISABLE_sequence_point
   {
     SIZE_AWARE_PER_EL_OP( GET_LUMA_REC_PIX_OP1, GET_LUMA_REC_PIX_INC );
   }
-  GCC_WARNING_RESET
 }
 
 #undef GET_LUMA_REC_PIX_INC
