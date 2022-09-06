@@ -14,6 +14,11 @@ macro( install_targets config_ )
            BUNDLE DESTINATION  ${RUNTIME_DEST}
            LIBRARY DESTINATION ${LIBRARY_DEST}
            ARCHIVE DESTINATION ${ARCHIVE_DEST} )
+
+  if( XCODE AND BUILD_SHARED_LIBS )
+    # WORKAROUND: reapply code signature, which gets broken by cmake install step when modifying the RPATH
+    install( CODE "execute_process( COMMAND codesign --force --sign - --timestamp=none --generate-entitlement-der \"\$ENV{DESTDIR}\${CMAKE_INSTALL_PREFIX}/${LIBRARY_DEST}/$<TARGET_FILE_NAME:vvdec>\" \"\$ENV{DESTDIR}\${CMAKE_INSTALL_PREFIX}/${RUNTIME_DEST}/$<TARGET_FILE_NAME:vvdecapp>\" )" )
+  endif()
 endmacro( install_targets )
 
 # install pdb file for static and shared libraries
