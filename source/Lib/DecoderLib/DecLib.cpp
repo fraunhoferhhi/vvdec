@@ -120,7 +120,7 @@ void DecLib::create(int numDecThreads, int parserFrameDelay, const UserAllocator
 
   if( numDecThreads < 0 )
   {
-    numDecThreads = std::thread::hardware_concurrency();
+    numDecThreads = std::min<unsigned>( MAX_THREADS, std::thread::hardware_concurrency() );
   }
 
   m_decodeThreadPool.reset( new ThreadPool( numDecThreads, "DecThread" ) );
