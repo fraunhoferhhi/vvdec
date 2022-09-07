@@ -141,15 +141,15 @@ int paramCheck( vvdecParams *params )
     return -1;
   }
 
-  if( params->threads > 64 )
+  if( params->threads > MAX_THREADS )
   {
-    vvdec::msg( vvdec::ERROR, "threads must be <= 64\n" );
+    vvdec::msg( vvdec::ERROR, "threads must be <= %i\n", MAX_THREADS );
     ret = -1;
   }
 
-  if( params->parseThreads > 64 )
+  if( params->parseThreads > MAX_THREADS )
   {
-    vvdec::msg( vvdec::ERROR, "parseThreads must be <= 64\n" );
+    vvdec::msg( vvdec::ERROR, "parseThreads must be <= %i\n", MAX_THREADS );
     ret = -1;
   }
 
