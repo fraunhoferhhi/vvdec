@@ -225,7 +225,7 @@ int VVDecImpl::reset()
   }
   m_cFrameStorageMap.clear();
 
-#if defined( __linux__ ) && !defined( ANDROID ) && defined( __GLIBC__ )
+#if defined( __linux__ ) && defined( __GLIBC__ )
   malloc_trim(0);
 #endif
 
