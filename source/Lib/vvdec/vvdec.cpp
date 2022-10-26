@@ -363,12 +363,12 @@ VVDEC_DECL const char* vvdec_get_last_additional_error( vvdecDecoder *dec )
   return d->m_cAdditionalErrorString.c_str();
 }
 
-const char* vvdec_get_error_msg( int nRet )
+VVDEC_DECL const char* vvdec_get_error_msg( int nRet )
 {
   return vvdec::VVDecImpl::getErrorMsg( nRet );
 }
 
-vvdecNalType vvdec_get_nal_unit_type( vvdecAccessUnit *accessUnit )
+VVDEC_DECL vvdecNalType vvdec_get_nal_unit_type( vvdecAccessUnit *accessUnit )
 {
   if( nullptr == accessUnit )
   {
@@ -377,14 +377,32 @@ vvdecNalType vvdec_get_nal_unit_type( vvdecAccessUnit *accessUnit )
   return vvdec::VVDecImpl::getNalUnitType(*accessUnit);
 }
 
-const char* vvdec_get_nal_unit_type_name( vvdecNalType t )
+VVDEC_DECL const char* vvdec_get_nal_unit_type_name( vvdecNalType t )
 {
   return vvdec::VVDecImpl::getNalUnitTypeAsString(t);
 }
 
-bool vvdec_is_nal_unit_slice( vvdecNalType t )
+VVDEC_DECL bool vvdec_is_nal_unit_slice( vvdecNalType t )
 {
   return vvdec::VVDecImpl::isNalUnitSlice(t);
+}
+
+VVDEC_DECL void vvdec_set_trace_filename( const char *s )
+{
+#if ENABLE_TRACING
+  vvdec::sTracingFile = std::string(s);
+#else
+  fprintf(stderr, "vvdec_set_trace_filename(): ENABLE_TRACING is not enabled!\n");
+#endif
+}
+
+VVDEC_DECL void vvdec_set_trace_rule( const char *s )
+{
+#if ENABLE_TRACING
+  vvdec::sTracingRule = std::string(s);
+#else
+  fprintf(stderr, "vvdec_set_trace_rule(): ENABLE_TRACING is not enabled!\n");
+#endif
 }
 
 VVDEC_NAMESPACE_END

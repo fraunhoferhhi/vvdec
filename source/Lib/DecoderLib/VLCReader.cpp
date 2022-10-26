@@ -3209,7 +3209,7 @@ void HLSyntaxReader::parseSliceHeader( Slice*               pcSlice,
     if( currSubPic.getNumSlicesInSubPic() > 1 )
     {
       int bitsSliceAddress = (int)ceil( log2( currSubPic.getNumSlicesInSubPic() ) );
-      READ_CODE( bitsSliceAddress, uiCode, "slice_address" );
+      READ_CODE( bitsSliceAddress, uiCode, "sh_slice_address" );
       sliceAddr = uiCode;
     }
     uint32_t picLevelSliceIdx = sliceAddr;

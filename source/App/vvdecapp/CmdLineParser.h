@@ -101,6 +101,11 @@ public:
       std::cout << "\t\t [--SEIDecodedPictureHash,-dph ] : enable handling of decoded picture hash SEI messages" << std::endl;
       std::cout << "\t\t [--CheckYuvMD5,-md5 <md5str>  ] : enable calculation of md5 hash over the full YUV output and check against the provided value." << std::endl;
       std::cout << std::endl;
+      std::cout << "\t Debug Options" << std::endl;
+      std::cout << std::endl;
+      std::cout << "\t\t [--TraceFile,-tf <str>     ] : Tracing filename if ENABLE_TRACING: on, e.g. --TraceFile=trace.txt" << std::endl;
+      std::cout << "\t\t [--TraceRule,-tr <str>     ] : Tracing rule if ENABLE_TRACING: on, e.g. --TraceRule=D_SYNTAX,D_HEADER:poc<=1" << std::endl;
+      std::cout << std::endl;
     }
     std::cout << "\t General Options" << std::endl;
     std::cout << std::endl;
@@ -125,7 +130,7 @@ public:
     /* Check command line parameters */
     int32_t  i_arg = 1;
 
-    /* Check general options firs*/
+    /* Check general options first */
     while( i_arg < argc )
     {
       if( (!strcmp( (const char*)argv[i_arg], "-v" )) || !strcmp( (const char*)argv[i_arg], "--verbosity" ) )
@@ -361,6 +366,28 @@ public:
           };
           fprintf( stdout, "[simd] : %s\n", cll );
         }
+      }
+      else if( strstr( (const char*)argv[i_arg], "--TraceFile" ) || strstr( (const char*)argv[i_arg], "-tf" ) )
+      {
+        char *ptr = strchr(argv[i_arg], '=');
+        if( !ptr )
+          ptr = argv[++i_arg];
+        else
+          ptr += 1;
+
+        vvdec_set_trace_filename( ptr );
+        i_arg++;
+      }
+      else if( strstr( (const char*)argv[i_arg], "--TraceRule" ) || strstr( (const char*)argv[i_arg], "-tr" ) )
+      {
+        char *ptr = strchr(argv[i_arg], '=');
+        if( !ptr )
+          ptr = argv[++i_arg];
+        else
+          ptr += 1;
+
+        vvdec_set_trace_rule( ptr );
+        i_arg++;
       }
       else
       {
