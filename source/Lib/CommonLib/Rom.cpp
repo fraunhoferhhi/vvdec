@@ -70,9 +70,6 @@ namespace vvdec
 
 #if ENABLE_TRACING
 CDTrace *g_trace_ctx = NULL;
-std::string sTracingRule="D_HEADER,D_SYNTAX:poc<=1";
-std::string sTracingFile="tracefile_vvdec.txt";
-bool   bTracingChannelsList = false;
 #endif
 
 #if ENABLE_TIME_PROFILING

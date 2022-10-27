@@ -641,17 +641,12 @@ VVDEC_DECL const char* vvdec_get_nal_unit_type_name( vvdecNalType t );
 */
 VVDEC_DECL bool vvdec_is_nal_unit_slice ( vvdecNalType t );
 
-/* vvdec_set_trace_filename
- Set the file name for tracing
- \param[in]  the string of trace filename
+/* vvdec_set_tracing
+ Set the filename and rules for tracing
+ \param[in]  the string of trace filename and rules, print-out the channel list or not
+  \retval    VVDEC_ERR_INITIALIZE if ENABLE_TRACING off, otherwise the retval indicates success VVDEC_OK
 */
-VVDEC_DECL void vvdec_set_trace_filename ( const char* s );
-
-/* vvdec_set_trace_rule
- Set the trace rule for tracing, refer to 'dtrace.h'
- \param[in]  the string of trace rule
-*/
-VVDEC_DECL void vvdec_set_trace_rule ( const char* s );
+VVDEC_DECL int vvdec_set_tracing( const char* file, const char* rule, const bool bPrint );
 
 VVDEC_NAMESPACE_END
 

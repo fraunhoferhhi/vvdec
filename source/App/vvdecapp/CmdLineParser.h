@@ -105,6 +105,7 @@ public:
       std::cout << std::endl;
       std::cout << "\t\t [--TraceFile,-tf <str>     ] : Tracing filename if ENABLE_TRACING: on, e.g. --TraceFile=trace.txt" << std::endl;
       std::cout << "\t\t [--TraceRule,-tr <str>     ] : Tracing rule if ENABLE_TRACING: on, e.g. --TraceRule=D_SYNTAX,D_HEADER:poc<=1" << std::endl;
+      std::cout << "\t\t [--TraceChannelList,-ts    ] : show the tracing channels list if ENABLE_TRACING: on" << std::endl;
       std::cout << std::endl;
     }
     std::cout << "\t General Options" << std::endl;
@@ -124,7 +125,8 @@ public:
 
 
   static int parse_command_line( int argc, char* argv[] , vvdecParams& rcParams, std::string& rcBitstreamFile, std::string& rcOutputFile,
-                                 int& riFrames, int& riLoops, std::string& rcExpectYuvMD5, bool& useY4mFormat, bool &useExternAllocator)
+                                 int& riFrames, int& riLoops, std::string& rcExpectYuvMD5, bool& useY4mFormat, bool &useExternAllocator,
+                                 std::string& sTracingFile, std::string& sTracingRule, bool& bTracingChnlList )
   {
     int iRet = 0;
     /* Check command line parameters */
@@ -375,7 +377,7 @@ public:
         else
           ptr += 1;
 
-        vvdec_set_trace_filename( ptr );
+        sTracingFile = ptr;
         i_arg++;
       }
       else if( strstr( (const char*)argv[i_arg], "--TraceRule" ) || strstr( (const char*)argv[i_arg], "-tr" ) )
@@ -386,7 +388,12 @@ public:
         else
           ptr += 1;
 
-        vvdec_set_trace_rule( ptr );
+        sTracingRule = ptr;
+        i_arg++;
+      }
+      else if ( (!strcmp( (const char*)argv[i_arg], "--TraceChannelList" )) || (!strcmp( (const char*)argv[i_arg], "-ts" )) )
+      {
+        bTracingChnlList = true;
         i_arg++;
       }
       else

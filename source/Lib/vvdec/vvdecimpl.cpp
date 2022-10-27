@@ -74,19 +74,6 @@ int VVDecImpl::init( const vvdecParams& params, vvdecCreateBufferCallback create
 
   try
   {
-#if ENABLE_TRACING
-    if( !g_trace_ctx )
-    {
-      g_trace_ctx = tracing_init( sTracingFile, sTracingRule );
-    }
-    if( bTracingChannelsList && g_trace_ctx )
-    {
-      std::string sChannelsList;
-      g_trace_ctx->getChannelsList( sChannelsList );
-      msg( INFO, "\nAvailable tracing channels:\n\n%s\n", sChannelsList.c_str() );
-    }
-#endif
-
 #ifdef TARGET_SIMD_X86
     switch( params.simd )
     {

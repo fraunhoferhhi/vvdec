@@ -387,21 +387,24 @@ VVDEC_DECL bool vvdec_is_nal_unit_slice( vvdecNalType t )
   return vvdec::VVDecImpl::isNalUnitSlice(t);
 }
 
-VVDEC_DECL void vvdec_set_trace_filename( const char *s )
+VVDEC_DECL int vvdec_set_tracing( const char *file, const char *rule, const bool bPrint )
 {
 #if ENABLE_TRACING
-  vvdec::sTracingFile = std::string(s);
+  if( !vvdec::g_trace_ctx )
+  {
+    std::string sTracingFile = file;
+    std::string sTracingRule = rule;
+    vvdec::g_trace_ctx = vvdec::tracing_init( sTracingFile, sTracingRule );
+  }
+  if( bPrint && vvdec::g_trace_ctx )
+  {
+    std::string sChannelsList;
+    vvdec::g_trace_ctx->getChannelsList( sChannelsList );
+    vvdec::msg( vvdec::INFO, "\nAvailable tracing channels:\n\n%s\n", sChannelsList.c_str() );
+  }
+  return VVDEC_OK;
 #else
-  fprintf(stderr, "vvdec_set_trace_filename(): ENABLE_TRACING is not enabled!\n");
-#endif
-}
-
-VVDEC_DECL void vvdec_set_trace_rule( const char *s )
-{
-#if ENABLE_TRACING
-  vvdec::sTracingRule = std::string(s);
-#else
-  fprintf(stderr, "vvdec_set_trace_rule(): ENABLE_TRACING is not enabled!\n");
+  return VVDEC_ERR_INITIALIZE;
 #endif
 }
 
