@@ -368,26 +368,14 @@ public:
           fprintf( stdout, "[simd] : %s\n", cll );
         }
       }
-      else if( strstr( (const char*)argv[i_arg], "--TraceFile" ) || strstr( (const char*)argv[i_arg], "-tf" ) )
+      else if( !strcmp( (const char*)argv[i_arg], "--TraceFile" ) || !strcmp( (const char*)argv[i_arg], "-tf" ) )
       {
-        char *ptr = strchr(argv[i_arg], '=');
-        if( !ptr )
-          ptr = argv[++i_arg];
-        else
-          ptr += 1;
-
-        sTracingFile = ptr;
+        sTracingFile = argv[++i_arg];
         i_arg++;
       }
-      else if( strstr( (const char*)argv[i_arg], "--TraceRule" ) || strstr( (const char*)argv[i_arg], "-tr" ) )
+      else if( !strcmp( (const char*)argv[i_arg], "--TraceRule" ) || !strcmp( (const char*)argv[i_arg], "-tr" ) )
       {
-        char *ptr = strchr(argv[i_arg], '=');
-        if( !ptr )
-          ptr = argv[++i_arg];
-        else
-          ptr += 1;
-
-        sTracingRule = ptr;
+        sTracingRule = argv[++i_arg];
         i_arg++;
       }
       else
