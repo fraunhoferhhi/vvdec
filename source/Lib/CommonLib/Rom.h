@@ -163,9 +163,6 @@ extern const UnitScale g_colMiScaling;
 /*! Sophisticated Trace-logging */
 #if ENABLE_TRACING
 extern CDTrace* g_trace_ctx;
-extern std::string sTracingRule;
-extern std::string sTracingFile;
-extern bool   bTracingChannelsList;
 #endif
 
 #if ENABLE_TIME_PROFILING || ENABLE_TIME_PROFILING_EXTENDED

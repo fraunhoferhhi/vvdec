@@ -641,6 +641,13 @@ VVDEC_DECL const char* vvdec_get_nal_unit_type_name( vvdecNalType t );
 */
 VVDEC_DECL bool vvdec_is_nal_unit_slice ( vvdecNalType t );
 
+/* vvdec_set_tracing
+ Set the filename and rules for tracing
+ \param[in]  the string of trace filename and rules
+  \retval    VVDEC_ERR_INITIALIZE if ENABLE_TRACING off and file and rule not both empty, otherwise VVDEC_OK
+*/
+VVDEC_DECL int vvdec_set_tracing( const char* file, const char* rule );
+
 VVDEC_NAMESPACE_END
 
 #ifdef __cplusplus

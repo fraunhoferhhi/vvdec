@@ -101,6 +101,11 @@ public:
       std::cout << "\t\t [--SEIDecodedPictureHash,-dph ] : enable handling of decoded picture hash SEI messages" << std::endl;
       std::cout << "\t\t [--CheckYuvMD5,-md5 <md5str>  ] : enable calculation of md5 hash over the full YUV output and check against the provided value." << std::endl;
       std::cout << std::endl;
+      std::cout << "\t Debug Options" << std::endl;
+      std::cout << std::endl;
+      std::cout << "\t\t [--TraceFile,-tf <str>     ] : Tracing filename if ENABLE_TRACING: on, e.g. --TraceFile=trace.txt" << std::endl;
+      std::cout << "\t\t [--TraceRule,-tr <str>     ] : Tracing rule if ENABLE_TRACING: on, e.g. --TraceRule=D_SYNTAX,D_HEADER:poc<=1" << std::endl;
+      std::cout << std::endl;
     }
     std::cout << "\t General Options" << std::endl;
     std::cout << std::endl;
@@ -119,13 +124,14 @@ public:
 
 
   static int parse_command_line( int argc, char* argv[] , vvdecParams& rcParams, std::string& rcBitstreamFile, std::string& rcOutputFile,
-                                 int& riFrames, int& riLoops, std::string& rcExpectYuvMD5, bool& useY4mFormat, bool &useExternAllocator)
+                                 int& riFrames, int& riLoops, std::string& rcExpectYuvMD5, bool& useY4mFormat, bool &useExternAllocator,
+                                 std::string& sTracingFile, std::string& sTracingRule )
   {
     int iRet = 0;
     /* Check command line parameters */
     int32_t  i_arg = 1;
 
-    /* Check general options firs*/
+    /* Check general options first */
     while( i_arg < argc )
     {
       if( (!strcmp( (const char*)argv[i_arg], "-v" )) || !strcmp( (const char*)argv[i_arg], "--verbosity" ) )
@@ -361,6 +367,16 @@ public:
           };
           fprintf( stdout, "[simd] : %s\n", cll );
         }
+      }
+      else if( !strcmp( (const char*)argv[i_arg], "--TraceFile" ) || !strcmp( (const char*)argv[i_arg], "-tf" ) )
+      {
+        sTracingFile = argv[++i_arg];
+        i_arg++;
+      }
+      else if( !strcmp( (const char*)argv[i_arg], "--TraceRule" ) || !strcmp( (const char*)argv[i_arg], "-tr" ) )
+      {
+        sTracingRule = argv[++i_arg];
+        i_arg++;
       }
       else
       {

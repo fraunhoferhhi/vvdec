@@ -363,12 +363,12 @@ VVDEC_DECL const char* vvdec_get_last_additional_error( vvdecDecoder *dec )
   return d->m_cAdditionalErrorString.c_str();
 }
 
-const char* vvdec_get_error_msg( int nRet )
+VVDEC_DECL const char* vvdec_get_error_msg( int nRet )
 {
   return vvdec::VVDecImpl::getErrorMsg( nRet );
 }
 
-vvdecNalType vvdec_get_nal_unit_type( vvdecAccessUnit *accessUnit )
+VVDEC_DECL vvdecNalType vvdec_get_nal_unit_type( vvdecAccessUnit *accessUnit )
 {
   if( nullptr == accessUnit )
   {
@@ -377,14 +377,39 @@ vvdecNalType vvdec_get_nal_unit_type( vvdecAccessUnit *accessUnit )
   return vvdec::VVDecImpl::getNalUnitType(*accessUnit);
 }
 
-const char* vvdec_get_nal_unit_type_name( vvdecNalType t )
+VVDEC_DECL const char* vvdec_get_nal_unit_type_name( vvdecNalType t )
 {
   return vvdec::VVDecImpl::getNalUnitTypeAsString(t);
 }
 
-bool vvdec_is_nal_unit_slice( vvdecNalType t )
+VVDEC_DECL bool vvdec_is_nal_unit_slice( vvdecNalType t )
 {
   return vvdec::VVDecImpl::isNalUnitSlice(t);
+}
+
+VVDEC_DECL int vvdec_set_tracing( const char *file, const char *rule )
+{
+  std::string sTracingFile = file;
+  std::string sTracingRule = rule;
+
+#if ENABLE_TRACING
+  bool bPrint = !( sTracingFile.empty() && sTracingRule.empty() );
+  if( !vvdec::g_trace_ctx )
+    vvdec::g_trace_ctx = vvdec::tracing_init( sTracingFile, sTracingRule );
+
+  if( bPrint && vvdec::g_trace_ctx )
+  {
+    std::string sChannelsList;
+    vvdec::g_trace_ctx->getChannelsList( sChannelsList );
+    vvdec::msg( vvdec::INFO, "\nAvailable tracing channels:\n\n%s\n", sChannelsList.c_str() );
+  }
+  return VVDEC_OK;
+#else
+  if( sTracingFile.empty() && sTracingRule.empty() )
+    return VVDEC_OK;
+  else
+    return VVDEC_ERR_INITIALIZE;
+#endif
 }
 
 VVDEC_NAMESPACE_END
