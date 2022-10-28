@@ -387,15 +387,16 @@ VVDEC_DECL bool vvdec_is_nal_unit_slice( vvdecNalType t )
   return vvdec::VVDecImpl::isNalUnitSlice(t);
 }
 
-VVDEC_DECL int vvdec_set_tracing( const char *file, const char *rule, const bool bPrint )
+VVDEC_DECL int vvdec_set_tracing( const char *file, const char *rule )
 {
+  std::string sTracingFile = file;
+  std::string sTracingRule = rule;
+
 #if ENABLE_TRACING
+  bool bPrint = !( sTracingFile.empty() && sTracingRule.empty() );
   if( !vvdec::g_trace_ctx )
-  {
-    std::string sTracingFile = file;
-    std::string sTracingRule = rule;
     vvdec::g_trace_ctx = vvdec::tracing_init( sTracingFile, sTracingRule );
-  }
+
   if( bPrint && vvdec::g_trace_ctx )
   {
     std::string sChannelsList;
@@ -404,7 +405,10 @@ VVDEC_DECL int vvdec_set_tracing( const char *file, const char *rule, const bool
   }
   return VVDEC_OK;
 #else
-  return VVDEC_ERR_INITIALIZE;
+  if( sTracingFile.empty() && sTracingRule.empty() )
+    return VVDEC_OK;
+  else
+    return VVDEC_ERR_INITIALIZE;
 #endif
 }
 

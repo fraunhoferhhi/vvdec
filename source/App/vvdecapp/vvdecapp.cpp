@@ -263,9 +263,8 @@ int main( int argc, char* argv[] )
   bool        y4mOutput      = false;
   bool        externAllocator = false;
   std::string cExpectedYuvMD5;
-  std::string sTracingRule = "D_HEADER,D_SYNTAX:poc<=1";
-  std::string sTracingFile = "tracefile_vvdec.txt";
-  bool        bTracingChnlList = false;
+  std::string sTracingRule;
+  std::string sTracingFile;
   vvdecParams params;
   vvdec_params_default(&params);
 
@@ -278,7 +277,7 @@ int main( int argc, char* argv[] )
   }
 
 
-  int iRet = vvdecoderapp::CmdLineParser::parse_command_line(  argc, argv, params, cBitstreamFile, cOutputFile, iMaxFrames, iLoopCount, cExpectedYuvMD5, y4mOutput, externAllocator, sTracingFile, sTracingRule, bTracingChnlList);
+  int iRet = vvdecoderapp::CmdLineParser::parse_command_line( argc, argv, params, cBitstreamFile, cOutputFile, iMaxFrames, iLoopCount, cExpectedYuvMD5, y4mOutput, externAllocator, sTracingFile, sTracingRule );
   if( iRet != 0 )
   {
     if( iRet == 2 )
@@ -369,7 +368,7 @@ int main( int argc, char* argv[] )
   //> decoding loop
   vvdecAccessUnit* accessUnit = vvdec_accessUnit_alloc();
   vvdec_accessUnit_alloc_payload( accessUnit, MAX_CODED_PICTURE_SIZE );
-  vvdec_set_tracing( sTracingFile.c_str(), sTracingRule.c_str(), bTracingChnlList );
+  vvdec_set_tracing( sTracingFile.c_str(), sTracingRule.c_str() );
 
   bool bOutputInfoWritten = false;
 
