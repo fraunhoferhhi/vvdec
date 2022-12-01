@@ -1,7 +1,7 @@
 /* -----------------------------------------------------------------------------
 The copyright in this software is being made available under the Clear BSD
-License, included below. No patent rights, trademark rights and/or 
-other Intellectual Property Rights other than the copyrights concerning 
+License, included below. No patent rights, trademark rights and/or
+other Intellectual Property Rights other than the copyrights concerning
 the Software are granted under this license.
 
 The Clear BSD License
@@ -42,10 +42,6 @@ POSSIBILITY OF SUCH DAMAGE.
 
 #include <string>
 
-#ifdef _WIN32
-    #include <intrin.h>
-#endif
-
 #if defined( __linux__ )
 #include <malloc.h>
 #endif
@@ -54,6 +50,7 @@ POSSIBILITY OF SUCH DAMAGE.
 #include "vvdec/version.h"
 #include "DecoderLib/NALread.h"
 #include "CommonLib/CommonDef.h"
+#include "CommonLib/x86/CommonDefX86.h"
 
 
 namespace vvdec {
@@ -84,10 +81,10 @@ int VVDecImpl::init( const vvdecParams& params, vvdecCreateBufferCallback create
     case VVDEC_SIMD_AVX   : read_x86_extension_flags( AVX    ); break;
     case VVDEC_SIMD_AVX2  : read_x86_extension_flags( AVX2   ); break;
 #elif defined( VVDEC_ARCH_ARM ) || defined( VVDEC_ARCH_WASM )
-    case VVDEC_SIMD_MAX   : read_x86_extension_flags( SSE42  ); break;    // SSE42 is emulated through simd-everywhere or emscripten. Using >SSE42 currently brings no advantage.
+    case VVDEC_SIMD_MAX   : read_x86_extension_flags( SIMD_EVERYWHERE_EXTENSION_LEVEL ); break;
 #endif
     case VVDEC_SIMD_DEFAULT:
-    default: break;
+    default:                read_x86_extension_flags( UNDEFINED ); break;
     }
 #endif // TARGET_SIMD_X86
 
@@ -316,7 +313,7 @@ int VVDecImpl::decode( vvdecAccessUnit& rcAccessUnit, vvdecFrame** ppcFrame )
       if( bStartCodeFound )
       {
         int iLastPos = rcAccessUnit.payloadUsedSize;
-        while( rcAccessUnit.payload[iLastPos-1] == 0 && iLastPos > 0 )
+        while( iLastPos > 0 && rcAccessUnit.payload[iLastPos-1] == 0 )
         {
           iLastPos--;
         }
@@ -343,8 +340,9 @@ int VVDecImpl::decode( vvdecAccessUnit& rcAccessUnit, vvdecFrame** ppcFrame )
           if( uiNaluBytes )
           {
             InputBitstream& rBitstream = nalu.getBitstream();
+            const int nut = ( nalUnit[1] >> 3 ) & 0x1f;
             // perform anti-emulation prevention
-            if( 0 != xConvertPayloadToRBSP(nalUnit, &rBitstream, (nalUnit[0] & 64) == 0) )
+            if( 0 != xConvertPayloadToRBSP( nalUnit, &rBitstream, NALUnit::isVclNalUnitType( (NalUnitType) nut ) ) )
             {
               return VVDEC_ERR_UNSPECIFIED;
             }
@@ -356,7 +354,7 @@ int VVDecImpl::decode( vvdecAccessUnit& rcAccessUnit, vvdecFrame** ppcFrame )
               return VVDEC_ERR_UNSPECIFIED;
             }
 
-
+            CHECKD( nut != nalu.m_nalUnitType, "Nal unit type parsed wrong." );
             if ( NALUnit::isVclNalUnitType( nalu.m_nalUnitType ) )
             {
               iComrpPacketCnt++;
@@ -368,9 +366,11 @@ int VVDecImpl::decode( vvdecAccessUnit& rcAccessUnit, vvdecFrame** ppcFrame )
             nalu.m_bits = uiNaluBytes*8;
 
             pcPic = m_cDecLib->decode( nalu );
-            if( 0 != xHandleOutput( pcPic ))
+
+            iRet = xHandleOutput( pcPic );
+            if( 0 != iRet )
             {
-              iRet = VVDEC_ERR_UNSPECIFIED;
+              return iRet;
             }
           }
 
@@ -397,15 +397,15 @@ int VVDecImpl::decode( vvdecAccessUnit& rcAccessUnit, vvdecFrame** ppcFrame )
       xHandleOutput( pcPic );
 
       iRet = VVDEC_EOF;
+
+      if ( !pcPic )
+      {
+        *ppcFrame = nullptr;
+        return iRet;
+      }
     }
 
-    if ( iRet == VVDEC_EOF && !pcPic )
-    {
-      *ppcFrame = nullptr;
-      return iRet;
-    }
-
-    if( !m_rcFrameList.empty())
+    if( !m_rcFrameList.empty() )
     {
       if( m_pcFrameNext == m_rcFrameList.end()  )
       {
@@ -818,10 +818,22 @@ int VVDecImpl::copyComp( const unsigned char* pucSrc, unsigned char* pucDest, un
       }
       else
       {
+        CHECKD( iStrideDest > iStrideSrc, "copyComp only supports narrowing conversions" );
         // shift short->char
         for( unsigned int y=0; y < uiHeight; y++ )
         {
-          for( unsigned int x=0; x < uiWidth; x++ )
+          unsigned int x = 0;
+
+#if ENABLE_SIMD_OPT && defined( TARGET_SIMD_X86 )
+          for( x = 0; x < ( uiWidth & ~15 ); x += 16 )
+          {
+            const __m128i a = _mm_loadu_si128( (__m128i*) &pucSrc[x * 2] );
+            const __m128i b = _mm_loadu_si128( (__m128i*) &pucSrc[x * 2 + 16] );
+            _mm_storeu_si128( (__m128i*) &pucDest[x], _mm_packus_epi16( a, b ) );
+          }
+#endif   // ENABLE_SIMD_OPT && defined( TARGET_SIMD_X86 )
+
+          for( ; x < uiWidth; x++ )
           {
             pucDest[x] = pucSrc[x<<1];
           }
@@ -884,19 +896,24 @@ int VVDecImpl::xAddPicture( Picture* pcPic )
   cFrame.cts      = pcPic->getCts();
   cFrame.ctsValid = true;
 
+  int ret;
 #if RPR_YUV_OUTPUT
   if( m_cDecLib->getUpscaledOutput() && ( uiWidth != orgWidth || uiHeight != orgHeight ) )
   {
     bCreateStorage = true;
-    xCreateFrame ( cFrame, cPicBuf, orgWidth, orgHeight, bitDepths, bCreateStorage );
+    ret = xCreateFrame ( cFrame, cPicBuf, orgWidth, orgHeight, bitDepths, bCreateStorage );
   }
   else
   {
-    xCreateFrame ( cFrame, cPicBuf, uiWidth, uiHeight, bitDepths, bCreateStorage );
+    ret = xCreateFrame ( cFrame, cPicBuf, uiWidth, uiHeight, bitDepths, bCreateStorage );
   }
 #else
-  xCreateFrame ( cFrame, cPicBuf, uiWidth, uiHeight, bitDepths, bCreateStorage );
+  ret = xCreateFrame ( cFrame, cPicBuf, uiWidth, uiHeight, bitDepths, bCreateStorage );
 #endif
+  if( ret != VVDEC_OK )
+  {
+    return ret;
+  }
 
   const int maxComponent = getNumberValidComponents( cPicBuf.chromaFormat );
 
@@ -929,14 +946,14 @@ int VVDecImpl::xAddPicture( Picture* pcPic )
         const uint32_t    csy         = getComponentScaleY(compID, cPicBuf.chromaFormat);
         const CPelBuf     area        = upscaledPic.get(compID);
         unsigned int uiBytesPerSample = bitDepths.recon[0] > 8 ? 2 : 1;
-        
-        const ptrdiff_t   planeOffset = (confLeft >> csx) + (confTop >> csy) * area.stride;
-        const unsigned char* pucOrigin   = (const unsigned char*)area.buf;
-        
-        copyComp(  pucOrigin + planeOffset,
-                 cFrame.planes[comp].ptr,
-                 cFrame.planes[comp].width, cFrame.planes[comp].height,
-                 area.stride<<1, cFrame.planes[comp].stride, uiBytesPerSample  );
+
+        const ptrdiff_t planeOffset = ( confLeft >> csx ) + ( confTop >> csy ) * area.stride;
+        const Pel*      planeOrigin = area.buf;
+
+        copyComp( (const unsigned char*) ( planeOrigin + planeOffset ),
+                  cFrame.planes[comp].ptr,
+                  cFrame.planes[comp].width, cFrame.planes[comp].height,
+                  area.stride<<1, cFrame.planes[comp].stride, uiBytesPerSample );
         cFrame.planes[comp].allocator = upscaledPic.getBufAllocator( (ComponentID)comp );
       }
       upscaledPic.destroy();
@@ -944,12 +961,6 @@ int VVDecImpl::xAddPicture( Picture* pcPic )
     else
 #endif
     {
-      // init memory
-      for( int comp=0; comp < maxComponent; comp++ )
-      {
-        ::memset( cFrame.planes[comp].ptr,0, cFrame.planes[comp].width*cFrame.planes[comp].height*cFrame.planes[comp].bytesPerSample);
-      }
-
       // copy picture into target memory
       for( int comp=0; comp < maxComponent; comp++ )
       {
@@ -958,14 +969,14 @@ int VVDecImpl::xAddPicture( Picture* pcPic )
         const uint32_t    csy         = getComponentScaleY(compID, cPicBuf.chromaFormat);
         const CPelBuf     area        = cPicBuf.get(compID);
         unsigned int uiBytesPerSample = bitDepths.recon[0] > 8 ? 2 : 1;
-  
-        const ptrdiff_t   planeOffset = ((confLeft >> csx) + ((confTop >> csy) * area.stride)) * uiBytesPerSample;
-        const unsigned char* pucOrigin   = (const unsigned char*)area.buf;
 
-        copyComp(  pucOrigin + planeOffset,
-                   cFrame.planes[comp].ptr,
-                   cFrame.planes[comp].width, cFrame.planes[comp].height,
-                    area.stride<<1, cFrame.planes[comp].stride, uiBytesPerSample  );
+        const ptrdiff_t planeOffset = ( confLeft >> csx ) + ( confTop >> csy ) * area.stride;
+        const Pel*      planeOrigin = area.buf;
+
+        copyComp( (const unsigned char*) ( planeOrigin + planeOffset ),
+                  cFrame.planes[comp].ptr,
+                  cFrame.planes[comp].width, cFrame.planes[comp].height,
+                  area.stride<<1, cFrame.planes[comp].stride, uiBytesPerSample );
       }
     }
   }
@@ -978,12 +989,11 @@ int VVDecImpl::xAddPicture( Picture* pcPic )
       const uint32_t    csx         = getComponentScaleX(compID, cPicBuf.chromaFormat);
       const uint32_t    csy         = getComponentScaleY(compID, cPicBuf.chromaFormat);
       const CPelBuf     area        = cPicBuf.get(compID);
-      const ptrdiff_t   planeOffset = (confLeft >> csx) + (confTop >> csy) * area.stride;
 
-      //unsigned char* pucOrigin   = (unsigned char*)area.bufAt (0, 0).ptr;
-      Pel* pucOrigin   = (Pel*)area.buf;
+      const ptrdiff_t planeOffset = ( confLeft >> csx ) + ( confTop >> csy ) * area.stride;
+      Pel*            planeOrigin = const_cast<Pel*>( area.buf );
 
-      cFrame.planes[comp].ptr = (unsigned char*)(pucOrigin + planeOffset);
+      cFrame.planes[comp].ptr = (unsigned char*)(planeOrigin + planeOffset);
     }
     m_pcLibPictureList.push_back( pcPic );
   }
@@ -1147,115 +1157,86 @@ int VVDecImpl::xCreateFrame( vvdecFrame& rcFrame, const CPelUnitBuf& rcPicBuf, u
   size_t nLSize   = rcFrame.planes[VVDEC_CT_Y].stride * uiHeight;
   size_t nCSize   = 0;
 
+  unsigned int uiCWidth  = 0;
+  unsigned int uiCHeight = 0;
+
   switch( rcPicBuf.chromaFormat )
   {
     case CHROMA_400:
       {
         rcFrame.colorFormat = VVDEC_CF_YUV400_PLANAR;
         rcFrame.numPlanes = 1;
-
-        rcFrame.planes[VVDEC_CT_U].width          = 0;
-        rcFrame.planes[VVDEC_CT_U].height         = 0;
-        rcFrame.planes[VVDEC_CT_U].stride         = 0;
-        rcFrame.planes[VVDEC_CT_U].bytesPerSample = 0;
-
-        rcFrame.planes[VVDEC_CT_V].width          = 0;
-        rcFrame.planes[VVDEC_CT_V].height         = 0;
-        rcFrame.planes[VVDEC_CT_V].stride         = 0;
-        rcFrame.planes[VVDEC_CT_V].bytesPerSample = 0;
-
-        nCSize = 0;
-        nBufSize = nLSize; // we have to copy the packet into 8bit, because internal bitdepth is always Pel (unsigned short)
         break;
       }
     case CHROMA_420:
       {
-        rcFrame.colorFormat    = VVDEC_CF_YUV420_PLANAR;
-        rcFrame.numPlanes = 3;
-        const unsigned int uiCWidth       = uiWidth>>1;
-        const unsigned int uiCHeight      = uiHeight>>1;
+        rcFrame.colorFormat = VVDEC_CF_YUV420_PLANAR;
+        rcFrame.numPlanes   = 3;
 
-        rcFrame.planes[VVDEC_CT_U].width          = uiCWidth;
-        rcFrame.planes[VVDEC_CT_U].height         = uiCHeight;
-        rcFrame.planes[VVDEC_CT_U].bytesPerSample = rcBitDepths.recon[CHANNEL_TYPE_CHROMA] > 8 ? 2 : 1;
-
-        rcFrame.planes[VVDEC_CT_V].width          = uiCWidth;
-        rcFrame.planes[VVDEC_CT_V].height         = uiCHeight;
-        rcFrame.planes[VVDEC_CT_V].bytesPerSample = rcBitDepths.recon[CHANNEL_TYPE_CHROMA] > 8 ? 2 : 1;
-
-        if( bCreateStorage )
-        {
-          rcFrame.planes[VVDEC_CT_U].stride         = uiCWidth * rcFrame.planes[CHANNEL_TYPE_CHROMA].bytesPerSample;
-          rcFrame.planes[VVDEC_CT_V].stride         = uiCWidth * rcFrame.planes[CHANNEL_TYPE_CHROMA].bytesPerSample;
-        }
-        else
-        {
-          rcFrame.planes[VVDEC_CT_U].stride         = (uint32_t)rcPicBuf.get(COMPONENT_Cb).stride * rcFrame.planes[CHANNEL_TYPE_CHROMA].bytesPerSample;
-          rcFrame.planes[VVDEC_CT_V].stride         = (uint32_t)rcPicBuf.get(COMPONENT_Cr).stride * rcFrame.planes[CHANNEL_TYPE_CHROMA].bytesPerSample;
-        }
-
-        nCSize = rcFrame.planes[VVDEC_CT_U].stride*uiCHeight;
-        nBufSize = nLSize + (nCSize<<1);
+        uiCWidth  = uiWidth >> 1;
+        uiCHeight = uiHeight >> 1;
         break;
       }
     case CHROMA_422:
       {
         rcFrame.colorFormat = VVDEC_CF_YUV422_PLANAR;
-        rcFrame.numPlanes = 3;
+        rcFrame.numPlanes   = 3;
 
-        const unsigned int uiCWidth       = uiWidth>>1;
-        const unsigned int uiCHeight      = uiHeight;
-
-        rcFrame.planes[VVDEC_CT_U].width          = uiCWidth;
-        rcFrame.planes[VVDEC_CT_U].height         = uiCHeight;
-        rcFrame.planes[VVDEC_CT_U].bytesPerSample = rcBitDepths.recon[CHANNEL_TYPE_CHROMA] > 8 ? 2 : 1;
-
-        rcFrame.planes[VVDEC_CT_V].width          = uiCWidth;
-        rcFrame.planes[VVDEC_CT_V].height         = uiCHeight;
-        rcFrame.planes[VVDEC_CT_V].bytesPerSample = rcBitDepths.recon[CHANNEL_TYPE_CHROMA] > 8 ? 2 : 1;
-
-        if( bCreateStorage )
-        {
-          rcFrame.planes[VVDEC_CT_U].stride         = uiCWidth * rcFrame.planes[CHANNEL_TYPE_CHROMA].bytesPerSample;
-          rcFrame.planes[VVDEC_CT_V].stride         = uiCWidth * rcFrame.planes[CHANNEL_TYPE_CHROMA].bytesPerSample;
-        }
-        else
-        {
-          rcFrame.planes[VVDEC_CT_U].stride         = (uint32_t)rcPicBuf.get(COMPONENT_Cb).stride * rcFrame.planes[CHANNEL_TYPE_CHROMA].bytesPerSample;
-          rcFrame.planes[VVDEC_CT_V].stride         = (uint32_t)rcPicBuf.get(COMPONENT_Cr).stride * rcFrame.planes[CHANNEL_TYPE_CHROMA].bytesPerSample;
-        }
-
-        nCSize = rcFrame.planes[VVDEC_CT_U].stride*uiCHeight;
-        nBufSize = nLSize + (nCSize<<1);
+        uiCWidth  = uiWidth >> 1;
+        uiCHeight = uiHeight;
         break;
       }
     case CHROMA_444:
       {
         rcFrame.colorFormat = VVDEC_CF_YUV444_PLANAR;
-        rcFrame.numPlanes = 3;
+        rcFrame.numPlanes   = 3;
 
-        rcFrame.planes[VVDEC_CT_U].width          = uiWidth;
-        rcFrame.planes[VVDEC_CT_U].height         = uiHeight;
-        rcFrame.planes[VVDEC_CT_U].bytesPerSample = rcBitDepths.recon[CHANNEL_TYPE_CHROMA] > 8 ? 2 : 1;
-        rcFrame.planes[VVDEC_CT_V].width          = uiWidth;
-        rcFrame.planes[VVDEC_CT_V].height         = uiHeight;
-        rcFrame.planes[VVDEC_CT_V].bytesPerSample = rcBitDepths.recon[CHANNEL_TYPE_CHROMA] > 8 ? 2 : 1;
-
-        if( bCreateStorage )
-        {
-          rcFrame.planes[VVDEC_CT_U].stride         = uiWidth * rcFrame.planes[CHANNEL_TYPE_CHROMA].bytesPerSample;
-          rcFrame.planes[VVDEC_CT_V].stride         = uiWidth * rcFrame.planes[CHANNEL_TYPE_CHROMA].bytesPerSample;
-        }
-        else
-        {
-          rcFrame.planes[VVDEC_CT_U].stride         = (uint32_t)rcPicBuf.get(COMPONENT_Cb).stride * rcFrame.planes[CHANNEL_TYPE_CHROMA].bytesPerSample;
-          rcFrame.planes[VVDEC_CT_V].stride         = (uint32_t)rcPicBuf.get(COMPONENT_Cr).stride * rcFrame.planes[CHANNEL_TYPE_CHROMA].bytesPerSample;
-        }
-        nCSize   = nLSize;
-        nBufSize = nLSize*3;
+        uiCWidth  = uiWidth;
+        uiCHeight = uiHeight;
         break;
       }
-    default: break;
+    default:
+        THROW( "unsupported chroma fromat " << rcPicBuf.chromaFormat );
+  }
+
+  if( rcPicBuf.chromaFormat == CHROMA_400 )
+  {
+    rcFrame.planes[VVDEC_CT_U].width          = 0;
+    rcFrame.planes[VVDEC_CT_U].height         = 0;
+    rcFrame.planes[VVDEC_CT_U].stride         = 0;
+    rcFrame.planes[VVDEC_CT_U].bytesPerSample = 0;
+
+    rcFrame.planes[VVDEC_CT_V].width          = 0;
+    rcFrame.planes[VVDEC_CT_V].height         = 0;
+    rcFrame.planes[VVDEC_CT_V].stride         = 0;
+    rcFrame.planes[VVDEC_CT_V].bytesPerSample = 0;
+
+    nCSize = 0;
+    nBufSize = nLSize; // we have to copy the packet into 8bit, because internal bitdepth is always Pel (unsigned short)
+  }
+  else
+  {
+    rcFrame.planes[VVDEC_CT_U].width          = uiCWidth;
+    rcFrame.planes[VVDEC_CT_U].height         = uiCHeight;
+    rcFrame.planes[VVDEC_CT_U].bytesPerSample = rcBitDepths.recon[CHANNEL_TYPE_CHROMA] > 8 ? 2 : 1;
+
+    rcFrame.planes[VVDEC_CT_V].width          = uiCWidth;
+    rcFrame.planes[VVDEC_CT_V].height         = uiCHeight;
+    rcFrame.planes[VVDEC_CT_V].bytesPerSample = rcBitDepths.recon[CHANNEL_TYPE_CHROMA] > 8 ? 2 : 1;
+
+    if( bCreateStorage )
+    {
+      rcFrame.planes[VVDEC_CT_U].stride       = uiCWidth * rcFrame.planes[CHANNEL_TYPE_CHROMA].bytesPerSample;
+      rcFrame.planes[VVDEC_CT_V].stride       = uiCWidth * rcFrame.planes[CHANNEL_TYPE_CHROMA].bytesPerSample;
+    }
+    else
+    {
+      rcFrame.planes[VVDEC_CT_U].stride       = (uint32_t)rcPicBuf.get(COMPONENT_Cb).stride * rcFrame.planes[CHANNEL_TYPE_CHROMA].bytesPerSample;
+      rcFrame.planes[VVDEC_CT_V].stride       = (uint32_t)rcPicBuf.get(COMPONENT_Cr).stride * rcFrame.planes[CHANNEL_TYPE_CHROMA].bytesPerSample;
+    }
+
+    nCSize   = rcFrame.planes[VVDEC_CT_U].stride * uiCHeight;
+    nBufSize = nLSize + ( nCSize << 1 );
   }
 
 
@@ -1268,13 +1249,19 @@ int VVDecImpl::xCreateFrame( vvdecFrame& rcFrame, const CPelUnitBuf& rcPicBuf, u
     if( m_cUserAllocator.enabled )
     {
       frameStorage.setExternAllocator();
-      if( nLSize == 0 ){ return VVDEC_ERR_ALLOCATE; }
-      rcFrame.planes[VVDEC_CT_Y].ptr = ( unsigned char* ) m_cUserAllocator.create( m_cUserAllocator.opaque, VVDEC_CT_Y, (uint32_t)nLSize, MEMORY_ALIGN_DEF_SIZE, &rcFrame.planes[VVDEC_CT_Y].allocator );
+      if( nLSize == 0 || ( rcFrame.numPlanes > 1 && nCSize == 0 ) ){ return VVDEC_ERR_ALLOCATE; }
 
-      for ( int plane = 1; plane < rcFrame.numPlanes; plane++ )
+      for ( int plane = 0; plane < rcFrame.numPlanes; plane++ )
       {
-        if( nCSize == 0 ){ return VVDEC_ERR_ALLOCATE; }
-        rcFrame.planes[plane].ptr = ( unsigned char* ) m_cUserAllocator.create( m_cUserAllocator.opaque, (vvdecComponentType)plane, (uint32_t)nCSize, MEMORY_ALIGN_DEF_SIZE, &rcFrame.planes[plane].allocator );
+        rcFrame.planes[plane].ptr = (unsigned char*) m_cUserAllocator.create( m_cUserAllocator.opaque,
+                                                                              (vvdecComponentType) plane,
+                                                                              (uint32_t) ( plane == 0 ? nLSize : nCSize ),
+                                                                              MEMORY_ALIGN_DEF_SIZE,
+                                                                              &rcFrame.planes[plane].allocator );
+        if( !rcFrame.planes[plane].ptr )
+        {
+          return VVDEC_ERR_ALLOCATE;
+        }
       }
     }
     else
@@ -1358,9 +1345,9 @@ int VVDecImpl::xConvertPayloadToRBSP( std::vector<uint8_t>& nalUnitBuf, InputBit
     *it_write = *it_read;
   }
 
-  if( zeroCount != 0 )
+  if( zeroCount != 0 && !isVclNalUnit )
   {
-    msg( ERROR, "Zero count is  not '0'\n");
+    msg( ERROR, "Zero count is not '0' (NUT: %u)\n", ( nalUnitBuf[1] >> 3 ) & 0x1f );
     return -1;
   }
 
@@ -1559,7 +1546,7 @@ void VVDecImpl::vvdec_frame_reset(vvdecFrame *frame )
     delete frame->picAttributes;
     frame->picAttributes = NULL;
   }
-  
+
   if( m_cUserAllocator.enabled && m_cUserAllocator.unref && bIsExternAllocator )
   {
     // unref the buffer that has been converted (e.g. to 8bit) and is not needed internal anymore

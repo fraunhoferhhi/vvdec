@@ -161,6 +161,10 @@ namespace vvdec
 #define ENABLE_SIMD_LOG2                                ( 1 && ENABLE_SIMD_OPT )
 #define ENABLE_SIMD_DBLF                                ( 1 && ENABLE_SIMD_OPT )
 
+#if defined( TARGET_SIMD_X86 ) && !defined( REAL_TARGET_X86 )
+#  define SIMD_EVERYWHERE_EXTENSION_LEVEL                 SSE42
+#endif
+
 // End of SIMD optimizations
 
 #define LUMA_ADAPTIVE_DEBLOCKING_FILTER_QP_OFFSET         1 /// JVET-L0414 (CE11.2.2) with explicit signalling of num interval, threshold and qpOffset

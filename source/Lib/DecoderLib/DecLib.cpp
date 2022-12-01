@@ -50,6 +50,8 @@ POSSIBILITY OF SUCH DAMAGE.
 #include "CommonLib/dtrace_buffer.h"
 #include "CommonLib/TimeProfiler.h"
 
+#include "CommonLib/x86/CommonDefX86.h"
+
 #include "NALread.h"
 
 namespace vvdec
@@ -151,7 +153,7 @@ void DecLib::create(int numDecThreads, int parserFrameDelay, const UserAllocator
          << "PARSE_DELAY=" << parserFrameDelay << "; ";
 #if ENABLE_SIMD_OPT
 #  if defined( TARGET_SIMD_X86 )
-  cssCap << "SIMD=" << read_simd_extension_name();
+  cssCap << "SIMD=" << read_x86_extension_name();
 #  else
   cssCap << "SIMD=SCALAR";
 #  endif

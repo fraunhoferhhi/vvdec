@@ -92,7 +92,7 @@ public:
 class Quant
 {
 public:
-  int* getDequantCoeff           ( uint32_t list, int qp, uint32_t sizeX, uint32_t sizeY ) { return m_dequantCoef[sizeX][sizeY][list][qp]; };  //!< get DeQuant Coefficent
+  int* getDequantCoeff           ( uint32_t list, uint32_t sizeX, uint32_t sizeY ) { return m_dequantCoef[sizeX][sizeY][list]; };  //!< get DeQuant Coefficent
 
   void setUseScalingList         ( bool bUseScalingList ) { m_scalingListEnabledFlag = bUseScalingList; };
   bool getUseScalingList         ( bool isTransformSkip, const bool lfnstApplied, const bool disableScalingMatrixForLFNSTBlks, const bool disableSMforACT)
@@ -100,7 +100,7 @@ public:
     return( m_scalingListEnabledFlag && !isTransformSkip && (!lfnstApplied || !disableScalingMatrixForLFNSTBlks) && !disableSMforACT);
   }
   void setScalingListDec         ( const ScalingList &scalingList);
-  void processScalingListDec     ( const int *coeff, int *dequantcoeff, int qpMod6, uint32_t height, uint32_t width, uint32_t ratio, int sizuNum, uint32_t dc);
+  bool processScalingListDec     ( const int *coeff, int *dequantcoeff, uint32_t height, uint32_t width, uint32_t ratio, int sizuNum, uint32_t dc);
 
   Quant( const Quant* other );
   ~Quant();
@@ -114,11 +114,11 @@ public:
 private:
   void xInitScalingList   ( const Quant* other );
   void xDestroyScalingList();
-  void xSetScalingListDec( const ScalingList &scalingList, uint32_t list, uint32_t size, int qp, uint32_t scalingListId );
-  void xSetRecScalingListDec( const ScalingList &scalingList, uint32_t list, uint32_t sizew, uint32_t sizeh, int qp, uint32_t scalingListId );
+  bool xSetScalingListDec( const ScalingList &scalingList, uint32_t list, uint32_t size, uint32_t scalingListId );
+  void xSetRecScalingListDec( const ScalingList &scalingList, uint32_t list, uint32_t sizew, uint32_t sizeh, uint32_t scalingListId );
   bool m_scalingListEnabledFlag;
 
-  int *m_dequantCoef   [SCALING_LIST_SIZE_NUM][SCALING_LIST_SIZE_NUM][SCALING_LIST_NUM][SCALING_LIST_REM_NUM]; ///< array of dequantization matrix coefficient 4x4
+  int *m_dequantCoef   [SCALING_LIST_SIZE_NUM][SCALING_LIST_SIZE_NUM][SCALING_LIST_NUM]; ///< array of dequantization matrix coefficient 4x4
   int *m_dequantCoefBuf;
   bool m_ownDequantCoeff;
 
