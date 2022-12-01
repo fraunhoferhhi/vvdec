@@ -73,6 +73,10 @@ ifneq ($(thread-sanitizer),)
 CONFIG_OPTIONS += -DVVDEC_USE_THREAD_SANITIZER=$(thread-sanitizer)
 endif
 
+ifneq ($(enable-tracing),)
+CONFIG_OPTIONS += -DVVDEC_ENABLE_TRACING=$(enable-tracing)
+endif
+
 ifeq ($(j),)
 # Query cmake for the number of cores
 NUM_JOBS := $(shell cmake -P cmake/modules/vvdecNumCores.cmake)

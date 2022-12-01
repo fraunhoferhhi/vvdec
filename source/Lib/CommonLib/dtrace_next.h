@@ -1,7 +1,7 @@
 /* -----------------------------------------------------------------------------
 The copyright in this software is being made available under the Clear BSD
-License, included below. No patent rights, trademark rights and/or 
-other Intellectual Property Rights other than the copyrights concerning 
+License, included below. No patent rights, trademark rights and/or
+other Intellectual Property Rights other than the copyrights concerning
 the Software are granted under this license.
 
 The Clear BSD License
@@ -49,7 +49,6 @@ POSSIBILITY OF SUCH DAMAGE.
 #include "dtrace.h"
 
 #include "CommonLib/CommonDef.h"
-#include "CommonLib/Rom.h"
 
 #include <cmath>
 
@@ -157,7 +156,7 @@ enum DTRACE_CHANNEL
 };
 #define _CNL_DEF(_s) {_s,(std::string(#_s))}
 
-inline void tracing_uninit( CDTrace *pDtrace )
+static void tracing_uninit( CDTrace *pDtrace )
 {
   if( pDtrace )
     delete pDtrace;
@@ -199,22 +198,19 @@ void dtrace_frame_blockwise( CDTrace *trace_ctx, DTRACE_CHANNEL channel, Tsrc *b
   }
 }
 
-#define DTRACE(ctx,channel,...)              ctx->dtrace<true>( channel, __VA_ARGS__ )
-#define DTRACE_WITHOUT_COUNT(ctx,channel,...) ctx->dtrace<false>( channel, __VA_ARGS__ )
-#define DTRACE_DECR_COUNTER(ctx,channel)     ctx->decrementChannelCounter( channel )
-#define DTRACE_UPDATE(ctx,s)                 if((ctx)){(ctx)->update((s));}
-#define DTRACE_REPEAT(ctx,channel,times,...) ctx->dtrace_repeat( channel, times,__VA_ARGS__ )
-#define DTRACE_COND(cond,ctx,channel,...)    { if( cond ) ctx->dtrace<true>( channel, __VA_ARGS__ ); }
-#define DTRACE_BLOCK(...)                    dtrace_block(__VA_ARGS__)
-#define DTRACE_FRAME_BLOCKWISE(...)          dtrace_frame_blockwise(__VA_ARGS__)
-#define DTRACE_GET_COUNTER(ctx,channel)      ctx->getChannelCounter(channel)
+#define DTRACE( ctx, channel, ... )           ( ctx         ? ctx->dtrace<true>( channel, __VA_ARGS__ )        : void() )
+#define DTRACE_WITHOUT_COUNT(ctx,channel,...) ( ctx         ? ctx->dtrace<false>( channel, __VA_ARGS__ )       : void() )
+#define DTRACE_DECR_COUNTER(ctx,channel)      ( ctx         ? ctx->decrementChannelCounter( channel )          : void() )
+#define DTRACE_UPDATE(ctx,s)                  ( ctx         ? ctx->update(s)                                   : false  )
+#define DTRACE_REPEAT(ctx,channel,times,...)  ( ctx         ? ctx->dtrace_repeat( channel, times,__VA_ARGS__ ) : void() )
+#define DTRACE_COND(cond,ctx,channel,...)     ( ctx && cond ? ctx->dtrace<true>( channel, __VA_ARGS__ )        : void() )
+#define DTRACE_BLOCK(ctx,...)                 ( ctx         ? dtrace_block(ctx,__VA_ARGS__)                    : void() )
+#define DTRACE_FRAME_BLOCKWISE(ctx,...)       ( ctx         ? dtrace_frame_blockwise(ctx,__VA_ARGS__)          : void() )
+#define DTRACE_GET_COUNTER(ctx,channel)       ( ctx         ? ctx->getChannelCounter(channel)                  : 0      )
 
-#include "CommonLib/Rom.h"
-
-inline CDTrace* tracing_init( std::string& sTracingFile, std::string& sTracingRule )
+static CDTrace* tracing_init( const std::string& sTracingFile, const std::string& sTracingRule )
 {
-  dtrace_channel next_channels[] =
-  {
+  const dtrace_channels_t channels {
     _CNL_DEF( D_COMMON ),
     _CNL_DEF( D_HEADER ),
     _CNL_DEF( D_NALUNITHEADER ),
@@ -252,7 +248,6 @@ inline CDTrace* tracing_init( std::string& sTracingFile, std::string& sTracingRu
     _CNL_DEF( D_CRC ),
     _CNL_DEF( D_CRC_LF )
   };
-  dtrace_channels_t channels( next_channels, &next_channels[sizeof( next_channels ) / sizeof( next_channels[0] )] );
 
   if( !sTracingFile.empty() || !sTracingRule.empty() )
   {
@@ -264,25 +259,25 @@ inline CDTrace* tracing_init( std::string& sTracingFile, std::string& sTracingRu
   if( pDtrace->getLastError() )
   {
     msg( WARNING, "%s\n", pDtrace->getErrMessage().c_str() );
+    // don't return NULL, so we can still print the channels list
     //return NULL;
   }
 
   return pDtrace;
 }
 
-#else
+#else   // !ENABLE_TRACING
 
 #define DTRACE(ctx,channel,...)               {}
 #define DTRACE_WITHOUT_COUNT(ctx,channel,...) {}
 #define DTRACE_DECR_COUNTER(ctx,channel)      {}
 #define DTRACE_UPDATE(ctx,s)                  {}
-#define DTRACE_COND(cond,level,...)           {}
 #define DTRACE_REPEAT(ctx,channel,times,...)  {}
-#define DTRACE_SET(_dst,_src)  (_dst)=(_src)
+#define DTRACE_COND(cond,level,...)           {}
 #define DTRACE_BLOCK(...)                     {}
 #define DTRACE_FRAME_BLOCKWISE(...)           {}
 #define DTRACE_GET_COUNTER(ctx,channel)       {}
 
-#endif
+#endif   // !ENABLE_TRACING
 
-}
+}   // namespace vvdec

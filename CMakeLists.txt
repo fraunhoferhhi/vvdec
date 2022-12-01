@@ -20,6 +20,8 @@ message( STATUS "CMAKE_MODULE_PATH: updating module path to: ${CMAKE_MODULE_PATH
 # we enable x86 intrinsics for all target architectures, because they are implemented through simd-everywhere on non-x86
 set( VVDEC_ENABLE_X86_SIMD TRUE  CACHE BOOL "enable x86 intrinsics" )
 
+set( VVDEC_ENABLE_TRACING  FALSE CACHE BOOL "Compile in tracing functionality" )
+
 include( vvdecCompilerSupport )
 
 # enable sse4.1 build for all source files for gcc and clang
@@ -177,9 +179,6 @@ endif()
 if( NOT CMAKE_BUILD_TYPE )
   set( CMAKE_BUILD_TYPE "Release" CACHE STRING "Choose the type of build, options are: Debug Release RelWithDebInfo MinSizeRel." FORCE )
 endif()
-
-#set( SET_ENABLE_TRACING OFF CACHE BOOL "Set ENABLE_TRACING as a compiler flag" )
-#set( ENABLE_TRACING OFF CACHE BOOL "If SET_ENABLE_TRACING is on, it will be set to this value" )
 
 # set c++14
 set( CMAKE_CXX_STANDARD 14 )
@@ -363,9 +362,10 @@ if( UNIX AND NOT VVDEC_USE_ADDRESS_SANITIZER AND
                                           -ex "info locals"
                                           -ex "backtrace"
                                           -ex "quit"
-                                          --args )
+                                          --args
+                                         CACHE STRING "provide a command wrapper (e.g. debugger) to run the tests." )
 else()
-    set( VVDEC_TESTS_DEBUGGER_COMMAND "" )
+    set( VVDEC_TESTS_DEBUGGER_COMMAND "" CACHE STRING "provide a command wrapper (e.g. debugger) to run the tests." )
 endif()
 
 # add tests for bitstreams

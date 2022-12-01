@@ -131,6 +131,10 @@ if( VVDEC_ENABLE_X86_SIMD )
   set_target_properties( ${LIB_NAME}_x86_simd PROPERTIES FOLDER lib )
 endif()
 
+if( VVDEC_ENABLE_TRACING )
+  add_compile_definitions( ENABLE_TRACING=1 )
+endif()
+
 # set resource file for MSVC compilers
 if( MSVC )
   set( RESOURCE_FILE ${LIB_NAME}.rc )

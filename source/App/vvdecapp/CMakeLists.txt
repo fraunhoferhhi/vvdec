@@ -12,6 +12,10 @@ if( MSVC )
   set( RESOURCE_FILE ${EXE_NAME}.rc )
 endif()
 
+if( VVDEC_ENABLE_TRACING )
+  add_compile_definitions( ENABLE_TRACING )
+endif()
+
 # add executable
 add_executable( ${EXE_NAME} ${SRC_FILES} ${INC_FILES} ${RESOURCE_FILE} )
 set_target_properties( ${EXE_NAME} PROPERTIES RELEASE_POSTFIX        "${CMAKE_RELEASE_POSTFIX}" )

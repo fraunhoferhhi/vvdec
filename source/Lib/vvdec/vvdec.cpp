@@ -393,16 +393,26 @@ VVDEC_DECL int vvdec_set_tracing( const char *file, const char *rule )
   std::string sTracingRule = rule;
 
 #if ENABLE_TRACING
-  bool bPrint = !( sTracingFile.empty() && sTracingRule.empty() );
   if( !vvdec::g_trace_ctx )
+  {
     vvdec::g_trace_ctx = vvdec::tracing_init( sTracingFile, sTracingRule );
+  }
 
-  if( bPrint && vvdec::g_trace_ctx )
+  bool bPrint = !( sTracingFile.empty() && sTracingRule.empty() );
+  if( vvdec::g_trace_ctx && ( bPrint || vvdec::g_trace_ctx->getLastError() ) )
   {
     std::string sChannelsList;
     vvdec::g_trace_ctx->getChannelsList( sChannelsList );
     vvdec::msg( vvdec::INFO, "\nAvailable tracing channels:\n\n%s\n", sChannelsList.c_str() );
+
+    if( vvdec::g_trace_ctx->getLastError() )
+    {
+      vvdec::tracing_uninit( vvdec::g_trace_ctx );
+      vvdec::g_trace_ctx = nullptr;
+      return VVDEC_ERR_INITIALIZE;
+    }
   }
+
   return VVDEC_OK;
 #else
   if( sTracingFile.empty() && sTracingRule.empty() )

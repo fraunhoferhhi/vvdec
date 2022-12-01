@@ -47,6 +47,7 @@ POSSIBILITY OF SUCH DAMAGE.
  */
 
 
+#include "CommonDefX86.h"
 #include "CommonLib/CommonDef.h"
 #include "CommonLib/InterpolationFilter.h"
 #include "CommonLib/TrQuant.h"

@@ -101,11 +101,13 @@ public:
       std::cout << "\t\t [--SEIDecodedPictureHash,-dph ] : enable handling of decoded picture hash SEI messages" << std::endl;
       std::cout << "\t\t [--CheckYuvMD5,-md5 <md5str>  ] : enable calculation of md5 hash over the full YUV output and check against the provided value." << std::endl;
       std::cout << std::endl;
+#ifdef ENABLE_TRACING
       std::cout << "\t Debug Options" << std::endl;
       std::cout << std::endl;
       std::cout << "\t\t [--TraceFile,-tf <str>     ] : Tracing filename if ENABLE_TRACING: on, e.g. --TraceFile=trace.txt" << std::endl;
       std::cout << "\t\t [--TraceRule,-tr <str>     ] : Tracing rule if ENABLE_TRACING: on, e.g. --TraceRule=D_SYNTAX,D_HEADER:poc<=1" << std::endl;
       std::cout << std::endl;
+#endif   // ENABLE_TRACING
     }
     std::cout << "\t General Options" << std::endl;
     std::cout << std::endl;
@@ -127,6 +129,12 @@ public:
                                  int& riFrames, int& riLoops, std::string& rcExpectYuvMD5, bool& useY4mFormat, bool &useExternAllocator,
                                  std::string& sTracingFile, std::string& sTracingRule )
   {
+#ifndef ENABLE_TRACING
+    // ignore unused variables
+    (void) sTracingFile;
+    (void) sTracingRule;
+#endif   // !ENABLE_TRACING
+
     int iRet = 0;
     /* Check command line parameters */
     int32_t  i_arg = 1;
@@ -368,6 +376,7 @@ public:
           fprintf( stdout, "[simd] : %s\n", cll );
         }
       }
+#ifdef ENABLE_TRACING
       else if( !strcmp( (const char*)argv[i_arg], "--TraceFile" ) || !strcmp( (const char*)argv[i_arg], "-tf" ) )
       {
         sTracingFile = argv[++i_arg];
@@ -378,6 +387,7 @@ public:
         sTracingRule = argv[++i_arg];
         i_arg++;
       }
+#endif   // ENABLE_TRACING
       else
       {
         fprintf( stderr, " - unknown argument: %s \n", argv[i_arg++] );

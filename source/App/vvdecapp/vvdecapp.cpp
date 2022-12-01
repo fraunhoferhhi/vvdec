@@ -368,7 +368,17 @@ int main( int argc, char* argv[] )
   //> decoding loop
   vvdecAccessUnit* accessUnit = vvdec_accessUnit_alloc();
   vvdec_accessUnit_alloc_payload( accessUnit, MAX_CODED_PICTURE_SIZE );
-  vvdec_set_tracing( sTracingFile.c_str(), sTracingRule.c_str() );
+
+#ifdef ENABLE_TRACING
+  if( sTracingFile.size() || sTracingRule.size() )
+  {
+    if( vvdec_set_tracing( sTracingFile.c_str(), sTracingRule.c_str() ) != VVDEC_OK )
+    {
+      *logStream << "vvdecapp [error]: failed to initialize tracing to file '" << sTracingFile << "' with rule '" << sTracingRule << "'" << std::endl;
+      return -1;
+    }
+  }
+#endif   // ENABLE_TRACING
 
   bool bOutputInfoWritten = false;
 

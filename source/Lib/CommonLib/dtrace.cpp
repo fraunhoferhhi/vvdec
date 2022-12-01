@@ -53,7 +53,6 @@ POSSIBILITY OF SUCH DAMAGE.
 #include "CommonDef.h"
 
 #include "dtrace.h"
-#include "dtrace_next.h"
 
 namespace vvdec
 {
@@ -112,29 +111,45 @@ std::vector<std::string> split( const std::string &s, char delim )
     return elems;
 }
 
-CDTrace::CDTrace( const char *filename, vstring channel_names )
-    : copy(false), m_trace_file(NULL), m_error_code( 0 )
+CDTrace::CDTrace( const char *filename, const vstring& channel_names )
 {
     if( filename )
         m_trace_file = fopen( filename, "w" );
+    if( !m_trace_file )
+    {
+      m_error_code = Error::FileOpenFailed;
+    }
 
     int i = 0;
-    for( vstring::iterator ci = channel_names.begin(); ci != channel_names.end(); ++ci ) {
+    for( vstring::const_iterator ci = channel_names.cbegin(); ci != channel_names.cend(); ++ci )
+    {
         deserializationTable[*ci] = i++;
         chanRules.push_back( Channel() );
     }
 }
 
 CDTrace::CDTrace( const char *filename, const dtrace_channels_t& channels )
-  : copy( false ), m_trace_file( NULL ), m_error_code( 0 )
 {
   if( filename )
     m_trace_file = fopen( filename, "w" );
+  if( !m_trace_file )
+  {
+    m_error_code = Error::FileOpenFailed;
+  }
 
-  //int i = 0;
-  for( dtrace_channels_t::const_iterator ci = channels.begin(); ci != channels.end(); ++ci ) {
-    deserializationTable[ci->channel_name] = ci->channel_number/*i++*/;
+  for( dtrace_channels_t::const_iterator ci = channels.cbegin(); ci != channels.cend(); ++ci )
+  {
+    deserializationTable[ci->channel_name] = ci->channel_number;
     chanRules.push_back( Channel() );
+  }
+}
+
+CDTrace::CDTrace( const std::string& sTracingFile, const std::string& sTracingRule, const dtrace_channels_t& channels )
+  : CDTrace( sTracingFile.c_str(), channels )
+{
+  if( !sTracingRule.empty() && m_error_code == Error::OK )
+  {
+    m_error_code = addRule( sTracingRule );
   }
 }
 
@@ -147,16 +162,6 @@ CDTrace::CDTrace( const CDTrace& other )
     state                = other.state;
     deserializationTable = other.deserializationTable;
     m_error_code         = other.m_error_code;
-}
-
-CDTrace::CDTrace( const std::string& sTracingFile, const std::string& sTracingRule, const dtrace_channels_t& channels )
-  : CDTrace( sTracingFile.c_str(), channels )
-{
-  //CDTrace::CDTrace( sTracingFile.c_str(), channels );
-  if( !sTracingRule.empty() )
-  {
-    m_error_code = addRule( sTracingRule );
-  }
 }
 
 void CDTrace::swap( CDTrace& other )
@@ -190,7 +195,7 @@ bool _cf_neq( int bound, int val ) { return ( val!=bound ); }
 bool _cf_le ( int bound, int val ) { return ( val<=bound ); }
 bool _cf_ge ( int bound, int val ) { return ( val>=bound ); }
 
-int CDTrace::addRule( std::string rulestring )
+CDTrace::Error CDTrace::addRule( std::string rulestring )
 {
     vstring chans_conds = split( rulestring, ':' );
     vstring channels = split( chans_conds[0], ',' );
@@ -209,7 +214,7 @@ int CDTrace::addRule( std::string rulestring )
         } while( ++oi != operators.end() );
 
         /* No operator found, malformed rules string -> abort */
-        if( pos == std::string::npos ) return -2;
+        if( pos == std::string::npos ) return Error::BadRule;
 
         CType ctype( *ci,0,pos );
         int value = std::atoi( ci->substr( pos+2, ci->length()-( pos+2 ) ).c_str() );
@@ -222,7 +227,7 @@ int CDTrace::addRule( std::string rulestring )
         else if( "!=" == *oi ) cfunc = _cf_neq;
         else if( "<=" == *oi ) cfunc = _cf_le;
         else if( ">=" == *oi ) cfunc = _cf_ge;
-        else return 0; // this is already taken care of
+        else return Error::OK; // this is already taken care of
 
         rule.push_back( Condition( ctype, cfunc, value ) );
     }
@@ -233,11 +238,10 @@ int CDTrace::addRule( std::string rulestring )
         if( ichan != deserializationTable.end() )
             chanRules[ichan->second].add( rule );
         else
-            return -3;
+            return Error::UnknownChannel;
     }
 
-    //return (int)channels.size();
-    return 0;
+    return Error::OK;
 }
 
 bool CDTrace::update( state_type stateval )
@@ -279,12 +283,14 @@ const char* CDTrace::getChannelName( int channel_number )
 std::string CDTrace::getErrMessage()
 {
   std::string str = "";
-  if( m_error_code )
+  if( m_error_code != Error::OK )
   {
-    if( m_error_code == -2 )
+    if( m_error_code == Error::BadRule )
       str = ( " - DTrace ERROR: Add tracing rule failed: DECERR_DTRACE_BAD_RULE" );
-    else if( m_error_code == -3 )
+    else if( m_error_code == Error::UnknownChannel )
       str = ( " - DTrace ERROR: Add tracing rule failed: DECERR_DTRACE_UNKNOWN_CHANNEL" );
+    else if ( m_error_code == Error::FileOpenFailed )
+      str = ( " - DTrace ERROR: failed to open trace file" );
     else
     {
       str = " - DTrace ERROR: Undefined error";
@@ -332,4 +338,4 @@ void CDTrace::dtrace_repeat( int k, int i_times, const char *format, /*va_list a
   return;
 }
 
-}
+}   // namespace vvdec

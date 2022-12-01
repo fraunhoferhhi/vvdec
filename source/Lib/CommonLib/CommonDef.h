@@ -54,7 +54,6 @@ POSSIBILITY OF SUCH DAMAGE.
 #include <limits>
 #include <cmath>   // needed for std::log2()
 #include <cstdarg>
-
 #include <functional>
 #include <mutex>
 
@@ -90,9 +89,10 @@ POSSIBILITY OF SUCH DAMAGE.
 #endif // _MSC_VER > 1000
 
 
+// MS Visual Studio before 2017 does not support required C++14 features
 #ifdef _MSC_VER
-#if _MSC_VER <= 1500
-inline int64_t abs (int64_t x) { return _abs64(x); };
+#if _MSC_VER < 1910
+#error "MS Visual Studio version not supported. Please upgrade to Visual Studio 2017 or higher (or use other compilers)"
 #endif
 #endif
 
@@ -486,7 +486,7 @@ template<class T> struct AlignedDeleter
 #    define CLANG_VERSION_AT_LEAST(x,y) 0
 #endif
 
-#if defined( __GNUC__ ) 
+#if defined( __GNUC__ )
 #if __has_attribute( no_sanitize )
 #    define NO_THREAD_SANITIZE __attribute__( ( no_sanitize( "thread" ) ) )
 #else
@@ -518,8 +518,6 @@ typedef enum
   AVX512
 } X86_VEXT;
 
-X86_VEXT    read_x86_extension_flags( X86_VEXT request = UNDEFINED );
-std::string read_simd_extension_name();
 #  endif
 
 #endif   // ENABLE_SIMD_OPT
