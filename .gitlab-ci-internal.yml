@@ -8,6 +8,9 @@ variables:
   REBUILD_DOCKER_IMAGE:
     value: "0"
     description: "rebuild and publish docker image with latest emscripten"
+  EMSDK_VERSION:
+    value: "3.1.26"
+    description: "EMSDK version used for WASM build (either version number or latest)"
   CCACHE_DIR: "${CI_PROJECT_DIR}/ext/ccache"
   CCACHE_MAXSIZE: 500M
 
@@ -260,11 +263,20 @@ test_macos_x86_64:
     - echo -n $CI_REGISTRY_PASSWORD | docker login -u $CI_REGISTRY_USER --password-stdin $CI_REGISTRY
     - mkdir -p empty_context
     - if [[ $REBUILD_DOCKER_IMAGE = 1 ]] ; then NO_CACHE_ARG=--no-cache=true ; fi
-    - docker build -t $DOCKER_IMAGE_TAG $NO_CACHE_ARG -f $DOCKERFILE empty_context
+    - docker pull $DOCKER_IMAGE_TAG || true
+    - docker build -t $DOCKER_IMAGE_TAG
+                   -f $DOCKERFILE
+                   --build-arg BUILDKIT_INLINE_CACHE=1
+                   --pull
+                   --cache-from $DOCKER_IMAGE_TAG
+                   $NO_CACHE_ARG
+                   $IMAGE_BUILD_ARGS
+                   empty_context
     - docker push $DOCKER_IMAGE_TAG
   variables:
     DOCKERFILE: ""
     DOCKER_IMAGE_TAG: ""
+    IMAGE_BUILD_ARGS: ""
   tags:
     - docker-build
 
@@ -272,13 +284,17 @@ rebuild_selenium_docker_image:
   extends: .rebuild_docker_image_template
   variables:
     DOCKERFILE: ".selenium.dockerfile"
-    DOCKER_IMAGE_TAG: "$CI_REGISTRY_IMAGE/selenium-debian:bullseye"
+    DOCKER_IMAGE_TAG: "$CI_REGISTRY_IMAGE/selenium-debian:emsdk-$EMSDK_VERSION"
+    IMAGE_BUILD_ARGS: "--build-arg EMSDK_VER=$EMSDK_VERSION"
   rules:
     - if: '$CI_PROJECT_PATH == "git/vvdec"'
 
 test_wasm:
   extends: .build_test_template
-  image: $CI_REGISTRY/git/vvdec/selenium-debian:bullseye
+  image: $CI_REGISTRY/git/vvdec/selenium-debian:emsdk-$EMSDK_VERSION
+  needs:
+    - job: rebuild_selenium_docker_image
+      optional: true
   script:
     - source /opt/emsdk/emsdk_env.sh
     - emcc --version

@@ -545,23 +545,25 @@ void AreaBuf<Pel>::transposedFrom( const AreaBuf<const Pel> &other )
 {
   CHECK( width != other.height || height != other.width, "Incompatible size" );
 
-  if( ( width & 3 ) != 0 || ( height & 3 ) != 0 )
+  if( ( ( width | height ) & 7 ) == 0 )
   {
-          Pel* dst =       buf;
     const Pel* src = other.buf;
-    width          = other.height;
-    height         = other.width;
-    stride         = stride < width ? width : stride;
 
-    for( unsigned y = 0; y < other.height; y++ )
+    for( unsigned y = 0; y < other.height; y += 8 )
     {
-      for( unsigned x = 0; x < other.width; x++ )
+      Pel* dst = buf + y;
+
+      for( unsigned x = 0; x < other.width; x += 8 )
       {
-        dst[y + x*stride] = src[x + y * other.stride];
+        g_pelBufOP.transpose8x8( &src[x], other.stride, dst, stride );
+
+        dst += 8 * stride;
       }
+
+      src += 8 * other.stride;
     }
   }
-  else if( ( width & 7 ) != 0 || ( height & 7 ) != 0 )
+  else if( ( ( width | height ) & 3 ) == 0 )
   {
     const Pel* src = other.buf;
 
@@ -581,20 +583,18 @@ void AreaBuf<Pel>::transposedFrom( const AreaBuf<const Pel> &other )
   }
   else
   {
+          Pel* dst =       buf;
     const Pel* src = other.buf;
+    width          = other.height;
+    height         = other.width;
+    stride         = stride < width ? width : stride;
 
-    for( unsigned y = 0; y < other.height; y += 8 )
+    for( unsigned y = 0; y < other.height; y++ )
     {
-      Pel* dst = buf + y;
-
-      for( unsigned x = 0; x < other.width; x += 8 )
+      for( unsigned x = 0; x < other.width; x++ )
       {
-        g_pelBufOP.transpose8x8( &src[x], other.stride, dst, stride );
-
-        dst += 8 * stride;
+        dst[y + x*stride] = src[x + y * other.stride];
       }
-
-      src += 8 * other.stride;
     }
   }
 }
@@ -695,6 +695,7 @@ void PelStorage::create( const ChromaFormat _chromaFormat, const Size& _size, co
     if( userAlloc && userAlloc->enabled )
     {
       m_origin[i] = ( Pel* ) userAlloc->create( userAlloc->opaque, (vvdecComponentType)i, sizeof(Pel)*area, MEMORY_ALIGN_DEF_SIZE, &m_allocator[i] );
+      CHECK( m_origin[i] == nullptr, "external allocator callback failed (returned NULL)." );
       m_externAllocator = true;
       m_userAlloc       = userAlloc;
     }

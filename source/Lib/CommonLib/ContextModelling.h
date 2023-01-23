@@ -59,10 +59,16 @@ POSSIBILITY OF SUCH DAMAGE.
 namespace vvdec
 {
 
+struct CtxTpl
+{
+  // lower 5 bits are absSum1, upper 3 bits are numPos
+  uint8_t ctxTpl;
+};
+
 struct CoeffCodingContext
 {
 public:
-  CoeffCodingContext( const TransformUnit& tu, ComponentID component, bool signHide );
+  CoeffCodingContext( const TransformUnit& tu, ComponentID component, bool signHide, CtxTpl *tplBuf );
 public:
   void  initSubblock     ( int SubsetId, bool sigGroupFlag = false );
 public:
@@ -112,48 +118,48 @@ public:
 
   void            decNumCtxBins   (int n)                         { m_remainingContextBins -= n; }
   void            incNumCtxBins   (int n)                         { m_remainingContextBins += n; }
-  bool            checkTplBnd     ()                        const { return m_checkTplBnd; }
 
-  template<bool checkBnd = false>
-  unsigned sigCtxIdAbs( int blkPos, const TCoeffSig* coeff, const int state )
+  unsigned sigCtxIdAbs( const int blkPos, const int state )
   {
-    const uint32_t    posY  = blkPos >> m_log2BlockWidth;
-    const uint32_t    posX  = blkPos & ( ( 1 << m_log2BlockWidth ) - 1 );
-    const TCoeffSig*  pData = coeff + posX + ( posY << m_log2BlockWidth );
-    const int     diag      = posX + posY;
-    int           numPos    = 0;
-    int           sumAbs    = 0;
-#define UPDATE(x) {int a=x;sumAbs+=std::min(4+(a&1),a);numPos+=!!a;}
-    if( checkBnd )
-    {
-      const int xLtWmin1 = ( int( posX ) + 1 - int( m_width ) ) >> 31;
-      const int xLtWmin2 = ( int( posX ) + 2 - int( m_width ) ) >> 31;
-
-      UPDATE( ( pData[1] & xLtWmin1 ) );
-      UPDATE( ( pData[2] & xLtWmin2 ) );
-      UPDATE(   pData[m_width] );
-      UPDATE( ( pData[m_width+1] & xLtWmin1 ) );
-      UPDATE(   pData[m_width<<1] );
-    }
-    else
-    {
-      UPDATE( pData[1] );
-      UPDATE( pData[2] );
-      UPDATE( pData[m_width] );
-      UPDATE( pData[m_width+1] );
-      UPDATE( pData[m_width<<1] );
-    }
-#undef UPDATE
+    const uint32_t posY     = blkPos >> m_log2BlockWidth;
+    const uint32_t posX     = blkPos & ( ( 1 << m_log2BlockWidth ) - 1 );
+    const int      diag     = posX + posY;
+    const int      tplVal   = m_tplBuf[blkPos].ctxTpl;
+    const int      numPos   = tplVal >> 5;
+    const int      sumAbs   = tplVal & 31;
 
     int ctxOfs = std::min( ( sumAbs + 1 ) >> 1, 3 ) + ( diag < 2 ? 4 : 0 );
 
-    if( m_chType == CHANNEL_TYPE_LUMA )
+    if( isLuma( m_chType ) )
     {
       ctxOfs += diag < 5 ? 4 : 0;
     }
     m_tmplCpDiag = diag;
     m_tmplCpSum1 = sumAbs - numPos;
     return m_sigFlagCtxSet[std::max( 0, state-1 )]( ctxOfs );
+  }
+
+  void absVal1stPass( const int blkPos, TCoeffSig* coeff, const TCoeffSig absLevel1 )
+  {
+    CHECKD( !absLevel1, "absLevel1 has to non-zero!" );
+
+    coeff[blkPos] = absLevel1;
+
+    const uint32_t posY = blkPos >> m_log2BlockWidth;
+    const uint32_t posX = blkPos & ( ( 1 << m_log2BlockWidth ) - 1 );
+
+    auto update_deps = [&]( int offset )
+    {
+      auto& ctx   = m_tplBuf[blkPos - offset];
+      ctx.ctxTpl += uint8_t( 32 + absLevel1 );
+    };
+
+    if( posY > 1 ) update_deps( 2 * m_width );
+    if( posY > 0
+     && posX > 0 ) update_deps( m_width + 1 );
+    if( posY > 0 ) update_deps( m_width );
+    if( posX > 1 ) update_deps( 2 );
+    if( posX > 0 ) update_deps( 1 );
   }
 
   uint8_t ctxOffsetAbs()
@@ -186,7 +192,7 @@ public:
       {
         sum += pData[m_width + 1];
       }
-      }
+    }
     else if (posX+1 < m_width)
     {
       sum += pData[1];
@@ -198,8 +204,8 @@ public:
     if (posY+2 < m_height)
     {
       sum += pData[m_width];
-        sum += pData[m_width << 1];
-      }
+      sum += pData[m_width << 1];
+    }
     else if (posY+1 < m_height)
     {
       sum += pData[m_width];
@@ -213,7 +219,7 @@ public:
     const uint32_t   posX  = blkPos & ( ( 1 << m_log2BlockWidth ) - 1 );
     const TCoeffSig* posC  = coeff + posX + posY * m_width;
     int             numPos = 0;
-#define UPDATE(x) {int a=abs(x);numPos+=!!a;}
+#define UPDATE(x) {numPos+=!!x;}
     if( posX > 0 )
     {
       UPDATE( posC[-1] );
@@ -237,7 +243,7 @@ public:
     const TCoeffSig*   posC = coeff + posX + posY * m_width;
 
     int             numPos = 0;
-#define UPDATE(x) {int a=abs(x);numPos+=!!a;}
+#define UPDATE(x) {numPos+=!!x;}
 
     if (bdpcm)
     {
@@ -396,7 +402,6 @@ private:
   const int                 m_lastShiftX;
   const int                 m_lastShiftY;
   // modified
-  bool                      m_checkTplBnd;
   int                       m_scanPosLast;
   int                       m_subSetId;
   int                       m_subSetPos;
@@ -421,6 +426,7 @@ private:
   const bool                m_bdpcm;
   int                       m_regBinLimit;
   const bool                m_ts;
+  CtxTpl*                   m_tplBuf;
 };
 
 

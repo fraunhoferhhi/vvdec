@@ -54,7 +54,7 @@ namespace vvdec
 
 static const int prefix_ctx[8] = { 0, 0, 0, 3, 6, 10, 15, 21 };
 
-CoeffCodingContext::CoeffCodingContext( const TransformUnit& tu, ComponentID component, bool signHide )
+CoeffCodingContext::CoeffCodingContext( const TransformUnit& tu, ComponentID component, bool signHide, CtxTpl* tplBuf )
   : m_chType                    (toChannelType(component))
   , m_width                     (tu.block(component).width)
   , m_height                    (tu.block(component).height)
@@ -102,7 +102,10 @@ CoeffCodingContext::CoeffCodingContext( const TransformUnit& tu, ComponentID com
   , m_bdpcm                     (isLuma(component) ? tu.cu->bdpcmMode() : tu.cu->bdpcmModeChroma())
   , m_regBinLimit               ( ( TU::getTbAreaAfterCoefZeroOut( tu, component ) * ( isLuma( component ) ? MAX_TU_LEVEL_CTX_CODED_BIN_CONSTRAINT_LUMA : MAX_TU_LEVEL_CTX_CODED_BIN_CONSTRAINT_CHROMA ) ) >> 4 )
   , m_ts                        (tu.mtsIdx( component ) == MTS_SKIP)
+  , m_tplBuf                    (tplBuf)
 {
+  if( !m_ts || tu.cu->slice->getTSResidualCodingDisabledFlag() )
+    memset( tplBuf, 0, m_width * m_height * sizeof( CtxTpl ) );
 }
 
 void CoeffCodingContext::initSubblock( int SubsetId, bool sigGroupFlag )
@@ -115,7 +118,6 @@ void CoeffCodingContext::initSubblock( int SubsetId, bool sigGroupFlag )
   m_maxSubPos               = m_minSubPos + ( 1 << m_log2CGSize ) - 1;
   const bool lastHorGrp     = m_subSetPosX == m_widthInGroups  - 1;
   const bool lastVerGrp     = m_subSetPosY == m_heightInGroups - 1;
-  m_checkTplBnd             = lastHorGrp;
   if( sigGroupFlag )
   {
     m_sigCoeffGroupFlag.set ( m_subSetPos );
