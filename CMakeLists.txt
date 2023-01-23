@@ -7,7 +7,7 @@ cmake_minimum_required( VERSION 3.12.0 FATAL_ERROR )
 cmake_policy( VERSION ${CMAKE_MAJOR_VERSION}.${CMAKE_MINOR_VERSION} )
 
 # project name
-project( vvdec VERSION 1.6.0 )
+project( vvdec VERSION 1.6.1 )
 # set alternative version numbering for release candidates
 #set( PROJECT_VERSION_RC rc1 )
 if( PROJECT_VERSION_RC)
