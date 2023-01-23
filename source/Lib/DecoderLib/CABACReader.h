@@ -148,7 +148,6 @@ public:
   void        residual_lfnst_mode       ( CodingUnit&                   cu,     CUCtx&          cuCtx  );
   void        isp_mode                  ( CodingUnit&                   cu );
   int         last_sig_coeff            ( CoeffCodingContext&           cctx,   TransformUnit& tu, ComponentID   compID );
-  template<bool checkBnd>
   int         residual_coding_subblock  ( CoeffCodingContext&           cctx,   TCoeffSig*      coeff, const int stateTransTable, int& state, unsigned& signVal, int *&sigPos, unsigned &stateVal );
   void        residual_codingTS         ( TransformUnit&                tu,     ComponentID     compID );
   void        residual_coding_subblockTS( CoeffCodingContext&           cctx,   TCoeffSig*      coeff, CoeffSigBuf dstcoeff, int& maxX, int& maxY );
@@ -164,12 +163,13 @@ private:
   void        xReadTruncBinCode         ( uint32_t &symbol, uint32_t maxSymbol );
 
 private:
-  TCoeffSig       m_cffTmp  [( MAX_TU_SIZE_FOR_PROFILE + 2 ) * ( MAX_TU_SIZE_FOR_PROFILE + 2 )];
+  TCoeffSig       m_cffTmp [MAX_TU_SIZE_FOR_PROFILE * MAX_TU_SIZE_FOR_PROFILE];
 
   unsigned        m_signVal[256];
   int             m_numSig [256];
   unsigned        m_sub1   [256];
-  int             m_blkPos [MAX_TU_SIZE_FOR_PROFILE*MAX_TU_SIZE_FOR_PROFILE];
+  CtxTpl          m_tplBuf [MAX_TU_SIZE_FOR_PROFILE * MAX_TU_SIZE_FOR_PROFILE];
+  int             m_blkPos [MAX_TU_SIZE_FOR_PROFILE * MAX_TU_SIZE_FOR_PROFILE];
   BinDecoder      m_BinDecoder;
   InputBitstream* m_Bitstream = nullptr;
   Slice*          m_slice     = nullptr;

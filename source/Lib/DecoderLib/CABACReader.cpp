@@ -2389,7 +2389,7 @@ void CABACReader::residual_coding( TransformUnit& tu, ComponentID compID, CUCtx&
 
   // determine sign hiding
   bool signHiding = m_slice->getSignDataHidingEnabledFlag();
-  CoeffCodingContext  cctx    ( tu, compID, signHiding );
+  CoeffCodingContext  cctx( tu, compID, signHiding, m_tplBuf );
   // parse last coeff position
   cctx.setScanPosLast( last_sig_coeff( cctx, tu, compID ) );
   if (tu.mtsIdx( compID ) != MTS_SKIP && tu.blocks[compID].height >= 4 && tu.blocks[compID].width >= 4 )
@@ -2412,7 +2412,7 @@ void CABACReader::residual_coding( TransformUnit& tu, ComponentID compID, CUCtx&
   int       state         = 0;
 
   TCoeffSig *coeff = m_cffTmp;
-  ::memset( coeff, 0, ( cctx.maxNumCoeff() + 2 * cctx.width() ) * sizeof( TCoeffSig ) );
+  ::memset( coeff, 0, cctx.maxNumCoeff() * sizeof( TCoeffSig ) );
 
   int *sigPos      = m_blkPos;
   int  sigSubSetId = 0;
@@ -2433,9 +2433,7 @@ void CABACReader::residual_coding( TransformUnit& tu, ComponentID compID, CUCtx&
       }
     }
 
-    int numSigCoef = cctx.checkTplBnd()
-                   ? residual_coding_subblock<true >( cctx, coeff, stateTransTab, state, m_signVal[sigSubSetId], sigPos, m_sub1[sigSubSetId] )
-                   : residual_coding_subblock<false>( cctx, coeff, stateTransTab, state, m_signVal[sigSubSetId], sigPos, m_sub1[sigSubSetId] );
+    int numSigCoef = residual_coding_subblock( cctx, coeff, stateTransTab, state, m_signVal[sigSubSetId], sigPos, m_sub1[sigSubSetId] );
 
     if( numSigCoef > 0 )
     {
@@ -2712,7 +2710,6 @@ int CABACReader::last_sig_coeff( CoeffCodingContext& cctx, TransformUnit& tu, Co
 }
 
 
-template<bool checkBnd>
 int CABACReader::residual_coding_subblock(CoeffCodingContext& cctx, TCoeffSig* coeff, const int stateTransTable, int& state, unsigned& signPattern, int *&sigPos, unsigned &stateVal)
 {
   // NOTE: All coefficients of the subblock must be set to zero before calling this function
@@ -2757,10 +2754,12 @@ int CABACReader::residual_coding_subblock(CoeffCodingContext& cctx, TCoeffSig* c
     int  blkPos  = cctx.blockPos(nextSigPos);
     bool sigFlag = (!numNonZero && nextSigPos == inferSigPos);
 
+    unsigned absVal = 0;
+
     if (!sigFlag)
     {
-      const unsigned sigCtxId = cctx.sigCtxIdAbs<checkBnd>(blkPos, coeff, state);
-      sigFlag = m_BinDecoder.decodeBin(sigCtxId);
+      const unsigned sigCtxId = cctx.sigCtxIdAbs( blkPos, state );
+      sigFlag = m_BinDecoder.decodeBin( sigCtxId );
       DTRACE(g_trace_ctx, D_SYNTAX_RESI, "sig_bin() bin=%d ctx=%d\n", sigFlag, sigCtxId);
       remRegBins--;
     }
@@ -2790,14 +2789,16 @@ int CABACReader::residual_coding_subblock(CoeffCodingContext& cctx, TCoeffSig* c
         DTRACE( g_trace_ctx, D_SYNTAX_RESI, "gt2_flag() bin=%d ctx=%d\n", gt2Flag, cctx.greater2CtxIdAbs( ctxOff ) );
         remRegBins--;
         *gt1PosPtr++    = blkPos;
-        coeff[blkPos]   = 2 + parFlag + (gt2Flag << 1);
+        absVal          = 2 + parFlag + (gt2Flag << 1);
         state           = ( stateTransTable >> ( ( state << 2 ) + ( parFlag << 1 ) ) ) & 3;
       }
       else
       {
-        coeff[blkPos] = 1;
-        state         = ( stateTransTable >> ( ( state << 2 ) + 2 ) ) & 3;
+        absVal = 1;
+        state  = ( stateTransTable >> ( ( state << 2 ) + 2 ) ) & 3;
       }
+
+      cctx.absVal1stPass( blkPos, coeff, absVal );
     }
     else
     {
@@ -2877,7 +2878,7 @@ void CABACReader::residual_codingTS( TransformUnit& tu, ComponentID compID )
   pb.memset( 0 );
 
   // init coeff coding context
-  CoeffCodingContext  cctx    ( tu, compID, false );
+  CoeffCodingContext  cctx( tu, compID, false, m_tplBuf );
   TCoeffSig *coeff = m_cffTmp;
   ::memset( coeff, 0, cctx.maxNumCoeff() * sizeof( TCoeffSig ) );
 

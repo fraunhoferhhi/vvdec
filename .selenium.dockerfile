@@ -27,11 +27,13 @@ RUN apt-get update &&     \
         xz-utils
 ENV CMAKE_GENERATOR=Ninja
 
+ARG EMSDK_VER=latest
+
 WORKDIR /opt
 RUN git clone https://github.com/emscripten-core/emsdk.git
 ENV PATH=$PATH:/opt/emsdk
-RUN emsdk install latest && \
-    emsdk activate latest
+RUN emsdk install $EMSDK_VER && \
+    emsdk activate $EMSDK_VER
 
 # install selenium from debian package
 RUN apt-get update && apt-get install -y python3-selenium
