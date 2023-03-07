@@ -613,15 +613,15 @@ static void simdFilter5x5Blk( const AlfClassifier*,
   const __m128i mmMin = _mm_set1_epi16( clpRng.min() );
   const __m128i mmMax = _mm_set1_epi16( clpRng.max() );
 
-  __m128i params[2][3];
+  __m128i params[3][2];
   __m128i fs = _mm_loadu_si128( ( __m128i * ) filterSet );
-  params[0][0] = _mm_shuffle_epi32( fs, 0x00 );
-  params[0][1] = _mm_shuffle_epi32( fs, 0x55 );
-  params[0][2] = _mm_shuffle_epi32( fs, 0xaa );
+  params[0][1] = _mm_shuffle_epi32( fs, 0x00 );
+  params[1][1] = _mm_shuffle_epi32( fs, 0x55 );
+  params[2][1] = _mm_shuffle_epi32( fs, 0xaa );
   __m128i fc = _mm_loadu_si128( ( __m128i * ) fClipSet );
-  params[1][0] = _mm_shuffle_epi32( fc, 0x00 );
-  params[1][1] = _mm_shuffle_epi32( fc, 0x55 );
-  params[1][2] = _mm_shuffle_epi32( fc, 0xaa );
+  params[0][0] = _mm_shuffle_epi32( fc, 0x00 );
+  params[1][0] = _mm_shuffle_epi32( fc, 0x55 );
+  params[2][0] = _mm_shuffle_epi32( fc, 0xaa );
 
   const ptrdiff_t halfLine = width >> 1;
 
@@ -702,7 +702,7 @@ static void simdFilter5x5Blk( const AlfClassifier*,
           __m128i val01C = _mm_unpacklo_epi16(val01, val11);
           __m128i val01D = _mm_unpackhi_epi16(val01, val11);
 
-          __m128i limit01A = params[1][i];
+          __m128i limit01A = params[i][0];
 
           val01A = _mm_min_epi16( val01A, limit01A );
           val01B = _mm_min_epi16( val01B, limit01A );
@@ -719,7 +719,7 @@ static void simdFilter5x5Blk( const AlfClassifier*,
           val01A = _mm_add_epi16( val01A, val01C );
           val01B = _mm_add_epi16( val01B, val01D );
 
-          __m128i coeff01A = params[0][i];
+          __m128i coeff01A = params[i][1];
 
           accumA = _mm_add_epi32( accumA, _mm_madd_epi16( val01A, coeff01A ) );
           accumB = _mm_add_epi32( accumB, _mm_madd_epi16( val01B, coeff01A ) );
@@ -801,17 +801,17 @@ void simdFilter5x5Blk<AVX2>( const AlfClassifier*,
   const __m256i mmMin    = _mm256_set1_epi16( clpRng.min() );
   const __m256i mmMax    = _mm256_set1_epi16( clpRng.max() );
 
-  __m256i params[2][3];
+  __m256i params[3][2];
   __m256i fs   = _mm256_castsi128_si256( _mm_loadu_si128( ( __m128i* ) filterSet ) );
   fs = _mm256_inserti128_si256( fs, _mm256_extracti128_si256( fs, 0 ), 1 );
-  params[0][0] = _mm256_shuffle_epi32(fs, 0x00);
-  params[0][1] = _mm256_shuffle_epi32(fs, 0x55);
-  params[0][2] = _mm256_shuffle_epi32(fs, 0xaa);
+  params[0][1] = _mm256_shuffle_epi32( fs, 0x00 );
+  params[1][1] = _mm256_shuffle_epi32( fs, 0x55 );
+  params[2][1] = _mm256_shuffle_epi32(fs, 0xaa);
   __m256i fc   = _mm256_castsi128_si256( _mm_loadu_si128( ( __m128i* ) fClipSet ) );
   fc = _mm256_inserti128_si256( fc, _mm256_extracti128_si256( fc, 0 ), 1 );
-  params[1][0] = _mm256_shuffle_epi32( fc, 0x00 );
-  params[1][1] = _mm256_shuffle_epi32( fc, 0x55 );
-  params[1][2] = _mm256_shuffle_epi32( fc, 0xaa );
+  params[0][0] = _mm256_shuffle_epi32( fc, 0x00 );
+  params[1][0] = _mm256_shuffle_epi32( fc, 0x55 );
+  params[2][0] = _mm256_shuffle_epi32( fc, 0xaa );
 
   const ptrdiff_t halfLine = width >> 1;
 
@@ -892,7 +892,7 @@ void simdFilter5x5Blk<AVX2>( const AlfClassifier*,
           __m256i val01C = _mm256_unpacklo_epi16(val01, val11);
           __m256i val01D = _mm256_unpackhi_epi16(val01, val11);
 
-          __m256i limit01A = params[1][i];
+          __m256i limit01A = params[i][0];
 
           val01A = _mm256_min_epi16( val01A, limit01A );
           val01B = _mm256_min_epi16( val01B, limit01A );
@@ -909,7 +909,7 @@ void simdFilter5x5Blk<AVX2>( const AlfClassifier*,
           val01A = _mm256_add_epi16( val01A, val01C );
           val01B = _mm256_add_epi16( val01B, val01D );
 
-          __m256i coeff01A = params[0][i];
+          __m256i coeff01A = params[i][1];
 
           accumA = _mm256_add_epi32( accumA, _mm256_madd_epi16( val01A, coeff01A ) );
           accumB = _mm256_add_epi32( accumB, _mm256_madd_epi16( val01B, coeff01A ) );
@@ -1025,7 +1025,7 @@ static void simdFilter7x7Blk( const AlfClassifier*   classifier,
   {
     for (size_t j = 0; j < width; j += STEP_X)
     {
-      __m128i params[2][2][6];
+      __m128i params[6][2][2];
 
       for (int k = 0; k < 2; ++k)
       {
@@ -1063,19 +1063,19 @@ static void simdFilter7x7Blk( const AlfClassifier*   classifier,
         const __m128i rawClipHi  = _mm_loadl_epi64( ( const __m128i * ) ( clip + 8 ) );
 #endif
 
-        params[k][0][0] = _mm_shuffle_epi32( rawCoeffLo, 0x00 );
-        params[k][0][1] = _mm_shuffle_epi32( rawCoeffLo, 0x55 );
-        params[k][0][2] = _mm_shuffle_epi32( rawCoeffLo, 0xaa );
-        params[k][0][3] = _mm_shuffle_epi32( rawCoeffLo, 0xff );
-        params[k][0][4] = _mm_shuffle_epi32( rawCoeffHi, 0x00 );
-        params[k][0][5] = _mm_shuffle_epi32( rawCoeffHi, 0x55 );
+        params[0][1][k] = _mm_shuffle_epi32( rawCoeffLo, 0x00 );
+        params[1][1][k] = _mm_shuffle_epi32( rawCoeffLo, 0x55 );
+        params[2][1][k] = _mm_shuffle_epi32( rawCoeffLo, 0xaa );
+        params[3][1][k] = _mm_shuffle_epi32( rawCoeffLo, 0xff );
+        params[4][1][k] = _mm_shuffle_epi32( rawCoeffHi, 0x00 );
+        params[5][1][k] = _mm_shuffle_epi32( rawCoeffHi, 0x55 );
 
-        params[k][1][0] = _mm_shuffle_epi32( rawClipLo, 0x00 );
-        params[k][1][1] = _mm_shuffle_epi32( rawClipLo, 0x55 );
-        params[k][1][2] = _mm_shuffle_epi32( rawClipLo, 0xaa );
-        params[k][1][3] = _mm_shuffle_epi32( rawClipLo, 0xff );
-        params[k][1][4] = _mm_shuffle_epi32( rawClipHi, 0x00 );
-        params[k][1][5] = _mm_shuffle_epi32( rawClipHi, 0x55 );
+        params[0][0][k] = _mm_shuffle_epi32( rawClipLo, 0x00 );
+        params[1][0][k] = _mm_shuffle_epi32( rawClipLo, 0x55 );
+        params[2][0][k] = _mm_shuffle_epi32( rawClipLo, 0xaa );
+        params[3][0][k] = _mm_shuffle_epi32( rawClipLo, 0xff );
+        params[4][0][k] = _mm_shuffle_epi32( rawClipHi, 0x00 );
+        params[5][0][k] = _mm_shuffle_epi32( rawClipHi, 0x55 );
       }
       
       {
@@ -1143,8 +1143,8 @@ static void simdFilter7x7Blk( const AlfClassifier*   classifier,
           __m128i val01C = _mm_unpacklo_epi16(val01, val11);
           __m128i val01D = _mm_unpackhi_epi16(val01, val11);
 
-          __m128i limit01A = params[0][1][i];
-          __m128i limit01B = params[1][1][i];
+          __m128i limit01A = params[i][0][0];
+          __m128i limit01B = params[i][0][1];
 
           val01A = _mm_min_epi16(val01A, limit01A);
           val01B = _mm_min_epi16(val01B, limit01B);
@@ -1162,8 +1162,8 @@ static void simdFilter7x7Blk( const AlfClassifier*   classifier,
           val01A = _mm_add_epi16(val01A, val01C);
           val01B = _mm_add_epi16(val01B, val01D);
 
-          const __m128i coeff01A = params[0][0][i];
-          const __m128i coeff01B = params[1][0][i];
+          const __m128i coeff01A = params[i][1][0];
+          const __m128i coeff01B = params[i][1][1];
 
           accumA = _mm_add_epi32(accumA, _mm_madd_epi16(val01A, coeff01A));
           accumB = _mm_add_epi32(accumB, _mm_madd_epi16(val01B, coeff01B));
@@ -1243,7 +1243,7 @@ void simdFilter7x7Blk<AVX2>( const AlfClassifier* classifier,
   const __m256i mmMin    = _mm256_set1_epi16( clpRng.min() );
   const __m256i mmMax    = _mm256_set1_epi16( clpRng.max() );
 
-  __m256i params[2][2][6];
+  __m256i params[6][2][2];
 
   for (size_t i = 0; i < height; i += STEP_Y)
   {
@@ -1322,19 +1322,19 @@ void simdFilter7x7Blk<AVX2>( const AlfClassifier* classifier,
           const __m256i rawClipHi = _mm256_inserti128_si256( _mm256_castsi128_si256( rawClipHi0 ), rawClipHi1, 1 );
 #endif
 
-          params[k][0][0] = _mm256_shuffle_epi32( rawCoeffLo, 0x00 );
-          params[k][0][1] = _mm256_shuffle_epi32( rawCoeffLo, 0x55 );
-          params[k][0][2] = _mm256_shuffle_epi32( rawCoeffLo, 0xaa );
-          params[k][0][3] = _mm256_shuffle_epi32( rawCoeffLo, 0xff );
-          params[k][0][4] = _mm256_shuffle_epi32( rawCoeffHi, 0x00 );
-          params[k][0][5] = _mm256_shuffle_epi32( rawCoeffHi, 0x55 );
+          params[0][1][k] = _mm256_shuffle_epi32( rawCoeffLo, 0x00 );
+          params[1][1][k] = _mm256_shuffle_epi32( rawCoeffLo, 0x55 );
+          params[2][1][k] = _mm256_shuffle_epi32( rawCoeffLo, 0xaa );
+          params[3][1][k] = _mm256_shuffle_epi32( rawCoeffLo, 0xff );
+          params[4][1][k] = _mm256_shuffle_epi32( rawCoeffHi, 0x00 );
+          params[5][1][k] = _mm256_shuffle_epi32( rawCoeffHi, 0x55 );
 
-          params[k][1][0] = _mm256_shuffle_epi32( rawClipLo, 0x00 );
-          params[k][1][1] = _mm256_shuffle_epi32( rawClipLo, 0x55 );
-          params[k][1][2] = _mm256_shuffle_epi32( rawClipLo, 0xaa );
-          params[k][1][3] = _mm256_shuffle_epi32( rawClipLo, 0xff );
-          params[k][1][4] = _mm256_shuffle_epi32( rawClipHi, 0x00 );
-          params[k][1][5] = _mm256_shuffle_epi32( rawClipHi, 0x55 );
+          params[0][0][k] = _mm256_shuffle_epi32( rawClipLo, 0x00 );
+          params[1][0][k] = _mm256_shuffle_epi32( rawClipLo, 0x55 );
+          params[2][0][k] = _mm256_shuffle_epi32( rawClipLo, 0xaa );
+          params[3][0][k] = _mm256_shuffle_epi32( rawClipLo, 0xff );
+          params[4][0][k] = _mm256_shuffle_epi32( rawClipHi, 0x00 );
+          params[5][0][k] = _mm256_shuffle_epi32( rawClipHi, 0x55 );
         }
       }
 
@@ -1403,8 +1403,8 @@ void simdFilter7x7Blk<AVX2>( const AlfClassifier* classifier,
           __m256i val01C = _mm256_unpacklo_epi16(val01, val11);
           __m256i val01D = _mm256_unpackhi_epi16(val01, val11);
 
-          __m256i limit01A = params[0][1][i];
-          __m256i limit01B = params[1][1][i];
+          __m256i limit01A = params[i][0][0];
+          __m256i limit01B = params[i][0][1];
 
           val01A = _mm256_min_epi16( val01A, limit01A );
           val01B = _mm256_min_epi16( val01B, limit01B );
@@ -1422,8 +1422,8 @@ void simdFilter7x7Blk<AVX2>( const AlfClassifier* classifier,
           val01A = _mm256_add_epi16( val01A, val01C );
           val01B = _mm256_add_epi16( val01B, val01D );
 
-          const __m256i coeff01A = params[0][0][i];
-          const __m256i coeff01B = params[1][0][i];
+          const __m256i coeff01A = params[i][1][0];
+          const __m256i coeff01B = params[i][1][1];
 
           accumA = _mm256_add_epi32( accumA, _mm256_madd_epi16( val01A, coeff01A ) );
           accumB = _mm256_add_epi32( accumB, _mm256_madd_epi16( val01B, coeff01B ) );

@@ -814,33 +814,27 @@ void InterPrediction::xPredInterBlk( const ComponentID&    compID,
     
   if( yFrac == 0 )
   {
-    m_if.filterHor( compID, refPtr, refStride, dstBuf, dstStride, width, height, xFrac, rndRes, chFmt, clpRng, bilinearMC, bilinearMC, useAltHpelIf );
+    m_if.filterHor( compID, refPtr, refStride, dstBuf, dstStride, width, height, xFrac, rndRes, chFmt, clpRng, bilinearMC ? 1 : 0, useAltHpelIf );
   }
   else if( xFrac == 0 )
   {
-    m_if.filterVer( compID, refPtr, refStride, dstBuf, dstStride, width, height, yFrac, true, rndRes, chFmt, clpRng, bilinearMC, bilinearMC, useAltHpelIf );
+    m_if.filterVer( compID, refPtr, refStride, dstBuf, dstStride, width, height, yFrac, true, rndRes, chFmt, clpRng, bilinearMC ? 1 : 0, useAltHpelIf );
   }
   else if( bilinearMC )
   {
     m_if.filterN2_2D( compID, refPtr, refStride, dstBuf, dstStride, width, height, xFrac, yFrac, chFmt, clpRng );
   }
-  else if( width == 4 && height == 4 && !bilinearMC )
+  else if( width == 4 && height == 4 )
   {
     m_if.filter4x4( compID, refPtr, refStride, dstBuf, dstStride, 4, 4, xFrac, yFrac, rndRes, chFmt, clpRng );
   }
-  else if( !bilinearMC && ( width & 15 ) == 0 )
+  else if( width == 16 )
   {
-    for( int dx = 0; dx < width; dx += 16 )
-    {
-      m_if.filter16x16( compID, refPtr + dx, refStride, dstBuf + dx, dstStride, 16, height, xFrac, yFrac, rndRes, chFmt, clpRng, useAltHpelIf );
-    }
+    m_if.filter16x16( compID, refPtr, refStride, dstBuf, dstStride, 16, height, xFrac, yFrac, rndRes, chFmt, clpRng, useAltHpelIf );
   }
-  else if( !bilinearMC && ( width & 7 ) == 0 )
+  else if( width == 8 )
   {
-    for( int dx = 0; dx < width; dx += 8 )
-    {
-      m_if.filter8x8( compID, refPtr + dx, refStride, dstBuf + dx, dstStride, 8, height, xFrac, yFrac, rndRes, chFmt, clpRng, useAltHpelIf );
-    }
+    m_if.filter8x8( compID, refPtr, refStride, dstBuf, dstStride, 8, height, xFrac, yFrac, rndRes, chFmt, clpRng, useAltHpelIf );
   }
   else
   {
@@ -849,8 +843,8 @@ void InterPrediction::xPredInterBlk( const ComponentID&    compID,
 
     int vFilterSize = bilinearMC ? NTAPS_BILINEAR : isLuma( compID ) ? NTAPS_LUMA : NTAPS_CHROMA;
 
-    m_if.filterHor( compID, GET_OFFSETY( refPtr, refStride, -( ( vFilterSize >> 1 ) - 1 ) ), refStride, tmpBuf, tmpStride, width, height + vFilterSize - 1, xFrac, false,         chFmt, clpRng, bilinearMC, bilinearMC, useAltHpelIf );
-    m_if.filterVer( compID, GET_OFFSETY( tmpBuf, tmpStride,    ( vFilterSize >> 1 ) - 1 ),   tmpStride, dstBuf, dstStride, width, height,                   yFrac, false, rndRes, chFmt, clpRng, bilinearMC, bilinearMC, useAltHpelIf );
+    m_if.filterHor( compID, GET_OFFSETY( refPtr, refStride, -( ( vFilterSize >> 1 ) - 1 ) ), refStride, tmpBuf, tmpStride, width, height + vFilterSize - 1, xFrac, false,         chFmt, clpRng, bilinearMC ? 1 : 0, useAltHpelIf );
+    m_if.filterVer( compID, GET_OFFSETY( tmpBuf, tmpStride,    ( vFilterSize >> 1 ) - 1 ),   tmpStride, dstBuf, dstStride, width, height,                   yFrac, false, rndRes, chFmt, clpRng, bilinearMC ? 1 : 0, useAltHpelIf );
   }
 
   if( bioApplied && compID == COMPONENT_Y )
@@ -2199,7 +2193,7 @@ void InterPrediction::xPredInterBlkRPR( const std::pair<int, int>& scalingRatio,
     refPtr    = refBuf.bufAt( xInt, yInt0 );
     refStride = refBuf.stride;
 
-    m_if.filterHor( compID, GET_OFFSETY( refPtr, refStride, -( ( vFilterSize >> 1 ) - 1 ) ), refStride, GET_OFFSETX( buffer, tmpStride, col ), tmpStride, 1, refHeight + vFilterSize - 1 + extSize, xFrac, false, chFmt, clpRng, xFilter, false, useAltHpelIf && scalingRatio.first == 1 << SCALE_RATIO_BITS );
+    m_if.filterHor( compID, GET_OFFSETY( refPtr, refStride, -( ( vFilterSize >> 1 ) - 1 ) ), refStride, GET_OFFSETX( buffer, tmpStride, col ), tmpStride, 1, refHeight + vFilterSize - 1 + extSize, xFrac, false, chFmt, clpRng, xFilter, useAltHpelIf && scalingRatio.first == 1 << SCALE_RATIO_BITS );
   }
 
   for( row = 0; row < height; row++ )
@@ -2211,7 +2205,7 @@ void InterPrediction::xPredInterBlkRPR( const std::pair<int, int>& scalingRatio,
 
     CHECK( yInt0 > yInt, "Wrong vertical starting point" );
 
-    m_if.filterVer( compID, GET_OFFSETY( buffer, tmpStride, ( yInt - yInt0 ) + ( ( vFilterSize >> 1 ) - 1 ) ), tmpStride, dst + row * dstStride, dstStride, width, 1, yFrac, false, rndRes, chFmt, clpRng, yFilter, false, useAltHpelIf && scalingRatio.second == 1 << SCALE_RATIO_BITS );
+    m_if.filterVer( compID, GET_OFFSETY( buffer, tmpStride, ( yInt - yInt0 ) + ( ( vFilterSize >> 1 ) - 1 ) ), tmpStride, dst + row * dstStride, dstStride, width, 1, yFrac, false, rndRes, chFmt, clpRng, yFilter, useAltHpelIf && scalingRatio.second == 1 << SCALE_RATIO_BITS );
   }
 }
 

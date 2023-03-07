@@ -39,9 +39,8 @@ POSSIBILITY OF SUCH DAMAGE.
 
 
 ------------------------------------------------------------------------------------------- */
-
-#ifndef _VVDEC_H_
-#define _VVDEC_H_
+#ifndef VVDEC_VVDEC_H
+#define VVDEC_VVDEC_H
 
 #include "vvdec/vvdecDecl.h"
 
@@ -654,4 +653,4 @@ VVDEC_NAMESPACE_END
 }
 #endif /*__cplusplus */
 
-#endif /*_VVDEC_H_*/
+#endif /*VVDEC_VVDEC_H*/

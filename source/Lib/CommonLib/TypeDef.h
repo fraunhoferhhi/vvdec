@@ -769,6 +769,16 @@ public:
   template<typename T> RecoverableException& operator<<( const T& t )      { Exception::operator<<( t ); return *this; }
 };
 
+class UnsupportedFeatureException : public Exception
+{
+public:
+  explicit UnsupportedFeatureException( const std::string& _s ) : Exception( _s ) {}
+  UnsupportedFeatureException( const UnsupportedFeatureException& _e )                   = default;
+  virtual ~UnsupportedFeatureException() noexcept                                 = default;
+  UnsupportedFeatureException& operator=( const UnsupportedFeatureException& _e )        { Exception::operator=( _e ); return *this; }
+  template<typename T> UnsupportedFeatureException& operator<<( const T& t )      { Exception::operator<<( t ); return *this; }
+};
+
 #if !defined( __PRETTY_FUNCTION__ ) && !defined( __GNUC__ )
 # define __PRETTY_FUNCTION__ __FUNCSIG__
 #endif
@@ -783,9 +793,11 @@ public:
 #define THROW(x)               throw( Exception( "\nERROR: In function \"" ) << __PRETTY_FUNCTION__ << "\" in " << __FILE__ << ":" << __LINE__ << ": " << x )
 #define ABORT(x)               { std::cerr << "\nERROR: In function \"" << __FUNCTION__ << "\" in " << __FILE__ << ":" << __LINE__ << ": " << x << std::endl; abort(); }
 #define THROW_RECOVERABLE(x)   throw( RecoverableException( "\nERROR: In function \"" ) << __PRETTY_FUNCTION__ << "\" in " << __FILE__ << ":" << __LINE__ << ": " << x )
+#define THROW_UNSUPPORTED(x)   throw( UnsupportedFeatureException( "\nERROR: In function \"" ) << __PRETTY_FUNCTION__ << "\" in " << __FILE__ << ":" << __LINE__ << ": " << x )
 #define CHECK(c,x)             if(c){ THROW( x << "\nERROR CONDITION: " << #c ); }
 #define CHECK_RECOVERABLE(c,x) if(c){ THROW_RECOVERABLE( x << "\nERROR CONDITION: " << #c ); }
 #define CHECK_WARN(c,x)        if(c){ std::cerr << "\nWARNING: In function \"" << __PRETTY_FUNCTION__ << "\" in " << __FILE__ << ":" << __LINE__ << ": " << x << "\nERROR CONDITION: " << #c << std::endl; }
+#define CHECK_UNSUPPORTED(c,x) if(c){ THROW_UNSUPPORTED( x << "\nERROR CONDITION: " << #c ); }
 #define EXIT(x)                throw( Exception( "\n" ) << x << "\n" )
 #define CHECK_NULLPTR(_ptr)    CHECK( !( _ptr ), "Accessing an empty pointer!" )
 

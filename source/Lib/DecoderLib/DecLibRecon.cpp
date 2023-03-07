@@ -766,7 +766,7 @@ bool DecLibRecon::ctuTask( int tid, CtuTaskParam* param )
         else
         {
           GCC_WARNING_DISABLE_class_memaccess
-          memset( ctuData.motion, 0, sizeof( MotionInfo ) * cs.pcv->num4x4CtuBlks );
+          memset( ctuData.motion, MI_NOT_VALID, sizeof( MotionInfo ) * cs.pcv->num4x4CtuBlks );
           GCC_WARNING_RESET
         }
 
@@ -899,7 +899,7 @@ bool DecLibRecon::ctuTask( int tid, CtuTaskParam* param )
 
       for( int ctu = ctuStart; ctu < ctuEnd; ctu++ )
       {
-        decLib.m_pcThreadResource[tid]->m_cReshaper.rspCtu( cs, ctu, line, 0 );
+        decLib.m_pcThreadResource[tid]->m_cReshaper.rspCtu( cs, ctu, line );
       }
 
       ITT_TASKEND( itt_domain_dec, itt_handle_rsp );

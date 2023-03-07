@@ -80,11 +80,6 @@ include_directories( $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../../incl
 include_directories( . .. ../DecoderLib ../CommonLib ../CommonLib/x86 ../libmd5 )
 include_directories( SYSTEM ../../../thirdparty )
 
-# set common warning flags
-add_compile_options( "$<$<OR:$<CXX_COMPILER_ID:Clang>,$<CXX_COMPILER_ID:AppleClang>>:-Wall;-Werror;-Wno-unused-function;-Wno-enum-compare-switch;-Wno-unknown-attributes>" )
-add_compile_options( "$<$<CXX_COMPILER_ID:GNU>:-Wall;-Werror;-Wno-unused-function;-Wno-sign-compare;-fdiagnostics-show-option;-Wno-ignored-attributes>" )
-add_compile_options( "$<$<CXX_COMPILER_ID:MSVC>:/W4;/WX;/wd4100;/wd4127;/wd4244;/wd4245;/wd4389;/wd4456;/wd4457;/wd4458;/wd4459;/wd4505;/wd4701;/wd4702;/wd4703>" )
-
 # don't export all symbols from shared libraries by default (gcc: -fvisibility=hidden), only those marked as VVDEC_DECL
 #  behavior similar to __declspec(dllexport) on windows
 set( CMAKE_C_VISIBILITY_PRESET hidden )

@@ -99,7 +99,7 @@ void DecCu::TaskDeriveCtuMotionInfo( CodingStructure &cs, const int ctuRsAddr, c
     else
     {
       MotionBuf mb = currCU.getMotionBuf();
-      mb.memset(0);
+      mb.memset( MI_NOT_VALID );
     }
   }
 }

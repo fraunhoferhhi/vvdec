@@ -27,8 +27,6 @@ endif
 CONFIG_OPTIONS += -G '$(CMAKE_GENERATOR_CUSTOM)'
 endif
 
-CONFIG_OPTIONS += -DVVDEC_TOPLEVEL_OUTPUT_DIRS=ON
-
 ifneq ($(verbose),)
 CONFIG_OPTIONS += -DCMAKE_VERBOSE_MAKEFILE=ON
 endif
@@ -49,12 +47,20 @@ ifneq ($(install-prefix),)
 CONFIG_OPTIONS += -DCMAKE_INSTALL_PREFIX=$(install-prefix)
 endif
 
+ifneq ($(install-vvdecapp),)
+CONFIG_OPTIONS += -DVVDEC_INSTALL_VVDECAPP=$(install-vvdecapp)
+endif
+
 ifneq ($(enable-arch),)
 CONFIG_OPTIONS += -DVVDEC_OPT_TARGET_ARCH=$(enable-arch)
 endif
 
 ifneq ($(disable-lto),)
 CONFIG_OPTIONS += -DVVDEC_ENABLE_LINK_TIME_OPT=OFF
+endif
+
+ifneq ($(enable-werror),)
+CONFIG_OPTIONS += -DVVDEC_ENABLE_WARNINGS_AS_WERROR=$(enable-werror)
 endif
 
 ifneq ($(osx-arch),)

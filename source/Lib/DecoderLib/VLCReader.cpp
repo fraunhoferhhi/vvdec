@@ -4038,7 +4038,7 @@ void HLSyntaxReader::parseProfileTierLevel( ProfileTierLevel *ptl, bool profileT
           && symbol,
         "ptl_multilayer_enabled_flag shall be equal to 0 for non-multilayer profiles");
 
-  CHECK( ptl->getProfileIdc() == Profile::MULTILAYER_MAIN_10 || ptl->getProfileIdc() == Profile::MULTILAYER_MAIN_10_STILL_PICTURE ||
+  CHECK_UNSUPPORTED( ptl->getProfileIdc() == Profile::MULTILAYER_MAIN_10 || ptl->getProfileIdc() == Profile::MULTILAYER_MAIN_10_STILL_PICTURE ||
          ptl->getProfileIdc() == Profile::MULTILAYER_MAIN_10_444 || ptl->getProfileIdc() == Profile::MULTILAYER_MAIN_10_444_STILL_PICTURE,
          "Multilayer profiles not yet supported" );
 

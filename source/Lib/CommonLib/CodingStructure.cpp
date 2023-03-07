@@ -321,9 +321,9 @@ void CodingStructure::initStructData()
   m_ctuWidthLog2[1] = m_ctuWidthLog2[0]; // same for luma and chroma, because of the 2x2 blocks
 
   GCC_WARNING_DISABLE_class_memaccess
-  memset( m_ctuData,  0, sizeof( CtuData             ) * m_ctuDataSize );
-  memset( m_cuMap,    0, sizeof( CodingUnit*         ) * m_cuMapSize );
-  memset( m_colMiMap, 0, sizeof( ColocatedMotionInfo ) * m_colMiMapSize );
+  memset( m_ctuData,             0, sizeof( CtuData             ) * m_ctuDataSize );
+  memset( m_cuMap,               0, sizeof( CodingUnit*         ) * m_cuMapSize );
+  memset( m_colMiMap, CO_NOT_VALID, sizeof( ColocatedMotionInfo ) * m_colMiMapSize );
   GCC_WARNING_RESET
 
   const ptrdiff_t ctuSampleSizeL  = pcv->maxCUHeight * pcv->maxCUWidth;

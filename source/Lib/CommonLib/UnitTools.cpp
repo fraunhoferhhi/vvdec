@@ -883,11 +883,11 @@ void PU::getInterMergeCandidates( const PredictionUnit &pu, MergeCtx& mrgCtx, Mo
     mrgCtx.useAltHpelIf[cnt] = cuAbove->imv() == IMV_HPEL;
     // get Mv from Above
     mrgCtx.BcwIdx[cnt] = (mrgCtx.interDirNeighbours[cnt] == 3) ? cuAbove->BcwIdx() : BCW_DEFAULT;
-    mrgCtx.mvFieldNeighbours[cnt << 1].setMvField( miAbove.mv[0], miAbove.miRefIdx[0] - 1 );
+    mrgCtx.mvFieldNeighbours[cnt << 1].setMvField( miAbove.mv[0], miAbove.miRefIdx[0] );
 
     if( slice.isInterB() )
     {
-      mrgCtx.mvFieldNeighbours[( cnt << 1 ) + 1].setMvField( miAbove.mv[1], miAbove.miRefIdx[1] - 1 );
+      mrgCtx.mvFieldNeighbours[( cnt << 1 ) + 1].setMvField( miAbove.mv[1], miAbove.miRefIdx[1] );
     }
     if (mrgCandIdx == cnt && canFastExit)
     {
@@ -919,11 +919,11 @@ void PU::getInterMergeCandidates( const PredictionUnit &pu, MergeCtx& mrgCtx, Mo
       mrgCtx.useAltHpelIf[cnt] = cuLeft->imv() == IMV_HPEL;
       mrgCtx.BcwIdx[cnt] = (mrgCtx.interDirNeighbours[cnt] == 3) ? cuLeft->BcwIdx() : BCW_DEFAULT;
       // get Mv from Left
-      mrgCtx.mvFieldNeighbours[cnt << 1].setMvField(miLeft.mv[0], miLeft.miRefIdx[0] - 1);
+      mrgCtx.mvFieldNeighbours[cnt << 1].setMvField(miLeft.mv[0], miLeft.miRefIdx[0]);
 
       if (slice.isInterB())
       {
-        mrgCtx.mvFieldNeighbours[(cnt << 1) + 1].setMvField(miLeft.mv[1], miLeft.miRefIdx[1] - 1);
+        mrgCtx.mvFieldNeighbours[(cnt << 1) + 1].setMvField(miLeft.mv[1], miLeft.miRefIdx[1]);
       }
       if (mrgCandIdx == cnt && canFastExit)
       {
@@ -959,11 +959,11 @@ void PU::getInterMergeCandidates( const PredictionUnit &pu, MergeCtx& mrgCtx, Mo
       mrgCtx.useAltHpelIf[cnt] = cuAboveRight->imv() == IMV_HPEL;
       // get Mv from Above-right
       mrgCtx.BcwIdx[cnt] = (mrgCtx.interDirNeighbours[cnt] == 3) ? cuAboveRight->BcwIdx() : BCW_DEFAULT;
-      mrgCtx.mvFieldNeighbours[cnt << 1].setMvField( miAboveRight.mv[0], miAboveRight.miRefIdx[0] - 1 );
+      mrgCtx.mvFieldNeighbours[cnt << 1].setMvField( miAboveRight.mv[0], miAboveRight.miRefIdx[0] );
 
       if( slice.isInterB() )
       {
-        mrgCtx.mvFieldNeighbours[( cnt << 1 ) + 1].setMvField( miAboveRight.mv[1], miAboveRight.miRefIdx[1] - 1 );
+        mrgCtx.mvFieldNeighbours[( cnt << 1 ) + 1].setMvField( miAboveRight.mv[1], miAboveRight.miRefIdx[1] );
       }
 
       if (mrgCandIdx == cnt && canFastExit)
@@ -998,11 +998,11 @@ void PU::getInterMergeCandidates( const PredictionUnit &pu, MergeCtx& mrgCtx, Mo
       mrgCtx.useAltHpelIf[cnt] = cuLeftBottom->imv() == IMV_HPEL;
       mrgCtx.BcwIdx[cnt] = (mrgCtx.interDirNeighbours[cnt] == 3) ? cuLeftBottom->BcwIdx() : BCW_DEFAULT;
       // get Mv from Bottom-Left
-      mrgCtx.mvFieldNeighbours[cnt << 1].setMvField( miBelowLeft.mv[0], miBelowLeft.miRefIdx[0] - 1 );
+      mrgCtx.mvFieldNeighbours[cnt << 1].setMvField( miBelowLeft.mv[0], miBelowLeft.miRefIdx[0] );
 
       if( slice.isInterB() )
       {
-        mrgCtx.mvFieldNeighbours[( cnt << 1 ) + 1].setMvField( miBelowLeft.mv[1], miBelowLeft.miRefIdx[1] - 1 );
+        mrgCtx.mvFieldNeighbours[( cnt << 1 ) + 1].setMvField( miBelowLeft.mv[1], miBelowLeft.miRefIdx[1] );
       }
 
       if (mrgCandIdx == cnt && canFastExit)
@@ -1039,11 +1039,11 @@ void PU::getInterMergeCandidates( const PredictionUnit &pu, MergeCtx& mrgCtx, Mo
         mrgCtx.useAltHpelIf[cnt] = cuAboveLeft->imv() == IMV_HPEL;
         mrgCtx.BcwIdx[cnt] = (mrgCtx.interDirNeighbours[cnt] == 3) ? cuAboveLeft->BcwIdx() : BCW_DEFAULT;
         // get Mv from Above-Left
-        mrgCtx.mvFieldNeighbours[cnt << 1].setMvField( miAboveLeft.mv[0], miAboveLeft.miRefIdx[0] - 1 );
+        mrgCtx.mvFieldNeighbours[cnt << 1].setMvField( miAboveLeft.mv[0], miAboveLeft.miRefIdx[0] );
 
         if( slice.isInterB() )
         {
-          mrgCtx.mvFieldNeighbours[( cnt << 1 ) + 1].setMvField( miAboveLeft.mv[1], miAboveLeft.miRefIdx[1] - 1 );
+          mrgCtx.mvFieldNeighbours[( cnt << 1 ) + 1].setMvField( miAboveLeft.mv[1], miAboveLeft.miRefIdx[1] );
         }
 
         if (mrgCandIdx == cnt && canFastExit)
@@ -1445,12 +1445,12 @@ bool PU::getColocatedMVP(const PredictionUnit &pu, const RefPicList &eRefPicList
     return false;
   }
 
-  int iColRefIdx = mi.coRefIdx[eColRefPicList] - 1;
+  int iColRefIdx = mi.coRefIdx[eColRefPicList];
 
   if( iColRefIdx < 0 )
   {
     eColRefPicList = RefPicList( 1 - eColRefPicList );
-    iColRefIdx     = mi.coRefIdx[eColRefPicList] - 1;
+    iColRefIdx     = mi.coRefIdx[eColRefPicList];
 
     if( iColRefIdx < 0 )
     {
@@ -1732,7 +1732,7 @@ bool PU::addAffineMVPCandUnscaled( const PredictionUnit &pu, const RefPicList &r
   for ( int predictorSource = 0; predictorSource < 2; predictorSource++ ) // examine the indicated reference picture list, then if not available, examine the other list.
   {
     const RefPicList eRefPicListIndex = (predictorSource == 0) ? refPicList : refPicList2nd;
-    const int        neibRefIdx = neibMi.miRefIdx[eRefPicListIndex] - 1;
+    const int        neibRefIdx = neibMi.miRefIdx[eRefPicListIndex];
 
     if( ( ( neibCU->interDir() & ( eRefPicListIndex + 1 ) ) == 0 ) || pu.slice->getRefPOC( eRefPicListIndex, neibRefIdx ) != currRefPOC )
     {
@@ -2115,7 +2115,7 @@ bool PU::addMVPCandUnscaled( const PredictionUnit &pu, const RefPicList &eRefPic
   for( int predictorSource = 0; predictorSource < 2; predictorSource++ ) // examine the indicated reference picture list, then if not available, examine the other list.
   {
     const RefPicList eRefPicListIndex = ( predictorSource == 0 ) ? eRefPicList : eRefPicList2nd;
-    const int        neibRefIdx       = neibMi.miRefIdx[eRefPicListIndex] - 1;
+    const int        neibRefIdx       = neibMi.miRefIdx[eRefPicListIndex];
 
     if( neibRefIdx >= 0 && currRefPOC == cu.slice->getRefPOC( eRefPicListIndex, neibRefIdx ) )
     {
@@ -2197,13 +2197,13 @@ void PU::getAffineControlPointCand( const PredictionUnit &pu, MotionInfo mi[4], 
 
     for ( int l = 0; l < 2; l++ )
     {
-      if ( mi[idx0].miRefIdx[l] != MI_NOT_VALID && mi[idx1].miRefIdx[l] != MI_NOT_VALID )
+      if ( isMotionValid( mi[idx0].miRefIdx[l], MI_NOT_VALID ) && isMotionValid( mi[idx1].miRefIdx[l], MI_NOT_VALID ) )
       {
         // check same refidx and different mv
         if ( mi[idx0].miRefIdx[l] == mi[idx1].miRefIdx[l])
         {
           dir |= (l + 1);
-          refIdx[l] = mi[idx0].miRefIdx[l] - 1;
+          refIdx[l] = mi[idx0].miRefIdx[l];
         }
       }
     }
@@ -2219,13 +2219,13 @@ void PU::getAffineControlPointCand( const PredictionUnit &pu, MotionInfo mi[4], 
 
     for ( int l = 0; l < 2; l++ )
     {
-      if ( mi[idx0].miRefIdx[l] != MI_NOT_VALID && mi[idx1].miRefIdx[l] != MI_NOT_VALID && mi[idx2].miRefIdx[l] != MI_NOT_VALID )
+      if ( isMotionValid( mi[idx0].miRefIdx[l], MI_NOT_VALID ) && isMotionValid( mi[idx1].miRefIdx[l], MI_NOT_VALID ) && isMotionValid( mi[idx2].miRefIdx[l], MI_NOT_VALID ) )
       {
         // check same refidx and different mv
         if ( mi[idx0].miRefIdx[l] == mi[idx1].miRefIdx[l] && mi[idx0].miRefIdx[l] == mi[idx2].miRefIdx[l])
         {
           dir |= (l + 1);
-          refIdx[l] = mi[idx0].miRefIdx[l] - 1;
+          refIdx[l] = mi[idx0].miRefIdx[l];
         }
       }
     }
@@ -2415,11 +2415,11 @@ void PU::getAffineMergeCand( const PredictionUnit &pu, AffineMergeCtx& affMrgCtx
       mrgCtx.interDirNeighbours[pos] = miLeft.interDir();
 
       // get Mv from Left
-      mrgCtx.mvFieldNeighbours[pos << 1].setMvField( miLeft.mv[0], miLeft.miRefIdx[0] - 1 );
+      mrgCtx.mvFieldNeighbours[pos << 1].setMvField( miLeft.mv[0], miLeft.miRefIdx[0] );
 
       if ( slice.isInterB() )
       {
-        mrgCtx.mvFieldNeighbours[(pos << 1) + 1].setMvField( miLeft.mv[1], miLeft.miRefIdx[1] - 1 );
+        mrgCtx.mvFieldNeighbours[(pos << 1) + 1].setMvField( miLeft.mv[1], miLeft.miRefIdx[1] );
       }
       pos++;
     }
@@ -2600,7 +2600,7 @@ void PU::getAffineMergeCand( const PredictionUnit &pu, AffineMergeCtx& affMrgCtx
         if ( bExistMV )
         {
           mi[3].mv[0] = cColMv;
-          mi[3].miRefIdx[0] = refIdx + 1;
+          mi[3].miRefIdx[0] = refIdx;
           isAvailable[3] = true;
         }
 
@@ -2610,7 +2610,7 @@ void PU::getAffineMergeCand( const PredictionUnit &pu, AffineMergeCtx& affMrgCtx
           if ( bExistMV )
           {
             mi[3].mv[1] = cColMv;
-            mi[3].miRefIdx[1] = refIdx + 1;
+            mi[3].miRefIdx[1] = refIdx;
             isAvailable[3] = true;
           }
         }
@@ -2841,12 +2841,12 @@ static bool deriveScaledMotionTemporal( const Slice&      slice,
   // Grab motion and do necessary scaling.{{
   iCurrPOC = slice.getPOC();
 
-  int iColRefIdx = mi.coRefIdx[eColRefPicList] - 1;
+  int iColRefIdx = mi.coRefIdx[eColRefPicList];
 
   if (iColRefIdx < 0 && (slice.getCheckLDC() || bAllowMirrorMV))
   {
     eColRefPicList = RefPicList(1 - eColRefPicList);
-    iColRefIdx = mi.coRefIdx[eColRefPicList] - 1;
+    iColRefIdx = mi.coRefIdx[eColRefPicList];
 
     if (iColRefIdx < 0)
     {
@@ -3033,7 +3033,7 @@ bool PU::getInterMergeSubPuMvpCand(const PredictionUnit &pu, MergeCtx& mrgCtx, c
             RefPicList currRefPicList = RefPicList(currRefListId);
             if (deriveScaledMotionTemporal(slice, colMi, pColPic, pColSlice, currRefPicList, cColMv, fetchRefPicList))
             {
-              mi.miRefIdx[currRefListId] = 1;
+              mi.miRefIdx[currRefListId] = 0;
               mi.mv[currRefListId] = cColMv;
               found = true;
             }
@@ -3045,8 +3045,8 @@ bool PU::getInterMergeSubPuMvpCand(const PredictionUnit &pu, MergeCtx& mrgCtx, c
           // intra coded, in this case, no motion vector is available for list 0 or list 1, so use default
           mi.mv[0] = mrgCtx.mvFieldNeighbours[(count << 1) + 0].mv;
           mi.mv[1] = mrgCtx.mvFieldNeighbours[(count << 1) + 1].mv;
-          mi.miRefIdx[0] = mrgCtx.mvFieldNeighbours[(count << 1) + 0].mfRefIdx + 1;
-          mi.miRefIdx[1] = mrgCtx.mvFieldNeighbours[(count << 1) + 1].mfRefIdx + 1;
+          mi.miRefIdx[0] = mrgCtx.mvFieldNeighbours[(count << 1) + 0].mfRefIdx;
+          mi.miRefIdx[1] = mrgCtx.mvFieldNeighbours[(count << 1) + 1].mfRefIdx;
         }
 
         if( isBiPred && mi.interDir() == 3 )
@@ -3078,7 +3078,7 @@ void PU::spanMotionInfo( PredictionUnit &pu, const MergeCtx &mrgCtx )
     for( int i = 0; i < NUM_REF_PIC_LIST_01; i++ )
     {
       mi.mv[i]       = pu.mv[i][0];
-      mi.miRefIdx[i] = isIbc ? MI_NOT_VALID : ( pu.refIdx[i] + 1 );
+      mi.miRefIdx[i] = isIbc ? MI_NOT_VALID : pu.refIdx[i];
     }
 
     if( pu.affineFlag() )
@@ -3091,7 +3091,7 @@ void PU::spanMotionInfo( PredictionUnit &pu, const MergeCtx &mrgCtx )
 
           for( int i = 0; i < NUM_REF_PIC_LIST_01; i++ )
           {
-            if( mi.miRefIdx[i] == MI_NOT_VALID )
+            if( isMotionInvalid( mi.miRefIdx[i], MI_NOT_VALID ) )
             {
               dest.mv[i] = Mv();
             }
@@ -3269,21 +3269,21 @@ void PU::spanGeoMotionInfo( PredictionUnit &pu, MergeCtx &geoMrgCtx, const uint8
   {
     biMv.mv[0]     = geoMrgCtx.mvFieldNeighbours[ candIdx0 << 1     ].mv;
     biMv.mv[1]     = geoMrgCtx.mvFieldNeighbours[(candIdx1 << 1) + 1].mv;
-    biMv.miRefIdx[0] = geoMrgCtx.mvFieldNeighbours[ candIdx0 << 1     ].mfRefIdx + 1;
-    biMv.miRefIdx[1] = geoMrgCtx.mvFieldNeighbours[(candIdx1 << 1) + 1].mfRefIdx + 1;
+    biMv.miRefIdx[0] = geoMrgCtx.mvFieldNeighbours[ candIdx0 << 1     ].mfRefIdx;
+    biMv.miRefIdx[1] = geoMrgCtx.mvFieldNeighbours[(candIdx1 << 1) + 1].mfRefIdx;
   }
   else if( geoMrgCtx.interDirNeighbours[candIdx0] == 2 && geoMrgCtx.interDirNeighbours[candIdx1] == 1 )
   {
     biMv.mv[0]     = geoMrgCtx.mvFieldNeighbours[ candIdx1 << 1     ].mv;
     biMv.mv[1]     = geoMrgCtx.mvFieldNeighbours[(candIdx0 << 1) + 1].mv;
-    biMv.miRefIdx[0] = geoMrgCtx.mvFieldNeighbours[ candIdx1 << 1     ].mfRefIdx + 1;
-    biMv.miRefIdx[1] = geoMrgCtx.mvFieldNeighbours[(candIdx0 << 1) + 1].mfRefIdx + 1;
+    biMv.miRefIdx[0] = geoMrgCtx.mvFieldNeighbours[ candIdx1 << 1     ].mfRefIdx;
+    biMv.miRefIdx[1] = geoMrgCtx.mvFieldNeighbours[(candIdx0 << 1) + 1].mfRefIdx;
   }
   else if( geoMrgCtx.interDirNeighbours[candIdx0] == 1 && geoMrgCtx.interDirNeighbours[candIdx1] == 1 )
   {
     biMv.mv[0] = geoMrgCtx.mvFieldNeighbours[candIdx1 << 1].mv;
     biMv.mv[1] = Mv(0, 0);
-    biMv.miRefIdx[0] = geoMrgCtx.mvFieldNeighbours[candIdx1 << 1].mfRefIdx + 1;
+    biMv.miRefIdx[0] = geoMrgCtx.mvFieldNeighbours[candIdx1 << 1].mfRefIdx;
     biMv.miRefIdx[1] = MI_NOT_VALID;
   }
   else if( geoMrgCtx.interDirNeighbours[candIdx0] == 2 && geoMrgCtx.interDirNeighbours[candIdx1] == 2 )
@@ -3291,7 +3291,7 @@ void PU::spanGeoMotionInfo( PredictionUnit &pu, MergeCtx &geoMrgCtx, const uint8
     biMv.mv[0] = Mv(0, 0);
     biMv.mv[1] = geoMrgCtx.mvFieldNeighbours[(candIdx1 << 1) + 1].mv;
     biMv.miRefIdx[0] = MI_NOT_VALID;
-    biMv.miRefIdx[1] = geoMrgCtx.mvFieldNeighbours[(candIdx1 << 1) + 1].mfRefIdx + 1;
+    biMv.miRefIdx[1] = geoMrgCtx.mvFieldNeighbours[(candIdx1 << 1) + 1].mfRefIdx;
   }
 
   int16_t angle = g_GeoParams[splitDir][0];
@@ -3319,22 +3319,19 @@ void PU::spanGeoMotionInfo( PredictionUnit &pu, MergeCtx &geoMrgCtx, const uint8
       tpmMask = abs(motionIdx) < 32 ? 2 : (motionIdx <= 0 ? (1 - isFlip) : isFlip);
       if (tpmMask == 2)
       {
-        mb.at(x, y).miRefIdx[0] = biMv.miRefIdx[0];
-        mb.at(x, y).miRefIdx[1] = biMv.miRefIdx[1];
-        mb.at(x, y).mv[0] = biMv.mv[0];
-        mb.at(x, y).mv[1] = biMv.mv[1];
+        mb.at(x, y) = biMv;
       }
       else if (tpmMask == 0)
       {
-        mb.at(x, y).miRefIdx[0] = geoMrgCtx.mvFieldNeighbours[candIdx0 << 1].mfRefIdx + 1;
-        mb.at(x, y).miRefIdx[1] = geoMrgCtx.mvFieldNeighbours[(candIdx0 << 1) + 1].mfRefIdx + 1;
+        mb.at(x, y).miRefIdx[0] = geoMrgCtx.mvFieldNeighbours[candIdx0 << 1].mfRefIdx;
+        mb.at(x, y).miRefIdx[1] = geoMrgCtx.mvFieldNeighbours[(candIdx0 << 1) + 1].mfRefIdx;
         mb.at(x, y).mv[0] = geoMrgCtx.mvFieldNeighbours[candIdx0 << 1].mv;
         mb.at(x, y).mv[1] = geoMrgCtx.mvFieldNeighbours[(candIdx0 << 1) + 1].mv;
       }
       else
       {
-        mb.at(x, y).miRefIdx[0] = geoMrgCtx.mvFieldNeighbours[candIdx1 << 1].mfRefIdx + 1;
-        mb.at(x, y).miRefIdx[1] = geoMrgCtx.mvFieldNeighbours[(candIdx1 << 1) + 1].mfRefIdx + 1;
+        mb.at(x, y).miRefIdx[0] = geoMrgCtx.mvFieldNeighbours[candIdx1 << 1].mfRefIdx;
+        mb.at(x, y).miRefIdx[1] = geoMrgCtx.mvFieldNeighbours[(candIdx1 << 1) + 1].mfRefIdx;
         mb.at(x, y).mv[0] = geoMrgCtx.mvFieldNeighbours[candIdx1 << 1].mv;
         mb.at(x, y).mv[1] = geoMrgCtx.mvFieldNeighbours[(candIdx1 << 1) + 1].mv;
       }

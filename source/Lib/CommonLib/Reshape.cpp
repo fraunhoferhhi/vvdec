@@ -64,7 +64,6 @@ namespace vvdec
 
 Reshape::Reshape()
 {
-  m_fwdLUT = nullptr;
   m_invLUT = nullptr;
   m_chromaScale = 1 << CSCALE_FP_PREC;
   m_vpduX = -1;
@@ -81,11 +80,6 @@ void  Reshape::createDec(int bitDepth)
   m_lumaBD = bitDepth;
   m_reshapeLUTSize = 1 << m_lumaBD;
   m_initCW = m_reshapeLUTSize / PIC_CODE_CW_BINS;
-  if( !m_fwdLUT )
-  {
-    m_fwdLUT = ( Pel* ) xMalloc( Pel, m_reshapeLUTSize + 1 );
-    memset( m_fwdLUT, 0, ( m_reshapeLUTSize + 1 ) * sizeof( Pel ) );
-  }
   if( !m_invLUT )
   {
     m_invLUT = ( Pel* ) xMalloc( Pel, m_reshapeLUTSize + 1 );
@@ -107,8 +101,6 @@ void  Reshape::createDec(int bitDepth)
 
 void  Reshape::destroy()
 {
-  xFree( m_fwdLUT );
-  m_fwdLUT = nullptr;
   xFree( m_invLUT );
   m_invLUT = nullptr;
 }
@@ -171,16 +163,15 @@ bool Reshape::getCTUFlag( const Slice& slice ) const
   }
 }
 
-void Reshape::rspCtu( CodingStructure &cs, int col, int ln, const int offset ) const
+void Reshape::rspCtu( CodingStructure &cs, int col, int ln ) const
 {
-  if( !( cs.sps->getUseReshaper() && m_sliceReshapeInfo.sliceReshaperEnableFlag ) )
+  if( !cs.sps->getUseReshaper() || !m_sliceReshapeInfo.sliceReshaperEnableFlag )
   {
     return;
   }
  
-  const Slice* slice = cs.getCtuData( col, ln ).cuPtr[0][0]->slice;
+  const Slice* slice = cs.getCtuData( col, ln ).slice;
   if( !slice->getLmcsEnabledFlag() )
-
   {
     return;
   }
@@ -189,15 +180,11 @@ void Reshape::rspCtu( CodingStructure &cs, int col, int ln, const int offset ) c
 
   const PreCalcValues &pcv = *cs.pcv;
 
-  const bool firstLine = ln == 0;
-
-//  const int lh = frstLine ? pcv.maxCUHeight + ( offset ) : pcv.maxCUHeight;
-
   int xPos = pcv.maxCUWidth * col;
   int lw   = std::min( pcv.lumaWidth - xPos, pcv.maxCUWidth );
 
-  int yPos = firstLine ? 0 : ln * pcv.maxCUHeight + offset;
-  int lh   = firstLine ? pcv.maxCUHeight + offset : std::min( pcv.lumaHeight - yPos, pcv.maxCUHeight );
+  int yPos = ln * pcv.maxCUHeight;
+  int lh   = std::min( pcv.lumaHeight - yPos, pcv.maxCUHeight );
 
   PelBuf picYuvRec = cs.getRecoBuf( COMPONENT_Y ).subBuf( Position( xPos, yPos ), Size( lw, lh ) );
 
@@ -382,10 +369,6 @@ void Reshape::constructReshaper()
   }
   for (int lumaSample = 0; lumaSample < m_reshapeLUTSize; lumaSample++)
   {
-    int idxY = lumaSample / m_initCW;
-    int tempVal = m_reshapePivot[idxY] + ((m_fwdScaleCoef[idxY] * (lumaSample - m_inputPivot[idxY]) + (1 << (FP_PREC - 1))) >> FP_PREC);
-    m_fwdLUT[lumaSample] = Clip3((Pel)0, (Pel)((1 << m_lumaBD) - 1), (Pel)(tempVal));
-
     int idxYInv = getPWLIdxInv(lumaSample);
     int invSample = m_inputPivot[idxYInv] + ((m_invScaleCoef[idxYInv] * (lumaSample - m_reshapePivot[idxYInv]) + (1 << (FP_PREC - 1))) >> FP_PREC);
     m_invLUT[lumaSample] = Clip3((Pel)0, (Pel)((1 << m_lumaBD) - 1), (Pel)(invSample));
@@ -394,19 +377,7 @@ void Reshape::constructReshaper()
 
 void Reshape::rspBufFwd( PelBuf& buf ) const
 {
-  if( g_pelBufOP.rspFwd )
-  {
-    g_pelBufOP.rspFwd( buf.buf, buf.stride, buf.width, buf.height, m_lumaBD, m_initCW, m_reshapePivot.data(), m_fwdScaleCoef.data(), m_inputPivot.data() );
-  }
-  else
-  {
-#if ENABLE_SIMD_OPT_BUFFER && defined( TARGET_SIMD_X86 )
-    _mm_prefetch( ( const char* ) m_fwdLUT, _MM_HINT_T0 );
-    _mm_prefetch( ( const char* ) &m_fwdLUT[ptrdiff_t( 1 ) << (m_lumaBD - 1)], _MM_HINT_T0 );
-
-#endif
-    g_pelBufOP.applyLut( buf.buf, buf.stride, buf.width, buf.height, m_fwdLUT );
-  }
+  g_pelBufOP.rspFwd( buf.buf, buf.stride, buf.width, buf.height, m_lumaBD, m_initCW, m_reshapePivot.data(), m_fwdScaleCoef.data(), m_inputPivot.data() );
 }
 
 }

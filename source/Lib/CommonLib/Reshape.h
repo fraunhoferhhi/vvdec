@@ -62,7 +62,6 @@ class Reshape
 protected:
   SliceReshapeInfo        m_sliceReshapeInfo;
   Pel*                    m_invLUT;
-  Pel*                    m_fwdLUT;
   std::vector<int>        m_chromaAdjHelpLUT;
   std::vector<uint16_t>   m_binCW;
   uint16_t                m_initCW;
@@ -83,11 +82,9 @@ public:
   void destroy();
 
   void initSlice( int nalUnitLayerId, const PicHeader& picHeader, const VPS* vps );
-  void rspLine  ( CodingStructure &cs, int ln, const int offset ) const;
-  void rspCtu   ( CodingStructure &cs, int col, int ln, const int offset ) const;
+  void rspCtu   ( CodingStructure &cs, int col, int ln ) const;
   void rspBufFwd( PelBuf& buf ) const;
 
-  const Pel* getFwdLUT() const { return m_fwdLUT; }
   const Pel* getInvLUT() const { return m_invLUT; }
 
   bool getCTUFlag( const Slice& slice ) const;

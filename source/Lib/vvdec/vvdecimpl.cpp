@@ -130,6 +130,16 @@ int VVDecImpl::init( const vvdecParams& params, vvdecCreateBufferCallback create
     m_bInitialized   = true;
     m_eState         = INTERNAL_STATE_INITIALIZED;
   }
+  catch( UnsupportedFeatureException& e )
+  {
+    std::stringstream css;
+    css << "caught exception for unsupported feature " << e.what();
+    m_cErrorString = "unsupported feature detected";
+    m_cAdditionalErrorString = css.str();
+    m_eState = INTERNAL_STATE_NOT_SUPPORTED;
+    m_bInitialized           = false;
+    return VVDEC_ERR_NOT_SUPPORTED;
+  }
   catch( std::exception& e )
   {
     std::stringstream css;
@@ -231,6 +241,8 @@ int VVDecImpl::decode( vvdecAccessUnit& rcAccessUnit, vvdecFrame** ppcFrame )
 {
   if( !m_bInitialized )      { return VVDEC_ERR_INITIALIZE; }
   if( m_eState == INTERNAL_STATE_RESTART_REQUIRED ) { m_cErrorString = "restart required, please reinit."; return VVDEC_ERR_RESTART_REQUIRED; }
+  if( m_eState == INTERNAL_STATE_NOT_SUPPORTED ) { m_cErrorString = "not supported feature detected."; return VVDEC_ERR_NOT_SUPPORTED; }
+
   if( m_eState == INTERNAL_STATE_FINALIZED || m_eState == INTERNAL_STATE_FLUSHING )
   {
     reset();
@@ -444,6 +456,15 @@ int VVDecImpl::decode( vvdecAccessUnit& rcAccessUnit, vvdecFrame** ppcFrame )
     m_eState = INTERNAL_STATE_RESTART_REQUIRED;
     return VVDEC_ERR_RESTART_REQUIRED;
   }
+  catch( UnsupportedFeatureException& e )
+  {
+    std::stringstream css;
+    css << "caught exception for unsupported feature " << e.what();
+    m_cErrorString = "unsupported feature detected";
+    m_cAdditionalErrorString = css.str();
+    m_eState = INTERNAL_STATE_NOT_SUPPORTED;
+    return VVDEC_ERR_NOT_SUPPORTED;
+  }
   catch( std::overflow_error& e )
   {
     //assert( 0 );
@@ -456,8 +477,9 @@ int VVDecImpl::decode( vvdecAccessUnit& rcAccessUnit, vvdecFrame** ppcFrame )
   catch( std::exception& e )
   {
     //assert( 0 );
-    std::stringstream css;
+    std::stringstream css;   
     css << "caught unknown exception " << e.what();
+    m_cErrorString = "catched unknown exception";
     m_cAdditionalErrorString = css.str();
     m_eState = INTERNAL_STATE_RESTART_REQUIRED;
     return VVDEC_ERR_RESTART_REQUIRED;
@@ -473,6 +495,8 @@ int VVDecImpl::flush( vvdecFrame** ppframe )
   if( m_eState == INTERNAL_STATE_INITIALIZED )      { m_cErrorString = "decoder did not receive any data to decode, cannot flush"; return VVDEC_ERR_RESTART_REQUIRED; }
   if( m_eState == INTERNAL_STATE_FINALIZED )        { m_cErrorString = "decoder already flushed, please reinit."; return VVDEC_ERR_RESTART_REQUIRED; }
   if( m_eState == INTERNAL_STATE_RESTART_REQUIRED ) { m_cErrorString = "restart required, please reinit."; return VVDEC_ERR_RESTART_REQUIRED; }
+  if( m_eState == INTERNAL_STATE_NOT_SUPPORTED )    { m_cErrorString = "not supported feature detected."; return VVDEC_ERR_NOT_SUPPORTED; }
+
 
   if( m_eState == INTERNAL_STATE_TUNING_IN || m_eState == INTERNAL_STATE_DECODING )
   {
@@ -530,6 +554,15 @@ int VVDecImpl::flush( vvdecFrame** ppframe )
     m_cAdditionalErrorString = css.str();
     m_eState = INTERNAL_STATE_RESTART_REQUIRED;
     return VVDEC_ERR_RESTART_REQUIRED;
+  }
+  catch( UnsupportedFeatureException& e )
+  {
+    std::stringstream css;
+    css << "caught exception for unsupported feature " << e.what();
+    m_cErrorString = "unsupported feature detected";
+    m_cAdditionalErrorString = css.str();
+    m_eState = INTERNAL_STATE_NOT_SUPPORTED;
+    return VVDEC_ERR_NOT_SUPPORTED;
   }
   catch( std::exception& e )
   {
