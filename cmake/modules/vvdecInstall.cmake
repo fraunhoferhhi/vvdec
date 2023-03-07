@@ -63,6 +63,7 @@ if( VVDEC_INSTALL_VVDECAPP OR (${CMAKE_SYSTEM_NAME} STREQUAL "Emscripten") )
     set( INSTALL_TARGETS "vvdec;vvdecapp" )
 else()
     set( INSTALL_TARGETS "vvdec" )
+    install( CODE "message( WARNING \"\nThe vvdecapp binary is not installed by default any more. To also install vvdecapp set -DVVDEC_INSTALL_VVDECAPP=true\" )" )
 endif()
 
 
