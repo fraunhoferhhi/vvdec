@@ -163,7 +163,7 @@ Picture* PicListManager::getNewPicBuffer( const SPS& sps, const PPS& pps, const 
   for( PicList::iterator itPic = m_cPicList.begin(); itPic != m_cPicList.end(); ++itPic )
   {
     Picture* pic = *itPic;
-    if( pic->progress < Picture::reconstructed || pic->referenced || pic->neededForOutput || pic->lockedByApplication )
+    if( pic->progress < Picture::finished || pic->referenced || pic->neededForOutput || pic->lockedByApplication )
     {
       continue;
     }
@@ -351,7 +351,12 @@ Picture* PicListManager::getNextOutputPic( uint32_t numReorderPicsHighestTid,
   bool foundOutputPic = false;
   for( auto itPic = seqStart; itPic != m_cPicList.cend(); ++itPic )
   {
-    if( (*itPic)->progress < Picture::finished )
+    if( !( *itPic )->neededForOutput && ( *itPic )->progress >= Picture::reconstructed )
+    {
+      continue;
+    }
+
+    if( ( *itPic )->progress < Picture::finished )
     {
       seqEnd = itPic;
       break;

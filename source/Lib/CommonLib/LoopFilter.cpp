@@ -1198,10 +1198,10 @@ void LoopFilter::xGetBoundaryStrengthSingle( LoopFilterParam& lfp, const CodingU
 
   if( sliceQ.isInterB() || sliceP.isInterB() )
   {
-    const Picture *piRefP0 = CU::isIBC( cuP ) ? sliceP.getPic() : MI_NOT_VALID != miP.miRefIdx[0] ? sliceP.getRefPic( REF_PIC_LIST_0, miP.miRefIdx[0] - 1 ) : nullptr;
-    const Picture *piRefP1 = CU::isIBC( cuP ) ? nullptr         : MI_NOT_VALID != miP.miRefIdx[1] ? sliceP.getRefPic( REF_PIC_LIST_1, miP.miRefIdx[1] - 1 ) : nullptr;
-    const Picture *piRefQ0 = CU::isIBC( cuQ ) ? sliceQ.getPic() : MI_NOT_VALID != miQ.miRefIdx[0] ? sliceQ.getRefPic( REF_PIC_LIST_0, miQ.miRefIdx[0] - 1 ) : nullptr;
-    const Picture *piRefQ1 = CU::isIBC( cuQ ) ? nullptr         : MI_NOT_VALID != miQ.miRefIdx[1] ? sliceQ.getRefPic( REF_PIC_LIST_1, miQ.miRefIdx[1] - 1 ) : nullptr;
+    const Picture *piRefP0 = CU::isIBC( cuP ) ? sliceP.getPic() : isMotionValid( miP.miRefIdx[0], MI_NOT_VALID ) ? sliceP.getRefPic( REF_PIC_LIST_0, miP.miRefIdx[0] ) : nullptr;
+    const Picture *piRefP1 = CU::isIBC( cuP ) ? nullptr         : isMotionValid( miP.miRefIdx[1], MI_NOT_VALID ) ? sliceP.getRefPic( REF_PIC_LIST_1, miP.miRefIdx[1] ) : nullptr;
+    const Picture *piRefQ0 = CU::isIBC( cuQ ) ? sliceQ.getPic() : isMotionValid( miQ.miRefIdx[0], MI_NOT_VALID ) ? sliceQ.getRefPic( REF_PIC_LIST_0, miQ.miRefIdx[0] ) : nullptr;
+    const Picture *piRefQ1 = CU::isIBC( cuQ ) ? nullptr         : isMotionValid( miQ.miRefIdx[1], MI_NOT_VALID ) ? sliceQ.getRefPic( REF_PIC_LIST_1, miQ.miRefIdx[1] ) : nullptr;
 
     unsigned uiBs = 0;
 
@@ -1295,11 +1295,11 @@ void LoopFilter::xGetBoundaryStrengthSingle( LoopFilterParam& lfp, const CodingU
   }
 
   // pcSlice->isInterP()
-  CHECK( CU::isInter( cuP ) && MI_NOT_VALID == miP.miRefIdx[0], "Invalid reference picture list index" );
-  CHECK( CU::isInter( cuP ) && MI_NOT_VALID == miQ.miRefIdx[0], "Invalid reference picture list index" );
+  CHECK( CU::isInter( cuP ) && isMotionInvalid( miP.miRefIdx[0], MI_NOT_VALID ), "Invalid reference picture list index" );
+  CHECK( CU::isInter( cuP ) && isMotionInvalid( miQ.miRefIdx[0], MI_NOT_VALID ), "Invalid reference picture list index" );
 
-  const Picture *piRefP0 = ( CU::isIBC( cuP ) ? sliceP.getPic() : sliceP.getRefPic( REF_PIC_LIST_0, miP.miRefIdx[0] - 1 ) );
-  const Picture *piRefQ0 = ( CU::isIBC( cuQ ) ? sliceQ.getPic() : sliceQ.getRefPic( REF_PIC_LIST_0, miQ.miRefIdx[0] - 1 ) );
+  const Picture *piRefP0 = ( CU::isIBC( cuP ) ? sliceP.getPic() : sliceP.getRefPic( REF_PIC_LIST_0, miP.miRefIdx[0] ) );
+  const Picture *piRefQ0 = ( CU::isIBC( cuQ ) ? sliceQ.getPic() : sliceQ.getRefPic( REF_PIC_LIST_0, miQ.miRefIdx[0] ) );
 
   if( piRefP0 != piRefQ0 )
   {

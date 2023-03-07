@@ -1778,8 +1778,7 @@ void PelBufferOps::_initPelBufOpsX86()
   transpose4x4 = transposePel_SSE<vext, 4>;
   transpose8x8 = transposePel_SSE<vext, 8>;
 
-#if !defined( REAL_TARGET_WASM ) // profilings show those functions are slower with WASM SIMD emulation than C++->WASM
-  // for modern CPUs and fast memory chips, applyLut using igather32 outperfoms the loop-based interval index estimation
+#if defined( REAL_TARGET_X86 ) // looks like those function only really work for x86 SIMD
   if( vext >= AVX2 )
     applyLut = applyLut_SIMD<vext>;
   else

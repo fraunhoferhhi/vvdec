@@ -239,6 +239,162 @@ void unrefFrame( vvdecFrame *frame )
   }
 }
 
+void printSEI( vvdecDecoder *dec, vvdecFrame *frame, std::ostream * logStream )
+{
+  vvdecSEI *sei = vvdec_find_frame_sei( dec, VVDEC_BUFFERING_PERIOD, frame );
+  if( sei )
+  {
+    *logStream << "vvdecapp [detail]: SEI BUFFERING_PERIOD: " << std::endl;
+  }
+
+  sei = vvdec_find_frame_sei( dec, VVDEC_PICTURE_TIMING, frame );
+  if( sei )
+  {
+    *logStream << "vvdecapp [detail]: SEI PICTURE_TIMING" << std::endl;
+  }
+
+  sei = vvdec_find_frame_sei( dec, VVDEC_FILLER_PAYLOAD, frame );
+  if( sei )
+  {
+    *logStream << "vvdecapp [detail]: SEI FILLER_PAYLOAD" << std::endl;
+  }
+  
+  sei = vvdec_find_frame_sei( dec, VVDEC_USER_DATA_REGISTERED_ITU_T_T35, frame );
+  if( sei )
+  {
+    *logStream << "vvdecapp [detail]: SEI USER_DATA_REGISTERED_ITU_T_T35" << std::endl;
+  }
+
+  sei = vvdec_find_frame_sei( dec, VVDEC_USER_DATA_UNREGISTERED, frame );
+  if( sei )
+  {
+    *logStream << "vvdecapp [detail]: SEI USER_DATA_UNREGISTERED" << std::endl;
+  }
+
+  sei = vvdec_find_frame_sei( dec, VVDEC_FILM_GRAIN_CHARACTERISTICS, frame );
+  if( sei )
+  {
+    *logStream << "vvdecapp [detail]: SEI FILM_GRAIN_CHARACTERISTICS" << std::endl;
+  }
+
+  sei = vvdec_find_frame_sei( dec, VVDEC_FRAME_PACKING, frame );
+  if( sei )
+  {
+    *logStream << "vvdecapp [detail]: SEI FRAME_PACKING" << std::endl;
+  }
+
+  sei = vvdec_find_frame_sei( dec, VVDEC_PARAMETER_SETS_INCLUSION_INDICATION, frame );
+  if( sei )
+  {
+    *logStream << "vvdecapp [detail]: SEI PARAMETER_SETS_INCLUSION_INDICATION" << std::endl;
+  }
+
+  sei = vvdec_find_frame_sei( dec, VVDEC_DECODING_UNIT_INFO, frame );
+  if( sei )
+  {
+    *logStream << "vvdecapp [detail]: SEI DECODING_UNIT_INFO" << std::endl;
+  }
+
+  sei = vvdec_find_frame_sei( dec, VVDEC_DECODED_PICTURE_HASH, frame );
+  if( sei )
+  {
+    *logStream << "vvdecapp [detail]: SEI DECODED_PICTURE_HASH " << std::endl;
+  }
+
+  sei = vvdec_find_frame_sei( dec, VVDEC_SCALABLE_NESTING, frame );
+  if( sei )
+  {
+    *logStream << "vvdecapp [detail]: SEI SCALABLE_NESTING" << std::endl;
+  }
+
+  sei = vvdec_find_frame_sei( dec, VVDEC_MASTERING_DISPLAY_COLOUR_VOLUME, frame );
+  if( sei )
+  {
+    vvdecSEIMasteringDisplayColourVolume* p = reinterpret_cast<vvdecSEIMasteringDisplayColourVolume *>(sei->payload);
+    *logStream << "vvdecapp [detail]: SEI MASTERING_DISPLAY_COLOUR_VOLUME: lumaMin,Max " << p->minLuminance << "," << p->maxLuminance << std::endl;
+  }
+
+  sei = vvdec_find_frame_sei( dec, VVDEC_DEPENDENT_RAP_INDICATION, frame );
+  if( sei )
+  {
+    *logStream << "vvdecapp [detail]: SEI DEPENDENT_RAP_INDICATION" << std::endl;
+  }
+
+  sei = vvdec_find_frame_sei( dec, VVDEC_EQUIRECTANGULAR_PROJECTION, frame );
+  if( sei )
+  {
+    *logStream << "vvdecapp [detail]: SEI EQUIRECTANGULAR_PROJECTION" << std::endl;
+  }
+
+  sei = vvdec_find_frame_sei( dec, VVDEC_SPHERE_ROTATION, frame );
+  if( sei )
+  {
+    *logStream << "vvdecapp [detail]: SEI SPHERE_ROTATION" << std::endl;
+  }
+
+  sei = vvdec_find_frame_sei( dec, VVDEC_REGION_WISE_PACKING, frame );
+  if( sei )
+  {
+    *logStream << "vvdecapp [detail]: SEI REGION_WISE_PACKING" << std::endl;
+  }
+
+  sei = vvdec_find_frame_sei( dec, VVDEC_OMNI_VIEWPORT, frame );
+  if( sei )
+  {
+    *logStream << "vvdecapp [detail]: SEI OMNI_VIEWPORT" << std::endl;
+  }
+
+  sei = vvdec_find_frame_sei( dec, VVDEC_GENERALIZED_CUBEMAP_PROJECTION, frame );
+  if( sei )
+  {
+    *logStream << "vvdecapp [detail]: SEI GENERALIZED_CUBEMAP_PROJECTION" << std::endl;
+  }
+
+  sei = vvdec_find_frame_sei( dec, VVDEC_FRAME_FIELD_INFO, frame );
+  if( sei )
+  {
+    *logStream << "vvdecapp [detail]: SEI FRAME_FIELD_INFO" << std::endl;
+  }
+
+  sei = vvdec_find_frame_sei( dec, VVDEC_SUBPICTURE_LEVEL_INFO, frame );
+  if( sei )
+  {
+    *logStream << "vvdecapp [detail]: SEI SUBPICTURE_LEVEL_INFO" << std::endl;
+  }
+
+  sei = vvdec_find_frame_sei( dec, VVDEC_SAMPLE_ASPECT_RATIO_INFO, frame );
+  if( sei )
+  {
+    *logStream << "vvdecapp [detail]: SEI SAMPLE_ASPECT_RATIO_INFO" << std::endl;
+  }
+
+  sei = vvdec_find_frame_sei( dec, VVDEC_CONTENT_LIGHT_LEVEL_INFO, frame );
+  if( sei )
+  {
+    vvdecSEIContentLightLevelInfo* p = reinterpret_cast<vvdecSEIContentLightLevelInfo *>(sei->payload);
+    *logStream << "vvdecapp [detail]: SEI CONTENT_LIGHT_LEVEL_INFO: " << p->maxContentLightLevel << "," << p->maxPicAverageLightLevel << std::endl;
+  }
+
+  sei = vvdec_find_frame_sei( dec, VVDEC_ALTERNATIVE_TRANSFER_CHARACTERISTICS, frame );
+  if( sei )
+  {
+    vvdecSEIAlternativeTransferCharacteristics* p = reinterpret_cast<vvdecSEIAlternativeTransferCharacteristics *>(sei->payload);
+    *logStream << "vvdecapp [detail]: SEI ALTERNATIVE_TRANSFER_CHARACTERISTICS: preferred_transfer_characteristics " << (int)p->preferred_transfer_characteristics << std::endl;
+  }
+
+  sei = vvdec_find_frame_sei( dec, VVDEC_AMBIENT_VIEWING_ENVIRONMENT, frame );
+  if( sei )
+  {
+    *logStream << "vvdecapp [detail]: SEI AMBIENT_VIEWING_ENVIRONMENT" << std::endl;
+  }
+  
+  sei = vvdec_find_frame_sei( dec, VVDEC_CONTENT_COLOUR_VOLUME, frame );
+  if( sei )
+  {
+    *logStream << "vvdecapp [detail]: SEI CONTENT_COLOUR_VOLUME" << std::endl;   
+  }
+}
+
 int main( int argc, char* argv[] )
 {
   std::string cAppname = argv[0];
@@ -399,7 +555,7 @@ int main( int argc, char* argv[] )
     vvdecFrame* pcFrame     = NULL;
     vvdecFrame* pcPrevField = NULL;
 
-    if( iLoopCount > 1 )
+    if( iLoopCount > 1 && params.logLevel >= VVDEC_INFO )
     {
       *logStream << "-------------------------------------" << std::endl;
       *logStream << "begin decoder loop #" << iLoop << std::endl;
@@ -418,14 +574,14 @@ int main( int argc, char* argv[] )
 
     if( nullptr == dec )
     {
-      *logStream << "cannot init decoder" << std::endl;
+      *logStream << "vvdecapp [error]: cannot init decoder" << std::endl;
       vvdec_accessUnit_free( accessUnit );
       return -1;
     }
 
     vvdec_set_logging_callback( dec, writeStdout ? msgFncErr : msgFnc );
 
-    if( iLoop == 0 )
+    if( iLoop == 0 && params.logLevel >= VVDEC_INFO )
     {
       *logStream << vvdec_get_dec_information( dec ) << std::endl;
     }
@@ -458,7 +614,7 @@ int main( int argc, char* argv[] )
         if( params.logLevel == VVDEC_DETAILS )
         {
           std::string cNal = getNalUnitTypeAsString( eNalType );
-          *logStream << "  read nal " <<  cNal << " size " << accessUnit->payloadUsedSize << std::endl;
+          *logStream << "vvdecapp [details]:  read nal " <<  cNal << " size " << accessUnit->payloadUsedSize << std::endl;
         }
 
         if( eNalType == VVC_NAL_UNIT_PH )
@@ -520,7 +676,7 @@ int main( int argc, char* argv[] )
         {
           if( !bMultipleSlices )
           {
-            if( params.logLevel >= VVDEC_VERBOSE ) *logStream << "more data needed to tune in" << std::endl;
+            if( params.logLevel >= VVDEC_VERBOSE ) *logStream << "vvdecapp [verbose]: more data needed to tune in" << std::endl;
             if( bTunedIn )
             {
               // after the first frame is returned, the decoder must always return a frame
@@ -567,6 +723,11 @@ int main( int argc, char* argv[] )
             if( params.logLevel >= VVDEC_INFO )
             {
               *logStream << "vvdecapp [info]: SizeInfo: " << pcFrame->width << "x" << pcFrame->height << " (" << pcFrame->bitDepth << "b)" << std::endl;
+              if( pcFrame->picAttributes && pcFrame->picAttributes->vui && pcFrame->picAttributes->vui->colourDescriptionPresentFlag )
+              {
+                *logStream << "vvdecapp [info]: VUI ColourDescription: colourPrim: " << pcFrame->picAttributes->vui->colourPrimaries << " transCharacteristics: " << pcFrame->picAttributes->vui->transferCharacteristics 
+                           << " matrixCoefficients: " << pcFrame->picAttributes->vui->matrixCoefficients << std::endl;
+              }
             }
             bOutputInfoWritten = true;
           }
@@ -585,20 +746,10 @@ int main( int argc, char* argv[] )
             (void)uiBitrate;
           }
 
-#if 0 // just sample code to retrieve sei messages
-          vvdecSEI *sei = vvdec_find_frame_sei( dec, VVDEC_CONTENT_LIGHT_LEVEL_INFO, pcFrame );
-          if( sei )
+          if( params.logLevel == VVDEC_DETAILS )
           {
-            vvdecSEIContentLightLevelInfo* p = reinterpret_cast<vvdecSEIContentLightLevelInfo *>(sei->payload);
-            *logStream << "vvdecapp [info]: CONTENT_LIGHT_LEVEL_INFO: " << p->maxContentLightLevel << "," << p->maxPicAverageLightLevel << std::endl;
+            printSEI( dec, pcFrame, logStream );
           }
-          sei = vvdec_find_frame_sei( dec, VVDEC_MASTERING_DISPLAY_COLOUR_VOLUME, pcFrame );
-          if( sei )
-          {
-            vvdecSEIMasteringDisplayColourVolume* p = reinterpret_cast<vvdecSEIMasteringDisplayColourVolume *>(sei->payload);
-            *logStream << "vvdecapp [info]: VVDEC_MASTERING_DISPLAY_COLOUR_VOLUME: lumaMin,Max" << p->minLuminance << "," << p->maxLuminance << std::endl;
-          }
-#endif
 
           if( pcFrame->frameFormat == VVDEC_FF_PROGRESSIVE )
           {
@@ -869,7 +1020,7 @@ int main( int argc, char* argv[] )
     {
       dFpsSum += f;
     }
-    if( params.logLevel > VVDEC_SILENT )
+    if( params.logLevel >= VVDEC_INFO )
     {
       *logStream <<"vvdecapp [info]: avg. fps for " << dFpsPerLoopVec.size() << " loops: " << dFpsSum/dFpsPerLoopVec.size() << " Hz " << std::endl;
     }

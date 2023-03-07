@@ -106,16 +106,16 @@ build_gcc8_ubuntu2004:
     CC: gcc-8
     CXX: g++-8
 
-build_gcc9_ubuntu2004:
+build_gcc9_ubuntu2204:
   extends: .build_only_template_full
-  image: $CI_REGISTRY/pub/dockerimages/ubuntu_2004_full:latest
+  image: $CI_REGISTRY/pub/dockerimages/ubuntu_2204_full:latest
   variables:
     CC: gcc-9
     CXX: g++-9
 
-build_gcc10_ubuntu2004:
+build_gcc10_ubuntu2204:
   extends: .build_only_template_full
-  image: $CI_REGISTRY/pub/dockerimages/ubuntu_2004_full:latest
+  image: $CI_REGISTRY/pub/dockerimages/ubuntu_2204_full:latest
   variables:
     CC: gcc-10
     CXX: g++-10
@@ -190,11 +190,18 @@ build_clang14_ubuntu2204:
     CC: clang-14
     CXX: clang++-14
 
-build_mingw_ubuntu2004:
+build_clang15_ubuntu2204:
   extends: .build_only_template_full
-  image: $CI_REGISTRY/pub/dockerimages/ubuntu_2004_full:latest
+  image: $CI_REGISTRY/pub/dockerimages/ubuntu_2204_full:latest
   variables:
-    toolchainfile: cmake/toolchains/x86_64-w64-mingw32-gcc-posix-ubuntu2004.cmake
+    CC: clang-15
+    CXX: clang++-15
+
+build_mingw_ubuntu2204:
+  extends: .build_only_template_full
+  image: $CI_REGISTRY/pub/dockerimages/ubuntu_2204_full:latest
+  variables:
+    toolchainfile: cmake/toolchains/x86_64-w64-mingw32-gcc-posix-ubuntu2204.cmake
 
 build_ios:
   extends: .build_only_template_full
@@ -235,12 +242,19 @@ test_vc192x:
   tags:
     - vc192x
 
-test_vc192x_Win32:
+test_vc193x:
+  extends: .build_test_msvc_template
+  variables:
+    MSVC_ARCH: x64
+  tags:
+    - vc193x
+
+test_vc193x_Win32:
   extends: .build_test_msvc_template
   variables:
     MSVC_ARCH: Win32
   tags:
-    - vc192x
+    - vc193x
 
 test_macos_arm64:
   extends: .build_test_macos_template

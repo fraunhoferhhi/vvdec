@@ -40,8 +40,8 @@ POSSIBILITY OF SUCH DAMAGE.
 
 ------------------------------------------------------------------------------------------- */
 
-#ifndef _VVDEC_SEI_H_
-#define _VVDEC_SEI_H_
+#ifndef VVDEC_SEI_H
+#define VVDEC_SEI_H
 
 #include <stdio.h>
 #include <stdint.h>
@@ -449,4 +449,4 @@ typedef struct vvdecSEIContentColourVolume
   uint32_t    ccvAvgLuminanceValue;
 }vvdecSEIContentColourVolume;
 
-#endif /*_VVDEC_SEI_H_*/
+#endif /*VVDEC_SEI_H*/

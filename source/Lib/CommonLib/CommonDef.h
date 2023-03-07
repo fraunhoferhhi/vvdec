@@ -145,10 +145,10 @@ static const int MAX_NUM_REF_PICS =                                16; ///< max.
 static const int MAX_NUM_REF =                                     16; ///< max. number of entries in picture reference list
 static const int MAX_QP =                                          63;
 static const int NOT_VALID =                                       -1;
-static const int MI_NOT_VALID =                                     0;
+static const int MI_NOT_VALID =                                    -1;
 static const int MF_NOT_VALID =                                    -1;
 static const int MH_NOT_VALID =                                    -1;
-static const int CO_NOT_VALID =                                     0;
+static const int CO_NOT_VALID =                                    -1;
 
 static const int AMVP_MAX_NUM_CANDS =                               2; ///< AMVP: advanced motion vector prediction - max number of final candidates
 static const int AMVP_MAX_NUM_CANDS_MEM =                           3; ///< AMVP: advanced motion vector prediction - max number of candidates

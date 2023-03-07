@@ -18,14 +18,14 @@ set( CMAKE_RC_COMPILER x86_64-w64-mingw32-windres )
 set( CMAKE_FIND_ROOT_PATH /usr/share/mingw-w64 /usr/x86_64-w64-mingw32 /usr/lib/gcc/x86_64-w64-mingw32/7.3-posix )
 
 # adjust the default behaviour of the FIND_XXX() commands:
-# search headers and libraries in the target environment, search 
+# search headers and libraries in the target environment, search
 # programs in the host environment
 set( CMAKE_FIND_ROOT_PATH_MODE_PROGRAM NEVER )
 set( CMAKE_FIND_ROOT_PATH_MODE_LIBRARY ONLY )
 set( CMAKE_FIND_ROOT_PATH_MODE_INCLUDE ONLY )
 
-set( bb_MINGW_RUNTIME_FILES 
-     /usr/lib/gcc/x86_64-w64-mingw32/7.3-posix/libstdc++-6.dll 
+set( bb_MINGW_RUNTIME_FILES
+     /usr/lib/gcc/x86_64-w64-mingw32/7.3-posix/libstdc++-6.dll
      /usr/lib/gcc/x86_64-w64-mingw32/7.3-posix/libgcc_s_seh-1.dll
      /usr/x86_64-w64-mingw32/lib/libwinpthread-1.dll )
-    
+

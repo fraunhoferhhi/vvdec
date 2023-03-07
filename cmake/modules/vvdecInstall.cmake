@@ -5,9 +5,9 @@ set( LIBRARY_DEST ${CMAKE_INSTALL_LIBDIR} )
 set( ARCHIVE_DEST ${CMAKE_INSTALL_LIBDIR} )
 
 # install targets
-macro( install_targets config_ )
+macro( install_targets targets_ config_ )
   string( TOLOWER ${config_} config_lc_ )
-  install( TARGETS             vvdec vvdecapp
+  install( TARGETS             ${targets_}
            EXPORT              vvdecTargets-${config_lc_}
            CONFIGURATIONS      ${config_}
            RUNTIME DESTINATION ${RUNTIME_DEST}
@@ -17,7 +17,11 @@ macro( install_targets config_ )
 
   if( XCODE AND BUILD_SHARED_LIBS )
     # WORKAROUND: reapply code signature, which gets broken by cmake install step when modifying the RPATH
-    install( CODE "execute_process( COMMAND codesign --force --sign - --timestamp=none --generate-entitlement-der \"\$ENV{DESTDIR}\${CMAKE_INSTALL_PREFIX}/${LIBRARY_DEST}/$<TARGET_FILE_NAME:vvdec>\" \"\$ENV{DESTDIR}\${CMAKE_INSTALL_PREFIX}/${RUNTIME_DEST}/$<TARGET_FILE_NAME:vvdecapp>\" )" )
+    foreach( tgt_ IN ITEMS ${targets_} )
+      set( is_app_ "$<STREQUAL:$<TARGET_PROPERTY:${tgt_},TYPE>,EXECUTABLE>" )
+      install( CODE "execute_process( COMMAND codesign --force --sign - --timestamp=none --generate-entitlement-der
+                                              \"\$ENV{DESTDIR}\${CMAKE_INSTALL_PREFIX}/$<IF:${is_app_},${RUNTIME_DEST},${LIBRARY_DEST}>/$<TARGET_FILE_NAME:${tgt_}>\" )" )
+    endforeach()
   endif()
 endmacro( install_targets )
 
@@ -54,14 +58,24 @@ target_include_directories( vvdec  SYSTEM INTERFACE $<INSTALL_INTERFACE:${CMAKE_
 install( FILES     ${CMAKE_BINARY_DIR}/vvdec/version.h  DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/vvdec )
 install( DIRECTORY include/vvdec                        DESTINATION ${CMAKE_INSTALL_INCLUDEDIR} )
 
+if( VVDEC_INSTALL_VVDECAPP OR (${CMAKE_SYSTEM_NAME} STREQUAL "Emscripten") )
+    # for Emscripten/WASM builds vvdecapp is always installed, since that is used like a library
+    set( INSTALL_TARGETS "vvdec;vvdecapp" )
+else()
+    set( INSTALL_TARGETS "vvdec" )
+endif()
+
+
 # install targets
-install_targets( Release )
-install_targets( Debug )
-install_targets( RelWithDebInfo )
+install_targets( "${INSTALL_TARGETS}" Release )
+install_targets( "${INSTALL_TARGETS}" Debug )
+install_targets( "${INSTALL_TARGETS}" RelWithDebInfo )
 
 # install pdb files
 install_lib_pdb( vvdec )
-install_exe_pdb( vvdecapp )
+if( VVDEC_INSTALL_VVDECAPP )
+  install_exe_pdb( vvdecapp )
+endif()
 
 # install emscripten generated files
 if( ${CMAKE_SYSTEM_NAME} STREQUAL "Emscripten" )

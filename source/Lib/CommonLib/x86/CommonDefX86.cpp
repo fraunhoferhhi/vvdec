@@ -234,9 +234,9 @@ X86_VEXT read_x86_extension_flags( X86_VEXT request )
     if( request > max_supported )
     {
 #ifdef REAL_TARGET_X86
-      THROW( "requested SIMD level (" << request << ") not supported by current CPU (max " << max_supported << ")." );
+      THROW_UNSUPPORTED( "requested SIMD level (" << request << ") not supported by current CPU (max " << max_supported << ")." );
 #else
-      THROW( "requested SIMD level (" << request << ") not supported because the SIMD-Everywhere implementation for AVX2 is buggy." );
+      THROW_UNSUPPORTED( "requested SIMD level (" << request << ") not supported because the SIMD-Everywhere implementation for AVX2 is buggy." );
 #endif
     }
 

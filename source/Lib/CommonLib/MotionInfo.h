@@ -53,6 +53,19 @@ POSSIBILITY OF SUCH DAMAGE.
 namespace vvdec
 {
 
+// need miInvalid to be able to distinguish between different motion types, e.g. history, colocated or just motion info
+static inline bool isMotionInvalid( int refIdx, const int miInvalid )
+{
+  static_assert( MH_NOT_VALID == -1 && MI_NOT_VALID == -1 && MF_NOT_VALID == -1 && CO_NOT_VALID == -1, "All not-valid motion need to be nagative for current impl!" );
+  return refIdx < 0;
+}
+
+// need miInvalid to be able to distinguish between different motion types, e.g. history, colocated or just motion info
+static inline bool isMotionValid( int refIdx, const int miInvalid )
+{
+  return !isMotionInvalid( refIdx, miInvalid );
+}
+
 // ====================================================================================================================
 // Type definition
 // ====================================================================================================================
@@ -114,10 +127,10 @@ struct MotionInfo
   bool operator==( const MotionInfo &mi ) const
   {
     if( miRefIdx[0] != mi.miRefIdx[0] ) return false;
-    if( miRefIdx[0] != MI_NOT_VALID && mv[0] != mi.mv[0] ) return false;
+    if( isMotionValid( miRefIdx[0], MI_NOT_VALID ) && mv[0] != mi.mv[0] ) return false;
 
     if( miRefIdx[1] != mi.miRefIdx[1] ) return false;
-    if( miRefIdx[1] != MI_NOT_VALID && mv[1] != mi.mv[1] ) return false;
+    if( isMotionValid( miRefIdx[1], MI_NOT_VALID ) && mv[1] != mi.mv[1] ) return false;
 
     return true;
   }
@@ -135,8 +148,8 @@ struct MotionInfo
   int interDir() const
   {
     int
-    interDir  = miRefIdx[0] != MI_NOT_VALID ? 1 : 0;
-    interDir += miRefIdx[1] != MI_NOT_VALID ? 2 : 0;
+    interDir  = isMotionInvalid( miRefIdx[0], MI_NOT_VALID ) ? 0 : 1;
+    interDir += isMotionInvalid( miRefIdx[1], MI_NOT_VALID ) ? 0 : 2;
     return interDir;
   }
 };
@@ -149,8 +162,8 @@ struct ColocatedMotionInfo
   int interDir() const
   {
     int
-    interDir  = coRefIdx[0] != CO_NOT_VALID ? 1 : 0;
-    interDir += coRefIdx[1] != CO_NOT_VALID ? 2 : 0;
+    interDir  = isMotionInvalid( coRefIdx[0], CO_NOT_VALID ) ? 0 : 1;
+    interDir += isMotionInvalid( coRefIdx[1], CO_NOT_VALID ) ? 0 : 2;
     return interDir;
   }
 
@@ -191,8 +204,8 @@ struct HPMVInfo
     mv[0] = mi.mv[0];
     mv[1] = mi.mv[1];
 
-    mhRefIdx[0] = mi.miRefIdx[0] - 1;
-    mhRefIdx[1] = mi.miRefIdx[1] - 1;
+    mhRefIdx[0] = mi.miRefIdx[0];
+    mhRefIdx[1] = mi.miRefIdx[1];
 
     this->BcwIdx       = BcwIdx;
     this->useAltHpelIf = useAltHpelIf;
@@ -201,10 +214,10 @@ struct HPMVInfo
   bool operator==( const HPMVInfo& mi ) const
   {
     if( mhRefIdx[0] != mi.mhRefIdx[0] ) return false;
-    if( mhRefIdx[0] != MH_NOT_VALID && mv[0] != mi.mv[0] ) return false;
+    if( isMotionValid( mhRefIdx[0], MH_NOT_VALID ) && mv[0] != mi.mv[0] ) return false;
 
     if( mhRefIdx[1] != mi.mhRefIdx[1] ) return false;
-    if( mhRefIdx[1] != MH_NOT_VALID && mv[1] != mi.mv[1] ) return false;
+    if( isMotionValid (mhRefIdx[1], MH_NOT_VALID ) && mv[1] != mi.mv[1] ) return false;
 
     return true;
   }
@@ -217,8 +230,8 @@ struct HPMVInfo
   int interDir() const
   {
     int
-    interDir  = mhRefIdx[0] != MH_NOT_VALID ? 1 : 0;
-    interDir += mhRefIdx[1] != MH_NOT_VALID ? 2 : 0;
+    interDir  = isMotionInvalid( mhRefIdx[0], MH_NOT_VALID ) ? 0 : 1;
+    interDir += isMotionInvalid( mhRefIdx[1], MH_NOT_VALID ) ? 0 : 2;
     return interDir;
   }
 };

@@ -315,6 +315,25 @@ void sampleRateConvCore( const std::pair<int, int> scalingRatio, const std::pair
   delete[] buf;
 }
 
+void rspFwdCore( Pel* ptr, ptrdiff_t ptrStride, int width, int height, const int bd, const Pel OrgCW, const Pel* LmcsPivot, const Pel* ScaleCoeff, const Pel* InputPivot )
+{
+  int idxY;
+  int shift = getLog2( OrgCW );
+
+  //    const auto rsp_sgnl_op  = [=, &dst]( int ADDR ){ idxY = ( dst[ADDR] >> shift ); dst[ADDR] = static_cast<Pel>( ClipBD<int>( LmcsPivot[idxY] + ( ( ScaleCoeff[idxY] * ( dst[ADDR] - InputPivot[idxY] ) + ( 1 << 10 ) ) >> 11 ), bd ) ); };
+  //    const auto rsp_sgnl_inc = [=, &dst]            { dst += stride; };
+
+  //    size_aware_pel_op( rsp_sgnl_op, rsp_sgnl_inc, width, height );
+
+#define RSP_FWD_OP( ADDR ) { idxY = ( ptr[ADDR] >> shift ); ptr[ADDR] = static_cast<Pel>( ClipBD<int>( LmcsPivot[idxY] + ( ( ScaleCoeff[idxY] * ( ptr[ADDR] - InputPivot[idxY] ) + ( 1 << 10 ) ) >> 11 ), bd ) ); }
+#define RSP_FWD_INC        ptr      += ptrStride;
+
+  SIZE_AWARE_PER_EL_OP( RSP_FWD_OP, RSP_FWD_INC )
+
+#undef RSP_FWD_OP
+#undef RSP_FWD_INC
+}
+
 PelBufferOps::PelBufferOps()
 {
   addAvg4  = addAvgCore<Pel>;
@@ -336,7 +355,7 @@ PelBufferOps::PelBufferOps()
   transpose8x8 = transpose8x8Core<Pel>;
 
   applyLut = applyLutCore;
-  rspFwd   = nullptr;
+  rspFwd   = rspFwdCore;
   rspBcw   = nullptr;
 
   fillN_CU = fillN_CuCore;
@@ -855,6 +874,7 @@ template<typename T>
 void UnitBuf<T>::writeToFile( std::string filename ) const
 {
   FILE* f = fopen( filename.c_str(), "w" );
+  CHECK( f == nullptr, "writeToFile() cannot open file for writing" )
 
   for( auto& b: bufs )
   {

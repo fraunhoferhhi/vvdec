@@ -299,8 +299,8 @@ CodingUnit& CodingUnit::operator=( const MotionInfo& mi )
 
   for( uint32_t i = 0; i < NUM_REF_PIC_LIST_01; i++ )
   {
-    refIdx[i] = mi.miRefIdx[i] - 1;
-    mv [i][0] = mi.mv    [i];
+    refIdx[i] = mi.miRefIdx[i];
+    mv [i][0] = mi.mv      [i];
   }
 
   return *this;

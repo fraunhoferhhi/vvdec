@@ -52,6 +52,12 @@ VVDEC_NAMESPACE_BEGIN
 
 VVDEC_DECL void vvdec_params_default(vvdecParams *params)
 {
+  if( nullptr == params )
+  {
+    vvdec::msg( vvdec::ERROR, "vvdec_params_default: vvdecParams is invalid\n" );
+    return;
+  }
+
   params->threads                      = -1;                   // thread count        ( default: -1 )
   params->parseThreads                 = -1;                   // parser thread count ( default: -1 )
   params->upscaleOutput                = VVDEC_UPSCALING_OFF;  // do internal upscaling of rpr pictures to dest. resolution ( default: off )
@@ -65,6 +71,11 @@ VVDEC_DECL void vvdec_params_default(vvdecParams *params)
 VVDEC_DECL vvdecParams* vvdec_params_alloc()
 {
   vvdecParams* params = (vvdecParams*)malloc(sizeof(vvdecParams));
+  if( nullptr == params )
+  {
+    vvdec::msg( vvdec::ERROR, "vvdec_params_alloc: memory allocation failed\n" );
+    return nullptr;
+  }
   vvdec_params_default( params );
   return params;
 }
@@ -80,6 +91,12 @@ VVDEC_DECL void vvdec_params_free(vvdecParams *params )
 
 VVDEC_DECL void vvdec_accessUnit_default(vvdecAccessUnit *accessUnit )
 {
+  if( nullptr == accessUnit )
+  {
+    vvdec::msg( vvdec::ERROR, "vvdec_accessUnit_default: vvdecAccessUnit is null\n" );
+    return;
+  }
+
   accessUnit->payload         = NULL;         ///< pointer to buffer that retrieves the coded data,
   accessUnit->payloadSize     = 0;            ///< size of the allocated buffer in bytes
   accessUnit->payloadUsedSize = 0;            ///< length of the coded data in bytes
@@ -93,6 +110,11 @@ VVDEC_DECL void vvdec_accessUnit_default(vvdecAccessUnit *accessUnit )
 VVDEC_DECL vvdecAccessUnit* vvdec_accessUnit_alloc()
 {
   vvdecAccessUnit* accessUnit = (vvdecAccessUnit*)malloc(sizeof(vvdecAccessUnit));
+  if( nullptr == accessUnit )
+  {
+    vvdec::msg( vvdec::ERROR, "vvdec_accessUnit_alloc: memory allocation failed\n" );
+    return nullptr;
+  }
   vvdec_accessUnit_default( accessUnit );
   return accessUnit;
 }
@@ -112,6 +134,11 @@ VVDEC_DECL void vvdec_accessUnit_free(vvdecAccessUnit *accessUnit )
 VVDEC_DECL void vvdec_accessUnit_alloc_payload(vvdecAccessUnit *accessUnit, int payload_size )
 {
   accessUnit->payload = (unsigned char*)malloc(sizeof(unsigned char) * payload_size );
+  if( nullptr == accessUnit->payload )
+  {
+    vvdec::msg( vvdec::ERROR, "vvdec_accessUnit_alloc_payload: memory allocation failed\n" );
+    return;
+  }
   accessUnit->payloadSize = payload_size;
 }
 
@@ -125,8 +152,6 @@ VVDEC_DECL void vvdec_accessUnit_free_payload(vvdecAccessUnit *accessUnit )
   }
 }
 
-
-
 VVDEC_DECL const char* vvdec_get_version()
 {
   return VVDEC_VERSION;
@@ -137,7 +162,7 @@ int paramCheck( vvdecParams *params )
   int ret = 0;
   if (nullptr == params)
   {
-    vvdec::msg( vvdec::ERROR, "vvdec_Params_t is null\n" );
+    vvdec::msg( vvdec::ERROR, "vvdecParams is null\n" );
     return -1;
   }
 
@@ -170,6 +195,12 @@ int paramCheck( vvdecParams *params )
 
 VVDEC_DECL vvdecDecoder* vvdec_decoder_open( vvdecParams *params)
 {
+  if (nullptr == params)
+  {
+    vvdec::msg( vvdec::ERROR, "vvdec_decoder_open() vvdecParams is null\n" );
+    return nullptr;
+  }
+
   if ( 0 != paramCheck( params ))
   {
     return nullptr;

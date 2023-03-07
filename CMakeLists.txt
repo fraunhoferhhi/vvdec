@@ -39,12 +39,12 @@ if( VVDEC_ENABLE_X86_SIMD )
 
   set( CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DTARGET_SIMD_X86" )
   set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DTARGET_SIMD_X86" )
-endif()
 
-# This potentially brings performance improvements for simd-everywhere, but I haven't
-# seen any, so it's disabled for now (GH)
-#set_if_compiler_supports_flag( FLAG_openmp_simd -fopenmp-simd )
-#add_compile_options( ${FLAG_openmp_simd} )
+  # This potentially brings performance improvements for simd-everywhere, but I haven't
+  # seen any, so it's disabled for now (GH)
+  #set_if_compiler_supports_flag( FLAG_openmp_simd -fopenmp-simd )
+  #add_compile_options( ${FLAG_openmp_simd} )
+endif()
 
 if( ${CMAKE_SYSTEM_NAME} STREQUAL "Emscripten" )
   set( VVDEC_TARGET_WASM TRUE )
@@ -67,13 +67,17 @@ if( ${CMAKE_SYSTEM_NAME} STREQUAL "Emscripten" )
   )
 
   if( VVDEC_ENABLE_X86_SIMD )
-   add_compile_options( -msimd128 )            # needed for all SIMD code, but breaks running in nodejs (firefox & chrome do work)
+    add_compile_options( -msimd128 )            # needed for all SIMD code, but breaks running in nodejs (firefox & chrome do work)
 
     add_compile_definitions( TARGET_SIMD_WASM ) # this is currently only used by a single helper function vvdec_get_RGBA_frame()
                                                 # optimized specifically in WASM-SIMD. This has no effect on normal codec operations.
   endif()
 endif()
 
+# set common warning flags
+add_compile_options( "$<$<OR:$<CXX_COMPILER_ID:Clang>,$<CXX_COMPILER_ID:AppleClang>>:-Wall;-Wno-unused-function;-Wno-enum-compare-switch;-Wno-unknown-attributes>" )
+add_compile_options( "$<$<CXX_COMPILER_ID:GNU>:-Wall;-Wno-unused-function;-Wno-sign-compare;-fdiagnostics-show-option;-Wno-ignored-attributes>" )
+add_compile_options( "$<$<CXX_COMPILER_ID:MSVC>:/W4;/wd4100;/wd4127;/wd4244;/wd4245;/wd4389;/wd4456;/wd4457;/wd4458;/wd4459;/wd4505;/wd4701;/wd4702;/wd4703>" )
 
 
 if( NOT CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR )
@@ -100,13 +104,15 @@ set( VVDEC_ENABLE_BITSTREAM_DOWNLOAD        OFF CACHE BOOL   "Enable or disable 
 # enable local bitstream download
 set( VVDEC_ENABLE_LOCAL_BITSTREAM_DOWNLOAD  OFF CACHE BOOL   "Enable or disable local bitstream download" )
 
-# enable install target
-set( VVDEC_ENABLE_INSTALL                   ON  CACHE BOOL   "Enable or disable install target" )
+# also install the test executable vvdecapp instead of the libraries and headers only
+set( VVDEC_INSTALL_VVDECAPP                 OFF CACHE BOOL   "Enable or disable installing the test vvdecapp" )
 
 # enable postfix
 set( VVDEC_ENABLE_BUILD_TYPE_POSTFIX        OFF CACHE BOOL   "Enable or disable build type postfix for apps and libs" )
 
 set( VVDEC_ENABLE_LINK_TIME_OPT             ON  CACHE BOOL   "Enable link time optimization for release and profile builds" )
+
+set( VVDEC_ENABLE_WARNINGS_AS_WERROR        ON  CACHE BOOL   "Treat warnings as errors (-Werror or /WX)" )
 
 if( CMAKE_CXX_COMPILER_ID STREQUAL "GNU" OR
     CMAKE_CXX_COMPILER_ID STREQUAL "Clang" )
@@ -213,13 +219,13 @@ endif()
 if( VVDEC_USE_ADDRESS_SANITIZER )
   # add compile options
   add_compile_options( "-fsanitize=address" )
-  add_compile_options( "-fno-omit-frame-pointer" )
   add_compile_options( "-fsanitize=undefined" )
   add_compile_options( "-fsanitize=leak" )
+  add_compile_options( "-fno-omit-frame-pointer" )
   add_link_options( "-fsanitize=address" )
-  add_link_options( "-fno-omit-frame-pointer" )
   add_link_options( "-fsanitize=undefined" )
   add_link_options( "-fsanitize=leak" )
+  add_link_options( "-fno-omit-frame-pointer" )
 endif()
 
 # set thread sanitizer compiler arguments
@@ -227,6 +233,11 @@ if( VVDEC_USE_THREAD_SANITIZER )
   # add compile options
   add_compile_options( "-fsanitize=thread" )
   add_link_options( "-fsanitize=thread" )
+endif()
+
+if( VVDEC_ENABLE_WARNINGS_AS_WERROR )
+    add_compile_options( "$<$<OR:$<CXX_COMPILER_ID:GNU>,$<CXX_COMPILER_ID:Clang>,$<CXX_COMPILER_ID:AppleClang>>:-Werror>" )
+    add_compile_options( "$<$<CXX_COMPILER_ID:MSVC>:/WX>" )
 endif()
 
 if( VVDEC_ENABLE_X86_SIMD )
@@ -290,28 +301,26 @@ if( VVDEC_ENABLE_ITT )
   endif()
 endif()
 
+if( CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT )
+  set( CMAKE_INSTALL_PREFIX "${CMAKE_SOURCE_DIR}/install" CACHE PATH "Standard install prefix" FORCE )
+endif()
+
+# use GNU install dirs
+include( GNUInstallDirs )
+
 # handle rpath correctly
-if( VVDEC_ENABLE_INSTALL )
-  if( CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT )
-    set( CMAKE_INSTALL_PREFIX "${CMAKE_SOURCE_DIR}/install" CACHE PATH "Standard install prefix" FORCE )
+if( BUILD_SHARED_LIBS AND NOT WIN32 )
+  set( CMAKE_SKIP_INSTALL_RPATH OFF CACHE BOOL "skip rpath" )
+  if( APPLE )
+    set( RPATH_BASE @loader_path )
+  elseif( UNIX )
+    set( RPATH_BASE $ORIGIN )
   endif()
 
-  # use GNU install dirs
-  include( GNUInstallDirs )
+  file( RELATIVE_PATH RPATH_REL_DIR ${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_INSTALL_BINDIR} ${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_INSTALL_LIBDIR} )
 
-  if( BUILD_SHARED_LIBS AND NOT WIN32 )
-    set( CMAKE_SKIP_INSTALL_RPATH OFF CACHE BOOL "skip rpath" )
-    if( APPLE )
-      set( RPATH_BASE @loader_path )
-    elseif( UNIX )
-      set( RPATH_BASE $ORIGIN )
-    endif()
-
-    file( RELATIVE_PATH RPATH_REL_DIR ${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_INSTALL_BINDIR} ${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_INSTALL_LIBDIR} )
-
-    set( CMAKE_INSTALL_RPATH ${RPATH_BASE} ${RPATH_BASE}/${RPATH_REL_DIR} )
-    message( STATUS "CMAKE_INSTALL_RPATH=${CMAKE_INSTALL_RPATH}" )
-  endif()
+  set( VVDEC_INSTALL_RPATH ${RPATH_BASE} ${RPATH_BASE}/${RPATH_REL_DIR} )
+  message( STATUS "VVDEC_INSTALL_RPATH=${VVDEC_INSTALL_RPATH}" )
 endif()
 
 add_subdirectory( "source/Lib/vvdec" )
@@ -411,7 +420,5 @@ if( MISSING_BITSTREAM_FILES )
   message( STATUS "  (or using top level Makefile: make test enable-bitstream-download=1)" )
 endif()
 
-if( VVDEC_ENABLE_INSTALL )
-  # include installer
-  include( cmake/modules/vvdecInstall.cmake )
-endif()
+# include installer
+include( cmake/modules/vvdecInstall.cmake )
