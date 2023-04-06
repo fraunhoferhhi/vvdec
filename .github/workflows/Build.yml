@@ -36,12 +36,12 @@ jobs:
               generators: "MinGW Makefiles"
             }
           - {
-              name: "Ubuntu 18.04",
-              os: ubuntu-18.04
-            }
-          - {
               name: "Ubuntu 20.04",
               os: ubuntu-20.04
+            }
+          - {
+              name: "Ubuntu 22.04",
+              os: ubuntu-22.04
             }
           - {
               name: "Mac OS Latest x86_64",
