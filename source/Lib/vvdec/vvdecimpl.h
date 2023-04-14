@@ -201,6 +201,7 @@ public:
    bool                                    m_bInitialized   = false;
    bool                                    m_bRemovePadding = false; // copy picture before output to remove padding
    VVDecInternalState                      m_eState         = INTERNAL_STATE_UNINITIALIZED;
+   ErrHandlingFlags                        m_eErrHandlingFlags = ERR_HANDLING_TRY_CONTINUE;
 
    std::unique_ptr<DecLib>                 m_cDecLib;
 

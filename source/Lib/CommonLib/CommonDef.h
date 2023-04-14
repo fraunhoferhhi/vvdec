@@ -109,7 +109,7 @@ POSSIBILITY OF SUCH DAMAGE.
 # define GCC_EXTRA_WARNING_switch_enum
 #endif
 
-#if __GNUC__ >= 8
+#if __GNUC__ >= 8 && !defined __clang__
 # define GCC_WARNING_DISABLE_maybe_uninitialized _Pragma("GCC diagnostic push"); _Pragma("GCC diagnostic ignored \"-Wmaybe-uninitialized\"");
 # define GCC_WARNING_DISABLE_class_memaccess     _Pragma("GCC diagnostic push"); _Pragma("GCC diagnostic ignored \"-Wclass-memaccess\"");
 #else
@@ -522,9 +522,7 @@ typedef enum
 
 #endif   // ENABLE_SIMD_OPT
 
-template <typename ValueType> static inline ValueType leftShift       (const ValueType value, const int shift) { return (shift >= 0) ? ( value                                  << shift) : ( value                                   >> -shift); }
 template <typename ValueType> static inline ValueType rightShift      (const ValueType value, const int shift) { return (shift >= 0) ? ( value                                  >> shift) : ( value                                   << -shift); }
-template <typename ValueType> static inline ValueType leftShift_round (const ValueType value, const int shift) { return (shift >= 0) ? ( value                                  << shift) : ((value + (ValueType(1) << (-shift - 1))) >> -shift); }
 template <typename ValueType> static inline ValueType rightShift_round(const ValueType value, const int shift) { return (shift >= 0) ? ((value + (ValueType(1) << (shift - 1))) >> shift) : ( value                                   << -shift); }
 
 #if defined( _WIN32 ) && defined( TARGET_SIMD_X86 )

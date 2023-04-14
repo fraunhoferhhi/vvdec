@@ -70,7 +70,7 @@ struct Picture : public UnitArea
 
   void create(const ChromaFormat &_chromaFormat, const Size &size, const unsigned _maxCUSize, const unsigned margin, const int layerId, UserAllocator* userAlloc = nullptr );
   void createWrapAroundBuf( const bool isWrapAround, const unsigned _maxCUSize );
-  void resetForUse();
+  void resetForUse( int _layerId );
   void destroy();
 
          Pel*      getRecoBufPtr   (const ComponentID compID, bool wrap=false)       { return m_bufs[wrap ? PIC_RECON_WRAP : PIC_RECONSTRUCTION].bufs[compID].buf; }
@@ -91,7 +91,7 @@ struct Picture : public UnitArea
   // Also, handle with care, because stride < width.
   const CPelBuf getSubPicBuf( int subPicIdx, const ComponentID compID, bool wrap = false ) const
   {
-    CHECK( wrap, "wraparound for subpics not supported yet" );
+    CHECK_RECOVERABLE( wrap, "wraparound for subpics not supported yet" );
 
     Position subPicPos( subPictures[subPicIdx].getSubPicLeft() >> getComponentScaleX( compID, m_subPicRefBufs[subPicIdx].chromaFormat ),
                         subPictures[subPicIdx].getSubPicTop()  >> getComponentScaleY( compID, m_subPicRefBufs[subPicIdx].chromaFormat ) );
@@ -121,11 +121,12 @@ public:
   void (*paddPicBorderTop) (Pel *pi, ptrdiff_t stride,int width,int xmargin,int ymargin);
   void (*paddPicBorderLeftRight) (Pel *pi, ptrdiff_t stride,int width,int xmargin,int height);
 
-  void finalInit( CUChunkCache* cuChunkCache, TUChunkCache* tuChunkCache, const SPS * sps, const PPS * pps, PicHeader *picHeader, const APS* const alfApss[ALF_CTB_MAX_NUM_APS], const APS * lmcsAps, const APS* scalingListAps, bool phPSupdate = true );
+  void finalInit( CUChunkCache* cuChunkCache, TUChunkCache* tuChunkCache, const SPS * sps, const PPS * pps, const std::shared_ptr<PicHeader>& ph, const APS* const alfApss[ALF_CTB_MAX_NUM_APS], const APS * lmcsAps, const APS* scalingListAps, bool phPSupdate = true );
+
   int      getPOC()                           const { return poc; }
   uint64_t getCts()                           const { return cts; }
   uint64_t getDts()                           const { return dts; }
-  uint32_t getTLayer()                        const { return layer; }
+  uint32_t getTLayer()                        const { return tempLayer; }
   uint32_t getNaluBits()                      const { return bits; }
   bool     getRap()                           const { return rap; }
 
@@ -142,6 +143,8 @@ public:
 
   bool getMixedNaluTypesInPicFlag()           const { return slices[0]->getPPS()->getMixedNaluTypesInPicFlag(); }
 
+  std::vector<Picture*> buildAllRefPicsVec();
+
 public:
   void startProcessingTimer();
   void stopProcessingTimer();
@@ -154,6 +157,7 @@ public:
 
   enum PicStateEnum
   {
+    init,
     parsing,
     parsed,
     reconstructing,
@@ -165,9 +169,11 @@ public:
   bool     subPicExtStarted = false;
   bool     borderExtStarted = false;
   bool     referenced       = false;
-  PicState progress{ parsing };
+  PicState progress{ init };
   bool     neededForOutput         = false;
   bool     wasLost                 = false;
+  bool     error                   = false;
+  bool     exceptionThrownOut      = false;
   bool     longTerm                = false;
   bool     topField                = false;
   bool     fieldPic                = false;
@@ -184,7 +190,7 @@ public:
   int         poc          = 0;
   uint64_t    cts          = 0;   // composition time stamp
   uint64_t    dts          = 0;   // decoding time stamp
-  uint32_t    layer        = std::numeric_limits<uint32_t>::max();
+  uint32_t    tempLayer    = std::numeric_limits<uint32_t>::max();
   uint32_t    depth        = 0;
   int         layerId      = NOT_VALID;
   NalUnitType eNalUnitType = NAL_UNIT_INVALID;
@@ -201,18 +207,19 @@ public:
   PelStorage     m_bufs[NUM_PIC_TYPES];
   uint32_t       margin      = 0;
 
+  WaitCounter     m_divTasksCounter;        // for all tasks, that are not covered by the other WaitCounters => only needed for cleanup during exception handling
   WaitCounter     m_ctuTaskCounter;
   WaitCounter     m_motionTaskCounter;
   WaitCounter     m_borderExtTaskCounter;
   Barrier         m_copyWrapBufDone;
-  BlockingBarrier done;
+  BlockingBarrier parseDone;
+  BlockingBarrier reconDone;
 #if RECO_WHILE_PARSE
   std::vector<Barrier> ctuParsedBarrier;
 #endif
 #if ALLOW_MIDER_LF_DURING_PICEXT
   CBarrierVec     refPicExtDepBarriers;
 #endif
-  Barrier         parseDone;
 
   CodingStructure*    cs = nullptr;
   std::vector<Slice*> slices;
@@ -232,13 +239,15 @@ public:
                pps0->getScalingWindow().getWindowBottomOffset()  != pps->getScalingWindow().getWindowBottomOffset() ) );
   }
 
-  std::shared_ptr<PicHeader> picHeader;
-  void                       setPicHead( const std::shared_ptr<PicHeader>& ph );
-
   bool         isWrapAroundEnabled( const PPS* pps ) const  { return  pps->getUseWrapAround() && !isRefScaled( pps ); }
 
   Slice*       allocateNewSlice( Slice** pilot = nullptr );
   void         clearSliceBuffer();
+  bool         lastSliceOfPicPresent() const;
+
+  void         waitForAllTasks();
+  void         ensureUsableAsRef();
+  void         fillGrey( const SPS* sps );
 
 #if TRACE_ENABLE_ITT
   __itt_domain* m_itt_decLibInst;

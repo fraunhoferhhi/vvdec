@@ -431,8 +431,8 @@ void AreaBuf<T>::copyFrom( const AreaBuf<const T> &other ) const
 template<typename T>
 void AreaBuf<T>::subtract( const AreaBuf<const T> &other )
 {
-  CHECK( width  != other.width,  "Incompatible size" );
-  CHECK( height != other.height, "Incompatible size" );
+  CHECK_RECOVERABLE( width  != other.width,  "Incompatible size" );
+  CHECK_RECOVERABLE( height != other.height, "Incompatible size" );
 
         T* dest =       buf;
   const T* subs = other.buf;
@@ -495,7 +495,7 @@ void AreaBuf<T>::extendBorderPel( unsigned margin )
   int       w = width;
   ptrdiff_t s = stride;
 
-  CHECK( ( w + 2 * margin ) > s, "Size of buffer too small to extend" );
+  CHECK_RECOVERABLE( ( w + 2 * margin ) > s, "Size of buffer too small to extend" );
   // do left and right margins
   for( int y = 0; y < h; y++ )
   {
@@ -527,7 +527,7 @@ void AreaBuf<T>::extendBorderPel( unsigned margin )
 template<typename T>
 void AreaBuf<T>::extendBorderPel(unsigned margin, bool left, bool right, bool top, bool bottom)
 {
-  CHECK( ( width + left*margin + right*margin) > stride, "Size of buffer too small to extend" );
+  CHECK_RECOVERABLE( ( width + left*margin + right*margin) > stride, "Size of buffer too small to extend" );
   // do left and right margins
 
   if( left && right )
@@ -606,7 +606,7 @@ void AreaBuf<T>::padBorderPel( unsigned marginX, unsigned marginY, int dir )
   int  h = height;
   int  w = width;
 
-  CHECK( w  > s, "Size of buffer too small to extend" );
+  CHECK_RECOVERABLE( w  > s, "Size of buffer too small to extend" );
 
   // top-left margin
   if ( dir == 1 )
@@ -644,7 +644,7 @@ template<> void AreaBuf<Pel>::transposedFrom( const AreaBuf<const Pel> &other );
 template<typename T>
 void AreaBuf<T>::transposedFrom( const AreaBuf<const T> &other )
 {
-  CHECK( width * height != other.width * other.height, "Incompatible size" );
+  CHECK_RECOVERABLE( width * height != other.width * other.height, "Incompatible size" );
 
         T* dst  =       buf;
   const T* src  = other.buf;
@@ -745,7 +745,7 @@ void UnitBuf<T>::fill( const T &val )
 template<typename T>
 void UnitBuf<T>::copyFrom( const UnitBuf<const T> &other ) const
 {
-  CHECK( chromaFormat != other.chromaFormat, "Incompatible formats" );
+  CHECK_RECOVERABLE( chromaFormat != other.chromaFormat, "Incompatible formats" );
 
   for( unsigned i = 0; i < bufs.size(); i++ )
   {
@@ -758,7 +758,7 @@ void UnitBuf<T>::copyFrom( const UnitBuf<const T> &other ) const
 template<typename T>
 void UnitBuf<T>::subtract( const UnitBuf<const T> &other )
 {
-  CHECK( chromaFormat != other.chromaFormat, "Incompatible formats" );
+  CHECK_RECOVERABLE( chromaFormat != other.chromaFormat, "Incompatible formats" );
 
   for( unsigned i = 0; i < bufs.size(); i++ )
   {
@@ -769,8 +769,8 @@ void UnitBuf<T>::subtract( const UnitBuf<const T> &other )
 template<typename T>
 void UnitBuf<T>::reconstruct(const UnitBuf<const T> &pred, const UnitBuf<const T> &resi, const ClpRngs& clpRngs)
 {
-  CHECK( chromaFormat != pred.chromaFormat, "Incompatible formats" );
-  CHECK( chromaFormat != resi.chromaFormat, "Incompatible formats" );
+  CHECK_RECOVERABLE( chromaFormat != pred.chromaFormat, "Incompatible formats" );
+  CHECK_RECOVERABLE( chromaFormat != resi.chromaFormat, "Incompatible formats" );
 
   for( unsigned i = 0; i < bufs.size(); i++ )
   {
@@ -784,7 +784,7 @@ void UnitBuf<T>::addWeightedAvg(const UnitBuf<T> &other1, const UnitBuf<T> &othe
   const size_t istart = chromaOnly ? 1 : 0;
   const size_t iend   = lumaOnly   ? 1 : bufs.size();
 
-  CHECK(lumaOnly && chromaOnly, "should not happen");
+  CHECK_RECOVERABLE(lumaOnly && chromaOnly, "should not happen");
 
   for(size_t i = istart; i < iend; i++)
   {
@@ -798,7 +798,7 @@ void UnitBuf<T>::addAvg(const UnitBuf<T> &other1, const UnitBuf<T> &other2, cons
   const size_t istart = chromaOnly ? 1 : 0;
   const size_t iend   = lumaOnly   ? 1 : bufs.size();
 
-  CHECK( lumaOnly && chromaOnly, "should not happen" );
+  CHECK_RECOVERABLE( lumaOnly && chromaOnly, "should not happen" );
 
   for( size_t i = istart; i < iend; i++)
   {

@@ -68,7 +68,6 @@ private:
   NalUnitType m_associatedIRAPType[MAX_VPS_LAYERS];   ///< NAL unit type of the associated IRAP picture
   int         m_pocCRA            [MAX_VPS_LAYERS];   ///< POC number of the latest CRA picture
   int         m_pocRandomAccess      = MAX_INT;       ///< POC number of the random access point (the first IDR or CRA picture)
-  int         m_lastRasPoc           = MAX_INT;
   int         m_decodingOrderCounter = 0;
   uint32_t    m_prevLayerID          = MAX_INT;
 
@@ -82,7 +81,6 @@ private:
   bool m_bFirstSliceInPicture     = true;
   bool m_bFirstSliceInSequence[MAX_VPS_LAYERS] = { true };
   bool m_bFirstSliceInBitstream   = true;
-  bool m_parseNewPicture          = false;
 
   int      m_lastPOCNoOutputPriorPics                       = -1;
   bool     m_isNoOutputPriorPics                            = false;
@@ -146,29 +144,28 @@ private:
   unsigned int              m_parseFrameDelay = 0;
   PicList                   m_parseFrameList;
   int                       m_maxPicReconSkip = 1;
+  ErrHandlingFlags          m_errHandlingFlags = ERR_HANDLING_OFF;
 
   CUChunkCache              m_cuChunkCache;
   TUChunkCache              m_tuChunkCache;
 
 public:
-  DecLibParser( DecLib& decLib, PicListManager& picListManager,  PicHeader* picHeader ) : m_decLib( decLib ), m_picListManager( picListManager ), m_picHeader( picHeader ) {}
+  DecLibParser( DecLib& decLib, PicListManager& picListManager ) : m_decLib( decLib ), m_picListManager( picListManager ) {}
   ~DecLibParser();
 
-  void create                   ( ThreadPool* tp, int parserFrameDelay, int numReconInst, int numDecThreads );
+  void create                   ( ThreadPool* tp, int parserFrameDelay, int numReconInst, int numDecThreads, ErrHandlingFlags errHandlingFlags );
   void destroy                  ();
 
-  void recreateLostPicture      (Picture* pcPic);
+#if 0
+  void fillMissingPicBuf        ( Picture* pcPic, bool copyClosest );
+#endif
 
-  Picture* parse                (InputNALUnit& nalu, int* pSkipFrame, int iTargetLayer = -1);
+  bool     parse                ( InputNALUnit& nalu, int* pSkipFrame, int iTargetLayer = -1 );
   Picture* getNextDecodablePicture();
 
-  void setFirstSliceInPicture   (bool val)              { m_bFirstSliceInPicture = val; }
-  bool getFirstSliceInSequence  (int layerId) const     { return m_bFirstSliceInSequence[layerId]; }
-  void setFirstSliceInSequence  (bool val, int layerId) { m_bFirstSliceInSequence[layerId] = val; }
   void checkNoOutputPriorPics   ();
   void setNoOutputPriorPicsFlag (bool val)              { m_isNoOutputPriorPics = val; }
   bool getNoOutputPriorPicsFlag () const                { return m_isNoOutputPriorPics; }
-  bool getParseNewPicture       () const                { return m_parseNewPicture; }
 
   void setDecodedSEIMessageOutputStream( std::ostream* pOpStream ) { m_pDecodedSEIOutputStream = pOpStream; }
 
@@ -181,13 +178,11 @@ public:
   ParameterSetManager getParameterSetManager()          { return m_parameterSetManager; }
 
 private:
-  enum SliceHeadResult { SkipPicture, NewPicture, ContinueParsing };
-  SliceHeadResult xDecodeSliceHead( InputNALUnit& nalu, int* pSkipFrame );
-  Slice*          xDecodeSliceMain( InputNALUnit& nalu );
+  bool            xDecodeSliceHead( InputNALUnit& nalu, int* pSkipFrame );
+  bool            xDecodeSliceMain( InputNALUnit& nalu );
 
-  Picture*        xActivateParameterSets   ( const int layerId );
-  Picture*        prepareLostPicture       ( int iLostPOC, const int layerId );
-  void            prepareUnavailablePicture( const PPS *pps, int iUnavailablePoc, const int layerId, const bool longTermFlag, const int temporalId );
+  void            xActivateParameterSets   ( const int layerId );
+  void            prepareUnavailablePicture( bool isLost, const PPS* pps, int iUnavailablePoc, const int layerId, const bool longTermFlag, const int temporalId );
 
   void xParsePrefixSEImessages();
   void xParsePrefixSEIsForUnknownVCLNal();
@@ -199,10 +194,11 @@ private:
   void xDecodePPS             ( InputNALUnit& nalu );
   void xDecodeAPS             ( InputNALUnit& nalu );
   void xUpdatePreviousTid0POC ( Slice* pSlice );
-  void xUpdateRasInit         ( Slice* slice );
 
   bool isRandomAccessSkipPicture();
-  void xCheckMixedNalUnit     ( Slice* pcSlice, InputNALUnit &nalu );
+  void xCheckMixedNalUnit     ( Slice* pcSlice, const InputNALUnit& nalu );
+
+  void waitForPicsToFinishParsing( const std::vector<Picture*>& refPics );
 };
 
 }

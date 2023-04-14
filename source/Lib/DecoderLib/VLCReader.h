@@ -146,7 +146,7 @@ public:
   void  parsePPS                 ( PPS* pcPPS, const ParameterSetManager* parameterSetManager );
   void  parseAPS                 ( APS* pcAPS);
   void  parsePictureHeader       ( PicHeader* picHeader, const ParameterSetManager* parameterSetManager, bool readRbspTrailingBits );
-  void  parseSliceHeader         ( Slice* pcSlice, PicHeader* parsedPicHeader, const ParameterSetManager* parameterSetManager, const int prevTid0POC, Picture* parsePic , bool& firstSliceInPic );
+  void  parseSliceHeader         ( Slice* pcSlice, std::shared_ptr<PicHeader>& picHeader, const ParameterSetManager* parameterSetManager, const int prevTid0POC, bool& firstSliceInPic );
 
 private:
   void  parseAlfAps              ( APS* pcAPS );

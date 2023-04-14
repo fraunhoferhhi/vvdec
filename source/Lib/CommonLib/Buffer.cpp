@@ -178,6 +178,7 @@ void copyBufferCore( const char *src, ptrdiff_t srcStride, char *dst, ptrdiff_t 
   if( width == srcStride && width == dstStride )
   {
     memcpy( dst, src, width * height );
+    return;
   }
 
   for( int i = 0; i < height; i++ )
@@ -258,7 +259,7 @@ void sampleRateConvCore( const std::pair<int, int> scalingRatio, const std::pair
   int* buf = new int[orgHeight * scaledWidth];
   int maxVal = (1 << bitDepth) - 1;
 
-  CHECK( bitDepth > 17, "Overflow may happen!" );
+  CHECK_RECOVERABLE( bitDepth > 17, "Overflow may happen!" );
 
   for( int i = 0; i < scaledWidth; i++ )
   {
@@ -562,7 +563,7 @@ void AreaBuf<Pel>::linearTransform( const int scale, const int shift, const int 
 template<>
 void AreaBuf<Pel>::transposedFrom( const AreaBuf<const Pel> &other )
 {
-  CHECK( width != other.height || height != other.width, "Incompatible size" );
+  CHECK_RECOVERABLE( width != other.height || height != other.width, "Incompatible size" );
 
   if( ( ( width | height ) & 7 ) == 0 )
   {
@@ -658,7 +659,7 @@ void PelStorage::create( const UnitArea &_UnitArea )
 
 void PelStorage::create( const ChromaFormat _chromaFormat, const Size& _size, const unsigned _maxCUSize, const unsigned _margin, const unsigned _alignmentByte, const bool _scaleChromaMargin, const UserAllocator* userAlloc )
 {
-  CHECK( !bufs.empty(), "Trying to re-create an already initialized buffer" );
+  CHECK_RECOVERABLE( !bufs.empty(), "Trying to re-create an already initialized buffer" );
 
   chromaFormat = _chromaFormat;
 
@@ -699,7 +700,7 @@ void PelStorage::create( const ChromaFormat _chromaFormat, const Size& _size, co
     if( _alignment )
     {
       // make sure buffer lines are align
-      CHECK( _alignmentByte != MEMORY_ALIGN_DEF_SIZE, "Unsupported alignment" );
+      CHECK_RECOVERABLE( _alignmentByte != MEMORY_ALIGN_DEF_SIZE, "Unsupported alignment" );
       totalWidth = ( ( totalWidth + _alignment - 1 ) / _alignment ) * _alignment;
     }
 
@@ -708,13 +709,13 @@ void PelStorage::create( const ChromaFormat _chromaFormat, const Size& _size, co
 #else
     uint32_t area = totalWidth * totalHeight;
 #endif
-    CHECK( !area, "Trying to create a buffer with zero area" );
+    CHECK_RECOVERABLE( !area, "Trying to create a buffer with zero area" );
 
     m_origSi[i] = Size{ totalWidth, totalHeight };
     if( userAlloc && userAlloc->enabled )
     {
       m_origin[i] = ( Pel* ) userAlloc->create( userAlloc->opaque, (vvdecComponentType)i, sizeof(Pel)*area, MEMORY_ALIGN_DEF_SIZE, &m_allocator[i] );
-      CHECK( m_origin[i] == nullptr, "external allocator callback failed (returned NULL)." );
+      CHECK_RECOVERABLE( m_origin[i] == nullptr, "external allocator callback failed (returned NULL)." );
       m_externAllocator = true;
       m_userAlloc       = userAlloc;
     }
@@ -749,9 +750,9 @@ void PelStorage::swap( PelStorage& other )
   for( uint32_t i = 0; i < numCh; i++ )
   {
     // check this otherwise it would turn out to get very weird
-    CHECK( chromaFormat                   != other.chromaFormat                  , "Incompatible formats" );
-    CHECK( get( ComponentID( i ) )        != other.get( ComponentID( i ) )       , "Incompatible formats" );
-    CHECK( get( ComponentID( i ) ).stride != other.get( ComponentID( i ) ).stride, "Incompatible formats" );
+    CHECK_RECOVERABLE( chromaFormat                   != other.chromaFormat                  , "Incompatible formats" );
+    CHECK_RECOVERABLE( get( ComponentID( i ) )        != other.get( ComponentID( i ) )       , "Incompatible formats" );
+    CHECK_RECOVERABLE( get( ComponentID( i ) ).stride != other.get( ComponentID( i ) ).stride, "Incompatible formats" );
 
     std::swap( bufs[i].buf,    other.bufs[i].buf );
     std::swap( bufs[i].stride, other.bufs[i].stride );
@@ -775,7 +776,7 @@ void PelStorage::destroy()
       }
       else if( m_allocator[i])
       {
-        CHECK( m_userAlloc->unref == nullptr, "vvdecUnrefBufferCallback not valid, cannot unref picture buffer" )
+        CHECK_RECOVERABLE( m_userAlloc->unref == nullptr, "vvdecUnrefBufferCallback not valid, cannot unref picture buffer" )
         m_userAlloc->unref( m_userAlloc->opaque, m_allocator[i] );
       }
       m_origin[i] = nullptr;

@@ -427,7 +427,7 @@ void  IntraPredSampleFilter_SIMD(Pel *ptrSrc,const ptrdiff_t srcStride,PelBuf &p
   const ptrdiff_t dstStride = dstBuf.stride;
 
   const int scale = ((getLog2(iWidth) - 2 + getLog2(iHeight) - 2 + 2) >> 2);
-  CHECK(scale < 0 || scale > 31, "PDPC: scale < 0 || scale > 2");
+  CHECK_RECOVERABLE(scale < 0 || scale > 31, "PDPC: scale < 0 || scale > 2");
 
 #if USE_AVX2
   if( W > 8 )
@@ -601,7 +601,7 @@ void  IntraPredSampleFilter_SIMD(Pel *ptrSrc,const ptrdiff_t srcStride,PelBuf &p
     __m128i vbdmin8   = _mm_set1_epi32( clpRng.min() );
     __m128i vbdmax8   = _mm_set1_epi32( clpRng.max() );
     __m128i wl8start,wl8start2;
-    CHECK(scale < 0 || scale > 2, "PDPC: scale < 0 || scale > 2");
+    CHECK_RECOVERABLE(scale < 0 || scale > 2, "PDPC: scale < 0 || scale > 2");
 
     if (scale==0)
     {
@@ -741,7 +741,7 @@ void  IntraPredSampleFilter_SIMD(Pel *ptrSrc,const ptrdiff_t srcStride,PelBuf &p
             else if( iWidth == 2 )
               x8dst = _mm_loadu_si32( (const __m128i*)( pDst + y * dstStride + x ) );    // load dst
             else
-              CHECK( true, "wrong iWidth in IntraPredSampleFilter_SIMD, only implemented for >=8, ==4, ==2" );
+              CHECK_RECOVERABLE( true, "wrong iWidth in IntraPredSampleFilter_SIMD, only implemented for >=8, ==4, ==2" );
 
 
             tmplo8          = _mm_mullo_epi16( x8left, wl8 );   // wL * left

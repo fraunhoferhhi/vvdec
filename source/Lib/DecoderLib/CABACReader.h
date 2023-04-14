@@ -173,6 +173,7 @@ private:
   BinDecoder      m_BinDecoder;
   InputBitstream* m_Bitstream = nullptr;
   Slice*          m_slice     = nullptr;
+  Partitioner     m_partL, m_partC;
 };
 
 

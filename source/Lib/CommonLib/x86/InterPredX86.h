@@ -852,7 +852,7 @@ void gradFilter_SSE( int16_t* src, ptrdiff_t _srcStride, int width, int height, 
   }
   else
   {
-    CHECK( widthInside != 4, "Width needs to be '4'!" );
+    CHECK_RECOVERABLE( widthInside != 4, "Width needs to be '4'!" );
 
     for( int y = 0; y < ( PAD ? heightInside : 4 ); y++ )
     {

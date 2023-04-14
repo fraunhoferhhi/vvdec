@@ -82,10 +82,8 @@ public:
   void destroy();
 
   void initSlice( int nalUnitLayerId, const PicHeader& picHeader, const VPS* vps );
-  void rspCtu   ( CodingStructure &cs, int col, int ln ) const;
+  void rspCtuBcw( CodingStructure &cs, int col, int ln ) const;
   void rspBufFwd( PelBuf& buf ) const;
-
-  const Pel* getInvLUT() const { return m_invLUT; }
 
   bool getCTUFlag( const Slice& slice ) const;
 

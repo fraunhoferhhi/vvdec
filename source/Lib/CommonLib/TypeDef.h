@@ -736,6 +736,17 @@ enum MsgLevel
   DETAILS = 6
 };
 
+enum ErrHandlingFlags
+{
+  // Keep in sync with vvdecErrHandlingFlags from vvdec.h
+  ERR_HANDLING_OFF          = 0,   // no special internal error-handling besides tuning in to GDR streams
+  ERR_HANDLING_TRY_CONTINUE = 1,   // try to continue decoding after parsing errors or missing pictures
+#if 0
+  // NOT YET IMPLEMENTED
+  ERR_HANDLING_COPY_CLOSEST = 2    // replace missing reference pictures with the closest available picture (otherwise grey frame)
+#endif
+};
+
 // ---------------------------------------------------------------------------
 // exception class
 // ---------------------------------------------------------------------------
@@ -750,10 +761,9 @@ class Exception : public std::exception
 {
 public:
   explicit Exception( const std::string& _s ) : m_str( _s ) {}
-  Exception( const Exception& _e )                          = default;
-  virtual ~Exception() noexcept                             = default;
+  virtual ~Exception() noexcept = default;
+
   virtual const char* what() const noexcept                 { return m_str.c_str(); }
-  Exception& operator=( const Exception& _e )               { std::exception::operator=( _e ); m_str = _e.m_str; return *this; }
   template<typename T> Exception& operator<<( const T& t )  { std::ostringstream oss; oss << t; m_str += oss.str(); return *this; }
 private:
   std::string m_str;
@@ -763,8 +773,8 @@ class RecoverableException : public Exception
 {
 public:
   explicit RecoverableException( const std::string& _s ) : Exception( _s ) {}
-  RecoverableException( const RecoverableException& _e )                   = default;
-  virtual ~RecoverableException() noexcept                                 = default;
+  virtual ~RecoverableException() noexcept = default;
+
   RecoverableException& operator=( const RecoverableException& _e )        { Exception::operator=( _e ); return *this; }
   template<typename T> RecoverableException& operator<<( const T& t )      { Exception::operator<<( t ); return *this; }
 };
@@ -783,10 +793,10 @@ public:
 # define __PRETTY_FUNCTION__ __FUNCSIG__
 #endif
 
-#if !NDEBUG  // for non MSVC compiler, define _DEBUG if in debug mode to have same behavior between MSVC and others in debug
-#ifndef _DEBUG
-#define _DEBUG 1
-#endif
+#if !NDEBUG   // for non MSVC compiler, define _DEBUG if in debug mode to have same behavior between MSVC and others in debug
+#  ifndef _DEBUG
+#    define _DEBUG 1
+#  endif
 #endif
 
 // if a check fails with THROW or CHECK, please check if ported correctly from assert in revision 1196)

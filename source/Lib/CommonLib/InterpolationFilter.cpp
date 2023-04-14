@@ -444,11 +444,11 @@ void InterpolationFilter::filterCopy( const ClpRng& clpRng, const Pel* src, cons
 
     if( biMCForDMVR )
     {
-      int shift10BitOut, offset;
+#if 0 // only relevant for high bit depth
       if( ( clpRng.bd - IF_INTERNAL_PREC_BILINEAR ) > 0 )
       {
-        shift10BitOut = ( clpRng.bd - IF_INTERNAL_PREC_BILINEAR );
-        offset = ( 1 << ( shift10BitOut - 1 ) );
+        int shift10BitOut = ( clpRng.bd - IF_INTERNAL_PREC_BILINEAR );
+        int offset = ( 1 << ( shift10BitOut - 1 ) );
         for( row = 0; row < height; row++ )
         {
           for( col = 0; col < width; col++ )
@@ -460,8 +460,9 @@ void InterpolationFilter::filterCopy( const ClpRng& clpRng, const Pel* src, cons
         }
       }
       else
+#endif
       {
-        shift10BitOut = ( IF_INTERNAL_PREC_BILINEAR - clpRng.bd );
+        int shift10BitOut = ( IF_INTERNAL_PREC_BILINEAR - clpRng.bd );
         for( row = 0; row < height; row++ )
         {
           for( col = 0; col < width; col++ )
@@ -475,11 +476,6 @@ void InterpolationFilter::filterCopy( const ClpRng& clpRng, const Pel* src, cons
     }
     else
     {
-      // template <typename ValueType>
-      // inline ValueType leftShift_round( const ValueType value, const int shift )
-      // {
-      //   return ( shift >= 0 ) ? ( value << shift ) : ( ( value + ( ValueType( 1 ) << ( -shift - 1 ) ) ) >> -shift );
-      // }
       if( shift >= 0 )
       {
         for( row = 0; row < height; row++ )
@@ -502,7 +498,7 @@ void InterpolationFilter::filterCopy( const ClpRng& clpRng, const Pel* src, cons
         {
           for( col = 0; col < width; col++ )
           {
-            Pel val  = ( ( src[col] + 1 ) << shift1 ) >> shift2;
+            Pel val  = ( src[col] + ( 1 << shift1 ) ) >> shift2;
             dst[col] = val - ( Pel ) IF_INTERNAL_OFFS;
           }
 
@@ -516,54 +512,18 @@ void InterpolationFilter::filterCopy( const ClpRng& clpRng, const Pel* src, cons
   {
     const int shift = std::max<int>(2, (IF_INTERNAL_PREC - clpRng.bd));
 
-    if( biMCForDMVR )
+    for( row = 0; row < height; row++ )
     {
-      int shift10BitOut, offset;
-      if( ( clpRng.bd - IF_INTERNAL_PREC_BILINEAR ) > 0 )
+      for( col = 0; col < width; col++ )
       {
-        shift10BitOut = ( clpRng.bd - IF_INTERNAL_PREC_BILINEAR );
-        offset = ( 1 << ( shift10BitOut - 1 ) );
-        for( row = 0; row < height; row++ )
-        {
-          for( col = 0; col < width; col++ )
-          {
-            dst[col] = ( src[col] + offset ) >> shift10BitOut;
-          }
+        Pel val = src[ col ];
+        val = rightShift_round( ( val + IF_INTERNAL_OFFS ), shift );
 
-          INCY( src, srcStride );
-          INCY( dst, dstStride );
-        }
+        dst[ col ] = ClipPel( val, clpRng );
       }
-      else
-      {
-        shift10BitOut = ( IF_INTERNAL_PREC_BILINEAR - clpRng.bd );
-        for( row = 0; row < height; row++ )
-        {
-          for( col = 0; col < width; col++ )
-          {
-            dst[col] = src[col] << shift10BitOut;
-          }
 
-          INCY( src, srcStride );
-          INCY( dst, dstStride );
-        }
-      }
-    }
-    else
-    {
-      for (row = 0; row < height; row++)
-      {
-        for (col = 0; col < width; col++)
-        {
-          Pel val = src[ col ];
-          val = rightShift_round((val + IF_INTERNAL_OFFS), shift);
-
-          dst[col] = ClipPel( val, clpRng );
-        }
-
-        INCY( src, srcStride );
-        INCY( dst, dstStride );
-      }
+      INCY( src, srcStride );
+      INCY( dst, dstStride );
     }
   }
 }
@@ -624,7 +584,7 @@ void InterpolationFilter::filter(const ClpRng& clpRng, const Pel* src, const ptr
   int shift    = IF_FILTER_PREC;
   // with the current settings (IF_INTERNAL_PREC = 14 and IF_FILTER_PREC = 6), though headroom can be
   // negative for bit depths greater than 14, shift will remain non-negative for bit depths of 8->20
-  CHECK(shift < 0, "Negative shift");
+  CHECK_RECOVERABLE(shift < 0, "Negative shift");
 
   if( N == 2 )
   {
@@ -1100,11 +1060,14 @@ void InterpolationFilter::filterHor( const ComponentID compID, const Pel* src, c
 {
   if( frac == 0 && nFilterIdx < 2 )
   {
-    m_filterCopy[true][isLast]( clpRng, src, srcStride, dst, dstStride, width, height, nFilterIdx == 1 );
+    if( isLast )
+      g_pelBufOP.copyBuffer( ( const char* ) src, srcStride * sizeof( Pel ), ( char* ) dst, dstStride * sizeof( Pel ), width * sizeof( Pel ), height );
+    else
+      m_filterCopy[true][isLast]( clpRng, src, srcStride, dst, dstStride, width, height, nFilterIdx == 1 );
   }
   else if( isLuma( compID ) )
   {
-    CHECK( frac < 0 || frac >= LUMA_INTERPOLATION_FILTER_SUB_SAMPLE_POSITIONS, "Invalid fraction" );
+    CHECK_RECOVERABLE( frac < 0 || frac >= LUMA_INTERPOLATION_FILTER_SUB_SAMPLE_POSITIONS, "Invalid fraction" );
 
     if( nFilterIdx == 0 )
     {
@@ -1143,7 +1106,7 @@ void InterpolationFilter::filterHor( const ComponentID compID, const Pel* src, c
   {
     const uint32_t csx = getComponentScaleX( compID, fmt );
 
-    CHECK( frac < 0 || csx >= 2 || ( frac << ( 1 - csx ) ) >= CHROMA_INTERPOLATION_FILTER_SUB_SAMPLE_POSITIONS, "Invalid fraction" );
+    CHECK_RECOVERABLE( frac < 0 || csx >= 2 || ( frac << ( 1 - csx ) ) >= CHROMA_INTERPOLATION_FILTER_SUB_SAMPLE_POSITIONS, "Invalid fraction" );
     
     if( nFilterIdx == 0 )
     {
@@ -1189,7 +1152,7 @@ void InterpolationFilter::filterVer( const ComponentID compID, const Pel* src, c
   }
   else if( isLuma( compID ) )
   {
-    CHECK( frac < 0 || frac >= LUMA_INTERPOLATION_FILTER_SUB_SAMPLE_POSITIONS, "Invalid fraction" );
+    CHECK_RECOVERABLE( frac < 0 || frac >= LUMA_INTERPOLATION_FILTER_SUB_SAMPLE_POSITIONS, "Invalid fraction" );
 
     if( nFilterIdx == 0 )
     {
@@ -1227,7 +1190,7 @@ void InterpolationFilter::filterVer( const ComponentID compID, const Pel* src, c
   else
   {
     const uint32_t csy = getComponentScaleY( compID, fmt );
-    CHECK( frac < 0 || csy >= 2 || ( frac << ( 1 - csy ) ) >= CHROMA_INTERPOLATION_FILTER_SUB_SAMPLE_POSITIONS, "Invalid fraction" );
+    CHECK_RECOVERABLE( frac < 0 || csy >= 2 || ( frac << ( 1 - csy ) ) >= CHROMA_INTERPOLATION_FILTER_SUB_SAMPLE_POSITIONS, "Invalid fraction" );
 
     if( nFilterIdx == 0 )
     {

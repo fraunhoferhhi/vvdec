@@ -102,7 +102,7 @@ void CABACReader::remaining_bytes( bool noTrailingBytesExpected )
 {
   if( noTrailingBytesExpected )
   {
-//    CHECK( 0 != m_Bitstream->getNumBitsLeft(), "Bits left when not supposed" );
+//    CHECK_RECOVERABLE( 0 != m_Bitstream->getNumBitsLeft(), "Bits left when not supposed" );
   }
   else
   {
@@ -133,7 +133,7 @@ bool CABACReader::coding_tree_unit( CodingStructure& cs, Slice* slice, const Uni
   m_slice = slice;
 
   CUCtx cuCtx( qps[CH_L] );
-  Partitioner partitioner;
+  Partitioner &partitioner = m_partL;
 
   partitioner.initCtu( area, CH_L, cs, *m_slice );
   partitioner.treeType = TREE_D;
@@ -148,7 +148,7 @@ bool CABACReader::coding_tree_unit( CodingStructure& cs, Slice* slice, const Uni
   if( partitioner.isDualITree && cs.pcv->chrFormat != CHROMA_400 )
   {
     CUCtx cuCtxC( qps[CH_C] );
-    Partitioner partitionerC;
+    Partitioner &partitionerC = m_partC;
 
     partitionerC.initCtu( area, CH_C, cs, *m_slice );
     partitionerC.treeType = TREE_D;
@@ -428,7 +428,7 @@ void CABACReader::readAlf( CodingStructure& cs, unsigned int ctuRsAddr, const Pa
         if( isChroma( ( ComponentID ) compIdx ) )
         {
           const int apsIdx                  = m_slice->getAlfApsIdChroma();
-          CHECK( m_slice->getAlfAPSs()[apsIdx] == nullptr, "APS not initialized" );
+          CHECK_RECOVERABLE( m_slice->getAlfAPSs()[apsIdx] == nullptr, "APS not initialized" );
           const AlfSliceParam& alfParam     = m_slice->getAlfAPSs()[apsIdx]->getAlfAPSParam();
           const int numAlts                 = alfParam.numAlternativesChroma;
           currAlfData.alfCtuAlternative[compIdx - 1] = 0;
@@ -506,7 +506,7 @@ bool CABACReader::coding_tree( CodingStructure& cs, Partitioner& partitioner, CU
     //decide chroma split or not
     chromaNotSplit = modeTypeParent == MODE_TYPE_ALL && partitioner.modeType == MODE_TYPE_INTRA;
 
-    CHECK( chromaNotSplit && partitioner.chType != CHANNEL_TYPE_LUMA, "chType must be luma" );
+    CHECK_RECOVERABLE( chromaNotSplit && partitioner.chType != CHANNEL_TYPE_LUMA, "chType must be luma" );
 
     if( partitioner.treeType == TREE_D )
     {
@@ -589,7 +589,7 @@ bool CABACReader::coding_tree( CodingStructure& cs, Partitioner& partitioner, CU
     //therefore, after decoding the chroma CU, the cuCtx.qp shall be recovered to luma qp in order to decode next luma cu qp
 //    const CodingUnit* colLumaCu = cs.getLumaCU( lumaRefPos );
     const CodingUnit* colLumaCu = cs.getCU( lumaRefPos, CHANNEL_TYPE_LUMA );
-    CHECK( colLumaCu == nullptr, "colLumaCU shall exist" );
+    CHECK_RECOVERABLE( colLumaCu == nullptr, "colLumaCU shall exist" );
     lumaQPinLocalDualTree = cuCtx.qp;
 
     if( colLumaCu ) cuCtx.qp = colLumaCu->qp;
@@ -1188,7 +1188,7 @@ void CABACReader::cu_bcw_flag(CodingUnit& cu)
     return;
   }
 
-  CHECK(!(BCW_NUM > 1 && (BCW_NUM == 2 || (BCW_NUM & 0x01) == 1)), " !( BCW_NUM > 1 && ( BCW_NUM == 2 || ( BCW_NUM & 0x01 ) == 1 ) ) ");
+  CHECK_RECOVERABLE(!(BCW_NUM > 1 && (BCW_NUM == 2 || (BCW_NUM & 0x01) == 1)), " !( BCW_NUM > 1 && ( BCW_NUM == 2 || ( BCW_NUM & 0x01 ) == 1 ) ) ");
 
   uint32_t idx    = 0;
   uint32_t symbol = m_BinDecoder.decodeBin( Ctx::BcwIdx( 0 ) );
@@ -1826,7 +1826,7 @@ void CABACReader::merge_idx( PredictionUnit& pu )
     const int maxNumGeoCand = pu.sps->getMaxNumGeoCand();
     const int numCandminus2 = maxNumGeoCand - 2;
 
-    CHECK( maxNumGeoCand < 2, "Incorrect max number of geo candidates" );
+    CHECK_RECOVERABLE( maxNumGeoCand < 2, "Incorrect max number of geo candidates" );
 
     int mergeCand0 = 0;
     int mergeCand1 = 0;
@@ -2303,7 +2303,7 @@ void CABACReader::transform_unit( TransformUnit& tu, CUCtx& cuCtx, Partitioner& 
 
 void CABACReader::cu_qp_delta( CodingUnit& cu, int predQP, int8_t& qp )
 {
-  CHECK( predQP == std::numeric_limits<int>::max(), "Invalid predicted QP" );
+  CHECK_RECOVERABLE( predQP == std::numeric_limits<int>::max(), "Invalid predicted QP" );
   int qpY = predQP;
   int DQp = unary_max_symbol( Ctx::DeltaQP(), Ctx::DeltaQP(1), CU_DQP_TU_CMAX );
   if( DQp >= CU_DQP_TU_CMAX )

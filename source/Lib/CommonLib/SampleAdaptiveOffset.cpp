@@ -558,7 +558,7 @@ void SampleAdaptiveOffset::invertQuantOffsets(ComponentID compIdx, int typeIdc, 
     {
       dstOffsets[i] = codedOffset[i] *(1<<m_offsetStepLog2[compIdx]);
     }
-    CHECK(dstOffsets[SAO_CLASS_EO_PLAIN] != 0, "EO offset is not '0'"); //keep EO plain offset as zero
+    CHECK_RECOVERABLE(dstOffsets[SAO_CLASS_EO_PLAIN] != 0, "EO offset is not '0'"); //keep EO plain offset as zero
   }
 
 }
@@ -643,7 +643,7 @@ void SampleAdaptiveOffset::reconstructBlkSAOParam(SAOBlkParam& recParam, SAOBlkP
     case SAO_MODE_MERGE:
       {
         const SAOBlkParam* mergeTarget = mergeList[offsetParam.typeIdc];
-        CHECK(mergeTarget == NULL, "Merge target does not exist");
+        CHECK_RECOVERABLE(mergeTarget == NULL, "Merge target does not exist");
 
         offsetParam = (*mergeTarget)[component];
       }
@@ -685,14 +685,14 @@ void SampleAdaptiveOffset::offsetCTU( const UnitArea& area, const CPelUnitBuf& s
   int  verVirBndryPos[]     = { -1, -1, -1 };
   int  horVirBndryPosComp[] = { -1, -1, -1 };
   int  verVirBndryPosComp[] = { -1, -1, -1 };
-  bool isCtuCrossedByVirtualBoundaries = isCrossedByVirtualBoundaries( cs.picHeader,
-                                                                             area.Y(),
-                                                                             numHorVirBndry, numVerVirBndry,
-                                                                             horVirBndryPos, verVirBndryPos );
+  bool isCtuCrossedByVirtualBoundaries = isCrossedByVirtualBoundaries( cs.picHeader.get(),
+                                                                       area.Y(),
+                                                                       numHorVirBndry, numVerVirBndry,
+                                                                       horVirBndryPos, verVirBndryPos );
   if( isCtuCrossedByVirtualBoundaries )
   {
-    CHECK( numHorVirBndry >= (int)( sizeof(horVirBndryPos) / sizeof(horVirBndryPos[0]) ), "Too many virtual boundaries" );
-    CHECK( numHorVirBndry >= (int)( sizeof(verVirBndryPos) / sizeof(verVirBndryPos[0]) ), "Too many virtual boundaries" );
+    CHECK_RECOVERABLE( numHorVirBndry >= (int)( sizeof(horVirBndryPos) / sizeof(horVirBndryPos[0]) ), "Too many virtual boundaries" );
+    CHECK_RECOVERABLE( numHorVirBndry >= (int)( sizeof(verVirBndryPos) / sizeof(verVirBndryPos[0]) ), "Too many virtual boundaries" );
   }
 
   for(int compIdx = 0; compIdx < numberOfComponents; compIdx++)

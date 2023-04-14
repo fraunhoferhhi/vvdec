@@ -218,6 +218,9 @@ void ThreadPool::threadProc( int threadId )
           }
           else if (std::chrono::steady_clock::now() - startWait > std::chrono::milliseconds(500))
           {
+#if THREAD_POOL_TASK_NAMES
+            printWaitingTasks();
+#endif
             m_poolPause.pauseIfAllOtherThreadsWaiting();
           }
           else
@@ -302,11 +305,6 @@ ThreadPool::TaskIterator ThreadPool::findNextTask( int threadId, TaskIterator st
         task.state = WAITING;
       }
     }
-    catch( RecoverableException& e )
-    {
-      // convert a RecoverableException to a normal Exception, when coming from within the thread pool.
-      throw TaskException( std::make_exception_ptr<Exception>( e ), *it );
-    }
     catch( ... )
     {
       throw TaskException( std::current_exception(), *it );
@@ -334,11 +332,6 @@ bool ThreadPool::processTask( int threadId, ThreadPool::Slot& task )
     {
       --(*task.counter);
     }
-  }
-  catch( RecoverableException& e )
-  {
-    // convert a RecoverableException to a normal Exception, when coming from within the thread pool.
-    throw TaskException( std::make_exception_ptr<Exception>( e ), task );
   }
   catch( ... )
   {
@@ -400,6 +393,14 @@ void ThreadPool::handleTaskException( const std::exception_ptr e, Barrier* done,
   if( counter != nullptr )
   {
     counter->setException( e );
+    // Barrier::unlock() in the decrement operator throws, when the counter reaches zero, so we catch it here
+    try
+    {
+      --( *counter );
+    }
+    catch( ... )
+    {
+    }
   }
 
   if( slot_state != nullptr )
@@ -407,6 +408,23 @@ void ThreadPool::handleTaskException( const std::exception_ptr e, Barrier* done,
     *slot_state = FREE;
   }
 }
+
+#if THREAD_POOL_TASK_NAMES
+void ThreadPool::printWaitingTasks()
+{
+  std::cerr << "Waiting tasks:" << std::endl;
+  int count = 0;
+  for( auto& t: m_tasks )
+  {
+    if( t.state == WAITING )
+    {
+      ++count;
+      std::cerr << t.taskName << std::endl;
+    }
+  }
+  std::cerr << std::endl << count << " total tasks waiting" << std::endl;
+}
+#endif  // THREAD_POOL_TASK_NAMES
 
 // ---------------------------------------------------------------------------
 // Chunked Task Queue

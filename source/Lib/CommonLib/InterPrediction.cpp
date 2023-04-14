@@ -622,7 +622,7 @@ void InterPrediction::xPredInterUni( const PredictionUnit &pu, const RefPicList 
 
   if( affine )
   {
-    CHECK( iRefIdx < 0, "iRefIdx incorrect." );
+    CHECK_RECOVERABLE( iRefIdx < 0, "iRefIdx incorrect." );
 
     mv[0] = pu.mv[eRefPicList][0];
     mv[1] = pu.mv[eRefPicList][1];
@@ -632,7 +632,7 @@ void InterPrediction::xPredInterUni( const PredictionUnit &pu, const RefPicList 
   {
     mv[0] = pu.mv[eRefPicList][0];
 
-    CHECK( !refPic, "xPredInterUni missing ref pic" );
+    CHECK_RECOVERABLE( !refPic, "xPredInterUni missing ref pic" );
 
     if( !isIBC && !scaled )
     {
@@ -651,7 +651,7 @@ void InterPrediction::xPredInterUni( const PredictionUnit &pu, const RefPicList 
 
     if( affine )
     {
-      CHECK( bioApplied, "BIO is not allowed with affine" );
+      CHECK_RECOVERABLE( bioApplied, "BIO is not allowed with affine" );
       m_iRefListIdx = eRefPicList;
       xPredAffineBlk( compID, pu, refPic, eRefPicList, pcYuvPred, bi, pu.slice->clpRng( compID ), pu.slice->getScalingRatio( eRefPicList, iRefIdx ) );
     }
@@ -751,7 +751,7 @@ void InterPrediction::xPredInterBlk( const ComponentID&    compID,
                                      Pel*                  srcPadBuf,
                                      ptrdiff_t             srcPadStride )
 {
-  CHECK( srcPadBuf == NULL && altSrc, "wrong" );
+  CHECK_RECOVERABLE( srcPadBuf == NULL && altSrc, "wrong" );
   
   const ChromaFormat  chFmt = pu.chromaFormat;
   const bool          rndRes = !bi;
@@ -1336,7 +1336,7 @@ void InterPrediction::xWeightedAverage(const PredictionUnit& pu, const PelUnitBu
 
   if( pu.BcwIdx() != BCW_DEFAULT && !pu.ciipFlag() )
   {
-    CHECK( bioApplied, "Bcw is disallowed with BIO" );
+    CHECK_RECOVERABLE( bioApplied, "Bcw is disallowed with BIO" );
     pcYuvDst.addWeightedAvg( pcYuvSrc0, pcYuvSrc1, clpRngs, g_BcwInternBcw[pu.BcwIdx()] );
     return;
   }
@@ -1366,7 +1366,7 @@ void InterPrediction::motionCompensation( PredictionUnit &pu, PelUnitBuf &predBu
 
   if( CU::isIBC( pu ) )
   {
-    CHECK( !luma, "IBC only for Chroma is not allowed." );
+    CHECK_RECOVERABLE( !luma, "IBC only for Chroma is not allowed." );
     xIntraBlockCopy( pu, predBuf, COMPONENT_Y );
     if( chroma )
     {
@@ -2172,7 +2172,7 @@ void InterPrediction::xPredInterBlkRPR( const std::pair<int, int>& scalingRatio,
   int refHeight = ((((int32_t)y0Int + (height-1) * stepY) + offY ) >> posShift) - ((((int32_t)y0Int + 0 * stepY) + offY ) >> posShift) + 1;
   refHeight = std::max<int>( 1, refHeight );
   
-  CHECK( MAX_CU_SIZE * MAX_SCALING_RATIO < refHeight + vFilterSize - 1 + extSize, "Buffer size is not enough, increase MAX_SCALING_RATIO" );
+  CHECK_RECOVERABLE( MAX_CU_SIZE * MAX_SCALING_RATIO < refHeight + vFilterSize - 1 + extSize, "Buffer size is not enough, increase MAX_SCALING_RATIO" );
 
   Pel buffer[( MAX_CU_SIZE + 16 ) * ( MAX_CU_SIZE * MAX_SCALING_RATIO + 16 )];
 
@@ -2188,7 +2188,7 @@ void InterPrediction::xPredInterBlkRPR( const std::pair<int, int>& scalingRatio,
     xInt = std::min( std::max( -(NTAPS_LUMA / 2), xInt ), ( refPicWidth >> getComponentScaleX( compID, chFmt ) ) + (NTAPS_LUMA / 2) );
     int xFrac = ( ( posX + offX ) >> ( posShift - shiftHor ) ) & ( ( 1 << shiftHor ) - 1 );
 
-    CHECK( xInt0 > xInt, "Wrong horizontal starting point" );
+    CHECK_RECOVERABLE( xInt0 > xInt, "Wrong horizontal starting point" );
 
     refPtr    = refBuf.bufAt( xInt, yInt0 );
     refStride = refBuf.stride;
@@ -2203,7 +2203,7 @@ void InterPrediction::xPredInterBlkRPR( const std::pair<int, int>& scalingRatio,
     yInt = std::min( std::max( -(NTAPS_LUMA / 2), yInt ), ( refPicHeight >> getComponentScaleY( compID, chFmt ) ) + (NTAPS_LUMA / 2) );
     int yFrac = ( ( posY + offY ) >> ( posShift - shiftVer ) ) & ( ( 1 << shiftVer ) - 1 );
 
-    CHECK( yInt0 > yInt, "Wrong vertical starting point" );
+    CHECK_RECOVERABLE( yInt0 > yInt, "Wrong vertical starting point" );
 
     m_if.filterVer( compID, GET_OFFSETY( buffer, tmpStride, ( yInt - yInt0 ) + ( ( vFilterSize >> 1 ) - 1 ) ), tmpStride, dst + row * dstStride, dstStride, width, 1, yFrac, false, rndRes, chFmt, clpRng, yFilter, useAltHpelIf && scalingRatio.second == 1 << SCALE_RATIO_BITS );
   }

@@ -128,9 +128,9 @@ static inline void xBilinearFilter( Pel* srcP, Pel* srcQ, ptrdiff_t offset, int 
 
 void xFilteringPandQCore( Pel* src, ptrdiff_t step, const ptrdiff_t offset, int numberPSide, int numberQSide, int tc )
 {
-  CHECK( numberPSide <= 3 && numberQSide <= 3, "Short filtering in long filtering function" );
-  CHECK( numberPSide != 3 && numberPSide != 5 && numberPSide != 7, "invalid numberPSide" );
-  CHECK( numberQSide != 3 && numberQSide != 5 && numberQSide != 7, "invalid numberQSide" );
+  CHECK_RECOVERABLE( numberPSide <= 3 && numberQSide <= 3, "Short filtering in long filtering function" );
+  CHECK_RECOVERABLE( numberPSide != 3 && numberPSide != 5 && numberPSide != 7, "invalid numberPSide" );
+  CHECK_RECOVERABLE( numberQSide != 3 && numberQSide != 5 && numberQSide != 7, "invalid numberQSide" );
 
   const int*       dbCoeffsP    = numberPSide == 7 ? dbCoeffs7 : ( numberPSide == 5 ) ? dbCoeffs5 : dbCoeffs3;
   const int*       dbCoeffsQ    = numberQSide == 7 ? dbCoeffs7 : ( numberQSide == 5 ) ? dbCoeffs5 : dbCoeffs3;
@@ -442,43 +442,60 @@ void LoopFilter::xDeblockCtuArea( CodingStructure& cs, const UnitArea& area, con
   const int csx = getChannelTypeScaleX( CH_C, pcv.chrFormat );
   const int csy = getChannelTypeScaleY( CH_C, pcv.chrFormat );
 
-  LoopFilterParam const* lfpPtr = cs.getLFPMapPtr( edgeDir, cs.ctuRsAddr( area.Y().pos(), CH_L ) );
-  ptrdiff_t lfpStride           = cs.get4x4MapStride();
+  const ptrdiff_t lfpStride = cs.get4x4MapStride();
 
   const Position lumaPos = area.lumaPos();
   const Position chrmPos = doChroma ? area.chromaPos() : lumaPos;
 
-  for( int dy = 0, cdy = 0; dy < area.lheight(); dy += incy, cdy += ( incy >> csy ) )
+  if( doLuma )
   {
-    LoopFilterParam const* lineLfpPtr = lfpPtr;
-    
-    const int dyInCtu = ( chrmPos.y + cdy ) & ( pcv.maxCUHeightMask >> csy );
+    LoopFilterParam const* lfpPtr = cs.getLFPMapPtr( edgeDir, cs.ctuRsAddr( area.Y().pos(), CH_L ) );
 
-    for( int dx = 0, cdx = 0; dx < area.lwidth(); dx += incx, cdx += ( incx >> csx ) )
+    for( int dy = 0; dy < area.lheight(); dy += incy )
     {
-      const uint8_t bs = lineLfpPtr->bs;
+      LoopFilterParam const* lineLfpPtr = lfpPtr;
+    
+      for( int dx = 0; dx < area.lwidth(); dx += incx, lineLfpPtr++ )
+      {
+        const uint8_t bs = lineLfpPtr->bs;
 
-      if( !doLuma || BsGet( bs, COMPONENT_Y ) == 0 )
-      {
-      }
-      else
-      {
-        xEdgeFilterLuma<edgeDir>( cs, { lumaPos.x + dx, lumaPos.y + dy }, *lineLfpPtr, slice );
-      }
-        
-      const int dxInCtu = ( chrmPos.x + cdx ) & ( pcv.maxCUWidthMask >> csx );
-
-      if( doChroma
-          && ( ( ( edgeDir == EDGE_VER ? dxInCtu : dyInCtu ) & ( DEBLOCK_SMALLEST_BLOCK - 1 ) ) == 0 )
-          && ( BsGet( bs, COMPONENT_Cb ) | BsGet( bs, COMPONENT_Cr ) ) )
-      {
-        xEdgeFilterChroma<edgeDir>( cs, { chrmPos.x + cdx, chrmPos.y + cdy }, *lineLfpPtr, slice );
+        if( BsGet( bs, COMPONENT_Y ) )
+        {
+          xEdgeFilterLuma<edgeDir>( cs, { lumaPos.x + dx, lumaPos.y + dy }, *lineLfpPtr, slice );
+        }
       }
 
-      OFFSETX( lineLfpPtr, lfpStride, 1 );
+      OFFSETY( lfpPtr, lfpStride, 1 );
     }
+  }
 
-    OFFSETY( lfpPtr, lfpStride, 1 );
+  if( doChroma )
+  {
+    LoopFilterParam const* lfpPtr = cs.getLFPMapPtr( edgeDir, cs.ctuRsAddr( area.Y().pos(), CH_L ) );
+
+    const int cincy = edgeDir == EDGE_VER ? ( incy >> csy )
+                                          : ( ( DEBLOCK_SMALLEST_BLOCK << csy ) / incy * ( incy >> csy ) );
+    const int cincx = edgeDir == EDGE_HOR ? ( incx >> csx )
+                                          : ( ( DEBLOCK_SMALLEST_BLOCK << csx ) / incx * ( incx >> csx ) );
+    const int cstepy = cincy / ( incy >> csy );
+    const int cstepx = cincx / ( incx >> csx );
+
+    for( int cdy = 0; cdy < area.chromaSize().height; cdy += cincy )
+    {
+      LoopFilterParam const* lineLfpPtr = lfpPtr;
+
+      for( int cdx = 0; cdx < area.chromaSize().width; cdx += cincx, lineLfpPtr += cstepx )
+      {
+        const uint8_t bs = lineLfpPtr->bs;
+
+        if( BsGet( bs, COMPONENT_Cb ) | BsGet( bs, COMPONENT_Cr ) )
+        {
+          xEdgeFilterChroma<edgeDir>( cs, { chrmPos.x + cdx, chrmPos.y + cdy }, *lineLfpPtr, slice );
+        }
+      }
+
+      OFFSETY( lfpPtr, lfpStride, cstepy );
+    }
   }
 }
 
@@ -503,14 +520,14 @@ void LoopFilter::calcFilterStrengths( const CodingUnit& cu ) const
   const uint8_t channelScaleX = getChannelTypeScaleX( cu.chType(), cu.chromaFormat );
   const uint8_t channelScaleY = getChannelTypeScaleY( cu.chType(), cu.chromaFormat );
 
-  const bool isCuCrossedByVirtualBoundaries = isCrossedByVirtualBoundaries( cu.cs->picHeader,
+  const bool isCuCrossedByVirtualBoundaries = isCrossedByVirtualBoundaries( cu.cs->picHeader.get(),
                                                                             Area( area.x << channelScaleX, area.y << channelScaleY, area.width << channelScaleX, area.height << channelScaleY ),
                                                                             numHorVirBndry, numVerVirBndry,
                                                                             horVirBndryPos, verVirBndryPos );
   if( isCuCrossedByVirtualBoundaries )
   {
-    CHECK( numHorVirBndry >= (int)( sizeof(horVirBndryPos) / sizeof(horVirBndryPos[0]) ), "Too many virtual boundaries" );
-    CHECK( numHorVirBndry >= (int)( sizeof(verVirBndryPos) / sizeof(verVirBndryPos[0]) ), "Too many virtual boundaries" );
+    CHECK_RECOVERABLE( numHorVirBndry >= (int)( sizeof(horVirBndryPos) / sizeof(horVirBndryPos[0]) ), "Too many virtual boundaries" );
+    CHECK_RECOVERABLE( numHorVirBndry >= (int)( sizeof(verVirBndryPos) / sizeof(verVirBndryPos[0]) ), "Too many virtual boundaries" );
   }
   
 
@@ -556,7 +573,7 @@ void LoopFilter::calcFilterStrengths( const CodingUnit& cu ) const
 
   if( ( currPU.mergeFlag() && currPU.mergeType() == MRG_TYPE_SUBPU_ATMVP ) || currPU.affineFlag() )
   {
-    CHECK( cu.chType() != CH_L, "This path is only valid for single tree blocks!" );
+    CHECK_RECOVERABLE( cu.chType() != CH_L, "This path is only valid for single tree blocks!" );
 
     for( int off = subBlockSize; off < areaPu.width; off += subBlockSize )
     {
@@ -1295,8 +1312,8 @@ void LoopFilter::xGetBoundaryStrengthSingle( LoopFilterParam& lfp, const CodingU
   }
 
   // pcSlice->isInterP()
-  CHECK( CU::isInter( cuP ) && isMotionInvalid( miP.miRefIdx[0], MI_NOT_VALID ), "Invalid reference picture list index" );
-  CHECK( CU::isInter( cuP ) && isMotionInvalid( miQ.miRefIdx[0], MI_NOT_VALID ), "Invalid reference picture list index" );
+  CHECK_RECOVERABLE( CU::isInter( cuP ) && isMotionInvalid( miP.miRefIdx[0], MI_NOT_VALID ), "Invalid reference picture list index" );
+  CHECK_RECOVERABLE( CU::isInter( cuP ) && isMotionInvalid( miQ.miRefIdx[0], MI_NOT_VALID ), "Invalid reference picture list index" );
 
   const Picture *piRefP0 = ( CU::isIBC( cuP ) ? sliceP.getPic() : sliceP.getRefPic( REF_PIC_LIST_0, miP.miRefIdx[0] ) );
   const Picture *piRefQ0 = ( CU::isIBC( cuQ ) ? sliceQ.getPic() : sliceQ.getRefPic( REF_PIC_LIST_0, miQ.miRefIdx[0] ) );

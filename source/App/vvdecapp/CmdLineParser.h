@@ -94,6 +94,7 @@ public:
 #elif VVDEC_ARCH_WASM
       std::cout << "\t\t [--simd <int>              ] : used simd extension (-1: auto, 0: scalar, 1: wasm-simd) (default: -1)" << std::endl;
 #endif
+      std::cout << "\t\t [--errHandling,-eh <int>   ] : error handling flags ( 0: off, 1: try continue ) (default: " << rcParams.errHandlingFlags << ")" << std::endl;
     }
     std::cout <<   std::endl;
     if( fullHelp )
@@ -375,6 +376,20 @@ public:
           };
           fprintf( stdout, "[simd] : %s\n", cll );
         }
+      }
+      else if( (!strcmp( argv[i_arg], "-eh" )) || !strcmp( argv[i_arg], "--errHandling" ) )
+      {
+        if( i_arg == argc-1 ){ fprintf( stderr, " - missing argument for: %s \n", argv[i_arg] ); return -1; }
+        i_arg++;
+
+        const int err_handle_flags = atoi( argv[i_arg++] );
+        if( err_handle_flags < 0 || err_handle_flags > VVDEC_ERR_HANDLING_TRY_CONTINUE )
+        {
+          fprintf( stderr, " - unsupported error handling flags. Should be between 0 and %i.\n", VVDEC_ERR_HANDLING_TRY_CONTINUE );
+          return -1;
+        }
+
+        rcParams.errHandlingFlags = vvdecErrHandlingFlags( err_handle_flags );
       }
 #ifdef ENABLE_TRACING
       else if( !strcmp( (const char*)argv[i_arg], "--TraceFile" ) || !strcmp( (const char*)argv[i_arg], "-tf" ) )

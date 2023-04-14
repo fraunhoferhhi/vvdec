@@ -64,9 +64,15 @@ static __itt_string_handle* itt_handle_TPaddTask  = __itt_string_handle_create( 
 // static long itt_TP_blocked = 1;
 #endif   // TRACE_ENABLE_ITT
 
+#define THREAD_POOL_ADD_TASK_THREAD_SAFE 0   // enable this if tasks need to be added from mutliple threads
+#define THREAD_POOL_TASK_NAMES           0   // simplify debugging of thread pool deadlocks
 
-// enable this if tasks need to be added from mutliple threads
-#define ADD_TASK_THREAD_SAFE 0
+#if THREAD_POOL_TASK_NAMES
+#  define TP_TASK_NAME_ARG( ... ) __VA_ARGS__ ,
+#else
+#  define TP_TASK_NAME_ARG( ... )
+#endif
+
 
 // ---------------------------------------------------------------------------
 // Synchronization tools
@@ -93,6 +99,23 @@ struct Barrier
     checkAndRethrowException();
 
     return m_lockState;
+  }
+
+  enum State
+  {
+    unlocked,
+    locked,
+    error
+  };
+
+  State getState() const
+  {
+    if( m_hasException )
+      return error;
+
+    if( m_lockState )
+      return locked;
+    return unlocked;
   }
 
   virtual void setException( std::exception_ptr e )
@@ -251,6 +274,12 @@ struct WaitCounter
     m_done.checkAndRethrowException();
   }
 
+  void wait_nothrow() const
+  {
+    std::unique_lock<std::mutex> l( m_lock );
+    m_cond.wait( l, [=] { return m_count == 0; } );
+  }
+
   void setException( std::exception_ptr e )
   {
     std::unique_lock<std::mutex> l( m_lock );
@@ -350,6 +379,9 @@ class ThreadPool
     Barrier*               done      { nullptr };
     CBarrierVec            barriers;
     std::atomic<TaskState> state     { FREE };
+#if THREAD_POOL_TASK_NAMES
+    std::string            taskName;
+#endif
   };
 
   class ChunkedTaskQueue
@@ -415,7 +447,8 @@ public:
   ~ThreadPool();
 
   template<class TParam>
-  bool addBarrierTask( bool       ( *func )( int, TParam* ),
+  bool addBarrierTask( TP_TASK_NAME_ARG( std::string&& taskName )
+                       bool       ( *func )( int, TParam* ),
                        TParam*       param,
                        WaitCounter*  counter                      = nullptr,
                        Barrier*      done                         = nullptr,
@@ -437,13 +470,13 @@ public:
 
     while( true )
     {
-#if ADD_TASK_THREAD_SAFE
+#if THREAD_POOL_ADD_TASK_THREAD_SAFE
       std::unique_lock<std::mutex> l(m_nextFillSlotMutex);
 #endif
       CHECKD( !m_nextFillSlot.isValid(), "Next fill slot iterator should always be valid" );
       const auto startIt = m_nextFillSlot;
 
-#if ADD_TASK_THREAD_SAFE
+#if THREAD_POOL_ADD_TASK_THREAD_SAFE
       l.unlock();
 #endif
 
@@ -467,9 +500,12 @@ public:
           t.done       = done;
           t.counter    = counter;
           t.barriers   = std::move( barriers );
+#if THREAD_POOL_TASK_NAMES
+          t.taskName   = std::move( taskName );
+#endif
           t.state      = WAITING;
 
-#if ADD_TASK_THREAD_SAFE
+#if THREAD_POOL_ADD_TASK_THREAD_SAFE
           l.lock();
 #endif
           m_nextFillSlot.incWrap();
@@ -478,7 +514,7 @@ public:
         }
       }
 
-#if ADD_TASK_THREAD_SAFE
+#if THREAD_POOL_ADD_TASK_THREAD_SAFE
       l.lock();
 #endif
       m_nextFillSlot = m_tasks.grow();
@@ -504,7 +540,7 @@ private:
   std::vector<std::thread> m_threads;
   ChunkedTaskQueue         m_tasks;
   TaskIterator             m_nextFillSlot = m_tasks.begin();
-#if ADD_TASK_THREAD_SAFE
+#if THREAD_POOL_ADD_TASK_THREAD_SAFE
   std::mutex               m_nextFillSlotMutex;
 #endif
   std::mutex               m_idleMutex;
@@ -521,6 +557,9 @@ private:
   static bool  processTask    ( int threadId, Slot& task );
   bool         bypassTaskQueue( TaskFunc func, void* param, WaitCounter* counter, Barrier* done, CBarrierVec& barriers, TaskFunc readyCheck );
   static void  handleTaskException( const std::exception_ptr e, Barrier* done, WaitCounter* counter, std::atomic<TaskState>* slot_state );
+#if THREAD_POOL_TASK_NAMES
+  void         printWaitingTasks();
+#endif
 };
 
 }

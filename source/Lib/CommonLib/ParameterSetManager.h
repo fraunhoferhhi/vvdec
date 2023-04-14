@@ -76,7 +76,7 @@ public:
 
   void storePS( int psId, T* ps, const std::vector<uint8_t>* pNaluData )
   {
-    CHECK( psId >= MAX_ID, "Invalid PS id" );
+    CHECK_RECOVERABLE( psId >= MAX_ID, "Invalid PS id" );
     if( m_paramsetMap.find( psId ) != m_paramsetMap.end() )
     {
       MapData& mapData   = m_paramsetMap[psId];
@@ -132,14 +132,16 @@ public:
   T* getPS( int psId )
   {
     T* ps = getPS_nothrow( psId );
-    CHECK_RECOVERABLE( !ps, "Missing Parameter Set (id:" << ( psId >> ( std::is_same<T, APS>::value ? NUM_APS_TYPE_LEN : 0 ) ) << ')' );
+    constexpr static int apsIdShift = std::is_same<T, APS>::value ? NUM_APS_TYPE_LEN : 0;
+    CHECK_RECOVERABLE( !ps, "Missing Parameter Set (id:" << ( psId >> apsIdShift ) << ')' );
     return ps;
   }
 
   const T* getPS( int psId ) const
   {
     const T* ps = getPS_nothrow( psId );
-    CHECK_RECOVERABLE( !ps, "Missing Parameter Set (id:" << ( psId >> ( std::is_same<T, APS>::value ? NUM_APS_TYPE_LEN : 0 ) ) << ')' );
+    constexpr static int apsIdShift = std::is_same<T, APS>::value ? NUM_APS_TYPE_LEN : 0;
+    CHECK_RECOVERABLE( !ps, "Missing Parameter Set (id:" << ( psId >> apsIdShift ) << ')' );
     return ps;
   }
 

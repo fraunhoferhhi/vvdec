@@ -65,20 +65,20 @@ namespace vvdec
  */
 class InterpolationFilter
 {
-  static const TFilterCoeff m_lumaFilter4x4[LUMA_INTERPOLATION_FILTER_SUB_SAMPLE_POSITIONS][NTAPS_LUMA];
+  static const TFilterCoeff m_lumaFilter4x4       [LUMA_INTERPOLATION_FILTER_SUB_SAMPLE_POSITIONS]  [NTAPS_LUMA];
 public:
-  static const TFilterCoeff m_lumaFilter[LUMA_INTERPOLATION_FILTER_SUB_SAMPLE_POSITIONS][NTAPS_LUMA]; ///< Luma filter taps
-  static const TFilterCoeff m_chromaFilter[CHROMA_INTERPOLATION_FILTER_SUB_SAMPLE_POSITIONS][NTAPS_CHROMA]; ///< Chroma filter taps
-  static const TFilterCoeff m_lumaFilterRPR1[LUMA_INTERPOLATION_FILTER_SUB_SAMPLE_POSITIONS][NTAPS_LUMA]; ///< Luma filter taps 1.5x
-  static const TFilterCoeff m_lumaFilterRPR2[LUMA_INTERPOLATION_FILTER_SUB_SAMPLE_POSITIONS][NTAPS_LUMA]; ///< Luma filter taps 2x
-  static const TFilterCoeff m_chromaFilterRPR1[CHROMA_INTERPOLATION_FILTER_SUB_SAMPLE_POSITIONS][NTAPS_CHROMA]; ///< Chroma filter taps 1.5x
-  static const TFilterCoeff m_chromaFilterRPR2[CHROMA_INTERPOLATION_FILTER_SUB_SAMPLE_POSITIONS][NTAPS_CHROMA]; ///< Chroma filter taps 2x
-  static const TFilterCoeff m_affineLumaFilterRPR1[LUMA_INTERPOLATION_FILTER_SUB_SAMPLE_POSITIONS][NTAPS_LUMA]; ///< Luma filter taps 1.5x
-  static const TFilterCoeff m_affineLumaFilterRPR2[LUMA_INTERPOLATION_FILTER_SUB_SAMPLE_POSITIONS][NTAPS_LUMA]; ///< Luma filter taps 2x
+  static const TFilterCoeff m_lumaFilter          [LUMA_INTERPOLATION_FILTER_SUB_SAMPLE_POSITIONS]  [NTAPS_LUMA]; ///< Luma filter taps
+  static const TFilterCoeff m_chromaFilter        [CHROMA_INTERPOLATION_FILTER_SUB_SAMPLE_POSITIONS][NTAPS_CHROMA]; ///< Chroma filter taps
+  static const TFilterCoeff m_lumaFilterRPR1      [LUMA_INTERPOLATION_FILTER_SUB_SAMPLE_POSITIONS]  [NTAPS_LUMA]; ///< Luma filter taps 1.5x
+  static const TFilterCoeff m_lumaFilterRPR2      [LUMA_INTERPOLATION_FILTER_SUB_SAMPLE_POSITIONS]  [NTAPS_LUMA]; ///< Luma filter taps 2x
+  static const TFilterCoeff m_chromaFilterRPR1    [CHROMA_INTERPOLATION_FILTER_SUB_SAMPLE_POSITIONS][NTAPS_CHROMA]; ///< Chroma filter taps 1.5x
+  static const TFilterCoeff m_chromaFilterRPR2    [CHROMA_INTERPOLATION_FILTER_SUB_SAMPLE_POSITIONS][NTAPS_CHROMA]; ///< Chroma filter taps 2x
+  static const TFilterCoeff m_affineLumaFilterRPR1[LUMA_INTERPOLATION_FILTER_SUB_SAMPLE_POSITIONS]  [NTAPS_LUMA]; ///< Luma filter taps 1.5x
+  static const TFilterCoeff m_affineLumaFilterRPR2[LUMA_INTERPOLATION_FILTER_SUB_SAMPLE_POSITIONS]  [NTAPS_LUMA]; ///< Luma filter taps 2x
 private:
-  static const TFilterCoeff m_lumaAltHpelIFilter[NTAPS_LUMA]; ///< Luma filter taps
-  static const TFilterCoeff m_bilinearFilter[LUMA_INTERPOLATION_FILTER_SUB_SAMPLE_POSITIONS][NTAPS_BILINEAR]; ///< bilinear filter taps
-  static const TFilterCoeff m_bilinearFilterPrec4[LUMA_INTERPOLATION_FILTER_SUB_SAMPLE_POSITIONS][NTAPS_BILINEAR]; ///< bilinear filter taps
+  static const TFilterCoeff m_lumaAltHpelIFilter                                                    [NTAPS_LUMA]; ///< Luma filter taps
+  static const TFilterCoeff m_bilinearFilter      [LUMA_INTERPOLATION_FILTER_SUB_SAMPLE_POSITIONS]  [NTAPS_BILINEAR]; ///< bilinear filter taps
+  static const TFilterCoeff m_bilinearFilterPrec4 [LUMA_INTERPOLATION_FILTER_SUB_SAMPLE_POSITIONS]  [NTAPS_BILINEAR]; ///< bilinear filter taps
 public:
   template<bool isFirst, bool isLast>
   static void filterCopy(const ClpRng& clpRng, const Pel* src, const ptrdiff_t srcStride, Pel* dst, const ptrdiff_t dstStride, int width, int height, bool biMCForDMVR );

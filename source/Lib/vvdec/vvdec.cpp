@@ -58,14 +58,15 @@ VVDEC_DECL void vvdec_params_default(vvdecParams *params)
     return;
   }
 
-  params->threads                      = -1;                   // thread count        ( default: -1 )
-  params->parseThreads                 = -1;                   // parser thread count ( default: -1 )
-  params->upscaleOutput                = VVDEC_UPSCALING_OFF;  // do internal upscaling of rpr pictures to dest. resolution ( default: off )
-  params->logLevel                     = VVDEC_WARNING;        // verbosity level
-  params->verifyPictureHash            = false;                // verify picture, if digest is available, true: check hash in SEI messages if available, false: ignore SEI message
-  params->removePadding                = false;                // copy output pictures to new buffer to remove padding (stride==width)
-  params->simd                         = VVDEC_SIMD_DEFAULT;   // set specific simd optimization (default: max. availalbe)
-  params->opaque                       = nullptr;              // opaque pointer for private user data ( can be used to carry caller specific data or contexts )
+  params->threads           = -1;                       // thread count        ( default: -1 )
+  params->parseThreads      = -1;                       // parser thread count ( default: -1 )
+  params->upscaleOutput     = VVDEC_UPSCALING_OFF;      // do internal upscaling of rpr pictures to dest. resolution ( default: off )
+  params->logLevel          = VVDEC_WARNING;            // verbosity level
+  params->verifyPictureHash = false;                    // verify picture, if digest is available, true: check hash in SEI messages if available, false: ignore SEI message
+  params->removePadding     = false;                    // copy output pictures to new buffer to remove padding (stride==width)
+  params->opaque            = nullptr;                  // opaque pointer for private user data ( can be used to carry caller specific data or contexts )
+  params->simd              = VVDEC_SIMD_DEFAULT;       // set specific simd optimization (default: max. availalbe)
+  params->errHandlingFlags  = VVDEC_ERR_HANDLING_OFF;   // no special error handling
 }
 
 VVDEC_DECL vvdecParams* vvdec_params_alloc()
@@ -301,6 +302,8 @@ VVDEC_DECL int vvdec_set_logging_callback(vvdecDecoder* dec, vvdecLoggingCallbac
 
 VVDEC_DECL int vvdec_decode( vvdecDecoder *dec, vvdecAccessUnit* accessUnit, vvdecFrame** frame )
 {
+  *frame = nullptr;
+
   auto d = (vvdec::VVDecImpl*)dec;
   if (!d)
   {
@@ -318,6 +321,8 @@ VVDEC_DECL int vvdec_decode( vvdecDecoder *dec, vvdecAccessUnit* accessUnit, vvd
 
 VVDEC_DECL int vvdec_flush( vvdecDecoder *dec, vvdecFrame **frame )
 {
+  *frame = nullptr;
+
   auto d = (vvdec::VVDecImpl*)dec;
   if (!d)
   {

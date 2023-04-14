@@ -801,35 +801,30 @@ class SliceMap
 {
 private:
   uint32_t               m_sliceID         = 0;               //!< slice identifier (slice index for rectangular slices, slice address for raser-scan slices)
-  uint32_t               m_numTilesInSlice = 0;               //!< number of tiles in slice (raster-scan slices only)
   uint32_t               m_numCtuInSlice   = 0;               //!< number of CTUs in the slice
   std::vector<uint32_t>  m_ctuAddrInSlice;                    //!< raster-scan addresses of all the CTUs in the slice
 
 public:
   SliceMap();
-  virtual ~SliceMap();
+  ~SliceMap();
 
-  void                   setSliceID( uint32_t u )             { m_sliceID = u;            }
-  uint32_t               getSliceID() const                   { return m_sliceID;         }
-  void                   setNumTilesInSlice( uint32_t u )     { m_numTilesInSlice = u;    }
-  uint32_t               getNumTilesInSlice() const           { return m_numTilesInSlice; }
-  void                   setNumCtuInSlice( uint32_t u )       { m_numCtuInSlice = u;      }
-  uint32_t               getNumCtuInSlice() const             { return m_numCtuInSlice;   }
-  std::vector<uint32_t>  getCtuAddrList( ) const              { return m_ctuAddrInSlice;  }
-  uint32_t               getCtuAddrInSlice( int idx ) const   { CHECK(idx >= m_ctuAddrInSlice.size(), "CTU index exceeds number of CTUs in slice."); return m_ctuAddrInSlice[idx]; }
-  void                   pushToCtuAddrInSlice( uint32_t u )   { m_ctuAddrInSlice.push_back(u); m_numCtuInSlice++;}
+  void                         setSliceID( uint32_t u )           { m_sliceID = u;            }
+  uint32_t                     getSliceID() const                 { return m_sliceID;         }
+  uint32_t                     getNumCtuInSlice() const           { return m_numCtuInSlice;   }
+  const std::vector<uint32_t>& getCtuAddrList() const             { return m_ctuAddrInSlice;  }
+  uint32_t                     getCtuAddrInSlice( int idx ) const { CHECK_RECOVERABLE(idx >= m_ctuAddrInSlice.size(), "CTU index exceeds number of CTUs in slice."); return m_ctuAddrInSlice[idx]; }
 
-  void  initSliceMap()
+  void  resetSliceMap()
   {
     m_sliceID         = 0;
-    m_numTilesInSlice = 0;
     m_numCtuInSlice   = 0;
     m_ctuAddrInSlice.clear();
   }
 
   void  addCtusToSlice( uint32_t startX, uint32_t stopX, uint32_t startY, uint32_t stopY, uint32_t picWidthInCtbsY )
   {
-    CHECK( startX >= stopX || startY >= stopY, "Invalid slice definition");
+    CHECK_RECOVERABLE( startX >= stopX || startY >= stopY, "Invalid slice definition");
+    m_ctuAddrInSlice.reserve( m_ctuAddrInSlice.size() + ( stopY - startY ) * ( stopX - startX ) );
     for( uint32_t ctbY = startY; ctbY < stopY; ctbY++ )
     {
       for( uint32_t ctbX = startX; ctbX < stopX; ctbX++ )
@@ -929,21 +924,23 @@ public:
   Area             getArea()                         const { return Area( m_subPicLeft, m_subPicTop, m_subPicWidth,             m_subPicHeight );             }
   Area             getLumaArea()                     const { return Area( m_subPicLeft, m_subPicTop, m_subPicWidthInLumaSample, m_subPicHeightInLumaSample ); }
 
-  std::vector<uint32_t> getCtuAddrList  ()           const { return  m_ctuAddrInSubPic;           }
-  void                  clearCTUAddrList()                 { m_ctuAddrInSubPic.clear(); }
-  void                  addCTUsToSubPic(std::vector<uint32_t> ctuAddrInSlice)
+  const std::vector<uint32_t>& getCtuAddrList  ()    const { return  m_ctuAddrInSubPic;           }
+  void                         clearCTUAddrList()          { m_ctuAddrInSubPic.clear();           }
+  void                         addCTUsToSubPic( const std::vector<uint32_t>& ctuAddrInSlice )
   {
-    for (auto ctu:ctuAddrInSlice)
-      m_ctuAddrInSubPic.push_back(ctu);
+    const size_t oldSize = m_ctuAddrInSubPic.size();
+    m_ctuAddrInSubPic.resize( m_ctuAddrInSubPic.size() + ctuAddrInSlice.size() );
+    std::copy( ctuAddrInSlice.cbegin(), ctuAddrInSlice.cend(), m_ctuAddrInSubPic.begin() + oldSize );
   }
-  void                  addAllCtusInPicToSubPic(uint32_t startX, uint32_t stopX, uint32_t startY, uint32_t stopY, uint32_t picWidthInCtbsY)
+  void                         addAllCtusInPicToSubPic( uint32_t startX, uint32_t stopX, uint32_t startY, uint32_t stopY, uint32_t picWidthInCtbsY )
   {
-    CHECK(startX >= stopX || startY >= stopY, "Invalid slice definition");
-    for (uint32_t ctbY = startY; ctbY < stopY; ctbY++)
+    CHECK_RECOVERABLE(startX >= stopX || startY >= stopY, "Invalid slice definition");
+    m_ctuAddrInSubPic.reserve( m_ctuAddrInSubPic.size() + ( stopY - startY ) * ( stopX - startX ) );
+    for( uint32_t ctbY = startY; ctbY < stopY; ctbY++ )
     {
-      for (uint32_t ctbX = startX; ctbX < stopX; ctbX++)
+      for( uint32_t ctbX = startX; ctbX < stopX; ctbX++ )
       {
-        m_ctuAddrInSubPic.push_back(ctbY * picWidthInCtbsY + ctbX);
+        m_ctuAddrInSubPic.push_back( ctbY * picWidthInCtbsY + ctbX );
       }
     }
   }
@@ -1142,7 +1139,7 @@ public:
 
   void              setLayerIdInOls  (int olsIdx, int layerIdx, int layerId)    { m_layerIdInOls[olsIdx][layerIdx] = layerId; }
   uint32_t          getLayerIdInOls  (int olsIdx, int layerIdx) const           { return m_layerIdInOls[olsIdx][layerIdx]   ; }
-  std::vector<int>  getLayerIdsInOls(int targetOlsIdx)                    { return m_layerIdInOls[targetOlsIdx];     }
+  const std::vector<int>& getLayerIdsInOls(int targetOlsIdx)                    { return m_layerIdInOls[targetOlsIdx];     }
 };
 
 class Window
@@ -1530,8 +1527,8 @@ public:
   ChromaFormat            getChromaFormatIdc () const                                                     { return m_chromaFormatIdc;                                            }
   void                    setChromaFormatIdc (ChromaFormat i)                                             { m_chromaFormatIdc = i;                                               }
 
-  static int              getWinUnitX (int chromaFormatIdc)                                               { CHECK(chromaFormatIdc < 0 || chromaFormatIdc >= NUM_CHROMA_FORMAT, "Invalid chroma format parameter"); return m_winUnitX[chromaFormatIdc]; }
-  static int              getWinUnitY (int chromaFormatIdc)                                               { CHECK(chromaFormatIdc < 0 || chromaFormatIdc >= NUM_CHROMA_FORMAT, "Invalid chroma format parameter"); return m_winUnitY[chromaFormatIdc]; }
+  static int              getWinUnitX (int chromaFormatIdc)                                               { CHECK_RECOVERABLE(chromaFormatIdc < 0 || chromaFormatIdc >= NUM_CHROMA_FORMAT, "Invalid chroma format parameter"); return m_winUnitX[chromaFormatIdc]; }
+  static int              getWinUnitY (int chromaFormatIdc)                                               { CHECK_RECOVERABLE(chromaFormatIdc < 0 || chromaFormatIdc >= NUM_CHROMA_FORMAT, "Invalid chroma format parameter"); return m_winUnitY[chromaFormatIdc]; }
 
   // structure
   void                    setMaxPicWidthInLumaSamples( uint32_t u )                                       { m_maxWidthInLumaSamples = u; }
@@ -1553,35 +1550,35 @@ public:
   void                    setSubPicSameSizeFlag(bool b)                                                   { m_subPicSameSizeFlag = b;                       }
   bool                    getSubPicSameSizeFlag() const                                                   { return m_subPicSameSizeFlag;                    }
   uint8_t                 getNumSubPics( ) const                                                          { return  m_numSubPics;            }
-  void                    setSubPicCtuTopLeftX( int i, uint32_t u )                                       { CHECK( i >= MAX_NUM_SUB_PICS, "Sub-picture index exceeds valid range" ); m_subPicCtuTopLeftX[i] = u;                     }
-  uint32_t                getSubPicCtuTopLeftX( int i ) const                                             { CHECK( i >= MAX_NUM_SUB_PICS, "Sub-picture index exceeds valid range" ); return  m_subPicCtuTopLeftX[i];                 }
-  void                    setSubPicCtuTopLeftY( int i, uint32_t u )                                       { CHECK( i >= MAX_NUM_SUB_PICS, "Sub-picture index exceeds valid range" ); m_subPicCtuTopLeftY[i] = u;                     }
-  uint32_t                getSubPicCtuTopLeftY( int i ) const                                             { CHECK( i >= MAX_NUM_SUB_PICS, "Sub-picture index exceeds valid range" ); return  m_subPicCtuTopLeftY[i];                 }
-  void                    setSubPicWidth( int i, uint32_t u )                                             { CHECK( i >= MAX_NUM_SUB_PICS, "Sub-picture index exceeds valid range" ); m_SubPicWidth[i] = u;                           }
-  uint32_t                getSubPicWidth( int i ) const                                                   { CHECK( i >= MAX_NUM_SUB_PICS, "Sub-picture index exceeds valid range" ); return  m_SubPicWidth[i];                       }
-  void                    setSubPicHeight( int i, uint32_t u )                                            { CHECK( i >= MAX_NUM_SUB_PICS, "Sub-picture index exceeds valid range" ); m_SubPicHeight[i] = u;                          }
-  uint32_t                getSubPicHeight( int i ) const                                                  { CHECK( i >= MAX_NUM_SUB_PICS, "Sub-picture index exceeds valid range" ); return  m_SubPicHeight[i];                      }
-  void                    setSubPicTreatedAsPicFlag( int i, bool u )                                      { CHECK( i >= MAX_NUM_SUB_PICS, "Sub-picture index exceeds valid range" ); m_subPicTreatedAsPicFlag[i] = u;                }
-  bool                    getSubPicTreatedAsPicFlag( int i ) const                                        { CHECK( i >= MAX_NUM_SUB_PICS, "Sub-picture index exceeds valid range" ); return  m_subPicTreatedAsPicFlag[i];            }
-  void                    setLoopFilterAcrossSubpicEnabledFlag( int i, bool u )                           { CHECK( i >= MAX_NUM_SUB_PICS, "Sub-picture index exceeds valid range" ); m_loopFilterAcrossSubpicEnabledFlag[i] = u;     }
-  bool                    getLoopFilterAcrossSubpicEnabledFlag( int i ) const                             { CHECK( i >= MAX_NUM_SUB_PICS, "Sub-picture index exceeds valid range" ); return  m_loopFilterAcrossSubpicEnabledFlag[i]; }
+  void                    setSubPicCtuTopLeftX( int i, uint32_t u )                                       { CHECK_RECOVERABLE( i >= MAX_NUM_SUB_PICS, "Sub-picture index exceeds valid range" ); m_subPicCtuTopLeftX[i] = u;                     }
+  uint32_t                getSubPicCtuTopLeftX( int i ) const                                             { CHECK_RECOVERABLE( i >= MAX_NUM_SUB_PICS, "Sub-picture index exceeds valid range" ); return  m_subPicCtuTopLeftX[i];                 }
+  void                    setSubPicCtuTopLeftY( int i, uint32_t u )                                       { CHECK_RECOVERABLE( i >= MAX_NUM_SUB_PICS, "Sub-picture index exceeds valid range" ); m_subPicCtuTopLeftY[i] = u;                     }
+  uint32_t                getSubPicCtuTopLeftY( int i ) const                                             { CHECK_RECOVERABLE( i >= MAX_NUM_SUB_PICS, "Sub-picture index exceeds valid range" ); return  m_subPicCtuTopLeftY[i];                 }
+  void                    setSubPicWidth( int i, uint32_t u )                                             { CHECK_RECOVERABLE( i >= MAX_NUM_SUB_PICS, "Sub-picture index exceeds valid range" ); m_SubPicWidth[i] = u;                           }
+  uint32_t                getSubPicWidth( int i ) const                                                   { CHECK_RECOVERABLE( i >= MAX_NUM_SUB_PICS, "Sub-picture index exceeds valid range" ); return  m_SubPicWidth[i];                       }
+  void                    setSubPicHeight( int i, uint32_t u )                                            { CHECK_RECOVERABLE( i >= MAX_NUM_SUB_PICS, "Sub-picture index exceeds valid range" ); m_SubPicHeight[i] = u;                          }
+  uint32_t                getSubPicHeight( int i ) const                                                  { CHECK_RECOVERABLE( i >= MAX_NUM_SUB_PICS, "Sub-picture index exceeds valid range" ); return  m_SubPicHeight[i];                      }
+  void                    setSubPicTreatedAsPicFlag( int i, bool u )                                      { CHECK_RECOVERABLE( i >= MAX_NUM_SUB_PICS, "Sub-picture index exceeds valid range" ); m_subPicTreatedAsPicFlag[i] = u;                }
+  bool                    getSubPicTreatedAsPicFlag( int i ) const                                        { CHECK_RECOVERABLE( i >= MAX_NUM_SUB_PICS, "Sub-picture index exceeds valid range" ); return  m_subPicTreatedAsPicFlag[i];            }
+  void                    setLoopFilterAcrossSubpicEnabledFlag( int i, bool u )                           { CHECK_RECOVERABLE( i >= MAX_NUM_SUB_PICS, "Sub-picture index exceeds valid range" ); m_loopFilterAcrossSubpicEnabledFlag[i] = u;     }
+  bool                    getLoopFilterAcrossSubpicEnabledFlag( int i ) const                             { CHECK_RECOVERABLE( i >= MAX_NUM_SUB_PICS, "Sub-picture index exceeds valid range" ); return  m_loopFilterAcrossSubpicEnabledFlag[i]; }
   void                    setSubPicIdMappingExplicitlySignalledFlag( bool b )                             { m_subPicIdMappingExplicitlySignalledFlag = b;    }
   bool                    getSubPicIdMappingExplicitlySignalledFlag() const                               { return m_subPicIdMappingExplicitlySignalledFlag; }
   void                    setSubPicIdMappingInSpsFlag( bool b )                                           { m_subPicIdMappingInSpsFlag = b;                  }
   bool                    getSubPicIdMappingInSpsFlag() const                                             { return  m_subPicIdMappingInSpsFlag;              }
-  void                    setSubPicIdLen( uint32_t u )                                                    { CHECK( u > 16, "Sub-Picture id length exeeds valid range" ); m_subPicIdLen = u;                 }
+  void                    setSubPicIdLen( uint32_t u )                                                    { CHECK_RECOVERABLE( u > 16, "Sub-Picture id length exeeds valid range" ); m_subPicIdLen = u;                 }
   uint32_t                getSubPicIdLen() const                                                          { return  m_subPicIdLen;                                                                          }
-  void                    setSubPicId( int i, uint16_t u )                                                { CHECK( i >= MAX_NUM_SUB_PICS, "Sub-picture index exceeds valid range" ); m_subPicId[i] = u;     }
-  uint16_t                getSubPicId( int i ) const                                                      { CHECK( i >= MAX_NUM_SUB_PICS, "Sub-picture index exceeds valid range" ); return  m_subPicId[i]; }
+  void                    setSubPicId( int i, uint16_t u )                                                { CHECK_RECOVERABLE( i >= MAX_NUM_SUB_PICS, "Sub-picture index exceeds valid range" ); m_subPicId[i] = u;     }
+  uint16_t                getSubPicId( int i ) const                                                      { CHECK_RECOVERABLE( i >= MAX_NUM_SUB_PICS, "Sub-picture index exceeds valid range" ); return  m_subPicId[i]; }
 
   uint32_t                getNumLongTermRefPicSPS() const                                                 { return m_numLongTermRefPicSPS;                                       }
   void                    setNumLongTermRefPicSPS(uint32_t val)                                           { m_numLongTermRefPicSPS = val;                                        }
 
-  uint32_t                getLtRefPicPocLsbSps(uint32_t index) const                                  { CHECK( index >= MAX_NUM_LONG_TERM_REF_PICS, "Index exceeds boundary" ); return m_ltRefPicPocLsbSps[index]; }
-  void                    setLtRefPicPocLsbSps(uint32_t index, uint32_t val)                              { CHECK( index >= MAX_NUM_LONG_TERM_REF_PICS, "Index exceeds boundary" ); m_ltRefPicPocLsbSps[index] = val;  }
+  uint32_t                getLtRefPicPocLsbSps(uint32_t index) const                                      { CHECK_RECOVERABLE( index >= MAX_NUM_LONG_TERM_REF_PICS, "Index exceeds boundary" ); return m_ltRefPicPocLsbSps[index]; }
+  void                    setLtRefPicPocLsbSps(uint32_t index, uint32_t val)                              { CHECK_RECOVERABLE( index >= MAX_NUM_LONG_TERM_REF_PICS, "Index exceeds boundary" ); m_ltRefPicPocLsbSps[index] = val;  }
 
-  bool                    getUsedByCurrPicLtSPSFlag(int i) const                                          { CHECK( i >= MAX_NUM_LONG_TERM_REF_PICS, "Index exceeds boundary" ); return m_usedByCurrPicLtSPSFlag[i];    }
-  void                    setUsedByCurrPicLtSPSFlag(int i, bool x)                                        { CHECK( i >= MAX_NUM_LONG_TERM_REF_PICS, "Index exceeds boundary" ); m_usedByCurrPicLtSPSFlag[i] = x;       }
+  bool                    getUsedByCurrPicLtSPSFlag(int i) const                                          { CHECK_RECOVERABLE( i >= MAX_NUM_LONG_TERM_REF_PICS, "Index exceeds boundary" ); return m_usedByCurrPicLtSPSFlag[i];    }
+  void                    setUsedByCurrPicLtSPSFlag(int i, bool x)                                        { CHECK_RECOVERABLE( i >= MAX_NUM_LONG_TERM_REF_PICS, "Index exceeds boundary" ); m_usedByCurrPicLtSPSFlag[i] = x;       }
 
   int                     getLog2MinCodingBlockSize() const                                               { return m_log2MinCodingBlockSize;                                     }
   void                    setLog2MinCodingBlockSize(int val)                                              { m_log2MinCodingBlockSize = val;                                      }
@@ -1644,9 +1641,9 @@ public:
   void                    setNumExtraSHBitsBytes(int i)                                                       { m_numExtraSHBitsBytes = i;                                           }
   int                     getNumExtraSHBitsBytes() const                                                      { return m_numExtraSHBitsBytes;                                        }
   void                    setExtraPHBitPresentFlags(const std::vector<bool> &b)                               { m_extraPHBitPresentFlag = b;                                         }
-  const std::vector<bool> getExtraPHBitPresentFlags() const                                                   { return m_extraPHBitPresentFlag;                                      }
+  const std::vector<bool>& getExtraPHBitPresentFlags() const                                                   { return m_extraPHBitPresentFlag;                                      }
   void                    setExtraSHBitPresentFlags(const std::vector<bool> &b)                               { m_extraSHBitPresentFlag = b;                                         }
-  const std::vector<bool> getExtraSHBitPresentFlags() const                                                   { return m_extraSHBitPresentFlag;                                      }
+  const std::vector<bool>& getExtraSHBitPresentFlags() const                                                   { return m_extraSHBitPresentFlag;                                      }
   bool                    getUseAMP() const                                                               { return m_useAMP;                                                     }
   void                    setUseAMP( bool b )                                                             { m_useAMP = b;                                                        }
   void                    setQuadtreeTULog2MaxSize( uint32_t u )                                          { m_uiQuadtreeTULog2MaxSize = u;                                       }
@@ -1726,7 +1723,7 @@ public:
   bool                    getProfControlPresentFlag()const                                                { return m_ProfControlPresentFlag; }
   void                    setProfControlPresentFlag(bool b)                                               { m_ProfControlPresentFlag = b;    }
   uint32_t                getMaxTLayers() const                                                           { return m_uiMaxTLayers; }
-  void                    setMaxTLayers( uint32_t uiMaxTLayers )                                          { CHECK( uiMaxTLayers > MAX_TLAYER, "Invalid number T-layers" ); m_uiMaxTLayers = uiMaxTLayers; }
+  void                    setMaxTLayers( uint32_t uiMaxTLayers )                                          { CHECK_RECOVERABLE( uiMaxTLayers > MAX_TLAYER, "Invalid number T-layers" ); m_uiMaxTLayers = uiMaxTLayers; }
 
   bool                    getPtlDpbHrdParamsPresentFlag()  const                                          { return m_ptlDpbHrdParamsPresentFlag;     }
   void                    setPtlDpbHrdParamsPresentFlag(bool b)                                           {        m_ptlDpbHrdParamsPresentFlag = b; }
@@ -1753,13 +1750,13 @@ public:
   unsigned                getNumVerVirtualBoundaries() const                                              { return m_numVerVirtualBoundaries;                                    }
   void                    setNumHorVirtualBoundaries(unsigned u)                                          { m_numHorVirtualBoundaries = u;                                       }
   unsigned                getNumHorVirtualBoundaries() const                                              { return m_numHorVirtualBoundaries;                                    }
-  void                    setVirtualBoundariesPosX(unsigned u, unsigned idx)                              { CHECK( idx >= 3, "vitrual boundary index exceeds valid range" ); m_virtualBoundariesPosX[idx] = u;    }
-  unsigned                getVirtualBoundariesPosX(unsigned idx) const                                    { CHECK( idx >= 3, "vitrual boundary index exceeds valid range" ); return m_virtualBoundariesPosX[idx]; }
-  void                    setVirtualBoundariesPosY(unsigned u, unsigned idx)                              { CHECK( idx >= 3, "vitrual boundary index exceeds valid range" ); m_virtualBoundariesPosY[idx] = u;    }
-  unsigned                getVirtualBoundariesPosY(unsigned idx) const                                    { CHECK( idx >= 3, "vitrual boundary index exceeds valid range" ); return m_virtualBoundariesPosY[idx]; }
+  void                    setVirtualBoundariesPosX(unsigned u, unsigned idx)                              { CHECK_RECOVERABLE( idx >= 3, "vitrual boundary index exceeds valid range" ); m_virtualBoundariesPosX[idx] = u;    }
+  unsigned                getVirtualBoundariesPosX(unsigned idx) const                                    { CHECK_RECOVERABLE( idx >= 3, "vitrual boundary index exceeds valid range" ); return m_virtualBoundariesPosX[idx]; }
+  void                    setVirtualBoundariesPosY(unsigned u, unsigned idx)                              { CHECK_RECOVERABLE( idx >= 3, "vitrual boundary index exceeds valid range" ); m_virtualBoundariesPosY[idx] = u;    }
+  unsigned                getVirtualBoundariesPosY(unsigned idx) const                                    { CHECK_RECOVERABLE( idx >= 3, "vitrual boundary index exceeds valid range" ); return m_virtualBoundariesPosY[idx]; }
 
   uint32_t                getMaxDecPicBuffering(uint32_t tlayer) const                                    { return m_uiMaxDecPicBuffering[tlayer];                               }
-  void                    setMaxDecPicBuffering( uint32_t ui, uint32_t tlayer )                           { CHECK(tlayer >= MAX_TLAYER, "Invalid T-layer"); m_uiMaxDecPicBuffering[tlayer] = ui;    }
+  void                    setMaxDecPicBuffering( uint32_t ui, uint32_t tlayer )                           { CHECK_RECOVERABLE(tlayer >= MAX_TLAYER, "Invalid T-layer"); m_uiMaxDecPicBuffering[tlayer] = ui;    }
   uint32_t                getMaxLatencyIncreasePlus1(uint32_t tlayer) const                               { return m_uiMaxLatencyIncreasePlus1[tlayer];                          }
   void                    setMaxLatencyIncreasePlus1( uint32_t ui , uint32_t tlayer)                      { m_uiMaxLatencyIncreasePlus1[tlayer] = ui;                            }
 
@@ -2031,13 +2028,13 @@ public:
 
   const ChromaQpOffset&  getChromaQpOffsetListEntry( int cuChromaQpOffsetIdxPlus1 ) const
   {
-    CHECK(cuChromaQpOffsetIdxPlus1 >= m_chromaQpOffsetListLen+1, "Invalid chroma QP offset");
+    CHECK_RECOVERABLE(cuChromaQpOffsetIdxPlus1 >= m_chromaQpOffsetListLen+1, "Invalid chroma QP offset");
     return m_ChromaQpAdjTableIncludingNullEntry[cuChromaQpOffsetIdxPlus1]; // Array includes entry [0] for the null offset used when cu_chroma_qp_offset_flag=0, and entries [cu_chroma_qp_offset_idx+1...] otherwise
   }
 
   void                   setChromaQpOffsetListEntry( int cuChromaQpOffsetIdxPlus1, int cbOffset, int crOffset, int jointCbCrOffset )
   {
-    CHECK(cuChromaQpOffsetIdxPlus1 == 0 || cuChromaQpOffsetIdxPlus1 > MAX_QP_OFFSET_LIST_SIZE, "Invalid chroma QP offset");
+    CHECK_RECOVERABLE(cuChromaQpOffsetIdxPlus1 == 0 || cuChromaQpOffsetIdxPlus1 > MAX_QP_OFFSET_LIST_SIZE, "Invalid chroma QP offset");
     // Array includes entry [0] for the null offset used when cu_chroma_qp_offset_flag=0, and entries [cu_chroma_qp_offset_idx+1...] otherwise
     m_ChromaQpAdjTableIncludingNullEntry[cuChromaQpOffsetIdxPlus1].CbOffset        = cbOffset;
     m_ChromaQpAdjTableIncludingNullEntry[cuChromaQpOffsetIdxPlus1].CrOffset        = crOffset;
@@ -2070,10 +2067,10 @@ public:
   uint8_t                getNumSubPics( ) const                                           { return  m_numSubPics;                         }
   void                   setSubPicIdMappingInPpsFlag( bool b )                            { m_subPicIdMappingInPpsFlag = b;               }
   bool                   getSubPicIdMappingInPpsFlag() const                              { return m_subPicIdMappingInPpsFlag;            }
-  void                   setSubPicIdLen( uint32_t u )                                     { CHECK( u > 16, "Sub-picture id len exceeds valid range" ); m_subPicIdLen = u;                   }
+  void                   setSubPicIdLen( uint32_t u )                                     { CHECK_RECOVERABLE( u > 16, "Sub-picture id len exceeds valid range" ); m_subPicIdLen = u;                   }
   uint32_t               getSubPicIdLen() const                                           { return  m_subPicIdLen;                                                                          }
-  void                   setSubPicId( int i, uint16_t u )                                 { CHECK( i >= MAX_NUM_SUB_PICS, "Sub-picture index exceeds valid range" ); m_subPicId[i] = u;     }
-  uint16_t               getSubPicId( int i ) const                                       { CHECK( i >= MAX_NUM_SUB_PICS, "Sub-picture index exceeds valid range" ); return  m_subPicId[i]; }
+  void                   setSubPicId( int i, uint16_t u )                                 { CHECK_RECOVERABLE( i >= MAX_NUM_SUB_PICS, "Sub-picture index exceeds valid range" ); m_subPicId[i] = u;     }
+  uint16_t               getSubPicId( int i ) const                                       { CHECK_RECOVERABLE( i >= MAX_NUM_SUB_PICS, "Sub-picture index exceeds valid range" ); return  m_subPicId[i]; }
   uint32_t               getSubPicIdxFromSubPicId( uint32_t subPicId ) const;
   void                   setNoPicPartitionFlag( bool b )                                  { m_noPicPartitionFlag = b;                     }
   bool                   getNoPicPartitionFlag( ) const                                   { return  m_noPicPartitionFlag;                 }
@@ -2092,7 +2089,7 @@ public:
   uint32_t               getNumTileColumns( ) const                                       { return  m_numTileCols;                        }
   void                   setNumTileRows( uint32_t u )                                     { m_numTileRows = u;                            }
   uint32_t               getNumTileRows( ) const                                          { return  m_numTileRows;                        }
-  void                   addTileColumnWidth( uint32_t u )                                 { CHECK( m_tileColumnWidth.size()  >= MAX_TILE_COLS, "Number of tile columns exceeds valid range" ); m_tileColumnWidth.push_back(u);    }
+  void                   addTileColumnWidth( uint32_t u )                                 { CHECK_RECOVERABLE( m_tileColumnWidth.size()  >= MAX_TILE_COLS, "Number of tile columns exceeds valid range" ); m_tileColumnWidth.push_back(u);    }
   void                   addTileRowHeight( uint32_t u )                                   { m_tileRowHeight.push_back(u);   }
 
   void                   setTileColumnWidth(const std::vector<int>& columnWidth )         { m_tileColumnWidth = columnWidth;              }
@@ -2100,8 +2097,8 @@ public:
   void                   setTileRowHeight(const std::vector<int>& rowHeight)              { m_tileRowHeight = rowHeight;                  }
   uint32_t               getTileRowHeight(uint32_t rowIdx) const                          { return m_tileRowHeight[rowIdx];               }
   uint32_t               getNumTiles() const                                              { return m_numTileCols * m_numTileRows;        }
-  uint32_t               ctuToTileCol( int ctuX ) const                                   { CHECK( ctuX >= m_ctuToTileCol.size(), "CTU address index exceeds valid range" ); return  m_ctuToTileCol[ctuX];                  }
-  uint32_t               ctuToTileRow( int ctuY ) const                                   { CHECK( ctuY >= m_ctuToTileRow.size(), "CTU address index exceeds valid range" ); return  m_ctuToTileRow[ctuY];                  }
+  uint32_t               ctuToTileCol( int ctuX ) const                                   { CHECK_RECOVERABLE( ctuX >= m_ctuToTileCol.size(), "CTU address index exceeds valid range" ); return  m_ctuToTileCol[ctuX];                  }
+  uint32_t               ctuToTileRow( int ctuY ) const                                   { CHECK_RECOVERABLE( ctuY >= m_ctuToTileRow.size(), "CTU address index exceeds valid range" ); return  m_ctuToTileRow[ctuY];                  }
   uint32_t               ctuToTileColBd( int ctuX ) const                                 { return  getTileColumnBd(ctuToTileCol( ctuX ));                                                                                  }
   uint32_t               ctuToTileRowBd( int ctuY ) const                                 { return  getTileRowBd(ctuToTileRow( ctuY ));                                                                                     }
   bool                   ctuIsTileColBd( int ctuX ) const                                 { return  ctuX == ctuToTileColBd( ctuX );                                                                                         }
@@ -2113,34 +2110,33 @@ public:
   void                   setRectSliceFlag(bool val)                                       { m_rectSliceFlag = val;                        }
   void                   setSingleSlicePerSubPicFlag( bool b )                            { m_singleSlicePerSubPicFlag = b;                                                                                                 }
   bool                   getSingleSlicePerSubPicFlag( ) const                             { return  m_singleSlicePerSubPicFlag;                                                                                             }
-  void                   setNumSlicesInPic( uint32_t u )                                  { CHECK( u > MAX_SLICES, "Number of slices in picture exceeds valid range" ); m_numSlicesInPic = u;                               }
+  void                   setNumSlicesInPic( uint32_t u )                                  { CHECK_RECOVERABLE( u > MAX_SLICES, "Number of slices in picture exceeds valid range" ); m_numSlicesInPic = u;                               }
   uint32_t               getNumSlicesInPic( ) const                                       { return  m_numSlicesInPic;                                                                                                       }
   void                   setTileIdxDeltaPresentFlag( bool b )                             { m_tileIdxDeltaPresentFlag = b;                                                                                                  }
   bool                   getTileIdxDeltaPresentFlag( ) const                              { return  m_tileIdxDeltaPresentFlag;                                                                                              }
-  uint32_t               getTileColumnBd( int idx ) const                                 { CHECK( idx >= m_tileColBd.size(), "Tile column index exceeds valid range" );                    return  m_tileColBd[idx];       }
-  uint32_t               getTileRowBd( int idx ) const                                    { CHECK( idx >= m_tileRowBd.size(), "Tile row index exceeds valid range" );                       return  m_tileRowBd[idx];       }
-  void                   setSliceWidthInTiles( int idx, uint32_t u )                      { CHECK( idx >= m_numSlicesInPic, "Slice index exceeds valid range" );    m_rectSlices[idx].setSliceWidthInTiles( u );            }
-  uint32_t               getSliceWidthInTiles( int idx ) const                            { CHECK( idx >= m_numSlicesInPic, "Slice index exceeds valid range" );    return  m_rectSlices[idx].getSliceWidthInTiles( );      }
-  void                   setSliceHeightInTiles( int idx, uint32_t u )                     { CHECK( idx >= m_numSlicesInPic, "Slice index exceeds valid range" );    m_rectSlices[idx].setSliceHeightInTiles( u );           }
-  uint32_t               getSliceHeightInTiles( int idx ) const                           { CHECK( idx >= m_numSlicesInPic, "Slice index exceeds valid range" );    return  m_rectSlices[idx].getSliceHeightInTiles( );     }
-  void                   setNumSlicesInTile( int idx, uint32_t u )                        { CHECK( idx >= m_numSlicesInPic, "Slice index exceeds valid range" );    m_rectSlices[idx].setNumSlicesInTile( u );              }
-  uint32_t               getNumSlicesInTile( int idx ) const                              { CHECK( idx >= m_numSlicesInPic, "Slice index exceeds valid range" );    return  m_rectSlices[idx].getNumSlicesInTile( );        }
-  void                   setSliceHeightInCtu( int idx, uint32_t u )                       { CHECK( idx >= m_numSlicesInPic, "Slice index exceeds valid range" );    m_rectSlices[idx].setSliceHeightInCtu( u );             }
-  uint32_t               getSliceHeightInCtu( int idx ) const                             { CHECK( idx >= m_numSlicesInPic, "Slice index exceeds valid range" );    return  m_rectSlices[idx].getSliceHeightInCtu( );       }
-  void                   setSliceTileIdx(  int idx, uint32_t u )                          { CHECK( idx >= m_numSlicesInPic, "Slice index exceeds valid range" );    m_rectSlices[idx].setTileIdx( u );                      }
-  uint32_t               getSliceTileIdx( int idx ) const                                 { CHECK( idx >= m_numSlicesInPic, "Slice index exceeds valid range" );    return  m_rectSlices[idx].getTileIdx( );                }
+  uint32_t               getTileColumnBd( int idx ) const                                 { CHECK_RECOVERABLE( idx >= m_tileColBd.size(), "Tile column index exceeds valid range" );                    return  m_tileColBd[idx];       }
+  uint32_t               getTileRowBd( int idx ) const                                    { CHECK_RECOVERABLE( idx >= m_tileRowBd.size(), "Tile row index exceeds valid range" );                       return  m_tileRowBd[idx];       }
+  void                   setSliceWidthInTiles( int idx, uint32_t u )                      { CHECK_RECOVERABLE( idx >= m_numSlicesInPic, "Slice index exceeds valid range" );    m_rectSlices[idx].setSliceWidthInTiles( u );            }
+  uint32_t               getSliceWidthInTiles( int idx ) const                            { CHECK_RECOVERABLE( idx >= m_numSlicesInPic, "Slice index exceeds valid range" );    return  m_rectSlices[idx].getSliceWidthInTiles( );      }
+  void                   setSliceHeightInTiles( int idx, uint32_t u )                     { CHECK_RECOVERABLE( idx >= m_numSlicesInPic, "Slice index exceeds valid range" );    m_rectSlices[idx].setSliceHeightInTiles( u );           }
+  uint32_t               getSliceHeightInTiles( int idx ) const                           { CHECK_RECOVERABLE( idx >= m_numSlicesInPic, "Slice index exceeds valid range" );    return  m_rectSlices[idx].getSliceHeightInTiles( );     }
+  void                   setNumSlicesInTile( int idx, uint32_t u )                        { CHECK_RECOVERABLE( idx >= m_numSlicesInPic, "Slice index exceeds valid range" );    m_rectSlices[idx].setNumSlicesInTile( u );              }
+  uint32_t               getNumSlicesInTile( int idx ) const                              { CHECK_RECOVERABLE( idx >= m_numSlicesInPic, "Slice index exceeds valid range" );    return  m_rectSlices[idx].getNumSlicesInTile( );        }
+  void                   setSliceHeightInCtu( int idx, uint32_t u )                       { CHECK_RECOVERABLE( idx >= m_numSlicesInPic, "Slice index exceeds valid range" );    m_rectSlices[idx].setSliceHeightInCtu( u );             }
+  uint32_t               getSliceHeightInCtu( int idx ) const                             { CHECK_RECOVERABLE( idx >= m_numSlicesInPic, "Slice index exceeds valid range" );    return  m_rectSlices[idx].getSliceHeightInCtu( );       }
+  void                   setSliceTileIdx(  int idx, uint32_t u )                          { CHECK_RECOVERABLE( idx >= m_numSlicesInPic, "Slice index exceeds valid range" );    m_rectSlices[idx].setTileIdx( u );                      }
+  uint32_t               getSliceTileIdx( int idx ) const                                 { CHECK_RECOVERABLE( idx >= m_numSlicesInPic, "Slice index exceeds valid range" );    return  m_rectSlices[idx].getTileIdx( );                }
   void                   resetTileSliceInfo();
   void                   initTiles();
   void                   initRectSlices();
   void                   initRectSliceMap(const SPS *sps);
-  std::vector<SubPic>    getSubPics()  const                                              { return m_subPics;      }
   const SubPic&          getSubPic(uint32_t idx) const                                    { return m_subPics[idx]; }
   void                   initSubPic(const SPS &sps);
   const SubPic&          getSubPicFromPos(const Position& pos)  const;
   const SubPic&          getSubPicFromCU (const CodingUnit& cu) const;
   void                   checkSliceMap();
 
-  SliceMap               getSliceMap( int idx ) const                                     { CHECK( idx >= m_numSlicesInPic, "Slice index exceeds valid range" );    return m_sliceMap[idx];                             }
+  SliceMap               getSliceMap( int idx ) const                                     { CHECK_RECOVERABLE( idx >= m_numSlicesInPic, "Slice index exceeds valid range" );    return m_sliceMap[idx];                             }
 
   void                   setCabacInitPresentFlag( bool flag )                             { m_cabacInitPresentFlag = flag;                }
   bool                   getCabacInitPresentFlag() const                                  { return m_cabacInitPresentFlag;                }
@@ -2391,15 +2387,16 @@ public:
   unsigned                    getNumVerVirtualBoundaries() const                        { return m_numVerVirtualBoundaries;                                                            }
   void                        setNumHorVirtualBoundaries(unsigned u)                    { m_numHorVirtualBoundaries = u;                                                               }
   unsigned                    getNumHorVirtualBoundaries() const                        { return m_numHorVirtualBoundaries;                                                            }
-  void                        setVirtualBoundariesPosX(unsigned u, unsigned idx)        { CHECK( idx >= 3, "boundary index exceeds valid range" ); m_virtualBoundariesPosX[idx] = u;   }
-  unsigned                    getVirtualBoundariesPosX(unsigned idx) const              { CHECK( idx >= 3, "boundary index exceeds valid range" ); return m_virtualBoundariesPosX[idx];}
-  void                        setVirtualBoundariesPosY(unsigned u, unsigned idx)        { CHECK( idx >= 3, "boundary index exceeds valid range" ); m_virtualBoundariesPosY[idx] = u;   }
-  unsigned                    getVirtualBoundariesPosY(unsigned idx) const              { CHECK( idx >= 3, "boundary index exceeds valid range" ); return m_virtualBoundariesPosY[idx];}
+  void                        setVirtualBoundariesPosX(unsigned u, unsigned idx)        { CHECK_RECOVERABLE( idx >= 3, "boundary index exceeds valid range" ); m_virtualBoundariesPosX[idx] = u;   }
+  unsigned                    getVirtualBoundariesPosX(unsigned idx) const              { CHECK_RECOVERABLE( idx >= 3, "boundary index exceeds valid range" ); return m_virtualBoundariesPosX[idx];}
+  void                        setVirtualBoundariesPosY(unsigned u, unsigned idx)        { CHECK_RECOVERABLE( idx >= 3, "boundary index exceeds valid range" ); m_virtualBoundariesPosY[idx] = u;   }
+  unsigned                    getVirtualBoundariesPosY(unsigned idx) const              { CHECK_RECOVERABLE( idx >= 3, "boundary index exceeds valid range" ); return m_virtualBoundariesPosY[idx];}
   void                        setPicOutputFlag( bool b )                                { m_picOutputFlag = b;                                                                         }
   bool                        getPicOutputFlag() const                                  { return m_picOutputFlag;                                                                      }
   void                        clearRPL( RefPicList l )                                  { m_RPL[l].clear();                                                                            }
   void                        setRPL( RefPicList l, const ReferencePictureList& rpl )   { m_RPL[l] = rpl;                                                                              }
   ReferencePictureList*       getRPL( RefPicList l )                                    { return &m_RPL[l];                                                                            }
+  const ReferencePictureList* getRPL( RefPicList l ) const                              { return &m_RPL[l];                                                                            }
   void                        setRPLIdx( RefPicList l, int RPLIdx)                      { m_RPLIdx[l] = RPLIdx;                                                                        }
   int                         getRPLIdx( RefPicList l ) const                           { return m_RPLIdx[l];                                                                          }
   void                        setPicInterSliceAllowedFlag(bool b)                       { m_picInterSliceAllowedFlag = b; }
@@ -2576,7 +2573,6 @@ private:
   bool                       m_explicitScalingListUsed          = false;
   int                        m_list1IdxToList0Idx[MAX_NUM_REF]  = { 0 };
   int                        m_aiNumRefIdx[NUM_REF_PIC_LIST_01] = { 0, 0 }; //  for multiple reference of current slice
-  bool                       m_pendingRasInit                   = false;
 
   bool                       m_bCheckLDC                        = false;
 
@@ -2631,7 +2627,7 @@ private:
 public:
                               Slice();
   void                        initSlice();
-  void                        inheritFromPicHeader( PicHeader *picHeader, const PPS *pps, const SPS *sps );
+  void                        inheritFromPicHeader( const PicHeader* picHeader, const PPS *pps, const SPS *sps );
   void                        setPicHeader( PicHeader* pcPicHeader )                 { m_pcPicHeader = pcPicHeader;                                  }
   PicHeader*                  getPicHeader() const                                   { return m_pcPicHeader;                                         }
   int                         getRefIdx4MVPair( RefPicList eCurRefPicList, int nCurRefIdx );
@@ -2691,8 +2687,6 @@ public:
   int                         getDeblockingFilterCbTcOffsetDiv2() const              { return m_deblockingFilterCbTcOffsetDiv2;                      }
   int                         getDeblockingFilterCrBetaOffsetDiv2()const             { return m_deblockingFilterCrBetaOffsetDiv2;                    }
   int                         getDeblockingFilterCrTcOffsetDiv2() const              { return m_deblockingFilterCrTcOffsetDiv2;                      }
-  bool                        getPendingRasInit() const                              { return m_pendingRasInit;                                      }
-  void                        setPendingRasInit( bool val )                          { m_pendingRasInit = val;                                       }
 
   int                         getNumRefIdx( RefPicList e ) const                     { return m_aiNumRefIdx[e];                                      }
   Picture*                    getPic()                                               { return m_pcPic;                                               }
@@ -2756,8 +2750,8 @@ public:
   void                        setNumRefIdx( RefPicList e, int i )                    { m_aiNumRefIdx[e]    = i;                                      }
   void                        setPic( Picture* p )                                   { m_pcPic             = p;                                      }
 
-  void                        constructRefPicLists( const PicListRange& rcListPic );
-  void                        constructSingleRefPicList( const PicListRange& rcListPic, RefPicList listId );
+  void                        constructRefPicLists( const PicListRange& rcPicRange );
+  void                        constructSingleRefPicList( const PicListRange& rcPicRange, RefPicList listId );
 
   void                        setRefPOCList();
 
@@ -2798,7 +2792,7 @@ public:
   uint32_t                    getSliceID() const                                     { return m_sliceMap.getSliceID();                                           }
   uint32_t                    getNumCtuInSlice() const                               { return m_sliceMap.getNumCtuInSlice();                                     }
   uint32_t                    getCtuAddrInSlice( int idx ) const                     { return m_sliceMap.getCtuAddrInSlice( idx );                               }
-  void                        initSliceMap()                                         { m_sliceMap.initSliceMap();                                                }
+  void                        resetSliceMap()                                        { m_sliceMap.resetSliceMap();                                                }
   void                        addCtusToSlice( uint32_t startX, uint32_t stopX,
                                               uint32_t startY, uint32_t stopY,
                                               uint32_t picWidthInCtbsY )             { m_sliceMap.addCtusToSlice(startX, stopX, startY, stopY, picWidthInCtbsY); }
@@ -2827,7 +2821,7 @@ public:
   void                        clearSubstreamSizes( )                                 { return m_substreamSizes.clear();                              }
   uint32_t                    getNumberOfSubstreamSizes( )                           { return (uint32_t) m_substreamSizes.size();                    }
   void                        addSubstreamSize( uint32_t size )                      { m_substreamSizes.push_back(size);                             }
-  uint32_t                    getSubstreamSize( uint32_t idx )                       { CHECK(idx>=getNumberOfSubstreamSizes(),"Invalid index"); return m_substreamSizes[idx]; }
+  uint32_t                    getSubstreamSize( uint32_t idx )                       { CHECK_RECOVERABLE(idx>=getNumberOfSubstreamSizes(),"Invalid index"); return m_substreamSizes[idx]; }
 
   void                        setCabacInitFlag( bool val )                           { m_cabacInitFlag = val;                                        } //!< set CABAC initial flag
   bool                        getCabacInitFlag()                               const { return m_cabacInitFlag;                                       } //!< get CABAC initial flag
@@ -2841,7 +2835,6 @@ public:
   const ClpRngs&              clpRngs()                                         const { return m_clpRngs; }
   const ClpRng&               clpRng( ComponentID id)                           const { return m_clpRngs; }
   ClpRngs&                    getClpRngs()                                            { return m_clpRngs; }
-  unsigned                    getMinPictureDistance()                           const ;
 
   void                        resetAlfEnabledFlag()                          { memset(m_alfEnabledFlag, 0, sizeof(m_alfEnabledFlag)); }
   bool                        getAlfEnabledFlag(ComponentID compId)    const { return m_alfEnabledFlag[compId]; }
@@ -2850,7 +2843,7 @@ public:
   void                        setNumAlfAps(int i)                            { m_numAlfAps = i; }
   int                         getAlfApsIdChroma()                      const { return m_chromaAlfApsId; }
   void                        setAlfApsIdChroma( int i ) { m_chromaAlfApsId = i; }
-  std::vector<int32_t>        getAlfApsIdLuma()                        const { return m_lumaAlfApsId; }
+  const std::vector<int32_t>& getAlfApsIdLuma()                        const { return m_lumaAlfApsId; }
   void                        setAlfApsIdLuma( const std::vector<int> & ApsIDs )
   {
     m_lumaAlfApsId.resize( m_numAlfAps );
@@ -2870,7 +2863,7 @@ public:
   int                         getCcAlfCbApsId()                       const { return m_ccAlfCbApsId; }
   int                         getCcAlfCrApsId()                       const { return m_ccAlfCrApsId; }
 
-  void                        scaleRefPicList( PicHeader *picHeader );
+  void                        scaleRefPicList( const PicHeader* picHeader );
   const std::pair<int, int>&  getScalingRatio( const RefPicList refPicList, const int refIdx )  const { return m_scalingRatio[refPicList][refIdx]; }
   void                        setNumEntryPoints( const SPS *sps, const PPS *pps );
   uint32_t                    getNumEntryPoints( ) const { return m_numEntryPoints;  }
