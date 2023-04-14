@@ -153,6 +153,16 @@ typedef enum
 }vvdecRPRUpscaling;
 
 /*
+  \enum vvdecErrHandlingFlags
+  vvdecErrHandlingFlags defines different error-handling flags
+*/
+typedef enum
+{
+  VVDEC_ERR_HANDLING_OFF          = 0,   // no special internal error-handling besides tuning in to GDR streams
+  VVDEC_ERR_HANDLING_TRY_CONTINUE = 1,   // try to continue decoding after parsing errors or missing pictures
+} vvdecErrHandlingFlags;
+
+/*
   \enum ColorFormat
   The enum ColorFormat enumerates supported input color formats.
 */
@@ -427,14 +437,15 @@ typedef struct vvdecFrame
 */
 typedef struct vvdecParams
 {
-  int                 threads;           // thread count        ( default: -1 )
-  int                 parseThreads;      // parser thread count ( default: -1 )
-  vvdecRPRUpscaling   upscaleOutput;     // do internal upscaling of rpl pictures to dest. resolution ( default: 0 )
-  vvdecLogLevel       logLevel;          // verbosity level
-  bool                verifyPictureHash; // verify picture, if digest is available, true: check hash in SEI messages if available, false: ignore SEI message
-  bool                removePadding;     // copy output pictures to new buffer to remove padding (stride==width) ( default: false )
-  vvdecSIMD_Extension simd;              // set specific simd optimization (default: max. availalbe)
-  void               *opaque;            // opaque pointer for private user data ( can be used to carry application specific data or contexts )
+  int                   threads;           // thread count        ( default: -1 )
+  int                   parseThreads;      // parser thread count ( default: -1 )
+  vvdecRPRUpscaling     upscaleOutput;     // do internal upscaling of rpl pictures to dest. resolution ( default: 0 )
+  vvdecLogLevel         logLevel;          // verbosity level
+  bool                  verifyPictureHash; // verify picture, if digest is available, true: check hash in SEI messages if available, false: ignore SEI message
+  bool                  removePadding;     // copy output pictures to new buffer to remove padding (stride==width) ( default: false )
+  vvdecSIMD_Extension   simd;              // set specific simd optimization (default: max. availalbe)
+  void                 *opaque;            // opaque pointer for private user data ( can be used to carry application specific data or contexts )
+  vvdecErrHandlingFlags errHandlingFlags;    // set of flags defining how to handle bitstream errors
 } vvdecParams;
 
 /* vvdecCreateBufferCallback
@@ -442,10 +453,10 @@ typedef struct vvdecParams
  For each plane an own memory buffer is needed separatly
  \param[in]  void*     pointer to private data of the user (defined in vvdecParams::opaque)
  \param[in]  vvdecComponentType  plane type
- \param[in]  uint32_t  memory size in bytes 
+ \param[in]  uint32_t  memory size in bytes
  \param[in]  uint32_t  alignement in bytes
  \param[out] void**    address of opaque pointer to memory allocator
- \retval[ ]  void*     pointer to the allocaded block, NULL if the block cannot be allocated. 
+ \retval[ ]  void*     pointer to the allocaded block, NULL if the block cannot be allocated.
 */
 typedef void* (*vvdecCreateBufferCallback)(void*, vvdecComponentType , uint32_t , uint32_t , void ** );
 

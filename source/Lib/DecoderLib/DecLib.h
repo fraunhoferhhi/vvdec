@@ -65,8 +65,7 @@ namespace vvdec
 class DecLib
 {
   PicListManager           m_picListManager;
-  PicHeader*               m_picHeader = nullptr;
-  DecLibParser             m_decLibParser{ *this, m_picListManager, m_picHeader };
+  DecLibParser             m_decLibParser{ *this, m_picListManager };
   std::list<DecLibRecon>   m_decLibRecon{ 2 };
 
   std::unique_ptr<ThreadPool> m_decodeThreadPool;
@@ -91,9 +90,9 @@ public:
   ~DecLib() = default;
 
 #if RPR_YUV_OUTPUT
-  void create( int numDecThreads, int parserFrameDelay, const UserAllocator& userAllocator, int upscaledOutput );
+  void create( int numDecThreads, int parserFrameDelay, const UserAllocator& userAllocator, ErrHandlingFlags errHandlingFlags, int upscaledOutput );
 #else
-  void create( int numDecThreads, int parserFrameDelay, const UserAllocator& userAllocator );
+  void create( int numDecThreads, int parserFrameDelay, const UserAllocator& userAllocator, ErrHandlingFlags errHandlingFlags);
 #endif
   void destroy();
 
@@ -122,7 +121,7 @@ public:
 #endif
 
 private:
-  void     decompressPicture( Picture* pcPic );
+  void     reconPicture( Picture* pcPic );
 #if JVET_R0270
   int      finishPicture    ( Picture* pcPic, MsgLevel msgl = INFO, bool associatedWithNewClvs );
 #else

@@ -45,16 +45,49 @@ POSSIBILITY OF SUCH DAMAGE.
 #include "Picture.h"
 
 #ifndef DEBUG_PIC_ORDER
-#define DEBUG_PIC_ORDER 0
+#  define DEBUG_PIC_ORDER 0
 #endif
 #if DEBUG_PIC_ORDER
-# define IF_DEBUG_PIC_ORDER(...)__VA_ARGS__
+#  define IF_DEBUG_PIC_ORDER( ... ) __VA_ARGS__
 #else
-# define IF_DEBUG_PIC_ORDER(...)
+#  define IF_DEBUG_PIC_ORDER( ... )
 #endif
 
 namespace vvdec
 {
+static std::ostream& operator<<( std::ostream& strm, PicList& picList )
+{
+  for( auto& p: picList )
+  {
+    char stateC = ' ';
+    switch (p->progress) {
+    case Picture::parsing:        stateC = 'p'; break;
+    case Picture::parsed:         stateC = '.'; break;
+    case Picture::reconstructing: stateC = 'x'; break;
+    default:
+    case Picture::reconstructed:
+    case Picture::finished:       stateC = 'X';
+      if( !p->neededForOutput )
+      {
+        stateC = 'o';
+        if( p->lockedByApplication ) stateC = 'L';
+        else if( p->referenced )     stateC = 'R';
+      }
+    }
+    strm << p->poc << stateC << ' ';
+  }
+
+  return strm;
+}
+
+static std::ostream& operator<<( std::ostream& strm, PicListRange& picRange )
+{
+  for( auto& p: picRange )
+  {
+    strm << p->poc << ( p->progress >= Picture::finished ? "x" : " " ) << " ";
+  }
+  return strm;
+}
 
 static bool isIDR( NalUnitType type )
 {
@@ -178,7 +211,7 @@ Picture* PicListManager::getNewPicBuffer( const SPS& sps, const PPS& pps, const 
                      layerId,
                      userAllocator );
       pic->createWrapAroundBuf( sps.getUseWrapAround(), sps.getMaxCUWidth() );
-      pic->resetForUse();
+      pic->resetForUse( layerId );
     }
 
     // take the picture to be reused and move it to the end of the list
@@ -225,7 +258,7 @@ Picture* PicListManager::getNewPicBuffer( const SPS& sps, const PPS& pps, const 
     pcPic->createWrapAroundBuf( sps.getUseWrapAround(), sps.getMaxCUWidth() );
   }
 
-  pcPic->resetForUse();
+  pcPic->resetForUse( layerId );
 
   return pcPic;
 }
@@ -262,9 +295,14 @@ void PicListManager::applyDoneReferencePictureMarking()
   Picture* lastDonePic = nullptr;
   for( auto& p: m_cPicList )
   {
-    if( p->done.isBlocked() )
+    if( p->progress < Picture::reconstructed )
     {
       break;
+    }
+    if( p->wasLost )
+    {
+      // don't unmark reference pictures based on filled-in lost pictures
+      continue;
     }
     lastDonePic = p;
   }
@@ -306,12 +344,13 @@ void PicListManager::applyDoneReferencePictureMarking()
 
     // mark the picture as "unused for reference" if it is not in
     // the Reference Picture List
-    CHECK( itPic->progress < Picture::reconstructed, "all pictures, for which we apply reference pic marking should have been reconstructed" )
+    CHECK_RECOVERABLE( itPic->progress < Picture::reconstructed, "all pictures, for which we apply reference pic marking should have been reconstructed" )
     if( !isReference )
     {
       itPic->referenced = false;
       itPic->longTerm   = false;
       itPic->wasLost    = false;
+      itPic->error      = false;
       itPic->m_subPicRefBufs.clear();
     }
   }
@@ -390,36 +429,8 @@ Picture* PicListManager::getNextOutputPic( uint32_t numReorderPicsHighestTid,
 
   PicListRange picRange{ seqStart, seqEnd };
 
-#if DEBUG_PIC_ORDER
-  std::cout << "list:  ";
-  for( auto& p: m_cPicList )
-  {
-    char stateC = ' ';
-    switch (p->progress) {
-    case Picture::parsing:        stateC = 'p'; break;
-    case Picture::parsed:         stateC = '.'; break;
-    case Picture::reconstructing: stateC = 'x'; break;
-    default:
-    case Picture::reconstructed:
-    case Picture::finished:       stateC = 'X';
-      if( !p->neededForOutput )
-      {
-        stateC = 'o';
-        if( p->lockedByApplication ) stateC = 'L';
-        else if( p->referenced )     stateC = 'R';
-      }
-    }
-    std::cout << p->poc << stateC << ' ';
-  }
-//  std::cout << std::endl;
-
-//  std::cout << "range: ";
-//  for( auto& p: picRange )
-//  {
-//    std::cout << p->poc << ( p->progress >= Picture::finished ? "x" : " " ) << " ";
-//  }
-  std::cout << std::flush;
-#endif
+  IF_DEBUG_PIC_ORDER( std::cout << "list:  " << m_cPicList << std::flush );
+//  IF_DEBUG_PIC_ORDER( std::cout << std::endl << "range: " << picRange << std::flush );
 
   if( m_tuneInDelay <= numReorderPicsHighestTid + m_parallelDecInst + 1 && !bFlush )
   {

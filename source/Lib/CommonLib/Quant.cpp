@@ -295,6 +295,16 @@ void invResDPCM( const TransformUnit &tu, const ComponentID &compID, CoeffBuf &d
   }
 }
 
+static inline int getTransformShift( const int channelBitDepth, const Size size, const int maxLog2TrDynamicRange )
+{
+  return maxLog2TrDynamicRange - channelBitDepth - ( ( getLog2( size.width ) + getLog2( size.height ) ) >> 1 );
+}
+
+static inline int getScalingListType( const PredMode predMode, const ComponentID compID )
+{
+  return ( ( predMode == MODE_INTRA ) ? 0 : MAX_NUM_COMPONENT ) + MAP_CHROMA( compID );
+}
+
 void Quant::dequant( const TransformUnit& tu, CoeffBuf& dstCoeff, const ComponentID& compID, const QpParam& cQP )
 {
   const SPS*             sps                   = tu.cu->sps;
@@ -330,7 +340,7 @@ void Quant::dequant( const TransformUnit& tu, CoeffBuf& dstCoeff, const Componen
     maxY = tu.maxScanPosY[compID];
   }
   
-  CHECK(scalingListType >= SCALING_LIST_NUM, "Invalid scaling list");
+  CHECK_RECOVERABLE(scalingListType >= SCALING_LIST_NUM, "Invalid scaling list");
 
   // Represents scaling through forward transform
   const bool bClipTransformShiftTo0 = false;// tu.mtsIdx[compID] != 1 && sps->getSpsRangeExtension().getExtendedPrecisionProcessingFlag();
@@ -512,7 +522,7 @@ void Quant::setScalingListDec( const ScalingList& scalingList )
       for( uint32_t list = 0; list < SCALING_LIST_NUM; list++ )   // 9
       {
         int largerSide = ( sizew > sizeh ) ? sizew : sizeh;
-        CHECK( largerSide < SCALING_LIST_4x4, "Rectangle Error!" );
+        CHECK_RECOVERABLE( largerSide < SCALING_LIST_4x4, "Rectangle Error!" );
         recScalingListId = g_scalingListId[largerSide][list];
         xSetRecScalingListDec( scalingList, list, sizew, sizeh, recScalingListId );
       }
@@ -698,7 +708,7 @@ void Quant::xInitScalingList( const Quant* other )
     }
   }
 
-  CHECK( numQuants != g_numScalingListCoeffs, "Incorrect size of scaling list entries number!" );
+  CHECK_RECOVERABLE( numQuants != g_numScalingListCoeffs, "Incorrect size of scaling list entries number!" );
 }
 
 /** destroy quantization matrix array
@@ -734,8 +744,8 @@ void Quant::init( const Picture *pic )
     const std::shared_ptr<const APS> scalingListAPS = slice->getPicHeader()->getScalingListAPS();
     if( slice->getNalUnitLayerId() != scalingListAPS->getLayerId() )
     {
-      CHECK( scalingListAPS->getLayerId() > slice->getNalUnitLayerId(), "Layer Id of APS cannot be greater than layer Id of VCL NAL unit the refer to it" );
-      CHECK( slice->getSPS()->getVPSId() == 0, "VPSId of the referred SPS cannot be 0 when layer Id of APS and layer Id of current slice are different" );
+      CHECK_RECOVERABLE( scalingListAPS->getLayerId() > slice->getNalUnitLayerId(), "Layer Id of APS cannot be greater than layer Id of VCL NAL unit the refer to it" );
+      CHECK_RECOVERABLE( slice->getSPS()->getVPSId() == 0, "VPSId of the referred SPS cannot be 0 when layer Id of APS and layer Id of current slice are different" );
       for( int i = 0; i < slice->getVPS()->getNumOutputLayerSets(); i++ )
       {
         bool isCurrLayerInOls = false;
@@ -751,7 +761,7 @@ void Quant::init( const Picture *pic )
             isRefLayerInOls = true;
           }
         }
-        CHECK( isCurrLayerInOls && !isRefLayerInOls, "When VCL NAl unit in layer A refers to APS in layer B, all OLS that contains layer A shall also contains layer B" );
+        CHECK_RECOVERABLE( isCurrLayerInOls && !isRefLayerInOls, "When VCL NAl unit in layer A refers to APS in layer B, all OLS that contains layer A shall also contains layer B" );
       }
     }
     const ScalingList& scalingList = scalingListAPS->getScalingList();

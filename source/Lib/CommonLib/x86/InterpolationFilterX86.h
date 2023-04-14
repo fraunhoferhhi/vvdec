@@ -117,11 +117,11 @@ static void fullPelCopySSE( const ClpRng& clpRng, const void*_src, ptrdiff_t src
           vsrc = _mm_add_epi16( vsrc, voffset_headroom );
           vsrc = _mm_srai_epi16( vsrc, headroom );
           vsum = vsrc;
-        }
 
-        if( isLast )
-        {
-          vsum = _mm_max_epi16( _mm_min_epi16( vmax, vsum ), vmin );
+          if( isLast )
+          {
+            vsum = _mm_max_epi16( _mm_min_epi16( vmax, vsum ), vmin );
+          }
         }
 
         _mm_storeu_si128( ( __m128i * )&dst[col+i], vsum );
@@ -179,11 +179,11 @@ static void fullPelCopySSE_M4( const ClpRng& clpRng, const void*_src, ptrdiff_t 
         vsrc = _mm_add_epi16( vsrc, voffset_headroom );
         vsrc = _mm_srai_epi16( vsrc, headroom );
         vsum = vsrc;
-      }
 
-      if( isLast )
-      {
-        vsum = _mm_max_epi16( _mm_min_epi16( vmax, vsum ), vmin );
+        if( isLast )
+        {
+          vsum = _mm_max_epi16( _mm_min_epi16( vmax, vsum ), vmin );
+        }
       }
 
       _mm_storel_epi64( ( __m128i * )&dst[col], vsum );
@@ -244,11 +244,11 @@ static void fullPelCopyAVX2( const ClpRng& clpRng, const void*_src, ptrdiff_t sr
           vsrc = _mm256_add_epi16( vsrc, vheadroom_offset );
           vsrc = _mm256_srai_epi16( vsrc, headroom );
           vsum = vsrc;
-        }
 
-        if( isLast )
-        {
-          vsum = _mm256_max_epi16( _mm256_min_epi16( vmax, vsum ), vmin );
+          if( isLast )
+          {
+            vsum = _mm256_max_epi16( _mm256_min_epi16( vmax, vsum ), vmin );
+          }
         }
 
         _mm256_storeu_si256( ( __m256i * )&dst[col+i], vsum );
@@ -339,15 +339,15 @@ static void simdFilterCopy( const ClpRng& clpRng, const Pel* src, const ptrdiff_
 {
   if( biMCForDMVR )
   {
-      fullPelCopyDMVR_SSE<vext>( src, srcStride, dst, dstStride, width, height, clpRng );
+    fullPelCopyDMVR_SSE<vext>( src, srcStride, dst, dstStride, width, height, clpRng );
   }
   else if( vext >= AVX2 && ( width % 16 ) == 0 )
   {
-    fullPelCopyAVX2<Pel, 16, isFirst, isLast >( clpRng, src, srcStride, dst, dstStride, width, height );
+    fullPelCopyAVX2<Pel, 16, isFirst, isLast>( clpRng, src, srcStride, dst, dstStride, width, height );
   }
   else if( ( width % 16 ) == 0 )
   {
-    fullPelCopySSE<Pel, 16, isFirst, isLast >( clpRng, src, srcStride, dst, dstStride, width, height );
+    fullPelCopySSE<Pel, 16, isFirst, isLast>( clpRng, src, srcStride, dst, dstStride, width, height );
   }
   else if( ( width % 8 ) == 0 )
   {
@@ -373,8 +373,8 @@ static void simdInterpolateHorM1(const int16_t* src, ptrdiff_t srcStride, int16_
 
   const __m128i vcoeffh  = N == 8 ? _mm_loadu_si128((__m128i const*) coeff) : _mm_set1_epi64x( *( int64_t const* ) coeff );
   const __m128i voffset  = _mm_set1_epi32(offset);
-  const __m128i vibdimin = _mm_set1_epi16(clpRng.min());
-  const __m128i vibdimax = _mm_set1_epi16(clpRng.max());
+  const __m128i vibdimin = _mm_set1_epi32(clpRng.min());
+  const __m128i vibdimax = _mm_set1_epi32(clpRng.max());
   const __m128i vzero    = _mm_setzero_si128();
 
   int row;
@@ -427,7 +427,7 @@ static void simdInterpolateHorM1(const int16_t* src, ptrdiff_t srcStride, int16_
     vsrc0 = _mm_srai_epi32(vsrc0, shift);
 
     if (shiftBack) { //clip
-      vsrc0 = _mm_min_epi16(vibdimax, _mm_max_epi16(vibdimin, vsrc0));
+      vsrc0 = _mm_min_epi32(vibdimax, _mm_max_epi32(vibdimin, vsrc0));
     }
     
     *dst = _mm_cvtsi128_si32(vsrc0);    dst += dstStride;
@@ -452,7 +452,7 @@ static void simdInterpolateHorM1(const int16_t* src, ptrdiff_t srcStride, int16_
     vsrc0 = _mm_srai_epi32(vsrc0, shift);
 
     if (shiftBack) { //clip
-      vsrc0 = _mm_min_epi16(vibdimax, _mm_max_epi16(vibdimin, vsrc0));
+      vsrc0 = _mm_min_epi32(vibdimax, _mm_max_epi32(vibdimin, vsrc0));
     }
     
     *dst = _mm_cvtsi128_si32(vsrc0);
@@ -1569,7 +1569,7 @@ static void simdFilter( const ClpRng& clpRng, const Pel* src, const ptrdiff_t sr
   int shift    = IF_FILTER_PREC;
   // with the current settings (IF_INTERNAL_PREC = 14 and IF_FILTER_PREC = 6), though headroom can be
   // negative for bit depths greater than 14, shift will remain non-negative for bit depths of 8->20
-  CHECK( shift < 0, "Negative shift" );
+  CHECK_RECOVERABLE( shift < 0, "Negative shift" );
 
 #define USE_M16_AVX2_IF 1
 
@@ -1640,11 +1640,6 @@ static void simdFilter( const ClpRng& clpRng, const Pel* src, const ptrdiff_t sr
         simdInterpolateVerM4<vext, 8, isLast>( src, srcStride, dst, dstStride, width, height, shift, offset, clpRng, c );
       return;
     }
-    else if( N == 8 && width == 1 )
-    {
-      simdInterpolateHorM1<vext, 8, isLast>( src, srcStride, dst, dstStride, width, height, shift, offset, clpRng, c );
-      return;
-    }
     else if( N == 4 && ( width % 2 ) == 0 )
     {
       CHECKD( ( width & 1 ), "Blocks of width 1 are not allowed!" );
@@ -1692,9 +1687,10 @@ static void simdFilter( const ClpRng& clpRng, const Pel* src, const ptrdiff_t sr
         return;
       }
     }
-    else if( N == 4 && width == 1 )
+    else if( width == 1 )
     {
-      simdInterpolateHorM1<vext, 4, isLast>( src, srcStride, dst, dstStride, width, height, shift, offset, clpRng, c );
+      CHECK( isVertical, "Should never happen!" );
+      simdInterpolateHorM1<vext, N, isLast>( src, srcStride, dst, dstStride, width, height, shift, offset, clpRng, c );
       return;
     }
     else if( N == 2 )

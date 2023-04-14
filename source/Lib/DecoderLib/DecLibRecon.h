@@ -185,13 +185,14 @@ public:
 
   void     decompressPicture( Picture* pcPic );
   Picture* waitForPrevDecompressedPic();
+  void     cleanupOnException( std::exception_ptr exception );
   Picture* getCurrPic() const { return m_currDecompPic; }
   void     swapBufs( CodingStructure& cs );
 
 
 private:
-  void borderExtPic ( Picture* pic );
-  void createSubPicRefBufs( Picture* pic );
+  void borderExtPic       ( Picture* pic, const Picture* currPic );
+  void createSubPicRefBufs( Picture* pic, const Picture* currPic );
 
   template<bool checkReadyState=false>
   static bool ctuTask( int tid, CtuTaskParam* param );

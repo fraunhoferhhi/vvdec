@@ -106,9 +106,9 @@ int VVDecImpl::init( const vvdecParams& params, vvdecCreateBufferCallback create
 
     // create decoder class
 #if RPR_YUV_OUTPUT
-    m_cDecLib->create( params.threads, params.parseThreads, m_cUserAllocator, params.upscaleOutput );
+    m_cDecLib->create( params.threads, params.parseThreads, m_cUserAllocator, static_cast<ErrHandlingFlags>(params.errHandlingFlags), params.upscaleOutput );
 #else
-    m_cDecLib->create( params.threads, params.parseThreads, m_cUserAllocator );
+    m_cDecLib->create( params.threads, params.parseThreads, m_cUserAllocator, static_cast<ErrHandlingFlags>(params.errHandlingFlags) );
 #endif
 
     g_verbosity = MsgLevel( params.logLevel );
@@ -124,11 +124,12 @@ int VVDecImpl::init( const vvdecParams& params, vvdecCreateBufferCallback create
 
     m_sDecoderCapabilities = m_cDecLib->getDecoderCapabilities();
 
-    m_bRemovePadding = params.removePadding;
-    m_uiSeqNumber    = 0;
-    m_uiSeqNumOutput = 0;
-    m_bInitialized   = true;
-    m_eState         = INTERNAL_STATE_INITIALIZED;
+    m_bRemovePadding    = params.removePadding;
+    m_eErrHandlingFlags = static_cast<ErrHandlingFlags>(params.errHandlingFlags);
+    m_uiSeqNumber       = 0;
+    m_uiSeqNumOutput    = 0;
+    m_bInitialized      = true;
+    m_eState            = INTERNAL_STATE_INITIALIZED;
   }
   catch( UnsupportedFeatureException& e )
   {
@@ -322,82 +323,79 @@ int VVDecImpl::decode( vvdecAccessUnit& rcAccessUnit, vvdecFrame** ppcFrame )
         pos++;
       }
 
-      if( bStartCodeFound )
+      if( !bStartCodeFound )
       {
-        int iLastPos = rcAccessUnit.payloadUsedSize;
-        while( iLastPos > 0 && rcAccessUnit.payload[iLastPos-1] == 0 )
-        {
-          iLastPos--;
-        }
-        iAUEndPosVec.push_back( iLastPos );
-
-        // check if first AU begins on begin of payload (otherwise wrong input)
-        if(!iStartCodePosVec.empty() && (iStartCodePosVec[0] != 3 && iStartCodePosVec[0] != 4 ))
-        {
-          m_cErrorString = "vvdecAccessUnit does not start with valid start code.";
-          return VVDEC_ERR_DEC_INPUT;
-        }
-
-        // iterate over all AU´s
-        for( size_t iAU = 0; iAU < iStartCodePosVec.size(); iAU++ )
-        {
-          std::vector<uint8_t>& nalUnit = nalu.getBitstream().getFifo();
-          uint32_t uiNaluBytes = (uint32_t)iStartCodeSizeVec[iAU];
-          for( size_t pos = iStartCodePosVec[iAU]; pos < iAUEndPosVec[iAU]; pos++ )
-          {
-            nalUnit.push_back( rcAccessUnit.payload[pos]);
-            uiNaluBytes++;
-          }
-
-          if( uiNaluBytes )
-          {
-            InputBitstream& rBitstream = nalu.getBitstream();
-            const int nut = ( nalUnit[1] >> 3 ) & 0x1f;
-            // perform anti-emulation prevention
-            if( 0 != xConvertPayloadToRBSP( nalUnit, &rBitstream, NALUnit::isVclNalUnitType( (NalUnitType) nut ) ) )
-            {
-              return VVDEC_ERR_UNSPECIFIED;
-            }
-
-            rBitstream.resetToStart();
-
-            if( 0 != xReadNalUnitHeader(nalu) )
-            {
-              return VVDEC_ERR_UNSPECIFIED;
-            }
-
-            CHECKD( nut != nalu.m_nalUnitType, "Nal unit type parsed wrong." );
-            if ( NALUnit::isVclNalUnitType( nalu.m_nalUnitType ) )
-            {
-              iComrpPacketCnt++;
-            }
-
-            if( rcAccessUnit.ctsValid ){  nalu.m_cts = rcAccessUnit.cts; }
-            if( rcAccessUnit.dtsValid ){  nalu.m_dts = rcAccessUnit.dts; }
-            nalu.m_rap = rcAccessUnit.rap;
-            nalu.m_bits = uiNaluBytes*8;
-
-            pcPic = m_cDecLib->decode( nalu );
-
-            iRet = xHandleOutput( pcPic );
-            if( 0 != iRet )
-            {
-              return iRet;
-            }
-          }
-
-          if( iAU != iStartCodePosVec.size() - 1 )
-          {
-            // reset nalu only when not last nal
-            nalu.getBitstream().resetToStart();
-            nalu.getBitstream().getFifo().clear();
-          }
-        }
+        return VVDEC_ERR_DEC_INPUT;
       }
-      else
+
+      int iLastPos = rcAccessUnit.payloadUsedSize;
+      while( iLastPos > 0 && rcAccessUnit.payload[iLastPos-1] == 0 )
       {
-        *ppcFrame = nullptr;
-        return VVDEC_ERR_UNSPECIFIED;
+        iLastPos--;
+      }
+      iAUEndPosVec.push_back( iLastPos );
+
+      // check if first AU begins on begin of payload (otherwise wrong input)
+      if(!iStartCodePosVec.empty() && (iStartCodePosVec[0] != 3 && iStartCodePosVec[0] != 4 ))
+      {
+        m_cErrorString = "vvdecAccessUnit does not start with valid start code.";
+        return VVDEC_ERR_DEC_INPUT;
+      }
+
+      // iterate over all AU´s
+      for( size_t iAU = 0; iAU < iStartCodePosVec.size(); iAU++ )
+      {
+        std::vector<uint8_t>& nalUnit = nalu.getBitstream().getFifo();
+        uint32_t uiNaluBytes = (uint32_t)iStartCodeSizeVec[iAU];
+        for( size_t pos = iStartCodePosVec[iAU]; pos < iAUEndPosVec[iAU]; pos++ )
+        {
+          nalUnit.push_back( rcAccessUnit.payload[pos]);
+          uiNaluBytes++;
+        }
+
+        if( uiNaluBytes )
+        {
+          InputBitstream& rBitstream = nalu.getBitstream();
+          const int nut = ( nalUnit[1] >> 3 ) & 0x1f;
+          // perform anti-emulation prevention
+          if( 0 != xConvertPayloadToRBSP( nalUnit, &rBitstream, NALUnit::isVclNalUnitType( (NalUnitType) nut ) ) )
+          {
+            return VVDEC_ERR_UNSPECIFIED;
+          }
+
+          rBitstream.resetToStart();
+
+          if( 0 != xReadNalUnitHeader(nalu) )
+          {
+            return VVDEC_ERR_UNSPECIFIED;
+          }
+
+          CHECKD( nut != nalu.m_nalUnitType, "Nal unit type parsed wrong." );
+          if ( NALUnit::isVclNalUnitType( nalu.m_nalUnitType ) )
+          {
+            iComrpPacketCnt++;
+          }
+
+          if( rcAccessUnit.ctsValid ){  nalu.m_cts = rcAccessUnit.cts; }
+          if( rcAccessUnit.dtsValid ){  nalu.m_dts = rcAccessUnit.dts; }
+          nalu.m_rap = rcAccessUnit.rap;
+          nalu.m_bits = uiNaluBytes*8;
+
+          pcPic = m_cDecLib->decode( nalu );
+
+          iRet = xHandleOutput( pcPic );
+          if( 0 != iRet )
+          {
+            return iRet;
+          }
+        }
+
+        if( iAU != iStartCodePosVec.size() - 1 )
+        {
+          // reset nalu only when not last nal
+          nalu.getBitstream().resetToStart();
+          nalu.getBitstream().getFifo().clear();
+        }
       }
     }
     else
@@ -453,6 +451,13 @@ int VVDecImpl::decode( vvdecAccessUnit& rcAccessUnit, vvdecFrame** ppcFrame )
       m_cAdditionalErrorString = css.str();
       return VVDEC_ERR_DEC_INPUT;
     }
+    if( m_eErrHandlingFlags & ERR_HANDLING_TRY_CONTINUE )
+    {
+      css << "Exception occured: " << e.what() << "\n"
+          << "Trying to continue decoding.";
+      m_cAdditionalErrorString = css.str();
+      return VVDEC_ERR_DEC_INPUT;
+    }
     m_eState = INTERNAL_STATE_RESTART_REQUIRED;
     return VVDEC_ERR_RESTART_REQUIRED;
   }
@@ -477,9 +482,9 @@ int VVDecImpl::decode( vvdecAccessUnit& rcAccessUnit, vvdecFrame** ppcFrame )
   catch( std::exception& e )
   {
     //assert( 0 );
-    std::stringstream css;   
+    std::stringstream css;
     css << "caught unknown exception " << e.what();
-    m_cErrorString = "catched unknown exception";
+    m_cErrorString = "caught unknown exception";
     m_cAdditionalErrorString = css.str();
     m_eState = INTERNAL_STATE_RESTART_REQUIRED;
     return VVDEC_ERR_RESTART_REQUIRED;
@@ -547,11 +552,16 @@ int VVDecImpl::flush( vvdecFrame** ppframe )
       m_eState = INTERNAL_STATE_FINALIZED;
     }
   }
-  catch( std::overflow_error& e )
+  catch( RecoverableException& e )
   {
     std::stringstream css;
-    css << "caught overflow exception " << e.what();
-    m_cAdditionalErrorString = css.str();
+    if( m_eErrHandlingFlags & ERR_HANDLING_TRY_CONTINUE )
+    {
+      css << "Exception occured: " << e.what() << "\n"
+          << "Trying to continue decoding.";
+      m_cAdditionalErrorString = css.str();
+      return VVDEC_ERR_DEC_INPUT;
+    }
     m_eState = INTERNAL_STATE_RESTART_REQUIRED;
     return VVDEC_ERR_RESTART_REQUIRED;
   }
@@ -563,6 +573,14 @@ int VVDecImpl::flush( vvdecFrame** ppframe )
     m_cAdditionalErrorString = css.str();
     m_eState = INTERNAL_STATE_NOT_SUPPORTED;
     return VVDEC_ERR_NOT_SUPPORTED;
+  }
+  catch( std::overflow_error& e )
+  {
+    std::stringstream css;
+    css << "caught overflow exception " << e.what();
+    m_cAdditionalErrorString = css.str();
+    m_eState = INTERNAL_STATE_RESTART_REQUIRED;
+    return VVDEC_ERR_RESTART_REQUIRED;
   }
   catch( std::exception& e )
   {

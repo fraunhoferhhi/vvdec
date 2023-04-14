@@ -580,6 +580,12 @@ void copyBuffer_SSE( const char *src, ptrdiff_t srcStride, char *dst, ptrdiff_t 
   _mm_prefetch( (const char *) ( src             ), _MM_HINT_T0 );
   _mm_prefetch( (const char *) ( src + srcStride ), _MM_HINT_T0 );
 
+  if( width == srcStride && width == dstStride )
+  {
+    memcpy( dst, src, width * height );
+    return;
+  }
+
   while( height-- )
   {
     const char* nextSrcLine = src + srcStride;
@@ -670,7 +676,7 @@ void rspBcwCore_SIMD( Pel* ptr, ptrdiff_t ptrStride, int width, int height, cons
   _mm_prefetch( ( const char* ) ( ptr + 3 * ptrStride ), _MM_HINT_T0 );
 
 #if USE_AVX2
-  if( ( width & 15 ) == 0 )
+  if( ( width & 15 ) == 0 && vext >= AVX2 )
   {
     __m128i xtmp1, xtmp2, xtmp3, xtmp4;
     xtmp1 = _mm_loadu_si128( ( const __m128i* ) &InputPivot[0] );
@@ -683,8 +689,8 @@ void rspBcwCore_SIMD( Pel* ptr, ptrdiff_t ptrStride, int width, int height, cons
     const __m256i mInputPivotLo = _mm256_inserti128_si256( _mm256_castsi128_si256( xtmp1 ), xtmp1, 1 );
     const __m256i mInputPivotHi = _mm256_inserti128_si256( _mm256_castsi128_si256( xtmp2 ), xtmp2, 1 );
 
-    xtmp1 = _mm_loadu_si128( ( const __m128i* ) & InvScCoeff[0] );
-    xtmp2 = _mm_loadu_si128( ( const __m128i* ) & InvScCoeff[8] );
+    xtmp1 = _mm_loadu_si128( ( const __m128i* ) &InvScCoeff[0] );
+    xtmp2 = _mm_loadu_si128( ( const __m128i* ) &InvScCoeff[8] );
     xtmp3 = _mm_shuffle_epi8( xtmp1, _mm_setr_epi8( 0, 2, 4, 6, 8, 10, 12, 14, 1, 3, 5, 7, 9, 11, 13, 15 ) );
     xtmp4 = _mm_shuffle_epi8( xtmp2, _mm_setr_epi8( 0, 2, 4, 6, 8, 10, 12, 14, 1, 3, 5, 7, 9, 11, 13, 15 ) );
     xtmp1 = _mm_unpacklo_epi64( xtmp3, xtmp4 );
@@ -714,13 +720,35 @@ void rspBcwCore_SIMD( Pel* ptr, ptrdiff_t ptrStride, int width, int height, cons
         __m256i diff2 = _mm256_min_epi16( xsrc2, xsrc3 );
         __m256i diff1, diff3;
 
-        diff0 = _mm256_min_epi16( diff0, diff2 );
-
-        const Pel min = _mm_extract_epi16( _mm_minpos_epu16( _mm_min_epi16( _mm256_castsi256_si128( diff0 ), _mm256_extracti128_si256( diff0, 1 ) ) ), 0 );
+        diff0   = _mm256_min_epi16( diff0, diff2 );
+        __m128i
+        diffx   = _mm_minpos_epu16( _mm_min_epi16( _mm256_castsi256_si128  ( diff0 ),
+                                                   _mm256_extracti128_si256( diff0, 1 ) ) );
+        int min = _mm_extract_epi16( diffx, 0 );
 
         int i = minBin;
+        switch( effMaxBin - minBin )
+        {
+        default:
+        case 15: if( min < LmcsPivot[++i] ) { break; };
+        case 14: if( min < LmcsPivot[++i] ) { break; };
+        case 13: if( min < LmcsPivot[++i] ) { break; };
+        case 12: if( min < LmcsPivot[++i] ) { break; };
+        case 11: if( min < LmcsPivot[++i] ) { break; };
+        case 10: if( min < LmcsPivot[++i] ) { break; };
+        case  9: if( min < LmcsPivot[++i] ) { break; };
+        case  8: if( min < LmcsPivot[++i] ) { break; };
+        case  7: if( min < LmcsPivot[++i] ) { break; };
+        case  6: if( min < LmcsPivot[++i] ) { break; };
+        case  5: if( min < LmcsPivot[++i] ) { break; };
+        case  4: if( min < LmcsPivot[++i] ) { break; };
+        case  3: if( min < LmcsPivot[++i] ) { break; };
+        case  2: if( min < LmcsPivot[++i] ) { break; };
+        case  1: if( min < LmcsPivot[++i] ) { break; };
+        case  0: if( min < LmcsPivot[++i] ) { break; };
+        }
 
-        while( i != effMaxBin && min >= LmcsPivot[i + 1] ) i++;
+        --i;  
 
         __m256i xidx0 = _mm256_set1_epi16( i );
         __m256i xidx1 = xidx0;
@@ -734,8 +762,9 @@ void rspBcwCore_SIMD( Pel* ptr, ptrdiff_t ptrStride, int width, int height, cons
         diff2 = _mm256_sub_epi16( xsrc2, xlmcs );
         diff3 = _mm256_sub_epi16( xsrc3, xlmcs );
 
-        for( i++; i <= effMaxBin; i++ )
+        for( ++i; i <= effMaxBin; ++i )
         {
+          __m256i
           xlmcs         = _mm256_set1_epi16( LmcsPivot[i] );
 
           __m256i currd = _mm256_sub_epi16( xsrc0, xlmcs );
@@ -763,7 +792,7 @@ void rspBcwCore_SIMD( Pel* ptr, ptrdiff_t ptrStride, int width, int height, cons
           chnd2         = _mm256_or_si256( chnd2, chnd3 );
           chnd0         = _mm256_or_si256( chnd0, chnd2 );
 
-          if( _mm256_testz_si256( chnd0, chnd0 ) ) break;
+          if( _mm256_movemask_epi8( chnd0 ) == 0 ) break;
         }
 
         xidx0 = _mm256_packs_epi16( xidx0, _mm256_set1_epi8( -1 ) );
@@ -843,7 +872,6 @@ void rspBcwCore_SIMD( Pel* ptr, ptrdiff_t ptrStride, int width, int height, cons
 
     const __m128i mInputPivotLo = _mm_unpacklo_epi64( xtmp1, xtmp2 );
     const __m128i mInputPivotHi = _mm_unpackhi_epi64( xtmp1, xtmp2 );
-    
 
     xtmp1 = _mm_loadu_si128( ( const __m128i* ) &InvScCoeff[0] );
     xtmp2 = _mm_loadu_si128( ( const __m128i* ) &InvScCoeff[8] );
@@ -870,11 +898,33 @@ void rspBcwCore_SIMD( Pel* ptr, ptrdiff_t ptrStride, int width, int height, cons
         const __m128i xsrc2 = _mm_load_si128( ( const __m128i* ) ( ptr + x + 2 * ptrStride ) );
         const __m128i xsrc3 = _mm_load_si128( ( const __m128i* ) ( ptr + x + 3 * ptrStride ) );
 
-        const Pel min = _mm_extract_epi16( _mm_minpos_epu16( _mm_min_epi16( _mm_min_epi16( xsrc0, xsrc1 ), _mm_min_epi16( xsrc2, xsrc3 ) ) ), 0 );
-        
-        int i = minBin;
+        __m128i diff0, diff1, diff2, diff3;
+        diff0   = _mm_minpos_epu16( _mm_min_epi16( _mm_min_epi16( xsrc0, xsrc1 ), _mm_min_epi16( xsrc2, xsrc3 ) ) );
+        int min = _mm_extract_epi16( diff0, 0 );
 
-        while( i != effMaxBin && min >= LmcsPivot[i + 1] ) i++;
+        int i = minBin;
+        switch( effMaxBin - minBin )
+        {
+        default:
+        case 15: if( min < LmcsPivot[++i] ) { break; };
+        case 14: if( min < LmcsPivot[++i] ) { break; };
+        case 13: if( min < LmcsPivot[++i] ) { break; };
+        case 12: if( min < LmcsPivot[++i] ) { break; };
+        case 11: if( min < LmcsPivot[++i] ) { break; };
+        case 10: if( min < LmcsPivot[++i] ) { break; };
+        case  9: if( min < LmcsPivot[++i] ) { break; };
+        case  8: if( min < LmcsPivot[++i] ) { break; };
+        case  7: if( min < LmcsPivot[++i] ) { break; };
+        case  6: if( min < LmcsPivot[++i] ) { break; };
+        case  5: if( min < LmcsPivot[++i] ) { break; };
+        case  4: if( min < LmcsPivot[++i] ) { break; };
+        case  3: if( min < LmcsPivot[++i] ) { break; };
+        case  2: if( min < LmcsPivot[++i] ) { break; };
+        case  1: if( min < LmcsPivot[++i] ) { break; };
+        case  0: if( min < LmcsPivot[++i] ) { break; };
+        }
+
+        --i;
 
         __m128i xidx0 = _mm_set1_epi16( i );
         __m128i xidx1 = xidx0;
@@ -883,12 +933,12 @@ void rspBcwCore_SIMD( Pel* ptr, ptrdiff_t ptrStride, int width, int height, cons
 
         __m128i xlmcs = _mm_set1_epi16( LmcsPivot[i] );
 
-        __m128i diff0 = _mm_sub_epi16( xsrc0, xlmcs );
-        __m128i diff1 = _mm_sub_epi16( xsrc1, xlmcs );
-        __m128i diff2 = _mm_sub_epi16( xsrc2, xlmcs );
-        __m128i diff3 = _mm_sub_epi16( xsrc3, xlmcs );
+        diff0 = _mm_sub_epi16( xsrc0, xlmcs );
+        diff1 = _mm_sub_epi16( xsrc1, xlmcs );
+        diff2 = _mm_sub_epi16( xsrc2, xlmcs );
+        diff3 = _mm_sub_epi16( xsrc3, xlmcs );
 
-        for( i++; i <= effMaxBin; i++ )
+        for( ++i; i <= effMaxBin; ++i )
         {
           xlmcs         = _mm_set1_epi16( LmcsPivot[i] );
 
@@ -917,7 +967,7 @@ void rspBcwCore_SIMD( Pel* ptr, ptrdiff_t ptrStride, int width, int height, cons
           chnd2         = _mm_or_si128( chnd2, chnd3 );
           chnd0         = _mm_or_si128( chnd0, chnd2 );
 
-          if( _mm_testz_si128( chnd0, chnd0 ) ) break;
+          if( _mm_movemask_epi8( chnd0 ) == 0 ) break;
         }
 
         xidx0 = _mm_packs_epi16( xidx0, _mm_set1_epi8( -1 ) );
@@ -1293,7 +1343,7 @@ void sampleRateConvSIMD_8tap( const std::pair<int, int> scalingRatio, const std:
   int* buf = new int[orgHeight * scaledWidth];
   int maxVal = (1 << bitDepth) - 1;
 
-  CHECK( bitDepth > 17, "Overflow may happen!" );
+  CHECK_RECOVERABLE( bitDepth > 17, "Overflow may happen!" );
 
   const Pel* org = orgSrc;
 
@@ -1561,7 +1611,7 @@ void sampleRateConvSIMD_4tap( const std::pair<int, int> scalingRatio, const std:
   int* buf = new int[orgHeight * scaledWidth];
   int maxVal = (1 << bitDepth) - 1;
 
-  CHECK( bitDepth > 17, "Overflow may happen!" );
+  CHECK_RECOVERABLE( bitDepth > 17, "Overflow may happen!" );
 
   const Pel* org = orgSrc;
 

@@ -126,7 +126,7 @@ void  Reshape::initSlice( int nalUnitLayerId, const PicHeader& picHeader, const 
             isRefLayerInOls = true;
           }
         }
-        CHECK( isCurrLayerInOls && !isRefLayerInOls, "When VCL NAl unit in layer A refers to APS in layer B, all OLS that contains layer A shall also contains layer B" );
+        CHECK_RECOVERABLE( isCurrLayerInOls && !isRefLayerInOls, "When VCL NAl unit in layer A refers to APS in layer B, all OLS that contains layer A shall also contains layer B" );
       }
     }
 
@@ -161,39 +161,6 @@ bool Reshape::getCTUFlag( const Slice& slice ) const
   {
     return m_sliceReshapeInfo.sliceReshaperEnableFlag;
   }
-}
-
-void Reshape::rspCtu( CodingStructure &cs, int col, int ln ) const
-{
-  if( !cs.sps->getUseReshaper() || !m_sliceReshapeInfo.sliceReshaperEnableFlag )
-  {
-    return;
-  }
- 
-  const Slice* slice = cs.getCtuData( col, ln ).slice;
-  if( !slice->getLmcsEnabledFlag() )
-  {
-    return;
-  }
-
-  PROFILER_SCOPE_AND_STAGE_EXT( 1, g_timeProfiler, P_RESHAPER, cs, CH_L );
-
-  const PreCalcValues &pcv = *cs.pcv;
-
-  int xPos = pcv.maxCUWidth * col;
-  int lw   = std::min( pcv.lumaWidth - xPos, pcv.maxCUWidth );
-
-  int yPos = ln * pcv.maxCUHeight;
-  int lh   = std::min( pcv.lumaHeight - yPos, pcv.maxCUHeight );
-
-  PelBuf picYuvRec = cs.getRecoBuf( COMPONENT_Y ).subBuf( Position( xPos, yPos ), Size( lw, lh ) );
-
-#if 1
-  if( g_pelBufOP.rspBcw )
-    g_pelBufOP.rspBcw( picYuvRec.buf, picYuvRec.stride, picYuvRec.width, picYuvRec.height, m_lumaBD, m_sliceReshapeInfo.reshaperModelMinBinIdx, m_sliceReshapeInfo.reshaperModelMaxBinIdx, m_reshapePivot.data(), m_invScaleCoef.data(), m_inputPivot.data() );
-  else
-#endif
-    g_pelBufOP.applyLut( picYuvRec.buf, picYuvRec.stride, picYuvRec.width, picYuvRec.height, m_invLUT );
 }
 
 
@@ -289,7 +256,7 @@ int  Reshape::calculateChromaAdjVpduNei(TransformUnit &tu, const Position pos)
     }
     else
     {
-      CHECK(pelnum != 0, "");
+      CHECK_RECOVERABLE(pelnum != 0, "");
       lumaValue = valueDC;
     }
     chromaScale = calculateChromaAdj(lumaValue);
@@ -362,7 +329,7 @@ void Reshape::constructReshaper()
     }
     else
     {
-      CHECK( m_initCW * (1 << FP_PREC) / m_binCW[i] > (1 << 15) - 1, "Inverse scale coeff doesn't fit in a short!" );
+      CHECK_RECOVERABLE( m_initCW * (1 << FP_PREC) / m_binCW[i] > (1 << 15) - 1, "Inverse scale coeff doesn't fit in a short!" );
       m_invScaleCoef[i] = (int32_t)(m_initCW * (1 << FP_PREC) / m_binCW[i]);
       m_chromaAdjHelpLUT[i] = (int32_t)(m_initCW * (1 << FP_PREC) / ( m_binCW[i] + m_sliceReshapeInfo.chrResScalingOffset ) );
     }
@@ -373,6 +340,39 @@ void Reshape::constructReshaper()
     int invSample = m_inputPivot[idxYInv] + ((m_invScaleCoef[idxYInv] * (lumaSample - m_reshapePivot[idxYInv]) + (1 << (FP_PREC - 1))) >> FP_PREC);
     m_invLUT[lumaSample] = Clip3((Pel)0, (Pel)((1 << m_lumaBD) - 1), (Pel)(invSample));
   }
+}
+
+void Reshape::rspCtuBcw( CodingStructure& cs, int col, int ln ) const
+{
+  if( !cs.sps->getUseReshaper() || !m_sliceReshapeInfo.sliceReshaperEnableFlag )
+  {
+    return;
+  }
+
+  const Slice* slice = cs.getCtuData( col, ln ).slice;
+  if( !slice->getLmcsEnabledFlag() )
+  {
+    return;
+  }
+
+  PROFILER_SCOPE_AND_STAGE_EXT( 1, g_timeProfiler, P_RESHAPER, cs, CH_L );
+
+  const PreCalcValues& pcv = *cs.pcv;
+
+  int xPos = pcv.maxCUWidth * col;
+  int lw = std::min( pcv.lumaWidth - xPos, pcv.maxCUWidth );
+
+  int yPos = ln * pcv.maxCUHeight;
+  int lh = std::min( pcv.lumaHeight - yPos, pcv.maxCUHeight );
+
+  PelBuf picYuvRec = cs.getRecoBuf( COMPONENT_Y ).subBuf( Position( xPos, yPos ), Size( lw, lh ) );
+
+#if 1
+  if( g_pelBufOP.rspBcw )
+    g_pelBufOP.rspBcw( picYuvRec.buf, picYuvRec.stride, picYuvRec.width, picYuvRec.height, m_lumaBD, m_sliceReshapeInfo.reshaperModelMinBinIdx, m_sliceReshapeInfo.reshaperModelMaxBinIdx, m_reshapePivot.data(), m_invScaleCoef.data(), m_inputPivot.data() );
+  else
+#endif
+    g_pelBufOP.applyLut( picYuvRec.buf, picYuvRec.stride, picYuvRec.width, picYuvRec.height, m_invLUT );
 }
 
 void Reshape::rspBufFwd( PelBuf& buf ) const

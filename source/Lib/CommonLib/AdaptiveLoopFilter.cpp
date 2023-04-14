@@ -131,7 +131,7 @@ bool AdaptiveLoopFilter::isClipOrCrossedByVirtualBoundaries( const CodingStructu
 
   const PPS*       pps       = cs.pps.get();
   const SPS*       sps       = cs.sps.get();
-  const PicHeader* picHeader = cs.picHeader;
+  const PicHeader* picHeader = cs.picHeader.get();
 
   if( picHeader->getVirtualBoundariesPresentFlag() )
   {
@@ -404,7 +404,7 @@ void AdaptiveLoopFilter::create( const PicHeader* picHeader, const SPS* sps, con
   m_alfVBLumaPos = m_alfVBLumaCTUHeight - ALF_VB_POS_ABOVE_CTUROW_LUMA;
   m_alfVBChmaPos = m_alfVBChmaCTUHeight - ALF_VB_POS_ABOVE_CTUROW_CHMA;
 
-  CHECK( m_inputBitDepth[CHANNEL_TYPE_LUMA] > 10 || m_inputBitDepth[CHANNEL_TYPE_CHROMA] > 10, "m_alfClippingValues or m_alfClippVls needs to be enabled/adjusted" );
+  CHECK_RECOVERABLE( m_inputBitDepth[CHANNEL_TYPE_LUMA] > 10 || m_inputBitDepth[CHANNEL_TYPE_CHROMA] > 10, "m_alfClippingValues or m_alfClippVls needs to be enabled/adjusted" );
 
   bool loopFilterAcrossSubPicEnabledFlag = true;
   if( sps->getSubPicInfoPresentFlag() )
@@ -494,11 +494,11 @@ void AdaptiveLoopFilter::filterAreaLuma( const CPelUnitBuf& srcBuf,
   const short* clip  = nullptr;
   if( filterSetIndex >= NUM_FIXED_FILTER_SETS )
   {
-    CHECK( slice->getNumAlfAps() <= ( filterSetIndex - NUM_FIXED_FILTER_SETS ), "deduemm" );
+    CHECK_RECOVERABLE( slice->getNumAlfAps() <= ( filterSetIndex - NUM_FIXED_FILTER_SETS ), "deduemm" );
     const int apsIdx = slice->getAlfApsIdLuma()[filterSetIndex - NUM_FIXED_FILTER_SETS];
 
     const APS* curAPS = aps[apsIdx];   // TODO: check this
-    CHECK( curAPS == NULL, "invalid APS" );
+    CHECK_RECOVERABLE( curAPS == NULL, "invalid APS" );
     const AlfSliceParam& alfSliceParam = curAPS->getAlfAPSParam();
     coeff                              = alfSliceParam.lumaCoeffFinal;
     clip                               = alfSliceParam.lumaClippFinal;
@@ -540,7 +540,7 @@ void AdaptiveLoopFilter::filterAreaChroma( const CPelUnitBuf& srcBuf,
   {
     const int  apsIdxChroma = slice->getAlfApsIdChroma();
     const APS* curAPS       = aps[apsIdxChroma];
-    CHECK( curAPS == NULL, "invalid APS" );
+    CHECK_RECOVERABLE( curAPS == NULL, "invalid APS" );
     const AlfSliceParam& alfSliceParam = curAPS->getAlfAPSParam();
 
     const uint8_t altIdx = ctuAlfData.alfCtuAlternative[compID - 1];
@@ -673,8 +673,8 @@ void AdaptiveLoopFilter::filterCTU( const CPelUnitBuf&     srcBuf,
                                                          rasterSliceAlfPad );
   if( isCrssByVBs )
   {
-    CHECK( numHorVirBndry >= (int)( sizeof(horVirBndryPos) / sizeof(horVirBndryPos[0]) ), "Too many virtual boundaries" );
-    CHECK( numHorVirBndry >= (int)( sizeof(verVirBndryPos) / sizeof(verVirBndryPos[0]) ), "Too many virtual boundaries" );
+    CHECK_RECOVERABLE( numHorVirBndry >= (int)( sizeof(horVirBndryPos) / sizeof(horVirBndryPos[0]) ), "Too many virtual boundaries" );
+    CHECK_RECOVERABLE( numHorVirBndry >= (int)( sizeof(verVirBndryPos) / sizeof(verVirBndryPos[0]) ), "Too many virtual boundaries" );
   }
 
   const int width  = ( ctuPos.x + pcv.maxCUWidth  > pcv.lumaWidth  ) ? ( pcv.lumaWidth  - ctuPos.x ) : pcv.maxCUWidth;
@@ -847,7 +847,7 @@ void AdaptiveLoopFilter::reconstructCoeffAPSs( Slice& slice )
     {
       int        apsIdx = slice.getAlfApsIdLuma()[i];
       const APS* curAPS = aps[apsIdx];
-      CHECK( curAPS == NULL, "invalid APS" );
+      CHECK_RECOVERABLE( curAPS == NULL, "invalid APS" );
 
       AlfSliceParam& alfSliceParamTmp = curAPS->getMutableAlfAPSParam();
       reconstructCoeff( alfSliceParamTmp, CHANNEL_TYPE_LUMA, sps->getBitDepths().recon );
@@ -860,7 +860,7 @@ void AdaptiveLoopFilter::reconstructCoeffAPSs( Slice& slice )
   {
     int        apsIdxChroma = slice.getAlfApsIdChroma();
     const APS* curAPS       = aps[apsIdxChroma];
-    CHECK( curAPS == NULL, "invalid APS" );
+    CHECK_RECOVERABLE( curAPS == NULL, "invalid APS" );
 
     AlfSliceParam& alfSliceParamTmp = curAPS->getMutableAlfAPSParam();
     reconstructCoeff( alfSliceParamTmp, CHANNEL_TYPE_CHROMA, sps->getBitDepths().recon );
@@ -1171,7 +1171,7 @@ void AdaptiveLoopFilter::filterBlk( const AlfClassifier* classifier,
 
   if( bChroma )
   {
-    CHECK( filtType != 0, "Chroma needs to have filtType == 0" );
+    CHECK_RECOVERABLE( filtType != 0, "Chroma needs to have filtType == 0" );
   }
 
   const CPelBuf srcLuma = recSrc.get( compId );
@@ -1197,10 +1197,10 @@ void AdaptiveLoopFilter::filterBlk( const AlfClassifier* classifier,
   const int clsSizeY = 4;
   const int clsSizeX = 4;
 
-  CHECK( startHeight % clsSizeY, "Wrong startHeight in filtering" );
-  CHECK( startWidth  % clsSizeX, "Wrong startWidth in filtering" );
-  CHECK( ( endHeight - startHeight ) % clsSizeY, "Wrong endHeight in filtering" );
-  CHECK( ( endWidth  - startWidth )  % clsSizeX, "Wrong endWidth in filtering" );
+  CHECK_RECOVERABLE( startHeight % clsSizeY, "Wrong startHeight in filtering" );
+  CHECK_RECOVERABLE( startWidth  % clsSizeX, "Wrong startWidth in filtering" );
+  CHECK_RECOVERABLE( ( endHeight - startHeight ) % clsSizeY, "Wrong endHeight in filtering" );
+  CHECK_RECOVERABLE( ( endWidth  - startWidth )  % clsSizeX, "Wrong endWidth in filtering" );
 
   ptrdiff_t dstStride2 = dstStride * clsSizeY;
   ptrdiff_t srcStride2 = srcStride * clsSizeY;
@@ -1333,9 +1333,9 @@ void AdaptiveLoopFilter::filterBlkCcAlf( const PelBuf&      dstBuf,
                                          int                vbCTUHeight,
                                          int                vbPos )
 {
-  CHECK( 1 << getLog2(vbCTUHeight) != vbCTUHeight, "Not a power of 2");
+  CHECK_RECOVERABLE( 1 << getLog2(vbCTUHeight) != vbCTUHeight, "Not a power of 2");
 
-  CHECK(!isChroma(compId), "Must be chroma");
+  CHECK_RECOVERABLE(!isChroma(compId), "Must be chroma");
 
   const int  clsSizeY      = 4;
   const int  clsSizeX      = 4;
@@ -1347,10 +1347,10 @@ void AdaptiveLoopFilter::filterBlkCcAlf( const PelBuf&      dstBuf,
   const int  scaleX        = getComponentScaleX( compId, nChromaFormat );
   const int  scaleY        = getComponentScaleY( compId, nChromaFormat );
 
-  CHECK( startHeight % clsSizeY, "Wrong startHeight in filtering" );
-  CHECK( startWidth % clsSizeX, "Wrong startWidth in filtering" );
-  CHECK( ( endHeight - startHeight ) % clsSizeY, "Wrong endHeight in filtering" );
-  CHECK( ( endWidth - startWidth ) % clsSizeX, "Wrong endWidth in filtering" );
+  CHECK_RECOVERABLE( startHeight % clsSizeY, "Wrong startHeight in filtering" );
+  CHECK_RECOVERABLE( startWidth % clsSizeX, "Wrong startWidth in filtering" );
+  CHECK_RECOVERABLE( ( endHeight - startHeight ) % clsSizeY, "Wrong endHeight in filtering" );
+  CHECK_RECOVERABLE( ( endWidth - startWidth ) % clsSizeX, "Wrong endWidth in filtering" );
 
   CPelBuf         srcBuf     = recSrc.get(COMPONENT_Y);
   const ptrdiff_t lumaStride = srcBuf.stride;
@@ -1426,7 +1426,7 @@ void AdaptiveLoopFilter::filterBlkCcAlfBoth( const PelBuf& dstBufCb, const PelBu
                                             const Area &blkSrc, const int16_t* filterCoeffCb, const int16_t* filterCoeffCr,
                                             const ClpRngs &clpRngs, int vbCTUHeight, int vbPos )
 {
-  CHECK(1 << getLog2(vbCTUHeight) != vbCTUHeight, "Not a power of 2");
+  CHECK_RECOVERABLE(1 << getLog2(vbCTUHeight) != vbCTUHeight, "Not a power of 2");
 
   ChromaFormat nChromaFormat = recSrc.chromaFormat;
   const int clsSizeY = 4;
@@ -1438,10 +1438,10 @@ void AdaptiveLoopFilter::filterBlkCcAlfBoth( const PelBuf& dstBufCb, const PelBu
   const int scaleX = getComponentScaleX(COMPONENT_Cb, nChromaFormat);
   const int scaleY = getComponentScaleY(COMPONENT_Cb, nChromaFormat);
 
-  CHECK(startHeight % clsSizeY, "Wrong startHeight in filtering");
-  CHECK(startWidth % clsSizeX, "Wrong startWidth in filtering");
-  CHECK((endHeight - startHeight) % clsSizeY, "Wrong endHeight in filtering");
-  CHECK((endWidth - startWidth) % clsSizeX, "Wrong endWidth in filtering");
+  CHECK_RECOVERABLE(startHeight % clsSizeY, "Wrong startHeight in filtering");
+  CHECK_RECOVERABLE(startWidth % clsSizeX, "Wrong startWidth in filtering");
+  CHECK_RECOVERABLE((endHeight - startHeight) % clsSizeY, "Wrong endHeight in filtering");
+  CHECK_RECOVERABLE((endWidth - startWidth) % clsSizeX, "Wrong endWidth in filtering");
 
   CPelBuf srcBuf = recSrc.get(COMPONENT_Y);
   const ptrdiff_t lumaStride = srcBuf.stride;

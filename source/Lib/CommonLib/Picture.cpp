@@ -111,20 +111,26 @@ void Picture::createWrapAroundBuf( const bool isWrapAround, const unsigned _maxC
     m_bufs[PIC_RECON_WRAP].create( chromaFormat, Y().size(), _maxCUSize, margin, MEMORY_ALIGN_DEF_SIZE );
 }
 
-void Picture::resetForUse()
+void Picture::resetForUse( int _layerId )
 {
-  CHECK( lockedByApplication, "the picture can not be re-used, because it has not been unlocked by the application." );
+  CHECK_RECOVERABLE( lockedByApplication, "the picture can not be re-used, because it has not been unlocked by the application." );
 
-  setPicHead( nullptr );
+  if( cs )
+  {
+    cs->resetForUse();
+  }
+
   m_subPicRefBufs.clear();
 
   m_dProcessingTime       = 0;
   subPicExtStarted        = false;
   borderExtStarted        = false;
   referenced              = false;
-  progress                = Picture::parsing;
+  progress                = Picture::init;
   neededForOutput         = false;
   wasLost                 = false;
+  error                   = false;
+  exceptionThrownOut      = false;
   longTerm                = false;
   topField                = false;
   fieldPic                = false;
@@ -139,9 +145,9 @@ void Picture::resetForUse()
   poc                 = 0;
   cts                 = 0;
   dts                 = 0;
-  layer               = std::numeric_limits<uint32_t>::max();
+  tempLayer           = std::numeric_limits<uint32_t>::max();
   depth               = 0;
-  layerId             = NOT_VALID;
+  layerId             = _layerId;
   eNalUnitType        = NAL_UNIT_INVALID;
   bits                = 0;
   rap                 = 0;
@@ -152,11 +158,12 @@ void Picture::resetForUse()
 
   subLayerNonReferencePictureDueToSTSA = 0;
 
+  m_divTasksCounter     .clearException();
   m_ctuTaskCounter      .clearException();
   m_motionTaskCounter   .clearException();
   m_borderExtTaskCounter.clearException();
   m_copyWrapBufDone     .clearException();
-  done                  .clearException();
+  reconDone             .clearException();
   parseDone             .clearException();
 #if RECO_WHILE_PARSE
   std::for_each( ctuParsedBarrier.begin(), ctuParsedBarrier.end(), []( auto& b ) { b.clearException(); } );
@@ -166,12 +173,12 @@ void Picture::resetForUse()
 
   SEI_internal::deleteSEIs( seiMessageList );
 
-  done.lock();
+  reconDone.lock();
 }
 
 void Picture::destroy()
 {
-  CHECK( lockedByApplication, "the picture can not be destroyed, because it has not been unlocked by the application." );
+  CHECK_RECOVERABLE( lockedByApplication, "the picture can not be destroyed, because it has not been unlocked by the application." );
 
   for (uint32_t t = 0; t < NUM_PIC_TYPES; t++)
   {
@@ -195,11 +202,12 @@ void Picture::destroy()
 
   subpicsCheckedDPH.clear();
 
+  m_divTasksCounter     .clearException();
   m_ctuTaskCounter      .clearException();
   m_motionTaskCounter   .clearException();
   m_borderExtTaskCounter.clearException();
   m_copyWrapBufDone     .clearException();
-  done                  .clearException();
+  reconDone             .clearException();
   parseDone             .clearException();
 #if RECO_WHILE_PARSE
   std::for_each( ctuParsedBarrier.begin(), ctuParsedBarrier.end(), []( auto& b ) { b.clearException(); } );
@@ -215,7 +223,7 @@ const CPelUnitBuf Picture::getRecoBuf(const UnitArea &unit, bool wrap)     const
        PelUnitBuf Picture::getRecoBuf( bool wrap )                               { return wrap ? m_bufs[PIC_RECON_WRAP] : m_bufs[PIC_RECONSTRUCTION]; }
 const CPelUnitBuf Picture::getRecoBuf( bool wrap )                         const { return wrap ? m_bufs[PIC_RECON_WRAP] : m_bufs[PIC_RECONSTRUCTION]; }
 
-void Picture::finalInit( CUChunkCache* cuChunkCache, TUChunkCache* tuChunkCache, const SPS *sps, const PPS *pps, PicHeader* picHeader, const APS* const alfApss[ALF_CTB_MAX_NUM_APS], const APS* lmcsAps, const APS* scalingListAps, bool phPSupdate )
+void Picture::finalInit( CUChunkCache* cuChunkCache, TUChunkCache* tuChunkCache, const SPS *sps, const PPS *pps, const std::shared_ptr<PicHeader>& ph, const APS* const alfApss[ALF_CTB_MAX_NUM_APS], const APS* lmcsAps, const APS* scalingListAps, bool phPSupdate )
 {
   SEI_internal::deleteSEIs( seiMessageList );
   clearSliceBuffer();
@@ -238,18 +246,19 @@ void Picture::finalInit( CUChunkCache* cuChunkCache, TUChunkCache* tuChunkCache,
 #endif
 
   parseDone   . lock();
-  cs->picture = this;
-  cs->pps     = pps ? pps->getSharedPtr() : nullptr;
-  cs->sps     = sps ? sps->getSharedPtr() : nullptr;
+  cs->picture   = this;
+  cs->picHeader = ph;
+  cs->pps       = pps ? pps->getSharedPtr() : nullptr;
+  cs->sps       = sps ? sps->getSharedPtr() : nullptr;
 
   if( phPSupdate )
   {
-    picHeader->setSPSId         ( sps->getSPSId() );
-    picHeader->setPPSId         ( pps->getPPSId() );
-    picHeader->setLmcsAPS       ( lmcsAps        ? lmcsAps       ->getSharedPtr() : nullptr );
-    picHeader->setScalingListAPS( scalingListAps ? scalingListAps->getSharedPtr() : nullptr );
+    ph->setSPSId         ( sps->getSPSId() );
+    ph->setPPSId         ( pps->getPPSId() );
+    ph->setLmcsAPS       ( lmcsAps        ? lmcsAps       ->getSharedPtr() : nullptr );
+    ph->setScalingListAPS( scalingListAps ? scalingListAps->getSharedPtr() : nullptr );
   }
-  nonReferencePictureFlag = picHeader->getNonReferencePictureFlag();
+  nonReferencePictureFlag = ph->getNonReferencePictureFlag();
 
   for( int i = 0; i < ALF_CTB_MAX_NUM_APS; ++i )
   {
@@ -260,8 +269,8 @@ void Picture::finalInit( CUChunkCache* cuChunkCache, TUChunkCache* tuChunkCache,
     cs->lmcsAps = lmcsAps ? lmcsAps->getSharedPtr() : nullptr;
   }
 
-  cs->pcv     = pps->pcv.get();
-
+  cs->pcv = pps->pcv.get();
+  cs->allocTempInternals();
   cs->rebindPicBufs();
 
   resetProcessingTime();
@@ -312,15 +321,6 @@ Slice* Picture::allocateNewSlice( Slice** pilot )
   return slice;
 }
 
-void Picture::setPicHead( const std::shared_ptr<PicHeader>& ph )
-{
-  this->picHeader = ph;
-  if( cs )
-  {
-    cs->picHeader = ph.get();
-  }
-}
-
 void Picture::clearSliceBuffer()
 {
   for( auto &s: slices )
@@ -328,6 +328,55 @@ void Picture::clearSliceBuffer()
     delete s;
   }
   slices.clear();
+}
+
+bool Picture::lastSliceOfPicPresent() const
+{
+  if( slices.empty() )
+  {
+    return false;
+  }
+  const Slice*   lastSlice      = slices.back();
+  const unsigned lastCtuInSlice = lastSlice->getCtuAddrInSlice( lastSlice->getNumCtuInSlice() - 1 );
+  return lastCtuInSlice == lastSlice->getPPS()->pcv->sizeInCtus - 1;
+}
+
+void Picture::waitForAllTasks()
+{
+  m_motionTaskCounter.wait_nothrow();
+  m_ctuTaskCounter.wait_nothrow();
+  m_borderExtTaskCounter.wait_nothrow();
+  m_divTasksCounter.wait_nothrow();   // this waits for the slice parsing and the finishPic Task
+}
+
+void Picture::ensureUsableAsRef()
+{
+#if RECO_WHILE_PARSE
+  ctuParsedBarrier.clear();
+#endif
+  neededForOutput = false;
+
+  // set referenced to true, because we don't know if it has been set correctly, but that way it will be available as a reference pic
+  referenced = true;
+
+  // ensure cs->m_colMiMap is set to zero
+  cs->initStructData();
+
+  CHECK( m_motionTaskCounter.hasException(), "to be usable as reference the picture should not have an Exception on the dmvr task counter" );
+  CHECK( reconDone.hasException(), "to be usable as reference the picture should not have an Exception reconDone barrier" );
+}
+
+void Picture::fillGrey( const SPS* sps )
+{
+  // fill in grey buffer for missing reference pictures (GDR or broken bitstream)
+  const uint32_t yFill = 1 << ( sps->getBitDepth( CHANNEL_TYPE_LUMA ) - 1 );
+  const uint32_t cFill = 1 << ( sps->getBitDepth( CHANNEL_TYPE_CHROMA ) - 1 );
+  getRecoBuf().Y().fill( yFill );
+  getRecoBuf().Cb().fill( cFill );
+  getRecoBuf().Cr().fill( cFill );
+
+  progress = Picture::reconstructed;
+  reconDone.unlock();
 }
 
 void Picture::extendPicBorder( bool top, bool bottom, bool leftrightT, bool leftrightB, ChannelType chType )
@@ -559,9 +608,35 @@ bool Picture::isExternAllocator() const
   return m_bufs[PIC_RECONSTRUCTION].isExternAllocator();
 }
 
-const UserAllocator* Picture::getUserAllocator() const 
-{ 
+const UserAllocator* Picture::getUserAllocator() const
+{
   return m_bufs[PIC_RECONSTRUCTION].getUserAllocator();
+}
+
+std::vector<Picture*> Picture::buildAllRefPicsVec()
+{
+  std::vector<Picture*> refPics;
+  for( const Slice* slice : this->slices )
+  {
+    if( slice->isIntra() )
+    {
+      continue;
+    }
+
+    for( int iDir = REF_PIC_LIST_0; iDir < NUM_REF_PIC_LIST_01; ++iDir )
+    {
+      for( int iRefIdx = 0; iRefIdx < slice->getNumRefIdx( ( RefPicList ) iDir ); iRefIdx++ )
+      {
+        Picture* refPic = slice->getNoConstRefPic( ( RefPicList ) iDir, iRefIdx );
+        if( std::find( refPics.cbegin(), refPics.cend(), refPic ) == refPics.cend() )
+        {
+          refPics.push_back( refPic );
+        }
+      }
+    }
+  }
+
+  return refPics;
 }
 
 void Picture::startProcessingTimer()

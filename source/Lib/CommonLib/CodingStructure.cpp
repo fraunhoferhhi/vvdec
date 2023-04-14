@@ -107,6 +107,17 @@ void CodingStructure::destroy()
   m_cuMapSize = 0;
 }
 
+void CodingStructure::resetForUse()
+{
+  vps.reset();
+  sps.reset();
+  pps.reset();
+  picHeader.reset();
+  std::fill( std::begin( alfApss ), std::end( alfApss ), nullptr );
+  lmcsAps.reset();
+  pcv = nullptr;
+}
+
 CodingUnit& CodingStructure::addCU( const UnitArea &unit, const ChannelType chType, const TreeType treeType, const ModeType modeType, const CodingUnit *cuLeft, const CodingUnit *cuAbove )
 {
   CodingUnit *cu = m_cuCache.get();

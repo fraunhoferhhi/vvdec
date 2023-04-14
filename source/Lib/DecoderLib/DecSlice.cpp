@@ -54,6 +54,7 @@ POSSIBILITY OF SUCH DAMAGE.
 
 #include <vector>
 
+
 namespace vvdec
 {
 
@@ -94,13 +95,12 @@ void DecSlice::parseSlice( Slice* slice, InputBitstream* bitstream, int threadId
   // if first slice, finish init of the coding structure
   if( startCtuTsAddr == 0 )
   {
-    cs.allocTempInternals();
     cs.initStructData();
   }
 
   // Quantization parameter
   int prevQP[2] = { slice->getSliceQp(), slice->getSliceQp() };
-  CHECK( prevQP[0] == std::numeric_limits<int>::max(), "Invalid previous QP" );
+  CHECK_RECOVERABLE( prevQP[0] == std::numeric_limits<int>::max(), "Invalid previous QP" );
 
   DTRACE( g_trace_ctx, D_HEADER, "=========== POC: %d ===========\n", slice->getPOC() );
 
@@ -120,6 +120,10 @@ void DecSlice::parseSlice( Slice* slice, InputBitstream* bitstream, int threadId
     const unsigned  maxCUSize       = sps->getMaxCUWidth();
     const Position pos( ctuXPosInCtus*maxCUSize, ctuYPosInCtus*maxCUSize) ;
     const UnitArea ctuArea( cs.area.chromaFormat, Area( pos.x, pos.y, maxCUSize, maxCUSize ) );
+
+    // these checks only work, since we wait for the previous slice to finish parsing
+    CHECK_RECOVERABLE( ctuXPosInCtus > 0 && cs.getCtuData( ctuRsAddr - 1           ).slice == nullptr, "CTU left not available RS:" << ctuRsAddr - 1 );
+    CHECK_RECOVERABLE( ctuYPosInCtus > 0 && cs.getCtuData( ctuRsAddr - widthInCtus ).slice == nullptr, "CTU above not available RS:" << ctuRsAddr - widthInCtus );
 
     DTRACE_UPDATE( g_trace_ctx, std::make_pair( "ctu", ctuRsAddr ) );
 
@@ -165,7 +169,7 @@ void DecSlice::parseSlice( Slice* slice, InputBitstream* bitstream, int threadId
     if( ctuIdx == slice->getNumCtuInSlice()-1 )
     {
       unsigned binVal = cabacReader.terminating_bit();
-      CHECK( !binVal, "Expecting a terminating bit" );
+      CHECK_RECOVERABLE( !binVal, "Expecting a terminating bit" );
 #if DECODER_CHECK_SUBSTREAM_AND_SLICE_TRAILING_BYTES
       cabacReader.remaining_bytes( false );
 #endif
@@ -176,7 +180,7 @@ void DecSlice::parseSlice( Slice* slice, InputBitstream* bitstream, int threadId
       // The sub-stream/stream should be terminated after this CTU.
       // (end of slice-segment, end of tile, end of wavefront-CTU-row)
       unsigned binVal = cabacReader.terminating_bit();
-      CHECK( !binVal, "Expecting a terminating bit" );
+      CHECK_RECOVERABLE( !binVal, "Expecting a terminating bit" );
 
       if( entryPointPresent )
       {

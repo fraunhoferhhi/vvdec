@@ -70,7 +70,7 @@ void  WeightPrediction::getWpScaling(const Slice                *pcSlice,
                                            WPScalingParam       *wp0,
                                            WPScalingParam       *wp1)
 {
-  CHECK(iRefIdx0 < 0 && iRefIdx1 < 0, "Both picture reference list indizes smaller than '0'");
+  CHECK_RECOVERABLE(iRefIdx0 < 0 && iRefIdx1 < 0, "Both picture reference list indizes smaller than '0'");
 
   const bool wpBiPred        = pcSlice->getPPS()->getWPBiPred();
   const bool bBiPred         = (iRefIdx0 >= 0 && iRefIdx1 >= 0);
@@ -207,7 +207,7 @@ void WeightPrediction::addWeightBi(const PelUnitBuf           &pcYuvSrc0,
       g_pelBufOP.wghtAvg4( pSrc0, iSrc0Stride, pSrc1, iSrc1Stride, pDst, iDstStride, iWidth, iHeight, shift, applyOffset, w0, w1, clpRngs );
     else
     {
-      CHECK( iWidth != 2, "Should only happen for width '2'" );
+      CHECK_RECOVERABLE( iWidth != 2, "Should only happen for width '2'" );
 
       for (int y = iHeight - 1; y >= 0; y--)
       {
@@ -348,7 +348,7 @@ void  WeightPrediction::xWeightedPredictionUni(const PredictionUnit       &pu,
     iRefIdx = pu.refIdx[eRefPicList];
   }
 
-  CHECK(iRefIdx < 0, "Negative reference picture list index");
+  CHECK_RECOVERABLE(iRefIdx < 0, "Negative reference picture list index");
 
   if (eRefPicList == REF_PIC_LIST_0)
   {
@@ -372,7 +372,7 @@ void  WeightPrediction::xWeightedPredictionBi(const PredictionUnit       &pu,
   WPScalingParam  pwp0[MAX_NUM_COMPONENT];
   WPScalingParam  pwp1[MAX_NUM_COMPONENT];
 
-  CHECK( !pu.pps->getWPBiPred(), "Weighted Bi-prediction disabled" );
+  CHECK_RECOVERABLE( !pu.pps->getWPBiPred(), "Weighted Bi-prediction disabled" );
 
   getWpScaling(pu.slice, iRefIdx0, iRefIdx1, pwp0, pwp1);
 

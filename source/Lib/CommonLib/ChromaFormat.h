@@ -61,82 +61,13 @@ static inline bool        isLuma                    (const ComponentID id)      
 static inline bool        isLuma                    (const ChannelType id)                         { return (id==CHANNEL_TYPE_LUMA);                                    }
 static inline bool        isChroma                  (const ComponentID id)                         { return (id!=COMPONENT_Y);                                          }
 static inline bool        isChroma                  (const ChannelType id)                         { return (id!=CHANNEL_TYPE_LUMA);                                    }
-static inline uint32_t        getChannelTypeScaleX      (const ChannelType id, const ChromaFormat fmt) { return (isLuma(id) || (fmt==CHROMA_444)) ? 0 : 1;                  }
-static inline uint32_t        getChannelTypeScaleY      (const ChannelType id, const ChromaFormat fmt) { return (isLuma(id) || (fmt!=CHROMA_420)) ? 0 : 1;                  }
-static inline uint32_t        getComponentScaleX        (const ComponentID id, const ChromaFormat fmt) { return getChannelTypeScaleX(toChannelType(id), fmt);               }
-static inline uint32_t        getComponentScaleY        (const ComponentID id, const ChromaFormat fmt) { return getChannelTypeScaleY(toChannelType(id), fmt);               }
-static inline uint32_t        getNumberValidComponents  (const ChromaFormat fmt)                       { return (fmt==CHROMA_400) ? 1 : MAX_NUM_COMPONENT;                  }
-static inline uint32_t        getNumberValidChannels    (const ChromaFormat fmt)                       { return (fmt==CHROMA_400) ? 1 : MAX_NUM_CHANNEL_TYPE;               }
+static inline uint32_t    getChannelTypeScaleX      (const ChannelType id, const ChromaFormat fmt) { return (isLuma(id) || (fmt==CHROMA_444)) ? 0 : 1;                  }
+static inline uint32_t    getChannelTypeScaleY      (const ChannelType id, const ChromaFormat fmt) { return (isLuma(id) || (fmt!=CHROMA_420)) ? 0 : 1;                  }
+static inline uint32_t    getComponentScaleX        (const ComponentID id, const ChromaFormat fmt) { return getChannelTypeScaleX(toChannelType(id), fmt);               }
+static inline uint32_t    getComponentScaleY        (const ComponentID id, const ChromaFormat fmt) { return getChannelTypeScaleY(toChannelType(id), fmt);               }
+static inline uint32_t    getNumberValidComponents  (const ChromaFormat fmt)                       { return (fmt==CHROMA_400) ? 1 : MAX_NUM_COMPONENT;                  }
+static inline uint32_t    getNumberValidChannels    (const ChromaFormat fmt)                       { return (fmt==CHROMA_400) ? 1 : MAX_NUM_CHANNEL_TYPE;               }
 static inline bool        isChromaEnabled           (const ChromaFormat fmt)                       { return !(fmt==CHROMA_400);                                         }
 static inline ComponentID getFirstComponentOfChannel(const ChannelType id)                         { return (isLuma(id) ? COMPONENT_Y : COMPONENT_Cb);                  }
-
-//------------------------------------------------
-
-static inline uint32_t getTotalSamples(const uint32_t width, const uint32_t height, const ChromaFormat format)
-{
-  const uint32_t samplesPerChannel = width * height;
-
-  switch (format)
-  {
-    case CHROMA_400: return  samplesPerChannel;           break;
-    case CHROMA_420: return (samplesPerChannel * 3) >> 1; break;
-    case CHROMA_422: return  samplesPerChannel * 2;       break;
-    case CHROMA_444: return  samplesPerChannel * 3;       break;
-    default:
-      EXIT( "ERROR: Unrecognised chroma format in getTotalSamples() " );
-      break;
-  }
-
-  return MAX_UINT;
-}
-
-//------------------------------------------------
-
-static inline uint64_t getTotalFracBits(const uint32_t width, const uint32_t height, const ChromaFormat format, const int bitDepths[MAX_NUM_CHANNEL_TYPE])
-{
-  unsigned bitsPerSampleTimes2 = MAX_UINT;
-  switch (format)
-  {
-  case CHROMA_400: bitsPerSampleTimes2 =   2 *  bitDepths[CHANNEL_TYPE_LUMA];                                              break;
-  case CHROMA_420: bitsPerSampleTimes2 = ( 2 * (bitDepths[CHANNEL_TYPE_LUMA]*2 +   bitDepths[CHANNEL_TYPE_CHROMA]) ) >> 1; break;
-  case CHROMA_422: bitsPerSampleTimes2 =   2 * (bitDepths[CHANNEL_TYPE_LUMA]   +   bitDepths[CHANNEL_TYPE_CHROMA]);        break;
-  case CHROMA_444: bitsPerSampleTimes2 =   2 * (bitDepths[CHANNEL_TYPE_LUMA]   + 2*bitDepths[CHANNEL_TYPE_CHROMA]);        break;
-  default:
-      EXIT( "ERROR: Unrecognised chroma format in getTotalFracBits() " );
-    break;
-  }
-  return uint64_t( width * height * bitsPerSampleTimes2 ) << ( SCALE_BITS - 1 );
-}
-
-
-//======================================================================================================================
-//Intra prediction  ====================================================================================================
-//======================================================================================================================
-
-static inline bool filterIntraReferenceSamples (const ChannelType chType, const ChromaFormat chFmt, const bool intraReferenceSmoothingDisabled)
-{
-  return (!intraReferenceSmoothingDisabled) && (isLuma(chType) || (chFmt == CHROMA_444));
-}
-
-
-//------------------------------------------------
-
-static inline int getTransformShift(const int channelBitDepth, const Size size, const int maxLog2TrDynamicRange)
-{
-  return maxLog2TrDynamicRange - channelBitDepth - ( ( getLog2(size.width) + getLog2(size.height) ) >> 1 );
-}
-
-
-//------------------------------------------------
-
-
-//======================================================================================================================
-//Scaling lists  =======================================================================================================
-//======================================================================================================================
-
-static inline int getScalingListType(const PredMode predMode, const ComponentID compID)
-{
-  return ( ( predMode == MODE_INTRA ) ? 0 : MAX_NUM_COMPONENT ) + MAP_CHROMA( compID );
-}
 
 }

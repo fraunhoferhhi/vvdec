@@ -292,7 +292,7 @@ unsigned DeriveCtx::CtxIBCFlag( const CodingUnit& cu )
 
 void MergeCtx::setMergeInfo( PredictionUnit& pu, int candIdx )
 {
-  CHECK( candIdx >= numValidMergeCand, "Merge candidate does not exist" );
+  CHECK_RECOVERABLE( candIdx >= numValidMergeCand, "Merge candidate does not exist" );
 
   //pu.setMergeFlag            ( true );
   //pu.setMmvdFlag             ( false );
@@ -439,7 +439,7 @@ void MergeCtx::setMmvdMergeCandiInfo( PredictionUnit& pu, int candIdx )
     pu.mv    [L0][0] = mmvdBaseMv[fPosBaseIdx][0].mv + tempMv[0];
     pu.refIdx[L0]    = refList0;
     pu.mv    [L1][0] = Mv(0, 0);
-    pu.refIdx[L1]    = -1;
+    pu.refIdx[L1]    = NOT_VALID;
   }
   else if( refList1 != -1 )
   {
@@ -462,7 +462,7 @@ void MergeCtx::setMmvdMergeCandiInfo( PredictionUnit& pu, int candIdx )
 
     pu.setInterDir               ( 2 );
     pu.mv    [REF_PIC_LIST_0][0] = Mv(0, 0);
-    pu.refIdx[REF_PIC_LIST_0]    = -1;
+    pu.refIdx[REF_PIC_LIST_0]    = NOT_VALID;
     pu.mv    [REF_PIC_LIST_1][0] = mmvdBaseMv[fPosBaseIdx][1].mv + tempMv[1];
     pu.refIdx[REF_PIC_LIST_1]    = refList1;
   }

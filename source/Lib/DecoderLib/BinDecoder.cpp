@@ -69,7 +69,7 @@ void BinDecoder::uninit()
 
 void BinDecoder::start()
 {
-  CHECK( m_Bitstream->getNumBitsUntilByteAligned(), "Bitstream is not byte aligned." );
+  CHECK_RECOVERABLE( m_Bitstream->getNumBitsUntilByteAligned(), "Bitstream is not byte aligned." );
   m_Range       = 510;
   m_Value       = ( m_Bitstream->readByte() << 8 ) + m_Bitstream->readByte();
   m_bitsNeeded  = -8;
@@ -80,7 +80,7 @@ void BinDecoder::finish()
 {
   unsigned lastByte;
   m_Bitstream->peekPreviousByte( lastByte );
-  CHECK( ( ( lastByte << ( 8 + m_bitsNeeded ) ) & 0xff ) != 0x80,
+  CHECK_RECOVERABLE( ( ( lastByte << ( 8 + m_bitsNeeded ) ) & 0xff ) != 0x80,
         "No proper stop/alignment pattern at end of CABAC stream." );
 }
 

@@ -108,9 +108,8 @@ void CommonTaskParam::reset( CodingStructure& cs, TaskType ctuStartState, int ta
     ctu.store( ctuStartState );
   }
 
-
-  this->perLineMiHist = std::vector<MotionHist>( heightInCtus );
-  this->finishMotionTriggers  = std::vector<Barrier>   ( heightInCtus );
+  this->perLineMiHist        = std::vector<MotionHist>( heightInCtus );
+  this->finishMotionTriggers = std::vector<Barrier>   ( heightInCtus );
 
   this->doALF        = doALF;
 }
@@ -230,8 +229,34 @@ static void getCompatibleBuffer( const CodingStructure& cs, const CPelUnitBuf& s
   }
 }
 
-void DecLibRecon::borderExtPic( Picture* pic )
+void DecLibRecon::borderExtPic( Picture* pic, const Picture* currPic )
 {
+  // we block and wait here, so the exceptions from the reference pic don't propagate to the current picture
+  pic->waitForAllTasks();
+  if( pic->progress < Picture::reconstructed )   // an exception must have happended in the picture, so we need to clean it up
+  {
+    CHECK( pic->progress < Picture::parsing, "Slice parsing should have started, so all structures are there" );
+    try
+    {
+      pic->reconDone.checkAndRethrowException();
+      pic->parseDone.checkAndRethrowException();  // when the error happened in the slice parsing tasks, there might not be an exception in recon done, so check parseDone also
+      pic->m_motionTaskCounter.donePtr()->checkAndRethrowException();
+    }
+    catch( ... )
+    {
+      pic->error = true;
+      pic->reconDone.clearException();
+      pic->m_motionTaskCounter.clearException();
+      // TODO: for now we set it on parseDone, so we can handle it outside:
+      if( !pic->parseDone.hasException() )
+      {
+        pic->parseDone.setException( std::current_exception() );
+      }
+
+      pic->fillGrey( currPic->cs->sps.get() );
+    }
+  }
+
   pic->borderExtStarted = true;
 
   const bool wrapAround = pic->cs->sps->getUseWrapAround();
@@ -245,11 +270,12 @@ void DecLibRecon::borderExtPic( Picture* pic )
       return true;
     };
     pic->m_copyWrapBufDone.lock();
-    m_decodeThreadPool->addBarrierTask<Picture>( copyTask,
+    m_decodeThreadPool->addBarrierTask<Picture>( TP_TASK_NAME_ARG( "POC:" + std::to_string( currPic->poc ) + " copyTask Ref-POC:" + std::to_string( pic->poc ) )
+                                                 copyTask,
                                                  pic,
-                                                 nullptr,
+                                                 &pic->m_borderExtTaskCounter,
                                                  &pic->m_copyWrapBufDone,
-                                                 { &pic->done} );
+                                                 { &pic->reconDone } );
   }
 
   // start actual border extension tasks
@@ -260,11 +286,12 @@ void DecLibRecon::borderExtPic( Picture* pic )
       ITT_TASKEND( itt_domain_dec, itt_handle_ext );
       return true;
     };
-    m_decodeThreadPool->addBarrierTask<Picture>( task,
+    m_decodeThreadPool->addBarrierTask<Picture>( TP_TASK_NAME_ARG( "POC:" + std::to_string(currPic->poc) + " borderExtTask T Ref-POC:" + std::to_string(pic->poc) )
+                                                 task,
                                                  pic,
                                                  &pic->m_borderExtTaskCounter,
                                                  nullptr,
-                                                 { wrapAround ? &pic->m_copyWrapBufDone : &pic->done} );
+                                                 { wrapAround ? &pic->m_copyWrapBufDone : &pic->reconDone } );
   }
 
   {
@@ -274,11 +301,12 @@ void DecLibRecon::borderExtPic( Picture* pic )
       ITT_TASKEND( itt_domain_dec, itt_handle_ext );
       return true;
     };
-    m_decodeThreadPool->addBarrierTask<Picture>( task,
+    m_decodeThreadPool->addBarrierTask<Picture>( TP_TASK_NAME_ARG( "POC:" + std::to_string(currPic->poc) + " borderExtTask B Ref-POC:" + std::to_string(pic->poc) )
+                                                 task,
                                                  pic,
                                                  &pic->m_borderExtTaskCounter,
                                                  nullptr,
-                                                 { wrapAround ? &pic->m_copyWrapBufDone : &pic->done} );
+                                                 { wrapAround ? &pic->m_copyWrapBufDone : &pic->reconDone } );
   }
 
   {
@@ -288,11 +316,12 @@ void DecLibRecon::borderExtPic( Picture* pic )
       ITT_TASKEND( itt_domain_dec, itt_handle_ext );
       return true;
     };
-    m_decodeThreadPool->addBarrierTask<Picture>( task,
+    m_decodeThreadPool->addBarrierTask<Picture>( TP_TASK_NAME_ARG( "POC:" + std::to_string(currPic->poc) + " borderExtTask ltT Ref-POC:" + std::to_string(pic->poc) )
+                                                 task,
                                                  pic,
                                                  &pic->m_borderExtTaskCounter,
                                                  nullptr,
-                                                 { wrapAround ? &pic->m_copyWrapBufDone : &pic->done} );
+                                                 { wrapAround ? &pic->m_copyWrapBufDone : &pic->reconDone } );
   }
   {
     static auto task = []( int, Picture* picture ) {
@@ -301,11 +330,12 @@ void DecLibRecon::borderExtPic( Picture* pic )
       ITT_TASKEND( itt_domain_dec, itt_handle_ext );
       return true;
     };
-    m_decodeThreadPool->addBarrierTask<Picture>( task,
+    m_decodeThreadPool->addBarrierTask<Picture>( TP_TASK_NAME_ARG( "POC:" + std::to_string(currPic->poc) + " borderExtTask lrB Y Ref-POC:" + std::to_string(pic->poc) )
+                                                 task,
                                                  pic,
                                                  &pic->m_borderExtTaskCounter,
                                                  nullptr,
-                                                 { wrapAround ? &pic->m_copyWrapBufDone : &pic->done} );
+                                                 { wrapAround ? &pic->m_copyWrapBufDone : &pic->reconDone } );
   }
 
   {
@@ -315,11 +345,12 @@ void DecLibRecon::borderExtPic( Picture* pic )
       ITT_TASKEND( itt_domain_dec, itt_handle_ext );
       return true;
     };
-    m_decodeThreadPool->addBarrierTask<Picture>( task,
+    m_decodeThreadPool->addBarrierTask<Picture>( TP_TASK_NAME_ARG( "POC:" + std::to_string(currPic->poc) + " borderExtTask lrB UV Ref-POC:" + std::to_string(pic->poc) )
+                                                 task,
                                                  pic,
                                                  &pic->m_borderExtTaskCounter,
                                                  nullptr,
-                                                 { wrapAround ? &pic->m_copyWrapBufDone : &pic->done} );
+                                                 { wrapAround ? &pic->m_copyWrapBufDone : &pic->reconDone } );
   }
   {
     static auto task = []( int, Picture* picture ) {
@@ -328,15 +359,16 @@ void DecLibRecon::borderExtPic( Picture* pic )
       ITT_TASKEND( itt_domain_dec, itt_handle_ext );
       return true;
     };
-    m_decodeThreadPool->addBarrierTask<Picture>( task,
+    m_decodeThreadPool->addBarrierTask<Picture>( TP_TASK_NAME_ARG( "POC:" + std::to_string(currPic->poc) + " borderExtTask lrB UV Ref-POC:" + std::to_string(pic->poc) )
+                                                 task,
                                                  pic,
                                                  &pic->m_borderExtTaskCounter,
                                                  nullptr,
-                                                 { wrapAround ? &pic->m_copyWrapBufDone : &pic->done} );
+                                                 { wrapAround ? &pic->m_copyWrapBufDone : &pic->reconDone } );
   }
 }
 
-void DecLibRecon::createSubPicRefBufs( Picture* pic )
+void DecLibRecon::createSubPicRefBufs( Picture* pic, const Picture* currPic )
 {
   pic->subPicExtStarted = true;
 
@@ -361,7 +393,12 @@ void DecLibRecon::createSubPicRefBufs( Picture* pic )
       return true;
     };
     m_subPicExtTasks.emplace_back( SubPicExtTask{ pic, &pic->m_subPicRefBufs[i], subPicArea } );
-    m_decodeThreadPool->addBarrierTask<SubPicExtTask>( task, &m_subPicExtTasks.back(), &pic->m_borderExtTaskCounter, nullptr, { &pic->done } );
+    m_decodeThreadPool->addBarrierTask<SubPicExtTask>( TP_TASK_NAME_ARG( "POC:" + std::to_string( currPic->poc ) + " subPicBorderExtTask refPOC:" + std::to_string( pic->poc ) )
+                                                       task,
+                                                       &m_subPicExtTasks.back(),
+                                                       &pic->m_borderExtTaskCounter,
+                                                       nullptr,
+                                                       { &pic->reconDone } );
   }
 }
 
@@ -373,6 +410,8 @@ void DecLibRecon::swapBufs( CodingStructure& cs )
 
 void DecLibRecon::decompressPicture( Picture* pcPic )
 {
+  m_currDecompPic = pcPic;
+
   CodingStructure& cs = *pcPic->cs;
 
   pcPic->progress = Picture::reconstructing;
@@ -421,7 +460,7 @@ void DecLibRecon::decompressPicture( Picture* pcPic )
 
   if( sps->getUseALF() )
   {
-    m_cALF.create( cs.picHeader, sps, pps, m_numDecThreads, m_fltBuf );
+    m_cALF.create( cs.picHeader.get(), sps, pps, m_numDecThreads, m_fltBuf );
   }
 
   const PreCalcValues* pcv = cs.pcv;
@@ -490,42 +529,21 @@ void DecLibRecon::decompressPicture( Picture* pcPic )
     m_subPicExtTasks.reserve( pcPic->slices.size() * MAX_NUM_REF_PICS * numSubPic );
   }
 
-  std::vector<Picture*> borderExtRefPics;
-  for( const Slice* slice : pcPic->slices )
-  {
-    if( slice->isIntra() )
-    {
-      continue;
-    }
-
-    for( int iDir = REF_PIC_LIST_0; iDir < NUM_REF_PIC_LIST_01; ++iDir )
-    {
-      for( int iRefIdx = 0; iRefIdx < slice->getNumRefIdx( ( RefPicList ) iDir ); iRefIdx++ )
-      {
-        Picture* refPic = slice->getNoConstRefPic( ( RefPicList ) iDir, iRefIdx );
-
-        if( std::find( borderExtRefPics.cbegin(), borderExtRefPics.cend(), refPic ) == borderExtRefPics.cend() )
-        {
-          borderExtRefPics.push_back( refPic );
-        }
-      }
-    }
-  }
-
+  std::vector<Picture*> borderExtRefPics( pcPic->buildAllRefPicsVec() );
   for( Picture* refPic : borderExtRefPics )
   {
     if( !refPic->borderExtStarted )
     {
       // TODO: (GH) Can we bypass this border extension, when all subpics (>1) are treated as pics?
-      borderExtPic( refPic );
+      borderExtPic( refPic, pcPic );
     }
 
     if( !refPic->subPicExtStarted && numSubPic > 1 && refPic->m_subPicRefBufs.size() != numSubPic )
     {
-      CHECK( !refPic->m_subPicRefBufs.empty(), "Wrong number of subpics already present in reference picture" );
-      CHECK( cs.sps->getUseWrapAround(), "Wraparound + subpics not implemented" );
+      CHECK_RECOVERABLE( !refPic->m_subPicRefBufs.empty(), "Wrong number of subpics already present in reference picture" );
+      CHECK_RECOVERABLE( cs.sps->getUseWrapAround(), "Wraparound + subpics not implemented" );
 
-      createSubPicRefBufs( refPic );
+      createSubPicRefBufs( refPic, pcPic );
     }
 
     if( refPic->m_borderExtTaskCounter.isBlocked() &&
@@ -565,9 +583,9 @@ void DecLibRecon::decompressPicture( Picture* pcPic )
   commonTaskParam.reset( cs, ctuStartState, numTasksPerLine, doALF );
 
   tasksFinishMotion = std::vector<LineTaskParam>( heightInCtus, LineTaskParam{ commonTaskParam, -1 } );
-  tasksCtu  = std::vector<CtuTaskParam >( heightInCtus * numTasksPerLine, CtuTaskParam{ commonTaskParam, -1, -1, {} } );
+  tasksCtu          = std::vector<CtuTaskParam >( heightInCtus * numTasksPerLine, CtuTaskParam{ commonTaskParam, -1, -1, {} } );
 
-  pcPic->done.lock();
+  pcPic->reconDone.lock();
 
 #if 0
   // schedule in raster scan order
@@ -602,7 +620,8 @@ void DecLibRecon::decompressPicture( Picture* pcPic )
         param->numColPerTask   = numColPerTask;
         param->numTasksPerLine = numTasksPerLine;
 
-        m_decodeThreadPool->addBarrierTask<CtuTaskParam>( ctuTask<false>,
+        m_decodeThreadPool->addBarrierTask<CtuTaskParam>( TP_TASK_NAME_ARG( "POC:" + std::to_string(pcPic->poc) + " ctuTask:" + std::to_string( col ) + "," + std::to_string( line ) )
+                                                          ctuTask<false>,
                                                           param,
                                                           &pcPic->m_ctuTaskCounter,
                                                           nullptr,
@@ -630,22 +649,28 @@ void DecLibRecon::decompressPicture( Picture* pcPic )
     {
       auto param  = &tasksFinishMotion[taskLineMotion];
       param->line = taskLineMotion;
-      m_decodeThreadPool->addBarrierTask<LineTaskParam>( task,
-                                                          param,
-                                                          &pcPic->m_motionTaskCounter,
-                                                          nullptr,
-                                                          { &commonTaskParam.finishMotionTriggers[taskLineMotion], &pcPic->parseDone } );
+      m_decodeThreadPool->addBarrierTask<LineTaskParam>( TP_TASK_NAME_ARG( "POC:" + std::to_string(pcPic->poc) + " dmvrTask line:" + std::to_string( taskLineMotion ) )
+                                                         task,
+                                                         param,
+                                                         &pcPic->m_motionTaskCounter,
+                                                         nullptr,
+                                                         { &commonTaskParam.finishMotionTriggers[taskLineMotion], &pcPic->parseDone } );
     }
 
     {
       // dummy task to propagate exceptions from the ctu-decoding tasks to the dmvrTaskCounter
       static auto dummyTask = []( int, void* ) { return true; };
-      m_decodeThreadPool->addBarrierTask<void>( dummyTask, nullptr, &pcPic->m_motionTaskCounter, nullptr, { pcPic->m_ctuTaskCounter.donePtr() } );
+      m_decodeThreadPool->addBarrierTask<void>( TP_TASK_NAME_ARG( "POC:" + std::to_string(pcPic->poc) + " dmvrExceptionDummy" )
+                                                dummyTask,
+                                                nullptr,
+                                                &pcPic->m_motionTaskCounter,
+                                                nullptr,
+                                                { pcPic->m_ctuTaskCounter.donePtr() } );
     }
   }
 
   {
-    static auto finishPicTask = []( int, FinishPicTaskParam* param )
+    static auto finishReconTask = []( int, FinishPicTaskParam* param )
     {
       CodingStructure& cs = *param->pic->cs;
 
@@ -656,18 +681,23 @@ void DecLibRecon::decompressPicture( Picture* pcPic )
 
       cs.deallocTempInternals();
 
-      param->pic->progress = Picture::reconstructed;
 #ifdef TRACE_ENABLE_ITT
       // mark end of frame
       __itt_frame_end_v3( picture->m_itt_decLibInst, nullptr );
 #endif
       param->pic->stopProcessingTimer();
 
+      param->pic->progress = Picture::reconstructed;
       return true;
     };
 
     taskFinishPic = FinishPicTaskParam( this, pcPic );
-    m_decodeThreadPool->addBarrierTask<FinishPicTaskParam>( finishPicTask, &taskFinishPic, nullptr, &pcPic->done, { pcPic->m_motionTaskCounter.donePtr(), pcPic->m_ctuTaskCounter.donePtr() } );
+    m_decodeThreadPool->addBarrierTask<FinishPicTaskParam>( TP_TASK_NAME_ARG( "POC:" + std::to_string( pcPic->poc ) + " finishPicTask" )
+                                                            finishReconTask,
+                                                            &taskFinishPic,
+                                                            &pcPic->m_divTasksCounter,
+                                                            &pcPic->reconDone,
+                                                            { pcPic->m_motionTaskCounter.donePtr(), pcPic->m_ctuTaskCounter.donePtr() } );
   }
 
   if( m_decodeThreadPool->numThreads() == 0 )
@@ -677,8 +707,6 @@ void DecLibRecon::decompressPicture( Picture* pcPic )
   {
     ITT_TASKEND( itt_domain_dec, itt_handle_schedTasks );
   }
-
-  m_currDecompPic = pcPic;
 }
 
 Picture* DecLibRecon::waitForPrevDecompressedPic()
@@ -690,13 +718,44 @@ Picture* DecLibRecon::waitForPrevDecompressedPic()
   if( m_decodeThreadPool->numThreads() == 0 )
   {
     m_decodeThreadPool->processTasksOnMainThread();
-    CHECK( m_currDecompPic->m_motionTaskCounter.isBlocked() || m_currDecompPic->done.isBlocked(), "can't make progress. some dependecy has not been finished" );
+    CHECK( m_currDecompPic->m_motionTaskCounter.isBlocked() || m_currDecompPic->reconDone.isBlocked(), "can't make progress. some dependecy has not been finished" );
   }
-  m_currDecompPic->m_motionTaskCounter.wait();
-  m_currDecompPic->done.wait();
+
+  try
+  {
+    m_currDecompPic->m_motionTaskCounter.wait_nothrow();
+    m_currDecompPic->reconDone.wait();
+  }
+  catch( ... )
+  {
+    m_currDecompPic->error = true;
+  }
+
+  if( m_currDecompPic->error || m_currDecompPic->reconDone.hasException()
+      || m_currDecompPic->m_motionTaskCounter.hasException() )   // also check error flag, which can have been set earlier (e.g., when trying to use the picture as reference)
+  {
+    // ensure all tasks are cleared from declibRecon
+    cleanupOnException( std::current_exception() );
+  }
+
   ITT_TASKEND( itt_domain_dec, itt_handle_waitTasks );
 
   return std::exchange( m_currDecompPic, nullptr );
+}
+
+void DecLibRecon::cleanupOnException( std::exception_ptr exception )
+{
+  for( auto &t: commonTaskParam.finishMotionTriggers )
+  {
+    t.setException( exception );
+  }
+
+  // there was an exception anywhere in m_currDecompPic
+  // => we need to wait for all tasks to be cleared from the thread pool
+  m_currDecompPic->waitForAllTasks();
+
+  commonTaskParam.ctuStates.clear();
+  commonTaskParam.finishMotionTriggers.clear();
 }
 
 template<bool onlyCheckReadyState>
@@ -899,7 +958,7 @@ bool DecLibRecon::ctuTask( int tid, CtuTaskParam* param )
 
       for( int ctu = ctuStart; ctu < ctuEnd; ctu++ )
       {
-        decLib.m_pcThreadResource[tid]->m_cReshaper.rspCtu( cs, ctu, line );
+        decLib.m_pcThreadResource[tid]->m_cReshaper.rspCtuBcw( cs, ctu, line );
       }
 
       ITT_TASKEND( itt_domain_dec, itt_handle_rsp );

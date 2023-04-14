@@ -69,7 +69,7 @@ std::ostream& StatCounters::report2D( std::ostream& os, const StatCounter2DSet<T
   char cStr[512];
   std::stringstream m_str;
 
-  CHECK( !axisInBlockSizes && weightedByArea, "Mode is not supported" );
+  CHECK_RECOVERABLE( !axisInBlockSizes && weightedByArea, "Mode is not supported" );
 
   //OUTPUT( "DISTRIBUTION (in %s \r\n", isAbsolute ? "number of occurances)": ( !isWeightedByArea ? "in % of blocks)" : "in % of area)" ) );
   const size_t xDim = cntSet.getDimHor();

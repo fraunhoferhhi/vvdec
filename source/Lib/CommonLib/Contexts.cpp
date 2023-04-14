@@ -93,8 +93,8 @@ CtxSet::CtxSet( std::initializer_list<CtxSet> ctxSets )
 
 const std::vector<uint8_t>& ContextSetCfg::getInitTable( unsigned initId )
 {
-  CHECK( initId >= (unsigned)sm_InitTables.size(),
-         "Invalid initId (" << initId << "), only " << sm_InitTables.size() << " tables defined." );
+  CHECK_RECOVERABLE( initId >= (unsigned)sm_InitTables.size(),
+                     "Invalid initId (" << initId << "), only " << sm_InitTables.size() << " tables defined." );
   return sm_InitTables[initId];
 }
 
@@ -109,8 +109,8 @@ CtxSet ContextSetCfg::addCtxSet( std::initializer_list<std::initializer_list<uin
     if( setId >= sm_InitTables.size() )
       break;
 
-    CHECK( initSet.size() != numValues,
-           "Number of init values do not match for all sets (" << initSet.size() << " != " << numValues << ")." );
+    CHECK_RECOVERABLE( initSet.size() != numValues,
+                       "Number of init values do not match for all sets (" << initSet.size() << " != " << numValues << ")." );
 
     for( auto& elemIter: initSet )
     {
@@ -803,12 +803,12 @@ const CtxSet ContextSetCfg::Alf = { ContextSetCfg::ctbAlfFlag, ContextSetCfg::ct
 void Ctx::init(int qp, int initId)
 {
   const auto& initTable = ContextSetCfg::getInitTable( initId );
-  CHECK( m_CtxBuffer.size() != initTable.size(),
-         "Size of init table (" << initTable.size() << ") does not match size of context buffer (" << m_CtxBuffer.size() << ")." );
+  CHECK_RECOVERABLE( m_CtxBuffer.size() != initTable.size(),
+                     "Size of init table (" << initTable.size() << ") does not match size of context buffer (" << m_CtxBuffer.size() << ")." );
 
   const auto& rateInitTable = ContextSetCfg::getInitTable( NUMBER_OF_SLICE_TYPES );
-  CHECK( m_CtxBuffer.size() != rateInitTable.size(),
-         "Size of rate init table (" << rateInitTable.size() << ") does not match size of context buffer (" << m_CtxBuffer.size() << ")." );
+  CHECK_RECOVERABLE( m_CtxBuffer.size() != rateInitTable.size(),
+                     "Size of rate init table (" << rateInitTable.size() << ") does not match size of context buffer (" << m_CtxBuffer.size() << ")." );
 
   const int clippedQP = Clip3( 0, MAX_QP, qp );
   for( std::size_t k = 0; k < m_CtxBuffer.size(); k++ )

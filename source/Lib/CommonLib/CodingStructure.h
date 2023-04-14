@@ -119,7 +119,7 @@ public:
   std::shared_ptr<const VPS> vps;
   std::shared_ptr<const SPS> sps;
   std::shared_ptr<const PPS> pps;
-  PicHeader                 *picHeader;
+  std::shared_ptr<PicHeader> picHeader;
   std::shared_ptr<const APS> alfApss[ALF_CTB_MAX_NUM_APS];
   std::shared_ptr<const APS> lmcsAps;
   const PreCalcValues*       pcv;
@@ -138,6 +138,7 @@ public:
   void create(const ChromaFormat &_chromaFormat, const Area& _area);
   void destroy();
 
+  void resetForUse();
   void rebindPicBufs();
 
   // ---------------------------------------------------------------------------
