@@ -445,7 +445,11 @@ typedef struct vvdecParams
   bool                  removePadding;     // copy output pictures to new buffer to remove padding (stride==width) ( default: false )
   vvdecSIMD_Extension   simd;              // set specific simd optimization (default: max. availalbe)
   void                 *opaque;            // opaque pointer for private user data ( can be used to carry application specific data or contexts )
-  vvdecErrHandlingFlags errHandlingFlags;    // set of flags defining how to handle bitstream errors
+  vvdecErrHandlingFlags errHandlingFlags;  // set of flags defining how to handle bitstream errors
+  int                   padding1;          // reserved space for future parameters
+  int                   padding2;
+  int                   padding3;
+  int                   padding4;
 } vvdecParams;
 
 /* vvdecCreateBufferCallback
