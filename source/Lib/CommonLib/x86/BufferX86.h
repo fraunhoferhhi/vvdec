@@ -1833,9 +1833,9 @@ void PelBufferOps::_initPelBufOpsX86()
     applyLut = applyLut_SIMD<vext>;
   else
     rspBcw = rspBcwCore_SIMD<vext>;
-
-  rspFwd = rspFwdCore_SIMD<vext>;
+    
 #endif
+  rspFwd = rspFwdCore_SIMD<vext>;
 
 #if INTPTR_MAX == INT64_MAX || INTPTR_MAX == INT32_MAX
   fillN_CU = fillN_CU_SIMD<vext>;
