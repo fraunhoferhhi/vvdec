@@ -144,5 +144,8 @@ target_include_directories( ${LIB_NAME} SYSTEM INTERFACE $<BUILD_INTERFACE:${CMA
 target_link_libraries( ${LIB_NAME} ${INTEL_ITT_LINK_TARGET} Threads::Threads )
 
 # set the folder where to place the projects
-set_target_properties( ${LIB_NAME} PROPERTIES FOLDER lib )
+set_target_properties( ${LIB_NAME} PROPERTIES
+ VERSION 2.0.0
+ SOVERSION 2
+FOLDER lib )
 
