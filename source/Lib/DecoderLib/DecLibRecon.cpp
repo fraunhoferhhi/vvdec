@@ -683,7 +683,7 @@ void DecLibRecon::decompressPicture( Picture* pcPic )
 
 #ifdef TRACE_ENABLE_ITT
       // mark end of frame
-      __itt_frame_end_v3( picture->m_itt_decLibInst, nullptr );
+      __itt_frame_end_v3( param->pic->m_itt_decLibInst, nullptr );
 #endif
       param->pic->stopProcessingTimer();
 
