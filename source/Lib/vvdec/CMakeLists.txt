@@ -116,6 +116,8 @@ if( VVDEC_ENABLE_X86_SIMD )
   endif()
 
   add_library( ${LIB_NAME}_x86_simd OBJECT ${SSE41_SRC_FILES} ${SSE42_SRC_FILES} ${AVX_SRC_FILES} ${AVX2_SRC_FILES} )
+  target_link_libraries( ${LIB_NAME}_x86_simd ${INTEL_ITT_LINK_TARGET} )
+
   # disble LTO for the files compiled with special architecture flags
   set_target_properties( ${LIB_NAME}_x86_simd PROPERTIES
                                               INTERPROCEDURAL_OPTIMIZATION                OFF
