@@ -407,7 +407,7 @@ typedef struct vvdecPlane
   unsigned char *ptr;                  // pointer to plane buffer
   uint32_t       width;                // width of the plane
   uint32_t       height;               // height of the plane
-  uint32_t       stride;               // stride (width + left margin + right margins) of plane in samples
+  uint32_t       stride;               // stride (width + left margin + right margins) of plane in bytes
   uint32_t       bytesPerSample;       // number of bytes per sample
   void          *allocator;            // opaque pointer to memory allocator (only valid, when memory is maintained by application)
 } vvdecPlane;
