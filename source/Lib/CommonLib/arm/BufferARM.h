@@ -367,6 +367,8 @@ void applyLut_SIMD( Pel* ptr, ptrdiff_t ptrStride, int width, int height, const 
   return;
 }
 
+#  if __ARM_ARCH >= 8
+
 template<ARM_VEXT vext>
 void rspBcwCore_SIMD( Pel*       ptr,
                       ptrdiff_t  ptrStride,
@@ -616,6 +618,8 @@ void rspFwdCore_SIMD( Pel*       ptr,
   }
 }
 
+#    endif   // __ARM_ARCH >= 8
+
 template<ARM_VEXT vext>
 void PelBufferOps::_initPelBufOpsARM()
 {
@@ -639,9 +643,11 @@ void PelBufferOps::_initPelBufOpsARM()
   //  transpose4x4 = transposePel_SSE<vext, 4>;
   //  transpose8x8 = transposePel_SSE<vext, 8>;
 
-  rspFwd   = rspFwdCore_SIMD<vext>;
   applyLut = applyLut_SIMD<vext>;
+#    if __ARM_ARCH >= 8
+  rspFwd   = rspFwdCore_SIMD<vext>;
   //  rspBcw   = rspBcwCore_SIMD<vext>;     // disabled, because applyLut is faster
+#    endif   // __ARM_ARCH >= 8
 
   // #if INTPTR_MAX == INT64_MAX || INTPTR_MAX == INT32_MAX
   //   fillN_CU = fillN_CU_SIMD<vext>;
@@ -651,7 +657,8 @@ void PelBufferOps::_initPelBufOpsARM()
 }
 
 template void PelBufferOps::_initPelBufOpsARM<SIMDARM>();
-}
+
+}   // namespace vvdec
 
 #  endif   // TARGET_SIMD_ARM
 #endif     // ENABLE_SIMD_OPT_BUFFER

@@ -52,10 +52,12 @@ POSSIBILITY OF SUCH DAMAGE.
 #include "CommonLib/CommonDef.h"
 #include "../InterpolationFilter.h"
 
-#ifdef TARGET_SIMD_ARM
 
 namespace vvdec
 {
+
+#ifdef TARGET_SIMD_ARM
+#  if __ARM_ARCH >= 8
 
 template<ARM_VEXT vext>
 static void simdInterpolateN2_2D( const ClpRng&       clpRng,
@@ -378,8 +380,16 @@ void InterpolationFilter::_initInterpolationFilterARM()
   //  m_weightedGeoBlk = xWeightedGeoBlk_SSE<vext>;
 }
 
+#  else    //  !__ARM_ARCH >= 8
+
+template<ARM_VEXT vext>
+void InterpolationFilter::_initInterpolationFilterARM()
+{}
+
+#  endif   //  !__ARM_ARCH >= 8
+
 template void InterpolationFilter::_initInterpolationFilterARM<SIMDARM>();
 
-}   // namespace vvdec
-
 #endif   // #ifdef TARGET_SIMD_ARM
+
+}   // namespace vvdec
