@@ -423,8 +423,9 @@ int main( int argc, char* argv[] )
   std::string sTracingFile;
   vvdecParams params;
   vvdec_params_default(&params);
+  int         iPrintPicHash = 0;
 
-  params.logLevel = VVDEC_INFO;
+  params.logLevel = VVDEC_NOTICE;
 
   if(  argc > 1 && (!strcmp( (const char*) argv[1], "--help" ) || !strcmp( (const char*) argv[1], "-help" )) )
   {
@@ -433,7 +434,7 @@ int main( int argc, char* argv[] )
   }
 
 
-  int iRet = vvdecoderapp::CmdLineParser::parse_command_line( argc, argv, params, cBitstreamFile, cOutputFile, iMaxFrames, iLoopCount, cExpectedYuvMD5, y4mOutput, externAllocator, sTracingFile, sTracingRule );
+  int iRet = vvdecoderapp::CmdLineParser::parse_command_line( argc, argv, params, cBitstreamFile, cOutputFile, iMaxFrames, iLoopCount, cExpectedYuvMD5, y4mOutput, externAllocator, sTracingFile, sTracingRule, iPrintPicHash );
   if( iRet != 0 )
   {
     if( iRet == 2 )
@@ -753,6 +754,11 @@ int main( int argc, char* argv[] )
 
           if( pcFrame->frameFormat == VVDEC_FF_PROGRESSIVE )
           {
+            if( iPrintPicHash > 1 )
+            {
+              printPicHash( pcFrame, logStream, uiFrames-1, iPrintPicHash-11 );
+            }
+            
             if( !cExpectedYuvMD5.empty() )
             {
               writeYUVToFile( &md5Stream, pcFrame );
@@ -858,6 +864,11 @@ int main( int argc, char* argv[] )
 
         if( pcFrame->frameFormat == VVDEC_FF_PROGRESSIVE )
         {
+          if( iPrintPicHash > 1 )
+          {
+            printPicHash( pcFrame, logStream, uiFrames-1, iPrintPicHash-11 );
+          }
+          
           if( !cExpectedYuvMD5.empty() )
           {
             writeYUVToFile( &md5Stream, pcFrame );

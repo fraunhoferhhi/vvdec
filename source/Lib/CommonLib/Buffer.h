@@ -59,6 +59,8 @@ POSSIBILITY OF SUCH DAMAGE.
 
 namespace vvdec
 {
+using namespace x86_simd;
+using namespace arm_simd;
 
 struct PelBufferOps
 {
@@ -68,8 +70,14 @@ struct PelBufferOps
   void initPelBufOpsX86();
   template<X86_VEXT vext>
   void _initPelBufOpsX86();
-
 #endif
+
+#if defined( TARGET_SIMD_ARM ) && ENABLE_SIMD_OPT_BUFFER
+  void initPelBufOpsARM();
+  template<ARM_VEXT vext>
+  void _initPelBufOpsARM();
+#endif
+
   void ( *addAvg4 )       ( const Pel* src0, ptrdiff_t src0Stride, const Pel* src1, ptrdiff_t src1Stride, Pel *dst, ptrdiff_t dstStride, int width, int height,            int shift, int offset,      const ClpRng& clpRng );
   void ( *addAvg8 )       ( const Pel* src0, ptrdiff_t src0Stride, const Pel* src1, ptrdiff_t src1Stride, Pel *dst, ptrdiff_t dstStride, int width, int height,            int shift, int offset,      const ClpRng& clpRng );
   void ( *addAvg16 )      ( const Pel* src0, ptrdiff_t src0Stride, const Pel* src1, ptrdiff_t src1Stride, Pel *dst, ptrdiff_t dstStride, int width, int height,            int shift, int offset,      const ClpRng& clpRng );
@@ -79,7 +87,7 @@ struct PelBufferOps
   void ( *linTf8 )        ( const Pel* src0, ptrdiff_t src0Stride,                                        Pel *dst, ptrdiff_t dstStride, int width, int height, int scale, int shift, int offset,      const ClpRng& clpRng, bool bClip );
   void ( *wghtAvg4 )      ( const Pel* src0, ptrdiff_t src0Stride, const Pel* src1, ptrdiff_t src1Stride, Pel *dst, ptrdiff_t dstStride, int width, int height, int shift, int offset, int w0, int w1, const ClpRng& clpRng );
   void ( *wghtAvg8 )      ( const Pel* src0, ptrdiff_t src0Stride, const Pel* src1, ptrdiff_t src1Stride, Pel *dst, ptrdiff_t dstStride, int width, int height, int shift, int offset, int w0, int w1, const ClpRng& clpRng );
-  void ( *copyBuffer )    ( const char*src,  ptrdiff_t srcStride,        char* dst, ptrdiff_t  dstStride,                                int width, int height );
+  void ( *copyBuffer  )    ( const char*src,  ptrdiff_t srcStride,        char* dst, ptrdiff_t  dstStride,                                int width, int height );
   void ( *transpose4x4 )  ( const Pel* src,  ptrdiff_t srcStride, Pel* dst, ptrdiff_t dstStride );
   void ( *transpose8x8 )  ( const Pel* src,  ptrdiff_t srcStride, Pel* dst, ptrdiff_t dstStride );
   void ( *applyLut )      (       Pel* ptr,  ptrdiff_t ptrStride, int width, int height, const Pel* lut );
@@ -186,7 +194,6 @@ typedef AreaBuf<const MotionInfo> CMotionBuf;
 
 typedef AreaBuf<      LoopFilterParam>  LFPBuf;
 typedef AreaBuf<const LoopFilterParam> CLFPBuf;
-
 
 #define SIZE_AWARE_PER_EL_OP( OP, INC )                     \
 if( ( width & 7 ) == 0 )                                    \

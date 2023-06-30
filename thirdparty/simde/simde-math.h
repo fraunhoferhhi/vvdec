@@ -706,6 +706,20 @@ simde_math_fpclassify(double v) {
   #endif
 #endif
 
+#if !defined(simde_math_signbit)
+  #if SIMDE_MATH_BUILTIN_LIBM(signbit)
+    #if (!defined(__clang__) || SIMDE_DETECT_CLANG_VERSION_CHECK(7,0,0))
+      #define simde_math_signbit(x) __builtin_signbit(x)
+    #else
+      #define simde_math_signbit(x) __builtin_signbit(HEDLEY_STATIC_CAST(double, (x)))
+    #endif
+  #elif defined(SIMDE_MATH_HAVE_CMATH)
+    #define simde_math_signbit(x) std::signbit(x)
+  #elif defined(SIMDE_MATH_HAVE_MATH_H)
+    #define simde_math_signbit(x) signbit(x)
+  #endif
+#endif
+
 #if !defined(simde_math_cos)
   #if SIMDE_MATH_BUILTIN_LIBM(cos)
     #define simde_math_cos(v) __builtin_cos(v)
@@ -1166,7 +1180,7 @@ simde_math_fpclassify(double v) {
 
 #if !defined(simde_math_roundeven)
   #if \
-      HEDLEY_HAS_BUILTIN(__builtin_roundeven) || \
+     (!defined(HEDLEY_EMSCRIPTEN_VERSION) && HEDLEY_HAS_BUILTIN(__builtin_roundeven)) || \
       HEDLEY_GCC_VERSION_CHECK(10,0,0)
     #define simde_math_roundeven(v) __builtin_roundeven(v)
   #elif defined(simde_math_round) && defined(simde_math_fabs)
@@ -1186,7 +1200,7 @@ simde_math_fpclassify(double v) {
 
 #if !defined(simde_math_roundevenf)
   #if \
-      HEDLEY_HAS_BUILTIN(__builtin_roundevenf) || \
+     (!defined(HEDLEY_EMSCRIPTEN_VERSION) && HEDLEY_HAS_BUILTIN(__builtin_roundevenf)) || \
       HEDLEY_GCC_VERSION_CHECK(10,0,0)
     #define simde_math_roundevenf(v) __builtin_roundevenf(v)
   #elif defined(simde_math_roundf) && defined(simde_math_fabsf)
@@ -1399,9 +1413,6 @@ simde_math_fpclassify(double v) {
   #define simde_math_cdfnormf simde_math_cdfnormf
 #endif
 
-HEDLEY_DIAGNOSTIC_PUSH
-SIMDE_DIAGNOSTIC_DISABLE_FLOAT_EQUAL_
-
 #if !defined(simde_math_cdfnorminv) && defined(simde_math_log) && defined(simde_math_sqrt)
   /*https://web.archive.org/web/20150910081113/http://home.online.no/~pjacklam/notes/invnorm/impl/sprouse/ltqnorm.c*/
   static HEDLEY_INLINE
@@ -1584,7 +1595,7 @@ SIMDE_DIAGNOSTIC_DISABLE_FLOAT_EQUAL_
     if(x >= 0.0625 && x < 2.0) {
       return simde_math_erfinv(1.0 - x);
     } else if (x < 0.0625 && x >= 1.0e-100) {
-      double p[6] = {
+      static const double p[6] = {
         0.1550470003116,
         1.382719649631,
         0.690969348887,
@@ -1592,7 +1603,7 @@ SIMDE_DIAGNOSTIC_DISABLE_FLOAT_EQUAL_
         0.680544246825,
         -0.16444156791
       };
-      double q[3] = {
+      static const double q[3] = {
         0.155024849822,
         1.385228141995,
         1.000000000000
@@ -1602,13 +1613,13 @@ SIMDE_DIAGNOSTIC_DISABLE_FLOAT_EQUAL_
       return (p[0] / t + p[1] + t * (p[2] + t * (p[3] + t * (p[4] + t * p[5])))) /
             (q[0] + t * (q[1] + t * (q[2])));
     } else if (x < 1.0e-100 && x >= SIMDE_MATH_DBL_MIN) {
-      double p[4] = {
+      static const double p[4] = {
         0.00980456202915,
         0.363667889171,
         0.97302949837,
         -0.5374947401
       };
-      double q[3] = {
+      static const double q[3] = {
         0.00980451277802,
         0.363699971544,
         1.000000000000
@@ -1674,8 +1685,6 @@ SIMDE_DIAGNOSTIC_DISABLE_FLOAT_EQUAL_
 
   #define simde_math_erfcinvf simde_math_erfcinvf
 #endif
-
-HEDLEY_DIAGNOSTIC_POP
 
 static HEDLEY_INLINE
 double

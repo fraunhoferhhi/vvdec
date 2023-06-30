@@ -202,13 +202,15 @@ void applyLutCore( Pel* ptr, ptrdiff_t ptrStride, int width, int height, const P
 
   //    size_aware_pel_op( rsp_sgnl_op, rsp_sgnl_inc, width, height );
 
-#define RSP_SGNL_OP( ADDR ) ptr[ADDR] = lut[ptr[ADDR]]
-#define RSP_SGNL_INC        ptr      += ptrStride;
+    #define RSP_SGNL_OP( ADDR ) ptr[ADDR] = lut[ptr[ADDR]]
+    #define RSP_SGNL_INC        ptr      += ptrStride;
 
-  SIZE_AWARE_PER_EL_OP( RSP_SGNL_OP, RSP_SGNL_INC )
+      SIZE_AWARE_PER_EL_OP( RSP_SGNL_OP, RSP_SGNL_INC )
 
-#undef RSP_SGNL_OP
-#undef RSP_SGNL_INC
+    #undef RSP_SGNL_OP
+    #undef RSP_SGNL_INC
+    
+    return;
 }
 
 void fillN_CuCore( CodingUnit** ptr, ptrdiff_t ptrStride, int width, int height, CodingUnit* cuPtr )

@@ -116,13 +116,17 @@ void CommonTaskParam::reset( CodingStructure& cs, TaskType ctuStartState, int ta
 
 DecLibRecon::DecLibRecon()
 {
-#if ENABLE_SIMD_OPT_BUFFER && defined( TARGET_SIMD_X86 )
+#if ENABLE_SIMD_OPT_BUFFER
+#  if defined( TARGET_SIMD_X86 )
   g_pelBufOP.initPelBufOpsX86();
+#  endif
+#  if defined( TARGET_SIMD_ARM )
+  g_pelBufOP.initPelBufOpsARM();
+#  endif
 #endif
 #if ENABLE_SIMD_TCOEFF_OPS && defined( TARGET_SIMD_X86 )
   g_tCoeffOps.initTCoeffOpsX86();
 #endif
-
 }
 
 void DecLibRecon::create( ThreadPool* threadPool, unsigned instanceId, bool upscaleOutputEnabled )
@@ -631,7 +635,7 @@ void DecLibRecon::decompressPicture( Picture* pcPic )
     }
   }
 
-  if( pcPic->referenced )
+  if( pcPic->stillReferenced )
   {
     static auto task = []( int tid, LineTaskParam* param )
     {

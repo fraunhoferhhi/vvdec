@@ -56,6 +56,7 @@ POSSIBILITY OF SUCH DAMAGE.
 
 namespace vvdec
 {
+using namespace x86_simd;
 
 // ====================================================================================================================
 // Constants
@@ -134,4 +135,4 @@ private:
 #endif
 };// END CLASS DEFINITION Quant
 
-}
+}   // namespace vvdec

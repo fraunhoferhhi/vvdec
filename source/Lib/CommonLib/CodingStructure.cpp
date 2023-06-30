@@ -187,12 +187,11 @@ CodingUnit& CodingStructure::addCU( const UnitArea &unit, const ChannelType chTy
     }
   }
 
-  PredictionUnit& pu = *cu;
-  pu.setChType( chType );
+  cu->setChType( chType );
 
   if( isLuma( chType ) && unit.lheight() >= 8 && unit.lwidth()  >= 8 && unit.Y().area() >= 128 )
   {
-    pu.mvdL0SubPuOff           = ctuData.dmvrMvCacheOffset;
+    cu->mvdL0SubPuOff           = ctuData.dmvrMvCacheOffset;
     ctuData.dmvrMvCacheOffset += std::max<int>( 1, unit.lwidth() >> DMVR_SUBCU_WIDTH_LOG2 ) * std::max<int>( 1, unit.lheight() >> DMVR_SUBCU_HEIGHT_LOG2 );
   }
 

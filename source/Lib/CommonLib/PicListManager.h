@@ -44,38 +44,32 @@ POSSIBILITY OF SUCH DAMAGE.
 
 #include "CommonDef.h"
 #include "Common.h"
+#include "Picture.h"
 
 #include <list>
+#include <unordered_set>
 
 namespace vvdec
 {
 
 struct Picture;
+class Slice;
 class SPS;
 class PPS;
 class VPS;
 class ReferencePictureList;
 
-typedef std::list<Picture*> PicList;
-struct PicListRange
-{
-  PicList::const_iterator m_begin;
-  PicList::const_iterator m_end;
-
-  const PicList::const_iterator begin() const { return m_begin; }
-  const PicList::const_iterator end  () const { return m_end;   }
-};
-
 class PicListManager
 {
 private:
-  PicList m_cPicList;   //  Dynamic buffer
-  int     m_parseFrameDelay = -1;
-  int     m_parallelDecInst = 1;
-  bool    m_upscaleOutputEnabled  = false;
-  UserAllocator m_userAllocator;
-  int     m_tuneInDelay     = 0;
-  bool    m_firstOutputPic  = true;
+  PicList                            m_cPicList;   //  Dynamic buffer
+  int                                m_parseFrameDelay      = -1;
+  int                                m_parallelDecInst      = 1;
+  bool                               m_upscaleOutputEnabled = false;
+  UserAllocator                      m_userAllocator;
+  int                                m_tuneInDelay    = 0;
+  bool                               m_firstOutputPic = true;
+  std::unordered_set<const Picture*> m_allRefPics;
 
 public:
   PicListManager() = default;
@@ -88,15 +82,13 @@ public:
     m_tuneInDelay    = 0;
   }
 
-  PicListRange   getPicListRange( const Picture* pic ) const;
   const Picture* getFrontPic() const { return m_cPicList.empty() ? nullptr : m_cPicList.front(); }
   const Picture* getBackPic() const  { return m_cPicList.empty() ? nullptr : m_cPicList.back(); }
   Picture*       getNewPicBuffer( const SPS& sps, const PPS& pps, const uint32_t temporalLayer, const int layerId, const VPS* vps );
   void           deleteBuffers();
-  void           applyDoneReferencePictureMarking();
+  void           markUnusedPicturesReusable();
   Picture*       findClosestPic( int iLostPoc );
   Picture*       getNextOutputPic( uint32_t numReorderPicsHighestTid, uint32_t maxDecPicBufferingHighestTid, bool bFlush );
   void           releasePicture( Picture* pic );
 };
-
 }

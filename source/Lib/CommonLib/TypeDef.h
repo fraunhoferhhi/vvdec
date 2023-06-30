@@ -51,11 +51,9 @@ POSSIBILITY OF SUCH DAMAGE.
 #endif
 
 #include <vector>
-#include <utility>
 #include <sstream>
 #include <cstddef>
 #include <cstring>
-#include <assert.h>
 #include <cassert>
 #include <mutex>
 

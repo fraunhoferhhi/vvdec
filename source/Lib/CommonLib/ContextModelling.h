@@ -474,10 +474,10 @@ public:
   MotionBuf     subPuMvpMiBuf;
   MvField       mmvdBaseMv        [MMVD_BASE_MV_NUM        ][2];
 
-  void setMmvdMergeCandiInfo( PredictionUnit& pu, int candIdx );
+  void setMmvdMergeCandiInfo( CodingUnit& cu, int candIdx );
   bool          mmvdUseAltHpelIf  [ MMVD_BASE_MV_NUM ];
   bool          useAltHpelIf      [ MRG_MAX_NUM_CANDS ];
-  void setMergeInfo         ( PredictionUnit& pu, int candIdx );
+  void setMergeInfo         ( CodingUnit& cu, int candIdx );
   void init()               { numValidMergeCand = 0; memset( mrgTypeNeighbours, 0, sizeof( mrgTypeNeighbours ) ); }
 };
 
@@ -504,7 +504,7 @@ namespace DeriveCtx
 void     CtxSplit     ( const CodingStructure& cs, Partitioner& partitioner, unsigned& ctxSpl, unsigned& ctxQt, unsigned& ctxHv, unsigned& ctxHorBt, unsigned& ctxVerBt, bool* canSplit = nullptr );
 unsigned CtxModeConsFlag( const CodingStructure& cs, Partitioner& partitioner );
 unsigned CtxQtCbf     ( const ComponentID compID, const bool prevCbCbf = false, const int ispIdx = 0 );
-unsigned CtxInterDir  ( const PredictionUnit& pu );
+unsigned CtxInterDir  ( const CodingUnit& cu );
 unsigned CtxSkipFlag  ( const CodingUnit& cu );
 unsigned CtxAffineFlag( const CodingUnit& cu );
 unsigned CtxPredModeFlag( const CodingUnit& cu );

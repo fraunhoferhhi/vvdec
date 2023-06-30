@@ -333,7 +333,7 @@ void  WeightPrediction::addWeightUni(const PelUnitBuf           &pcYuvSrc0,
   }
 }
 
-void  WeightPrediction::xWeightedPredictionUni(const PredictionUnit       &pu,
+void  WeightPrediction::xWeightedPredictionUni(const CodingUnit       &cu,
                                                const PelUnitBuf           &pcYuvSrc,
                                                const RefPicList           &eRefPicList,
                                                      PelUnitBuf           &pcYuvPred,
@@ -345,48 +345,48 @@ void  WeightPrediction::xWeightedPredictionUni(const PredictionUnit       &pu,
   int iRefIdx = iRefIdx_input;
   if (iRefIdx < 0)
   {
-    iRefIdx = pu.refIdx[eRefPicList];
+    iRefIdx = cu.refIdx[eRefPicList];
   }
 
   CHECK_RECOVERABLE(iRefIdx < 0, "Negative reference picture list index");
 
   if (eRefPicList == REF_PIC_LIST_0)
   {
-    getWpScaling(pu.slice, iRefIdx, -1, pwp, pwpTmp);
+    getWpScaling(cu.slice, iRefIdx, -1, pwp, pwpTmp);
   }
   else
   {
-    getWpScaling(pu.slice, -1, iRefIdx, pwpTmp, pwp);
+    getWpScaling(cu.slice, -1, iRefIdx, pwpTmp, pwp);
   }
-  addWeightUni(pcYuvSrc, pu.slice->clpRngs(), pwp, pcYuvPred);
+  addWeightUni(pcYuvSrc, cu.slice->clpRngs(), pwp, pcYuvPred);
 }
 
-void  WeightPrediction::xWeightedPredictionBi(const PredictionUnit       &pu,
+void  WeightPrediction::xWeightedPredictionBi(const CodingUnit       &cu,
                                               const PelUnitBuf           &pcYuvSrc0,
                                               const PelUnitBuf           &pcYuvSrc1,
                                                     PelUnitBuf           &rpcYuvDst
                                              )
 {
-  const int iRefIdx0 = pu.refIdx[0];
-  const int iRefIdx1 = pu.refIdx[1];
+  const int iRefIdx0 = cu.refIdx[0];
+  const int iRefIdx1 = cu.refIdx[1];
   WPScalingParam  pwp0[MAX_NUM_COMPONENT];
   WPScalingParam  pwp1[MAX_NUM_COMPONENT];
 
-  CHECK_RECOVERABLE( !pu.pps->getWPBiPred(), "Weighted Bi-prediction disabled" );
+  CHECK_RECOVERABLE( !cu.pps->getWPBiPred(), "Weighted Bi-prediction disabled" );
 
-  getWpScaling(pu.slice, iRefIdx0, iRefIdx1, pwp0, pwp1);
+  getWpScaling(cu.slice, iRefIdx0, iRefIdx1, pwp0, pwp1);
 
   if (iRefIdx0 >= 0 && iRefIdx1 >= 0)
   {
-    addWeightBi(pcYuvSrc0, pcYuvSrc1, pu.slice->clpRngs(), pwp0, pwp1, rpcYuvDst, true);
+    addWeightBi(pcYuvSrc0, pcYuvSrc1, cu.slice->clpRngs(), pwp0, pwp1, rpcYuvDst, true);
   }
   else if (iRefIdx0 >= 0 && iRefIdx1 < 0)
   {
-    addWeightUni(pcYuvSrc0, pu.slice->clpRngs(), pwp0, rpcYuvDst);
+    addWeightUni(pcYuvSrc0, cu.slice->clpRngs(), pwp0, rpcYuvDst);
   }
   else if (iRefIdx0 < 0 && iRefIdx1 >= 0)
   {
-    addWeightUni(pcYuvSrc1, pu.slice->clpRngs(), pwp1, rpcYuvDst);
+    addWeightUni(pcYuvSrc1, cu.slice->clpRngs(), pwp1, rpcYuvDst);
   }
   else
   {

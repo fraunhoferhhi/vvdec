@@ -184,14 +184,14 @@ void DecLib::destroy()
   m_picListManager.deleteBuffers();
 }
 
-Picture* DecLib::decode( InputNALUnit& nalu, int* pSkipFrame, int iTargetLayer )
+Picture* DecLib::decode( InputNALUnit& nalu )
 {
   PROFILER_SCOPE_AND_STAGE( 1, g_timeProfiler, P_NALU_SLICE_PIC_HL );
 
   bool newPic = false;
   if( m_iMaxTemporalLayer < 0 || nalu.m_temporalId <= m_iMaxTemporalLayer )
   {
-    newPic = m_decLibParser.parse( nalu, pSkipFrame, iTargetLayer );
+    newPic = m_decLibParser.parse( nalu );
   }
 
   if( newPic )
@@ -304,14 +304,14 @@ Picture* DecLib::flushPic()
   if( outPic )
   {
     CHECK_RECOVERABLE( outPic->progress != Picture::finished, "all pictures should have been finished by now" );
-    outPic->referenced = false;
+    // outPic->referenced = false;
     return outPic;
   }
 
   // At the very end reset parser state
   InputNALUnit eosNAL;
   eosNAL.m_nalUnitType = NAL_UNIT_EOS;
-  m_decLibParser.parse( eosNAL, nullptr );
+  m_decLibParser.parse( eosNAL );
   m_checkMissingOutput = false;
 
   return nullptr;
@@ -361,7 +361,7 @@ int DecLib::finishPicture( Picture* pcPic, MsgLevel msgl )
   ITT_TASKSTART( itt_domain_oth, itt_handle_finish );
 
   char c = ( pcSlice->isIntra() ? 'I' : pcSlice->isInterP() ? 'P' : 'B' );
-  if( !pcPic->referenced )
+  if( !pcPic->isReferencePic )
   {
     c += 32;  // tolower
   }
@@ -438,7 +438,7 @@ int DecLib::finishPicture( Picture* pcPic, MsgLevel msgl )
   }
 #endif
 
-  m_picListManager.applyDoneReferencePictureMarking();
+  m_picListManager.markUnusedPicturesReusable();
 
   if( m_parseFrameDelay > 0 )
   {

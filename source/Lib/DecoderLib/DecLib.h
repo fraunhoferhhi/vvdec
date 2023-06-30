@@ -46,6 +46,7 @@ POSSIBILITY OF SUCH DAMAGE.
 
 #pragma once
 
+#include "PicListManager.h"
 #include "DecLibParser.h"
 #include "DecLibRecon.h"
 
@@ -98,10 +99,9 @@ public:
 
   const char* getDecoderCapabilities() const { return m_sDecoderCapabilities.c_str(); }
 
-  void     setTargetDecLayer  ( int layer ) { m_decLibParser.setTargetDecLayer( layer ); }
   void     setMaxTemporalLayer( int layer ) { m_iMaxTemporalLayer = layer; }
 
-  Picture* decode( InputNALUnit& nalu, int* pSkipFrame = nullptr, int iTargetLayer = -1 );
+  Picture* decode( InputNALUnit& nalu );
   Picture* flushPic();
   void     releasePicture   ( Picture* pcPic ) { m_picListManager.releasePicture( pcPic ); }   // notify the decoder-lib that the picture buffers can be reused
 
@@ -113,8 +113,8 @@ public:
   void     checkNalUnitConstraints( uint32_t naluType );
   void     checkSeiInPictureUnit();
   void     resetPictureSeiNalus();
-  void checkAPSInPictureUnit();
-  void resetPictureUnitNals() { m_pictureUnitNals.clear(); }
+  void     checkAPSInPictureUnit();
+  void     resetPictureUnitNals() { m_pictureUnitNals.clear(); }
 
 #if RPR_YUV_OUTPUT
   unsigned int getUpscaledOutput() { return m_upscaledOutput; }
@@ -123,9 +123,9 @@ public:
 private:
   void     reconPicture( Picture* pcPic );
 #if JVET_R0270
-  int      finishPicture    ( Picture* pcPic, MsgLevel msgl = INFO, bool associatedWithNewClvs );
+  int      finishPicture    ( Picture* pcPic, MsgLevel msgl = NOTICE, bool associatedWithNewClvs );
 #else
-  int      finishPicture    ( Picture* pcPic, MsgLevel msgl = INFO );
+  int      finishPicture    ( Picture* pcPic, MsgLevel msgl = NOTICE );
 #endif
   Picture* getNextOutputPic ( bool bFlush = false );
   void     blockAndFinishPictures( Picture* pcPic = nullptr );   // iterate over DecLibRecon instances and wait to finish picture(s)

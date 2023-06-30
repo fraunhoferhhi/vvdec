@@ -56,6 +56,8 @@ POSSIBILITY OF SUCH DAMAGE.
 
 #include "vvdec/vvdec.h"
 
+#include "MD5.h"
+
 #define MAX_CODED_PICTURE_SIZE  800000
 
 static int _writeComponentToFile( std::ostream *f, vvdecPlane *plane, vvdecPlane *planeField2, uint32_t uiBytesPerSample )
@@ -592,4 +594,286 @@ static inline std::string getNalUnitTypeAsString( vvdecNalType eNalType )
   }
 
   return cNalType;
+}
+
+std::string hashToString( const std::vector<uint8_t> hash, int numChar )
+{
+  static const char* hex = "0123456789abcdef";
+  std::string result;
+
+  assert( numChar > 0 );
+
+  for( int pos=0; pos<int( hash.size() ); pos++ )
+  {
+    if( ( pos % numChar ) == 0 && pos!=0 )
+    {
+      result += ',';
+    }
+    result += hex[hash[pos] >> 4];
+    result += hex[hash[pos] & 0xf];
+  }
+
+  return result;
+}
+
+void md5_plane( vvdec::libmd5::MD5& md5, const vvdecPlane *plane )
+{
+  uint32_t width  = plane->width;
+  uint32_t height = plane->height;
+  uint32_t stride = plane->stride;
+  
+  uint32_t N = 32;
+  uint32_t width_modN = width % N;
+  uint32_t width_less_modN = width - width_modN;
+  
+  if( plane->bytesPerSample == 2 )
+  {    
+    unsigned short* pc  = reinterpret_cast<unsigned short*>( plane->ptr );
+    uint8_t buf[32][2];
+    stride >>= 1;
+
+    for( uint32_t y = 0; y < height; y++ )
+    {
+      uint16_t *p;
+      for( uint32_t x = 0; x < width_less_modN; x += N )
+      {
+        p = &pc[y*stride + x];
+        for( uint32_t i = 0; i < N; i++ )
+        {
+          uint16_t pel = p[i];
+          for( uint32_t d = 0; d < 2; d++ )
+          {
+            buf[i][d] = pel >> (d*8);
+          }
+        }
+        md5.update( (uint8_t*)buf, N*2 );
+      }
+
+      p = &pc[y*stride + width_less_modN];
+      for( uint32_t i = 0; i < width_modN; i++ )
+      {
+        uint16_t pel = p[i];
+        for( uint32_t d = 0; d < 2; d++ )
+        {
+          buf[i][d] = pel >> (d*8);
+        }
+      }
+      md5.update((uint8_t*)buf, width_modN*2);
+    }
+  }
+  else
+  {
+    uint8_t *pc = plane->ptr;
+    uint8_t buf[64][1];
+
+    for( uint32_t y = 0; y < height; y++ )
+    {
+      uint8_t *p;
+      for( uint32_t x = 0; x < width_less_modN; x += N )
+      {
+        p = &pc[y*stride + x];
+        for( uint32_t i = 0; i < N; i++ )
+        {
+          buf[i][0] = p[i];
+        }
+        md5.update( (uint8_t*)buf, N );
+      }
+
+      p = &pc[y*stride + width_less_modN];
+      for( uint32_t i = 0; i < width_modN; i++ )
+      {
+        buf[i][0] = p[i];
+      }
+      md5.update( (uint8_t*)buf, width_modN );
+    }
+  }
+}
+
+int calc_md5( vvdecFrame *frame, std::vector<uint8_t> &hash )
+{
+  hash.clear();
+  vvdec::libmd5::MD5 md5[3];
+
+  for( uint32_t c = 0; c < frame->numPlanes; c++ )
+  {
+    uint8_t tmp_digest[vvdec::MD5_DIGEST_STRING_LENGTH];
+    md5_plane( md5[c], &frame->planes[c] );
+    md5[c].finalize( tmp_digest );
+    for( uint32_t i = 0; i < vvdec::MD5_DIGEST_STRING_LENGTH; i++ )
+    {
+      hash.push_back( tmp_digest[i] );
+    }
+  }
+  
+  return 16;
+}
+
+void crc_plane( const vvdecPlane *plane, std::vector<uint8_t> &hash )
+{
+  uint32_t width  = plane->width;
+  uint32_t height = plane->height;
+  uint32_t stride = plane->stride;
+  
+  uint32_t crcMsb;
+  uint32_t bitVal;
+  uint32_t crcVal  = 0xffff;
+  uint32_t bitIdx;
+
+  if( plane->bytesPerSample == 2 )
+  {
+    unsigned short* pc  = reinterpret_cast<unsigned short*>( plane->ptr );
+
+    for( uint32_t y = 0; y < height; y++ )
+    {
+      for( uint32_t x = 0; x < width; x++ )
+      {
+        uint16_t pel = pc[x];
+
+        for( bitIdx = 0; bitIdx < 8; bitIdx++ )
+        {
+          crcMsb = (crcVal >> 15) & 1;
+          bitVal = (pel >> (7 - bitIdx)) & 1;
+          crcVal = (((crcVal << 1) + bitVal) & 0xffff) ^ (crcMsb * 0x1021);
+        }
+        for( bitIdx = 0; bitIdx < 8; bitIdx++ )
+        {
+          crcMsb = (crcVal >> 15) & 1;
+          bitVal = (pel >> (15 - bitIdx)) & 1;
+          crcVal = (((crcVal << 1) + bitVal) & 0xffff) ^ (crcMsb * 0x1021);
+        }
+      }
+      pc += (stride >> 1);
+    }
+  }
+  else
+  {
+    uint8_t *pc = plane->ptr;
+
+    for( uint32_t y = 0; y < height; y++ )
+    {
+      for( uint32_t x = 0; x < width; x++ )
+      {
+        for( bitIdx = 0; bitIdx < 8; bitIdx++ )
+        {
+          crcMsb = (crcVal >> 15) & 1;
+          bitVal = (pc[y*stride+x] >> (7 - bitIdx)) & 1;
+          crcVal = (((crcVal << 1) + bitVal) & 0xffff) ^ (crcMsb * 0x1021);
+        }
+      }
+    }
+  }
+  
+  for( bitIdx = 0; bitIdx < 16; bitIdx++ )
+  {
+    crcMsb = (crcVal >> 15) & 1;
+    crcVal = ((crcVal << 1) & 0xffff) ^ (crcMsb * 0x1021);
+  }
+
+  hash.push_back( (crcVal>>8)  & 0xff );
+  hash.push_back(  crcVal      & 0xff );
+}
+
+int calc_crc( vvdecFrame *frame, std::vector<uint8_t> &hash )
+{
+  hash.clear();
+
+  for( uint32_t c = 0; c < frame->numPlanes; c++ )
+  {
+    crc_plane( &frame->planes[c], hash );
+  }
+  
+  return 2;
+}
+
+void checksum_plane( const vvdecPlane *plane, std::vector<uint8_t> &hash )
+{
+  uint32_t width  = plane->width;
+  uint32_t height = plane->height;
+  uint32_t stride = plane->stride;
+
+  uint32_t checksum = 0;
+  uint8_t xor_mask;
+
+  if( plane->bytesPerSample == 2 )
+  {
+    unsigned short* pc  = reinterpret_cast<unsigned short*>( plane->ptr );
+
+    for( uint32_t y = 0; y < height; y++ )
+    {
+      for( uint32_t x = 0; x < width; x++ )
+      {
+        uint16_t pel = pc[x];
+        xor_mask = (x & 0xff) ^ (y & 0xff) ^ (x >> 8) ^ (y >> 8);
+        checksum = (checksum + ((pel & 0xff) ^ xor_mask)) & 0xffffffff;
+        checksum = (checksum + ((pel >> 8)   ^ xor_mask)) & 0xffffffff;
+      }
+      pc += (stride>>1);
+    }
+  }
+  else
+  {
+    uint8_t *pc = plane->ptr;
+
+    for( uint32_t y = 0; y < height; y++ )
+    {
+      for( uint32_t x = 0; x < width; x++ )
+      {
+        xor_mask = (x & 0xff) ^ (y & 0xff) ^ (x >> 8) ^ (y >> 8);
+        checksum = (checksum + (pc[y*stride+x] ^ xor_mask)) & 0xffffffff;
+      }
+    }
+  }
+
+  hash.push_back( (checksum>>24) & 0xff );
+  hash.push_back( (checksum>>16) & 0xff );
+  hash.push_back( (checksum>>8)  & 0xff );
+  hash.push_back(  checksum      & 0xff );
+}
+
+int calc_checksum( vvdecFrame *frame, std::vector<uint8_t> &hash )
+{
+  hash.clear();
+
+  for( uint32_t c = 0; c < frame->numPlanes; c++ )
+  {
+    checksum_plane( &frame->planes[c], hash );
+  }
+  
+  return 4;
+}
+
+void printPicHash( vvdecFrame *frame, std::ostream * logStream, unsigned int frames, int method = 0 )
+{
+  int numChar=0;
+  const char* hashType = "\0";
+  std::vector<uint8_t> picHash;
+  
+  switch( method )
+  {
+    case VVDEC_HASHTYPE_MD5:
+    {
+      hashType = "MD5";
+      numChar = calc_md5( frame, picHash );
+      break;
+    }
+    case VVDEC_HASHTYPE_CRC:
+    {
+      hashType = "CRC";
+      numChar = calc_crc( frame, picHash );
+      break;
+    }
+    case VVDEC_HASHTYPE_CHECKSUM:
+    {
+      hashType = "Checksum";
+      numChar = calc_checksum( frame, picHash );
+      break;
+    }
+    default:
+    {
+      assert( 0 );
+      break;
+    }
+  }
+  
+  *logStream << "vvdecapp picHash frame " << frames <<  "  [" << hashType << ":" << hashToString( picHash, numChar ) << "]"  << std::endl;
 }

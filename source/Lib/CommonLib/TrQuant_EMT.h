@@ -50,6 +50,7 @@ POSSIBILITY OF SUCH DAMAGE.
 
 namespace vvdec
 {
+using namespace x86_simd;
 
 struct TCoeffOps
 {
@@ -89,4 +90,4 @@ void fastInverseDCT8_B8  (const TCoeff *src, TCoeff *dst, int shift, int line, i
 void fastInverseDCT8_B16 (const TCoeff *src, TCoeff *dst, int shift, int line, int iSkipLine, int iSkipLine2, bool clip, const TCoeff outputMinimum, const TCoeff outputMaximum);
 void fastInverseDCT8_B32 (const TCoeff *src, TCoeff *dst, int shift, int line, int iSkipLine, int iSkipLine2, bool clip, const TCoeff outputMinimum, const TCoeff outputMaximum);
 
-}
+}   // namespace vvdec

@@ -324,7 +324,7 @@ void Slice::inheritFromPicHeader( const PicHeader* picHeader, const PPS *pps, co
       }
       else
       {
-        m_RPL[l] = sps->getRPLList1()[m_RPLIdx[l]];
+        m_RPL[l] = sps->getRPLList( 1 )[m_RPLIdx[l]];
       }
     }
   }
@@ -405,32 +405,36 @@ bool Slice::getRapPicFlag() const
       || getNalUnitType() == NAL_UNIT_CODED_SLICE_CRA;
 }
 
-Picture* Slice::xGetRefPic( const PicListRange & rcListPic, int poc, const int layerId )
+Picture* Slice::xGetRefPic( const PicList& rcListPic, int poc, const int layerId )
 {
   // return a nullptr, if picture is not found
-  for ( auto &currPic : rcListPic )
+  for( auto& pcPic: rcListPic )
   {
-    if( currPic->getPOC() == poc && currPic->referenced && currPic->layerId == layerId )
+    if( pcPic && pcPic->getPOC() == poc && pcPic->dpbReferenceMark && pcPic->layerId == layerId )
     {
-      return currPic;
+      pcPic->stillReferenced = true;
+      return pcPic;
     }
   }
 
   return nullptr;
 }
 
-Picture* Slice::xGetLongTermRefPic( const PicListRange & rcListPic, int poc, bool pocHasMsb, const int layerId )
+Picture* Slice::xGetLongTermRefPic( const PicList& rcListPic, int poc, bool pocHasMsb, const int layerId, bool getCandidate )
 {
-  for( auto & pcPic: rcListPic )
+  for( auto& pcPic: rcListPic )
   {
-    if( pcPic && pcPic->getPOC() != this->getPOC() && pcPic->referenced && pcPic->layerId == layerId )
+    if( pcPic && pcPic->getPOC() != this->getPOC() && pcPic->dpbReferenceMark && pcPic->layerId == layerId )
     {
-      if( isLTPocEqual( poc,  pcPic->getPOC(), getSPS()->getBitsForPOC(), pocHasMsb ) )
+      if( isLTPocEqual( poc, pcPic->getPOC(), getSPS()->getBitsForPOC(), pocHasMsb ) )
       {
-        if( !pcPic->longTerm )
-          return nullptr;
+        if( getCandidate || pcPic->dpbReferenceMark == Picture::LongTerm )
+        {
+          pcPic->stillReferenced = true;
+          return pcPic;
+        }
 
-        return pcPic;
+        return nullptr;
       }
     }
   }
@@ -455,7 +459,7 @@ void Slice::setList1IdxToList0Idx()
   }
 }
 
-void Slice::constructRefPicLists( const PicListRange& rcPicRange )
+void Slice::constructRefPicLists( const PicList& rcPicList )
 {
   ::memset(m_bIsUsedAsLongTerm, 0, sizeof(m_bIsUsedAsLongTerm));
   if (m_eSliceType == I_SLICE)
@@ -466,41 +470,45 @@ void Slice::constructRefPicLists( const PicListRange& rcPicRange )
     return;
   }
 
-  constructSingleRefPicList( rcPicRange, REF_PIC_LIST_0 );
-  constructSingleRefPicList( rcPicRange, REF_PIC_LIST_1 );
+  constructSingleRefPicList( rcPicList, REF_PIC_LIST_0 );
+  constructSingleRefPicList( rcPicList, REF_PIC_LIST_1 );
 }
 
-void Slice::constructSingleRefPicList( const PicListRange& rcPicRange, RefPicList listId )
+void Slice::constructSingleRefPicList( const PicList& rcPicList, RefPicList listId )
 {
   ReferencePictureList& rRPL = m_RPL[listId];
 
   uint32_t numOfActiveRef = getNumRefIdx( listId );
-  for( int ii = 0; ii < numOfActiveRef; ii++ )
+  for( int ii = 0; ii < rRPL.getNumRefEntries(); ii++ )
   {
     Picture* pcRefPic = nullptr;
     int      refPOC   = 0;
-    bool     longTerm = false;
 
     if( !rRPL.isRefPicLongterm( ii ) )
     {
       refPOC   = getPOC() + rRPL.getRefPicIdentifier( ii );
-      pcRefPic = xGetRefPic( rcPicRange, refPOC, m_pcPic->layerId );
+      pcRefPic = xGetRefPic( rcPicList, refPOC, m_pcPic->layerId );
+      CHECK( !pcRefPic, "Picture pointer missing from ref pic list" );
+
+      pcRefPic->dpbReferenceMark = Picture::ShortTerm;
     }
     else
     {
-      refPOC = rRPL.calcLTRefPOC( getPOC(), getSPS()->getBitsForPOC(), ii );
+      refPOC   = rRPL.calcLTRefPOC( getPOC(), getSPS()->getBitsForPOC(), ii );
+      pcRefPic = xGetLongTermRefPic( rcPicList, refPOC, rRPL.getDeltaPocMSBPresentFlag( ii ), m_pcPic->layerId, true );
+      CHECK( !pcRefPic, "Picture pointer missing from ref pic list" );
 
-      pcRefPic = xGetLongTermRefPic( rcPicRange, refPOC, rRPL.getDeltaPocMSBPresentFlag( ii ), m_pcPic->layerId );
-      longTerm = true;
+      pcRefPic->dpbReferenceMark = Picture::LongTerm;
     }
 
     CHECK_RECOVERABLE( pcRefPic->getPOC() != refPOC, "reference picture as wrong POC" );
 
-    m_apcRefPicList    [listId][ii] = pcRefPic;
-    m_aiRefPOCList     [listId][ii] = refPOC;
-    m_bIsUsedAsLongTerm[listId][ii] = longTerm;
-
-    rRPL.setRefPicLongterm( ii, longTerm );
+    if( ii < numOfActiveRef )
+    {
+      m_apcRefPicList    [listId][ii] = pcRefPic;
+      m_aiRefPOCList     [listId][ii] = refPOC;
+      m_bIsUsedAsLongTerm[listId][ii] = pcRefPic->dpbReferenceMark == Picture::LongTerm;
+    }
   }
 }
 
@@ -528,7 +536,7 @@ void Slice::checkColRefIdx(uint32_t curSliceSegmentIdx, const Picture* pic)
   }
 }
 
-void Slice::checkCRA( int& pocCRA, NalUnitType& associatedIRAPType, const PicListRange& rcListPic )
+void Slice::checkCRA( int& pocCRA, NalUnitType& associatedIRAPType, const PicList& rcListPic )
 {
   if( pocCRA < MAX_UINT && getPOC() > pocCRA )
   {
@@ -560,7 +568,7 @@ void Slice::checkCRA( int& pocCRA, NalUnitType& associatedIRAPType, const PicLis
   }
 }
 
-void Slice::checkSTSA( const PicListRange& rcListPic )
+void Slice::checkSTSA( const PicList& rcListPic )
 {
   int ii;
   Picture* pcRefPic = NULL;
@@ -603,7 +611,7 @@ void Slice::checkSTSA( const PicListRange& rcListPic )
   {
     for( auto & pcPic: rcListPic )
     {
-      if( !pcPic->referenced || pcPic->getPOC() == m_iPOC )
+      if( !pcPic->dpbReferenceMark || pcPic->getPOC() == m_iPOC )
       {
         continue;
       }
@@ -616,7 +624,7 @@ void Slice::checkSTSA( const PicListRange& rcListPic )
   }
 }
 
-void Slice::checkRPL(const ReferencePictureList* pRPL0, const ReferencePictureList* pRPL1, const int associatedIRAPDecodingOrderNumber, const PicListRange& rcListPic)
+void Slice::checkRPL(const ReferencePictureList* pRPL0, const ReferencePictureList* pRPL1, const int associatedIRAPDecodingOrderNumber, const PicList& rcListPic)
 {
   Picture* pcRefPic;
   int refPicPOC;
@@ -815,7 +823,7 @@ void Slice::copySliceInfo(Slice *pSrc, bool cpyAlmostAll)
   m_ccAlfCrApsId                  = pSrc->m_ccAlfCrApsId;
 }
 
-void Slice::checkLeadingPictureRestrictions( const PicListRange & rcListPic ) const
+void Slice::checkLeadingPictureRestrictions( const PicList & rcListPic ) const
 {
   int nalUnitType = this->getNalUnitType();
 
@@ -947,7 +955,7 @@ void Slice::checkLeadingPictureRestrictions( const PicListRange & rcListPic ) co
   }
 }
 
-bool Slice::checkThatAllRefPicsAreAvailable( const PicListRange&         rcListPic,
+bool Slice::checkThatAllRefPicsAreAvailable( const PicList&              rcListPic,
                                              const ReferencePictureList* pRPL,
                                              int                         numActiveRefPics,
                                              int*                        missingPOC,
@@ -973,7 +981,7 @@ bool Slice::checkThatAllRefPicsAreAvailable( const PicListRange&         rcListP
       const int poc        = rpcPic->getPOC();
       const int refPoc     = pRPL->calcLTRefPOC( this->getPOC(), bitsForPoc, ii );
 
-      if( rpcPic->longTerm && isLTPocEqual( poc, refPoc, bitsForPoc, pRPL->getDeltaPocMSBPresentFlag( ii ) ) && rpcPic->referenced )
+      if( rpcPic->dpbReferenceMark == Picture::LongTerm && isLTPocEqual( poc, refPoc, bitsForPoc, pRPL->getDeltaPocMSBPresentFlag( ii ) )  )
       {
         isAvailable = 1;
         break;
@@ -989,10 +997,10 @@ bool Slice::checkThatAllRefPicsAreAvailable( const PicListRange&         rcListP
       const int poc        = rpcPic->getPOC();
       const int refPoc     = pRPL->calcLTRefPOC( this->getPOC(), bitsForPoc, ii );
 
-      if( !rpcPic->longTerm && isLTPocEqual( poc, refPoc, bitsForPoc, pRPL->getDeltaPocMSBPresentFlag( ii ) ) && rpcPic->referenced )
+      if( rpcPic->dpbReferenceMark == Picture::ShortTerm && isLTPocEqual( poc, refPoc, bitsForPoc, pRPL->getDeltaPocMSBPresentFlag( ii ) )  )
       {
         isAvailable      = 1;
-        rpcPic->longTerm = true;
+        rpcPic->dpbReferenceMark  = Picture::LongTerm;
         break;
       }
     }
@@ -1006,7 +1014,6 @@ bool Slice::checkThatAllRefPicsAreAvailable( const PicListRange&         rcListP
       return false;
     }
   }
-  // report that a picture is lost if it is in the Reference Picture List but not in the DPB
 
   // Check short term ref pics
   for( int ii = 0; ii < numActiveRefPics; ii++ )
@@ -1018,7 +1025,7 @@ bool Slice::checkThatAllRefPicsAreAvailable( const PicListRange&         rcListP
     bool      isAvailable = false;
     for( auto& rpcPic: rcListPic )
     {
-      if( !rpcPic->longTerm && rpcPic->getPOC() == checkPoc && rpcPic->referenced )
+      if( rpcPic->getPOC() == checkPoc && rpcPic->dpbReferenceMark )
       {
         isAvailable = true;
         break;
@@ -1123,19 +1130,14 @@ void PicHeader::getWpScaling(RefPicList e, int iRefIdx, WPScalingParam *&wp) con
 
 
 
-void  SPS::createRPLList0( int numRPL )
+RPLList& SPS::createRPLList( int l, int numRPL )
 {
-  m_RPLList0.resize( numRPL );
-  m_numRPL0 = numRPL;
-  m_rpl1IdxPresentFlag = ( m_RPLList0.size() != m_RPLList1.size() );
+  m_RPLList[l].resize( numRPL );
+  m_numRPL[l] = numRPL;
+  m_rpl1IdxPresentFlag = ( m_RPLList[0].size() != m_RPLList[1].size() );
+  return m_RPLList[l];
 }
 
-void  SPS::createRPLList1( int numRPL )
-{
-  m_RPLList1.resize( numRPL );
-  m_numRPL1 = numRPL;
-  m_rpl1IdxPresentFlag = ( m_RPLList0.size() != m_RPLList1.size() );
-}
 
 const int SPS::m_winUnitX[] = { 1,2,2,1 };
 const int SPS::m_winUnitY[] = { 1,2,1,1 };
@@ -1780,6 +1782,47 @@ void ReferencePictureList::printRefPicInfo() const
     DTRACE(g_trace_ctx, D_RPSINFO, "%d%s ", m_refPicIdentifier[ii], (m_isLongtermRefPic[ii] == 1) ? "[LT]" : "[ST]");
   }
   DTRACE(g_trace_ctx, D_RPSINFO, "}\n");
+}
+
+bool ReferencePictureList::findInRefPicList( const Picture* checkRefPic, int currPicPoc, int layerId ) const
+{
+  // loop through all pictures in the Reference Picture Set
+  // to see if the picture should be kept as reference picture
+  for( int i = 0; i < getNumRefEntries(); i++ )
+  {
+    if( isInterLayerRefPic( i ) )
+    {
+      // Diagonal inter-layer prediction is not allowed
+      CHECK_RECOVERABLE( getRefPicIdentifier( i ), "ILRP identifier should be 0" );
+
+      if( checkRefPic->poc == currPicPoc )
+      {
+        CHECK_RECOVERABLE( checkRefPic->dpbReferenceMark != Picture::LongTerm, "LTRP needs long term mark" );
+        return true;
+      }
+    }
+    else if( checkRefPic->layerId == layerId )
+    {
+      if( isRefPicLongterm( i ) )
+      {
+        const int bitsForPoc = checkRefPic->cs->sps->getBitsForPOC();
+        const int curPoc     = checkRefPic->getPOC();
+        const int ltRefPoc   = calcLTRefPOC( currPicPoc, bitsForPoc, i );
+        if( checkRefPic->dpbReferenceMark == Picture::LongTerm && isLTPocEqual( curPoc, ltRefPoc, bitsForPoc, getDeltaPocMSBPresentFlag( i ) ) )
+        {
+          return true;
+        }
+      }
+      else
+      {
+        if( checkRefPic->poc == currPicPoc + getRefPicIdentifier( i ) )
+        {
+          return true;
+        }
+      }
+    }
+  }
+  return false;
 }
 
 int ReferencePictureList::calcLTRefPOC( int currPoc, int bitsForPoc, int refPicIdentifier, bool pocMSBPresent, int deltaPocMSBCycle )

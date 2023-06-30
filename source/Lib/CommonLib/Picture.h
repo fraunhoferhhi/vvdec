@@ -54,14 +54,27 @@ POSSIBILITY OF SUCH DAMAGE.
 #include "Unit.h"
 #include "Slice.h"
 #include "CodingStructure.h"
-#include <deque>
-
-#include "InterpolationFilter.h"
+#include "SEI_internal.h"
 
 #include "vvdec/sei.h"
 
 namespace vvdec
 {
+using namespace x86_simd;
+
+struct Picture;
+
+typedef std::list<Picture*> PicList;
+
+struct PicListRange
+{
+  PicList::const_iterator m_begin;
+  PicList::const_iterator m_end;
+
+  const PicList::const_iterator begin() const { return m_begin; }
+  const PicList::const_iterator end  () const { return m_end;   }
+};
+
 
 struct Picture : public UnitArea
 {
@@ -165,20 +178,28 @@ public:
     finished
   };
   using PicState = std::atomic<PicStateEnum>;
-
-  bool     subPicExtStarted = false;
-  bool     borderExtStarted = false;
-  bool     referenced       = false;
   PicState progress{ init };
-  bool     neededForOutput         = false;
-  bool     wasLost                 = false;
-  bool     error                   = false;
-  bool     exceptionThrownOut      = false;
-  bool     longTerm                = false;
-  bool     topField                = false;
-  bool     fieldPic                = false;
-  bool     nonReferencePictureFlag = false;
-  int      skippedDecCount         = 0;
+
+  enum RefMark : uint8_t
+  {
+    unreferenced = 0,
+    ShortTerm,
+    LongTerm
+  };
+
+  bool    subPicExtStarted        = false;
+  bool    borderExtStarted        = false;
+  RefMark dpbReferenceMark        = unreferenced;   // only used during parsing, manage the DPB and to build the reference picture lists
+  bool    neededForOutput         = false;
+  bool    stillReferenced         = false;   // set as long as there is a picture in progress, that references this one. ('referenced' might be unset during parsing)
+  bool    isReferencePic          = false;   // mainly for setting vvdecPicAttributes::isRefPic for the library output frame
+  bool    wasLost                 = false;
+  bool    error                   = false;
+  bool    exceptionThrownOut      = false;
+  bool    topField                = false;
+  bool    fieldPic                = false;
+  bool    nonReferencePictureFlag = false;
+  int     skippedDecCount         = 0;
 
   bool              picCheckedDPH = false;
   std::vector<bool> subpicsCheckedDPH;
@@ -264,4 +285,4 @@ public:
 
 int calcAndPrintHashStatus(const CPelUnitBuf& pic, const vvdecSEIDecodedPictureHash* pictureHashSEI, const BitDepths &bitDepths, const MsgLevel msgl);
 
-}
+}   // namespace vvdec
