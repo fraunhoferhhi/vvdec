@@ -87,14 +87,14 @@ public:
                                       PelUnitBuf           &rpcYuvDst
                                 );
 
-  void  xWeightedPredictionUni( const PredictionUnit       &pu,
+  void  xWeightedPredictionUni( const CodingUnit       &cu,
                                 const PelUnitBuf           &pcYuvSrc,
                                 const RefPicList           &eRefPicList,
                                       PelUnitBuf           &pcYuvPred,
                                 const int                   iRefIdx=-1
                                 );
 
-  void  xWeightedPredictionBi(  const PredictionUnit       &pu,
+  void  xWeightedPredictionBi(  const CodingUnit       &cu,
                                 const PelUnitBuf           &pcYuvSrc0,
                                 const PelUnitBuf           &pcYuvSrc1,
                                       PelUnitBuf           &pcYuvDst

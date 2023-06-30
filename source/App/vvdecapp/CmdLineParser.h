@@ -128,7 +128,7 @@ public:
 
   static int parse_command_line( int argc, char* argv[] , vvdecParams& rcParams, std::string& rcBitstreamFile, std::string& rcOutputFile,
                                  int& riFrames, int& riLoops, std::string& rcExpectYuvMD5, bool& useY4mFormat, bool &useExternAllocator,
-                                 std::string& sTracingFile, std::string& sTracingRule )
+                                 std::string& sTracingFile, std::string& sTracingRule, int& riPrintPicHash )
   {
 #ifndef ENABLE_TRACING
     // ignore unused variables
@@ -290,17 +290,22 @@ public:
       else if( (!strcmp( (const char*)argv[i_arg], "-dph" )) || !strcmp( (const char*)argv[i_arg], "--SEIDecodedPictureHash" ) )
       {
         i_arg++;
-        if( i_arg < argc )
+        if( i_arg < argc && std::isdigit( argv[i_arg][0] ) )
         {
-          if( std::isdigit(argv[i_arg][0]))
-          {
-            i_arg++;
-          }
+          riPrintPicHash = atoi( argv[i_arg] );
+          i_arg++;
+        }
+        else
+        {
+          riPrintPicHash = 1;
         }
 
-        if( rcParams.logLevel > VVDEC_VERBOSE )
-          fprintf( stdout, "[SEIDecodedPictureHash] : true\n" );
-        rcParams.verifyPictureHash = true;
+        if( riPrintPicHash <= 1 )
+        {
+          if( rcParams.logLevel > VVDEC_VERBOSE )
+            fprintf( stdout, "[SEIDecodedPictureHash] : true\n" );
+          rcParams.verifyPictureHash = true;
+        }
       }
       else if( ( !strcmp( (const char*)argv[i_arg], "-md5" ) ) || !strcmp( (const char*)argv[i_arg], "--CheckYuvMD5" ) )
       {

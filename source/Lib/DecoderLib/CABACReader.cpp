@@ -845,14 +845,14 @@ PartSplit CABACReader::split_cu_mode( CodingStructure& cs, Partitioner &partitio
 //    void  cu_bcw_flag             ( cu )
 //    void  extend_ref_line         ( cu )
 //    void  intra_luma_pred_mode    ( cu )
-//    bool  intra_chroma_lmc_mode   ( pu )
-//    void  intra_chroma_pred_mode  ( pu )
+//    bool  intra_chroma_lmc_mode   ( cu )
+//    void  intra_chroma_pred_mode  ( cu )
 //    void  cu_residual             ( cu, pm, cuCtx )
 //    void  rqt_root_cbf            ( cu )
 //    void  adaptive_color_transform( cu )
 //    void  sbt_mode                ( cu )
 //    void  mip_flag                ( cu )
-//    void  mip_pred_mode           ( pu )
+//    void  mip_pred_mode           ( cu )
 //    bool  end_of_ctu              ( cu, cuCtx )
 //================================================================================
 
@@ -875,9 +875,8 @@ bool CABACReader::coding_unit( CodingUnit &cu, Partitioner &partitioner, CUCtx& 
     {
       cu.setColorTransform( false );
       cs.addEmptyTUs      ( partitioner, cu );
-      PredictionUnit&       pu = cu;
       MergeCtx              mrgCtx;
-      prediction_unit     ( pu );
+      prediction_unit     ( cu );
       return end_of_ctu   ( cu, cuCtx );
     }
     else
@@ -1255,11 +1254,9 @@ void CABACReader::extend_ref_line( CodingUnit& cu )
 
   if( isFirstLineOfCtu )
   {
-    //pu.setMultiRefIdx( 0 );
+    //cu.setMultiRefIdx( 0 );
     return;
   }
-
-  PredictionUnit &pu = cu;
 
   int multiRefIdx = 0;
 
@@ -1270,7 +1267,7 @@ void CABACReader::extend_ref_line( CodingUnit& cu )
     multiRefIdx = m_BinDecoder.decodeBin( Ctx::MultiRefLineIdx( 1 ) ) == 1 ? MULTI_REF_LINE_IDX[2] : MULTI_REF_LINE_IDX[1];
   }
 
-  pu.setMultiRefIdx( multiRefIdx );
+  cu.setMultiRefIdx( multiRefIdx );
 }
 
 void CABACReader::intra_luma_pred_mode( CodingUnit &cu )
@@ -1303,11 +1300,9 @@ void CABACReader::intra_luma_pred_mode( CodingUnit &cu )
   else
     mpmFlag = m_BinDecoder.decodeBin( Ctx::IPredMode[0]() );
 
-  PredictionUnit &pu = cu;
-
   unsigned mpm_pred[NUM_MOST_PROBABLE_MODES];  // mpm_idx / rem_intra_luma_pred_mode
 
-  PU::getIntraMPMs( pu, mpm_pred );
+  PU::getIntraMPMs( cu, mpm_pred );
 
   if( mpmFlag )
   {
@@ -1315,16 +1310,16 @@ void CABACReader::intra_luma_pred_mode( CodingUnit &cu )
 
     unsigned ctx = ( cu.ispMode() == NOT_INTRA_SUBPARTITIONS ? 1 : 0 );
 
-    if( pu.multiRefIdx() == 0 )
+    if( cu.multiRefIdx() == 0 )
       ipred_idx = m_BinDecoder.decodeBin( Ctx::IntraLumaPlanarFlag( ctx ) );
     else
       ipred_idx = 1;
 
     if( ipred_idx ) while( ipred_idx < 5 && m_BinDecoder.decodeBinEP() ) ipred_idx++;
 
-    pu.intraDir[0] = mpm_pred[ipred_idx];
+    cu.intraDir[0] = mpm_pred[ipred_idx];
 
-    DTRACE( g_trace_ctx, D_SYNTAX, "intra_luma_pred_modes() idx=%d pos=(%d,%d) mode=%d\n", 0, pu.lumaPos().x, pu.lumaPos().y, pu.intraDir[0] );
+    DTRACE( g_trace_ctx, D_SYNTAX, "intra_luma_pred_modes() idx=%d pos=(%d,%d) mode=%d\n", 0, cu.lumaPos().x, cu.lumaPos().y, cu.intraDir[0] );
   }
   else
   {
@@ -1340,71 +1335,71 @@ void CABACReader::intra_luma_pred_mode( CodingUnit &cu )
       ipred_mode += ( ipred_mode >= mpm_pred[i] );
     }
 
-    pu.intraDir[0] = ipred_mode;
+    cu.intraDir[0] = ipred_mode;
 
-    DTRACE( g_trace_ctx, D_SYNTAX, "intra_luma_pred_modes() idx=%d pos=(%d,%d) mode=%d\n", 0, pu.lumaPos().x, pu.lumaPos().y, pu.intraDir[0] );
+    DTRACE( g_trace_ctx, D_SYNTAX, "intra_luma_pred_modes() idx=%d pos=(%d,%d) mode=%d\n", 0, cu.lumaPos().x, cu.lumaPos().y, cu.intraDir[0] );
   }
 }
 
-void CABACReader::intra_chroma_pred_mode( PredictionUnit& pu )
+void CABACReader::intra_chroma_pred_mode( CodingUnit& cu )
 {
-  if( pu.bdpcmModeChroma() )
+  if( cu.bdpcmModeChroma() )
   {
-    pu.intraDir[1] = pu.bdpcmModeChroma() == 2 ? VER_IDX : HOR_IDX;
+    cu.intraDir[1] = cu.bdpcmModeChroma() == 2 ? VER_IDX : HOR_IDX;
     return;
   }
 
-  if( pu.colorTransform() )
+  if( cu.colorTransform() )
   {
-    pu.intraDir[CHANNEL_TYPE_CHROMA] = DM_CHROMA_IDX;
+    cu.intraDir[CHANNEL_TYPE_CHROMA] = DM_CHROMA_IDX;
     return;
   }
 
   // LM chroma mode
-  if( pu.sps->getUseLMChroma() && CU::checkCCLMAllowed( pu ) )
+  if( cu.sps->getUseLMChroma() && CU::checkCCLMAllowed( cu ) )
   {
     bool isLMCMode = m_BinDecoder.decodeBin( Ctx::CclmModeFlag( 0 ) );
     if( isLMCMode )
     {
-      intra_chroma_lmc_mode( pu );
+      intra_chroma_lmc_mode( cu );
       return;
     }
   }
 
   if( m_BinDecoder.decodeBin( Ctx::IPredMode[1]( 0 ) ) == 0 )
   {
-    pu.intraDir[1] = DM_CHROMA_IDX;
+    cu.intraDir[1] = DM_CHROMA_IDX;
     return;
   }
 
   unsigned candId = m_BinDecoder.decodeBinsEP( 2 );
 
   unsigned chromaCandModes[NUM_CHROMA_MODE];
-  PU::getIntraChromaCandModes( pu, chromaCandModes );
+  PU::getIntraChromaCandModes( cu, chromaCandModes );
 
-  pu.intraDir[1] = chromaCandModes[candId];
+  cu.intraDir[1] = chromaCandModes[candId];
 
   CHECKD( candId >= NUM_CHROMA_MODE, "Chroma prediction mode index out of bounds" );
   CHECKD( PU::isLMCMode( chromaCandModes[candId] ), "The intra dir cannot be LM_CHROMA for this path" );
   CHECKD( chromaCandModes[candId] == DM_CHROMA_IDX, "The intra dir cannot be DM_CHROMA for this path" );
 }
 
-bool CABACReader::intra_chroma_lmc_mode( PredictionUnit& pu )
+bool CABACReader::intra_chroma_lmc_mode( CodingUnit& cu )
 {
   int lmModeList[10];
-  PU::getLMSymbolList( pu, lmModeList );
+  PU::getLMSymbolList( cu, lmModeList );
 
   int symbol = m_BinDecoder.decodeBin( Ctx::CclmModeIdx( 0 ) );
 
   if( symbol == 0 )
   {
-    pu.intraDir[1] = lmModeList[symbol];
-    CHECKD( pu.intraDir[1] != LM_CHROMA_IDX, "should be LM_CHROMA" );
+    cu.intraDir[1] = lmModeList[symbol];
+    CHECKD( cu.intraDir[1] != LM_CHROMA_IDX, "should be LM_CHROMA" );
   }
   else
   {
     symbol += m_BinDecoder.decodeBinEP();
-    pu.intraDir[1] = lmModeList[symbol];
+    cu.intraDir[1] = lmModeList[symbol];
   }
   return true; //it will only enter this function for LMC modes, so always return true ;
 }
@@ -1413,8 +1408,7 @@ void CABACReader::cu_residual( CodingUnit& cu, Partitioner &partitioner, CUCtx& 
 {
   if( !CU::isIntra( cu ) )
   {
-    PredictionUnit& pu = cu;
-    if( !pu.mergeFlag() )
+    if( !cu.mergeFlag() )
     {
       rqt_root_cbf( cu );
     }
@@ -1558,133 +1552,133 @@ bool CABACReader::end_of_ctu( CodingUnit& cu, CUCtx& cuCtx )
 //================================================================================
 //  clause 7.3.11.7
 //--------------------------------------------------------------------------------
-//    void  prediction_unit     ( pu, mrgCtx )
-//    void  general_merge_flag  ( pu )
-//    void  merge_data          ( pu )
+//    void  prediction_unit     ( cu, mrgCtx )
+//    void  general_merge_flag  ( cu )
+//    void  merge_data          ( cu )
 //    void  affine_flag         ( cu )
 //    void  subblock_merge_flag ( cu )
-//    void  merge_idx           ( pu )
-//    void  mmvd_merge_idx      ( pu )
+//    void  merge_idx           ( cu )
+//    void  mmvd_merge_idx      ( cu )
 //    void  amvr_mode           ( cu )
 //    void  affine_amvr_mode    ( cu )
-//    void  inter_pred_idc      ( pu )
-//    void  ref_idx             ( pu, eRefList )
-//    void  mvp_flag            ( pu, eRefList )
-//    void  ciip_flag           ( pu )
-//    void  smvd_mode           ( pu )
+//    void  inter_pred_idc      ( cu )
+//    void  ref_idx             ( cu, eRefList )
+//    void  mvp_flag            ( cu, eRefList )
+//    void  ciip_flag           ( cu )
+//    void  smvd_mode           ( cu )
 //================================================================================
 
-void CABACReader::prediction_unit( PredictionUnit& pu )
+void CABACReader::prediction_unit( CodingUnit& cu )
 {
-  if( pu.skip() )
+  if( cu.skip() )
   {
-    pu.setMergeFlag( true );
+    cu.setMergeFlag( true );
   }
   else
   {
-    general_merge_flag( pu );
+    general_merge_flag( cu );
   }
 
-  if( pu.mergeFlag() )
+  if( cu.mergeFlag() )
   {
-    merge_data( pu );
+    merge_data( cu );
   }
-  else if( CU::isIBC( pu ) )
+  else if( CU::isIBC( cu ) )
   {
-    pu.setInterDir  ( 1 );
-    //pu.setAffineFlag( false );
-    pu.refIdx[REF_PIC_LIST_0] = MAX_NUM_REF;
-    mvd_coding( pu.mv[REF_PIC_LIST_0][0] );
+    cu.setInterDir  ( 1 );
+    //cu.setAffineFlag( false );
+    cu.refIdx[REF_PIC_LIST_0] = MAX_NUM_REF;
+    mvd_coding( cu.mv[REF_PIC_LIST_0][0] );
 
-    if( pu.sps->getMaxNumIBCMergeCand() == 1 )
+    if( cu.sps->getMaxNumIBCMergeCand() == 1 )
     {
-      pu.mvpIdx[REF_PIC_LIST_0] = 0;
+      cu.mvpIdx[REF_PIC_LIST_0] = 0;
     }
     else
     {
-      mvp_flag    ( pu, REF_PIC_LIST_0 );
+      mvp_flag    ( cu, REF_PIC_LIST_0 );
     }
   }
   else
   {
-    inter_pred_idc( pu );
-    affine_flag   ( pu );
-    smvd_mode     ( pu );
+    inter_pred_idc( cu );
+    affine_flag   ( cu );
+    smvd_mode     ( cu );
 
-    if( pu.interDir() != 2 /* PRED_L1 */ )
+    if( cu.interDir() != 2 /* PRED_L1 */ )
     {
-      ref_idx       ( pu, REF_PIC_LIST_0 );
+      ref_idx       ( cu, REF_PIC_LIST_0 );
 
-      mvd_coding    ( pu.mv[REF_PIC_LIST_0][0] );
-      if( pu.affineFlag() )
+      mvd_coding    ( cu.mv[REF_PIC_LIST_0][0] );
+      if( cu.affineFlag() )
       {
-        mvd_coding  ( pu.mv[REF_PIC_LIST_0][1] );
-        if ( pu.affineType() == AFFINEMODEL_6PARAM )
+        mvd_coding  ( cu.mv[REF_PIC_LIST_0][1] );
+        if ( cu.affineType() == AFFINEMODEL_6PARAM )
         {
-          mvd_coding( pu.mv[REF_PIC_LIST_0][2] );
+          mvd_coding( cu.mv[REF_PIC_LIST_0][2] );
         }
       }
 
-      mvp_flag      ( pu, REF_PIC_LIST_0 );
+      mvp_flag      ( cu, REF_PIC_LIST_0 );
     }
 
-    if( pu.interDir() != 1 /* PRED_L0 */ )
+    if( cu.interDir() != 1 /* PRED_L0 */ )
     {
-      if( pu.smvdMode() != 1 )
+      if( cu.smvdMode() != 1 )
       {
-        ref_idx( pu, REF_PIC_LIST_1 );
+        ref_idx( cu, REF_PIC_LIST_1 );
 
-        if( pu.cs->picHeader->getMvdL1ZeroFlag() && pu.interDir() == 3 /* PRED_BI */ )
+        if( cu.cs->picHeader->getMvdL1ZeroFlag() && cu.interDir() == 3 /* PRED_BI */ )
         {
-          //pu.mv[REF_PIC_LIST_1][0] = Mv();
-          //pu.mv[REF_PIC_LIST_1][1] = Mv();
-          //pu.mv[REF_PIC_LIST_1][2] = Mv();
+          //cu.mv[REF_PIC_LIST_1][0] = Mv();
+          //cu.mv[REF_PIC_LIST_1][1] = Mv();
+          //cu.mv[REF_PIC_LIST_1][2] = Mv();
         }
         else
         {
-          mvd_coding    ( pu.mv[REF_PIC_LIST_1][0] );
-          if( pu.affineFlag() )
+          mvd_coding    ( cu.mv[REF_PIC_LIST_1][0] );
+          if( cu.affineFlag() )
           {
-            mvd_coding  ( pu.mv[REF_PIC_LIST_1][1] );
-            if( pu.affineType() == AFFINEMODEL_6PARAM )
+            mvd_coding  ( cu.mv[REF_PIC_LIST_1][1] );
+            if( cu.affineType() == AFFINEMODEL_6PARAM )
             {
-              mvd_coding( pu.mv[REF_PIC_LIST_1][2] );
+              mvd_coding( cu.mv[REF_PIC_LIST_1][2] );
             }
           }
         }
       }
 
-      mvp_flag        ( pu, REF_PIC_LIST_1 );
+      mvp_flag        ( cu, REF_PIC_LIST_1 );
     }
   }
 
-  if( pu.smvdMode() )
+  if( cu.smvdMode() )
   {
-    RefPicList eCurRefList = ( RefPicList ) ( pu.smvdMode() - 1 );
-    pu.mv    [1 - eCurRefList][0] . set( -pu.mv[eCurRefList][0].hor, -pu.mv[eCurRefList][0].ver );
-    pu.refIdx[1 - eCurRefList]    = pu.slice->getSymRefIdx( 1 - eCurRefList );
+    RefPicList eCurRefList = ( RefPicList ) ( cu.smvdMode() - 1 );
+    cu.mv    [1 - eCurRefList][0] . set( -cu.mv[eCurRefList][0].hor, -cu.mv[eCurRefList][0].ver );
+    cu.refIdx[1 - eCurRefList]    = cu.slice->getSymRefIdx( 1 - eCurRefList );
 
-    CHECKD( !( ( pu.mv[1 - eCurRefList][0].getHor() >= MVD_MIN ) && ( pu.mv[1 - eCurRefList][0].getHor() <= MVD_MAX ) ) || !( ( pu.mv[1 - eCurRefList][0].getVer() >= MVD_MIN ) && ( pu.mv[1 - eCurRefList][0].getVer() <= MVD_MAX ) ), "Illegal MVD value" );
+    CHECKD( !( ( cu.mv[1 - eCurRefList][0].getHor() >= MVD_MIN ) && ( cu.mv[1 - eCurRefList][0].getHor() <= MVD_MAX ) ) || !( ( cu.mv[1 - eCurRefList][0].getVer() >= MVD_MIN ) && ( cu.mv[1 - eCurRefList][0].getVer() <= MVD_MAX ) ), "Illegal MVD value" );
   }
 }
 
-void CABACReader::smvd_mode( PredictionUnit& pu )
+void CABACReader::smvd_mode( CodingUnit& cu )
 {
-  //pu.setSmvdMode( 0 );
+  //cu.setSmvdMode( 0 );
 
-  if( pu.interDir() != 3 || pu.affineFlag() || !pu.sps->getUseSMVD() || pu.cs->picHeader->getMvdL1ZeroFlag() )
+  if( cu.interDir() != 3 || cu.affineFlag() || !cu.sps->getUseSMVD() || cu.cs->picHeader->getMvdL1ZeroFlag() )
   {
     return;
   }
 
-  if( pu.slice->getBiDirPred() == false )
+  if( cu.slice->getBiDirPred() == false )
   {
     return;
   }
 
-  pu.setSmvdMode( m_BinDecoder.decodeBin( Ctx::SmvdFlag() ) ? 1 : 0 );
+  cu.setSmvdMode( m_BinDecoder.decodeBin( Ctx::SmvdFlag() ) ? 1 : 0 );
 
-  DTRACE( g_trace_ctx, D_SYNTAX, "symmvd_flag() symmvd=%d pos=(%d,%d) size=%dx%d\n", pu.smvdMode() ? 1 : 0, pu.lumaPos().x, pu.lumaPos().y, pu.lumaSize().width, pu.lumaSize().height );
+  DTRACE( g_trace_ctx, D_SYNTAX, "symmvd_flag() symmvd=%d pos=(%d,%d) size=%dx%d\n", cu.smvdMode() ? 1 : 0, cu.lumaPos().x, cu.lumaPos().y, cu.lumaSize().width, cu.lumaSize().height );
 }
 
 void CABACReader::subblock_merge_flag( CodingUnit& cu )
@@ -1722,47 +1716,46 @@ void CABACReader::affine_flag( CodingUnit& cu )
   }
 }
 
-void CABACReader::general_merge_flag( PredictionUnit& pu )
+void CABACReader::general_merge_flag( CodingUnit& cu )
 {
-  pu.setMergeFlag( m_BinDecoder.decodeBin( Ctx::MergeFlag() ) );
+  cu.setMergeFlag( m_BinDecoder.decodeBin( Ctx::MergeFlag() ) );
 
-  DTRACE( g_trace_ctx, D_SYNTAX, "merge_flag() merge=%d pos=(%d,%d) size=%dx%d\n", pu.mergeFlag() ? 1 : 0, pu.lumaPos().x, pu.lumaPos().y, pu.lumaSize().width, pu.lumaSize().height );
+  DTRACE( g_trace_ctx, D_SYNTAX, "merge_flag() merge=%d pos=(%d,%d) size=%dx%d\n", cu.mergeFlag() ? 1 : 0, cu.lumaPos().x, cu.lumaPos().y, cu.lumaSize().width, cu.lumaSize().height );
 
-  //if( pu.mergeFlag() && CU::isIBC( pu ) )
+  //if( cu.mergeFlag() && CU::isIBC( cu ) )
   //{
-  //  pu.setMmvdFlag        ( false );
-  //  pu.setRegularMergeFlag( false );
+  //  cu.setMmvdFlag        ( false );
+  //  cu.setRegularMergeFlag( false );
   //
   //  return;
   //}
 }
 
 
-void CABACReader::merge_data( PredictionUnit& pu )
+void CABACReader::merge_data( CodingUnit& cu )
 {
-  if( CU::isIBC( pu ) )
+  if( CU::isIBC( cu ) )
   {
-    merge_idx( pu );
+    merge_idx( cu );
     return;
   }
   else
   {
-    CodingUnit& cu = pu;
     subblock_merge_flag( cu );
 
-    if( pu.affineFlag() )
+    if( cu.affineFlag() )
     {
-      merge_idx( pu );
+      merge_idx( cu );
       return;
     }
 
     bool regularMerge = true;
 
-    const bool ciipAvailable = pu.sps->getUseCiip() && !cu.skip() && pu.lwidth() < 128 && pu.lheight() < 128 && pu.Y().area() >= 64;
-    const bool geoAvailable  = pu.sps->getUseGeo()  && pu.slice->isInterB()
-                                                    && pu.lwidth() >= GEO_MIN_CU_SIZE && pu.lheight() >= GEO_MIN_CU_SIZE
-                                                    && pu.lwidth() <= GEO_MAX_CU_SIZE && pu.lheight() <= GEO_MAX_CU_SIZE
-                                                    && pu.lwidth() < 8 * pu.lheight() && pu.lheight() < 8 * pu.lwidth();
+    const bool ciipAvailable = cu.sps->getUseCiip() && !cu.skip() && cu.lwidth() < 128 && cu.lheight() < 128 && cu.Y().area() >= 64;
+    const bool geoAvailable  = cu.sps->getUseGeo()  && cu.slice->isInterB()
+                                                    && cu.lwidth() >= GEO_MIN_CU_SIZE && cu.lheight() >= GEO_MIN_CU_SIZE
+                                                    && cu.lwidth() <= GEO_MAX_CU_SIZE && cu.lheight() <= GEO_MAX_CU_SIZE
+                                                    && cu.lwidth() < 8 * cu.lheight() && cu.lheight() < 8 * cu.lwidth();
 
     if( geoAvailable || ciipAvailable )
     {
@@ -1773,57 +1766,57 @@ void CABACReader::merge_data( PredictionUnit& pu )
     {
       if( cu.sps->getUseMMVD() )
       {
-        pu.setMmvdFlag( m_BinDecoder.decodeBin( Ctx::MmvdFlag( 0 ) ) );
+        cu.setMmvdFlag( m_BinDecoder.decodeBin( Ctx::MmvdFlag( 0 ) ) );
       }
       else
       {
-        //pu.setMmvdFlag( false );
+        //cu.setMmvdFlag( false );
       }
     }
     else
     {
-      //pu.setMmvdFlag( false );
+      //cu.setMmvdFlag( false );
       if( geoAvailable && ciipAvailable )
       {
-        ciip_flag( pu );
+        ciip_flag( cu );
       }
       else if( ciipAvailable )
       {
-        pu.setCiipFlag( true );
+        cu.setCiipFlag( true );
       }
       else
       {
-        //pu.setCiipFlag( false );
+        //cu.setCiipFlag( false );
       }
 
-      if( pu.ciipFlag() )
+      if( cu.ciipFlag() )
       {
-        pu.intraDir[0] = PLANAR_IDX;
-        pu.intraDir[1] = DM_CHROMA_IDX;
+        cu.intraDir[0] = PLANAR_IDX;
+        cu.intraDir[1] = DM_CHROMA_IDX;
       }
       else
       {
-        pu.setGeoFlag( true );
+        cu.setGeoFlag( true );
       }
     }
   }
 
-  if( pu.mmvdFlag() )
-    mmvd_merge_idx( pu );
+  if( cu.mmvdFlag() )
+    mmvd_merge_idx( cu );
   else
-    merge_idx     ( pu );
+    merge_idx     ( cu );
 }
 
 
-void CABACReader::merge_idx( PredictionUnit& pu )
+void CABACReader::merge_idx( CodingUnit& cu )
 {
-  if( pu.geoFlag() )
+  if( cu.geoFlag() )
   {
     uint32_t splitDir = 0;
     xReadTruncBinCode( splitDir, GEO_NUM_PARTITION_MODE );
-    pu.geoSplitDir = splitDir;
+    cu.geoSplitDir = splitDir;
 
-    const int maxNumGeoCand = pu.sps->getMaxNumGeoCand();
+    const int maxNumGeoCand = cu.sps->getMaxNumGeoCand();
     const int numCandminus2 = maxNumGeoCand - 2;
 
     CHECK_RECOVERABLE( maxNumGeoCand < 2, "Incorrect max number of geo candidates" );
@@ -1846,8 +1839,8 @@ void CABACReader::merge_idx( PredictionUnit& pu )
 
     mergeCand1 += mergeCand1 >= mergeCand0 ? 1 : 0;
 
-    pu.setGeoMergeIdx0( mergeCand0 );
-    pu.setGeoMergeIdx1( mergeCand1 );
+    cu.setGeoMergeIdx0( mergeCand0 );
+    cu.setGeoMergeIdx1( mergeCand1 );
 
     DTRACE( g_trace_ctx, D_SYNTAX, "merge_idx() geo_split_dir=%d\n", splitDir );
     DTRACE( g_trace_ctx, D_SYNTAX, "merge_idx() geo_idx0=%d\n",      mergeCand0 );
@@ -1858,18 +1851,18 @@ void CABACReader::merge_idx( PredictionUnit& pu )
     int numCandminus1;
     int ctxIdx = Ctx::MergeIdx();
 
-    if( pu.predMode() == MODE_IBC )
+    if( cu.predMode() == MODE_IBC )
     {
-      numCandminus1 = int( pu.sps->getMaxNumIBCMergeCand() ) - 1;
+      numCandminus1 = int( cu.sps->getMaxNumIBCMergeCand() ) - 1;
     }
-    else if( pu.affineFlag() )
+    else if( cu.affineFlag() )
     {
-      numCandminus1 = int( pu.cs->picHeader->getMaxNumAffineMergeCand() ) - 1;
+      numCandminus1 = int( cu.cs->picHeader->getMaxNumAffineMergeCand() ) - 1;
       ctxIdx        = Ctx::AffMergeIdx();
     }
     else
     {
-      numCandminus1 = int( pu.sps->getMaxNumMergeCand() ) - 1;
+      numCandminus1 = int( cu.sps->getMaxNumMergeCand() ) - 1;
     }
 
     int mergeIdx = 0;
@@ -1878,22 +1871,22 @@ void CABACReader::merge_idx( PredictionUnit& pu )
       for( mergeIdx++; mergeIdx < numCandminus1 && m_BinDecoder.decodeBinEP(); mergeIdx++ );
     }
 
-    pu.setMergeIdx( mergeIdx );
+    cu.setMergeIdx( mergeIdx );
 #if ENABLE_TRACING
 
-    if( pu.affineFlag() )
-      DTRACE( g_trace_ctx, D_SYNTAX, "aff_merge_idx() aff_merge_idx=%d\n", pu.mergeIdx() );
+    if( cu.affineFlag() )
+      DTRACE( g_trace_ctx, D_SYNTAX, "aff_merge_idx() aff_merge_idx=%d\n", cu.mergeIdx() );
     else
-      DTRACE( g_trace_ctx, D_SYNTAX, "merge_idx() merge_idx=%d\n", pu.mergeIdx() );
+      DTRACE( g_trace_ctx, D_SYNTAX, "merge_idx() merge_idx=%d\n", cu.mergeIdx() );
 #endif
   }
 }
 
-void CABACReader::mmvd_merge_idx( PredictionUnit& pu )
+void CABACReader::mmvd_merge_idx( CodingUnit& cu )
 {
   int var0 = 0, var1 = 0, var2 = 0;
 
-  const int numCand            = int( pu.sps->getMaxNumMergeCand() );
+  const int numCand            = int( cu.sps->getMaxNumMergeCand() );
   const int numCandminus1_base = ( numCand > 1 ) ? MMVD_BASE_MV_NUM - 1 : 0;
 
   if( numCandminus1_base > 0 && m_BinDecoder.decodeBin( Ctx::MmvdMergeIdx() ) )
@@ -1916,69 +1909,69 @@ void CABACReader::mmvd_merge_idx( PredictionUnit& pu )
     var2 += 1;
   }
 
-  pu.mmvdIdx = ( var0 * MMVD_MAX_REFINE_NUM + var1 * 4 + var2 );
+  cu.mmvdIdx = ( var0 * MMVD_MAX_REFINE_NUM + var1 * 4 + var2 );
 
   DTRACE( g_trace_ctx, D_SYNTAX, "base_mvp_idx() base_mvp_idx=%d\n", var0 );
   DTRACE( g_trace_ctx, D_SYNTAX, "MmvdStepMvpIdx() MmvdStepMvpIdx=%d\n", var1 );
   DTRACE( g_trace_ctx, D_SYNTAX, "pos() pos=%d\n", var2 );
-  DTRACE( g_trace_ctx, D_SYNTAX, "mmvd_merge_idx() mmvd_merge_idx=%d\n", pu.mmvdIdx );
+  DTRACE( g_trace_ctx, D_SYNTAX, "mmvd_merge_idx() mmvd_merge_idx=%d\n", cu.mmvdIdx );
 }
 
-void CABACReader::inter_pred_idc( PredictionUnit& pu )
+void CABACReader::inter_pred_idc( CodingUnit& cu )
 {
-  if( pu.slice->isInterP() )
+  if( cu.slice->isInterP() )
   {
-    pu.setInterDir( 1 );
+    cu.setInterDir( 1 );
     return;
   }
   
-  if( !PU::isBipredRestriction( pu ) )
+  if( !PU::isBipredRestriction( cu ) )
   {
-    unsigned ctxId = DeriveCtx::CtxInterDir( pu );
+    unsigned ctxId = DeriveCtx::CtxInterDir( cu );
     if( m_BinDecoder.decodeBin( Ctx::InterDir( ctxId ) ) )
     {
-      DTRACE( g_trace_ctx, D_SYNTAX, "inter_pred_idc() ctx=%d value=%d pos=(%d,%d)\n", ctxId, 3, pu.lumaPos().x, pu.lumaPos().y );
-      pu.setInterDir( 3 );
+      DTRACE( g_trace_ctx, D_SYNTAX, "inter_pred_idc() ctx=%d value=%d pos=(%d,%d)\n", ctxId, 3, cu.lumaPos().x, cu.lumaPos().y );
+      cu.setInterDir( 3 );
       return;
     }
   }
 
   if( m_BinDecoder.decodeBin( Ctx::InterDir( 5 ) ) )
   {
-    DTRACE( g_trace_ctx, D_SYNTAX, "inter_pred_idc() ctx=5 value=%d pos=(%d,%d)\n", 2, pu.lumaPos().x, pu.lumaPos().y );
-    pu.setInterDir( 2 );
+    DTRACE( g_trace_ctx, D_SYNTAX, "inter_pred_idc() ctx=5 value=%d pos=(%d,%d)\n", 2, cu.lumaPos().x, cu.lumaPos().y );
+    cu.setInterDir( 2 );
     return;
   }
 
-  DTRACE( g_trace_ctx, D_SYNTAX, "inter_pred_idc() ctx=5 value=%d pos=(%d,%d)\n", 1, pu.lumaPos().x, pu.lumaPos().y );
-  pu.setInterDir( 1 );
+  DTRACE( g_trace_ctx, D_SYNTAX, "inter_pred_idc() ctx=5 value=%d pos=(%d,%d)\n", 1, cu.lumaPos().x, cu.lumaPos().y );
+  cu.setInterDir( 1 );
 }
 
 
-void CABACReader::ref_idx( PredictionUnit &pu, RefPicList eRefList )
+void CABACReader::ref_idx( CodingUnit &cu, RefPicList eRefList )
 {
-  if( pu.smvdMode() )
+  if( cu.smvdMode() )
   {
-    pu.refIdx[eRefList] = pu.slice->getSymRefIdx( eRefList );
+    cu.refIdx[eRefList] = cu.slice->getSymRefIdx( eRefList );
     return;
   }
 
-  const int numRef = pu.slice->getNumRefIdx( eRefList );
+  const int numRef = cu.slice->getNumRefIdx( eRefList );
 
   if( numRef <= 1 || !m_BinDecoder.decodeBin( Ctx::RefPic( 0 ) ) )
   {
     if( numRef > 1 )
     {
-      DTRACE( g_trace_ctx, D_SYNTAX, "ref_idx() value=%d pos=(%d,%d)\n", 0, pu.lumaPos().x, pu.lumaPos().y );
+      DTRACE( g_trace_ctx, D_SYNTAX, "ref_idx() value=%d pos=(%d,%d)\n", 0, cu.lumaPos().x, cu.lumaPos().y );
     }
-    pu.refIdx[eRefList] = 0;
+    cu.refIdx[eRefList] = 0;
     return;
   }
 
   if( numRef <= 2 || !m_BinDecoder.decodeBin( Ctx::RefPic( 1 ) ) )
   {
-    DTRACE( g_trace_ctx, D_SYNTAX, "ref_idx() value=%d pos=(%d,%d)\n", 1, pu.lumaPos().x, pu.lumaPos().y );
-    pu.refIdx[eRefList] = 1;
+    DTRACE( g_trace_ctx, D_SYNTAX, "ref_idx() value=%d pos=(%d,%d)\n", 1, cu.lumaPos().x, cu.lumaPos().y );
+    cu.refIdx[eRefList] = 1;
     return;
   }
 
@@ -1986,8 +1979,8 @@ void CABACReader::ref_idx( PredictionUnit &pu, RefPicList eRefList )
   {
     if( numRef <= idx || !m_BinDecoder.decodeBinEP() )
     {
-      pu.refIdx[eRefList] = ( signed char ) ( idx - 1 );
-      DTRACE( g_trace_ctx, D_SYNTAX, "ref_idx() value=%d pos=(%d,%d)\n", idx-1, pu.lumaPos().x, pu.lumaPos().y );
+      cu.refIdx[eRefList] = ( signed char ) ( idx - 1 );
+      DTRACE( g_trace_ctx, D_SYNTAX, "ref_idx() value=%d pos=(%d,%d)\n", idx-1, cu.lumaPos().x, cu.lumaPos().y );
       return;
     }
   }
@@ -1995,18 +1988,18 @@ void CABACReader::ref_idx( PredictionUnit &pu, RefPicList eRefList )
 
 
 
-void CABACReader::mvp_flag( PredictionUnit& pu, RefPicList eRefList )
+void CABACReader::mvp_flag( CodingUnit& cu, RefPicList eRefList )
 {
   unsigned mvp_idx = m_BinDecoder.decodeBin( Ctx::MVPIdx() );
-  DTRACE( g_trace_ctx, D_SYNTAX, "mvp_flag() value=%d pos=(%d,%d)\n", mvp_idx, pu.lumaPos().x, pu.lumaPos().y );
-  pu.mvpIdx [eRefList] = mvp_idx;
+  DTRACE( g_trace_ctx, D_SYNTAX, "mvp_flag() value=%d pos=(%d,%d)\n", mvp_idx, cu.lumaPos().x, cu.lumaPos().y );
+  cu.mvpIdx [eRefList] = mvp_idx;
   DTRACE( g_trace_ctx, D_SYNTAX, "mvpIdx(refList:%d)=%d\n", eRefList, mvp_idx );
 }
 
-void CABACReader::ciip_flag( PredictionUnit& pu )
+void CABACReader::ciip_flag( CodingUnit& cu )
 {
-  pu.setCiipFlag( m_BinDecoder.decodeBin( Ctx::CiipFlag() ) );
-  DTRACE( g_trace_ctx, D_SYNTAX, "Ciip_flag() Ciip=%d pos=(%d,%d) size=%dx%d\n", pu.ciipFlag() ? 1 : 0, pu.lumaPos().x, pu.lumaPos().y, pu.lumaSize().width, pu.lumaSize().height );
+  cu.setCiipFlag( m_BinDecoder.decodeBin( Ctx::CiipFlag() ) );
+  DTRACE( g_trace_ctx, D_SYNTAX, "Ciip_flag() Ciip=%d pos=(%d,%d) size=%dx%d\n", cu.ciipFlag() ? 1 : 0, cu.lumaPos().x, cu.lumaPos().y, cu.lumaSize().width, cu.lumaSize().height );
 }
 
 
@@ -2099,7 +2092,7 @@ bool CABACReader::cbf_comp( CodingUnit& cu, const CompArea& area, unsigned depth
 //================================================================================
 //  clause 7.3.8.9
 //--------------------------------------------------------------------------------
-//    void  mvd_coding( pu, refList )
+//    void  mvd_coding( cu, refList )
 //================================================================================
 
 void CABACReader::mvd_coding( Mv &rMvd )
@@ -3141,17 +3134,17 @@ void CABACReader::mip_flag( CodingUnit& cu )
   DTRACE( g_trace_ctx, D_SYNTAX, "mip_flag() pos=(%d,%d) mode=%d\n", cu.lumaPos().x, cu.lumaPos().y, cu.mipFlag() ? 1 : 0 );
 }
 
-void CABACReader::mip_pred_mode( PredictionUnit &pu )
+void CABACReader::mip_pred_mode( CodingUnit &cu )
 {
-  pu.setMipTransposedFlag( !!m_BinDecoder.decodeBinEP() );
+  cu.setMipTransposedFlag( !!m_BinDecoder.decodeBinEP() );
 
   uint32_t mipMode;
-  const int numModes = getNumModesMip( pu.Y() );
+  const int numModes = getNumModesMip( cu.Y() );
   xReadTruncBinCode( mipMode, numModes );
-  pu.intraDir[CHANNEL_TYPE_LUMA] = mipMode;
-  CHECKD( pu.intraDir[CHANNEL_TYPE_LUMA] < 0 || pu.intraDir[CHANNEL_TYPE_LUMA] >= numModes, "Invalid MIP mode" );
+  cu.intraDir[CHANNEL_TYPE_LUMA] = mipMode;
+  CHECKD( cu.intraDir[CHANNEL_TYPE_LUMA] < 0 || cu.intraDir[CHANNEL_TYPE_LUMA] >= numModes, "Invalid MIP mode" );
 
-  DTRACE( g_trace_ctx, D_SYNTAX, "mip_pred_mode() pos=(%d,%d) mode=%d transposed=%d\n", pu.lumaPos().x, pu.lumaPos().y, pu.intraDir[CHANNEL_TYPE_LUMA], pu.mipTransposedFlag() ? 1 : 0 );
+  DTRACE( g_trace_ctx, D_SYNTAX, "mip_pred_mode() pos=(%d,%d) mode=%d transposed=%d\n", cu.lumaPos().x, cu.lumaPos().y, cu.intraDir[CHANNEL_TYPE_LUMA], cu.mipTransposedFlag() ? 1 : 0 );
 }
 
 }

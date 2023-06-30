@@ -63,9 +63,12 @@ RdCost::RdCost()
   m_afpDistortFuncX5[DF_SAD16  ] = RdCost::xGetSAD16X5;
 
 #if ENABLE_SIMD_OPT_DIST
-#ifdef TARGET_SIMD_X86
+#  ifdef TARGET_SIMD_X86
   initRdCostX86();
-#endif
+#  endif
+#  ifdef TARGET_SIMD_ARM
+  initRdCostARM();
+#  endif
 #endif
 }
 

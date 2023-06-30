@@ -506,19 +506,33 @@ template<class T> struct AlignedDeleter
 
 #if ENABLE_SIMD_OPT
 
-#  ifdef TARGET_SIMD_X86
-typedef enum
+namespace x86_simd
 {
-  UNDEFINED = -1,
-  SCALAR = 0,
-  SSE41,
-  SSE42,
-  AVX,
-  AVX2,
-  AVX512
-} X86_VEXT;
+#  ifdef TARGET_SIMD_X86
+  typedef enum
+  {
+    UNDEFINED = -1,
+    SCALAR    = 0,
+    SSE41,
+    SSE42,
+    AVX,
+    AVX2,
+    AVX512
+  } X86_VEXT;
+#  endif   // TARGET_SIMD_X86
+}   // namespace x86_simd
 
-#  endif
+namespace arm_simd
+{
+#  ifdef TARGET_SIMD_ARM
+  typedef enum
+  {
+    UNDEFINED = -1,
+    SCALAR    = 0,
+    NEON,
+  } ARM_VEXT;
+#  endif   // TARGET_SIMD_ARM
+}   // namespace arm_simd
 
 #endif   // ENABLE_SIMD_OPT
 

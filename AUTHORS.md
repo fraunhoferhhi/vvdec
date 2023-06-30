@@ -7,5 +7,6 @@
 * Christian Lehmann, , Fraunhofer HHI
 * Valeri George, , Fraunhofer HHI
 * Jens Güther, , Fraunhofer HHI
-* X Rayleigh, @xrayleigh2000, 
-* Matthieu Sauer, , 
+* X Rayleigh, @xrayleigh2000,
+* Matthieu Sauer, ,
+* Florian Eisenreich, , Fraunhofer HHI

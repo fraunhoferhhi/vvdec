@@ -51,6 +51,7 @@ POSSIBILITY OF SUCH DAMAGE.
 #include "DecoderLib/NALread.h"
 #include "CommonLib/CommonDef.h"
 #include "CommonLib/x86/CommonDefX86.h"
+#include "CommonLib/arm/CommonDefARM.h"
 
 
 namespace vvdec {
@@ -74,19 +75,27 @@ int VVDecImpl::init( const vvdecParams& params, vvdecCreateBufferCallback create
 #ifdef TARGET_SIMD_X86
     switch( params.simd )
     {
-    case VVDEC_SIMD_SCALAR: read_x86_extension_flags( SCALAR ); break;
-#if defined( VVDEC_ARCH_X86 )
-    case VVDEC_SIMD_SSE41 : read_x86_extension_flags( SSE41  ); break;
-    case VVDEC_SIMD_SSE42 : read_x86_extension_flags( SSE42  ); break;
-    case VVDEC_SIMD_AVX   : read_x86_extension_flags( AVX    ); break;
-    case VVDEC_SIMD_AVX2  : read_x86_extension_flags( AVX2   ); break;
-#elif defined( VVDEC_ARCH_ARM ) || defined( VVDEC_ARCH_WASM )
+    case VVDEC_SIMD_SCALAR: read_x86_extension_flags( x86_simd::SCALAR ); break;
+#  if defined( VVDEC_ARCH_X86 )
+    case VVDEC_SIMD_SSE41 : read_x86_extension_flags( x86_simd::SSE41  ); break;
+    case VVDEC_SIMD_SSE42 : read_x86_extension_flags( x86_simd::SSE42  ); break;
+    case VVDEC_SIMD_AVX   : read_x86_extension_flags( x86_simd::AVX    ); break;
+    case VVDEC_SIMD_AVX2  : read_x86_extension_flags( x86_simd::AVX2   ); break;
+#  elif defined( VVDEC_ARCH_ARM ) || defined( VVDEC_ARCH_WASM )
     case VVDEC_SIMD_MAX   : read_x86_extension_flags( SIMD_EVERYWHERE_EXTENSION_LEVEL ); break;
-#endif
+#  endif
     case VVDEC_SIMD_DEFAULT:
-    default:                read_x86_extension_flags( UNDEFINED ); break;
+    default:                read_x86_extension_flags( x86_simd::UNDEFINED ); break;
     }
-#endif // TARGET_SIMD_X86
+#endif   // TARGET_SIMD_X86
+
+#ifdef TARGET_SIMD_ARM
+    switch( params.simd )
+    {
+    case VVDEC_SIMD_SCALAR : read_arm_extension_flags( arm_simd::SCALAR );    break;
+    default:                 read_arm_extension_flags( arm_simd::UNDEFINED ); break;
+    }
+#endif   // TARGET_SIMD_ARM
 
     if( createBufCallback && unrefBufCallback )
     {
@@ -1056,10 +1065,8 @@ int VVDecImpl::xAddPicture( Picture* pcPic )
   cFrame.picAttributes->poc           = pcPic->poc;
   cFrame.picAttributes->temporalLayer = pcPic->getTLayer();
   cFrame.picAttributes->bits          = pcPic->getNaluBits();
-
   cFrame.picAttributes->nalType       = (vvdecNalType)pcPic->eNalUnitType;
-
-  cFrame.picAttributes->isRefPic = pcPic->referenced;
+  cFrame.picAttributes->isRefPic      = pcPic->isReferencePic;
 
   if( pcPic->fieldPic )
   {
@@ -1415,7 +1422,7 @@ int VVDecImpl::xConvertPayloadToRBSP( std::vector<uint8_t>& nalUnitBuf, InputBit
 
     if (n > 0)
     {
-      msg( NOTICE, "\nDetected %d instances of cabac_zero_word\n", n/2);
+      msg( VERBOSE, "\nDetected %d instances of cabac_zero_word\n", n/2);
     }
   }
 

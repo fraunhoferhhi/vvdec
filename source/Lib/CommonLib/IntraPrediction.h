@@ -112,7 +112,7 @@ protected:
 
   void destroy                    ();
 
-  void xGetLMParameters           (const PredictionUnit &pu, const ComponentID compID, const CompArea& chromaArea, int& a, int& b, int& iShift);
+  void xGetLMParameters           (const CodingUnit &cu, const ComponentID compID, const CompArea& chromaArea, int& a, int& b, int& iShift);
 public:
   IntraPrediction();
   ~IntraPrediction();
@@ -120,23 +120,23 @@ public:
   void init                       (ChromaFormat chromaFormatIDC, const unsigned bitDepthY);
 
   // Angular Intra
-  void predIntraAng               (const ComponentID compId, PelBuf &piPred, const PredictionUnit &pu, const bool useFilteredPredSamples);
+  void predIntraAng               (const ComponentID compId, PelBuf &piPred, const CodingUnit &cu, const bool useFilteredPredSamples);
   Pel*  getPredictorPtr           (const ComponentID compID, const bool bUseFilteredPredictions = false) { return m_piYuvExt[bUseFilteredPredictions?PRED_BUF_FILTERED:PRED_BUF_UNFILTERED]; }
   // Cross-component Chroma
-  void predIntraChromaLM          (const ComponentID compID, PelBuf &piPred, const PredictionUnit &pu, const CompArea& chromaArea, int intraDir);
-  void xGetLumaRecPixels          (const PredictionUnit &pu, CompArea chromaArea);
+  void predIntraChromaLM          (const ComponentID compID, PelBuf &piPred, const CodingUnit &cu, const CompArea& chromaArea, int intraDir);
+  void xGetLumaRecPixels          (const CodingUnit &cu, CompArea chromaArea);
   /// set parameters from CU data for accessing intra data
   void initIntraPatternChType     (const TransformUnit &cu, const CompArea &area, const bool bFilterRefSamples = false );
   void initIntraPatternChTypeISP  (const CodingUnit& cu, const CompArea& area, PelBuf& piReco);
   const PelBuf& getISPBuffer      (const bool bUseFilteredPredictions = false) { return m_pelBufISP[bUseFilteredPredictions ? PRED_BUF_FILTERED : PRED_BUF_UNFILTERED]; }
 
   // Matrix-based intra prediction
-  void initIntraMip               (const PredictionUnit &pu, const CompArea &area);
-  void predIntraMip               (const ComponentID compId, PelBuf &piPred, const PredictionUnit &pu);
+  void initIntraMip               (const CodingUnit &cu, const CompArea &area);
+  void predIntraMip               (const ComponentID compId, PelBuf &piPred, const CodingUnit &cu);
 
-  static bool useFilteredIntraRefSamples( const ComponentID &compID, const PredictionUnit &pu, const UnitArea &tuArea );
+  static bool useFilteredIntraRefSamples( const ComponentID &compID, const CodingUnit &cu, const UnitArea &tuArea );
 
-  void predBlendIntraCiip         (PelUnitBuf &predUnit, const PredictionUnit &pu);
+  void predBlendIntraCiip         (PelUnitBuf &predUnit, const CodingUnit &cu);
 
   void ( *IntraPredAngleCore4 )         ( Pel* pDstBuf,const ptrdiff_t dstStride,Pel* refMain,int width,int height,int deltaPos,int intraPredAngle,const TFilterCoeff *ff,const bool useCubicFilter,const ClpRng& clpRng);
   void ( *IntraPredAngleCore8 )         ( Pel* pDstBuf,const ptrdiff_t dstStride,Pel* refMain,int width,int height,int deltaPos,int intraPredAngle,const TFilterCoeff *ff,const bool useCubicFilter,const ClpRng& clpRng);

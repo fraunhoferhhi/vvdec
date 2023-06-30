@@ -80,8 +80,9 @@ POSSIBILITY OF SUCH DAMAGE.
 
 namespace vvdec
 {
+using namespace x86_simd;
 
-X86_VEXT    read_x86_extension_flags( X86_VEXT request = UNDEFINED );
+X86_VEXT    read_x86_extension_flags( X86_VEXT request = x86_simd::UNDEFINED );
 std::string read_x86_extension_name();
 
 #ifdef USE_AVX2

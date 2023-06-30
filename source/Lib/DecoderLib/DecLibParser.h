@@ -53,6 +53,7 @@ POSSIBILITY OF SUCH DAMAGE.
 #include "CommonLib/ParameterSetManager.h"
 
 #include <deque>
+#include <unordered_set>
 
 namespace vvdec
 {
@@ -88,8 +89,6 @@ private:
   int      m_gdrRecoveryPointPocVal        [MAX_VPS_LAYERS];
   bool     m_gdrRecovered                  [MAX_VPS_LAYERS] = { false };
   uint32_t m_uiSliceSegmentIdx    = 0;
-
-  int m_iTargetLayer              = -1;   ///< target stream layer to be decoded
 
   int m_nonVCLbits                = 0;
 
@@ -143,6 +142,8 @@ private:
   unsigned int              m_numDecThreads   = 0;
   unsigned int              m_parseFrameDelay = 0;
   PicList                   m_parseFrameList;
+  PicList                   m_dpbReferencePics;   // this mirrors the reference pictures from the DPB but is only used for parsing
+  std::unordered_set<int>   m_tmpSeenPocs;
   int                       m_maxPicReconSkip = 1;
   ErrHandlingFlags          m_errHandlingFlags = ERR_HANDLING_OFF;
 
@@ -160,7 +161,7 @@ public:
   void fillMissingPicBuf        ( Picture* pcPic, bool copyClosest );
 #endif
 
-  bool     parse                ( InputNALUnit& nalu, int* pSkipFrame, int iTargetLayer = -1 );
+  bool     parse                ( InputNALUnit& nalu );
   Picture* getNextDecodablePicture();
 
   void checkNoOutputPriorPics   ();
@@ -169,20 +170,18 @@ public:
 
   void setDecodedSEIMessageOutputStream( std::ostream* pOpStream ) { m_pDecodedSEIOutputStream = pOpStream; }
 
-  void setTargetDecLayer        (int val)               { m_iTargetLayer = val; }
-  int  getTargetDecLayer        ()                      { return m_iTargetLayer; }
-
   void checkAPSInPictureUnit    ();
   void resetPictureUnitNals     ()                      { m_pictureUnitNals.clear(); }
 
-  ParameterSetManager getParameterSetManager()          { return m_parameterSetManager; }
+  const ParameterSetManager& getParameterSetManager() const { return m_parameterSetManager; }
 
 private:
-  bool            xDecodeSliceHead( InputNALUnit& nalu, int* pSkipFrame );
-  bool            xDecodeSliceMain( InputNALUnit& nalu );
+  bool xDecodeSliceHead( InputNALUnit& nalu );
+  bool xDecodeSliceMain( InputNALUnit& nalu );
 
-  void            xActivateParameterSets   ( const int layerId );
-  void            prepareUnavailablePicture( bool isLost, const PPS* pps, int iUnavailablePoc, const int layerId, const bool longTermFlag, const int temporalId );
+  void xActivateParameterSets( const int layerId );
+  void prepareUnavailablePicture( bool isLost, const PPS* pps, int iUnavailablePoc, const int layerId, const bool longTermFlag, const int temporalId );
+  void applyReferencePictureListBasedMarking( Slice* currSlice, const int layerId, const PPS& pps );
 
   void xParsePrefixSEImessages();
   void xParsePrefixSEIsForUnknownVCLNal();

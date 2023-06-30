@@ -125,13 +125,14 @@ void Picture::resetForUse( int _layerId )
   m_dProcessingTime       = 0;
   subPicExtStarted        = false;
   borderExtStarted        = false;
-  referenced              = false;
+  dpbReferenceMark        = unreferenced;
+  stillReferenced         = false;
+  isReferencePic          = false;
   progress                = Picture::init;
   neededForOutput         = false;
   wasLost                 = false;
   error                   = false;
   exceptionThrownOut      = false;
-  longTerm                = false;
   topField                = false;
   fieldPic                = false;
   nonReferencePictureFlag = false;
@@ -357,7 +358,9 @@ void Picture::ensureUsableAsRef()
   neededForOutput = false;
 
   // set referenced to true, because we don't know if it has been set correctly, but that way it will be available as a reference pic
-  referenced = true;
+  dpbReferenceMark = ShortTerm;
+  stillReferenced  = true;
+  isReferencePic   = true;
 
   // ensure cs->m_colMiMap is set to zero
   cs->initStructData();

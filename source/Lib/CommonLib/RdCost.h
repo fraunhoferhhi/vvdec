@@ -54,6 +54,8 @@ POSSIBILITY OF SUCH DAMAGE.
 
 namespace vvdec
 {
+using namespace x86_simd;
+using namespace arm_simd;
 
 class DistParam;
 class EncCfg;
@@ -102,29 +104,28 @@ public:
   RdCost();
   ~RdCost();
 
-#ifdef TARGET_SIMD_X86
-  void initRdCostX86();
-  template <X86_VEXT vext>
-  void _initRdCostX86();
-#endif
-
   static void setDistParam( DistParam &rcDP, const Pel* pOrg, const Pel* piRefY, ptrdiff_t iOrgStride, ptrdiff_t iRefStride, int bitDepth, int width, int height, int subShiftMode = 0 );
 
-private:
 
   static Distortion xGetSAD8          ( const DistParam& pcDtParam );
   static Distortion xGetSAD16         ( const DistParam& pcDtParam );
   static void       xGetSAD8X5        ( const DistParam& pcDtParam, Distortion* cost, bool isCalCentrePos );
   static void       xGetSAD16X5       ( const DistParam& pcDtParam, Distortion* cost, bool isCalCentrePos );
 
-#ifdef TARGET_SIMD_X86
-  template< X86_VEXT vext, bool isWdt16 >
-  static Distortion xGetSAD_MxN_SIMD ( const DistParam& pcDtParam );
-  template <X86_VEXT vext>
-  static void xGetSADX5_8xN_SIMD(const DistParam& rcDtParam, Distortion* cost, bool isCalCentrePos);
-  template <X86_VEXT vext>
-  static void xGetSADX5_16xN_SIMD(const DistParam& rcDtParam, Distortion* cost, bool isCalCentrePos);
-#endif
-};// END CLASS DEFINITION RdCost
+private:
 
-}
+#ifdef TARGET_SIMD_X86
+  void initRdCostX86();
+  template<X86_VEXT vext>
+  void _initRdCostX86();
+#endif
+
+#ifdef TARGET_SIMD_ARM
+  void initRdCostARM();
+  template<ARM_VEXT vext>
+  void _initRdCostARM();
+#endif   // TARGET_SIMD_ARM
+
+};   // END CLASS DEFINITION RdCost
+
+}   // namespace vvdec

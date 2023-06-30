@@ -473,8 +473,6 @@ struct CodingUnit : public UnitArea
   void              minInit( const UnitArea& unit );
 };
 
-typedef CodingUnit PredictionUnit;
-
 // ---------------------------------------------------------------------------
 // Utility class for easy for-each like unit traversing
 // ---------------------------------------------------------------------------

@@ -57,6 +57,7 @@ POSSIBILITY OF SUCH DAMAGE.
 
 namespace vvdec
 {
+using namespace x86_simd;
 
 typedef void InvTrans(const TCoeff*, TCoeff*, int, int, int, int, bool, const TCoeff, const TCoeff);
 
@@ -135,4 +136,4 @@ private:
 #endif
 };// END CLASS DEFINITION TrQuant
 
-}
+}   // namespace vvdec

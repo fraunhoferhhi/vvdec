@@ -103,31 +103,31 @@ public:
   void        cu_bcw_flag               ( CodingUnit&                   cu );
   void        extend_ref_line           ( CodingUnit&                   cu );
   void        intra_luma_pred_mode      ( CodingUnit&                   cu );
-  bool        intra_chroma_lmc_mode     ( PredictionUnit&               pu );
-  void        intra_chroma_pred_mode    ( PredictionUnit&               pu );
+  bool        intra_chroma_lmc_mode     ( CodingUnit&               cu );
+  void        intra_chroma_pred_mode    ( CodingUnit&               cu );
   void        cu_residual               ( CodingUnit&                   cu,     Partitioner&    pm,       CUCtx& cuCtx );
   void        rqt_root_cbf              ( CodingUnit&                   cu );
   void        adaptive_color_transform  ( CodingUnit&                   cu );
   void        sbt_mode                  ( CodingUnit&                   cu );
   void        mip_flag                  ( CodingUnit&                   cu );
-  void        mip_pred_mode             ( PredictionUnit&               pu );
+  void        mip_pred_mode             ( CodingUnit&               cu );
   bool        end_of_ctu                ( CodingUnit&                   cu,     CUCtx&          cuCtx );
 
   // prediction unit (clause 7.3.11.7)
-  void        prediction_unit           ( PredictionUnit&               pu );
-  void        general_merge_flag        ( PredictionUnit&               pu );
-  void        merge_data                ( PredictionUnit&               pu );
+  void        prediction_unit           ( CodingUnit&               cu );
+  void        general_merge_flag        ( CodingUnit&               cu );
+  void        merge_data                ( CodingUnit&               cu );
   void        affine_flag               ( CodingUnit&                   cu );
   void        subblock_merge_flag       ( CodingUnit&                   cu );
-  void        merge_idx                 ( PredictionUnit&               pu );
-  void        mmvd_merge_idx            ( PredictionUnit&               pu );
+  void        merge_idx                 ( CodingUnit&               cu );
+  void        mmvd_merge_idx            ( CodingUnit&               cu );
   void        amvr_mode                 ( CodingUnit&                   cu );
   void        affine_amvr_mode          ( CodingUnit&                   cu );
-  void        inter_pred_idc            ( PredictionUnit&               pu );
-  void        ref_idx                   ( PredictionUnit&               pu,     RefPicList      eRefList );
-  void        mvp_flag                  ( PredictionUnit&               pu,     RefPicList      eRefList );
-  void        ciip_flag                 ( PredictionUnit&               pu );
-  void        smvd_mode                 ( PredictionUnit&               pu );
+  void        inter_pred_idc            ( CodingUnit&               cu );
+  void        ref_idx                   ( CodingUnit&               cu,     RefPicList      eRefList );
+  void        mvp_flag                  ( CodingUnit&               cu,     RefPicList      eRefList );
+  void        ciip_flag                 ( CodingUnit&               cu );
+  void        smvd_mode                 ( CodingUnit&               cu );
 
   // mvd coding (clause 7.3.11.8)
   void        mvd_coding( Mv &rMvd );

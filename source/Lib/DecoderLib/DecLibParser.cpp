@@ -122,15 +122,8 @@ void DecLibParser::destroy()
   }
 }
 
-bool DecLibParser::parse( InputNALUnit& nalu, int* pSkipFrame, int iTargetLayer )
+bool DecLibParser::parse( InputNALUnit& nalu )
 {
-  // ignore all NAL units of layers > 0
-  if( m_iTargetLayer >= 0 && nalu.m_nuhLayerId != m_iTargetLayer )   // TBC: ignore bitstreams whose nuh_layer_id is not the target layer id
-  {
-    msg( WARNING, "Warning: found NAL unit with nuh_layer_id equal to %d. Ignoring.\n", nalu.m_nuhLayerId );
-    return false;
-  }
-
   if( !nalu.isVcl() )
   {
     if( nalu.m_nalUnitType == NAL_UNIT_SUFFIX_APS || nalu.m_nalUnitType == NAL_UNIT_SUFFIX_SEI )
@@ -159,7 +152,7 @@ bool DecLibParser::parse( InputNALUnit& nalu, int* pSkipFrame, int iTargetLayer 
   case NAL_UNIT_CODED_SLICE_GDR:
     try
     {
-      if( !xDecodeSliceHead( nalu, pSkipFrame ) )
+      if( !xDecodeSliceHead( nalu ) )
       {
         return false;
       }
@@ -219,7 +212,7 @@ bool DecLibParser::parse( InputNALUnit& nalu, int* pSkipFrame, int iTargetLayer 
     AUDReader audReader;
     uint32_t  picType;
     audReader.parseAccessUnitDelimiter( &( nalu.getBitstream() ), picType );
-    msg( NOTICE, "Note: found NAL_UNIT_ACCESS_UNIT_DELIMITER\n" );
+    msg( VERBOSE, "Found NAL_UNIT_ACCESS_UNIT_DELIMITER\n" );
     return false;
   }
 
@@ -267,7 +260,7 @@ bool DecLibParser::parse( InputNALUnit& nalu, int* pSkipFrame, int iTargetLayer 
     }
     else
     {
-      msg( NOTICE, "Note: received suffix SEI but no picture currently active.\n" );
+      msg( NOTICE, "Received suffix SEI but no picture currently active.\n" );
     }
     return false;
 
@@ -278,18 +271,18 @@ bool DecLibParser::parse( InputNALUnit& nalu, int* pSkipFrame, int iTargetLayer 
   case NAL_UNIT_RESERVED_VCL_5:
   case NAL_UNIT_RESERVED_VCL_6:
   case NAL_UNIT_RESERVED_IRAP_VCL_11:
-    msg( NOTICE, "Note: found reserved VCL NAL unit.\n" );
+    msg( NOTICE, "Found reserved VCL NAL unit.\n" );
     xParsePrefixSEIsForUnknownVCLNal();
     return false;
   case NAL_UNIT_RESERVED_NVCL_26:
   case NAL_UNIT_RESERVED_NVCL_27:
-    msg( NOTICE, "Note: found reserved NAL unit.\n" );
+    msg( NOTICE, "Found reserved NAL unit.\n" );
     return false;
   case NAL_UNIT_UNSPECIFIED_28:
   case NAL_UNIT_UNSPECIFIED_29:
   case NAL_UNIT_UNSPECIFIED_30:
   case NAL_UNIT_UNSPECIFIED_31:
-    msg( NOTICE, "Note: found unspecified NAL unit.\n" );
+    msg( NOTICE, "Found unspecified NAL unit.\n" );
     return false;
   case NAL_UNIT_INVALID:
   default:
@@ -402,7 +395,7 @@ void DecLibParser::checkAPSInPictureUnit()
   }
 }
 
-bool DecLibParser::xDecodeSliceHead( InputNALUnit& nalu, int* pSkipFrame )
+bool DecLibParser::xDecodeSliceHead( InputNALUnit& nalu )
 {
   // all slices for the previous picture have been parsed
   if( m_pcParsePic && m_pcParsePic->lastSliceOfPicPresent() )
@@ -421,14 +414,6 @@ bool DecLibParser::xDecodeSliceHead( InputNALUnit& nalu, int* pSkipFrame )
 
   m_bFirstSliceInPicture = true;  // set for now, will be set correctly in parseSliceHeader
   m_HLSReader.parseSliceHeader( m_apcSlicePilot, m_picHeader, &m_parameterSetManager, m_prevTid0POC, m_bFirstSliceInPicture );
-
-  if( pSkipFrame && *pSkipFrame )
-  {
-    --( *pSkipFrame );   // decrement the counter
-    m_prevSliceSkipped = true;
-    m_skippedPOC       = m_apcSlicePilot->getPOC();
-    return false;
-  }
 
   CHECK_RECOVERABLE( m_bFirstSliceInPicture != ( m_apcSlicePilot->getCtuAddrInSlice( 0 ) == 0 ), "first slice in picture should start at CTU-addr 0" );
 
@@ -497,13 +482,6 @@ bool DecLibParser::xDecodeSliceHead( InputNALUnit& nalu, int* pSkipFrame )
 
   DTRACE_UPDATE( g_trace_ctx, std::make_pair( "poc", m_apcSlicePilot->getPOC() ) );
 
-#if !DISABLE_CHECK_NO_OUTPUT_PRIOR_PICS_FLAG
-  if( ( m_bFirstSliceInPicture || m_apcSlicePilot->isCRAorGDR() ) && getNoOutputPriorPicsFlag() )
-  {
-    checkNoOutputPriorPics();
-    setNoOutputPriorPicsFlag( false );
-  }
-#endif
 
   if( m_bFirstSliceInPicture )
   {
@@ -525,14 +503,9 @@ bool DecLibParser::xDecodeSliceHead( InputNALUnit& nalu, int* pSkipFrame )
   m_apcSlicePilot->setAssociatedIRAPPOC ( m_pocCRA            [nalu.m_nuhLayerId] );
   m_apcSlicePilot->setAssociatedIRAPType( m_associatedIRAPType[nalu.m_nuhLayerId] );
 
-  // For inference of NoOutputOfPriorPicsFlag
-  //
-  // TODO: (GH) Currently setting NoOutputBeforeRecoveryFlag is more or less disabled as a workaround for missing
-  //       output pictures du to parallel parsing. See: https://github.com/fraunhoferhhi/vvdec/issues/17
-  //       This should be implemented properly, so we can correctly detect the start of a new CLVS.
-  //
-  if( /*m_apcSlicePilot->getRapPicFlag() ||*/ m_apcSlicePilot->getNalUnitType() == NAL_UNIT_CODED_SLICE_GDR )
+  if( m_apcSlicePilot->getRapPicFlag() || m_apcSlicePilot->getNalUnitType() == NAL_UNIT_CODED_SLICE_GDR )
   {
+    // Derive NoOutputBeforeRecoveryFlag
     if( !pps->getMixedNaluTypesInPicFlag() )
     {
       if( m_bFirstSliceInSequence[nalu.m_nuhLayerId] )
@@ -552,15 +525,9 @@ bool DecLibParser::xDecodeSliceHead( InputNALUnit& nalu, int* pSkipFrame )
         m_picHeader->setNoOutputBeforeRecoveryFlag( m_picHeader->getHandleGdrAsCvsStartFlag() );
       }
     }
-
-    //the inference for NoOutputOfPriorPicsFlag
-    if( !m_bFirstSliceInBitstream && m_picHeader->getNoOutputBeforeRecoveryFlag() )
-    {
-      m_apcSlicePilot->setNoOutputOfPriorPicsFlag( true );
-    }
     else
     {
-      m_apcSlicePilot->setNoOutputOfPriorPicsFlag( false );
+      m_picHeader->setNoOutputBeforeRecoveryFlag( false );
     }
 
     if( m_apcSlicePilot->isCRAorGDR() )
@@ -568,17 +535,29 @@ bool DecLibParser::xDecodeSliceHead( InputNALUnit& nalu, int* pSkipFrame )
       m_lastNoOutputBeforeRecoveryFlag[nalu.m_nuhLayerId] = m_picHeader->getNoOutputBeforeRecoveryFlag();
     }
 
-
+    // the inference for NoOutputOfPriorPicsFlag
     if( m_apcSlicePilot->getNoOutputOfPriorPicsFlag() )
     {
       m_lastPOCNoOutputPriorPics = m_apcSlicePilot->getPOC();
-      m_isNoOutputPriorPics = true;
+      m_isNoOutputPriorPics      = true;
     }
     else
     {
       m_isNoOutputPriorPics = false;
     }
   }
+
+#if !DISABLE_CHECK_NO_OUTPUT_PRIOR_PICS_FLAG
+  if( m_bFirstSliceInPicture && m_apcSlicePilot->getPOC() != m_prevPOC
+      && ( m_apcSlicePilot->getRapPicFlag() || m_apcSlicePilot->getNalUnitType() == NAL_UNIT_CODED_SLICE_GDR )
+      && m_picHeader->getNoOutputBeforeRecoveryFlag()
+      && getNoOutputPriorPicsFlag() )
+  {
+    checkNoOutputPriorPics();
+    setNoOutputPriorPicsFlag( false );
+  }
+#endif
+
 
   //For inference of PicOutputFlag
   if( !pps->getMixedNaluTypesInPicFlag() && ( m_apcSlicePilot->getNalUnitType() == NAL_UNIT_CODED_SLICE_RASL ) )
@@ -588,6 +567,7 @@ bool DecLibParser::xDecodeSliceHead( InputNALUnit& nalu, int* pSkipFrame )
       m_picHeader->setPicOutputFlag( false );
     }
   }
+
   if( sps->getVPSId() > 0 )
   {
     const VPS *vps = m_parameterSetManager.getVPS( sps->getVPSId() );
@@ -602,11 +582,13 @@ bool DecLibParser::xDecodeSliceHead( InputNALUnit& nalu, int* pSkipFrame )
     }
   }
 
+  //Reset POC MSB when CRA or GDR has NoOutputBeforeRecoveryFlag equal to 1
   if( !pps->getMixedNaluTypesInPicFlag() && m_apcSlicePilot->isCRAorGDR() && m_lastNoOutputBeforeRecoveryFlag[nalu.m_nuhLayerId] )
   {
     int iMaxPOClsb = 1 << sps->getBitsForPOC();
     m_apcSlicePilot->setPOC( m_apcSlicePilot->getPOC() & ( iMaxPOClsb - 1 ) );
     xUpdatePreviousTid0POC ( m_apcSlicePilot );
+    m_lastPOCNoOutputPriorPics = m_apcSlicePilot->getPOC();
   }
 
   AccessUnitPicInfo picInfo;
@@ -644,7 +626,7 @@ bool DecLibParser::xDecodeSliceHead( InputNALUnit& nalu, int* pSkipFrame )
 
     int missingPoc         = MAX_INT;
     int missingRefPicIndex = 0;
-    while( !m_apcSlicePilot->checkThatAllRefPicsAreAvailable( m_picListManager.getPicListRange( m_picListManager.getBackPic() ),
+    while( !m_apcSlicePilot->checkThatAllRefPicsAreAvailable( m_dpbReferencePics,
                                                               rpl,
                                                               m_apcSlicePilot->getNumRefIdx( rplIdx ),
                                                               &missingPoc,
@@ -731,15 +713,17 @@ bool DecLibParser::xDecodeSliceMain( InputNALUnit& nalu )
   ITT_TASKSTART( itt_domain_oth, itt_handle_start );
   // actual decoding starts here
   Slice* pcSlice = m_pcParsePic->slices[m_uiSliceSegmentIdx];
-  m_pcParsePic->poc          = pcSlice->getPOC();
-  m_pcParsePic->tempLayer    = pcSlice->getTLayer();
-  m_pcParsePic->referenced   = !pcSlice->getPicHeader()->getNonReferencePictureFlag();
-  m_pcParsePic->eNalUnitType = nalu.m_nalUnitType;
-  m_pcParsePic->cts          = nalu.m_cts;
-  m_pcParsePic->dts          = nalu.m_dts;
-  m_pcParsePic->rap          = nalu.m_rap;
-  m_pcParsePic->bits        += nalu.m_bits + m_nonVCLbits;
-  m_pcParsePic->layerId      = nalu.m_nuhLayerId;
+  m_pcParsePic->poc              = pcSlice->getPOC();
+  m_pcParsePic->tempLayer        = pcSlice->getTLayer();
+  m_pcParsePic->dpbReferenceMark = pcSlice->getPicHeader()->getNonReferencePictureFlag() ? Picture::unreferenced : Picture::ShortTerm;
+  m_pcParsePic->stillReferenced  = !!m_pcParsePic->dpbReferenceMark;
+  m_pcParsePic->isReferencePic   = !!m_pcParsePic->dpbReferenceMark;
+  m_pcParsePic->eNalUnitType     = nalu.m_nalUnitType;
+  m_pcParsePic->cts              = nalu.m_cts;
+  m_pcParsePic->dts              = nalu.m_dts;
+  m_pcParsePic->rap              = nalu.m_rap;
+  m_pcParsePic->bits            += nalu.m_bits + m_nonVCLbits;
+  m_pcParsePic->layerId          = nalu.m_nuhLayerId;
   m_pcParsePic->subLayerNonReferencePictureDueToSTSA = false;
 
   m_nonVCLbits = 0;
@@ -822,10 +806,22 @@ bool DecLibParser::xDecodeSliceMain( InputNALUnit& nalu )
   // When decoding the slice header, the stored start and end addresses were actually RS addresses, not TS addresses.
   // Now, having set up the maps, convert them to the correct form.
 
+  // Sanity check: verify that there are no duplicate POCs in the DPB before constructing the ref picture lists
+  m_tmpSeenPocs.clear();
+  m_tmpSeenPocs.reserve( m_dpbReferencePics.size() );
+  for( auto& p: m_dpbReferencePics )
+  {
+    CHECK_RECOVERABLE( m_tmpSeenPocs.count( p->poc ) != 0, "duplicate POC in DPB" );
+    if( p->dpbReferenceMark )   // we only care about reference pictures in the DPB
+    {
+      m_tmpSeenPocs.insert( p->poc );
+    }
+  }
+
 #if !DISABLE_CONFROMANCE_CHECK
   pcSlice->checkCRA( m_pocCRA[nalu.m_nuhLayerId], m_associatedIRAPType[nalu.m_nuhLayerId], m_picListManager.getPicListRange( m_pcParsePic ) );
 #endif
-  pcSlice->constructRefPicLists( m_picListManager.getPicListRange( m_pcParsePic ) );
+  pcSlice->constructRefPicLists( m_dpbReferencePics );
 #if !DISABLE_CONFROMANCE_CHECK
   pcSlice->checkRPL(pcSlice->getRPL0(), pcSlice->getRPL1(), m_associatedIRAPDecodingOrderNumber, m_picListManager.getPicListRange( m_pcParsePic ) );
   pcSlice->checkSTSA( m_picListManager.getPicListRange( pcParsePic ) );
@@ -1088,16 +1084,24 @@ void DecLibParser::xActivateParameterSets( const int layerId )
     }
 #endif
 
+    applyReferencePictureListBasedMarking( m_apcSlicePilot, layerId, *pps );
+
     //  Get a new picture buffer
     m_pcParsePic = m_picListManager.getNewPicBuffer( *sps, *pps, m_apcSlicePilot->getTLayer(), layerId, m_parameterSetManager.getVPS( sps->getVPSId() ) );
+    CHECK_RECOVERABLE( std::find( m_dpbReferencePics.cbegin(), m_dpbReferencePics.cend(), m_pcParsePic ) != m_dpbReferencePics.cend(), "reused picture shouldn't be in decoded picture buffer" );
+    m_dpbReferencePics.push_back( m_pcParsePic );
     // assign these fields already, because they are needed by PicListManager::getPicListRange() and Slice::applyReferencePictureSet()
     m_pcParsePic->poc          = m_apcSlicePilot->getPOC();
     m_pcParsePic->eNalUnitType = m_apcSlicePilot->getNalUnitType();
     m_pcParsePic->finalInit( &m_cuChunkCache, &m_tuChunkCache, sps, pps, m_picHeader, alfApss, lmcsAPS, scalingListAPS );
 
 #if !DISABLE_CONFROMANCE_CHECK
-    m_apcSlicePilot->checkLeadingPictureRestrictions( m_picListManager.getPicListRange( pcPic ) );
+    m_apcSlicePilot->checkLeadingPictureRestrictions( m_dpbReferencePics );
 #endif
+
+    m_pcParsePic->dpbReferenceMark = m_apcSlicePilot->getPicHeader()->getNonReferencePictureFlag() ? Picture::unreferenced : Picture::ShortTerm;
+    m_pcParsePic->stillReferenced  = !!m_pcParsePic->dpbReferenceMark;
+    m_pcParsePic->isReferencePic   = !!m_pcParsePic->dpbReferenceMark;
 
     // Set Field/Frame coding mode
     bool isField    = false;
@@ -1343,6 +1347,8 @@ void DecLibParser::prepareUnavailablePicture( bool isLost, const PPS* pps, int i
     msg( INFO, "inserting unavailable poc : %d\n", iUnavailablePoc );
   }
   Picture* cFillPic = m_picListManager.getNewPicBuffer( *m_parameterSetManager.getFirstSPS(), *m_parameterSetManager.getFirstPPS(), 0, layerId, m_parameterSetManager.getVPS( m_parameterSetManager.getFirstSPS()->getVPSId() ) );
+  CHECK_RECOVERABLE( std::find( m_dpbReferencePics.cbegin(), m_dpbReferencePics.cend(), cFillPic ) != m_dpbReferencePics.cend(), "reused picture shouldn't be in decoded picture buffer" );
+  m_dpbReferencePics.push_back( cFillPic );
   const APS* nullAlfApss[ALF_CTB_MAX_NUM_APS] = { nullptr, };
   cFillPic->finalInit( &m_cuChunkCache, &m_tuChunkCache, m_parameterSetManager.getFirstSPS(), m_parameterSetManager.getFirstPPS(), m_picHeader, nullAlfApss, nullptr, nullptr, false );
   cFillPic->cs->initStructData();
@@ -1358,8 +1364,9 @@ void DecLibParser::prepareUnavailablePicture( bool isLost, const PPS* pps, int i
   cFillPic->slices[0]->setPicHeader( nullptr );
   cFillPic->slices[0]->setPPS( pps );
 
-  cFillPic->referenced              = true;
-  cFillPic->longTerm                = longTermFlag;
+  cFillPic->dpbReferenceMark        = longTermFlag ? Picture::LongTerm : Picture::ShortTerm;
+  cFillPic->stillReferenced         = true;
+  cFillPic->isReferencePic          = true;
   cFillPic->poc                     = iUnavailablePoc;
   cFillPic->neededForOutput         = false;
   cFillPic->tempLayer               = temporalId;
@@ -1434,6 +1441,106 @@ void DecLibParser::fillMissingPicBuf( Picture* pcPic, bool copyClosest )
 }
 #endif
 
+
+// Function for applying picture marking based on the Reference Picture List
+void DecLibParser::applyReferencePictureListBasedMarking( Slice* currSlice, const int layerId, const PPS& pps )
+{
+  //  checkLeadingPictureRestrictions(rcListPic, pps);
+
+  // mark long-term reference pictures in List0
+  for( const auto l: { REF_PIC_LIST_0, REF_PIC_LIST_1 } )
+  {
+    const ReferencePictureList* rpl = currSlice->getRPL( l );
+
+    for( int i = 0; i < rpl->getNumRefEntries(); i++ )
+    {
+      if( !rpl->isRefPicLongterm( i ) || rpl->isInterLayerRefPic( i ) )
+      {
+        continue;
+      }
+
+      Picture* availableST = nullptr;
+      for( Picture* pic: m_dpbReferencePics )
+      {
+        if( !pic->dpbReferenceMark )
+        {
+          continue;
+        }
+
+        const int bitsForPoc = pic->cs->sps->getBitsForPOC();
+        const int curPoc     = pic->getPOC();
+        const int ltRefPoc   = rpl->calcLTRefPOC( currSlice->getPOC(), bitsForPoc, i );
+        if( pic->dpbReferenceMark == Picture::LongTerm && isLTPocEqual( curPoc, ltRefPoc, bitsForPoc, rpl->getDeltaPocMSBPresentFlag( i ) ) )
+        {
+          break;
+        }
+
+        // if there was no such long-term check the short terms
+        if( pic->dpbReferenceMark == Picture::ShortTerm && isLTPocEqual( curPoc, ltRefPoc, bitsForPoc, rpl->getDeltaPocMSBPresentFlag( i ) ) )
+        {
+          availableST = pic;
+          // but don't break here, because we might still find a LT
+        }
+      }
+
+      // the found picture was not yet marked as long term, so we mark it here
+      if ( availableST )
+      {
+        availableST->dpbReferenceMark = Picture::LongTerm;
+      }
+    }
+  }
+
+  if( currSlice->isIDR() && !pps.getMixedNaluTypesInPicFlag() )
+  {
+    for( Picture* pic: m_dpbReferencePics )
+    {
+      pic->dpbReferenceMark = Picture::unreferenced;
+    }
+
+    // ignore neededForOutput flag here, because we only care about reference pictures in the DPB
+    m_dpbReferencePics.remove_if( []( Picture* pic ) { return !pic->dpbReferenceMark; } );
+    return;
+  }
+
+  // loop through all pictures in the reference picture buffer
+  for( Picture* pic: m_dpbReferencePics )
+  {
+    if( !pic->dpbReferenceMark )
+    {
+      continue;
+    }
+
+    bool isReference = false;
+
+    for( const auto l: { REF_PIC_LIST_0, REF_PIC_LIST_1 } )
+    {
+      if( currSlice->getRPL( l )->findInRefPicList( pic, currSlice->getPOC(), layerId ) )
+      {
+        isReference = true;
+        break;
+      }
+    }
+
+    // mark the picture as "unused for reference" if it is not in
+    // the Reference Picture List
+    if( !isReference && pic->poc != currSlice->getPOC() && pic->layerId == layerId )
+    {
+      pic->dpbReferenceMark = Picture::unreferenced;
+    }
+
+    // // sanity checks
+    // if( pic->referenced )
+    // {
+    //   // check that pictures of higher temporal layers are not used
+    //   CHECK( pic->usedByCurr && pic->temporalId > this->getTLayer(), "Invalid state" );
+    // }
+  }
+
+  // ignore neededForOutput flag here, because we only care about reference pictures in the DPB
+  m_dpbReferencePics.remove_if( []( Picture* pic ) { return !pic->dpbReferenceMark; } );
+}
+
 void DecLibParser::xParsePrefixSEImessages()
 {
   while( !m_prefixSEINALUs.empty() )
@@ -1451,7 +1558,7 @@ void DecLibParser::xParsePrefixSEIsForUnknownVCLNal()
   while (!m_prefixSEINALUs.empty())
   {
     // do nothing?
-    msg( NOTICE, "Discarding Prefix SEI associated with unknown VCL NAL unit.\n");
+    msg( VERBOSE, "Discarding Prefix SEI associated with unknown VCL NAL unit.\n");
     m_prefixSEINALUs.pop_front();
   }
   // TODO: discard following suffix SEIs as well?
@@ -1539,8 +1646,7 @@ void DecLibParser::checkNoOutputPriorPics()
     return;
   }
 
-  auto pcListPic = m_picListManager.getPicListRange( m_picListManager.getBackPic() );
-  for( auto& pcPicTmp: pcListPic )
+  for( auto& pcPicTmp: m_dpbReferencePics )
   {
     if( pcPicTmp->progress >= Picture::reconstructed && pcPicTmp->getPOC() < m_lastPOCNoOutputPriorPics )
     {

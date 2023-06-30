@@ -114,18 +114,18 @@ protected:
   int                  m_IBCBufferWidth;
   PelStorage           m_IBCBuffer;
 
-  void xIntraBlockCopy          (PredictionUnit &pu, PelUnitBuf &predBuf, const ComponentID compID);
+  void xIntraBlockCopy          (CodingUnit &cu, PelUnitBuf &predBuf, const ComponentID compID);
 
-  void applyBiOptFlow           (const PredictionUnit &pu, const PelUnitBuf &yuvSrc0, const PelUnitBuf &yuvSrc1, const int &refIdx0, const int &refIdx1, PelUnitBuf &yuvDst, const BitDepths &clipBitDepths);
+  void applyBiOptFlow           (const CodingUnit &cu, const PelUnitBuf &yuvSrc0, const PelUnitBuf &yuvSrc1, const int &refIdx0, const int &refIdx1, PelUnitBuf &yuvDst, const BitDepths &clipBitDepths);
 
-  void xPredInterUni            ( const PredictionUnit& pu, const RefPicList& eRefPicList, PelUnitBuf& pcYuvPred, const bool& bi
+  void xPredInterUni            ( const CodingUnit& cu, const RefPicList& eRefPicList, PelUnitBuf& pcYuvPred, const bool& bi
                                   , const bool& bioApplied
                                   , const bool luma, const bool chroma
   );
-  void xPredInterBi             ( PredictionUnit& pu, PelUnitBuf &pcYuvPred );
+  void xPredInterBi             ( CodingUnit& cu, PelUnitBuf &pcYuvPred );
   template<bool altSrc, bool altSize>
   void xPredInterBlk            ( const ComponentID&    compID,
-                                  const PredictionUnit& pu,
+                                  const CodingUnit& cu,
                                   const Picture*        refPic,
                                   Mv                    mv,
                                   PelBuf&               dstPic,
@@ -145,19 +145,19 @@ protected:
 
   void( *PaddBIO )              ( const Pel* refPel, Pel* dstPel, unsigned width, const int shift );
 
-  void xWeightedAverage         ( const PredictionUnit& pu, const PelUnitBuf& pcYuvSrc0, const PelUnitBuf& pcYuvSrc1, PelUnitBuf& pcYuvDst, const BitDepths& clipBitDepths, const ClpRngs& clpRngs, const bool& bioApplied );
+  void xWeightedAverage         ( const CodingUnit& cu, const PelUnitBuf& pcYuvSrc0, const PelUnitBuf& pcYuvSrc1, PelUnitBuf& pcYuvDst, const BitDepths& clipBitDepths, const ClpRngs& clpRngs, const bool& bioApplied );
   void( *profGradFilter )       ( Pel* pSrc, ptrdiff_t srcStride, int width, int height, ptrdiff_t gradStride, Pel* gradX, Pel* gradY, const int bitDepth );
   void( *applyPROF[2] )         ( Pel* dst, ptrdiff_t dstStride, const Pel* src, const Pel* gradX, const Pel* gradY, const int* dMvX, const int* dMvY, int shiftNum, Pel offset, const ClpRng& clpRng );
   void( *roundIntVector )       ( int* v, int size, unsigned int nShift, const int dmvLimit );
   void( *clipMv )               ( Mv& rcMv, const Position& pos, const struct Size& size, const SPS& sps, const PPS& pps );
   void( *prefetchPad[3] )       ( const Pel* src, const ptrdiff_t srcStride, Pel* dst, const ptrdiff_t dstStride, int width, int height );
 
-  void xPredAffineBlk           ( const ComponentID& compID, const PredictionUnit& pu, const Picture* refPic, const RefPicList refPicList, PelUnitBuf& dstPic, bool bi, const ClpRng& clpRng, const std::pair<int, int> scalingRatio = SCALE_1X );
+  void xPredAffineBlk           ( const ComponentID& compID, const CodingUnit& cu, const Picture* refPic, const RefPicList refPicList, PelUnitBuf& dstPic, bool bi, const ClpRng& clpRng, const std::pair<int, int> scalingRatio = SCALE_1X );
   static bool xCheckIdenticalMotion
-                                ( const PredictionUnit& pu );
+                                ( const CodingUnit& cu );
 
-  void xSubPuMC                 ( PredictionUnit& pu, PelUnitBuf& predBuf );
-  void xSubPuBio                ( PredictionUnit& pu, PelUnitBuf& predBuf );
+  void xSubPuMC                 ( CodingUnit& cu, PelUnitBuf& predBuf );
+  void xSubPuBio                ( CodingUnit& cu, PelUnitBuf& predBuf );
   void destroy();
 
 public:
@@ -167,19 +167,19 @@ public:
   void    init                (RdCost* pcRdCost, ChromaFormat chromaFormatIDC, const int ctuSize);
 
   // inter
-  void    motionCompensation  (PredictionUnit &pu, PelUnitBuf& predBuf, const bool luma = true, const bool chroma = true);
+  void    motionCompensation  (CodingUnit &cu, PelUnitBuf& predBuf, const bool luma = true, const bool chroma = true);
 
-  void    motionCompensationGeo      ( PredictionUnit &pu, PelUnitBuf &predBuf );
-  void    weightedGeoBlk             ( PredictionUnit &pu, const uint8_t splitDir, int32_t channel, PelUnitBuf& predDst, PelUnitBuf& predSrc0, PelUnitBuf& predSrc1 );
+  void    motionCompensationGeo      ( CodingUnit &cu, PelUnitBuf &predBuf );
+  void    weightedGeoBlk             ( CodingUnit &cu, const uint8_t splitDir, int32_t channel, PelUnitBuf& predDst, PelUnitBuf& predSrc0, PelUnitBuf& predSrc1 );
 
   static bool isSubblockVectorSpreadOverLimit( int a, int b, int c, int d, int predType );
 
 private:
-  void    xPrefetchPad               ( PredictionUnit& pu, PelUnitBuf &pcPad, RefPicList refId, bool forLuma );
-  void    xFinalPaddedMCForDMVR      ( PredictionUnit& pu, PelUnitBuf &pcYuvSrc0, PelUnitBuf &pcYuvSrc1, PelUnitBuf &pcPad0, PelUnitBuf &pcPad1, const bool bioApplied, const Mv startMV[NUM_REF_PIC_LIST_01] );
+  void    xPrefetchPad               ( CodingUnit& cu, PelUnitBuf &pcPad, RefPicList refId, bool forLuma );
+  void    xFinalPaddedMCForDMVR      ( CodingUnit& cu, PelUnitBuf &pcYuvSrc0, PelUnitBuf &pcYuvSrc1, PelUnitBuf &pcPad0, PelUnitBuf &pcPad1, const bool bioApplied, const Mv startMV[NUM_REF_PIC_LIST_01] );
   void xBIPMVRefine(DistParam &cDistParam, const Pel *pRefL0, const Pel *pRefL1, Distortion& minCost, int16_t *deltaMV, Distortion *pSADsArray);
-  void xinitMC(PredictionUnit& pu, const ClpRngs &clpRngs);
-  void xProcessDMVR(PredictionUnit& pu, PelUnitBuf &pcYuvDst, const ClpRngs &clpRngs, const bool bioApplied );
+  void xinitMC(CodingUnit& cu, const ClpRngs &clpRngs);
+  void xProcessDMVR(CodingUnit& cu, PelUnitBuf &pcYuvDst, const ClpRngs &clpRngs, const bool bioApplied );
 #if JVET_O1170_CHECK_BV_AT_DECODER
   void resetIBCBuffer(const ChromaFormat chromaFormatIDC, const int ctuSize);
   void resetVPDUforIBC(const ChromaFormat chromaFormatIDC, const int ctuSize, const int vSize, const int xPos, const int yPos);

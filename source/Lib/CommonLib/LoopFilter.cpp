@@ -532,7 +532,7 @@ void LoopFilter::calcFilterStrengths( const CodingUnit& cu ) const
   
 
   static constexpr int subBlockSize = 8;
-  const PredictionUnit& currPU  = cu;
+  const CodingUnit& currPU  = cu;
   const Area& areaPu            = area;
   LFCUParam stLFCUParam         { xGetLoopfilterParam( cu ) };
   const UnitScale scaling       = cu.cs->getScaling( UnitScale::LF_PARAM_MAP, cu.chType());

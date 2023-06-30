@@ -1,7 +1,7 @@
 /* -----------------------------------------------------------------------------
 The copyright in this software is being made available under the Clear BSD
-License, included below. No patent rights, trademark rights and/or 
-other Intellectual Property Rights other than the copyrights concerning 
+License, included below. No patent rights, trademark rights and/or
+other Intellectual Property Rights other than the copyrights concerning
 the Software are granted under this license.
 
 The Clear BSD License
@@ -52,11 +52,12 @@ POSSIBILITY OF SUCH DAMAGE.
 
 namespace vvdec
 {
+using namespace x86_simd;
 
 #ifdef TARGET_SIMD_X86
 
 template<X86_VEXT vext, bool isWdt16>
-Distortion RdCost::xGetSAD_MxN_SIMD( const DistParam &rcDtParam )
+Distortion xGetSAD_MxN_SIMD( const DistParam &rcDtParam )
 {
   if( rcDtParam.bitDepth > 10 )
     return isWdt16 ? RdCost::xGetSAD16( rcDtParam ) : RdCost::xGetSAD8( rcDtParam );
@@ -125,7 +126,7 @@ Distortion RdCost::xGetSAD_MxN_SIMD( const DistParam &rcDtParam )
       //0
       __m128i vsrc1 = _mm_loadu_si128( (const __m128i*)(pSrc1) );
       __m128i vsrc2 = _mm_loadu_si128( (const __m128i*)(pSrc2) );
-      
+
       vsum16 = _mm_add_epi16( vsum16, _mm_abs_epi16( _mm_sub_epi16( vsrc1, vsrc2 ) ) );
 
       if( isWdt16 )
@@ -284,12 +285,12 @@ void xGetSADX5_8xN_SIMDImp(const DistParam& rcDtParam, Distortion* cost) {
 }
 
 template <X86_VEXT vext>
-void RdCost::xGetSADX5_8xN_SIMD(const DistParam& rcDtParam, Distortion* cost, bool isCalCentrePos) {
+void xGetSADX5_8xN_SIMD(const DistParam& rcDtParam, Distortion* cost, bool isCalCentrePos) {
   if( rcDtParam.bitDepth > 10 ){
     RdCost::xGetSAD16X5( rcDtParam, cost, isCalCentrePos );
     return;
   }
-  
+
   if (isCalCentrePos)
     xGetSADX5_8xN_SIMDImp<vext, true>(rcDtParam, cost);
   else
@@ -595,12 +596,12 @@ void xGetSADX5_16xN_SIMDImp(const DistParam& rcDtParam, Distortion* cost) {
 }
 
 template <X86_VEXT vext>
-void RdCost::xGetSADX5_16xN_SIMD(const DistParam& rcDtParam, Distortion* cost, bool isCalCentrePos) {
+void xGetSADX5_16xN_SIMD(const DistParam& rcDtParam, Distortion* cost, bool isCalCentrePos) {
   if( rcDtParam.bitDepth > 10 ){
     RdCost::xGetSAD16X5( rcDtParam, cost, isCalCentrePos );
     return;
   }
-  
+
   if (isCalCentrePos)
     xGetSADX5_16xN_SIMDImp<vext, true>(rcDtParam, cost);
   else
@@ -612,7 +613,7 @@ void RdCost::_initRdCostX86()
 {
   m_afpDistortFunc[DF_SAD8   ] = xGetSAD_MxN_SIMD<vext, false>;
   m_afpDistortFunc[DF_SAD16  ] = xGetSAD_MxN_SIMD<vext, true>;
-  
+
   m_afpDistortFuncX5[DF_SAD8] = xGetSADX5_8xN_SIMD<vext>;
   m_afpDistortFuncX5[DF_SAD16] = xGetSADX5_16xN_SIMD<vext>;
 }

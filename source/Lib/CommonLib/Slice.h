@@ -47,22 +47,15 @@ POSSIBILITY OF SUCH DAMAGE.
 #pragma once
 
 #include "CommonDef.h"
-#include "Rom.h"
 #include "ChromaFormat.h"
 #include "Common.h"
-#include "MotionInfo.h"
 #include "BitStream.h"
-#include "PicListManager.h"
-#include "SEI_internal.h"
 
 #include "Utilities/ThreadPool.h"
 
 #include <cstring>
 #include <list>
-#include <map>
 #include <vector>
-#include <chrono>
-#include <future>
 
 namespace vvdec
 {
@@ -72,6 +65,9 @@ namespace vvdec
 // ====================================================================================================================
 class PreCalcValues;
 class ParameterSetManager;
+struct Picture;
+typedef std::list<Picture*> PicList;
+
 static const uint32_t REF_PIC_LIST_NUM_IDX=32;
 
 
@@ -106,43 +102,45 @@ public:
   ReferencePictureList();
   void clear();
 
-  void    setRefPicIdentifier( int idx, int identifier, bool isLongterm, bool isInterLayerRefPic, int interLayerIdx );
-  int     getRefPicIdentifier(int idx) const;
-  bool    isRefPicLongterm(int idx) const;
+  void setRefPicIdentifier( int idx, int identifier, bool isLongterm, bool isInterLayerRefPic, int interLayerIdx );
+  int  getRefPicIdentifier( int idx ) const;
+  bool isRefPicLongterm( int idx ) const;
 
-  void    setRefPicLongterm(int idx,bool isLongterm);
+  void setRefPicLongterm( int idx, bool isLongterm );
 
-  void    setNumberOfShorttermPictures(int numberOfStrp);
-  int     getNumberOfShorttermPictures() const;
+  void setNumberOfShorttermPictures( int numberOfStrp );
+  int  getNumberOfShorttermPictures() const;
 
-  void    setNumberOfLongtermPictures(int numberOfLtrp);
-  int     getNumberOfLongtermPictures() const;
+  void setNumberOfLongtermPictures( int numberOfLtrp );
+  int  getNumberOfLongtermPictures() const;
 
-  void    setLtrpInSliceHeaderFlag(bool flag) { m_ltrp_in_slice_header_flag = flag; }
-  bool    getLtrpInSliceHeaderFlag() const { return m_ltrp_in_slice_header_flag; }
+  void setLtrpInSliceHeaderFlag( bool flag ) { m_ltrp_in_slice_header_flag = flag; }
+  bool getLtrpInSliceHeaderFlag() const { return m_ltrp_in_slice_header_flag; }
 
-  void    setNumberOfInterLayerPictures( const int numberOfIlrp ) { m_numberOfInterLayerPictures = numberOfIlrp; }
-  int     getNumberOfInterLayerPictures() const { return m_numberOfInterLayerPictures; }
-  
-  int     getNumRefEntries() const { return m_numberOfShorttermPictures + m_numberOfLongtermPictures; }
+  void setNumberOfInterLayerPictures( const int numberOfIlrp ) { m_numberOfInterLayerPictures = numberOfIlrp; }
+  int  getNumberOfInterLayerPictures() const { return m_numberOfInterLayerPictures; }
 
-  void    setPOC(int idx, int POC);
-  int     getPOC(int idx) const;
+  int getNumRefEntries() const { return m_numberOfShorttermPictures + m_numberOfLongtermPictures + m_numberOfInterLayerPictures; }
 
-  int     getDeltaPocMSBCycleLT(int i) const       { return m_deltaPOCMSBCycleLT[i]; }
-  void    setDeltaPocMSBCycleLT(int i, int x);
-  bool    getDeltaPocMSBPresentFlag(int i) const   { return m_deltaPocMSBPresentFlag[i]; }
-  void    setDeltaPocMSBPresentFlag(int i, bool x);
+  void setPOC( int idx, int POC );
+  int  getPOC( int idx ) const;
 
-  void      printRefPicInfo() const;
-  bool      getInterLayerPresentFlag()                   const { return m_interLayerPresentFlag; }
-  void      setInterLayerPresentFlag( bool b )                 { m_interLayerPresentFlag = b; }
-  bool      isInterLayerRefPic( int idx )                const { return m_isInterLayerRefPic[idx]; }
-  int       getInterLayerRefPicIdx( int idx )            const { return m_interLayerRefPicIdx[idx]; }
-  void      setInterLayerRefPicIdx( int idx, int layerIdc );
+  int  getDeltaPocMSBCycleLT( int i ) const { return m_deltaPOCMSBCycleLT[i]; }
+  void setDeltaPocMSBCycleLT( int i, int x );
+  bool getDeltaPocMSBPresentFlag( int i ) const { return m_deltaPocMSBPresentFlag[i]; }
+  void setDeltaPocMSBPresentFlag( int i, bool x );
+
+  void printRefPicInfo() const;
+  bool getInterLayerPresentFlag() const { return m_interLayerPresentFlag; }
+  void setInterLayerPresentFlag( bool b ) { m_interLayerPresentFlag = b; }
+  bool isInterLayerRefPic( int idx ) const { return m_isInterLayerRefPic[idx]; }
+  int  getInterLayerRefPicIdx( int idx ) const { return m_interLayerRefPicIdx[idx]; }
+  void setInterLayerRefPicIdx( int idx, int layerIdc );
+
+  bool findInRefPicList( const Picture* checkRefPic, int currPicPoc, int layerId ) const;
 
   static int calcLTRefPOC( int currPoc, int bitsForPoc, int refPicIdentifier, bool pocMSBPresent, int deltaPocMSBCycle );
-         int calcLTRefPOC( int currPoc, int bitsForPoc, int refPicIdx ) const;
+  int        calcLTRefPOC( int currPoc, int bitsForPoc, int refPicIdx ) const;
 };
 
 bool isLTPocEqual( int poc1, int poc2, int bitsForPoc, bool msbPresent );
@@ -1379,10 +1377,8 @@ private:
   bool              m_independentSubPicsFlag             = false;
   bool              m_subPicSameSizeFlag                 = false;
 
-  RPLList           m_RPLList0;
-  RPLList           m_RPLList1;
-  uint32_t          m_numRPL0                            = 0;
-  uint32_t          m_numRPL1                            = 0;
+  RPLList           m_RPLList[2];
+  uint32_t          m_numRPL[2]                          = {0,0};
 
   bool              m_rpl1CopyFromRpl0Flag               = false;
   bool              m_rpl1IdxPresentFlag                 = false;
@@ -1656,17 +1652,9 @@ public:
   uint32_t                getQuadtreeTUMaxDepthIntra() const                                              { return m_uiQuadtreeTUMaxDepthIntra;                                  }
   void                    setNumReorderPics(int i, uint32_t tlayer)                                       { m_numReorderPics[tlayer] = i;                                        }
   int                     getNumReorderPics(uint32_t tlayer) const                                        { return m_numReorderPics[tlayer];                                     }
-  void                    createRPLList0(int numRPL);
-  void                    createRPLList1(int numRPL);
-  const RPLList&          getRPLList( bool b ) const                                                      { return b==1 ? m_RPLList1 : m_RPLList0;                               }
-  RPLList&                getRPLList( bool b )                                                            { return b==1 ? m_RPLList1 : m_RPLList0;                               }
-  uint32_t                getNumRPL( bool b ) const                                                       { return b==1 ? m_numRPL1   : m_numRPL0;                               }
-  const RPLList&          getRPLList0() const                                                             { return m_RPLList0;                                                   }
-        RPLList&          getRPLList0()                                                                   { return m_RPLList0;                                                   }
-  const RPLList&          getRPLList1() const                                                             { return m_RPLList1;                                                   }
-        RPLList&          getRPLList1()                                                                   { return m_RPLList1;                                                   }
-  uint32_t                getNumRPL0() const                                                              { return m_numRPL0;                                                    }
-  uint32_t                getNumRPL1() const                                                              { return m_numRPL1;                                                    }
+  RPLList&                createRPLList( int l, int numRPL );
+  const RPLList&          getRPLList( int l ) const                                                       { return m_RPLList[l];                                                 }
+  uint32_t                getNumRPL( int l ) const                                                        { return m_numRPL[l];                                                  }
   void                    setRPL1CopyFromRPL0Flag(bool isCopy)                                            { m_rpl1CopyFromRpl0Flag = isCopy;                                     }
   bool                    getRPL1CopyFromRPL0Flag() const                                                 { return m_rpl1CopyFromRpl0Flag;                                       }
   bool                    getRPL1IdxPresentFlag() const                                                   { return m_rpl1IdxPresentFlag;                                         }
@@ -2583,7 +2571,7 @@ private:
   int                        m_iSliceQpDelta                    = 0;
   int                        m_iSliceChromaQpDelta[MAX_NUM_COMPONENT + 1]                = { 0 };
   Picture*                   m_apcRefPicList      [NUM_REF_PIC_LIST_01][MAX_NUM_REF + 1] = { { nullptr } };   // entry 0 in m_apcRefPicList is nullptr!
-  int                        m_aiRefPOCList       [NUM_REF_PIC_LIST_01][MAX_NUM_REF + 1] = { { 0 } };
+  int                        m_aiRefPOCList       [NUM_REF_PIC_LIST_01][MAX_NUM_REF + 1] = { { 0 } };         // this is needed to get the POC of the a reference picture, when this slice is used as a collocated reference and the pictures referenced by this one have already been reused. (needed for TMVP)
   bool                       m_bIsUsedAsLongTerm  [NUM_REF_PIC_LIST_01][MAX_NUM_REF + 1] = { { false } };
   std::pair<int, int>        m_scalingRatio       [NUM_REF_PIC_LIST_01][MAX_NUM_REF_PICS];
 
@@ -2650,10 +2638,7 @@ public:
   void                        clearRPL( RefPicList l )                               { m_RPL[l].clear();                                             }
   void                        setRPL( RefPicList l, const ReferencePictureList& rpl ){ m_RPL[l] = rpl;                                               }
   ReferencePictureList*       getRPL( RefPicList l )                                 { return &m_RPL[l];                                             }
-  ReferencePictureList*       getRPL0()                                              { return &m_RPL[0];                                             }
-  ReferencePictureList*       getRPL1()                                              { return &m_RPL[1];                                             }
-  const ReferencePictureList* getRPL0()                                      const   { return &m_RPL[0];                                             }
-  const ReferencePictureList* getRPL1()                                      const   { return &m_RPL[1];                                             }
+  const ReferencePictureList* getRPL( RefPicList l ) const                           { return &m_RPL[l];                                             }
   void                        setRPLIdx( RefPicList l, int RPLIdx )                  { m_RPLIdx[l] = RPLIdx;                                         }
   int                         getRPLIdx( RefPicList l ) const                        { return m_RPLIdx[l];                                           }
   void                        setLastIDR(int iIDRPOC)                                { m_iLastIDR = iIDRPOC;                                         }
@@ -2710,8 +2695,8 @@ public:
   void                        setNalUnitLayerId( uint32_t i )                        { m_nuhLayerId = i;                                             }
   uint32_t                    getNalUnitLayerId() const                              { return m_nuhLayerId;                                          }
   bool                        getRapPicFlag() const;
-  bool                        getIdrPicFlag() const                                  { return getNalUnitType() == NAL_UNIT_CODED_SLICE_IDR_W_RADL   || getNalUnitType() == NAL_UNIT_CODED_SLICE_IDR_N_LP;   }
-  bool                        isIRAP() const                                         { return (getNalUnitType() >= NAL_UNIT_CODED_SLICE_IDR_W_RADL) && (getNalUnitType() <= NAL_UNIT_CODED_SLICE_CRA);      }
+  bool                        getIdrPicFlag() const                                  { return getNalUnitType() == NAL_UNIT_CODED_SLICE_IDR_W_RADL || getNalUnitType() == NAL_UNIT_CODED_SLICE_IDR_N_LP; }
+  bool                        isIRAP() const                                         { return getNalUnitType() >= NAL_UNIT_CODED_SLICE_IDR_W_RADL && getNalUnitType() <= NAL_UNIT_CODED_SLICE_CRA;      }
 #if GDR_ADJ
   bool                        isClvssPu() const                                      { return m_eNalUnitType >= NAL_UNIT_CODED_SLICE_IDR_W_RADL && m_eNalUnitType <= NAL_UNIT_CODED_SLICE_GDR && !m_pcPPS->getMixedNaluTypesInPicFlag() && m_pcPicHeader->getNoOutputBeforeRecoveryFlag(); }
 #else
@@ -2719,9 +2704,9 @@ public:
 #endif
   bool                        isIDR() const                                          { return m_eNalUnitType == NAL_UNIT_CODED_SLICE_IDR_W_RADL || m_eNalUnitType == NAL_UNIT_CODED_SLICE_IDR_N_LP; }
   bool                        isCRAorGDR() const                                     { return m_eNalUnitType == NAL_UNIT_CODED_SLICE_CRA || m_eNalUnitType == NAL_UNIT_CODED_SLICE_GDR; }
-  void                        checkCRA( int& pocCRA, NalUnitType& associatedIRAPType, const PicListRange& rcListPic );
-  void                        checkSTSA( const PicListRange& rcListPic );
-  void                        checkRPL(const ReferencePictureList* pRPL0, const ReferencePictureList* pRPL1, const int associatedIRAPDecodingOrderNumber, const PicListRange& rcListPic);
+  void                        checkCRA( int& pocCRA, NalUnitType& associatedIRAPType, const PicList& rcListPic );
+  void                        checkSTSA( const PicList& rcListPic );
+  void                        checkRPL( const ReferencePictureList* pRPL0, const ReferencePictureList* pRPL1, const int associatedIRAPDecodingOrderNumber, const PicList& rcListPic );
   void                        setSliceType( SliceType e )                            { m_eSliceType        = e;                                      }
   void                        setSliceQp( int i )                                    { m_iSliceQp          = i;                                      }
   void                        setSliceQpDelta( int i )                               { m_iSliceQpDelta     = i;                                      }
@@ -2750,8 +2735,8 @@ public:
   void                        setNumRefIdx( RefPicList e, int i )                    { m_aiNumRefIdx[e]    = i;                                      }
   void                        setPic( Picture* p )                                   { m_pcPic             = p;                                      }
 
-  void                        constructRefPicLists( const PicListRange& rcPicRange );
-  void                        constructSingleRefPicList( const PicListRange& rcPicRange, RefPicList listId );
+  void                        constructRefPicLists( const PicList& rcPicList );
+  void                        constructSingleRefPicList( const PicList& rcPicList, RefPicList listId );
 
   void                        setRefPOCList();
 
@@ -2779,8 +2764,8 @@ public:
   uint32_t                    getTLayer() const                                      { return m_uiTLayer;                                            }
   void                        setTLayer( uint32_t uiTLayer )                         { m_uiTLayer = uiTLayer;                                        }
 
-  void                        checkLeadingPictureRestrictions( const PicListRange & rcListPic ) const;
-  bool                        checkThatAllRefPicsAreAvailable( const PicListRange&         rcListPic,
+  void                        checkLeadingPictureRestrictions( const PicList& rcListPic ) const;
+  bool                        checkThatAllRefPicsAreAvailable( const PicList& rcListPic,
                                                                const ReferencePictureList* pRPL,
                                                                int                         numActiveRefPics,
                                                                int*                        missingPOC,
@@ -2883,9 +2868,9 @@ public:
 
   Barrier parseDone;
 
-protected:
-  Picture*              xGetRefPic        ( const PicListRange & rcListPic, int poc, const int layerId );
-  Picture*              xGetLongTermRefPic( const PicListRange & rcListPic, int poc, bool pocHasMsb, const int layerId );
+private:
+  Picture*              xGetRefPic        ( const PicList& rcListPic, int poc, const int layerId );
+  Picture*              xGetLongTermRefPic( const PicList& rcListPic, int poc, bool pocHasMsb, const int layerId, const bool getCandidate = true );
 };   // END CLASS DEFINITION Slice
 
 

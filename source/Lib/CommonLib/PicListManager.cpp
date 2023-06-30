@@ -61,17 +61,17 @@ static std::ostream& operator<<( std::ostream& strm, PicList& picList )
   {
     char stateC = ' ';
     switch (p->progress) {
+    case Picture::init:           stateC = ' '; break;
     case Picture::parsing:        stateC = 'p'; break;
     case Picture::parsed:         stateC = '.'; break;
     case Picture::reconstructing: stateC = 'x'; break;
-    default:
     case Picture::reconstructed:
     case Picture::finished:       stateC = 'X';
       if( !p->neededForOutput )
       {
         stateC = 'o';
-        if( p->lockedByApplication ) stateC = 'L';
-        else if( p->referenced )     stateC = 'R';
+        if( p->lockedByApplication )   stateC = 'L';
+        else if( p->dpbReferenceMark ) stateC = 'R';
       }
     }
     strm << p->poc << stateC << ' ';
@@ -112,34 +112,10 @@ void PicListManager::deleteBuffers()
 
 void PicListManager::create(int frameDelay, int decInstances, bool upscaleOutputEnabled, const UserAllocator& userAllocator )
 {
-  m_parseFrameDelay = frameDelay;
-  m_parallelDecInst = decInstances;
+  m_parseFrameDelay      = frameDelay;
+  m_parallelDecInst      = decInstances;
   m_upscaleOutputEnabled = upscaleOutputEnabled;
-  m_userAllocator = userAllocator;
-}
-
-PicListRange PicListManager::getPicListRange( const Picture* pic ) const
-{
-  if( !pic )
-  {
-    return PicListRange{ m_cPicList.cbegin(), m_cPicList.cend() };
-  }
-
-  auto seqStart = m_cPicList.cbegin();
-  for( auto itPic = m_cPicList.cbegin(); itPic != m_cPicList.cend(); ++itPic )
-  {
-    if( isIDR( *itPic ) && !(*itPic)->getMixedNaluTypesInPicFlag() )
-    {
-      seqStart = itPic;
-    }
-
-    if( *itPic == pic )
-    {
-      break;
-    }
-  }
-
-  return PicListRange{ seqStart, m_cPicList.end() };
+  m_userAllocator        = userAllocator;
 }
 
 Picture* PicListManager::getNewPicBuffer( const SPS& sps, const PPS& pps, const uint32_t temporalLayer, const int layerId, const VPS* vps )
@@ -177,7 +153,7 @@ Picture* PicListManager::getNewPicBuffer( const SPS& sps, const PPS& pps, const 
 #endif
   }
   UserAllocator* userAllocator = externAllocator ? &m_userAllocator : nullptr;
- 
+
   if( m_cPicList.size() < (uint32_t)iMaxRefPicNum + m_parseFrameDelay )
   {
     pcPic = new Picture();
@@ -196,7 +172,7 @@ Picture* PicListManager::getNewPicBuffer( const SPS& sps, const PPS& pps, const 
   for( PicList::iterator itPic = m_cPicList.begin(); itPic != m_cPicList.end(); ++itPic )
   {
     Picture* pic = *itPic;
-    if( pic->progress < Picture::finished || pic->referenced || pic->neededForOutput || pic->lockedByApplication )
+    if( pic->progress < Picture::finished || pic->stillReferenced || pic->dpbReferenceMark || pic->neededForOutput || pic->lockedByApplication )
     {
       continue;
     }
@@ -216,6 +192,7 @@ Picture* PicListManager::getNewPicBuffer( const SPS& sps, const PPS& pps, const 
 
     // take the picture to be reused and move it to the end of the list
     move_to_end( itPic, m_cPicList );
+
     pcPic = pic;
 
     if ( externAllocator )
@@ -263,95 +240,43 @@ Picture* PicListManager::getNewPicBuffer( const SPS& sps, const PPS& pps, const 
   return pcPic;
 }
 
-static bool findInRefPicList( Picture* checkRefPic, const ReferencePictureList* rpl, int currPicPoc )
+void PicListManager::markUnusedPicturesReusable()
 {
-  // loop through all pictures in the Reference Picture Set
-  // to see if the picture should be kept as reference picture
-  for( int i = 0; i < rpl->getNumberOfShorttermPictures() + rpl->getNumberOfLongtermPictures(); i++ )
+  // collect all pictures, that are still referenced by an in-progress picture
+  m_allRefPics.clear();
+  m_allRefPics.reserve( m_cPicList.size() );
+  for( auto& pic: m_cPicList )
   {
-    if( !rpl->isRefPicLongterm( i ) )
+    if( pic->progress >= Picture::reconstructed )
     {
-      if( checkRefPic->poc == currPicPoc + rpl->getRefPicIdentifier( i ) )
-      {
-        checkRefPic->longTerm = false;
-        return true;
-      }
-    }
-    else
-    {
-      int refPoc = rpl->calcLTRefPOC( currPicPoc, checkRefPic->cs->sps->getBitsForPOC(), i );
-      if( isLTPocEqual( checkRefPic->poc, refPoc, checkRefPic->cs->sps->getBitsForPOC(), rpl->getDeltaPocMSBPresentFlag( i ) ) )
-      {
-        checkRefPic->longTerm = true;
-        return true;
-      }
-    }
-  }
-  return false;
-}
-
-void PicListManager::applyDoneReferencePictureMarking()
-{
-  Picture* lastDonePic = nullptr;
-  for( auto& p: m_cPicList )
-  {
-    if( p->progress < Picture::reconstructed )
-    {
-      break;
-    }
-    if( p->wasLost )
-    {
-      // don't unmark reference pictures based on filled-in lost pictures
-      continue;
-    }
-    lastDonePic = p;
-  }
-  if( !lastDonePic )
-  {
-    return;
-  }
-
-  const Picture* picRangeStart = *getPicListRange( lastDonePic ).begin();
-  bool           inPicRange    = false;
-
-  for( auto& itPic: m_cPicList )
-  {
-    if( itPic == lastDonePic )
-    {
-      // only check up to the last finished picture
-      return;
-    }
-    if( !itPic->referenced )
-    {
-      // already marked as not references
       continue;
     }
 
-    inPicRange |= ( itPic == picRangeStart );   // all pictures before the current valid picture-range can also be marked as not needed for referenece
-
-    bool isReference = false;
-    if( !( isIDR( lastDonePic ) && !lastDonePic->getMixedNaluTypesInPicFlag() ) || !inPicRange )
+    for( auto& s: pic->slices )
     {
-      for( auto& slice: lastDonePic->slices )
+      for( auto l: { REF_PIC_LIST_0, REF_PIC_LIST_1 } )
       {
-        if( findInRefPicList( itPic, slice->getRPL0(), lastDonePic->getPOC() ) || findInRefPicList( itPic, slice->getRPL1(), lastDonePic->getPOC() ) )
+        for( int iRefIdx = 0; iRefIdx < s->getNumRefIdx( l ); iRefIdx++ )
         {
-          isReference = true;
-          break;
+          const Picture* refPic = s->getRefPic( l, iRefIdx );
+          m_allRefPics.insert( refPic );
         }
       }
     }
+  }
 
-    // mark the picture as "unused for reference" if it is not in
-    // the Reference Picture List
-    CHECK_RECOVERABLE( itPic->progress < Picture::reconstructed, "all pictures, for which we apply reference pic marking should have been reconstructed" )
-    if( !isReference )
+  // remove stillReferenced flag from all others
+  for( auto& pic: m_cPicList )
+  {
+    if( pic->progress < Picture::finished )   // only unmark pictures up to the first unfinished pic
     {
-      itPic->referenced = false;
-      itPic->longTerm   = false;
-      itPic->wasLost    = false;
-      itPic->error      = false;
-      itPic->m_subPicRefBufs.clear();
+      break;
+    }
+
+    if( pic->stillReferenced && !pic->dpbReferenceMark && m_allRefPics.count( pic ) == 0 )
+    {
+      pic->stillReferenced = false;
+      pic->m_subPicRefBufs.clear();
     }
   }
 }
@@ -417,7 +342,7 @@ Picture* PicListManager::getNextOutputPic( uint32_t numReorderPicsHighestTid,
     foundOutputPic |= (*itPic)->neededForOutput;
 
     // ignore pictures, that are not needed for output or referenced any more
-    if( !foundOutputPic && !(*itPic)->referenced )
+    if( !foundOutputPic && !(*itPic)->dpbReferenceMark )
     {
       seqStart = itPic;
     }
@@ -457,7 +382,7 @@ Picture* PicListManager::getNextOutputPic( uint32_t numReorderPicsHighestTid,
         numPicsNotYetDisplayed++;
         dpbFullness++;
       }
-      else if( pcPic->referenced && pcPic->progress >= Picture::finished )
+      else if( pcPic->dpbReferenceMark && pcPic->progress >= Picture::finished )
       {
         dpbFullness++;
       }
@@ -506,4 +431,4 @@ void PicListManager::releasePicture( Picture* pic )
   }
 }
 
-}
+}   // namespace vvdec

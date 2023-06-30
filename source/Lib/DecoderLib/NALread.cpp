@@ -102,7 +102,7 @@ static void convertPayloadToRBSP(std::vector<uint8_t>& nalUnitBuf, InputBitstrea
 
     if (n > 0)
     {
-      msg( NOTICE, "\nDetected %d instances of cabac_zero_word\n", n/2);
+      msg( VERBOSE, "\nDetected %d instances of cabac_zero_word\n", n/2);
     }
   }
 

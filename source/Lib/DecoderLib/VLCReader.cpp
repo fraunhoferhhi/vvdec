@@ -235,7 +235,7 @@ void FDReader::parseFillerData( InputBitstream* bs, uint32_t &fdSize )
 // Public member functions
 // ====================================================================================================================
 
-void HLSyntaxReader::copyRefPicList( const SPS* sps, ReferencePictureList* source_rpl, ReferencePictureList* dest_rp )
+void HLSyntaxReader::copyRefPicList( const SPS* sps, const ReferencePictureList* source_rpl, ReferencePictureList* dest_rp )
 {
   memcpy( dest_rp, source_rpl, sizeof( ReferencePictureList ) );
 
@@ -1676,8 +1676,7 @@ void HLSyntaxReader::parseSPS( SPS* pcSPS, const ParameterSetManager *parameterS
   //Read candidate for List0
   READ_UVLC( uiCode, "sps_num_ref_pic_lists[0]" );
   uint32_t numberOfRPL = uiCode;
-  pcSPS->createRPLList0( numberOfRPL );
-  RPLList& rplList = pcSPS->getRPLList0();
+  RPLList& rplList = pcSPS->createRPLList( 0, numberOfRPL );
   for( uint32_t ii = 0; ii < numberOfRPL; ii++ )
   {
     parseRefPicList( &rplList[ii], ii, pcSPS );
@@ -1688,8 +1687,7 @@ void HLSyntaxReader::parseSPS( SPS* pcSPS, const ParameterSetManager *parameterS
   {
     READ_UVLC( uiCode, "sps_num_ref_pic_lists[1]" );
     numberOfRPL = uiCode;
-    pcSPS->createRPLList1( numberOfRPL );
-    RPLList& rplList = pcSPS->getRPLList1();
+    RPLList& rplList = pcSPS->createRPLList( 1, numberOfRPL );
     for( uint32_t ii = 0; ii < numberOfRPL; ii++ )
     {
       parseRefPicList( &rplList[ii], ii, pcSPS );
@@ -1697,10 +1695,9 @@ void HLSyntaxReader::parseSPS( SPS* pcSPS, const ParameterSetManager *parameterS
   }
   else
   {
-    numberOfRPL = ( uint32_t ) pcSPS->getNumRPL0();
-    pcSPS->createRPLList1( numberOfRPL );
-    RPLList& rplListSource = pcSPS->getRPLList0();
-    RPLList& rplListDest   = pcSPS->getRPLList1();
+    numberOfRPL = ( uint32_t ) pcSPS->getNumRPL( 0 );
+    const RPLList& rplListSource = pcSPS->getRPLList( 0 );
+    RPLList&       rplListDest   = pcSPS->createRPLList( 1, numberOfRPL );
     for( uint32_t ii = 0; ii < numberOfRPL; ii++ )
     {
       copyRefPicList( pcSPS, &rplListSource[ii], &rplListDest[ii] );
