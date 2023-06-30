@@ -55,6 +55,7 @@ namespace vvdec
 {
 
 #ifdef TARGET_SIMD_ARM
+#  if __ARM_ARCH >= 8
 
 template<ARM_VEXT vext, bool isWdt16>
 Distortion xGetSAD_MxN_SIMD( const DistParam& rcDtParam )
@@ -250,6 +251,14 @@ void RdCost::_initRdCostARM()
   //  m_afpDistortFuncX5[ DF_SAD8 ]  = xGetSADX5_8xN_SIMD<vext>;
   m_afpDistortFuncX5[ DF_SAD16 ] = xGetSADX5_16xN_SIMD<vext>;
 }
+
+#  else    // !__ARM_ARCH >= 8
+
+template<ARM_VEXT vext>
+void RdCost::_initRdCostARM()
+{}
+
+#  endif   // !__ARM_ARCH >= 8
 
 template void RdCost::_initRdCostARM<SIMDARM>();
 
