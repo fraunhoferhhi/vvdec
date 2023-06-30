@@ -60,6 +60,14 @@ if( VVDEC_ENABLE_ARM_SIMD )
   add_compile_definitions( TARGET_SIMD_ARM )
 endif()
 
+if( VVDEC_ENABLE_X86_SIMD OR VVDEC_ENABLE_ARM_SIMD )
+  if( "${CMAKE_SYSTEM_PROCESSOR}" MATCHES "aarch64\|arm"
+    OR "${CMAKE_CXX_COMPILER}" MATCHES "aarch64\|arm"
+    OR "${CMAKE_OSX_ARCHITECTURES}" MATCHES "arm64\|armv" )
+      message( WARNING "You are building for armv7 which is knnow to be broken. As a workaround, disable SIMD at runtime or build with VVDEC_ENABLE_X86_SIMD=0 and VVDEC_ENABLE_ARM_SIMD=0." )
+  endif()
+endif()
+
 if( ${CMAKE_SYSTEM_NAME} STREQUAL "Emscripten" )
   set( VVDEC_TARGET_WASM TRUE )
 
