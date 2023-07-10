@@ -958,6 +958,7 @@ void InterPrediction::xPredAffineBlk( const ComponentID&        compID,
   const int iHorMin = (  -(int)cu.cs->pcv->maxCUWidth       - iOffset -  (int)cu.lx() + 1 ) *(1<< iMvShift);
   const int iVerMax = ( cu.pps->getPicHeightInLumaSamples() + iOffset -       cu.ly() - 1 ) *(1<< iMvShift);
   const int iVerMin = (  -(int)cu.cs->pcv->maxCUHeight      - iOffset -  (int)cu.ly() + 1 ) *(1<< iMvShift);
+  const bool clipSubPic = clipMv == clipMvInSubpic;
 
   const int shift = MAX_CU_DEPTH;
 
@@ -1170,6 +1171,13 @@ void InterPrediction::xPredAffineBlk( const ComponentID&        compID,
         wrapRef = wrapClipMv( tmpMv, Position( cu.Y().x + ( w << iScaleX ), cu.Y().y + ( h << iScaleY ) ), Size( blockWidth << iScaleX, blockHeight << iScaleY ), sps, *cu.pps );
         iMvScaleTmpHor = tmpMv.getHor();
         iMvScaleTmpVer = tmpMv.getVer();
+      }
+      else if( !refPicScaled && clipSubPic )
+      {
+        Mv mv{ iMvScaleTmpHor, iMvScaleTmpVer };
+        clipMv( mv, cu.lumaPos(), cu.lumaSize(), sps, *cu.pps );
+        iMvScaleTmpHor = mv.hor;
+        iMvScaleTmpVer = mv.ver;
       }
       else
       {
