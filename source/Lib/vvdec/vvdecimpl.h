@@ -99,50 +99,43 @@ public:
 public:
 
   /// Constructor
-  VVDecImpl();
+  VVDecImpl() = default;
 
   /// Destructor
-  virtual ~VVDecImpl();
+  ~VVDecImpl() = default;
 
   class FrameStorage
   {
   public:
-    FrameStorage()  = default;
-    ~FrameStorage() = default;
-
     int allocateStorage( size_t size )
     {
       if( size == 0 ){ return VVDEC_ERR_ALLOCATE; }
-      m_ptr = new unsigned char [ size ];
+      m_ptr.reset( new unsigned char[size] );
       m_size = size;
-      m_isAllocated = true;
       return 0;
     }
 
     int freeStorage()
     {
-      if( !m_isAllocated) { return VVDEC_ERR_ALLOCATE; }
-      delete [] m_ptr;
+      if( !m_ptr ) { return VVDEC_ERR_ALLOCATE; }
+      m_ptr.reset();
       m_size = 0;
-      m_isAllocated = false;
       return 0;
     }
 
     unsigned char * getStorage()
     {
-      if( !m_isAllocated) { return nullptr; }
-      return m_ptr;
+      return m_ptr.get();
     }
 
-    bool isAllocated(){ return m_isAllocated; }
-    bool isExternAllocator(){ return m_isExternAllocator; }
-    void setExternAllocator(){ m_isExternAllocator = true; }
-   
+    bool isAllocated() { return !!m_ptr; }
+    bool isExternAllocator() { return m_isExternAllocator; }
+    void setExternAllocator() { m_isExternAllocator = true; }
+
   private:
-    bool           m_isAllocated = false;
-    unsigned char *m_ptr         = nullptr;     // pointer to plane buffer
-    size_t         m_size        = 0;
-    bool           m_isExternAllocator = false;
+    std::unique_ptr<unsigned char[]> m_ptr               = nullptr;   // pointer to plane buffer
+    size_t                           m_size              = 0;
+    bool                             m_isExternAllocator = false;
   };
 
 public:
@@ -176,6 +169,9 @@ public:
    static const char* getNalUnitTypeAsString( vvdecNalType t );
    static bool isNalUnitSlice               ( vvdecNalType t );
 
+   std::string                             m_cErrorString;
+   std::string                             m_cAdditionalErrorString;
+
 private:
    int xAddPicture                  ( Picture* pcPic );
    int xCreateFrame                 ( vvdecFrame& frame, const CPelUnitBuf& rcPicBuf, uint32_t uiWidth, uint32_t uiHeight, const BitDepths& rcBitDepths, bool bCreateStorage );
@@ -195,9 +191,10 @@ private:
    void vvdec_frame_reset(vvdecFrame *frame );
 
 private:
-  typedef std::map<uint64_t,FrameStorage>    frameStorageMap;
-  typedef frameStorageMap::value_type        frameStorageMapType;
-public:
+   typedef std::tuple<vvdecFrame, Picture*> FrameListEntry;
+   typedef std::map<uint64_t, FrameStorage> FrameStorageMap;
+   typedef FrameStorageMap::value_type      FrameStorageMapType;
+
    bool                                    m_bInitialized   = false;
    bool                                    m_bRemovePadding = false; // copy picture before output to remove padding
    VVDecInternalState                      m_eState         = INTERNAL_STATE_UNINITIALIZED;
@@ -205,22 +202,17 @@ public:
 
    std::unique_ptr<DecLib>                 m_cDecLib;
 
-   std::list<vvdecFrame>                   m_rcFrameList;
-   std::list<vvdecFrame>::iterator         m_pcFrameNext = m_rcFrameList.begin();
+   std::list<FrameListEntry>               m_rcFrameList;
+   std::list<FrameListEntry>::iterator     m_pcFrameNext = m_rcFrameList.begin();
 
-   std::list<Picture*>                     m_pcLibPictureList;       // internal picture list
-   frameStorageMap                         m_cFrameStorageMap;       // map of frame storage class( converted frames)
+   FrameStorageMap                         m_cFrameStorageMap;       // map of frame storage class( converted frames)
    UserAllocator                           m_cUserAllocator;         // user allocator object, valid if buffers are managed external
 
    std::string                             m_sDecoderInfo;
    std::string                             m_sDecoderCapabilities;
 
-   std::string                             m_cErrorString;
-   std::string                             m_cAdditionalErrorString;
-
    uint64_t                                m_uiSeqNumber       = 0;
    uint64_t                                m_uiSeqNumOutput    = 0;
-   uint64_t                                m_uiPicCount        = 0;
 };
 
 

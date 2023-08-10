@@ -56,16 +56,6 @@ POSSIBILITY OF SUCH DAMAGE.
 
 namespace vvdec {
 
-VVDecImpl::VVDecImpl()
-{
-
-}
-
-VVDecImpl::~VVDecImpl()
-{
-
-}
-
 int VVDecImpl::init( const vvdecParams& params, vvdecCreateBufferCallback createBufCallback, vvdecUnrefBufferCallback unrefBufCallback )
 {
   if( m_bInitialized ){ return VVDEC_ERR_INITIALIZE; }
@@ -205,20 +195,16 @@ int VVDecImpl::reset()
     }
   };
 
-  for( auto& frame : m_rcFrameList )
+  for( auto& entry: m_rcFrameList )
   {
-    vvdec_frame_reset( &frame );
+    vvdec_frame_reset( &std::get<vvdecFrame>( entry ) );
+    if( std::get<Picture*>( entry ) )
+    {
+      m_cDecLib->releasePicture( std::get<Picture*>( entry ) );
+    }
   }
   m_rcFrameList.clear();
   m_pcFrameNext = m_rcFrameList.end();
-
-
-  for( auto& pic : m_pcLibPictureList )
-  {
-    m_cDecLib->releasePicture( pic );
-  }
-  m_pcLibPictureList.clear();
-
 
   for( auto& storage : m_cFrameStorageMap )
   {
@@ -436,7 +422,7 @@ int VVDecImpl::decode( vvdecAccessUnit& rcAccessUnit, vvdecFrame** ppcFrame )
       }
       else
       {
-        *ppcFrame = &( *m_pcFrameNext );
+        *ppcFrame = &std::get<vvdecFrame>( *m_pcFrameNext );
         m_uiSeqNumOutput = (*ppcFrame)->sequenceNumber;
         ++m_pcFrameNext;
       }
@@ -549,9 +535,9 @@ int VVDecImpl::flush( vvdecFrame** ppframe )
       }
       else
       {
-        *ppframe = &( *m_pcFrameNext );
-        m_uiSeqNumOutput = (*ppframe)->sequenceNumber;
-        ++m_pcFrameNext;
+         *ppframe = &std::get<vvdecFrame>( *m_pcFrameNext );
+         m_uiSeqNumOutput = ( *ppframe )->sequenceNumber;
+         ++m_pcFrameNext;
       }
     }
     else
@@ -620,27 +606,16 @@ vvdecSEI* VVDecImpl::findFrameSei( vvdecSEIPayloadType payloadType, vvdecFrame *
   }
 
   Picture* picture = nullptr;
-  for ( auto& pic : m_pcLibPictureList )
+  for( auto& entry: m_rcFrameList )
   {
-    if( frame->picAttributes != NULL )
+    if( frame == &std::get<vvdecFrame>( entry ) )
     {
-      if( frame->picAttributes->poc == (uint64_t)pic->poc )
-      {
-        picture = pic;
-        break;
-      }
-    }
-    else
-    {
-      if( frame->ctsValid && frame ->cts == pic->cts )
-      {
-        picture = pic;
-        break;
-      }
+      picture = std::get<Picture*>( entry );
+      break;
     }
   }
 
-  if( picture == nullptr)
+  if( picture == nullptr )
   {
     msg(VERBOSE, "findFrameSei: cannot find pictue in internal list.\n");
     return nullptr;
@@ -669,44 +644,22 @@ int VVDecImpl::objectUnref( vvdecFrame* pcFrame )
     return VVDEC_ERR_UNSPECIFIED;
   }
 
-  bool bPicFound = false;
-  for( auto& pic : m_rcFrameList )
+  for( auto it = m_rcFrameList.begin(); it != m_rcFrameList.end(); ++it )
   {
-    if( &pic == pcFrame )
+    vvdecFrame* frame = &std::get<vvdecFrame>( *it );
+    if( frame == pcFrame )
     {
-      bPicFound = true;
-      vvdec_frame_reset( &pic );
-      break;
+      vvdec_frame_reset( frame );
+      if( std::get<Picture*>( *it ) )
+      {
+        m_cDecLib->releasePicture( std::get<Picture*>( *it ) );
+      }
+      m_rcFrameList.erase( it );
+      return VVDEC_OK;
     }
   }
 
-  if( bPicFound )
-  {
-    std::list<vvdecFrame>::iterator itFrame = m_rcFrameList.end();
-    for( std::list<vvdecFrame>::iterator it = m_rcFrameList.begin(); it != m_rcFrameList.end(); it++ )
-    {
-       if( &*it == pcFrame )
-       {
-           itFrame = it;
-           break;
-       }
-    }
-    if( itFrame != m_rcFrameList.end())
-    {
-      m_rcFrameList.erase(itFrame);
-    }
-    else
-    {
-      m_cErrorString = "objectUnref() cannot find picture in picture list";
-      return VVDEC_ERR_UNSPECIFIED;
-    }
-  }
-  else
-  {
-    return VVDEC_ERR_UNSPECIFIED;
-  }
-
-  return VVDEC_OK;
+  return VVDEC_ERR_UNSPECIFIED;
 }
 
 int VVDecImpl::getNumberOfErrorsPictureHashSEI()
@@ -826,7 +779,7 @@ vvdecNalType VVDecImpl::getNalUnitType ( vvdecAccessUnit& rcAccessUnit )
   if( found )
   {
     unsigned char uc = pcBuf[iOffset];
-    int nalUnitType   = ((uc >> 3) & 0x1F ); 
+    int nalUnitType   = ((uc >> 3) & 0x1F );
     eNalType = (vvdecNalType)nalUnitType;
   }
 
@@ -992,12 +945,12 @@ int VVDecImpl::xAddPicture( Picture* pcPic )
     {
       PelStorage upscaledPic;
       upscaledPic.create( cPicBuf.chromaFormat, Size( orgWidth, orgHeight ), 0, 0, 0, true, &m_cUserAllocator );
-      
+
       int xScale = ( ( uiWidth  << SCALE_RATIO_BITS ) + ( orgWidth  >> 1 ) ) / orgWidth;
       int yScale = ( ( uiHeight << SCALE_RATIO_BITS ) + ( orgHeight >> 1 ) ) / orgHeight;
 
       upscaledPic.rescaleBuf( cPicBuf, std::pair<int, int>( xScale, yScale ), conf, defDisp, bitDepths, pcPic->cs->sps->getHorCollocatedChromaFlag(), pcPic->cs->sps->getVerCollocatedChromaFlag() );
-      
+
       // copy picture into target memory
       for( int comp=0; comp < maxComponent; comp++ )
       {
@@ -1055,7 +1008,6 @@ int VVDecImpl::xAddPicture( Picture* pcPic )
 
       cFrame.planes[comp].ptr = (unsigned char*)(planeOrigin + planeOffset);
     }
-    m_pcLibPictureList.push_back( pcPic );
   }
 
   // set picture attributes
@@ -1132,7 +1084,7 @@ int VVDecImpl::xAddPicture( Picture* pcPic )
         cFrame.picAttributes->hrd->hrdCpbCnt                        = hrd->getHrdCpbCntMinus1()+1;
       }
     }
-    
+
     if( pcPic->slices.front()->getSPS()->getOlsHrdParameters() )
     {
       const OlsHrdParams* ols = pcPic->slices.front()->getSPS()->getOlsHrdParameters();
@@ -1163,7 +1115,7 @@ int VVDecImpl::xAddPicture( Picture* pcPic )
     }
   }
 
-  m_rcFrameList.push_back( cFrame );
+  m_rcFrameList.push_back( { cFrame, bCreateStorage ? nullptr : pcPic } );
 
   if( m_pcFrameNext == m_rcFrameList.end() )
   {
@@ -1173,9 +1125,9 @@ int VVDecImpl::xAddPicture( Picture* pcPic )
     }
     else
     {
-      for( std::list<vvdecFrame>::iterator it = m_rcFrameList.begin(); it != m_rcFrameList.end(); it++ )
+      for( auto it = m_rcFrameList.begin(); it != m_rcFrameList.end(); it++ )
       {
-        if(  (*it).sequenceNumber > m_uiSeqNumOutput )
+        if( std::get<vvdecFrame>( *it ).sequenceNumber > m_uiSeqNumOutput )
         {
           m_pcFrameNext = it;
           break;
@@ -1186,7 +1138,7 @@ int VVDecImpl::xAddPicture( Picture* pcPic )
 
   m_uiSeqNumber++;
 
-  if ( bCreateStorage   )
+  if( bCreateStorage )
   {
     // release library picture storage, because picture has been copied into new storage class
     m_cDecLib->releasePicture( pcPic );
@@ -1303,7 +1255,7 @@ int VVDecImpl::xCreateFrame( vvdecFrame& rcFrame, const CPelUnitBuf& rcPicBuf, u
     if( nBufSize == 0 ){ return VVDEC_ERR_ALLOCATE; }
 
     FrameStorage frameStorage;
-    
+
     if( m_cUserAllocator.enabled )
     {
       frameStorage.setExternAllocator();
@@ -1326,7 +1278,7 @@ int VVDecImpl::xCreateFrame( vvdecFrame& rcFrame, const CPelUnitBuf& rcPicBuf, u
     {
       frameStorage.allocateStorage( nBufSize );
       rcFrame.planes[VVDEC_CT_Y].ptr = frameStorage.getStorage();
-            
+
       switch( rcPicBuf.chromaFormat )
       {
         case CHROMA_400:
@@ -1340,7 +1292,7 @@ int VVDecImpl::xCreateFrame( vvdecFrame& rcFrame, const CPelUnitBuf& rcPicBuf, u
         default: break;
       }
     }
-    m_cFrameStorageMap.insert( frameStorageMapType( rcFrame.sequenceNumber, frameStorage));
+    m_cFrameStorageMap.insert( FrameStorageMapType( rcFrame.sequenceNumber, std::move( frameStorage ) ) );
   }
 
   return 0;
@@ -1498,7 +1450,7 @@ int VVDecImpl::xHandleOutput( Picture* pcPic )
 */
 bool VVDecImpl::isFrameConverted( vvdecFrame* frame )
 {
-  frameStorageMap::iterator storageIter =  m_cFrameStorageMap.find( frame->sequenceNumber );
+  FrameStorageMap::iterator storageIter =  m_cFrameStorageMap.find( frame->sequenceNumber );
   if( storageIter != m_cFrameStorageMap.end() )
   {
     if( storageIter->second.isAllocated() || storageIter->second.isExternAllocator() )
@@ -1550,17 +1502,15 @@ void VVDecImpl::vvdec_plane_default(vvdecPlane *plane)
   plane->allocator = nullptr;    ///< opaque pointer to memory allocator (only valid, when memory is maintained by caller)
 }
 
-void VVDecImpl::vvdec_frame_reset(vvdecFrame *frame )
+void VVDecImpl::vvdec_frame_reset(vvdecFrame *frame)
 {
-  bool bIsInternalLibStorage = true;
-  bool bIsExternAllocator    = false;
-  frameStorageMap::iterator storageIter =  m_cFrameStorageMap.find( frame->sequenceNumber );
+  bool bIsExternAllocator = false;
+  FrameStorageMap::iterator storageIter = m_cFrameStorageMap.find( frame->sequenceNumber );
   if( storageIter != m_cFrameStorageMap.end() )
   {
     if( storageIter->second.isAllocated() )
     {
       storageIter->second.freeStorage();
-      bIsInternalLibStorage = false;
     }
     else if( storageIter->second.isExternAllocator() )
     {
@@ -1568,20 +1518,6 @@ void VVDecImpl::vvdec_frame_reset(vvdecFrame *frame )
     }
 
     m_cFrameStorageMap.erase (storageIter);
-  }
-
-  if( bIsInternalLibStorage )
-  {
-    // release internal picture memory
-    for( std::list<Picture*>::iterator itLibPic = m_pcLibPictureList.begin(); itLibPic != m_pcLibPictureList.end();  itLibPic++ )
-    {
-      if( (*itLibPic)->cts == frame->cts )
-      {
-        m_cDecLib->releasePicture( *itLibPic );
-        m_pcLibPictureList.erase( itLibPic );
-        break;
-      }
-    }
   }
 
   if( frame->picAttributes )

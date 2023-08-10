@@ -2065,119 +2065,74 @@ void InterPrediction::xPredInterBlkRPR( const std::pair<int, int>& scalingRatio,
 { 
   const bool          rndRes = !bi;
 
-  int shiftHor = MV_FRACTIONAL_BITS_INTERNAL + getComponentScaleX( compID, chFmt );
-  int shiftVer = MV_FRACTIONAL_BITS_INTERNAL + getComponentScaleY( compID, chFmt );
+  const int csx = getComponentScaleX( compID, chFmt );
+  const int csy = getComponentScaleY( compID, chFmt );
 
-  int width  = dstWidth;
-  int height = dstHeight;
-  CPelBuf refBuf;
+  int shiftHor  = MV_FRACTIONAL_BITS_INTERNAL + csx;
+  int shiftVer  = MV_FRACTIONAL_BITS_INTERNAL + csy;
+
+  int width     = dstWidth;
+  int height    = dstHeight;
+
+  CPelBuf    refBuf;
   const Pel* refPtr;
   ptrdiff_t  refStride;
 
   int row, col;
 
-  int refPicWidth = refPic->lwidth();
+  int refPicWidth  = refPic->lwidth();
   int refPicHeight = refPic->lheight();
 
   int xFilter = filterIndex;
   int yFilter = filterIndex;
-  const int rprThreshold1 = ( 1 << SCALE_RATIO_BITS ) * 5 / 4; 
-  const int rprThreshold2 = ( 1 << SCALE_RATIO_BITS ) * 7 / 4;
-  if( filterIndex == 0 )
+
+  static constexpr int rprThreshold1 = ( 1 << SCALE_RATIO_BITS ) * 5 / 4; 
+  static constexpr int rprThreshold2 = ( 1 << SCALE_RATIO_BITS ) * 7 / 4;
+
+  if     ( scalingRatio.first > rprThreshold2 ) xFilter = 4;
+  else if( scalingRatio.first > rprThreshold1 ) xFilter = 3;
+
+  if     ( scalingRatio.second > rprThreshold2 ) yFilter = 4;
+  else if( scalingRatio.second > rprThreshold1 ) yFilter = 3;
+
+  if( isLuma( compID ) && filterIndex == 2 )
   {
-    if( scalingRatio.first > rprThreshold2 )
-    {
-      xFilter = 4;
-    }
-    else if( scalingRatio.first > rprThreshold1 )
-    {
-      xFilter = 3;
-    }
-
-    if( scalingRatio.second > rprThreshold2 )
-    {
-      yFilter = 4;
-    }
-    else if( scalingRatio.second > rprThreshold1 )
-    {
-      yFilter = 3;
-    }
-  }
-  if (filterIndex == 2)
-  {
-    if (isLuma(compID))
-    {
-      if (scalingRatio.first > rprThreshold2)
-      {
-        xFilter = 6;
-      }
-      else if (scalingRatio.first > rprThreshold1)
-      {
-        xFilter = 5;
-      }
-
-      if (scalingRatio.second > rprThreshold2)
-      {
-        yFilter = 6;
-      }
-      else if (scalingRatio.second > rprThreshold1)
-      {
-        yFilter = 5;
-      }
-    }
-    else
-    {
-      if (scalingRatio.first > rprThreshold2)
-      {
-        xFilter = 4;
-      }
-      else if (scalingRatio.first > rprThreshold1)
-      {
-        xFilter = 3;
-      }
-
-      if (scalingRatio.second > rprThreshold2)
-      {
-        yFilter = 4;
-      }
-      else if (scalingRatio.second > rprThreshold1)
-      {
-        yFilter = 3;
-      }
-    }
+    if( scalingRatio.first  > rprThreshold1 ) xFilter += 2;
+    if( scalingRatio.second > rprThreshold1 ) yFilter += 2;
   }
 
   const int posShift = SCALE_RATIO_BITS - 4;
-  int stepX = ( scalingRatio.first + 8 ) >> 4;
-  int stepY = ( scalingRatio.second + 8 ) >> 4;
+  const int stepX    = ( scalingRatio.first  + 8 ) >> 4;
+  const int stepY    = ( scalingRatio.second + 8 ) >> 4;
+  const int offX     = 1 << ( posShift - shiftHor - 1 );
+  const int offY     = 1 << ( posShift - shiftVer - 1 );
+
   int64_t x0Int;
   int64_t y0Int;
-  int offX = 1 << ( posShift - shiftHor - 1 );
-  int offY = 1 << ( posShift - shiftVer - 1 );
 
-  const int64_t posX = ( ( blkPos.x << getComponentScaleX( compID, chFmt ) ) - ( pps.getScalingWindow().getWindowLeftOffset() * SPS::getWinUnitX( chFmt ) ) ) >> getComponentScaleX( compID, chFmt );
-  const int64_t posY = ( ( blkPos.y << getComponentScaleY( compID, chFmt ) ) - ( pps.getScalingWindow().getWindowTopOffset()  * SPS::getWinUnitY( chFmt ) ) ) >> getComponentScaleY( compID, chFmt );
+  const int64_t posX = ( ( blkPos.x << csx ) - ( pps.getScalingWindow().getWindowLeftOffset() * SPS::getWinUnitX( chFmt ) ) ) >> csx;
+  const int64_t posY = ( ( blkPos.y << csy ) - ( pps.getScalingWindow().getWindowTopOffset()  * SPS::getWinUnitY( chFmt ) ) ) >> csy;
 
-  int addX = isLuma( compID ) ? 0 : int( 1 - refPic->cs->sps->getHorCollocatedChromaFlag() ) * 8 * ( scalingRatio.first - SCALE_1X.first );
-  int addY = isLuma( compID ) ? 0 : int( 1 - refPic->cs->sps->getVerCollocatedChromaFlag() ) * 8 * ( scalingRatio.second - SCALE_1X.second );
+  const int     addX = isLuma( compID ) ? 0 : int( 1 - refPic->cs->sps->getHorCollocatedChromaFlag() ) * 8 * ( scalingRatio.first  - SCALE_1X.first  );
+  const int     addY = isLuma( compID ) ? 0 : int( 1 - refPic->cs->sps->getVerCollocatedChromaFlag() ) * 8 * ( scalingRatio.second - SCALE_1X.second );
 
-  x0Int = ( ( posX << ( 4 + getComponentScaleX( compID, chFmt ) ) ) + mv.getHor() ) * (int64_t)scalingRatio.first + addX;
-  x0Int = SIGN( x0Int ) * ( ( llabs( x0Int ) + ( (long long)1 << ( 7 + getComponentScaleX( compID, chFmt ) ) ) ) >> ( 8 + getComponentScaleX( compID, chFmt ) ) ) + ( ( refPic->slices[0]->getPPS()->getScalingWindow().getWindowLeftOffset() * SPS::getWinUnitX( chFmt ) ) << ( ( posShift - getComponentScaleX( compID, chFmt ) ) ) );
+  x0Int = ( ( posX << ( 4 + csx ) ) + mv.getHor() ) * ( int64_t ) scalingRatio.first + addX;
+  x0Int = SIGN( x0Int ) * ( ( llabs( x0Int ) + ( ( long long ) 1 << ( 7 + csx ) ) ) >> ( 8 + csx ) ) + ( ( refPic->slices[ 0 ]->getPPS()->getScalingWindow().getWindowLeftOffset() * SPS::getWinUnitX( chFmt ) ) << ( ( posShift - csx ) ) );
 
-  y0Int = ( ( posY << ( 4 + getComponentScaleY( compID, chFmt ) ) ) + mv.getVer() ) * (int64_t)scalingRatio.second + addY;
-  y0Int = SIGN( y0Int ) * ( ( llabs( y0Int ) + ( (long long)1 << ( 7 + getComponentScaleY( compID, chFmt ) ) ) ) >> ( 8 + getComponentScaleY( compID, chFmt ) ) ) + ( ( refPic->slices[0]->getPPS()->getScalingWindow().getWindowTopOffset() * SPS::getWinUnitY( chFmt ) ) << ( ( posShift - getComponentScaleY( compID, chFmt ) ) ) );
+  y0Int = ( ( posY << ( 4 + csy ) ) + mv.getVer() ) * ( int64_t ) scalingRatio.second + addY;
+  y0Int = SIGN( y0Int ) * ( ( llabs( y0Int ) + ( ( long long ) 1 << ( 7 + csy ) ) ) >> ( 8 + csy ) ) + ( ( refPic->slices[ 0 ]->getPPS()->getScalingWindow().getWindowTopOffset()  * SPS::getWinUnitY( chFmt ) ) << ( ( posShift - csy ) ) );
   
   const int extSize = isLuma( compID ) ? 1 : 2;
 
   int vFilterSize = isLuma( compID ) ? NTAPS_LUMA : NTAPS_CHROMA;
 
-  int yInt0 = ( (int32_t)y0Int + offY ) >> posShift;
-  yInt0 = std::min( std::max( -(NTAPS_LUMA / 2), yInt0 ), ( refPicHeight >> getComponentScaleY( compID, chFmt ) ) + (NTAPS_LUMA / 2) );
+  int yInt0 = ( ( int32_t ) y0Int + offY ) >> posShift;
+  yInt0     = Clip3( -( NTAPS_LUMA / 2 ), ( refPicHeight >> csy ) + ( NTAPS_LUMA / 2 ), yInt0 );
 
-  int xInt0 = ( (int32_t)x0Int + offX ) >> posShift;
-  xInt0 = std::min( std::max( -(NTAPS_LUMA / 2), xInt0 ), ( refPicWidth >> getComponentScaleX( compID, chFmt ) ) + (NTAPS_LUMA / 2) );
+  int xInt0 = ( ( int32_t ) x0Int + offX ) >> posShift;
+  xInt0     = Clip3( -( NTAPS_LUMA / 2 ), ( refPicWidth  >> csx ) + ( NTAPS_LUMA / 2 ), xInt0 );
 
-  int refHeight = ((((int32_t)y0Int + (height-1) * stepY) + offY ) >> posShift) - ((((int32_t)y0Int + 0 * stepY) + offY ) >> posShift) + 1;
+  int refHeight = ( ( ( ( int32_t ) y0Int + ( height - 1 ) * stepY ) + offY ) >> posShift ) - ( ( ( ( int32_t ) y0Int + 0 * stepY ) + offY ) >> posShift ) + 1;
   refHeight = std::max<int>( 1, refHeight );
   
   CHECK_RECOVERABLE( MAX_CU_SIZE * MAX_SCALING_RATIO < refHeight + vFilterSize - 1 + extSize, "Buffer size is not enough, increase MAX_SCALING_RATIO" );
@@ -2191,9 +2146,9 @@ void InterPrediction::xPredInterBlkRPR( const std::pair<int, int>& scalingRatio,
 
   for( col = 0; col < width; col++ )
   {
-    int posX = (int32_t)x0Int + col * stepX;
-    xInt = ( posX + offX ) >> posShift;
-    xInt = std::min( std::max( -(NTAPS_LUMA / 2), xInt ), ( refPicWidth >> getComponentScaleX( compID, chFmt ) ) + (NTAPS_LUMA / 2) );
+    int posX = ( int32_t ) x0Int + col * stepX;
+        xInt = ( posX + offX ) >> posShift;
+        xInt = Clip3( -( NTAPS_LUMA / 2 ), ( refPicWidth >> csx ) + ( NTAPS_LUMA / 2 ), xInt );
     int xFrac = ( ( posX + offX ) >> ( posShift - shiftHor ) ) & ( ( 1 << shiftHor ) - 1 );
 
     CHECK_RECOVERABLE( xInt0 > xInt, "Wrong horizontal starting point" );
@@ -2206,9 +2161,9 @@ void InterPrediction::xPredInterBlkRPR( const std::pair<int, int>& scalingRatio,
 
   for( row = 0; row < height; row++ )
   {
-    int posY = (int32_t)y0Int + row * stepY;
-    yInt = ( posY + offY ) >> posShift;
-    yInt = std::min( std::max( -(NTAPS_LUMA / 2), yInt ), ( refPicHeight >> getComponentScaleY( compID, chFmt ) ) + (NTAPS_LUMA / 2) );
+    int posY = ( int32_t ) y0Int + row * stepY;
+        yInt = ( posY + offY ) >> posShift;
+        yInt = Clip3( -( NTAPS_LUMA / 2 ), ( refPicHeight >> csy ) + ( NTAPS_LUMA / 2 ), yInt );
     int yFrac = ( ( posY + offY ) >> ( posShift - shiftVer ) ) & ( ( 1 << shiftVer ) - 1 );
 
     CHECK_RECOVERABLE( yInt0 > yInt, "Wrong vertical starting point" );

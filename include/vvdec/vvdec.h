@@ -391,7 +391,7 @@ typedef struct vvdecPicAttributes
   vvdecSliceType  sliceType;           // slice type (I/P/B) */
   bool            isRefPic;            // reference picture
   uint32_t        temporalLayer;       // temporal layer
-  uint64_t        poc;                 // picture order count
+  int64_t         poc;                 // picture order count
   uint32_t        bits;                // bits of the compr. image packet
   vvdecVui       *vui;                 // if available, pointer to VUI (Video Usability Information)
   vvdecHrd       *hrd;                 // if available, pointer to HRD (Hypothetical Reference Decoder)
