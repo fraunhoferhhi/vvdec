@@ -681,11 +681,8 @@ static void simdInterpolateHorM8_AVX2( const int16_t* src, ptrdiff_t srcStride, 
   __m256i vshuf1 = _mm256_set_epi8( 0xd, 0xc, 0xb, 0xa, 0xb, 0xa, 0x9, 0x8, 0x9, 0x8, 0x7, 0x6, 0x7, 0x6, 0x5, 0x4,
                                     0xd, 0xc, 0xb, 0xa, 0xb, 0xa, 0x9, 0x8, 0x9, 0x8, 0x7, 0x6, 0x7, 0x6, 0x5, 0x4 );
 
-#if __INTEL_COMPILER
   __m256i vcoeff[4];
-#else
-  __m256i vcoeff[N/2];
-#endif
+
   for( int i=0; i<N; i+=2 )
   {
     vcoeff[i/2] = _mm256_unpacklo_epi16( _mm256_set1_epi16( coeff[i] ), _mm256_set1_epi16( coeff[i+1] ) );
@@ -781,11 +778,9 @@ static void simdInterpolateHorM16_AVX2( const int16_t* src, ptrdiff_t srcStride,
                                     0x9, 0x8, 0x7, 0x6, 0x7, 0x6, 0x5, 0x4, 0x5, 0x4, 0x3, 0x2, 0x3, 0x2, 0x1, 0x0 );
   __m256i vshuf1 = _mm256_set_epi8( 0xd, 0xc, 0xb, 0xa, 0xb, 0xa, 0x9, 0x8, 0x9, 0x8, 0x7, 0x6, 0x7, 0x6, 0x5, 0x4,
                                     0xd, 0xc, 0xb, 0xa, 0xb, 0xa, 0x9, 0x8, 0x9, 0x8, 0x7, 0x6, 0x7, 0x6, 0x5, 0x4 );
-#if __INTEL_COMPILER
+
   __m256i vcoeff[4];
-#else
-  __m256i vcoeff[N/2];
-#endif
+
   for( int i=0; i<N; i+=2 )
   {
     vcoeff[i/2] = _mm256_unpacklo_epi16( _mm256_set1_epi16( coeff[i] ), _mm256_set1_epi16( coeff[i+1] ) );
@@ -962,7 +957,7 @@ static void simdInterpolateVerM4( const int16_t *src, ptrdiff_t srcStride, int16
   const int16_t *srcOrig = src;
   int16_t *dstOrig = dst;
 
-  __m128i vcoeff[N / 2], vsrc[N];
+  __m128i vcoeff[N], vsrc[N];
   __m128i vzero = _mm_setzero_si128();
   __m128i voffset = _mm_set1_epi32( offset );
   __m128i vibdimin = _mm_set1_epi16( clpRng.min() );
@@ -1044,7 +1039,7 @@ static void simdInterpolateVerM8( const int16_t *src, ptrdiff_t srcStride, int16
   const Pel *srcOrig = src;
   int16_t *dstOrig = dst;
 
-  __m128i vcoeff[N / 2], vsrc[N];
+  __m128i vcoeff[N], vsrc[N];
   __m128i vzero = _mm_setzero_si128();
   __m128i voffset = _mm_set1_epi32( offset );
   __m128i vibdimin = _mm_set1_epi16( clpRng.min() );
@@ -1136,7 +1131,7 @@ static void simdInterpolateVerM8_AVX2( const int16_t *src, ptrdiff_t srcStride, 
 
   __m256i vsum;
   __m128i vsrc[N];
-  __m256i vcoeff[N/2];
+  __m256i vcoeff[N];
   for( int i=0; i<N; i+=2 )
   {
     vcoeff[i/2] = _mm256_unpacklo_epi16( _mm256_set1_epi16( coeff[i] ), _mm256_set1_epi16( coeff[i+1] ) );
@@ -1222,7 +1217,7 @@ static void simdInterpolateVerM16_AVX2( const int16_t *src, ptrdiff_t srcStride,
   __m256i vsum, vsuma, vsumb;
 
   __m256i vsrc[N];
-  __m256i vcoeff[N/2];
+  __m256i vcoeff[N];
   for( int i=0; i<N; i+=2 )
   {
     vcoeff[i/2] = _mm256_unpacklo_epi16( _mm256_set1_epi16( coeff[i] ), _mm256_set1_epi16( coeff[i+1] ) );
@@ -1577,130 +1572,77 @@ static void simdFilter( const ClpRng& clpRng, const Pel* src, const ptrdiff_t sr
   {
     if( isFirst )
     {
-      shift = IF_FILTER_PREC_BILINEAR - (IF_INTERNAL_PREC_BILINEAR - clpRng.bd);
+      shift  = IF_FILTER_PREC_BILINEAR - (IF_INTERNAL_PREC_BILINEAR - clpRng.bd);
       offset = 1 << (shift - 1);
     }
     else
     {
-      shift = 4;
+      shift  = 4;
       offset = 1 << (shift - 1);
     }
+
+    simdInterpolateN2<vext, isLast>( src, srcStride, dst, dstStride, cStride, width, height, shift, offset, clpRng, c );
+    return;
+  }
+
+  if( isLast )
+  {
+    shift += ( isFirst ) ? 0 : headRoom;
+    offset = 1 << ( shift - 1 );
+    offset += ( isFirst ) ? 0 : IF_INTERNAL_OFFS << IF_FILTER_PREC;
   }
   else
   {
-    if( isLast )
-    {
-      shift += ( isFirst ) ? 0 : headRoom;
-      offset = 1 << ( shift - 1 );
-      offset += ( isFirst ) ? 0 : IF_INTERNAL_OFFS << IF_FILTER_PREC;
-    }
-    else
-    {
-      shift -= ( isFirst ) ? headRoom : 0;
-      offset = ( isFirst ) ? -IF_INTERNAL_OFFS *(1<< shift) : 0;
-    }
+    shift -= ( isFirst ) ? headRoom : 0;
+    offset = ( isFirst ) ? -IF_INTERNAL_OFFS *(1<< shift) : 0;
   }
 
+  if( !isVertical )
   {
-    if( N == 8 && !( width & 0x07 ) )
+    if( ( width & 7 ) == 0 )
     {
-      if( !isVertical )
-      {
-        if( vext >= AVX2 )
+      if( vext >= AVX2 )
 #if USE_M16_AVX2_IF
-          if( !( width & 15 ) )
-            simdInterpolateHorM16_AVX2<vext, 8, isLast>( src, srcStride, dst, dstStride, width, height, shift, offset, clpRng, c );
-          else
-#endif
-            simdInterpolateHorM8_AVX2 <vext, 8, isLast>( src, srcStride, dst, dstStride, width, height, shift, offset, clpRng, c );
+        if( !( width & 15 ) )
+          simdInterpolateHorM16_AVX2<vext, N, isLast>( src, srcStride, dst, dstStride, width, height, shift, offset, clpRng, c );
         else
-          simdInterpolateHorM8<vext, 8, isLast>( src, srcStride, dst, dstStride, width, height, shift, offset, clpRng, c );
-      }
+#endif
+          simdInterpolateHorM8_AVX2 <vext, N, isLast>( src, srcStride, dst, dstStride, width, height, shift, offset, clpRng, c );
       else
-      {
-        if( vext>= AVX2 )
-#if USE_M16_AVX2_IF
-          if( !( width & 15 ) )
-            simdInterpolateVerM16_AVX2<vext, 8, isLast>( src, srcStride, dst, dstStride, width, height, shift, offset, clpRng, c );
-          else
-#endif
-            simdInterpolateVerM8_AVX2 <vext, 8, isLast>( src, srcStride, dst, dstStride, width, height, shift, offset, clpRng, c );
-        else
-          simdInterpolateVerM8<vext, 8, isLast>( src, srcStride, dst, dstStride, width, height, shift, offset, clpRng, c );
-      }
-      return;
+        simdInterpolateHorM8<vext, N, isLast>( src, srcStride, dst, dstStride, width, height, shift, offset, clpRng, c );
     }
-    else if( N == 8 && !( width & 0x03 ) )
-    {
-      if( !isVertical )
-      {
-        simdInterpolateHorM4<vext, 8, isLast>( src, srcStride, dst, dstStride, width, height, shift, offset, clpRng, c );
-      }
-      else
-        simdInterpolateVerM4<vext, 8, isLast>( src, srcStride, dst, dstStride, width, height, shift, offset, clpRng, c );
-      return;
-    }
-    else if( N == 4 && ( width % 2 ) == 0 )
-    {
-      CHECKD( ( width & 1 ), "Blocks of width 1 are not allowed!" );
-
-      if( !isVertical )
-      {
-        if( ( width % 8 ) == 0 )
-        {
-          if( vext>= AVX2 )
-#if USE_M16_AVX2_IF
-            if( !( width & 15 ) )
-              simdInterpolateHorM16_AVX2<vext, 4, isLast>( src, srcStride, dst, dstStride, width, height, shift, offset, clpRng, c );
-            else
-#endif
-              simdInterpolateHorM8_AVX2 <vext, 4, isLast>( src, srcStride, dst, dstStride, width, height, shift, offset, clpRng, c );
-          else
-            simdInterpolateHorM8<vext, 4, isLast>( src, srcStride, dst, dstStride, width, height, shift, offset, clpRng, c );
-        }
-        else if( ( width % 4 ) == 0 )
-          simdInterpolateHorM4<vext, 4, isLast>( src, srcStride, dst, dstStride, width, height, shift, offset, clpRng, c );
-        else
-          simdInterpolateHorM2<vext, 4, isLast>( src, srcStride, dst, dstStride, width, height, shift, offset, clpRng, c );
-
-        return;
-      }
-      else
-      {
-        if( ( width % 8 ) == 0 )
-        {
-          if( vext >= AVX2 )
-#if USE_M16_AVX2_IF
-            if( !( width & 15 ) )
-              simdInterpolateVerM16_AVX2<vext, 4, isLast>( src, srcStride, dst, dstStride, width, height, shift, offset, clpRng, c );
-            else
-#endif
-              simdInterpolateVerM8_AVX2 <vext, 4, isLast>( src, srcStride, dst, dstStride, width, height, shift, offset, clpRng, c );
-          else
-            simdInterpolateVerM8<vext, 4, isLast>( src, srcStride, dst, dstStride, width, height, shift, offset, clpRng, c );
-        }
-        else if( ( width % 4 ) == 0 )
-          simdInterpolateVerM4<vext, 4, isLast>( src, srcStride, dst, dstStride, width, height, shift, offset, clpRng, c );
-        else
-          simdInterpolateVerM2<vext, 4, isLast>( src, srcStride, dst, dstStride, width, height, shift, offset, clpRng, c );
-
-        return;
-      }
-    }
-    else if( width == 1 )
-    {
-      CHECK( isVertical, "Should never happen!" );
+    else if( ( width & 3 ) == 0 )
+      simdInterpolateHorM4<vext, N, isLast>( src, srcStride, dst, dstStride, width, height, shift, offset, clpRng, c );
+    else if( ( width & 1 ) == 0 )
+      simdInterpolateHorM2<vext, N, isLast>( src, srcStride, dst, dstStride, width, height, shift, offset, clpRng, c );
+    else
       simdInterpolateHorM1<vext, N, isLast>( src, srcStride, dst, dstStride, width, height, shift, offset, clpRng, c );
-      return;
-    }
-    else if( N == 2 )
+  }
+  else
+  {
+    if( ( width & 7 ) == 0 )
     {
-      CHECKD( clpRng.bd > 10, "Bit depths over 10 not supported!" );
-      simdInterpolateN2<vext, isLast>( src, srcStride, dst, dstStride, cStride, width, height, shift, offset, clpRng, c );
-      return;
+      if( vext >= AVX2 )
+#if USE_M16_AVX2_IF
+        if( !( width & 15 ) )
+          simdInterpolateVerM16_AVX2<vext, N, isLast>( src, srcStride, dst, dstStride, width, height, shift, offset, clpRng, c );
+        else
+#endif
+          simdInterpolateVerM8_AVX2 <vext, N, isLast>( src, srcStride, dst, dstStride, width, height, shift, offset, clpRng, c );
+      else
+        simdInterpolateVerM8<vext, N, isLast>( src, srcStride, dst, dstStride, width, height, shift, offset, clpRng, c );
     }
+    else if( ( width & 3 ) == 0 )
+      simdInterpolateVerM4<vext, N, isLast>( src, srcStride, dst, dstStride, width, height, shift, offset, clpRng, c );
+    else if( ( width & 1 ) == 0 )
+      simdInterpolateVerM2<vext, N, isLast>( src, srcStride, dst, dstStride, width, height, shift, offset, clpRng, c );
+    else
+      goto scalar_if;
   }
 
+  return;
+
+scalar_if:
   for( row = 0; row < height; row++ )
   {
     for( col = 0; col < width; col++ )

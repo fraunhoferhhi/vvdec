@@ -7,7 +7,7 @@ cmake_minimum_required( VERSION 3.12.0 FATAL_ERROR )
 cmake_policy( VERSION ${CMAKE_MAJOR_VERSION}.${CMAKE_MINOR_VERSION} )
 
 # project name
-project( vvdec VERSION 2.1.0 )
+project( vvdec VERSION 2.1.1 )
 # set alternative version numbering for release candidates
 #set( PROJECT_VERSION_RC rc1 )
 if( PROJECT_VERSION_RC )
@@ -64,7 +64,7 @@ if( VVDEC_ENABLE_X86_SIMD OR VVDEC_ENABLE_ARM_SIMD )
   if( "${CMAKE_SYSTEM_PROCESSOR}" MATCHES "armv7|arm.*eabi"
       OR "${CMAKE_CXX_COMPILER}" MATCHES "armv7|arm.*eabi"
       OR "${CMAKE_OSX_ARCHITECTURES}" MATCHES "armv7" )
-    message( WARNING "You are building for armv7 which is knnow to be broken. As a workaround, disable SIMD at runtime or build with VVDEC_ENABLE_X86_SIMD=0 and VVDEC_ENABLE_ARM_SIMD=0." )
+    message( WARNING "You are building for armv7 which is known to be broken. As a workaround, disable SIMD at runtime or build with VVDEC_ENABLE_X86_SIMD=0 and VVDEC_ENABLE_ARM_SIMD=0." )
   endif()
 endif()
 

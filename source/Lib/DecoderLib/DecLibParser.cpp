@@ -1403,6 +1403,11 @@ void DecLibParser::prepareUnavailablePicture( bool isLost, const PPS* pps, int i
 #endif
 
   cFillPic->fillGrey( m_parameterSetManager.getFirstSPS() );
+
+  if( m_pocRandomAccess == MAX_INT )
+  {
+    m_pocRandomAccess = iUnavailablePoc;
+  }
 }
 
 #if 0
@@ -1666,34 +1671,33 @@ void DecLibParser::checkNoOutputPriorPics()
  */
 bool DecLibParser::isRandomAccessSkipPicture()
 {
-  if (m_pocRandomAccess == MAX_INT) // start of random access point, m_pocRandomAccess has not been set yet.
+  if( m_apcSlicePilot->getNalUnitType() == NAL_UNIT_CODED_SLICE_IDR_W_RADL || m_apcSlicePilot->getNalUnitType() == NAL_UNIT_CODED_SLICE_IDR_N_LP )
+  {
+    m_pocRandomAccess = -MAX_INT;   // no need to skip the reordered pictures in IDR, they are decodable.
+  }
+  else if( m_pocRandomAccess == MAX_INT )   // start of random access point, m_pocRandomAccess has not been set yet.
   {
 #if GDR_ADJ
-    if (m_apcSlicePilot->getNalUnitType() == NAL_UNIT_CODED_SLICE_CRA || m_apcSlicePilot->getNalUnitType() == NAL_UNIT_CODED_SLICE_GDR )
+    if( m_apcSlicePilot->getNalUnitType() == NAL_UNIT_CODED_SLICE_CRA || m_apcSlicePilot->getNalUnitType() == NAL_UNIT_CODED_SLICE_GDR )
 #else
-    if (m_apcSlicePilot->getNalUnitType() == NAL_UNIT_CODED_SLICE_CRA )
+    if( m_apcSlicePilot->getNalUnitType() == NAL_UNIT_CODED_SLICE_CRA )
 #endif
     {
       // set the POC random access since we need to skip the reordered pictures in the case of CRA/CRANT/BLA/BLANT.
       m_pocRandomAccess = m_apcSlicePilot->getPOC();
     }
-    else if ( m_apcSlicePilot->getNalUnitType() == NAL_UNIT_CODED_SLICE_IDR_W_RADL
-           || m_apcSlicePilot->getNalUnitType() == NAL_UNIT_CODED_SLICE_IDR_N_LP )
-    {
-      m_pocRandomAccess = -MAX_INT; // no need to skip the reordered pictures in IDR, they are decodable.
-    }
     else
     {
-      if(!m_warningMessageSkipPicture)
+      if( !m_warningMessageSkipPicture )
       {
-        msg( WARNING, "Warning: this is not a valid random access point and the data is discarded until the first CRA picture\n");
+        msg( WARNING, "Warning: this is not a valid random access point and the data is discarded until the first CRA picture\n" );
         m_warningMessageSkipPicture = true;
       }
       return true;
     }
   }
   // skip the reordered pictures, if necessary
-  else if (m_apcSlicePilot->getPOC() < m_pocRandomAccess && (m_apcSlicePilot->getNalUnitType() == NAL_UNIT_CODED_SLICE_RASL))
+  else if( m_apcSlicePilot->getPOC() < m_pocRandomAccess && ( m_apcSlicePilot->getNalUnitType() == NAL_UNIT_CODED_SLICE_RASL ) )
   {
     return true;
   }
