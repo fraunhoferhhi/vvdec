@@ -381,7 +381,7 @@ static const int PIC_CODE_CW_BINS =                              16;
 static const int FP_PREC =                                       11;
 static const int CSCALE_FP_PREC =                                11;
 static const int SCALE_RATIO_BITS =                              14;
-static const int MAX_SCALING_RATIO =                              8;  // max scaling ratio allowed in the software, it is used to allocated an internla buffer in the rescaling
+static const int MAX_SCALING_RATIO =                              2;  // max scaling ratio allowed in the software, it is used to allocated an internla buffer in the rescaling
 static const std::pair<int, int> SCALE_1X = std::pair<int, int>( 1 << SCALE_RATIO_BITS, 1 << SCALE_RATIO_BITS );  // scale ratio 1x
 static const int DELTA_QP_ACT[4] =                  { -5, 1, 3, 1 };
 

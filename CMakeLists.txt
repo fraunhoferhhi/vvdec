@@ -75,7 +75,7 @@ if( ${CMAKE_SYSTEM_NAME} STREQUAL "Emscripten" )
   add_link_options(
     --bind
     -sWASM_BIGINT
-    -sINITIAL_MEMORY=1200MB # this should be enough for FullHD decoding
+    -sINITIAL_MEMORY=1300MB # this should be enough for FullHD decoding
     -sINVOKE_RUN=0          # don't call main() automatically
     -sUSE_PTHREADS
     #-sPROXY_TO_PTHREAD

@@ -158,7 +158,7 @@ VVDEC_DECL const char* vvdec_get_version()
   return VVDEC_VERSION;
 }
 
-int paramCheck( vvdecParams *params )
+static int paramCheck( vvdecParams *params )
 {
   int ret = 0;
   if (nullptr == params)
@@ -214,7 +214,7 @@ VVDEC_DECL vvdecDecoder* vvdec_decoder_open( vvdecParams *params)
     return nullptr;
   }
 
-  int ret = decCtx->init(*params);
+  int ret = decCtx->catchExceptions( &vvdec::VVDecImpl::init, *params, nullptr, nullptr );
   if (ret != 0)
   {
     const std::string initErr( std::move( decCtx->m_cAdditionalErrorString.c_str() ) );
@@ -256,7 +256,7 @@ VVDEC_DECL vvdecDecoder* vvdec_decoder_open_with_allocator( vvdecParams *params,
     return nullptr;
   }
 
-  int ret = decCtx->init(*params, callbackBufAlloc, callbackBufUnref );
+  int ret = decCtx->catchExceptions( &vvdec::VVDecImpl::init, *params, callbackBufAlloc, callbackBufUnref );
   if (ret != 0)
   {
     const std::string initErr( std::move( decCtx->m_cAdditionalErrorString.c_str() ) );
@@ -280,11 +280,11 @@ VVDEC_DECL int vvdec_decoder_close(vvdecDecoder *dec)
     return VVDEC_ERR_INITIALIZE;
   }
 
-  d->uninit();
+  const int ret = d->catchExceptions( &vvdec::VVDecImpl::uninit );
 
   delete d;
 
-  return VVDEC_OK;
+  return ret;
 }
 
 VVDEC_DECL int vvdec_set_logging_callback(vvdecDecoder* dec, vvdecLoggingCallback callback )
@@ -312,10 +312,10 @@ VVDEC_DECL int vvdec_decode( vvdecDecoder *dec, vvdecAccessUnit* accessUnit, vvd
 
   if( nullptr == accessUnit )
   {
-    return d->setAndRetErrorMsg(VVDEC_ERR_DEC_INPUT);
+    return d->setAndRetErrorMsg( VVDEC_ERR_DEC_INPUT, "no access unit provided (null)" );
   }
 
-  return d->decode( *accessUnit, frame );
+  return d->catchExceptions( &vvdec::VVDecImpl::decode, *accessUnit, frame );
 }
 
 
@@ -329,7 +329,7 @@ VVDEC_DECL int vvdec_flush( vvdecDecoder *dec, vvdecFrame **frame )
     return VVDEC_ERR_INITIALIZE;
   }
 
-  return d->flush( frame );
+  return d->catchExceptions( &vvdec::VVDecImpl::flush, frame );
 }
 
 VVDEC_DECL vvdecSEI* vvdec_find_frame_sei( vvdecDecoder *dec, vvdecSEIPayloadType seiPayloadType, vvdecFrame *frame )
@@ -340,7 +340,7 @@ VVDEC_DECL vvdecSEI* vvdec_find_frame_sei( vvdecDecoder *dec, vvdecSEIPayloadTyp
     return nullptr;
   }
 
-  return  d->findFrameSei( seiPayloadType, frame );
+  return d->catchExceptions( &vvdec::VVDecImpl::findFrameSei, seiPayloadType, frame );
 }
 
 VVDEC_DECL int vvdec_frame_unref( vvdecDecoder *dec, vvdecFrame *frame )
@@ -351,7 +351,7 @@ VVDEC_DECL int vvdec_frame_unref( vvdecDecoder *dec, vvdecFrame *frame )
     return VVDEC_ERR_INITIALIZE;
   }
 
-  return d->objectUnref( frame );
+  return d->catchExceptions( &vvdec::VVDecImpl::objectUnref, frame );
 }
 
 VVDEC_DECL int vvdec_get_hash_error_count( vvdecDecoder *dec )
@@ -362,7 +362,7 @@ VVDEC_DECL int vvdec_get_hash_error_count( vvdecDecoder *dec )
     return VVDEC_ERR_INITIALIZE;
   }
 
-  return d->getNumberOfErrorsPictureHashSEI();
+  return d->catchExceptions( &vvdec::VVDecImpl::getNumberOfErrorsPictureHashSEI );
 }
 
 
@@ -374,7 +374,7 @@ VVDEC_DECL const char* vvdec_get_dec_information( vvdecDecoder *dec )
     return nullptr;
   }
 
-  return d->getDecoderInfo();
+  return d->catchExceptions( &vvdec::VVDecImpl::getDecoderInfo );
 }
 
 VVDEC_DECL const char* vvdec_get_last_error( vvdecDecoder *dec )

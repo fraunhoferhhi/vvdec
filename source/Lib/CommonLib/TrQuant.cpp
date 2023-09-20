@@ -433,13 +433,13 @@ void TrQuant::xIT( const TransformUnit &tu, const ComponentID &compID, const CCo
       const int shift_1st = TRANSFORM_MATRIX_SHIFT + 1 + COM16_C806_TRANS_PREC;
       const int shift_2nd = ( TRANSFORM_MATRIX_SHIFT + maxLog2TrDynamicRange - 1 ) - bitDepth + COM16_C806_TRANS_PREC;
 
-      dcVal = ( ( pCoeff.buf[0] << TRANSFORM_MATRIX_SHIFT ) + ( 1 << ( shift_1st - 1 ) ) ) >> shift_1st;
-      dcVal = ( ( dcVal << TRANSFORM_MATRIX_SHIFT ) + ( 1 << ( shift_2nd - 1 ) ) ) >> shift_2nd;
+      dcVal = ( ( pCoeff.buf[0] * ( 1 << TRANSFORM_MATRIX_SHIFT ) ) + ( 1 << ( shift_1st - 1 ) ) ) >> shift_1st;
+      dcVal = ( ( dcVal * ( 1 << TRANSFORM_MATRIX_SHIFT ) ) + ( 1 << ( shift_2nd - 1 ) ) ) >> shift_2nd;
     }
     else
     {
       const int shift = ( TRANSFORM_MATRIX_SHIFT + maxLog2TrDynamicRange ) - bitDepth + COM16_C806_TRANS_PREC;
-      dcVal = ( ( pCoeff.buf[0] << TRANSFORM_MATRIX_SHIFT ) + ( 1 << ( shift - 1 ) ) ) >> shift;
+      dcVal = ( ( pCoeff.buf[0] * ( 1 << TRANSFORM_MATRIX_SHIFT ) ) + ( 1 << ( shift - 1 ) ) ) >> shift;
     }
 
     pResidual.fill( dcVal );
