@@ -126,6 +126,7 @@ Picture* PicListManager::getNewPicBuffer( const SPS& sps, const PPS& pps, const 
   const int iMaxRefPicNum = ( vps == nullptr || vps->m_numLayersInOls[vps->m_iTargetLayer] == 1 )
                               ? sps.getMaxDecPicBuffering( temporalLayer ) + 1
                               : vps->getMaxDecPicBuffering( temporalLayer );   // m_uiMaxDecPicBuffering has the space for the picture currently being decoded
+  const unsigned int picMargin = ( sps.getRprEnabledFlag() ? MAX_SCALING_RATIO : 1 ) * ( 16 + sps.getMaxCUWidth() );
 
   bool externAllocator = m_userAllocator.enabled;
   if ( externAllocator )
@@ -160,7 +161,7 @@ Picture* PicListManager::getNewPicBuffer( const SPS& sps, const PPS& pps, const 
     pcPic->create( sps.getChromaFormatIdc(),
                    Size( pps.getPicWidthInLumaSamples(), pps.getPicHeightInLumaSamples() ),
                    sps.getMaxCUWidth(),
-                   sps.getMaxCUWidth() + 16,
+                   picMargin,
                    layerId,
                    userAllocator );
     pcPic->createWrapAroundBuf( sps.getUseWrapAround(), sps.getMaxCUWidth() );
@@ -181,11 +182,11 @@ Picture* PicListManager::getNewPicBuffer( const SPS& sps, const PPS& pps, const 
     {
       pic->destroy();
       pic->create( sps.getChromaFormatIdc(),
-                     Size( pps.getPicWidthInLumaSamples(), pps.getPicHeightInLumaSamples() ),
-                     sps.getMaxCUWidth(),
-                     sps.getMaxCUWidth() + 16,
-                     layerId,
-                     userAllocator );
+                   Size( pps.getPicWidthInLumaSamples(), pps.getPicHeightInLumaSamples() ),
+                   sps.getMaxCUWidth(),
+                   picMargin,
+                   layerId,
+                   userAllocator );
       pic->createWrapAroundBuf( sps.getUseWrapAround(), sps.getMaxCUWidth() );
       pic->resetForUse( layerId );
     }
@@ -210,7 +211,7 @@ Picture* PicListManager::getNewPicBuffer( const SPS& sps, const PPS& pps, const 
     pcPic->create( sps.getChromaFormatIdc(),
                    Size( pps.getPicWidthInLumaSamples(), pps.getPicHeightInLumaSamples() ),
                    sps.getMaxCUWidth(),
-                   sps.getMaxCUWidth() + 16,
+                   picMargin,
                    layerId,
                    userAllocator );
     pcPic->createWrapAroundBuf( sps.getUseWrapAround(), sps.getMaxCUWidth() );
@@ -223,13 +224,14 @@ Picture* PicListManager::getNewPicBuffer( const SPS& sps, const PPS& pps, const 
       || pcPic->cs->pcv->maxCUWidth != sps.getMaxCUWidth()
       || pcPic->cs->pcv->maxCUHeight != sps.getMaxCUHeight()
       || pcPic->layerId != layerId
+      || pcPic->margin != picMargin
   )
   {
     pcPic->destroy();
     pcPic->create( sps.getChromaFormatIdc(),
                    Size( pps.getPicWidthInLumaSamples(), pps.getPicHeightInLumaSamples() ),
                    sps.getMaxCUWidth(),
-                   sps.getMaxCUWidth() + 16,
+                   picMargin,
                    layerId,
                    userAllocator );
     pcPic->createWrapAroundBuf( sps.getUseWrapAround(), sps.getMaxCUWidth() );

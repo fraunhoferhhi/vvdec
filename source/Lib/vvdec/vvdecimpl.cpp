@@ -180,7 +180,7 @@ int VVDecImpl::reset()
     vvdecFrame* frame= NULL;
 
     // flush the decoder
-    int iRet = flush( &frame );
+    int iRet = catchExceptions( &VVDecImpl::flush, &frame );
     if( iRet != 0 )  {  bFlushDecoder = false; }
 
     if( frame  )
@@ -261,7 +261,7 @@ int VVDecImpl::decode( vvdecAccessUnit& rcAccessUnit, vvdecFrame** ppcFrame )
     return setAndRetErrorMsg( VVDEC_ERR_DEC_INPUT, "payloadUsedSize must be <= payloadSize" );
   }
 
-  int iRet= VVDEC_OK;
+  int iRet = VVDEC_OK;
 
   try
   {
@@ -379,7 +379,7 @@ int VVDecImpl::decode( vvdecAccessUnit& rcAccessUnit, vvdecFrame** ppcFrame )
           pcPic = m_cDecLib->decode( nalu );
 
           iRet = xHandleOutput( pcPic );
-          if( 0 != iRet )
+          if( VVDEC_OK != iRet )
           {
             return iRet;
           }
@@ -436,8 +436,12 @@ int VVDecImpl::decode( vvdecAccessUnit& rcAccessUnit, vvdecFrame** ppcFrame )
       }
     }
   }
+  // Only catch recoverable exceptions here, because that is handled differently between decode() and flush().
+  // Everything else should be caught by the catchExceptions() wrapper.
   catch( RecoverableException& e )
   {
+    m_cErrorString = "(possibly recoverable) exception";
+
     std::stringstream css;
     if( m_eState == INTERNAL_STATE_TUNING_IN )
     {
@@ -453,35 +457,8 @@ int VVDecImpl::decode( vvdecAccessUnit& rcAccessUnit, vvdecFrame** ppcFrame )
       m_cAdditionalErrorString = css.str();
       return VVDEC_ERR_DEC_INPUT;
     }
-    m_eState = INTERNAL_STATE_RESTART_REQUIRED;
-    return VVDEC_ERR_RESTART_REQUIRED;
-  }
-  catch( UnsupportedFeatureException& e )
-  {
-    std::stringstream css;
-    css << "caught exception for unsupported feature " << e.what();
-    m_cErrorString = "unsupported feature detected";
-    m_cAdditionalErrorString = css.str();
-    m_eState = INTERNAL_STATE_NOT_SUPPORTED;
-    return VVDEC_ERR_NOT_SUPPORTED;
-  }
-  catch( std::overflow_error& e )
-  {
-    //assert( 0 );
-    std::stringstream css;
-    css << "caught overflow exception " << e.what();
-    m_cAdditionalErrorString = css.str();
-    m_eState = INTERNAL_STATE_RESTART_REQUIRED;
-    return VVDEC_ERR_RESTART_REQUIRED;
-  }
-  catch( std::exception& e )
-  {
-    //assert( 0 );
-    std::stringstream css;
-    css << "caught unknown exception " << e.what();
-    m_cErrorString = "caught unknown exception";
-    m_cAdditionalErrorString = css.str();
-    m_eState = INTERNAL_STATE_RESTART_REQUIRED;
+    m_cAdditionalErrorString = std::string( "Exception occured: " ) + e.what();
+    m_eState                 = INTERNAL_STATE_RESTART_REQUIRED;
     return VVDEC_ERR_RESTART_REQUIRED;
   }
 
@@ -490,6 +467,8 @@ int VVDecImpl::decode( vvdecAccessUnit& rcAccessUnit, vvdecFrame** ppcFrame )
 
 int VVDecImpl::flush( vvdecFrame** ppframe )
 {
+  *ppframe = nullptr;
+
   if( !m_bInitialized ){ return VVDEC_ERR_INITIALIZE; }
 
   if( m_eState == INTERNAL_STATE_INITIALIZED )      { m_cErrorString = "decoder did not receive any data to decode, cannot flush"; return VVDEC_ERR_RESTART_REQUIRED; }
@@ -547,8 +526,12 @@ int VVDecImpl::flush( vvdecFrame** ppframe )
       m_eState = INTERNAL_STATE_FINALIZED;
     }
   }
+  // Only catch recoverable exceptions here, because that is handled differently between decode() and flush().
+  // Everything else should be caught by the catchExceptions() wrapper.
   catch( RecoverableException& e )
   {
+    m_cErrorString = "(possibly recoverable) exception";
+
     std::stringstream css;
     if( m_eErrHandlingFlags & ERR_HANDLING_TRY_CONTINUE )
     {
@@ -557,32 +540,8 @@ int VVDecImpl::flush( vvdecFrame** ppframe )
       m_cAdditionalErrorString = css.str();
       return VVDEC_ERR_DEC_INPUT;
     }
-    m_eState = INTERNAL_STATE_RESTART_REQUIRED;
-    return VVDEC_ERR_RESTART_REQUIRED;
-  }
-  catch( UnsupportedFeatureException& e )
-  {
-    std::stringstream css;
-    css << "caught exception for unsupported feature " << e.what();
-    m_cErrorString = "unsupported feature detected";
-    m_cAdditionalErrorString = css.str();
-    m_eState = INTERNAL_STATE_NOT_SUPPORTED;
-    return VVDEC_ERR_NOT_SUPPORTED;
-  }
-  catch( std::overflow_error& e )
-  {
-    std::stringstream css;
-    css << "caught overflow exception " << e.what();
-    m_cAdditionalErrorString = css.str();
-    m_eState = INTERNAL_STATE_RESTART_REQUIRED;
-    return VVDEC_ERR_RESTART_REQUIRED;
-  }
-  catch( std::exception& e )
-  {
-    std::stringstream css;
-    css << "caught unknown exception " << e.what();
-    m_cAdditionalErrorString = css.str();
-    m_eState = INTERNAL_STATE_RESTART_REQUIRED;
+    m_cAdditionalErrorString = std::string( "Exception occured: " ) + e.what();
+    m_eState                 = INTERNAL_STATE_RESTART_REQUIRED;
     return VVDEC_ERR_RESTART_REQUIRED;
   }
 
@@ -1115,7 +1074,7 @@ int VVDecImpl::xAddPicture( Picture* pcPic )
     }
   }
 
-  m_rcFrameList.push_back( { cFrame, bCreateStorage ? nullptr : pcPic } );
+  m_rcFrameList.emplace_back( cFrame, bCreateStorage ? nullptr : pcPic );
 
   if( m_pcFrameNext == m_rcFrameList.end() )
   {
