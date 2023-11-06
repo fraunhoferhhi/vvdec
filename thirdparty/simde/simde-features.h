@@ -39,9 +39,6 @@
     #define SIMDE_X86_SVML_NATIVE
   #endif
 #endif
-#if defined(SIMDE_X86_SVML_NATIVE) && !defined(SIMDE_X86_AVX512F_NATIVE)
-  #define SIMDE_X86_AVX512F_NATIVE
-#endif
 
 #if !defined(SIMDE_X86_AVX512VP2INTERSECT_NATIVE) && !defined(SIMDE_X86_AVX512VP2INTERSECT_NO_NATIVE) && !defined(SIMDE_NO_NATIVE)
   #if defined(SIMDE_ARCH_X86_AVX512VP2INTERSECT)
@@ -142,6 +139,15 @@
   #define SIMDE_X86_AVX512F_NATIVE
 #endif
 
+#if !defined(SIMDE_X86_AVX512FP16_NATIVE) && !defined(SIMDE_X86_AVX512FP16_NO_NATIVE) && !defined(SIMDE_NO_NATIVE)
+  #if defined(SIMDE_ARCH_X86_AVX512FP16)
+    #define SIMDE_X86_AVX512FP16_NATIVE
+  #endif
+#endif
+#if defined(SIMDE_X86_AVX512BW_NATIVE) && !defined(SIMDE_X86_AVX512F_NATIVE)
+  #define SIMDE_X86_AVX512F_NATIVE
+#endif
+
 #if !defined(SIMDE_X86_AVX512BF16_NATIVE) && !defined(SIMDE_X86_AVX512BF16_NO_NATIVE) && !defined(SIMDE_NO_NATIVE)
   #if defined(SIMDE_ARCH_X86_AVX512BF16)
     #define SIMDE_X86_AVX512BF16_NATIVE
@@ -232,6 +238,15 @@
   #define SIMDE_X86_SSE2_NATIVE
 #endif
 
+#if !defined(SIMDE_X86_AES_NATIVE) && !defined(SIMDE_X86_AES_NO_NATIVE) && !defined(SIMDE_NO_NATIVE)
+  #if defined(SIMDE_ARCH_X86_AES)
+    #define SIMDE_X86_AES_NATIVE
+  #endif
+#endif
+#if defined(SIMDE_X86_AES_NATIVE) && !defined(SIMDE_X86_SSE2_NATIVE)
+  #define SIMDE_X86_SSE2_NATIVE
+#endif
+
 #if !defined(SIMDE_X86_SSE2_NATIVE) && !defined(SIMDE_X86_SSE2_NO_NATIVE) && !defined(SIMDE_NO_NATIVE)
   #if defined(SIMDE_ARCH_X86_SSE2)
     #define SIMDE_X86_SSE2_NATIVE
@@ -278,7 +293,7 @@
 #endif
 
 #if !defined(SIMDE_X86_SVML_NATIVE) && !defined(SIMDE_X86_SVML_NO_NATIVE) && !defined(SIMDE_NO_NATIVE)
-  #if defined(__INTEL_COMPILER)
+  #if defined(SIMDE_ARCH_X86) && (defined(__INTEL_COMPILER) || HEDLEY_MSVC_VERSION_CHECK(14, 20, 0))
     #define SIMDE_X86_SVML_NATIVE
   #endif
 #endif
@@ -289,7 +304,7 @@
 #endif
 
 #if \
-    defined(SIMDE_X86_AVX_NATIVE) || defined(SIMDE_X86_GFNI_NATIVE)
+    defined(SIMDE_X86_AVX_NATIVE) || defined(SIMDE_X86_GFNI_NATIVE) || defined(SIMDE_X86_SVML_NATIVE)
   #include <immintrin.h>
 #elif defined(SIMDE_X86_SSE4_2_NATIVE)
   #include <nmmintrin.h>
@@ -313,6 +328,10 @@
   #else
     #include <x86intrin.h>
   #endif
+#endif
+
+#if defined(SIMDE_X86_AES_NATIVE)
+  #include <wmmintrin.h>
 #endif
 
 #if defined(HEDLEY_MSVC_VERSION)
@@ -617,11 +636,17 @@
   #if !defined(SIMDE_X86_AVX512VPOPCNTDQ_NATIVE)
     #define SIMDE_X86_AVX512VPOPCNTDQ_ENABLE_NATIVE_ALIASES
   #endif
+  #if !defined(SIMDE_X86_AVX512VP2INTERSECT_NATIVE)
+    #define SIMDE_X86_AVX512VP2INTERSECT_ENABLE_NATIVE_ALIASES
+  #endif
   #if !defined(SIMDE_X86_AVX512DQ_NATIVE)
     #define SIMDE_X86_AVX512DQ_ENABLE_NATIVE_ALIASES
   #endif
   #if !defined(SIMDE_X86_AVX512CD_NATIVE)
     #define SIMDE_X86_AVX512CD_ENABLE_NATIVE_ALIASES
+  #endif
+  #if !defined(SIMDE_X86_AVX512FP16_NATIVE)
+    #define SIMDE_X86_AVX512FP16_ENABLE_NATIVE_ALIASES
   #endif
   #if !defined(SIMDE_X86_GFNI_NATIVE)
     #define SIMDE_X86_GFNI_ENABLE_NATIVE_ALIASES
@@ -634,6 +659,12 @@
   #endif
   #if !defined(SIMDE_X86_F16C_NATIVE)
     #define SIMDE_X86_F16C_ENABLE_NATIVE_ALIASES
+  #endif
+  #if !defined(SIMDE_X86_AES_NATIVE)
+    #define SIMDE_X86_AES_ENABLE_NATIVE_ALIASES
+  #endif
+  #if !defined(SIMDE_X86_SVML_NATIVE)
+    #define SIMDE_X86_SVML_ENABLE_NATIVE_ALIASES
   #endif
 
   #if !defined(SIMDE_ARM_NEON_A32V7_NATIVE)
@@ -648,6 +679,10 @@
 
   #if !defined(SIMDE_ARM_SVE_NATIVE)
     #define SIMDE_ARM_SVE_ENABLE_NATIVE_ALIASES
+  #endif
+
+  #if !defined(SIMDE_MIPS_MSA_NATIVE)
+    #define SIMDE_MIPS_MSA_ENABLE_NATIVE_ALIASES
   #endif
 
   #if !defined(SIMDE_WASM_SIMD128_NATIVE)

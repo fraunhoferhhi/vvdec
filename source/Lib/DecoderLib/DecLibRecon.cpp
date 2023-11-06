@@ -96,7 +96,7 @@ extern __itt_counter itt_frame_counter;
 //! \ingroup DecoderLib
 //! \{
 
-void CommonTaskParam::reset( CodingStructure& cs, TaskType ctuStartState, int tasksPerLine, bool doALF )
+void CommonTaskParam::reset( CodingStructure& cs, TaskType ctuStartState, int tasksPerLine, bool _doALF )
 {
   this->cs = &cs;
 
@@ -107,11 +107,8 @@ void CommonTaskParam::reset( CodingStructure& cs, TaskType ctuStartState, int ta
   {
     ctu.store( ctuStartState );
   }
-
-  this->perLineMiHist        = std::vector<MotionHist>( heightInCtus );
-  this->finishMotionTriggers = std::vector<Barrier>   ( heightInCtus );
-
-  this->doALF        = doALF;
+  perLineMiHist = std::vector<MotionHist>( heightInCtus );
+  doALF         = _doALF;
 }
 
 DecLibRecon::DecLibRecon()
@@ -244,13 +241,11 @@ void DecLibRecon::borderExtPic( Picture* pic, const Picture* currPic )
     {
       pic->reconDone.checkAndRethrowException();
       pic->parseDone.checkAndRethrowException();  // when the error happened in the slice parsing tasks, there might not be an exception in recon done, so check parseDone also
-      pic->m_motionTaskCounter.donePtr()->checkAndRethrowException();
     }
     catch( ... )
     {
       pic->error = true;
       pic->reconDone.clearException();
-      pic->m_motionTaskCounter.clearException();
       // TODO: for now we set it on parseDone, so we can handle it outside:
       if( !pic->parseDone.hasException() )
       {
@@ -555,12 +550,6 @@ void DecLibRecon::decompressPicture( Picture* pcPic )
     {
       picExtBarriers.push_back( refPic->m_borderExtTaskCounter.donePtr() );
     }
-
-    if( refPic->m_motionTaskCounter.isBlocked() &&
-        std::find( picBarriers.cbegin(), picBarriers.cend(), refPic->m_motionTaskCounter.donePtr() ) == picBarriers.cend() )
-    {
-      picBarriers.push_back( refPic->m_motionTaskCounter.donePtr() );
-    }
   }
 
   if( m_decodeThreadPool->numThreads() == 0 && (
@@ -635,44 +624,6 @@ void DecLibRecon::decompressPicture( Picture* pcPic )
     }
   }
 
-  if( pcPic->stillReferenced )
-  {
-    static auto task = []( int tid, LineTaskParam* param )
-    {
-      ITT_TASKSTART( itt_domain_dec, itt_handle_dmvr );
-      auto& cs = *param->common.cs;
-      for( int col = 0; col < cs.pcv->widthInCtus; col++ )
-      {
-        param->common.decLib.m_pcThreadResource[tid]->m_cCuDecoder.TaskFinishMotionInfo( cs, col + param->line * cs.pcv->widthInCtus, col, param->line );
-      }
-      ITT_TASKEND( itt_domain_dec, itt_handle_dmvr );
-      return true;
-    };
-
-    for( int taskLineMotion = 0; taskLineMotion < heightInCtus; taskLineMotion++ )
-    {
-      auto param  = &tasksFinishMotion[taskLineMotion];
-      param->line = taskLineMotion;
-      m_decodeThreadPool->addBarrierTask<LineTaskParam>( TP_TASK_NAME_ARG( "POC:" + std::to_string(pcPic->poc) + " dmvrTask line:" + std::to_string( taskLineMotion ) )
-                                                         task,
-                                                         param,
-                                                         &pcPic->m_motionTaskCounter,
-                                                         nullptr,
-                                                         { &commonTaskParam.finishMotionTriggers[taskLineMotion], &pcPic->parseDone } );
-    }
-
-    {
-      // dummy task to propagate exceptions from the ctu-decoding tasks to the dmvrTaskCounter
-      static auto dummyTask = []( int, void* ) { return true; };
-      m_decodeThreadPool->addBarrierTask<void>( TP_TASK_NAME_ARG( "POC:" + std::to_string(pcPic->poc) + " dmvrExceptionDummy" )
-                                                dummyTask,
-                                                nullptr,
-                                                &pcPic->m_motionTaskCounter,
-                                                nullptr,
-                                                { pcPic->m_ctuTaskCounter.donePtr() } );
-    }
-  }
-
   {
     static auto finishReconTask = []( int, FinishPicTaskParam* param )
     {
@@ -701,7 +652,7 @@ void DecLibRecon::decompressPicture( Picture* pcPic )
                                                             &taskFinishPic,
                                                             &pcPic->m_divTasksCounter,
                                                             &pcPic->reconDone,
-                                                            { pcPic->m_motionTaskCounter.donePtr(), pcPic->m_ctuTaskCounter.donePtr() } );
+                                                            { pcPic->m_ctuTaskCounter.donePtr() } );
   }
 
   if( m_decodeThreadPool->numThreads() == 0 )
@@ -722,12 +673,11 @@ Picture* DecLibRecon::waitForPrevDecompressedPic()
   if( m_decodeThreadPool->numThreads() == 0 )
   {
     m_decodeThreadPool->processTasksOnMainThread();
-    CHECK( m_currDecompPic->m_motionTaskCounter.isBlocked() || m_currDecompPic->reconDone.isBlocked(), "can't make progress. some dependecy has not been finished" );
+    CHECK( m_currDecompPic->reconDone.isBlocked(), "can't make progress. some dependecy has not been finished" );
   }
 
   try
   {
-    m_currDecompPic->m_motionTaskCounter.wait_nothrow();
     m_currDecompPic->reconDone.wait();
   }
   catch( ... )
@@ -735,8 +685,8 @@ Picture* DecLibRecon::waitForPrevDecompressedPic()
     m_currDecompPic->error = true;
   }
 
-  if( m_currDecompPic->error || m_currDecompPic->reconDone.hasException()
-      || m_currDecompPic->m_motionTaskCounter.hasException() )   // also check error flag, which can have been set earlier (e.g., when trying to use the picture as reference)
+  // also check error flag, which can have been set earlier (e.g., when trying to use the picture as reference)
+  if( m_currDecompPic->error || m_currDecompPic->reconDone.hasException() )
   {
     // ensure all tasks are cleared from declibRecon
     cleanupOnException( std::current_exception() );
@@ -749,17 +699,11 @@ Picture* DecLibRecon::waitForPrevDecompressedPic()
 
 void DecLibRecon::cleanupOnException( std::exception_ptr exception )
 {
-  for( auto &t: commonTaskParam.finishMotionTriggers )
-  {
-    t.setException( exception );
-  }
-
   // there was an exception anywhere in m_currDecompPic
   // => we need to wait for all tasks to be cleared from the thread pool
   m_currDecompPic->waitForAllTasks();
 
   commonTaskParam.ctuStates.clear();
-  commonTaskParam.finishMotionTriggers.clear();
 }
 
 template<bool onlyCheckReadyState>
@@ -896,6 +840,11 @@ bool DecLibRecon::ctuTask( int tid, CtuTaskParam* param )
         if( !ctuData.slice->isIntra() )
         {
           decLib.m_pcThreadResource[tid]->m_cCuDecoder.TaskInterCtu( cs, ctuRsAddr, ctuArea );
+
+          if( cs.picture->stillReferenced )
+          {
+            decLib.m_pcThreadResource[tid]->m_cCuDecoder.TaskFinishMotionInfo( cs, ctuRsAddr, ctu, line );
+          }
         }
       }
 
@@ -908,6 +857,7 @@ bool DecLibRecon::ctuTask( int tid, CtuTaskParam* param )
     {
       if( col > 0 && thisLine[col - 1] <= INTRA_cont )
         return false;
+
       if( line > 0 )
       {
         if( col + 1 < tasksPerLine )
@@ -1042,7 +992,6 @@ bool DecLibRecon::ctuTask( int tid, CtuTaskParam* param )
         {
           decLib.m_cSAO.SAOPrepareCTULine( cs, getLineArea( cs, line, true ) );
         }
-        param->common.finishMotionTriggers[line].unlock();
 
         ITT_TASKEND( itt_domain_dec, itt_handle_presao );
       }
@@ -1139,10 +1088,6 @@ bool DecLibRecon::ctuTask( int tid, CtuTaskParam* param )
   }
   catch( ... )
   {
-    for( auto& t: param->common.finishMotionTriggers )
-    {
-      t.setException( std::current_exception() );
-    }
     std::rethrow_exception( std::current_exception() );
   }
 

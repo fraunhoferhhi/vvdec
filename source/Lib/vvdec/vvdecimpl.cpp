@@ -670,7 +670,7 @@ const char* VVDecImpl::getVersionNumber()
 
 const char* VVDecImpl::getDecoderInfo()
 {
-    m_sDecoderInfo  = "Fraunhofer VVC/H.266 Decoder VVdeC";
+    m_sDecoderInfo  = "VVdeC, the Fraunhofer VVC/H.266 decoder";
     m_sDecoderInfo += ", version ";
     m_sDecoderInfo += getVersionNumber();
     m_sDecoderInfo += " [";

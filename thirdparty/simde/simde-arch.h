@@ -124,6 +124,12 @@
 #if defined(__ARM_FEATURE_SVE)
 #  define SIMDE_ARCH_ARM_SVE
 #endif
+#if defined(__ARM_FEATURE_FMA) && __ARM_FEATURE_FMA
+#  define SIMDE_ARCH_ARM_FMA
+#endif
+#if defined(__ARM_FEATURE_CRYPTO)
+#  define SIMDE_ARCH_ARM_CRYPTO
+#endif
 
 /* Blackfin
    <https://en.wikipedia.org/wiki/Blackfin> */
@@ -269,7 +275,7 @@
 #    if !defined(SIMDE_ARCH_X86_SSE4_1)
 #      define SIMDE_ARCH_X86_SSE4_1 1
 #    endif
-#    if !defined(SIMDE_ARCH_X86_SSE4_1)
+#    if !defined(SIMDE_ARCH_X86_SSE4_2)
 #      define SIMDE_ARCH_X86_SSE4_2 1
 #    endif
 #  endif
@@ -324,6 +330,9 @@
 #  if defined(__AVX512VL__)
 #    define SIMDE_ARCH_X86_AVX512VL 1
 #  endif
+#  if defined(__AVX512FP16__)
+#    define SIMDE_ARCH_X86_AVX512FP16 1
+#  endif
 #  if defined(__GFNI__)
 #    define SIMDE_ARCH_X86_GFNI 1
 #  endif
@@ -335,6 +344,9 @@
 #  endif
 #  if defined(__F16C__) || (defined(HEDLEY_MSVC_VERSION) && HEDLEY_MSVC_VERSION_CHECK(19,30,0) && defined(SIMDE_ARCH_X86_AVX2) )
 #    define SIMDE_ARCH_X86_F16C 1
+#  endif
+#  if defined(__AES__)
+#    define SIMDE_ARCH_X86_AES 1
 #  endif
 #endif
 
@@ -462,6 +474,10 @@
   #define SIMDE_ARCH_POWER_ALTIVEC_CHECK(version) ((version) <= SIMDE_ARCH_POWER)
 #else
   #define SIMDE_ARCH_POWER_ALTIVEC_CHECK(version) (0)
+#endif
+
+#if defined(__riscv) && __riscv_xlen==64
+#  define SIMDE_ARCH_RISCV64
 #endif
 
 /* SPARC

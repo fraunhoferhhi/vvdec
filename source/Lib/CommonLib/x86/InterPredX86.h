@@ -87,7 +87,7 @@ inline void PaddBIO_SIMD( const Pel* refPel, Pel* dstPel, unsigned width, const 
     __m128i ref = _mm_lddqu_si128( ( __m128i const * )&refPel[0] );
     ref = _mm_slli_epi16( ref, shift );
     ref = _mm_sub_epi16( ref, off );
-    _mm_storel_epi64( ( __m128i * )&dstPel[0], ref );
+    _mm_storeu_si64( ( __m128i * )&dstPel[0], ref );
     ref = _mm_srli_si128( ref, 8 );
     _mm_storeu_si32( ( __m128i * )&dstPel[4], ref );
   }
@@ -521,8 +521,8 @@ void applyPROF_SSE(Pel* dstPel, ptrdiff_t dstStride, const Pel* srcPel, const Pe
   mm_dmvx = _mm256_packs_epi32( mm_dmvx, _mm256_setzero_si256() );
   mm_dmvy = _mm256_packs_epi32( mm_dmvy, _mm256_setzero_si256() );
 
-  mm_gradx = _mm256_inserti128_si256( _mm256_castsi128_si256( _mm_loadl_epi64( ( __m128i* )gX0 ) ), _mm_loadl_epi64( ( __m128i* )( gX0 + gradStride ) ), 1 );
-  mm_grady = _mm256_inserti128_si256( _mm256_castsi128_si256( _mm_loadl_epi64( ( __m128i* )gY0 ) ), _mm_loadl_epi64( ( __m128i* )( gY0 + gradStride ) ), 1 );
+  mm_gradx = _mm256_inserti128_si256( _mm256_castsi128_si256( _mm_loadu_si64( ( __m128i* )gX0 ) ), _mm_loadu_si64( ( __m128i* )( gX0 + gradStride ) ), 1 );
+  mm_grady = _mm256_inserti128_si256( _mm256_castsi128_si256( _mm_loadu_si64( ( __m128i* )gY0 ) ), _mm_loadu_si64( ( __m128i* )( gY0 + gradStride ) ), 1 );
   
   mm_dI0   = _mm256_madd_epi16( _mm256_unpacklo_epi16( mm_dmvx, mm_dmvy ), _mm256_unpacklo_epi16( mm_gradx, mm_grady ) );
   mm_dI0   = _mm256_min_epi32( mm_dimax, _mm256_max_epi32( mm_dimin, mm_dI0 ) );
@@ -536,8 +536,8 @@ void applyPROF_SSE(Pel* dstPel, ptrdiff_t dstStride, const Pel* srcPel, const Pe
   mm_dmvx = _mm256_packs_epi32( mm_dmvx, _mm256_setzero_si256() );
   mm_dmvy = _mm256_packs_epi32( mm_dmvy, _mm256_setzero_si256() );
 
-  mm_gradx = _mm256_inserti128_si256( _mm256_castsi128_si256( _mm_loadl_epi64( ( __m128i* )gX0 ) ), _mm_loadl_epi64( ( __m128i* )( gX0 + gradStride ) ), 1 );
-  mm_grady = _mm256_inserti128_si256( _mm256_castsi128_si256( _mm_loadl_epi64( ( __m128i* )gY0 ) ), _mm_loadl_epi64( ( __m128i* )( gY0 + gradStride ) ), 1 );
+  mm_gradx = _mm256_inserti128_si256( _mm256_castsi128_si256( _mm_loadu_si64( ( __m128i* )gX0 ) ), _mm_loadu_si64( ( __m128i* )( gX0 + gradStride ) ), 1 );
+  mm_grady = _mm256_inserti128_si256( _mm256_castsi128_si256( _mm_loadu_si64( ( __m128i* )gY0 ) ), _mm_loadu_si64( ( __m128i* )( gY0 + gradStride ) ), 1 );
   
   mm_dI    = _mm256_madd_epi16( _mm256_unpacklo_epi16( mm_dmvx, mm_dmvy ), _mm256_unpacklo_epi16( mm_gradx, mm_grady ) );
   mm_dI    = _mm256_min_epi32( mm_dimax, _mm256_max_epi32( mm_dimin, mm_dI ) );
@@ -546,8 +546,8 @@ void applyPROF_SSE(Pel* dstPel, ptrdiff_t dstStride, const Pel* srcPel, const Pe
   mm_dI = _mm256_packs_epi32( mm_dI0, mm_dI );
   const Pel* src0 = srcPel + srcStride;
   mm_src = _mm256_inserti128_si256(
-    _mm256_castsi128_si256(_mm_unpacklo_epi64(_mm_loadl_epi64((const __m128i *)srcPel), _mm_loadl_epi64((const __m128i *)(srcPel + (srcStride << 1))))),
-    _mm_unpacklo_epi64(_mm_loadl_epi64((const __m128i *)src0), _mm_loadl_epi64((const __m128i *)(src0 + (srcStride << 1)))),
+    _mm256_castsi128_si256(_mm_unpacklo_epi64(_mm_loadu_si64((const __m128i *)srcPel), _mm_loadu_si64((const __m128i *)(srcPel + (srcStride << 1))))),
+    _mm_unpacklo_epi64(_mm_loadu_si64((const __m128i *)src0), _mm_loadu_si64((const __m128i *)(src0 + (srcStride << 1)))),
     1
   );
   mm_dI = _mm256_add_epi16(mm_dI, mm_src);
@@ -560,10 +560,10 @@ void applyPROF_SSE(Pel* dstPel, ptrdiff_t dstStride, const Pel* srcPel, const Pe
   // store final results
   __m128i dITmp = _mm256_extracti128_si256(mm_dI, 1);
   Pel* dst0 = dstPel;
-  _mm_storel_epi64((__m128i *)dst0, _mm256_castsi256_si128(mm_dI));
-  dst0 += dstStride; _mm_storel_epi64((__m128i *)dst0, dITmp);
-  dst0 += dstStride; _mm_storel_epi64((__m128i *)dst0, _mm_unpackhi_epi64(_mm256_castsi256_si128(mm_dI), _mm256_castsi256_si128(mm_dI)));
-  dst0 += dstStride; _mm_storel_epi64((__m128i *)dst0, _mm_unpackhi_epi64(dITmp, dITmp));
+  _mm_storeu_si64((__m128i *)dst0, _mm256_castsi256_si128(mm_dI));
+  dst0 += dstStride; _mm_storeu_si64((__m128i *)dst0, dITmp);
+  dst0 += dstStride; _mm_storeu_si64((__m128i *)dst0, _mm_unpackhi_epi64(_mm256_castsi256_si128(mm_dI), _mm256_castsi256_si128(mm_dI)));
+  dst0 += dstStride; _mm_storeu_si64((__m128i *)dst0, _mm_unpackhi_epi64(dITmp, dITmp));
 #else
   __m128i mm_dmvx, mm_dmvy, mm_gradx, mm_grady, mm_dI, mm_dI0;
   __m128i mm_offset = _mm_set1_epi16( offset );
@@ -586,30 +586,30 @@ void applyPROF_SSE(Pel* dstPel, ptrdiff_t dstStride, const Pel* srcPel, const Pe
     // first row
     mm_dmvx  = _mm_packs_epi32( _mm_loadu_si128( ( const __m128i * ) vX ), _mm_setzero_si128() );
     mm_dmvy  = _mm_packs_epi32( _mm_loadu_si128( ( const __m128i * ) vY ), _mm_setzero_si128() );
-    mm_gradx = _mm_loadl_epi64( ( __m128i* ) gX );
-    mm_grady = _mm_loadl_epi64( ( __m128i* ) gY );
+    mm_gradx = _mm_loadu_si64 ( ( __m128i* ) gX );
+    mm_grady = _mm_loadu_si64 ( ( __m128i* ) gY );
     mm_dI0   = _mm_madd_epi16 ( _mm_unpacklo_epi16( mm_dmvx, mm_dmvy ), _mm_unpacklo_epi16( mm_gradx, mm_grady ) );
     mm_dI0   = _mm_min_epi32  ( mm_dimax, _mm_max_epi32( mm_dimin, mm_dI0 ) );
 
     // second row
     mm_dmvx  = _mm_packs_epi32( _mm_loadu_si128( ( const __m128i * ) ( vX + dMvStride ) ), _mm_setzero_si128() );
     mm_dmvy  = _mm_packs_epi32( _mm_loadu_si128( ( const __m128i * ) ( vY + dMvStride ) ), _mm_setzero_si128() );
-    mm_gradx = _mm_loadl_epi64( ( __m128i* ) ( gX + gradStride ) );
-    mm_grady = _mm_loadl_epi64( ( __m128i* ) ( gY + gradStride ) );
+    mm_gradx = _mm_loadu_si64 ( ( __m128i* ) ( gX + gradStride ) );
+    mm_grady = _mm_loadu_si64 ( ( __m128i* ) ( gY + gradStride ) );
     mm_dI    = _mm_madd_epi16 ( _mm_unpacklo_epi16( mm_dmvx, mm_dmvy ), _mm_unpacklo_epi16( mm_gradx, mm_grady ) );
     mm_dI    = _mm_min_epi32  ( mm_dimax, _mm_max_epi32( mm_dimin, mm_dI ) );
 
     // combine both rows
     mm_dI = _mm_packs_epi32( mm_dI0, mm_dI );
-    mm_dI = _mm_add_epi16  ( _mm_unpacklo_epi64( _mm_loadl_epi64( ( const __m128i * )src ), _mm_loadl_epi64( ( const __m128i * )( src + srcStride ) ) ), mm_dI );
+    mm_dI = _mm_add_epi16  ( _mm_unpacklo_epi64( _mm_loadu_si64( ( const __m128i * )src ), _mm_loadu_si64( ( const __m128i * )( src + srcStride ) ) ), mm_dI );
     if (!bi)
     {
       mm_dI = _mm_srai_epi16(_mm_adds_epi16(mm_dI, mm_offset), shiftNum);
       mm_dI = _mm_min_epi16(vibdimax, _mm_max_epi16(vibdimin, mm_dI));
     }
 
-    _mm_storel_epi64( ( __m128i * )  dst,                                   mm_dI );
-    _mm_storel_epi64( ( __m128i * )( dst + dstStride ), _mm_unpackhi_epi64( mm_dI, mm_dI ) );
+    _mm_storeu_si64( ( __m128i * )  dst,                                   mm_dI );
+    _mm_storeu_si64( ( __m128i * )( dst + dstStride ), _mm_unpackhi_epi64( mm_dI, mm_dI ) );
 
     dMvX   += (dMvStride  << 1);
     dMvY   += (dMvStride  << 1);
@@ -856,16 +856,16 @@ void gradFilter_SSE( int16_t* src, ptrdiff_t _srcStride, int width, int height, 
 
     for( int y = 0; y < ( PAD ? heightInside : 4 ); y++ )
     {
-      __m128i mmPixTop    = _mm_srai_epi16( _mm_loadl_epi64( ( __m128i* )( srcTmp - srcStride ) ), shift1 );
-      __m128i mmPixBottom = _mm_srai_epi16( _mm_loadl_epi64( ( __m128i* )( srcTmp + srcStride ) ), shift1 );
-      __m128i mmPixLeft   = _mm_srai_epi16( _mm_loadl_epi64( ( __m128i* )( srcTmp - 1 ) ),         shift1 );
-      __m128i mmPixRight  = _mm_srai_epi16( _mm_loadl_epi64( ( __m128i* )( srcTmp + 1 ) ),         shift1 );
+      __m128i mmPixTop    = _mm_srai_epi16( _mm_loadu_si64( ( __m128i* )( srcTmp - srcStride ) ), shift1 );
+      __m128i mmPixBottom = _mm_srai_epi16( _mm_loadu_si64( ( __m128i* )( srcTmp + srcStride ) ), shift1 );
+      __m128i mmPixLeft   = _mm_srai_epi16( _mm_loadu_si64( ( __m128i* )( srcTmp - 1 ) ),         shift1 );
+      __m128i mmPixRight  = _mm_srai_epi16( _mm_loadu_si64( ( __m128i* )( srcTmp + 1 ) ),         shift1 );
 
       __m128i mmGradVer = _mm_sub_epi16( mmPixBottom, mmPixTop );
       __m128i mmGradHor = _mm_sub_epi16( mmPixRight, mmPixLeft );
 
-      _mm_storel_epi64( ( __m128i * )( gradYTmp ), mmGradVer );
-      _mm_storel_epi64( ( __m128i * )( gradXTmp ), mmGradHor );
+      _mm_storeu_si64( ( __m128i * )( gradYTmp ), mmGradVer );
+      _mm_storeu_si64( ( __m128i * )( gradXTmp ), mmGradHor );
 
       if( PAD )
       {
@@ -940,33 +940,33 @@ void prefetchPadC_SSE( const Pel* src, const ptrdiff_t srcStride, Pel* dst, cons
     const __m128i sl = _mm_setr_epi8( 0, 1, 2, 3, 4, 5, 4, 5, -1, -1, -1, -1, -1, -1, -1, -1 );
 
     __m128i l0 =                   _mm_loadu_si128( ( const __m128i* ) &src[0] );
-    __m128i l1 = _mm_shuffle_epi8( _mm_loadl_epi64( ( const __m128i* ) &src[8] ), sl );
+    __m128i l1 = _mm_shuffle_epi8( _mm_loadu_si64 ( ( const __m128i* ) &src[8] ), sl );
     Pel pel0 = *src;
 
     dst[-1 - dstStride] = pel0;
     _mm_storeu_si128( ( __m128i* ) ( dst - 1 * dstStride - 0 ), l0 );
-    _mm_storel_epi64( ( __m128i* ) ( dst - 1 * dstStride + 8 ), l1 );
+    _mm_storeu_si64 ( ( __m128i* ) ( dst - 1 * dstStride + 8 ), l1 );
 
     dst[-1] = pel0;
     _mm_storeu_si128( ( __m128i* ) ( dst - 0 * dstStride - 0 ), l0 );
-    _mm_storel_epi64( ( __m128i* ) ( dst - 0 * dstStride + 8 ), l1 );
+    _mm_storeu_si64 ( ( __m128i* ) ( dst - 0 * dstStride + 8 ), l1 );
 
     for( height--, dst += dstStride, src += srcStride; height > 0; height--, src += srcStride, dst += dstStride )
     {
       _mm_prefetch( ( const char* ) &src[srcStride], _MM_HINT_T0 );
       
       l0 =                   _mm_loadu_si128( ( const __m128i* ) &src[0] );
-      l1 = _mm_shuffle_epi8( _mm_loadl_epi64( ( const __m128i* ) &src[8] ), sl );
+      l1 = _mm_shuffle_epi8( _mm_loadu_si64 ( ( const __m128i* ) &src[8] ), sl );
       pel0 = *src;
 
       dst[-1] = pel0;
       _mm_storeu_si128( ( __m128i* ) ( dst - 0 ), l0 );
-      _mm_storel_epi64( ( __m128i* ) ( dst + 8 ), l1 );
+      _mm_storeu_si64 ( ( __m128i* ) ( dst + 8 ), l1 );
     }
 
     dst[-1] = pel0;
     _mm_storeu_si128( ( __m128i* ) ( dst - 0 ), l0 );
-    _mm_storel_epi64( ( __m128i* ) ( dst + 8 ), l1 );
+    _mm_storeu_si64 ( ( __m128i* ) ( dst + 8 ), l1 );
   }
 }
 
@@ -986,15 +986,15 @@ void prefetchPadL_SSE( const Pel* src, const ptrdiff_t srcStride, Pel* dst, cons
 
     _mm_storeu_si128( ( __m128i* ) ( dst - 2 * dstStride -  2 ), l0 );
     _mm_storeu_si128( ( __m128i* ) ( dst - 2 * dstStride +  6 ), l1 );
-    _mm_storel_epi64( ( __m128i* ) ( dst - 2 * dstStride + 14 ), l3 );
+    _mm_storeu_si64 ( ( __m128i* ) ( dst - 2 * dstStride + 14 ), l3 );
     
     _mm_storeu_si128( ( __m128i* ) ( dst - 1 * dstStride -  2 ), l0 );
     _mm_storeu_si128( ( __m128i* ) ( dst - 1 * dstStride +  6 ), l1 );
-    _mm_storel_epi64( ( __m128i* ) ( dst - 1 * dstStride + 14 ), l3 );
+    _mm_storeu_si64 ( ( __m128i* ) ( dst - 1 * dstStride + 14 ), l3 );
     
     _mm_storeu_si128( ( __m128i* ) ( dst - 0 * dstStride -  2 ), l0 );
     _mm_storeu_si128( ( __m128i* ) ( dst - 0 * dstStride +  6 ), l1 );
-    _mm_storel_epi64( ( __m128i* ) ( dst - 0 * dstStride + 14 ), l3 );
+    _mm_storeu_si64 ( ( __m128i* ) ( dst - 0 * dstStride + 14 ), l3 );
 
     for( height--, dst += dstStride, src += srcStride; height > 0; height--, src += srcStride, dst += dstStride )
     {
@@ -1006,18 +1006,18 @@ void prefetchPadL_SSE( const Pel* src, const ptrdiff_t srcStride, Pel* dst, cons
       
       _mm_storeu_si128( ( __m128i* ) ( dst -  2 ), l0 );
       _mm_storeu_si128( ( __m128i* ) ( dst +  6 ), l1 );
-      _mm_storel_epi64( ( __m128i* ) ( dst + 14 ), l3 );
+      _mm_storeu_si64 ( ( __m128i* ) ( dst + 14 ), l3 );
     }
 
     _mm_storeu_si128( ( __m128i* ) ( dst -  2 ), l0 );
     _mm_storeu_si128( ( __m128i* ) ( dst +  6 ), l1 );
-    _mm_storel_epi64( ( __m128i* ) ( dst + 14 ), l3 );
+    _mm_storeu_si64 ( ( __m128i* ) ( dst + 14 ), l3 );
 
     dst += dstStride;
     
     _mm_storeu_si128( ( __m128i* ) ( dst -  2 ), l0 );
     _mm_storeu_si128( ( __m128i* ) ( dst +  6 ), l1 );
-    _mm_storel_epi64( ( __m128i* ) ( dst + 14 ), l3 );
+    _mm_storeu_si64 ( ( __m128i* ) ( dst + 14 ), l3 );
   }
   else
   {
@@ -1031,17 +1031,17 @@ void prefetchPadL_SSE( const Pel* src, const ptrdiff_t srcStride, Pel* dst, cons
     _mm_storeu_si128( ( __m128i* ) ( dst - 2 * dstStride -  2 ), l0 );
     _mm_storeu_si128( ( __m128i* ) ( dst - 2 * dstStride +  6 ), l1 );
     _mm_storeu_si128( ( __m128i* ) ( dst - 2 * dstStride + 14 ), l2 );
-    _mm_storel_epi64( ( __m128i* ) ( dst - 2 * dstStride + 22 ), l3 );
+    _mm_storeu_si64 ( ( __m128i* ) ( dst - 2 * dstStride + 22 ), l3 );
     
     _mm_storeu_si128( ( __m128i* ) ( dst - 1 * dstStride -  2 ), l0 );
     _mm_storeu_si128( ( __m128i* ) ( dst - 1 * dstStride +  6 ), l1 );
     _mm_storeu_si128( ( __m128i* ) ( dst - 1 * dstStride + 14 ), l2 );
-    _mm_storel_epi64( ( __m128i* ) ( dst - 1 * dstStride + 22 ), l3 );
+    _mm_storeu_si64 ( ( __m128i* ) ( dst - 1 * dstStride + 22 ), l3 );
     
     _mm_storeu_si128( ( __m128i* ) ( dst - 0 * dstStride -  2 ), l0 );
     _mm_storeu_si128( ( __m128i* ) ( dst - 0 * dstStride +  6 ), l1 );
     _mm_storeu_si128( ( __m128i* ) ( dst - 0 * dstStride + 14 ), l2 );
-    _mm_storel_epi64( ( __m128i* ) ( dst - 0 * dstStride + 22 ), l3 );
+    _mm_storeu_si64 ( ( __m128i* ) ( dst - 0 * dstStride + 22 ), l3 );
 
     for( height--, dst += dstStride, src += srcStride; height > 0; height--, src += srcStride, dst += dstStride )
     {
@@ -1055,20 +1055,20 @@ void prefetchPadL_SSE( const Pel* src, const ptrdiff_t srcStride, Pel* dst, cons
       _mm_storeu_si128( ( __m128i* ) ( dst -  2 ), l0 );
       _mm_storeu_si128( ( __m128i* ) ( dst +  6 ), l1 );
       _mm_storeu_si128( ( __m128i* ) ( dst + 14 ), l2 );
-      _mm_storel_epi64( ( __m128i* ) ( dst + 22 ), l3 );
+      _mm_storeu_si64 ( ( __m128i* ) ( dst + 22 ), l3 );
     }
 
     _mm_storeu_si128( ( __m128i* ) ( dst -  2 ), l0 );
     _mm_storeu_si128( ( __m128i* ) ( dst +  6 ), l1 );
     _mm_storeu_si128( ( __m128i* ) ( dst + 14 ), l2 );
-    _mm_storel_epi64( ( __m128i* ) ( dst + 22 ), l3 );
+    _mm_storeu_si64 ( ( __m128i* ) ( dst + 22 ), l3 );
 
     dst += dstStride;
     
     _mm_storeu_si128( ( __m128i* ) ( dst -  2 ), l0 );
     _mm_storeu_si128( ( __m128i* ) ( dst +  6 ), l1 );
     _mm_storeu_si128( ( __m128i* ) ( dst + 14 ), l2 );
-    _mm_storel_epi64( ( __m128i* ) ( dst + 22 ), l3 );
+    _mm_storeu_si64 ( ( __m128i* ) ( dst + 22 ), l3 );
   }
 }
 
@@ -1087,13 +1087,13 @@ void prefetchPadL_SSE<AVX2>( const Pel* src, const ptrdiff_t srcStride, Pel* dst
     __m128i l0 = _mm_set1_epi16( src[0] );
     __m256i l1 = _mm256_shuffle_epi8( _mm256_loadu_si256( ( const __m256i* ) &src[1] ), sl );
 
-    _mm_storel_epi64   ( ( __m128i* ) ( dst - 2 * dstStride -  2 ), l0 );
+    _mm_storeu_si64    ( ( __m128i* ) ( dst - 2 * dstStride -  2 ), l0 );
     _mm256_storeu_si256( ( __m256i* ) ( dst - 2 * dstStride +  1 ), l1 );
 
-    _mm_storel_epi64   ( ( __m128i* ) ( dst - 1 * dstStride -  2 ), l0 );
+    _mm_storeu_si64    ( ( __m128i* ) ( dst - 1 * dstStride -  2 ), l0 );
     _mm256_storeu_si256( ( __m256i* ) ( dst - 1 * dstStride +  1 ), l1 );
 
-    _mm_storel_epi64   ( ( __m128i* ) ( dst - 0 * dstStride -  2 ), l0 );
+    _mm_storeu_si64    ( ( __m128i* ) ( dst - 0 * dstStride -  2 ), l0 );
     _mm256_storeu_si256( ( __m256i* ) ( dst - 0 * dstStride +  1 ), l1 );
 
     for( height--, dst += dstStride, src += srcStride; height > 0; height--, src += srcStride, dst += dstStride )
@@ -1103,16 +1103,16 @@ void prefetchPadL_SSE<AVX2>( const Pel* src, const ptrdiff_t srcStride, Pel* dst
       l0 = _mm_set1_epi16( src[0] );
       l1 = _mm256_shuffle_epi8( _mm256_loadu_si256( ( const __m256i* ) & src[1] ), sl );
 
-      _mm_storel_epi64   ( ( __m128i* ) ( dst - 2 ), l0 );
+      _mm_storeu_si64    ( ( __m128i* ) ( dst - 2 ), l0 );
       _mm256_storeu_si256( ( __m256i* ) ( dst + 1 ), l1 );
     }
     
-    _mm_storel_epi64   ( ( __m128i* ) ( dst - 2 ), l0 );
+    _mm_storeu_si64    ( ( __m128i* ) ( dst - 2 ), l0 );
     _mm256_storeu_si256( ( __m256i* ) ( dst + 1 ), l1 );
 
     dst += dstStride;
     
-    _mm_storel_epi64   ( ( __m128i* ) ( dst - 2 ), l0 );
+    _mm_storeu_si64    ( ( __m128i* ) ( dst - 2 ), l0 );
     _mm256_storeu_si256( ( __m256i* ) ( dst + 1 ), l1 );
   }
   else
@@ -1123,15 +1123,15 @@ void prefetchPadL_SSE<AVX2>( const Pel* src, const ptrdiff_t srcStride, Pel* dst
     __m256i l1 =                      _mm256_loadu_si256( ( const __m256i* ) &src[ 1] );
     __m128i l2 = _mm_shuffle_epi8   ( _mm_loadu_si128   ( ( const __m128i* ) &src[17] ), sl );
 
-    _mm_storel_epi64   ( ( __m128i* ) ( dst - 2 * dstStride -  2 ), l0 );
+    _mm_storeu_si64    ( ( __m128i* ) ( dst - 2 * dstStride -  2 ), l0 );
     _mm256_storeu_si256( ( __m256i* ) ( dst - 2 * dstStride +  1 ), l1 );
     _mm_storeu_si128   ( ( __m128i* ) ( dst - 2 * dstStride + 17 ), l2 );
 
-    _mm_storel_epi64   ( ( __m128i* ) ( dst - 1 * dstStride -  2 ), l0 );
+    _mm_storeu_si64    ( ( __m128i* ) ( dst - 1 * dstStride -  2 ), l0 );
     _mm256_storeu_si256( ( __m256i* ) ( dst - 1 * dstStride +  1 ), l1 );
     _mm_storeu_si128   ( ( __m128i* ) ( dst - 1 * dstStride + 17 ), l2 );
 
-    _mm_storel_epi64   ( ( __m128i* ) ( dst - 0 * dstStride -  2 ), l0 );
+    _mm_storeu_si64    ( ( __m128i* ) ( dst - 0 * dstStride -  2 ), l0 );
     _mm256_storeu_si256( ( __m256i* ) ( dst - 0 * dstStride +  1 ), l1 );
     _mm_storeu_si128   ( ( __m128i* ) ( dst - 0 * dstStride + 17 ), l2 );
 
@@ -1143,18 +1143,18 @@ void prefetchPadL_SSE<AVX2>( const Pel* src, const ptrdiff_t srcStride, Pel* dst
       l1 =                      _mm256_loadu_si256( ( const __m256i* ) &src[ 1] );
       l2 = _mm_shuffle_epi8   ( _mm_loadu_si128   ( ( const __m128i* ) &src[17] ), sl );
 
-      _mm_storel_epi64   ( ( __m128i* ) ( dst -  2 ), l0 );
+      _mm_storeu_si64    ( ( __m128i* ) ( dst -  2 ), l0 );
       _mm256_storeu_si256( ( __m256i* ) ( dst +  1 ), l1 );
       _mm_storeu_si128   ( ( __m128i* ) ( dst + 17 ), l2 );
     }
     
-    _mm_storel_epi64   ( ( __m128i* ) ( dst -  2 ), l0 );
+    _mm_storeu_si64    ( ( __m128i* ) ( dst -  2 ), l0 );
     _mm256_storeu_si256( ( __m256i* ) ( dst +  1 ), l1 );
     _mm_storeu_si128   ( ( __m128i* ) ( dst + 17 ), l2 );
 
     dst += dstStride;
     
-    _mm_storel_epi64   ( ( __m128i* ) ( dst -  2 ), l0 );
+    _mm_storeu_si64    ( ( __m128i* ) ( dst -  2 ), l0 );
     _mm256_storeu_si256( ( __m256i* ) ( dst +  1 ), l1 );
     _mm_storeu_si128   ( ( __m128i* ) ( dst + 17 ), l2 );
   }

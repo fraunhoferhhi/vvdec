@@ -161,7 +161,6 @@ void Picture::resetForUse( int _layerId )
 
   m_divTasksCounter     .clearException();
   m_ctuTaskCounter      .clearException();
-  m_motionTaskCounter   .clearException();
   m_borderExtTaskCounter.clearException();
   m_copyWrapBufDone     .clearException();
   reconDone             .clearException();
@@ -205,7 +204,6 @@ void Picture::destroy()
 
   m_divTasksCounter     .clearException();
   m_ctuTaskCounter      .clearException();
-  m_motionTaskCounter   .clearException();
   m_borderExtTaskCounter.clearException();
   m_copyWrapBufDone     .clearException();
   reconDone             .clearException();
@@ -344,7 +342,6 @@ bool Picture::lastSliceOfPicPresent() const
 
 void Picture::waitForAllTasks()
 {
-  m_motionTaskCounter.wait_nothrow();
   m_ctuTaskCounter.wait_nothrow();
   m_borderExtTaskCounter.wait_nothrow();
   m_divTasksCounter.wait_nothrow();   // this waits for the slice parsing and the finishPic Task
@@ -365,7 +362,6 @@ void Picture::ensureUsableAsRef()
   // ensure cs->m_colMiMap is set to zero
   cs->initStructData();
 
-  CHECK( m_motionTaskCounter.hasException(), "to be usable as reference the picture should not have an Exception on the dmvr task counter" );
   CHECK( reconDone.hasException(), "to be usable as reference the picture should not have an Exception reconDone barrier" );
 }
 

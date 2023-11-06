@@ -145,8 +145,8 @@ void addAvg_SSE( const int16_t* src0, ptrdiff_t src0Stride, const int16_t* src1,
     {
       for( int col = 0; col < width; col += 4 )
       {
-        __m128i vsrc0 = _mm_loadl_epi64( ( const __m128i* )&src0[col] );
-        __m128i vsrc1 = _mm_loadl_epi64( ( const __m128i* )&src1[col] );
+        __m128i vsrc0 = _mm_loadu_si64( ( const __m128i* )&src0[col] );
+        __m128i vsrc1 = _mm_loadu_si64( ( const __m128i* )&src1[col] );
 
         __m128i vsumlo = _mm_madd_epi16( _mm_unpacklo_epi16( vsrc0, vsrc1 ), vone );
 
@@ -156,7 +156,7 @@ void addAvg_SSE( const int16_t* src0, ptrdiff_t src0Stride, const int16_t* src1,
         __m128i vsum = _mm_packs_epi32( vsumlo, vsumhi );
         vsum = _mm_min_epi16( vibdimax, _mm_max_epi16( vibdimin, vsum ) );
 
-        _mm_storel_epi64( ( __m128i * )&dst[col], vsum );
+        _mm_storeu_si64( ( __m128i * )&dst[col], vsum );
       }
 
       src0 += src0Stride;
@@ -247,13 +247,13 @@ void reco_SSE( const int16_t* src0, ptrdiff_t src0Stride, const int16_t* src1, p
     {
       for( int col = 0; col < width; col += 4 )
       {
-        __m128i vsrc = _mm_loadl_epi64( ( const __m128i * )&src0[col] );
-        __m128i vdst = _mm_loadl_epi64( ( const __m128i * )&src1[col] );
+        __m128i vsrc = _mm_loadu_si64( ( const __m128i * )&src0[col] );
+        __m128i vdst = _mm_loadu_si64( ( const __m128i * )&src1[col] );
 
         vdst = _mm_add_epi16( vdst, vsrc );
         vdst = _mm_min_epi16( vbdmax, _mm_max_epi16( vbdmin, vdst ) );
 
-        _mm_storel_epi64( ( __m128i * )&dst[col], vdst );
+        _mm_storeu_si64( ( __m128i * )&dst[col], vdst );
       }
 
       src0 += src0Stride;
@@ -357,15 +357,15 @@ void addWghtAvg_SSE( const int16_t* src0, ptrdiff_t src0Stride, const int16_t* s
     {
       for( int col = 0; col < width; col += 4 )
       {
-        __m128i vsum = _mm_loadl_epi64  ( ( const __m128i * )&src0[col] );
-        __m128i vdst = _mm_loadl_epi64  ( ( const __m128i * )&src1[col] );
-        vsum = _mm_madd_epi16           ( vw, _mm_unpacklo_epi16( vsum, vdst ) );
-        vsum = _mm_add_epi32            ( vsum, voffset );
-        vsum = _mm_srai_epi32           ( vsum, shift );
-        vsum = _mm_packs_epi32          ( vsum, vzero );
+        __m128i vsum = _mm_loadu_si64  ( ( const __m128i * )&src0[col] );
+        __m128i vdst = _mm_loadu_si64  ( ( const __m128i * )&src1[col] );
+        vsum = _mm_madd_epi16          ( vw, _mm_unpacklo_epi16( vsum, vdst ) );
+        vsum = _mm_add_epi32           ( vsum, voffset );
+        vsum = _mm_srai_epi32          ( vsum, shift );
+        vsum = _mm_packs_epi32         ( vsum, vzero );
 
         vsum = _mm_min_epi16( vibdimax, _mm_max_epi16( vibdimin, vsum ) );
-        _mm_storel_epi64( ( __m128i * )&dst[col], vsum );
+        _mm_storeu_si64( ( __m128i * )&dst[col], vsum );
       }
 
       src0 += src0Stride;
@@ -465,7 +465,7 @@ void linTf_SSE( const int16_t* src, ptrdiff_t srcStride, int16_t* dst, ptrdiff_t
       for( int col = 0; col < width; col += 4 )
       {
         __m128i val;
-        val = _mm_loadl_epi64             ( ( const __m128i * )&src[col] );
+        val = _mm_loadu_si64             ( ( const __m128i * )&src[col] );
         val = _mm_cvtepi16_epi32          ( val );
         do_mult<doMult, __m128i>          ( val, vscale );
         do_shift<doShift, shiftR, __m128i>( val, shift );
@@ -473,7 +473,7 @@ void linTf_SSE( const int16_t* src, ptrdiff_t srcStride, int16_t* dst, ptrdiff_t
         val = _mm_packs_epi32             ( val, vzero );
         do_clip<clip, __m128i>            ( val, vbdmin, vbdmax );
 
-        _mm_storel_epi64                  ( ( __m128i * )&dst[col], val );
+        _mm_storeu_si64                  ( ( __m128i * )&dst[col], val );
       }
 
       src += srcStride;
@@ -499,10 +499,10 @@ void transposePel_SSE( const Pel* src, ptrdiff_t srcStride, Pel* dst, ptrdiff_t 
   {
     __m128i va, vb, vc, vd;
 
-    va = _mm_loadl_epi64( ( const __m128i* ) src ); src += srcStride;
-    vb = _mm_loadl_epi64( ( const __m128i* ) src ); src += srcStride;
-    vc = _mm_loadl_epi64( ( const __m128i* ) src ); src += srcStride;
-    vd = _mm_loadl_epi64( ( const __m128i* ) src );
+    va = _mm_loadu_si64( ( const __m128i* ) src ); src += srcStride;
+    vb = _mm_loadu_si64( ( const __m128i* ) src ); src += srcStride;
+    vc = _mm_loadu_si64( ( const __m128i* ) src ); src += srcStride;
+    vd = _mm_loadu_si64( ( const __m128i* ) src );
 
     __m128i va01b01 = _mm_unpacklo_epi16( va,      vb );
     __m128i va23b23 = _mm_unpackhi_epi64( va01b01, vb );
@@ -514,10 +514,10 @@ void transposePel_SSE( const Pel* src, ptrdiff_t srcStride, Pel* dst, ptrdiff_t 
     vc = _mm_unpacklo_epi32( va23b23, vc23d23 );
     vd = _mm_unpackhi_epi64( vc,      vc );
 
-    _mm_storel_epi64( ( __m128i* ) dst, va ); dst += dstStride;
-    _mm_storel_epi64( ( __m128i* ) dst, vb ); dst += dstStride;
-    _mm_storel_epi64( ( __m128i* ) dst, vc ); dst += dstStride;
-    _mm_storel_epi64( ( __m128i* ) dst, vd );
+    _mm_storeu_si64( ( __m128i* ) dst, va ); dst += dstStride;
+    _mm_storeu_si64( ( __m128i* ) dst, vb ); dst += dstStride;
+    _mm_storeu_si64( ( __m128i* ) dst, vc ); dst += dstStride;
+    _mm_storeu_si64( ( __m128i* ) dst, vd );
   }
   else if( W == 8 )
   {
@@ -1561,7 +1561,7 @@ void sampleRateConvSIMD_8tap( const std::pair<int, int> scalingRatio, const std:
 
       if( i + 3 < scaledWidth )
       {
-        _mm_storel_epi64( (__m128i*) &dst[i], vres0 );
+        _mm_storeu_si64( (__m128i*) &dst[i], vres0 );
       }
       else if( i + 2 < scaledWidth )
       {
@@ -1641,10 +1641,10 @@ void sampleRateConvSIMD_4tap( const std::pair<int, int> scalingRatio, const std:
       {
         int xInt = integer + 0 - (filterLength / 2) + 1;
 
-        vsrc0 = _mm_loadl_epi64( (const __m128i*) & org0[xInt] );
-        vsrc1 = _mm_loadl_epi64( (const __m128i*) & org1[xInt] );
-        vsrc2 = _mm_loadl_epi64( (const __m128i*) & org2[xInt] );
-        vsrc3 = _mm_loadl_epi64( (const __m128i*) & org3[xInt] );
+        vsrc0 = _mm_loadu_si64( (const __m128i*) & org0[xInt] );
+        vsrc1 = _mm_loadu_si64( (const __m128i*) & org1[xInt] );
+        vsrc2 = _mm_loadu_si64( (const __m128i*) & org2[xInt] );
+        vsrc3 = _mm_loadu_si64( (const __m128i*) & org3[xInt] );
       }
       else
       {
@@ -1660,10 +1660,10 @@ void sampleRateConvSIMD_4tap( const std::pair<int, int> scalingRatio, const std:
           src[3][k] = org3[xInt];
         }
 
-        vsrc0 = _mm_loadl_epi64( (const __m128i*) & src[0][0] );
-        vsrc1 = _mm_loadl_epi64( (const __m128i*) & src[1][0] );
-        vsrc2 = _mm_loadl_epi64( (const __m128i*) & src[2][0] );
-        vsrc3 = _mm_loadl_epi64( (const __m128i*) & src[3][0] );
+        vsrc0 = _mm_loadu_si64( (const __m128i*) & src[0][0] );
+        vsrc1 = _mm_loadu_si64( (const __m128i*) & src[1][0] );
+        vsrc2 = _mm_loadu_si64( (const __m128i*) & src[2][0] );
+        vsrc3 = _mm_loadu_si64( (const __m128i*) & src[3][0] );
       }
 
       __m128i vflt = _mm_loadu_si128( (const __m128i*) f );
@@ -1757,7 +1757,7 @@ void sampleRateConvSIMD_4tap( const std::pair<int, int> scalingRatio, const std:
 
       if( i + 3 < scaledWidth )
       {
-        _mm_storel_epi64( (__m128i*) & dst[i], vres0 );
+        _mm_storeu_si64( (__m128i*) & dst[i], vres0 );
       }
       else if( i + 2 < scaledWidth )
       {

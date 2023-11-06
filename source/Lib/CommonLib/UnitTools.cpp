@@ -2777,8 +2777,8 @@ void PU::setAllAffineMv( CodingUnit& cu, Mv affLT, Mv affRT, Mv affLB, RefPicLis
         xmv   = _mm_srai_epi32 ( xmv, shift );
         xmv   = _mm_max_epi32  ( _mm_set1_epi32( -( 1 << 17 ) ), _mm_min_epi32( _mm_set1_epi32( ( 1 << 17 ) - 1 ), xmv ) );
 
-        _mm_storel_epi64( ( __m128i* ) &mi[0].mv[eRefList], xmv );
-        _mm_storel_epi64( ( __m128i* ) &mi[1].mv[eRefList], _mm_unpackhi_epi64( xmv, _mm_setzero_si128() ) );
+        _mm_storeu_si64( ( __m128i* ) &mi[0].mv[eRefList], xmv );
+        _mm_storeu_si64( ( __m128i* ) &mi[1].mv[eRefList], _mm_unpackhi_epi64( xmv, _mm_setzero_si128() ) );
       }
 #else
       for( int w = 0; w < width; w++ )

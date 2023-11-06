@@ -84,8 +84,8 @@ static void simdInterpolateN2_2D( const ClpRng&       clpRng,
   //
   //     for( int row = -1; row < height; row++ )
   //     {
-  //         __m128i mmPix  = _mm_loadl_epi64( ( const __m128i* )( src ) );
-  //         __m128i mmPix1 = _mm_loadl_epi64( ( const __m128i* )( src + 1 ) );
+  //         __m128i mmPix  = _mm_loadu_si64( ( const __m128i* )( src ) );
+  //         __m128i mmPix1 = _mm_loadu_si64( ( const __m128i* )( src + 1 ) );
   //         __m128i mmFiltered
   //                     = _mm_add_epi16 ( mmOffset1,  _mm_slli_epi16( mmPix, 4 ) );
   //         mmFiltered  = _mm_add_epi16 ( mmFiltered, _mm_mullo_epi16( _mm_sub_epi16( mmPix1, mmPix ), mmCoeffH ) );

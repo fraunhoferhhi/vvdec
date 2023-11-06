@@ -1771,12 +1771,12 @@ void InterPrediction::xFinalPaddedMCForDMVR(CodingUnit& cu, PelUnitBuf &pcYuvSrc
   }
 }
 
-void xDMVRSubPixelErrorSurface( bool notZeroCost, int16_t *totalDeltaMV, int16_t *deltaMV, Distortion*pSADsArray )
+void xDMVRSubPixelErrorSurface( int16_t *totalDeltaMV, int16_t *deltaMV, Distortion*pSADsArray )
 {
-  int sadStride = ( ( ( 2 * DMVR_NUM_ITERATION ) + 1 ) );
+  static constexpr int sadStride = ( ( ( 2 * DMVR_NUM_ITERATION ) + 1 ) );
   uint64_t sadbuffer[5];
 
-  if( notZeroCost && ( abs( totalDeltaMV[0] ) != ( 2 << MV_FRACTIONAL_BITS_INTERNAL ) ) && ( abs( totalDeltaMV[1] ) != ( 2 << MV_FRACTIONAL_BITS_INTERNAL ) ) )
+  if( abs( totalDeltaMV[0] ) != ( 2 << MV_FRACTIONAL_BITS_INTERNAL ) && abs( totalDeltaMV[1] ) != ( 2 << MV_FRACTIONAL_BITS_INTERNAL ) )
   {
     int32_t tempDeltaMv[2] = { 0,0 };
     sadbuffer[0] = pSADsArray[0];
@@ -1894,6 +1894,14 @@ void InterPrediction::xProcessDMVR( CodingUnit& cu, PelUnitBuf &pcYuvDst, const 
           subPu.blocks[2].x = x >> scaleX; subPu.blocks[2].y = y >> scaleY;
         }
 
+        subPredBuf.bufs[COMPONENT_Y].buf    = pcYuvDst.bufs[COMPONENT_Y].buf  +   xStart +                 yStart             * dstStride[COMPONENT_Y];
+
+        if( isChromaEnabled( cu.chromaFormat ) )
+        {
+          subPredBuf.bufs[COMPONENT_Cb].buf = pcYuvDst.bufs[COMPONENT_Cb].buf + ( xStart >> scaleX ) + ( ( yStart >> scaleY ) * dstStride[COMPONENT_Cb] );
+          subPredBuf.bufs[COMPONENT_Cr].buf = pcYuvDst.bufs[COMPONENT_Cr].buf + ( xStart >> scaleX ) + ( ( yStart >> scaleY ) * dstStride[COMPONENT_Cr] );
+        }
+
         Distortion *pSADsArray = &m_SADsArray[( ( ( 2 * DMVR_NUM_ITERATION ) + 1 ) * ( ( 2 * DMVR_NUM_ITERATION ) + 1 ) ) >> 1];
 
         Pel *biPredSubPuL0 = biLinearPredL0 + xStart + yStart * m_biLinearBufStride;
@@ -1903,20 +1911,20 @@ void InterPrediction::xProcessDMVR( CodingUnit& cu, PelUnitBuf &pcYuvDst, const 
         cDistParam.org.buf = biPredSubPuL1;
 
         Distortion minCost = cDistParam.distFunc( cDistParam );
-      
-        bool notZeroCost        = true;
-        int16_t totalDeltaMV[2] = { 0, 0 };
-        int16_t deltaMV[2]      = { 0, 0 };
 
         minCost >>= 1;
         minCost  -= ( minCost >> 2 );
 
         if( minCost < ( dx * dy ) )
         {
-          notZeroCost = false;
+          Mv &curDMv = cu.cs->m_dmvrMvCache[cu.mvdL0SubPuOff + num];
+          curDMv = Mv( 0, 0 );
         }
         else
         {
+          int16_t totalDeltaMV[2] = { 0, 0 };
+          int16_t deltaMV[2]      = { 0, 0 };
+
           pSADsArray[0] = minCost;
 
           xBIPMVRefine( cDistParam, biPredSubPuL0, biPredSubPuL1, minCost, deltaMV, m_SADsArray );
@@ -1925,54 +1933,48 @@ void InterPrediction::xProcessDMVR( CodingUnit& cu, PelUnitBuf &pcYuvDst, const 
           {
             pSADsArray += deltaMV[1] * ( 2 * DMVR_NUM_ITERATION + 1 ) + deltaMV[0];
           }
-        }
 
-        bioAppliedSubblk  = minCost < bioEnabledThres ? false : bioApplied;
-        totalDeltaMV[0]   = deltaMV[0] *(1<< mvShift);
-        totalDeltaMV[1]   = deltaMV[1] *(1<< mvShift);
-        xDMVRSubPixelErrorSurface( notZeroCost, totalDeltaMV, deltaMV, pSADsArray );
+          totalDeltaMV[0] = deltaMV[0] * ( 1 << mvShift );
+          totalDeltaMV[1] = deltaMV[1] * ( 1 << mvShift );
 
-        Mv &curDMv = cu.cs->m_dmvrMvCache[cu.mvdL0SubPuOff + num];
-        curDMv = Mv( totalDeltaMV[0], totalDeltaMV[1] );
-        
-        Mv mv0 = mergeMv[REF_PIC_LIST_0] + curDMv; mv0.clipToStorageBitDepth();
-        Mv mv1 = mergeMv[REF_PIC_LIST_1] - curDMv; mv1.clipToStorageBitDepth();
+          xDMVRSubPixelErrorSurface( totalDeltaMV, deltaMV, pSADsArray );
 
-        if( ( mv0.hor >> mvShift ) != ( mergeMv[0].hor >> mvShift ) || ( mv0.ver >> mvShift ) != ( mergeMv[0].ver >> mvShift ) )
-        {
-          xPrefetchPad( subPu, cYuvRefBuffDMVRL0, REF_PIC_LIST_0, true );
-        }
+          Mv &curDMv = cu.cs->m_dmvrMvCache[cu.mvdL0SubPuOff + num];
+          curDMv = Mv( totalDeltaMV[0], totalDeltaMV[1] );
 
-        if( isChromaEnabled( cu.chromaFormat ) && ( ( mv0.hor >> mvShiftX ) != ( mergeMv[0].hor >> mvShiftX ) || ( mv0.ver >> mvShiftY ) != ( mergeMv[0].ver >> mvShiftY ) ) )
-        {
-          xPrefetchPad( subPu, cYuvRefBuffDMVRL0, REF_PIC_LIST_0, false );
-        }
+          Mv mv0 = mergeMv[REF_PIC_LIST_0] + curDMv; mv0.clipToStorageBitDepth();
+          Mv mv1 = mergeMv[REF_PIC_LIST_1] - curDMv; mv1.clipToStorageBitDepth();
 
-        if( ( mv1.hor >> mvShift ) != ( mergeMv[1].hor >> mvShift ) || ( mv1.ver >> mvShift ) != ( mergeMv[1].ver >> mvShift ) )
-        {
-          xPrefetchPad( subPu, cYuvRefBuffDMVRL1, REF_PIC_LIST_1, true );
-        }
-        if( isChromaEnabled( cu.chromaFormat ) && ( ( mv1.hor >> mvShiftX ) != ( mergeMv[1].hor >> mvShiftX ) || ( mv1.ver >> mvShiftY ) != ( mergeMv[1].ver >> mvShiftY ) ) )
-        {
-          xPrefetchPad( subPu, cYuvRefBuffDMVRL1, REF_PIC_LIST_1, false );
-        }
+          if( ( mv0.hor >> mvShift ) != ( mergeMv[0].hor >> mvShift ) || ( mv0.ver >> mvShift ) != ( mergeMv[0].ver >> mvShift ) )
+          {
+            xPrefetchPad( subPu, cYuvRefBuffDMVRL0, REF_PIC_LIST_0, true );
+          }
 
-        subPu.mv[0][0] = mv0;
-        subPu.mv[1][0] = mv1;
+          if( isChromaEnabled( cu.chromaFormat ) && ( ( mv0.hor >> mvShiftX ) != ( mergeMv[0].hor >> mvShiftX ) || ( mv0.ver >> mvShiftY ) != ( mergeMv[0].ver >> mvShiftY ) ) )
+          {
+            xPrefetchPad( subPu, cYuvRefBuffDMVRL0, REF_PIC_LIST_0, false );
+          }
 
-        subPredBuf.bufs[COMPONENT_Y].buf    = pcYuvDst.bufs[COMPONENT_Y].buf  +   xStart +                 yStart             * dstStride[COMPONENT_Y];
+          if( ( mv1.hor >> mvShift ) != ( mergeMv[1].hor >> mvShift ) || ( mv1.ver >> mvShift ) != ( mergeMv[1].ver >> mvShift ) )
+          {
+            xPrefetchPad( subPu, cYuvRefBuffDMVRL1, REF_PIC_LIST_1, true );
+          }
+          if( isChromaEnabled( cu.chromaFormat ) && ( ( mv1.hor >> mvShiftX ) != ( mergeMv[1].hor >> mvShiftX ) || ( mv1.ver >> mvShiftY ) != ( mergeMv[1].ver >> mvShiftY ) ) )
+          {
+            xPrefetchPad( subPu, cYuvRefBuffDMVRL1, REF_PIC_LIST_1, false );
+          }
 
-        if( isChromaEnabled( cu.chromaFormat ) )
-        {
-          subPredBuf.bufs[COMPONENT_Cb].buf = pcYuvDst.bufs[COMPONENT_Cb].buf + ( xStart >> scaleX ) + ( ( yStart >> scaleY ) * dstStride[COMPONENT_Cb] );
-          subPredBuf.bufs[COMPONENT_Cr].buf = pcYuvDst.bufs[COMPONENT_Cr].buf + ( xStart >> scaleX ) + ( ( yStart >> scaleY ) * dstStride[COMPONENT_Cr] );
+          subPu.mv[0][0] = mv0;
+          subPu.mv[1][0] = mv1;
         }
 
         PelUnitBuf& srcPred0 = subPredBuf;
 
-        xFinalPaddedMCForDMVR( subPu, srcPred0, srcPred1, cYuvRefBuffDMVRL0, cYuvRefBuffDMVRL1, bioAppliedSubblk, mergeMv );
+        bioAppliedSubblk = minCost < bioEnabledThres ? false : bioApplied;
 
-        xWeightedAverage( subPu, srcPred0, srcPred1, subPredBuf, bds, clpRngs, bioAppliedSubblk );
+        xFinalPaddedMCForDMVR( subPu, srcPred0, srcPred1, cYuvRefBuffDMVRL0, cYuvRefBuffDMVRL1, bioAppliedSubblk, mergeMv );
+        xWeightedAverage     ( subPu, srcPred0, srcPred1, subPredBuf, bds, clpRngs, bioAppliedSubblk );
+
         num++;
       }
     }
@@ -2062,36 +2064,32 @@ bool InterPrediction::isLumaBvValid(const int ctuSize, const int xCb, const int 
 #endif
 
 void InterPrediction::xPredInterBlkRPR( const std::pair<int, int>& scalingRatio, const PPS& pps, const ComponentID& compID, const ChromaFormat chFmt, const Picture* refPic, const Mv& mv, const Position blkPos, const int dstWidth, const int dstHeight, Pel* dst, const ptrdiff_t dstStride, const bool bi, const bool wrapRef, const ClpRng& clpRng, const int filterIndex, const bool useAltHpelIf )
-{ 
-  const bool          rndRes = !bi;
+{
+  const bool rndRes = !bi;
 
   const int csx = getComponentScaleX( compID, chFmt );
   const int csy = getComponentScaleY( compID, chFmt );
 
-  int shiftHor  = MV_FRACTIONAL_BITS_INTERNAL + csx;
-  int shiftVer  = MV_FRACTIONAL_BITS_INTERNAL + csy;
+  const int shiftHor  = MV_FRACTIONAL_BITS_INTERNAL + csx;
+  const int shiftVer  = MV_FRACTIONAL_BITS_INTERNAL + csy;
 
-  int width     = dstWidth;
-  int height    = dstHeight;
+  const int width     = dstWidth;
+  const int height    = dstHeight;
 
-  CPelBuf    refBuf;
-  const Pel* refPtr;
-  ptrdiff_t  refStride;
+  const int refPicWidth  = refPic->lwidth();
+  const int refPicHeight = refPic->lheight();
 
-  int row, col;
+  const PPS* refPPS = refPic->slices[ 0 ]->getPPS();
+  const auto refBuf = refPic->getRecoBuf( compID, wrapRef );
 
-  int refPicWidth  = refPic->lwidth();
-  int refPicHeight = refPic->lheight();
-
-  int xFilter = filterIndex;
-  int yFilter = filterIndex;
-
-  static constexpr int rprThreshold1 = ( 1 << SCALE_RATIO_BITS ) * 5 / 4; 
+  static constexpr int rprThreshold1 = ( 1 << SCALE_RATIO_BITS ) * 5 / 4;
   static constexpr int rprThreshold2 = ( 1 << SCALE_RATIO_BITS ) * 7 / 4;
 
+  int xFilter = filterIndex;
   if     ( scalingRatio.first > rprThreshold2 ) xFilter = 4;
   else if( scalingRatio.first > rprThreshold1 ) xFilter = 3;
 
+  int yFilter = filterIndex;
   if     ( scalingRatio.second > rprThreshold2 ) yFilter = 4;
   else if( scalingRatio.second > rprThreshold1 ) yFilter = 3;
 
@@ -2107,69 +2105,100 @@ void InterPrediction::xPredInterBlkRPR( const std::pair<int, int>& scalingRatio,
   const int offX     = 1 << ( posShift - shiftHor - 1 );
   const int offY     = 1 << ( posShift - shiftVer - 1 );
 
-  int64_t x0Int;
-  int64_t y0Int;
-
   const int64_t posX = ( ( blkPos.x << csx ) - ( pps.getScalingWindow().getWindowLeftOffset() * SPS::getWinUnitX( chFmt ) ) ) >> csx;
   const int64_t posY = ( ( blkPos.y << csy ) - ( pps.getScalingWindow().getWindowTopOffset()  * SPS::getWinUnitY( chFmt ) ) ) >> csy;
 
   const int     addX = isLuma( compID ) ? 0 : int( 1 - refPic->cs->sps->getHorCollocatedChromaFlag() ) * 8 * ( scalingRatio.first  - SCALE_1X.first  );
   const int     addY = isLuma( compID ) ? 0 : int( 1 - refPic->cs->sps->getVerCollocatedChromaFlag() ) * 8 * ( scalingRatio.second - SCALE_1X.second );
 
-  x0Int = ( ( posX << ( 4 + csx ) ) + mv.getHor() ) * ( int64_t ) scalingRatio.first + addX;
-  x0Int = SIGN( x0Int ) * ( ( llabs( x0Int ) + ( ( long long ) 1 << ( 7 + csx ) ) ) >> ( 8 + csx ) ) + ( ( refPic->slices[ 0 ]->getPPS()->getScalingWindow().getWindowLeftOffset() * SPS::getWinUnitX( chFmt ) ) << ( ( posShift - csx ) ) );
+  int64_t x0Int = ( ( posX << ( 4 + csx ) ) + mv.getHor() ) * (int64_t) scalingRatio.first + addX;
+          x0Int = SIGN( x0Int ) * ( ( std::abs( x0Int ) + ( (int64_t) 1 << ( 7 + csx ) ) ) >> ( 8 + csx ) )
+                + ( ( refPPS->getScalingWindow().getWindowLeftOffset() * SPS::getWinUnitX( chFmt ) ) << ( ( posShift - csx ) ) );
 
-  y0Int = ( ( posY << ( 4 + csy ) ) + mv.getVer() ) * ( int64_t ) scalingRatio.second + addY;
-  y0Int = SIGN( y0Int ) * ( ( llabs( y0Int ) + ( ( long long ) 1 << ( 7 + csy ) ) ) >> ( 8 + csy ) ) + ( ( refPic->slices[ 0 ]->getPPS()->getScalingWindow().getWindowTopOffset()  * SPS::getWinUnitY( chFmt ) ) << ( ( posShift - csy ) ) );
-  
+  int64_t y0Int = ( ( posY << ( 4 + csy ) ) + mv.getVer() ) * (int64_t) scalingRatio.second + addY;
+          y0Int = SIGN( y0Int ) * ( ( std::abs( y0Int ) + ( (int64_t) 1 << ( 7 + csy ) ) ) >> ( 8 + csy ) )
+                  + ( ( refPPS->getScalingWindow().getWindowTopOffset() * SPS::getWinUnitY( chFmt ) ) << ( ( posShift - csy ) ) );
+
   const int extSize = isLuma( compID ) ? 1 : 2;
 
-  int vFilterSize = isLuma( compID ) ? NTAPS_LUMA : NTAPS_CHROMA;
+  const int vFilterSize = isLuma( compID ) ? NTAPS_LUMA : NTAPS_CHROMA;
 
-  int yInt0 = ( ( int32_t ) y0Int + offY ) >> posShift;
-  yInt0     = Clip3( -( NTAPS_LUMA / 2 ), ( refPicHeight >> csy ) + ( NTAPS_LUMA / 2 ), yInt0 );
+  int yInt0 = ( (int32_t) y0Int + offY ) >> posShift;
+      yInt0 = Clip3( -( NTAPS_LUMA / 2 ), ( refPicHeight >> csy ) + ( NTAPS_LUMA / 2 ), yInt0 );
 
-  int xInt0 = ( ( int32_t ) x0Int + offX ) >> posShift;
-  xInt0     = Clip3( -( NTAPS_LUMA / 2 ), ( refPicWidth  >> csx ) + ( NTAPS_LUMA / 2 ), xInt0 );
+  int xInt0 = ( (int32_t) x0Int + offX ) >> posShift;
+      xInt0 = Clip3( -( NTAPS_LUMA / 2 ), ( refPicWidth >> csx ) + ( NTAPS_LUMA / 2 ), xInt0 );
 
-  int refHeight = ( ( ( ( int32_t ) y0Int + ( height - 1 ) * stepY ) + offY ) >> posShift ) - ( ( ( ( int32_t ) y0Int + 0 * stepY ) + offY ) >> posShift ) + 1;
+  int refHeight = ( ( ( (int32_t) y0Int + ( height - 1 ) * stepY ) + offY ) >> posShift )
+                - ( ( ( (int32_t) y0Int +              0 * stepY ) + offY ) >> posShift ) + 1;
   refHeight = std::max<int>( 1, refHeight );
-  
-  CHECK_RECOVERABLE( MAX_CU_SIZE * MAX_SCALING_RATIO + 16 < refHeight + vFilterSize - 1 + extSize, "Buffer size is not enough, increase MAX_SCALING_RATIO" );
 
-  Pel buffer[( MAX_CU_SIZE + 16 ) * ( MAX_CU_SIZE * MAX_SCALING_RATIO + 16 )];
+  CHECK_RECOVERABLE( MAX_CU_SIZE * MAX_SCALING_RATIO + 16 < refHeight + vFilterSize - 1 + extSize,
+                     "Buffer size is not enough, scaling more than MAX_SCALING_RATIO" );
 
+  Pel buffer[ ( MAX_CU_SIZE + 16 ) * ( MAX_CU_SIZE * MAX_SCALING_RATIO + 16 ) ];
   int tmpStride = width;
-  int xInt = 0, yInt = 0;
 
-  refBuf = refPic->getRecoBuf( compID, wrapRef );
+  const int filtHeight = refHeight + vFilterSize - 1 + extSize;
+  // only need special case for bottom margin, because all other directions are clamped to -4/+4, which should always fit within the margin
+  const int maxFiltHeight = std::min( filtHeight, ( (int) ( refPicHeight + refPic->margin ) >> csy ) - yInt0 );
 
+  int col;
   for( col = 0; col < width; col++ )
   {
-    int posX = ( int32_t ) x0Int + col * stepX;
-        xInt = ( posX + offX ) >> posShift;
+    int posX = (int32_t) x0Int + col * stepX;
+    int xInt = ( posX + offX ) >> posShift;
         xInt = Clip3( -( NTAPS_LUMA / 2 ), ( refPicWidth >> csx ) + ( NTAPS_LUMA / 2 ), xInt );
     int xFrac = ( ( posX + offX ) >> ( posShift - shiftHor ) ) & ( ( 1 << shiftHor ) - 1 );
 
     CHECK_RECOVERABLE( xInt0 > xInt, "Wrong horizontal starting point" );
 
-    refPtr    = refBuf.bufAt( xInt, yInt0 );
-    refStride = refBuf.stride;
+    const Pel* refPtr    = refBuf.bufAt( xInt, yInt0 );
+    ptrdiff_t  refStride = refBuf.stride;
 
-    m_if.filterHor( compID, GET_OFFSETY( refPtr, refStride, -( ( vFilterSize >> 1 ) - 1 ) ), refStride, GET_OFFSETX( buffer, tmpStride, col ), tmpStride, 1, refHeight + vFilterSize - 1 + extSize, xFrac, false, chFmt, clpRng, xFilter, useAltHpelIf && scalingRatio.first == 1 << SCALE_RATIO_BITS );
+    m_if.filterHor( compID,
+                    GET_OFFSETY( refPtr, refStride, -( vFilterSize / 2 - 1 ) ), refStride,
+                    GET_OFFSETX( buffer, tmpStride, col ),                      tmpStride,
+                    1, maxFiltHeight,
+                    xFrac,
+                    false,
+                    chFmt,
+                    clpRng,
+                    xFilter,
+                    useAltHpelIf && scalingRatio.first == SCALE_1X.first );
   }
 
-  for( row = 0; row < height; row++ )
+  // fill buffer area where source block reaches out of the source image + bottom margin using pixel values from last filtered column
+  if( filtHeight > maxFiltHeight )
   {
-    int posY = ( int32_t ) y0Int + row * stepY;
-        yInt = ( posY + offY ) >> posShift;
+    CHECK( maxFiltHeight <= 0, "nothing filtered yet. Reference block completely outside?" );
+    for( int row = maxFiltHeight; row < filtHeight; ++row )
+    {
+      memcpy( &buffer[ tmpStride * row ], &buffer[ tmpStride * ( maxFiltHeight - 1 ) ], width * sizeof( buffer[ 0 ] ) );
+    }
+  }
+
+  for( int row = 0; row < height; row++ )
+  {
+    int posY = (int32_t) y0Int + row * stepY;
+    int yInt = ( posY + offY ) >> posShift;
         yInt = Clip3( -( NTAPS_LUMA / 2 ), ( refPicHeight >> csy ) + ( NTAPS_LUMA / 2 ), yInt );
     int yFrac = ( ( posY + offY ) >> ( posShift - shiftVer ) ) & ( ( 1 << shiftVer ) - 1 );
 
     CHECK_RECOVERABLE( yInt0 > yInt, "Wrong vertical starting point" );
 
-    m_if.filterVer( compID, GET_OFFSETY( buffer, tmpStride, ( yInt - yInt0 ) + ( ( vFilterSize >> 1 ) - 1 ) ), tmpStride, dst + row * dstStride, dstStride, width, 1, yFrac, false, rndRes, chFmt, clpRng, yFilter, useAltHpelIf && scalingRatio.second == 1 << SCALE_RATIO_BITS );
+    m_if.filterVer( compID,
+                    GET_OFFSETY( buffer, tmpStride, ( yInt - yInt0 ) + ( ( vFilterSize >> 1 ) - 1 ) ), tmpStride,
+                    GET_OFFSETY( dst, dstStride, row ),                                                dstStride,
+                    width, 1,
+                    yFrac,
+                    false,
+                    rndRes,
+                    chFmt,
+                    clpRng,
+                    yFilter,
+                    useAltHpelIf && scalingRatio.second == SCALE_1X.second );
   }
 }
 
-}
+}   // namespace vvdec

@@ -1231,8 +1231,8 @@ void LoopFilter::xGetBoundaryStrengthSingle( LoopFilterParam& lfp, const CodingU
     if( ( piRefP0 == piRefQ0 && piRefP1 == piRefQ1 ) || ( piRefP0 == piRefQ1 && piRefP1 == piRefQ0 ) )
     {
 #if defined( TARGET_SIMD_X86 ) && ENABLE_SIMD_DBLF
-      const __m128i xmvP = _mm_unpacklo_epi64( refP0valid ? _mm_loadl_epi64( ( const __m128i* ) &miP.mv[0] ) : _mm_setzero_si128(), refP1valid ? _mm_loadl_epi64( ( const __m128i* ) &miP.mv[1] ) : _mm_setzero_si128() );
-      const __m128i xmvQ = _mm_unpacklo_epi64( refQ0valid ? _mm_loadl_epi64( ( const __m128i* ) &miQ.mv[0] ) : _mm_setzero_si128(), refQ1valid ? _mm_loadl_epi64( ( const __m128i* ) &miQ.mv[1] ) : _mm_setzero_si128() );
+      const __m128i xmvP = _mm_unpacklo_epi64( refP0valid ? _mm_loadu_si64( ( const __m128i* ) &miP.mv[0] ) : _mm_setzero_si128(), refP1valid ? _mm_loadu_si64( ( const __m128i* ) &miP.mv[1] ) : _mm_setzero_si128() );
+      const __m128i xmvQ = _mm_unpacklo_epi64( refQ0valid ? _mm_loadu_si64( ( const __m128i* ) &miQ.mv[0] ) : _mm_setzero_si128(), refQ1valid ? _mm_loadu_si64( ( const __m128i* ) &miQ.mv[1] ) : _mm_setzero_si128() );
       const __m128i xth  = _mm_set1_epi32( nThreshold - 1 );
 #else
       Mv mvP[2] = { { 0, 0 }, { 0, 0 } }, mvQ[2] = { { 0, 0 }, { 0, 0 } };

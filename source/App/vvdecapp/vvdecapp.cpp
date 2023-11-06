@@ -537,8 +537,6 @@ int main( int argc, char* argv[] )
   }
 #endif   // ENABLE_TRACING
 
-  bool bOutputInfoWritten = false;
-
   std::chrono::steady_clock::time_point cTPStartRun;
   std::chrono::steady_clock::time_point cTPEndRun;
 
@@ -604,6 +602,9 @@ int main( int argc, char* argv[] )
     unsigned int uiNoFrameAfterTuneInCount = 0;
     vvdecNalType eNalTypeSlice = VVC_NAL_UNIT_INVALID;
     bool bMultipleSlices = false;
+
+    unsigned int prevFrameW = 0;
+    unsigned int prevFrameH = 0;
 
     int iRead = 0;
     do
@@ -717,9 +718,9 @@ int main( int argc, char* argv[] )
 
         if( NULL != pcFrame && pcFrame->ctsValid )
         {
-          if ( externAllocator ) refFrame( pcFrame ); 
+          if ( externAllocator ) refFrame( pcFrame );
 
-          if (!bOutputInfoWritten)
+          if( pcFrame->width != prevFrameW || pcFrame->height != prevFrameH )
           {
             if( params.logLevel >= VVDEC_INFO )
             {
@@ -730,7 +731,8 @@ int main( int argc, char* argv[] )
                            << " matrixCoefficients: " << pcFrame->picAttributes->vui->matrixCoefficients << std::endl;
               }
             }
-            bOutputInfoWritten = true;
+            prevFrameW = pcFrame->width;
+            prevFrameH = pcFrame->height;
           }
 
           if( !bTunedIn )
@@ -859,6 +861,21 @@ int main( int argc, char* argv[] )
       if( NULL != pcFrame  )
       {
         if ( externAllocator ) refFrame( pcFrame );
+
+        if( pcFrame->width != prevFrameW || pcFrame->height != prevFrameH )
+        {
+          if( params.logLevel >= VVDEC_INFO )
+          {
+            *logStream << "vvdecapp [info]: SizeInfo: " << pcFrame->width << "x" << pcFrame->height << " (" << pcFrame->bitDepth << "b)" << std::endl;
+            if( pcFrame->picAttributes && pcFrame->picAttributes->vui && pcFrame->picAttributes->vui->colourDescriptionPresentFlag )
+            {
+              *logStream << "vvdecapp [info]: VUI ColourDescription: colourPrim: " << pcFrame->picAttributes->vui->colourPrimaries << " transCharacteristics: " << pcFrame->picAttributes->vui->transferCharacteristics
+                         << " matrixCoefficients: " << pcFrame->picAttributes->vui->matrixCoefficients << std::endl;
+            }
+          }
+          prevFrameW = pcFrame->width;
+          prevFrameH = pcFrame->height;
+        }
 
         uiFrames++;
 
