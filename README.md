@@ -1,8 +1,8 @@
-# Fraunhofer Versatile Video Decoder (VVdeC)
+# VVdeC
 
-The Fraunhofer Versatile Video Decoder (VVdeC) is a fast H.266/VVC software decoder implementation.
+![VVdeC Logo](https://github.com/fraunhoferhhi/vvdec/wiki/img/VVdeC_RGB_small.png)
 
-**All features** of the **VVC Main10** profile are supported by VVdeC.
+VVdeC, the Fraunhofer Versatile Video Decoder, is a fast software H.266/VVC decoder implementation supporting **all features** of the **VVC Main10** profile.
 
 ## Supported architectures
 
@@ -48,11 +48,11 @@ The Fraunhofer Versatile Video Decoder (VVdeC) is a fast H.266/VVC software deco
     <td>armv7</td>
     <td>:black_square_button:</td>
     <td>armv7</td>
-    <td>:black_square_button:</td>
+    <td>:white_check_mark:</td>
     <td></td>
     <td></td>
     <td>armv7</td>
-    <td>:x:</td>
+    <td>:white_check_mark:</td>
     <td>armv7</td>
     <td>:black_square_button:</td>
     <td>Chrome</td>
@@ -156,3 +156,5 @@ For more information, please contact: vvc@hhi.fraunhofer.de
 **Copyright (c) 2018-2023 Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. & The VVdeC Authors.**
 
 **All rights reserved.**
+
+**VVdeC® is a registered trademark of the Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V.**

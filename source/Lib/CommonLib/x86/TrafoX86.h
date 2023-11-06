@@ -103,8 +103,8 @@ void fastInv_SSE( const TMatrixCoeff* it, const TCoeff* src, TCoeff* dst, unsign
         for( int i = 0; i < reducedLines; i += 4, srcPtr0 += maxLoopL, srcPtr1 += maxLoopL )
         {
           __m128i xscale = maxLoopL == 4
-                         ? _mm_packs_epi32( _mm_load_si128 ( ( const __m128i* )srcPtr0 ), _mm_load_si128 ( ( const __m128i* )srcPtr1 ) )
-                         : _mm_packs_epi32( _mm_loadl_epi64( ( const __m128i* )srcPtr0 ), _mm_loadl_epi64( ( const __m128i* )srcPtr1 ) );
+                         ? _mm_packs_epi32( _mm_load_si128( ( const __m128i* )srcPtr0 ), _mm_load_si128( ( const __m128i* )srcPtr1 ) )
+                         : _mm_packs_epi32( _mm_loadu_si64( ( const __m128i* )srcPtr0 ), _mm_loadu_si64( ( const __m128i* )srcPtr1 ) );
           xscale = _mm_shuffle_epi8( xscale, _mm_setr_epi8( 0, 1, 8, 9, 2, 3, 10, 11, 4, 5, 12, 13, 6, 7, 14, 15 ) );
 
           if( _mm_test_all_zeros( xscale, xscale ) ) { dstPtr += ( trSize * maxLoopL ); continue; }
@@ -170,8 +170,8 @@ void fastInv_SSE( const TMatrixCoeff* it, const TCoeff* src, TCoeff* dst, unsign
         for( int i = 0; i < reducedLines; i += 4, srcPtr0 += maxLoopL, srcPtr1 += maxLoopL )
         {
           __m128i xscale = maxLoopL == 4
-                         ? _mm_packs_epi32( _mm_load_si128 ( ( const __m128i* )srcPtr0 ), _mm_load_si128 ( ( const __m128i* )srcPtr1 ) )
-                         : _mm_packs_epi32( _mm_loadl_epi64( ( const __m128i* )srcPtr0 ), _mm_loadl_epi64( ( const __m128i* )srcPtr1 ) );
+                         ? _mm_packs_epi32( _mm_load_si128( ( const __m128i* )srcPtr0 ), _mm_load_si128( ( const __m128i* )srcPtr1 ) )
+                         : _mm_packs_epi32( _mm_loadu_si64( ( const __m128i* )srcPtr0 ), _mm_loadu_si64( ( const __m128i* )srcPtr1 ) );
           xscale = _mm_shuffle_epi8( xscale, _mm_setr_epi8( 0, 1, 8, 9, 2, 3, 10, 11, 4, 5, 12, 13, 6, 7, 14, 15 ) );
 
           if( _mm_test_all_zeros( xscale, xscale ) ) { dstPtr += ( trSize * maxLoopL ); continue; }
@@ -210,8 +210,8 @@ void fastInv_SSE( const TMatrixCoeff* it, const TCoeff* src, TCoeff* dst, unsign
       for( int i = 0; i < reducedLines; i += 4, srcPtr0 += maxLoopL, srcPtr1 += maxLoopL )
       {
         __m128i xscale = maxLoopL == 4
-                        ? _mm_packs_epi32( _mm_load_si128 ( ( const __m128i* )srcPtr0 ), _mm_load_si128 ( ( const __m128i* )srcPtr1 ) )
-                        : _mm_packs_epi32( _mm_loadl_epi64( ( const __m128i* )srcPtr0 ), _mm_loadl_epi64( ( const __m128i* )srcPtr1 ) );
+                        ? _mm_packs_epi32( _mm_load_si128( ( const __m128i* )srcPtr0 ), _mm_load_si128( ( const __m128i* )srcPtr1 ) )
+                        : _mm_packs_epi32( _mm_loadu_si64( ( const __m128i* )srcPtr0 ), _mm_loadu_si64( ( const __m128i* )srcPtr1 ) );
         xscale = _mm_shuffle_epi8( xscale, _mm_setr_epi8( 0, 1, 8, 9, 2, 3, 10, 11, 4, 5, 12, 13, 6, 7, 14, 15 ) );
 
         if( _mm_test_all_zeros( xscale, xscale ) ) { dstPtr += ( trSize * maxLoopL ); continue; }
@@ -271,13 +271,13 @@ void fastInv_SSE( const TMatrixCoeff* it, const TCoeff* src, TCoeff* dst, unsign
       const TMatrixCoeff*  itPtr0 = &it[  k       * trSize];
       const TMatrixCoeff*  itPtr1 = &it[( k + 1 ) * trSize];
 
-      __m128i vit = _mm_unpacklo_epi16( _mm_loadl_epi64( ( const __m128i * ) itPtr0 ), _mm_loadl_epi64( ( const __m128i * ) itPtr1 ) );
+      __m128i vit = _mm_unpacklo_epi16( _mm_loadu_si64( ( const __m128i * ) itPtr0 ), _mm_loadu_si64( ( const __m128i * ) itPtr1 ) );
  
       for( int i = 0; i < reducedLines; i += 4, srcPtr0 += maxLoopL, srcPtr1 += maxLoopL )
       {
         __m128i xscale = maxLoopL == 4
-                        ? _mm_packs_epi32( _mm_load_si128 ( ( const __m128i* )srcPtr0 ), _mm_load_si128 ( ( const __m128i* )srcPtr1 ) )
-                        : _mm_packs_epi32( _mm_loadl_epi64( ( const __m128i* )srcPtr0 ), _mm_loadl_epi64( ( const __m128i* )srcPtr1 ) );
+                        ? _mm_packs_epi32( _mm_load_si128( ( const __m128i* )srcPtr0 ), _mm_load_si128( ( const __m128i* )srcPtr1 ) )
+                        : _mm_packs_epi32( _mm_loadu_si64( ( const __m128i* )srcPtr0 ), _mm_loadu_si64( ( const __m128i* )srcPtr1 ) );
         xscale = _mm_shuffle_epi8( xscale, _mm_setr_epi8( 0, 1, 8, 9, 2, 3, 10, 11, 4, 5, 12, 13, 6, 7, 14, 15 ) );
 
         if( _mm_test_all_zeros( xscale, xscale ) ) { dstPtr += ( trSize * maxLoopL ); continue; }
@@ -457,7 +457,7 @@ void cpyResiClip_SSE( const TCoeff* src, Pel* dst, ptrdiff_t stride, unsigned wi
         vdst = _mm_srai_epi32 ( vdst, shift );
         vdst = _mm_max_epi32  ( _mm_min_epi32( vdst, vmax ), vmin );
         vdst = _mm_packs_epi32( vdst, vzero );
-        _mm_storel_epi64      ( ( __m128i * ) &dst[col], vdst );
+        _mm_storeu_si64       ( ( __m128i * ) &dst[col], vdst );
       }
 
       src += width;
@@ -503,7 +503,7 @@ static void simdInvLfnstNxNCore( int* src, int* dst, const uint32_t mode, const 
       for( int i = 0; i < zeroOutSize; i += 8, srcPtr += 8, trMatTmp += 8 )
       {
         vsrc = _mm_loadu_si128( ( const __m128i* ) srcPtr );
-        vtr  = _mm_loadl_epi64( ( const __m128i* ) trMatTmp );
+        vtr  = _mm_loadu_si64( ( const __m128i* ) trMatTmp );
         vtr  = _mm_cvtepi8_epi16( vtr );
         vtmp = _mm_cvtepi16_epi32( vtr );
 

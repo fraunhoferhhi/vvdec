@@ -230,7 +230,6 @@ public:
 
   WaitCounter     m_divTasksCounter;        // for all tasks, that are not covered by the other WaitCounters => only needed for cleanup during exception handling
   WaitCounter     m_ctuTaskCounter;
-  WaitCounter     m_motionTaskCounter;
   WaitCounter     m_borderExtTaskCounter;
   Barrier         m_copyWrapBufDone;
   BlockingBarrier parseDone;

@@ -315,6 +315,10 @@ void CodingStructure::deallocTempInternals()
 {
   m_cuCache.releaseAll();
   m_tuCache.releaseAll();
+
+  if( m_cuMap ) free( m_cuMap );
+  m_cuMap     = nullptr;
+  m_cuMapSize = 0;
 }
 
 void CodingStructure::initStructData()

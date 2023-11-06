@@ -126,7 +126,7 @@ Picture* PicListManager::getNewPicBuffer( const SPS& sps, const PPS& pps, const 
   const int iMaxRefPicNum = ( vps == nullptr || vps->m_numLayersInOls[vps->m_iTargetLayer] == 1 )
                               ? sps.getMaxDecPicBuffering( temporalLayer ) + 1
                               : vps->getMaxDecPicBuffering( temporalLayer );   // m_uiMaxDecPicBuffering has the space for the picture currently being decoded
-  const unsigned int picMargin = ( sps.getRprEnabledFlag() ? MAX_SCALING_RATIO : 1 ) * ( 16 + sps.getMaxCUWidth() );
+  const unsigned int picMargin = 16 + sps.getMaxCUWidth();
 
   bool externAllocator = m_userAllocator.enabled;
   if ( externAllocator )

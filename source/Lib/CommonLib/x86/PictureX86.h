@@ -80,8 +80,8 @@ void paddPicBorderLeftRightSIMD(Pel *pi, ptrdiff_t stride,int width,int xmargin,
     }
     while ((temp >> 2) > 0)
     {
-      _mm_storel_epi64((__m128i*)&pi[-xmargin + x], xleft);
-      _mm_storel_epi64((__m128i*)&pi[width  + x], xright);
+      _mm_storeu_si64((__m128i*)&pi[-xmargin + x], xleft);
+      _mm_storeu_si64((__m128i*)&pi[width  + x], xright);
       x+=4;
       temp-=4;
     }
@@ -130,8 +130,8 @@ void paddPicBorderBotSIMD( Pel *pi, ptrdiff_t stride, int width, int xmargin, in
     }
     while( ( temp >> 2 ) > 0 )
     {
-      x8 = _mm_loadl_epi64( ( __m128i * )( pi + j ) );
-      _mm_storel_epi64( ( __m128i* )( pi + j + i * stride ), x8 );
+      x8 = _mm_loadu_si64( ( __m128i * )( pi + j ) );
+      _mm_storeu_si64( ( __m128i* )( pi + j + i * stride ), x8 );
       j = j + 4;
       temp = temp - 4;
     }
@@ -183,8 +183,8 @@ void paddPicBorderTopSIMD( Pel *pi, ptrdiff_t stride, int width, int xmargin, in
     }
     while( ( temp >> 2 ) > 0 )
     {
-      x8 = _mm_loadl_epi64( ( __m128i * )( pi + j ) );
-      _mm_storel_epi64( ( __m128i* )( pi + j - i * stride ), x8 );
+      x8 = _mm_loadu_si64( ( __m128i * )( pi + j ) );
+      _mm_storeu_si64( ( __m128i* )( pi + j - i * stride ), x8 );
       j = j + 4;
       temp = temp - 4;
     }

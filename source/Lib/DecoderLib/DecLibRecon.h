@@ -84,7 +84,6 @@ struct CommonTaskParam
   CodingStructure*         cs           = nullptr;
   std::vector<CtuState>    ctuStates;
   std::vector<MotionHist>  perLineMiHist;
-  std::vector<Barrier>     finishMotionTriggers;
 
   bool                     doALF        = true;
 
