@@ -125,7 +125,7 @@ void RdCost::initRdCostX86()
   switch (vext){
     case AVX512:
     case AVX2:
-#if !defined( REAL_TARGET_WASM ) && defined( _MSC_VER ) && _MSC_VER >= 1938
+#if defined( REAL_TARGET_WASM ) || ( defined( _MSC_VER ) && _MSC_VER >= 1938 )
 #else
       _initRdCostX86<AVX2>();
       break;
