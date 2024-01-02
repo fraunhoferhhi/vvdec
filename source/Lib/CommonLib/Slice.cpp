@@ -497,6 +497,8 @@ void Slice::constructSingleRefPicList( const PicList& rcPicList, RefPicList list
       refPOC   = rRPL.calcLTRefPOC( getPOC(), getSPS()->getBitsForPOC(), ii );
       pcRefPic = xGetLongTermRefPic( rcPicList, refPOC, rRPL.getDeltaPocMSBPresentFlag( ii ), m_pcPic->layerId, true );
       CHECK( !pcRefPic, "Picture pointer missing from ref pic list" );
+      if( !rRPL.getDeltaPocMSBPresentFlag( ii ) )
+        refPOC = pcRefPic->getPOC();
 
       pcRefPic->dpbReferenceMark = Picture::LongTerm;
     }
