@@ -121,8 +121,8 @@ void IntraPredAngleChroma_SIMD(int16_t* pDst,const ptrdiff_t dstStride,int16_t* 
         }
 
       }
-#endif
-    }  //AVX2
+#endif //AVX2
+    }  
     else
     {
       for (int k=0; k<height; k++) {
@@ -186,7 +186,6 @@ void IntraPredAngleCore_SIMD(int16_t* pDstBuf,const ptrdiff_t dstStride,int16_t*
 
   if( W == 8 )
   {
-
     if( vext >= AVX2 )
     {
 #ifdef USE_AVX2

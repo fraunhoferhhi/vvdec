@@ -191,14 +191,14 @@ struct BlockingBarrier: public Barrier
 {
   void unlock() override
   {
-    std::unique_lock<std::mutex> l( m_lock );
+    std::lock_guard<std::mutex> l( m_lock );
     Barrier::unlock();
     m_cond.notify_all();
   }
 
   void lock() override
   {
-    std::unique_lock<std::mutex> l( m_lock );
+    std::lock_guard<std::mutex> l( m_lock );
     Barrier::lock();
   }
 
@@ -213,19 +213,19 @@ struct BlockingBarrier: public Barrier
 
   void setException( std::exception_ptr e ) override
   {
-    std::unique_lock<std::mutex> l( m_lock );
+    std::lock_guard<std::mutex> l( m_lock );
     Barrier::setException( e );
     m_cond.notify_all();
   }
 
   void clearException() override
   {
-    std::unique_lock<std::mutex> l( m_lock );
+    std::lock_guard<std::mutex> l( m_lock );
     Barrier::clearException();
   }
 
   BlockingBarrier()  = default;
-  ~BlockingBarrier() { std::unique_lock<std::mutex> l( m_lock ); } // ensure all threads have unlocked the mutex, when we start destruction
+  ~BlockingBarrier() { std::lock_guard<std::mutex> l( m_lock ); }   // ensure all threads have unlocked the mutex, when we start destruction
 
   BlockingBarrier( const BlockingBarrier& ) = delete;
   BlockingBarrier( BlockingBarrier&& )      = delete;
@@ -242,7 +242,7 @@ struct WaitCounter
 {
   int operator++()
   {
-    std::unique_lock<std::mutex> l( m_lock );
+    std::lock_guard<std::mutex> l( m_lock );
     m_done.lock();
     return ++m_count;
   }
@@ -262,7 +262,7 @@ struct WaitCounter
 
   bool isBlocked() const
   {
-    std::unique_lock<std::mutex> l( m_lock );
+    std::lock_guard<std::mutex> l( m_lock );
     m_done.checkAndRethrowException();
     return 0 != m_count;
   }
@@ -282,14 +282,14 @@ struct WaitCounter
 
   void setException( std::exception_ptr e )
   {
-    std::unique_lock<std::mutex> l( m_lock );
+    std::lock_guard<std::mutex> l( m_lock );
     m_done.setException( e );
     m_cond.notify_all();
   }
 
   void clearException()
   {
-    std::unique_lock<std::mutex> l( m_lock );
+    std::lock_guard<std::mutex> l( m_lock );
     m_done.clearException();
   }
 
@@ -297,7 +297,7 @@ struct WaitCounter
   const std::exception_ptr getException() const { return m_done.getException(); }
 
   WaitCounter() = default;
-  ~WaitCounter() { std::unique_lock<std::mutex> l( m_lock ); }   // ensure all threads have unlocked the mutex, when we start destruction
+  ~WaitCounter() { std::lock_guard<std::mutex> l( m_lock ); }   // ensure all threads have unlocked the mutex, when we start destruction
 
   WaitCounter( const WaitCounter & ) = delete;
   WaitCounter( WaitCounter && )      = delete;
@@ -312,44 +312,6 @@ private:
   mutable std::mutex              m_lock;
   unsigned int                    m_count = 0;
   Barrier                         m_done{ false };
-};
-
-class PoolPause
-{
-public:
-  PoolPause() = default;
-  void setNrThreads(size_t nr) { m_nrThreads = nr; }
-  void unpauseIfPaused()
-  {
-    // All threads may be sleeping. If so, wake up.
-    std::unique_lock<std::mutex> lock(m_allThreadsWaitingMutex);
-    m_allThreadWaitingMoreWork = false;
-    m_allThreadsWaitingCV.notify_all();
-  }
-  void pauseIfAllOtherThreadsWaiting()
-  {
-    if (m_nrThreads == 0)
-      return;
-    auto nrWaiting = m_waitingForLockThreads.load( std::memory_order_relaxed );
-    if (nrWaiting == m_nrThreads - 1)
-    {
-      // All threads are waiting. This (current) threads is the one which locked `l`. All
-      // other threads are waiting in the above condition for `l.lock();`.
-      // The only way how more work for the threads can come in is if addBarrierTask is called 
-      // or if the thread pool is closed or destroyed.
-      std::unique_lock<std::mutex> lock(m_allThreadsWaitingMutex);
-      m_allThreadWaitingMoreWork = true;
-      m_allThreadsWaitingCV.wait( lock, [=] { return !m_allThreadWaitingMoreWork; } );
-    }
-  }
-  
-  std::atomic_uint         m_waitingForLockThreads{ 0 };
-
-private:
-  std::mutex               m_allThreadsWaitingMutex;
-  std::condition_variable  m_allThreadsWaitingCV;
-  bool                     m_allThreadWaitingMoreWork{ false };
-  size_t m_nrThreads{};
 };
 
 // ---------------------------------------------------------------------------
@@ -447,6 +409,25 @@ class ThreadPool
     std::mutex m_resizeMutex;
   };
 
+private:
+  class PoolPause
+  {
+  public:
+    PoolPause( size_t numThreads ) : m_nrThreads( numThreads ){};
+    auto acquireLock() { return std::unique_lock<std::mutex>( m_allThreadsWaitingMutex ); }
+    void unpauseIfPaused( std::unique_lock<std::mutex> lockOwnership );
+    template<typename Predicate>
+    bool pauseIfAllOtherThreadsWaiting( Predicate predicate );
+    ~PoolPause() { unpauseIfPaused( acquireLock() ); }
+
+    std::atomic_uint m_waitingForLockThreads{ 0 };
+
+  private:
+    std::mutex              m_allThreadsWaitingMutex;
+    std::condition_variable m_allThreadsWaitingCV;
+    bool                    m_allThreadsWaiting{ false };
+    size_t                  m_nrThreads{};
+  };
 
 public:
   ThreadPool( int numThreads = 1, const char *threadPoolName = nullptr );
@@ -477,7 +458,7 @@ public:
     while( true )
     {
 #if THREAD_POOL_ADD_TASK_THREAD_SAFE
-      std::unique_lock<std::mutex> l(m_nextFillSlotMutex);
+      std::unique_lock<std::mutex> l( m_nextFillSlotMutex );
 #endif
       CHECKD( !m_nextFillSlot.isValid(), "Next fill slot iterator should always be valid" );
       const auto startIt = m_nextFillSlot;
@@ -509,13 +490,15 @@ public:
 #if THREAD_POOL_TASK_NAMES
           t.taskName   = std::move( taskName );
 #endif
-          t.state      = WAITING;
+          auto poolPauseLock( m_poolPause.acquireLock() );
+          t.state = WAITING;
+
+          m_poolPause.unpauseIfPaused( std::move( poolPauseLock ) );
 
 #if THREAD_POOL_ADD_TASK_THREAD_SAFE
           l.lock();
 #endif
           m_nextFillSlot.incWrap();
-          m_poolPause.unpauseIfPaused();
           return true;
         }
       }
@@ -550,11 +533,11 @@ private:
   std::mutex               m_nextFillSlotMutex;
 #endif
   std::mutex               m_idleMutex;
+  PoolPause                m_poolPause;
 
   std::atomic_bool         m_exceptionFlag{ false };
   std::exception_ptr       m_threadPoolException;
 
-  PoolPause m_poolPause;
 
   // internal functions
   void         threadProc     ( int threadId );
@@ -568,4 +551,4 @@ private:
 #endif
 };
 
-}
+}   // namespace vvdec

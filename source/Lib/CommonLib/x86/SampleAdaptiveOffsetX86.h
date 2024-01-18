@@ -233,10 +233,9 @@ static void offsetBlock_SIMD_SAO_TYPE_EO_0( const int            channelBitDepth
     {
       p_eo_offsets[i] = offset[i];
     }
-#  ifdef USE_AVX2
+#if defined( USE_AVX2 )
     // AVX2
-    //      if ((width>8) && (vext >= AVX2))
-    if( 0 )
+    if( ( width & 15 ) == 0 && vext >= AVX2 )
     {
 
       __m256i vsrca, vsrcal, vsrcar, virBmask;
@@ -454,10 +453,9 @@ static void offsetBlock_SIMD_SAO_TYPE_EO_90( const int            channelBitDept
   {
     endY = height - 1;
   }
-#  ifdef USE_AVX2
+#  if defined( USE_AVX2 )
   // AVX2
-  if( ( width > 8 ) && ( vext >= AVX2 ) )
-  //    if (0)
+  if( ( width & 15 ) == 0 && vext >= AVX2 )
   {
     __m256i vsrca, vsrcat, vsrcab;
 
@@ -660,9 +658,9 @@ static void offsetBlock_SIMD_SAO_TYPE_EO_135( const int            channelBitDep
     {
       endY = height - 1;
     }
-#  ifdef USE_AVX2
+#  if defined( USE_AVX2 )
     // AVX2
-    if( ( width > 8 ) && ( vext >= AVX2 ) )
+    if( ( width & 15 ) == 0 && vext >= AVX2 )
     {
       __m256i vsrca, vsrcat, vsrcab, virBmask;
 
@@ -948,9 +946,9 @@ static void offsetBlock_SIMD_SAO_TYPE_EO_45( const int            channelBitDept
     {
       endY = height - 1;
     }
-#  ifdef USE_AVX2
+#  if defined( USE_AVX2 )
     // AVX2
-    if( ( width > 8 ) && ( vext >= AVX2 ) )
+    if( ( width & 15 ) == 0 && vext >= AVX2 )
     {
       __m256i    virBmask;
       __m256i    vsrca, vsrcat, vsrcab;
