@@ -233,7 +233,7 @@ static void offsetBlock_SIMD_SAO_TYPE_EO_0( const int            channelBitDepth
     {
       p_eo_offsets[i] = offset[i];
     }
-#if defined( USE_AVX2 ) && !defined( REAL_TARGET_ARM )
+#if defined( USE_AVX2 )
     // AVX2
     if( ( width & 15 ) == 0 && vext >= AVX2 )
     {
