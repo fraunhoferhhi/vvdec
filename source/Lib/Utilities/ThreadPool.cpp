@@ -48,18 +48,29 @@ POSSIBILITY OF SUCH DAMAGE.
 # include <pthread.h>
 #endif
 
+
 namespace vvdec
 {
+using namespace std::chrono_literals;
 
 std::mutex Barrier::s_exceptionLock{};
 
 // block threads after busy-waiting this long
-const static auto BUSY_WAIT_TIME = [] {
-  const char* env = getenv( "BUSY_WAIT_TIME" );
+const static auto VVDEC_BUSY_WAIT_TIME_MIN = [] {
+  const char* env = getenv( "VVDEC_BUSY_WAIT_TIME_MIN" );
   if( env )
-    return std::chrono::milliseconds( atoi( env ) );
-  return std::chrono::milliseconds( 1 );
+    return std::chrono::microseconds( int( atof( env ) * 1000 ) );
+  return std::chrono::microseconds( 1ms );
 }();
+
+// block last waiting thread after this time
+const static auto VVDEC_BUSY_WAIT_TIME_MAX = [] {
+  const char* env = getenv( "VVDEC_BUSY_WAIT_TIME_MAX" );
+  if( env )
+    return atoi( env ) * 1ms;
+  return 5ms;
+}();
+
 
 struct ThreadPool::TaskException : public std::exception
 {
@@ -89,10 +100,10 @@ public:
 
 ThreadPool::ThreadPool( int numThreads, const char* threadPoolName )
   : m_poolName( threadPoolName )
-  , m_threads ( numThreads < 0 ? std::thread::hardware_concurrency() : numThreads )
+  , m_threads( numThreads < 0 ? std::thread::hardware_concurrency() : numThreads )
+  , m_poolPause( m_threads.size() )
 {
   int tid = 0;
-  m_poolPause.setNrThreads(m_threads.size());
   for( auto& t: m_threads )
   {
     t = std::thread( &ThreadPool::threadProc, this, tid++ );
@@ -151,7 +162,7 @@ void ThreadPool::shutdown( bool block )
 
 void ThreadPool::waitForThreads()
 {
-  m_poolPause.unpauseIfPaused();
+  m_poolPause.unpauseIfPaused( m_poolPause.acquireLock() );
 
   for( auto& t: m_threads )
   {
@@ -192,40 +203,58 @@ void ThreadPool::threadProc( int threadId )
     try
     {
       auto taskIt = findNextTask( threadId, nextTaskIt );
-      if( !taskIt.isValid() )
+      if( !taskIt.isValid() )   // immediately try again without any delay
       {
-        std::unique_lock<std::mutex> l( m_idleMutex, std::defer_lock );
-
+        taskIt = findNextTask( threadId, nextTaskIt );
+      }
+      if( !taskIt.isValid() )   // still nothing found, go into idle loop searching for more tasks
+      {
         ITT_TASKSTART( itt_domain_thrd, itt_handle_TPspinWait );
 
+        std::unique_lock<std::mutex> idleLock( m_idleMutex, std::defer_lock );
+
         const auto startWait = std::chrono::steady_clock::now();
+        bool       didBlock  = false;   // if the previous iteration did block we don't want to yield in this iteration
         while( !m_exitThreads )
         {
+          if( !didBlock )
+          {
+            std::this_thread::yield();
+          }
+          didBlock = false;
+
           taskIt = findNextTask( threadId, nextTaskIt );
-          if( taskIt.isValid() || m_exitThreads )
+          if( taskIt.isValid() || m_exitThreads.load( std::memory_order_relaxed ) )
           {
             break;
           }
 
-          if( !l.owns_lock()
-              && ( BUSY_WAIT_TIME.count() == 0 || std::chrono::steady_clock::now() - startWait > BUSY_WAIT_TIME )
-              && !m_exitThreads )
+          if( !idleLock.owns_lock() )
           {
-            ITT_TASKSTART( itt_domain_thrd, itt_handle_TPblocked );
-            ScopeIncDecCounter cntr( m_poolPause.m_waitingForLockThreads );
-            l.lock();
-            ITT_TASKEND( itt_domain_thrd, itt_handle_TPblocked );
+            if( VVDEC_BUSY_WAIT_TIME_MIN.count() == 0 || std::chrono::steady_clock::now() - startWait > VVDEC_BUSY_WAIT_TIME_MIN )
+            {
+              ITT_TASKSTART( itt_domain_thrd, itt_handle_TPblocked );
+              ScopeIncDecCounter cntr( m_poolPause.m_waitingForLockThreads );
+              idleLock.lock();
+              didBlock = true;
+              ITT_TASKEND( itt_domain_thrd, itt_handle_TPblocked );
+            }
           }
-          else if (std::chrono::steady_clock::now() - startWait > std::chrono::milliseconds(500))
+          else if( std::chrono::steady_clock::now() - startWait > VVDEC_BUSY_WAIT_TIME_MAX )
           {
 #if THREAD_POOL_TASK_NAMES
             printWaitingTasks();
 #endif
-            m_poolPause.pauseIfAllOtherThreadsWaiting();
-          }
-          else
-          {
-            std::this_thread::yield();
+            didBlock = m_poolPause.pauseIfAllOtherThreadsWaiting(
+              [&]
+              {
+                taskIt = findNextTask( threadId, nextTaskIt );
+                return taskIt.isValid() || m_exitThreads;
+              } );
+            if( taskIt.isValid() )
+            {
+              break;
+            }
           }
         }
 
@@ -443,7 +472,7 @@ ThreadPool::ChunkedTaskQueue::~ChunkedTaskQueue()
 
 ThreadPool::ChunkedTaskQueue::Iterator ThreadPool::ChunkedTaskQueue::grow()
 {
-  std::unique_lock<std::mutex> l( m_resizeMutex );   // prevent concurrent growth of the queue. Read access while growing is no problem
+  std::lock_guard<std::mutex> l( m_resizeMutex );   // prevent concurrent growth of the queue. Read access while growing is no problem
 
   m_lastChunk->m_next = new Chunk( &m_firstChunk );
   m_lastChunk         = m_lastChunk->m_next;
@@ -499,4 +528,36 @@ ThreadPool::ChunkedTaskQueue::Iterator& ThreadPool::ChunkedTaskQueue::Iterator::
   return *this;
 }
 
+void ThreadPool::PoolPause::unpauseIfPaused( std::unique_lock<std::mutex> lockOwnership )
+{
+  CHECKD( lockOwnership.mutex() != &m_allThreadsWaitingMutex, "wrong mutex passed into ThreadPool::PoolPause::unpauseIfPaused()" );
+  CHECKD( !lockOwnership.owns_lock(), "lock passed into ThreadPool::PoolPause::unpauseIfPaused() does not own lock" );
+  // All threads may be sleeping. If so, wake up.
+  m_allThreadsWaiting = false;
+  m_allThreadsWaitingCV.notify_all();
 }
+
+template<typename Predicate>
+bool ThreadPool::PoolPause::pauseIfAllOtherThreadsWaiting( Predicate predicate )
+{
+  if( m_nrThreads == 0 )
+  {
+    return false;
+  }
+  const auto nrWaiting = m_waitingForLockThreads.load( std::memory_order_relaxed );
+  if( nrWaiting < m_nrThreads - 1 )
+  {
+    return false;
+  }
+
+  // All threads are waiting. This (current) threads is the one which locked `idleLock`. All
+  // other threads are waiting in the above condition for `idleLock.lock();`.
+  // The only way how more work for the threads can come in is if addBarrierTask is called
+  // or if the thread pool is closed or destroyed.
+  std::unique_lock<std::mutex> lock( m_allThreadsWaitingMutex );
+  m_allThreadsWaiting = true;
+  m_allThreadsWaitingCV.wait( lock, [ = ] { return !m_allThreadsWaiting || predicate(); } );
+  return true;
+}
+
+}   // namespace vvdec

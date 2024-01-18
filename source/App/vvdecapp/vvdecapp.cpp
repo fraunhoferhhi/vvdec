@@ -40,6 +40,10 @@ POSSIBILITY OF SUCH DAMAGE.
 
 ------------------------------------------------------------------------------------------- */
 
+#ifndef DEC_AT_FPS
+#  define DEC_AT_FPS  0 // 0: disabled, positive: use this FPS, -1: read timing info from bitstream (requires timing info in HRD)
+#endif
+
 #include <iostream>
 #include <stdio.h>
 #include <fstream>
@@ -60,9 +64,55 @@ POSSIBILITY OF SUCH DAMAGE.
 #include <fcntl.h>
 #endif
 
+
+#if DEC_AT_FPS
+using namespace std::chrono_literals;
+
+using hi_res_time_point  = std::chrono::high_resolution_clock::time_point;
+using float_milliseconds = std::chrono::duration<float, std::chrono::milliseconds::period>;
+
+struct LateFrames
+{
+  unsigned int                count        = 0;
+  hi_res_time_point::duration maxDelay     = hi_res_time_point::duration::zero();
+  hi_res_time_point::duration meanDelaySum = hi_res_time_point::duration::zero();
+};
+#endif   // DEC_AT_FPS
+
 /*! Prototypes */
 int writeYUVToFile( std::ostream *f, vvdecFrame *frame, bool y4mFormat = false );
 int writeYUVToFileInterlaced( std::ostream *f, vvdecFrame *topField, vvdecFrame *botField = nullptr, bool y4mFormat = false );
+
+static bool handle_frame( vvdecFrame*   pcFrame,
+                          vvdecFrame*&  pcPrevField,
+                          unsigned int& prevFrameW,
+                          unsigned int& prevFrameH,
+                          bool&         bTunedIn,
+                          const bool    externAllocator,
+                          vvdecDecoder* dec,
+                          int           iPrintPicHash,
+                          unsigned int& uiFrames,
+                          unsigned int& uiFramesTmp,
+                          vvdecLogLevel logLevel,
+                          std::ostream* logStream,
+                          std::ostream* outStream,
+                          std::ostream* md5Stream,
+                          bool          y4mOutput
+#if DEC_AT_FPS
+                          ,
+                          hi_res_time_point& first_frame_time,
+                          LateFrames&        lateFrames
+#endif   // DEC_AT_FPS
+);
+
+#if DEC_AT_FPS
+void delay_frame( const vvdecFrame*  pcFrame,
+                  unsigned int       uiFrame,
+                  hi_res_time_point& first_frame_time,
+                  vvdecLogLevel      logLevel,
+                  std::ostream*      logStream,
+                  LateFrames&        lateFrames );
+#endif
 
 void msgFnc( void *, int level, const char* fmt, va_list args )
 {
@@ -474,11 +524,12 @@ int main( int argc, char* argv[] )
   bool writeStdout = false;
   
   // open output file
-  std::ios * pStream{nullptr};
   std::fstream cRecFile;
+  std::ostream* outStream = nullptr;
+  std::ostream* logStream = &std::cout;
   if( !cOutputFile.empty() )
   {
-    if( !strcmp( cOutputFile.c_str(), "-" ) )
+    if( cOutputFile == "-" )
     {
       writeStdout = true;
 #if defined (_WIN32) || defined (WIN32) || defined (_WIN64) || defined (WIN64)
@@ -491,8 +542,7 @@ int main( int argc, char* argv[] )
     }
     else
     {
-      const char * s = strrchr(cOutputFile.c_str(), '.');
-      if (s && !strcmp(s, ".y4m"))
+      if( cOutputFile.substr( 4, cOutputFile.length() - 5 ) == ".y4m" )
       {
         y4mOutput = true;
       }
@@ -503,17 +553,23 @@ int main( int argc, char* argv[] )
         std::cerr << "vvdecapp [error]: failed to open ouptut file " << cOutputFile << std::endl;
         return -1;
       }
-      pStream = &cRecFile;
     }
-  }
-  
-  std::ostream * outStream = writeStdout ? &std::cout : dynamic_cast<std::ostream*>(pStream);
-  std::ostream * logStream = writeStdout ? &std::cerr : &std::cout;
 
-  if( !cOutputFile.empty() && (nullptr == outStream || !outStream) )
-  {
-    *logStream << "vvdecapp [error]: failed to open ouptut file " << cOutputFile << std::endl;
-    return -1;
+    if( writeStdout )
+    {
+      outStream = &std::cout;
+      logStream = &std::cerr;
+    }
+    else
+    {
+      outStream = cRecFile.is_open() ? dynamic_cast<std::ostream*>( &cRecFile ) : nullptr;
+    }
+
+    if( nullptr == outStream || !( *outStream ) )
+    {
+      *logStream << "vvdecapp [error]: failed to open ouptut file " << cOutputFile << std::endl;
+      return -1;
+    }
   }
 
   // stream buffer to directly calculate MD5 hash over the YUV output
@@ -537,13 +593,12 @@ int main( int argc, char* argv[] )
   }
 #endif   // ENABLE_TRACING
 
-  std::chrono::steady_clock::time_point cTPStartRun;
-  std::chrono::steady_clock::time_point cTPEndRun;
+  std::chrono::steady_clock::time_point cTPStartRun;   // for calculating the overall runtime and fps
+  std::chrono::steady_clock::time_point cTPEndRun;     //
 
-  std::chrono::steady_clock::time_point cTPStart;
-  std::chrono::steady_clock::time_point cTPEnd;
+  std::chrono::steady_clock::time_point cTPStartTmp;   // for calculating the fps over the last 1s interval
 
-  std::vector<double > dFpsPerLoopVec;
+  std::vector<double> dFpsPerLoopVec;
 
   int iSEIHashErrCount = 0;
 
@@ -587,8 +642,7 @@ int main( int argc, char* argv[] )
 
     bool bFlushDecoder = false;
 
-    cTPStartRun = std::chrono::steady_clock::now();
-    cTPStart    = std::chrono::steady_clock::now();
+    cTPStartRun = cTPStartTmp = std::chrono::steady_clock::now();
 
     accessUnit->cts = 0; accessUnit->ctsValid = true;
     accessUnit->dts = 0; accessUnit->dtsValid = true;
@@ -596,7 +650,6 @@ int main( int argc, char* argv[] )
     int iComprPics = 0;
     unsigned int uiFrames = 0;
     unsigned int uiFramesTmp = 0;
-    unsigned int uiBitrate = 0;
 
     bool bTunedIn = false;
     unsigned int uiNoFrameAfterTuneInCount = 0;
@@ -605,6 +658,11 @@ int main( int argc, char* argv[] )
 
     unsigned int prevFrameW = 0;
     unsigned int prevFrameH = 0;
+
+#if DEC_AT_FPS
+    hi_res_time_point first_frame_time;
+    LateFrames lateFrames;
+#endif
 
     int iRead = 0;
     do
@@ -660,7 +718,6 @@ int main( int argc, char* argv[] )
         }
 
         // call decode
-
         iRet = vvdec_decode( dec, accessUnit, &pcFrame );
         if( bIsSlice )
         {
@@ -716,123 +773,49 @@ int main( int argc, char* argv[] )
           return iRet;
         }
 
-        if( NULL != pcFrame && pcFrame->ctsValid )
+
+        if( pcFrame && pcFrame->ctsValid )
         {
-          if ( externAllocator ) refFrame( pcFrame );
-
-          if( pcFrame->width != prevFrameW || pcFrame->height != prevFrameH )
+          if( !handle_frame( pcFrame,
+                             pcPrevField,
+                             prevFrameW,
+                             prevFrameH,
+                             bTunedIn,
+                             externAllocator,
+                             dec,
+                             iPrintPicHash,
+                             uiFrames,
+                             uiFramesTmp,
+                             params.logLevel,
+                             logStream,
+                             outStream,
+                             !cExpectedYuvMD5.empty() ? &md5Stream : nullptr,
+                             y4mOutput
+#if DEC_AT_FPS
+                             ,
+                             first_frame_time,
+                             lateFrames
+#endif
+                             ) )
           {
-            if( params.logLevel >= VVDEC_INFO )
-            {
-              *logStream << "vvdecapp [info]: SizeInfo: " << pcFrame->width << "x" << pcFrame->height << " (" << pcFrame->bitDepth << "b)" << std::endl;
-              if( pcFrame->picAttributes && pcFrame->picAttributes->vui && pcFrame->picAttributes->vui->colourDescriptionPresentFlag )
-              {
-                *logStream << "vvdecapp [info]: VUI ColourDescription: colourPrim: " << pcFrame->picAttributes->vui->colourPrimaries << " transCharacteristics: " << pcFrame->picAttributes->vui->transferCharacteristics 
-                           << " matrixCoefficients: " << pcFrame->picAttributes->vui->matrixCoefficients << std::endl;
-              }
-            }
-            prevFrameW = pcFrame->width;
-            prevFrameH = pcFrame->height;
-          }
-
-          if( !bTunedIn )
-          {
-            bTunedIn = true;
-          }
-
-          uiFrames++;
-          uiFramesTmp++;
-
-          if( pcFrame->picAttributes )
-          {
-            uiBitrate += pcFrame->picAttributes->bits;
-            (void)uiBitrate;
-          }
-
-          if( params.logLevel == VVDEC_DETAILS )
-          {
-            printSEI( dec, pcFrame, logStream );
-          }
-
-          if( pcFrame->frameFormat == VVDEC_FF_PROGRESSIVE )
-          {
-            if( iPrintPicHash > 1 )
-            {
-              printPicHash( pcFrame, logStream, uiFrames-1, iPrintPicHash-11 );
-            }
-            
-            if( !cExpectedYuvMD5.empty() )
-            {
-              writeYUVToFile( &md5Stream, pcFrame );
-            }
-            if( cRecFile.is_open() || writeStdout )
-            {
-              if( 0 != writeYUVToFile( outStream, pcFrame, y4mOutput ) )
-              {
-                *logStream << "vvdecapp [error]: write of rec. yuv failed for picture seq. " <<  pcFrame->sequenceNumber << std::endl;
-                vvdec_accessUnit_free( accessUnit );
-                return iRet;
-              }
-            }
-          }
-          else if( pcFrame->frameFormat == VVDEC_FF_TOP_FIELD ||
-                   pcFrame->frameFormat == VVDEC_FF_BOT_FIELD )
-          {
-            if( !pcPrevField )
-            {
-              pcPrevField = pcFrame;
-            }
-            else
-            {
-              if( !cExpectedYuvMD5.empty() )
-              {
-                writeYUVToFileInterlaced( &md5Stream, pcPrevField, pcFrame );
-              }
-              if( cRecFile.is_open() || writeStdout )
-              {
-                if( 0 != writeYUVToFileInterlaced( outStream, pcPrevField, pcFrame, y4mOutput ) )
-                {
-                  *logStream << "vvdecapp [error]: write of rec. yuv failed for picture seq. " <<  pcFrame->sequenceNumber << std::endl;
-                  vvdec_accessUnit_free( accessUnit );
-                  return iRet;
-                }
-              }
-              
-              if ( externAllocator ) unrefFrame( pcPrevField );
-              vvdec_frame_unref( dec, pcPrevField );
-              
-              pcPrevField = nullptr;
-            }
-          }
-          else
-          {
-            *logStream << "vvdecapp [error]: unsupported FrameFormat " << pcFrame->frameFormat << " for picture seq. " <<  pcFrame->sequenceNumber << std::endl;
             vvdec_accessUnit_free( accessUnit );
             return -1;
-          }
-
-          // free picture memory
-          if( !pcPrevField || pcPrevField != pcFrame)
-          {
-            if ( externAllocator ) unrefFrame( pcFrame );             
-            vvdec_frame_unref( dec, pcFrame );
           }
         }
 
         if( uiFrames && params.logLevel >= VVDEC_INFO )
         {
-          cTPEnd = std::chrono::steady_clock::now();
-          double dTimeMs = std::chrono::duration_cast<std::chrono::milliseconds>((cTPEnd)-(cTPStart)).count();
+          auto   now     = std::chrono::steady_clock::now();
+          double dTimeMs = std::chrono::duration_cast<std::chrono::milliseconds>( now - cTPStartTmp ).count();
           if( dTimeMs > 1000.0 )
           {
             *logStream << "vvdecapp [info]: decoded Frames: " << uiFrames << " Fps: " << uiFramesTmp << std::endl;
-            cTPStart = std::chrono::steady_clock::now();
+            cTPStartTmp = now;
             uiFramesTmp = 0;
           }
         }
       }
-    }
-    while( iRead > 0 && !bFlushDecoder ); // end for frames
+    } while( iRead > 0 && !bFlushDecoder );   // end for frames
 
     //std::cout << "flush" << std::endl;
 
@@ -858,100 +841,32 @@ int main( int argc, char* argv[] )
         return iRet;
       }
 
-      if( NULL != pcFrame  )
+      if( pcFrame && pcFrame->ctsValid )
       {
-        if ( externAllocator ) refFrame( pcFrame );
-
-        if( pcFrame->width != prevFrameW || pcFrame->height != prevFrameH )
+        if( !handle_frame( pcFrame,
+                           pcPrevField,
+                           prevFrameW,
+                           prevFrameH,
+                           bTunedIn,
+                           externAllocator,
+                           dec,
+                           iPrintPicHash,
+                           uiFrames,
+                           uiFramesTmp,
+                           params.logLevel,
+                           logStream,
+                           outStream,
+                           !cExpectedYuvMD5.empty() ? &md5Stream : nullptr,
+                           y4mOutput
+#if DEC_AT_FPS
+                           ,
+                           first_frame_time,
+                           lateFrames
+#endif
+                           ) )
         {
-          if( params.logLevel >= VVDEC_INFO )
-          {
-            *logStream << "vvdecapp [info]: SizeInfo: " << pcFrame->width << "x" << pcFrame->height << " (" << pcFrame->bitDepth << "b)" << std::endl;
-            if( pcFrame->picAttributes && pcFrame->picAttributes->vui && pcFrame->picAttributes->vui->colourDescriptionPresentFlag )
-            {
-              *logStream << "vvdecapp [info]: VUI ColourDescription: colourPrim: " << pcFrame->picAttributes->vui->colourPrimaries << " transCharacteristics: " << pcFrame->picAttributes->vui->transferCharacteristics
-                         << " matrixCoefficients: " << pcFrame->picAttributes->vui->matrixCoefficients << std::endl;
-            }
-          }
-          prevFrameW = pcFrame->width;
-          prevFrameH = pcFrame->height;
-        }
-
-        uiFrames++;
-
-        if( pcFrame->frameFormat == VVDEC_FF_PROGRESSIVE )
-        {
-          if( iPrintPicHash > 1 )
-          {
-            printPicHash( pcFrame, logStream, uiFrames-1, iPrintPicHash-11 );
-          }
-          
-          if( !cExpectedYuvMD5.empty() )
-          {
-            writeYUVToFile( &md5Stream, pcFrame );
-          }
-          if( cRecFile.is_open() || writeStdout )
-          {
-            if( 0 != writeYUVToFile( outStream, pcFrame, y4mOutput ) )
-            {
-              *logStream << "vvdecapp [error]: write of rec. yuv failed for picture seq. " << pcFrame->sequenceNumber << std::endl;
-              vvdec_accessUnit_free( accessUnit );
-              return iRet;
-            }
-          }
-        }
-        else if( pcFrame->frameFormat == VVDEC_FF_TOP_FIELD ||
-                 pcFrame->frameFormat == VVDEC_FF_BOT_FIELD )
-        {
-          if( !pcPrevField )
-          {
-            pcPrevField = pcFrame;
-          }
-          else
-          {
-            if( !cExpectedYuvMD5.empty() )
-            {
-              writeYUVToFileInterlaced( &md5Stream, pcPrevField, pcFrame );
-            }
-            if( cRecFile.is_open() || writeStdout )
-            {
-              if( 0 != writeYUVToFileInterlaced( outStream, pcPrevField, pcFrame, y4mOutput ) )
-              {
-                *logStream << "vvdecapp [error]: write of rec. yuv failed for picture seq. " << pcFrame->sequenceNumber << std::endl;
-                vvdec_accessUnit_free( accessUnit );
-                return iRet;
-              }
-            }
-
-            if ( externAllocator ) unrefFrame( pcPrevField );
-            vvdec_frame_unref( dec, pcPrevField );
-            pcPrevField = nullptr;
-          }
-        }
-        else
-        {
-          *logStream << "vvdecapp [error]: unsupported FrameFormat " << pcFrame->frameFormat << " for picture seq. " <<  pcFrame->sequenceNumber << std::endl;
           vvdec_accessUnit_free( accessUnit );
           return -1;
-        }
-
-        // free picture memory
-        if( !pcPrevField || pcPrevField != pcFrame)
-        {
-          if ( externAllocator ) unrefFrame( pcFrame );
-          vvdec_frame_unref( dec, pcFrame );
-        }
-
-        if( params.logLevel >= VVDEC_INFO )
-        {
-          cTPEnd = std::chrono::steady_clock::now();
-          double dTimeMs = std::chrono::duration_cast<std::chrono::milliseconds>((cTPEnd)-(cTPStart)).count();
-          if( dTimeMs > 1000.0 )
-          {
-            *logStream << "vvdecapp [info]: decoded Frames: " << uiFrames << " Fps: " << uiFramesTmp << std::endl;
-            cTPStart = std::chrono::steady_clock::now();
-            uiFramesTmp = 0;
-          }
         }
       }
       else
@@ -968,11 +883,24 @@ int main( int argc, char* argv[] )
     cTPEndRun = std::chrono::steady_clock::now();
     double dTimeSec = std::chrono::duration_cast<std::chrono::milliseconds>((cTPEndRun)-(cTPStartRun)).count() / 1000.0;
 
-    double dFps = dTimeSec ? ((double)uiFrames / dTimeSec) : uiFrames;
+    double dFps = dTimeSec ? ( (double) uiFrames / dTimeSec ) : uiFrames;
     dFpsPerLoopVec.push_back( dFps );
     if( params.logLevel >= VVDEC_INFO )
     {
-      *logStream << "vvdecapp [info]: " << getTimePointAsString() << ": " << uiFrames << " frames decoded @ " << dFps << " fps (" << dTimeSec << " sec)\n" << std::endl;
+      *logStream << "vvdecapp [info]: " << getTimePointAsString() << ": " << uiFrames << " frames decoded @ " << dFps << " fps (" << dTimeSec << " sec)\n";
+#if DEC_AT_FPS
+      if( lateFrames.count > 0 )
+      {
+        const auto savedFlags     = logStream->flags( std::ios::fixed );
+        const auto savedPrecision = logStream->precision( 1 );
+        *logStream << "vvdecapp [info]: " << lateFrames.count << " frames were output late. "
+                   << "Delay mean: " << float_milliseconds( lateFrames.meanDelaySum ).count() / lateFrames.count << " ms, "
+                   << "delay max: " << float_milliseconds( lateFrames.maxDelay ).count() << " ms.\n";
+        logStream->flags( savedFlags );
+        logStream->precision( savedPrecision );
+      }
+#endif
+      *logStream << std::endl;
     }
 
     iSEIHashErrCount = vvdec_get_hash_error_count(dec);
@@ -1066,3 +994,188 @@ int main( int argc, char* argv[] )
 
   return 0;
 }
+
+static bool handle_frame( vvdecFrame*   pcFrame,
+                          vvdecFrame*&  pcPrevField,
+                          unsigned int& prevFrameW,
+                          unsigned int& prevFrameH,
+                          bool&         bTunedIn,
+                          const bool    externAllocator,
+                          vvdecDecoder* dec,
+                          int           iPrintPicHash,
+                          unsigned int& uiFrames,
+                          unsigned int& uiFramesTmp,
+                          vvdecLogLevel logLevel,
+                          std::ostream* logStream,
+                          std::ostream* outStream,
+                          std::ostream* md5Stream,
+                          bool          y4mOutput
+#if DEC_AT_FPS
+                          ,
+                          hi_res_time_point& first_frame_time,
+                          LateFrames&        lateFrames
+#endif   // DEC_AT_FPS
+)
+{
+    if ( externAllocator ) refFrame( pcFrame );
+
+#if DEC_AT_FPS
+    delay_frame( pcFrame, uiFrames, first_frame_time, logLevel, logStream, lateFrames );
+
+#endif   // DEC_AT_FPS
+
+    if( !bTunedIn )
+    {
+      bTunedIn = true;
+    }
+
+    uiFrames++;
+    uiFramesTmp++;
+
+    if( pcFrame->width != prevFrameW || pcFrame->height != prevFrameH )
+    {
+      if(logLevel >= VVDEC_INFO )
+      {
+        *logStream << "vvdecapp [info]: SizeInfo: " << pcFrame->width << "x" << pcFrame->height << " (" << pcFrame->bitDepth << "b)" << std::endl;
+        if( pcFrame->picAttributes && pcFrame->picAttributes->vui && pcFrame->picAttributes->vui->colourDescriptionPresentFlag )
+        {
+          *logStream << "vvdecapp [info]: VUI ColourDescription: colourPrim: " << pcFrame->picAttributes->vui->colourPrimaries << " transCharacteristics: " << pcFrame->picAttributes->vui->transferCharacteristics
+                     << " matrixCoefficients: " << pcFrame->picAttributes->vui->matrixCoefficients << std::endl;
+        }
+      }
+      prevFrameW = pcFrame->width;
+      prevFrameH = pcFrame->height;
+    }
+
+
+    if( logLevel == VVDEC_DETAILS )
+    {
+      printSEI( dec, pcFrame, logStream );
+    }
+
+    if( pcFrame->frameFormat == VVDEC_FF_PROGRESSIVE )
+    {
+      if( iPrintPicHash > 1 )
+      {
+        printPicHash( pcFrame, logStream, uiFrames-1, iPrintPicHash-11 );
+      }
+
+      if( md5Stream )
+      {
+        writeYUVToFile( md5Stream, pcFrame );
+      }
+      if( outStream )
+      {
+        if( 0 != writeYUVToFile( outStream, pcFrame, y4mOutput ) )
+        {
+          *logStream << "vvdecapp [error]: write of rec. yuv failed for picture seq. " <<  pcFrame->sequenceNumber << std::endl;
+          return false;
+        }
+      }
+    }
+    else if( pcFrame->frameFormat == VVDEC_FF_TOP_FIELD ||
+             pcFrame->frameFormat == VVDEC_FF_BOT_FIELD )
+    {
+      if( !pcPrevField )
+      {
+        pcPrevField = pcFrame;
+      }
+      else
+      {
+        if( md5Stream )
+        {
+          writeYUVToFileInterlaced( md5Stream, pcPrevField, pcFrame );
+        }
+        if( outStream )
+        {
+          if( 0 != writeYUVToFileInterlaced( outStream, pcPrevField, pcFrame, y4mOutput ) )
+          {
+            *logStream << "vvdecapp [error]: write of rec. yuv failed for picture seq. " <<  pcFrame->sequenceNumber << std::endl;
+            return false;
+          }
+        }
+
+        if ( externAllocator ) unrefFrame( pcPrevField );
+        vvdec_frame_unref( dec, pcPrevField );
+
+        pcPrevField = nullptr;
+      }
+    }
+    else
+    {
+      *logStream << "vvdecapp [error]: unsupported FrameFormat " << pcFrame->frameFormat << " for picture seq. " <<  pcFrame->sequenceNumber << std::endl;
+      return false;
+    }
+
+    // free picture memory
+    if( !pcPrevField || pcPrevField != pcFrame)
+    {
+      if ( externAllocator ) unrefFrame( pcFrame );
+      vvdec_frame_unref( dec, pcFrame );
+    }
+  return true;
+}
+
+#if DEC_AT_FPS
+void delay_frame( const vvdecFrame*  pcFrame,
+                  unsigned int       uiFrame,
+                  hi_res_time_point& first_frame_time,
+                  vvdecLogLevel      logLevel,
+                  std::ostream*      logStream,
+                  LateFrames&        lateFrames )
+{
+  if( uiFrame == 0 )
+  {
+    first_frame_time = std::chrono::high_resolution_clock::now();
+    return;
+  }
+
+#  if DEC_AT_FPS == -1
+  if( pcFrame->picAttributes && pcFrame->picAttributes->hrd )
+#  endif   // DEC_AT_FPS == -1
+  {
+#  if DEC_AT_FPS > 0
+    int timeScale   = DEC_AT_FPS;
+    int unitPerTick = 1;
+#  else    // DEC_AT_FPS < 0
+    vvdecHrd* hrd         = pcFrame->picAttributes->hrd;
+    int       timeScale   = hrd->timeScale;
+    int       unitPerTick = hrd->numUnitsInTick;
+#  endif   // !DEC_AT_FPS < 0
+    // fps            = timeScale / unitsInTick
+    // frame duration = 1 / fps = unitsPerTick / timeScale
+
+    const hi_res_time_point display_time = first_frame_time + uiFrame * std::chrono::microseconds( 1000000 * unitPerTick / timeScale );
+    const auto              sleep_for    = display_time - std::chrono::high_resolution_clock::now();
+    if( sleep_for > 0us )
+    {
+      if( sleep_for - 1ms > 1ms )
+      {
+        std::this_thread::sleep_for( sleep_for - 1ms );
+      }
+
+      while( std::chrono::high_resolution_clock::now() < display_time )
+      {
+        std::this_thread::yield();
+      }
+    }
+    else
+    {
+      const auto late = -sleep_for;
+      ++lateFrames.count;
+      lateFrames.maxDelay = std::max( lateFrames.maxDelay, late );
+      lateFrames.meanDelaySum += late;
+
+      if( logLevel >= VVDEC_NOTICE )
+      {
+        const auto savedFlags     = logStream->flags( std::ios::fixed );
+        const auto savedPrecision = logStream->precision( 1 );
+        *logStream << "vvdecapp [notice]: Frame #" << uiFrame + 1 << " was "
+                   << float_milliseconds( late ).count() << " ms late." << std::endl;
+        logStream->flags( savedFlags );
+        logStream->precision( savedPrecision );
+      }
+    }
+  }
+}
+#endif   // DEC_AT_FPS
