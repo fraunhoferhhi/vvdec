@@ -67,7 +67,6 @@ namespace vvdec
 
 #define RECO_WHILE_PARSE                                  1
 #define ALLOW_MIDER_LF_DURING_PICEXT                      1
-#define MAX_THREADS                                       64 // maximum number of threads
 
 #define MAX_OUT_OF_ORDER_PICS                             3 // maximum number of pictures, that are reconstructed out of order
 

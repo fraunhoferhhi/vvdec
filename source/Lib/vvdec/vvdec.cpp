@@ -167,18 +167,6 @@ static int paramCheck( vvdecParams *params )
     return -1;
   }
 
-  if( params->threads > MAX_THREADS )
-  {
-    vvdec::msg( vvdec::ERROR, "threads must be <= %i\n", MAX_THREADS );
-    ret = -1;
-  }
-
-  if( params->parseThreads > MAX_THREADS )
-  {
-    vvdec::msg( vvdec::ERROR, "parseThreads must be <= %i\n", MAX_THREADS );
-    ret = -1;
-  }
-
   if( (int)params->simd > (int)VVDEC_SIMD_MAX || (int)params->simd < (int)VVDEC_SIMD_DEFAULT)
   {
     vvdec::msg( vvdec::ERROR, "unsupported simd mode. simd must be 0 <= simd <= %i\n", (int)VVDEC_SIMD_MAX );
