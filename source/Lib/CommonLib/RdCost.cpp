@@ -132,7 +132,7 @@ Distortion RdCost::xGetSAD8( const DistParam& rcDtParam )
   }
 
   uiSum <<= iSubShift;
-  return (uiSum >> DISTORTION_PRECISION_ADJUSTMENT(rcDtParam.bitDepth));
+  return uiSum;
 }
 
 Distortion RdCost::xGetSAD16( const DistParam& rcDtParam )
@@ -171,7 +171,7 @@ Distortion RdCost::xGetSAD16( const DistParam& rcDtParam )
   }
 
   uiSum <<= iSubShift;
-  return (uiSum >> DISTORTION_PRECISION_ADJUSTMENT(rcDtParam.bitDepth));
+  return uiSum;
 }
 
 void RdCost::xGetSAD8X5(const DistParam& rcDtParam, Distortion* cost, bool isCalCentrePos) {

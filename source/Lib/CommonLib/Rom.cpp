@@ -203,34 +203,8 @@ const uint16_t g_log2SbbSize[MAX_LOG2_TU_SIZE_PLUS_ONE][MAX_LOG2_TU_SIZE_PLUS_ON
 // initialize ROM variables
 void initROM()
 {
-#if RExt__HIGH_BIT_DEPTH_SUPPORT || !( ENABLE_SIMD_LOG2 && defined( TARGET_SIMD_X86 ) )
+#if !( ENABLE_SIMD_LOG2 && defined( TARGET_SIMD_X86 ) )
   int c;
-
-#endif
-#if RExt__HIGH_BIT_DEPTH_SUPPORT
-  {
-    c = 64;
-    const double s = sqrt((double)c) * (64 << COM16_C806_TRANS_PREC);
-
-
-    for (int k = 0; k < c; k++)
-    {
-      for (int n = 0; n < c; n++)
-      {
-        double w0, v;
-        const double PI = 3.14159265358979323846;
-
-        // DCT-II
-        w0 = k == 0 ? sqrt(0.5) : 1;
-        v = cos(PI*(n + 0.5)*k / c) * w0 * sqrt(2.0 / c);
-        short sv = (short)(s * v + (v > 0 ? 0.5 : -0.5));
-        if (g_aiT64[0][0][c*c + k*c + n] != sv)
-        {
-          msg(WARNING, "trap");
-        }
-      }
-    }
-  }
 
 #endif
 #if !( ENABLE_SIMD_LOG2 && defined( TARGET_SIMD_X86 ) )

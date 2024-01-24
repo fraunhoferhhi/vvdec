@@ -68,7 +68,13 @@ namespace vvdec
 #define RECO_WHILE_PARSE                                  1
 #define ALLOW_MIDER_LF_DURING_PICEXT                      1
 
-#define MAX_OUT_OF_ORDER_PICS                             3 // maximum number of pictures, that are reconstructed out of order
+#define MAX_OUT_OF_ORDER_PICS                             3  // maximum number of pictures, that are reconstructed out of order
+#if INTPTR_MAX == INT64_MAX
+#define DEFAULT_PARSE_DELAY_FACTOR                        24 // factor to set default parse delay based on number of threads (4-bit fixed point), equals a 1.5 slope 
+#else
+#define DEFAULT_PARSE_DELAY_FACTOR                        16 // factor to set default parse delay based on number of threads (4-bit fixed point), equals a 1.0 slope 
+#endif
+#define DEFAULT_PARSE_DELAY_MAX                           48 // maximum parse delay derived from thread count, when not set explicitly
 
 #define JVET_O1170_CHECK_BV_AT_DECODER                    0 // For decoder to check if a BV is valid or not
 
@@ -133,19 +139,13 @@ namespace vvdec
 // Tool Switches
 // ====================================================================================================================
 
-
-// This can be enabled by the makefile
-#ifndef RExt__HIGH_BIT_DEPTH_SUPPORT
-#define RExt__HIGH_BIT_DEPTH_SUPPORT                      0 ///< 0 (default) use data type definitions for 8-10 bit video, 1 = use larger data types to allow for up to 16-bit video (originally developed as part of N0188)
-#endif
-
 // SIMD optimizations
 #define SIMD_ENABLE                                       1
-#define ENABLE_SIMD_OPT                                 ( SIMD_ENABLE && !RExt__HIGH_BIT_DEPTH_SUPPORT )    ///< SIMD optimizations, no impact on RD performance
-#define ENABLE_SIMD_OPT_MCIF                            ( 1 && ENABLE_SIMD_OPT )                            ///< SIMD optimization for the interpolation filter, no impact on RD performance
-#define ENABLE_SIMD_OPT_BUFFER                          ( 1 && ENABLE_SIMD_OPT )                            ///< SIMD optimization for the buffer operations, no impact on RD performance
-#define ENABLE_SIMD_OPT_DIST                            ( 1 && ENABLE_SIMD_OPT )                            ///< SIMD optimization for the distortion calculations(SAD,SSE,HADAMARD), no impact on RD performance
-#define ENABLE_SIMD_OPT_ALF                             ( 1 && ENABLE_SIMD_OPT /*&& !ALF_FIX*/ )                            ///< SIMD optimization for ALF
+#define ENABLE_SIMD_OPT                                 ( SIMD_ENABLE )                                     ///< SIMD optimizations
+#define ENABLE_SIMD_OPT_MCIF                            ( 1 && ENABLE_SIMD_OPT )                            ///< SIMD optimization for the interpolation filter
+#define ENABLE_SIMD_OPT_BUFFER                          ( 1 && ENABLE_SIMD_OPT )                            ///< SIMD optimization for the buffer operations
+#define ENABLE_SIMD_OPT_DIST                            ( 1 && ENABLE_SIMD_OPT )                            ///< SIMD optimization for the distortion calculations (SAD)
+#define ENABLE_SIMD_OPT_ALF                             ( 1 && ENABLE_SIMD_OPT /*&& !ALF_FIX*/ )            ///< SIMD optimization for ALF
 #define ENABLE_SIMD_OPT_INTRAPRED                       ( 1 && ENABLE_SIMD_OPT )                            ///< SIMD optimization for Intra Prediction
 #define ENABLE_SIMD_OPT_QUANT                           ( 1 && ENABLE_SIMD_OPT )                            ///< SIMD optimization for Quant/Dequant
 #if ENABLE_SIMD_OPT_BUFFER
@@ -165,23 +165,6 @@ namespace vvdec
 // End of SIMD optimizations
 
 #define LUMA_ADAPTIVE_DEBLOCKING_FILTER_QP_OFFSET         1 /// JVET-L0414 (CE11.2.2) with explicit signalling of num interval, threshold and qpOffset
-
-// ====================================================================================================================
-// Derived macros
-// ====================================================================================================================
-
-#if RExt__HIGH_BIT_DEPTH_SUPPORT
-#define FULL_NBIT                                         1 ///< When enabled, use distortion measure derived from all bits of source data, otherwise discard (bitDepth - 8) least-significant bits of distortion
-#else
-#define FULL_NBIT                                         1 ///< When enabled, use distortion measure derived from all bits of source data, otherwise discard (bitDepth - 8) least-significant bits of distortion
-#endif
-
-#if FULL_NBIT
-#define DISTORTION_PRECISION_ADJUSTMENT(x)                0
-#else
-#define DISTORTION_ESTIMATION_BITS                        8
-#define DISTORTION_PRECISION_ADJUSTMENT(x)                ((x>DISTORTION_ESTIMATION_BITS)? ((x)-DISTORTION_ESTIMATION_BITS) : 0)
-#endif
 
 // ====================================================================================================================
 // Error checks

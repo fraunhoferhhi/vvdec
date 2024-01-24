@@ -2584,7 +2584,6 @@ private:
   bool                       m_colFromL0Flag                 = true;   // collocated picture from List0 flag
 
   uint32_t                   m_colRefIdx                     = 0;
-  double                     m_lambdas[MAX_NUM_COMPONENT]    = { 0.0, 0.0, 0.0 };
   uint32_t                   m_maxNumIBCMergeCand            = 0;
   bool                       m_disBdofDmvrFlag               = false;
 
@@ -2751,9 +2750,6 @@ public:
   bool                        isIntra() const                                        { return m_eSliceType == I_SLICE;                               }
   bool                        isInterB() const                                       { return m_eSliceType == B_SLICE;                               }
   bool                        isInterP() const                                       { return m_eSliceType == P_SLICE;                               }
-
-  void                        setLambdas( const double lambdas[MAX_NUM_COMPONENT] )  { for (int component = 0; component < MAX_NUM_COMPONENT; component++) m_lambdas[component] = lambdas[component]; }
-  const double*               getLambdas() const                                     { return m_lambdas;                                             }
 
 
   uint32_t                    getCuQpDeltaSubdiv() const                             { return this->isIntra() ? m_pcPicHeader->getCuQpDeltaSubdivIntra() : m_pcPicHeader->getCuQpDeltaSubdivInter(); }
@@ -2984,7 +2980,6 @@ class ProfileLevelTierFeatures
     const LevelTierFeatures   *getLevelTierFeatures() const { return m_pLevelTier; }
     Tier                       getTier()              const { return m_tier; }
     uint64_t                   getCpbSizeInBits()     const;
-    double                     getMinCr()             const;
     uint32_t                   getMaxDpbSize( uint32_t picSizeMaxInSamplesY ) const;
 };
 

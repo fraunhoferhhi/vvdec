@@ -1077,12 +1077,10 @@ void DecLibParser::xActivateParameterSets( const int layerId )
 
     xParsePrefixSEImessages();
 
-#if RExt__HIGH_BIT_DEPTH_SUPPORT == 0
-    if( /* sps->getSpsRangeExtension().getExtendedPrecisionProcessingFlag() ||*/ sps->getBitDepth( CHANNEL_TYPE_LUMA ) > 12 || sps->getBitDepth( CHANNEL_TYPE_CHROMA ) > 12 )
+    if( sps->getBitDepth( CHANNEL_TYPE_LUMA ) > 12 || sps->getBitDepth( CHANNEL_TYPE_CHROMA ) > 12 )
     {
       THROW( "High bit depth support must be enabled at compile-time in order to decode this bitstream\n" );
     }
-#endif
 
     applyReferencePictureListBasedMarking( m_apcSlicePilot, layerId, *pps );
 
