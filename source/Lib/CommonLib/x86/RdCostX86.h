@@ -196,7 +196,7 @@ Distortion xGetSAD_MxN_SIMD( const DistParam &rcDtParam )
   }
 
   uiSum <<= iSubShift;
-  return uiSum >> DISTORTION_PRECISION_ADJUSTMENT(rcDtParam.bitDepth);
+  return uiSum;
 }
 
 template <X86_VEXT vext, bool isCalCentrePos>
@@ -276,8 +276,8 @@ void xGetSADX5_8xN_SIMDImp(const DistParam& rcDtParam, Distortion* cost) {
   sum0 = _mm_slli_epi32(sum0, iSubShift);
   if (isCalCentrePos) sum2 = _mm_slli_epi32(sum2, iSubShift);
 
-  sum0 = _mm_srli_epi32(sum0, (1 + (DISTORTION_PRECISION_ADJUSTMENT(rcDtParam.bitDepth))));
-  if (isCalCentrePos) sum2 = _mm_srli_epi32(sum2, (1 + (DISTORTION_PRECISION_ADJUSTMENT(rcDtParam.bitDepth))));
+  sum0 = _mm_srli_epi32(sum0, 1);
+  if (isCalCentrePos) sum2 = _mm_srli_epi32(sum2, 1);
 
   _mm_storeu_si64( ( __m128i* ) &cost[0], sum0 );
   if (isCalCentrePos) cost[2] = (_mm_cvtsi128_si32(sum2));
@@ -502,13 +502,13 @@ void xGetSADX5_16xN_SIMDImp(const DistParam& rcDtParam, Distortion* cost) {
 
     sum0134 = _mm_slli_epi32(sum0134, iSubShift);
 
-    sum0134 = _mm_srli_epi32(sum0134, (1 + (DISTORTION_PRECISION_ADJUSTMENT(rcDtParam.bitDepth))));
+    sum0134 = _mm_srli_epi32(sum0134, 1);
 
     _mm_storeu_si64( ( __m128i* ) &cost[0], sum0134 );
     if (isCalCentrePos) {
       int tmp = _mm_cvtsi128_si32(_mm256_castsi256_si128(sum2)) + _mm256_extract_epi32(sum2, 4);
       tmp <<= iSubShift;
-      tmp >>= (1 + (DISTORTION_PRECISION_ADJUSTMENT(rcDtParam.bitDepth)));
+      tmp >>= 1;
       cost[2] = tmp;
     }
     _mm_storeu_si64( ( __m128i* ) &cost[3], _mm_unpackhi_epi64( sum0134, sum0134 ) );
@@ -586,8 +586,8 @@ void xGetSADX5_16xN_SIMDImp(const DistParam& rcDtParam, Distortion* cost) {
     sum0 = _mm_slli_epi32(sum0, iSubShift);
     if (isCalCentrePos) sum2 = _mm_slli_epi32(sum2, iSubShift);
 
-    sum0 = _mm_srli_epi32(sum0, (1 + (DISTORTION_PRECISION_ADJUSTMENT(rcDtParam.bitDepth))));
-    if (isCalCentrePos) sum2 = _mm_srli_epi32(sum2, (1 + (DISTORTION_PRECISION_ADJUSTMENT(rcDtParam.bitDepth))));
+    sum0 = _mm_srli_epi32(sum0, 1);
+    if (isCalCentrePos) sum2 = _mm_srli_epi32(sum2, 1);
 
     _mm_storeu_si64( ( __m128i* ) &cost[0], sum0 );
     if (isCalCentrePos) cost[2] = (_mm_cvtsi128_si32(sum2));

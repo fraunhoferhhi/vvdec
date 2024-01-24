@@ -787,8 +787,6 @@ void Slice::copySliceInfo(Slice *pSrc, bool cpyAlmostAll)
   m_colFromL0Flag        = pSrc->m_colFromL0Flag;
   m_colRefIdx            = pSrc->m_colRefIdx;
 
-  if( cpyAlmostAll ) setLambdas(pSrc->getLambdas());
-
   m_uiTLayer                      = pSrc->m_uiTLayer;
   m_bTLayerSwitchingFlag          = pSrc->m_bTLayerSwitchingFlag;
 
@@ -2211,11 +2209,6 @@ ProfileLevelTierFeatures::extractPTLInformation(const SPS &sps)
       }
     }
   }
-}
-
-double ProfileLevelTierFeatures::getMinCr() const
-{
-  return (m_pLevelTier!=0 && m_pProfile!=0) ? (m_pProfile->minCrScaleFactorx100 * m_pLevelTier->minCrBase[m_tier?1:0])/100.0 : 0.0 ;
 }
 
 uint64_t ProfileLevelTierFeatures::getCpbSizeInBits() const
