@@ -148,7 +148,7 @@ Distortion xGetSAD_MxN_SIMD( const DistParam& rcDtParam )
 
   uiSum = vaddlvq_s16( vsum16 );
   uiSum <<= iSubShift;
-  return uiSum >> DISTORTION_PRECISION_ADJUSTMENT( rcDtParam.bitDepth );
+  return uiSum;
 }
 
 template<ARM_VEXT vext, bool isCalCentrePos>
@@ -217,9 +217,9 @@ void xGetSADX5_16xN_SIMDImp( const DistParam& rcDtParam, Distortion* cost )
   if( isCalCentrePos )
     sumTwo = vshlq_s32( sumTwo, vdupq_n_s32( iSubShift ) );
 
-  sum = vshrq_n_s32( sum, ( 1 + ( DISTORTION_PRECISION_ADJUSTMENT( rcDtParam.bitDepth ) ) ) );
+  sum = vshrq_n_s32( sum, 1 );
   if( isCalCentrePos )
-    sumTwo = vshrq_n_s32( sumTwo, ( 1 + ( DISTORTION_PRECISION_ADJUSTMENT( rcDtParam.bitDepth ) ) ) );
+    sumTwo = vshrq_n_s32( sumTwo, 1 );
 
   vst1q_lane_u64( (uint64_t*) &cost[ 0 ], (uint64x2_t) sum, 0 );
   if( isCalCentrePos )
