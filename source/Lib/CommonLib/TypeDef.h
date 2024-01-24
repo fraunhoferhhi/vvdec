@@ -68,6 +68,11 @@ namespace vvdec
 #define RECO_WHILE_PARSE                                  1
 #define ALLOW_MIDER_LF_DURING_PICEXT                      1
 
+#define MAX_OUT_OF_ORDER_PICS                             3  // maximum number of pictures, that are reconstructed out of order
+#define DEFAULT_PARSE_DELAY_FACTOR                        24 // factor to set default parse delay based on number of threads (4-bit fixed point)
+#define DEFAULT_PARSE_DELAY_MAX                           48 // maximum parse delay derived from thread count, when not set explicitly
+#define MAX_OUT_OF_ORDER_PICS                             3  // maximum number of pictures, that are reconstructed out of order
+
 #define MAX_OUT_OF_ORDER_PICS                             3 // maximum number of pictures, that are reconstructed out of order
 
 #define JVET_O1170_CHECK_BV_AT_DECODER                    0 // For decoder to check if a BV is valid or not
