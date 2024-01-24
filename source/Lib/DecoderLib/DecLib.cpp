@@ -131,7 +131,6 @@ void DecLib::create( int numDecThreads, int parserFrameDelay, const UserAllocato
   if( parserFrameDelay < 0 )
   {
     CHECK( numDecThreads < 0, "invalid number of threads" );
-    parserFrameDelay = numDecThreads;
     parserFrameDelay = std::min<int>( ( numDecThreads * DEFAULT_PARSE_DELAY_FACTOR ) >> 4, DEFAULT_PARSE_DELAY_MAX );
   }
   m_parseFrameDelay = parserFrameDelay;
