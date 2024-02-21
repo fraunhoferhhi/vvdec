@@ -321,7 +321,9 @@ void Partitioner::canSplit( const CodingStructure &cs, bool& canNo, bool& canQt,
   if( areaC && areaC->width <= MIN_DUALTREE_CHROMA_WIDTH ) canQt = false;
   if( isImplicit )
   {
-    const bool isBtAllowed = area.width <= maxBtSize && area.height <= maxBtSize && area.width <= MAX_TB_SIZEY && area.height <= MAX_TB_SIZEY;
+    const bool isBtAllowed = area.width <= maxBtSize && area.height <= maxBtSize
+                          && area.width <= MAX_TU_SIZE_FOR_PROFILE && area.height <= MAX_TU_SIZE_FOR_PROFILE
+                          && canBtt;
     canNo  = canTh = canTv = false;
     
     canQt |= !isBtAllowed;
