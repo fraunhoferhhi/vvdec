@@ -220,12 +220,13 @@ private:
 template<class MembFunc, class... Args>
 inline auto VVDecImpl::catchExceptions( MembFunc fn, Args... args )
 {
-  using TRet = decltype( ( this->*fn )( args... ) );
-  // helper to either return an error value or nullptr based on the wrapped function's return type
+  using TRet = decltype( ( this->*fn )( args... ) ); // return type of the wapped function
+
+  // helper function to either return an error value or a null-pointer based on the wrapped function's return type
   static auto returnErrOrNullptr = []( intptr_t err )
   {
     if( std::is_pointer<TRet>() )
-      return (TRet) NULL;
+      return (TRet) 0;
     return (TRet) err;
   };
 
