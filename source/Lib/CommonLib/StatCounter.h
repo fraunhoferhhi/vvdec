@@ -44,17 +44,11 @@ POSSIBILITY OF SUCH DAMAGE.
 
 
 #include <string>
+#include <iomanip>
 #include <ostream>
 #include <vector>
-#include <cstdarg>
 #include <map>
 
-#ifndef THROW
-#define THROW(x)            throw( Exception( "\nERROR: In function \"" ) << __FUNCTION__ << "\" in " << __FILE__ << ":" << __LINE__ << ": " << x )
-#endif
-#ifndef CHECK
-#define CHECK(c,x)          if(c){ THROW(x); }
-#endif
 
 namespace vvdec
 {
@@ -255,7 +249,7 @@ public:
 
   StatCountersSet& operator= ( const StatCountersSet& other )
   {
-    CHECK( m_counters.size() != other.m_counters.size(), "Accessing counters with differen number of elements!" );
+    CHECK_FATAL( m_counters.size() != other.m_counters.size(), "Accessing counters with differen number of elements!" );
     for( size_t i = 0; i < m_counters.size(); i++ ) m_counters[i] = other.m_counters[i];
     return *this;
   }
@@ -425,7 +419,7 @@ public:
   {
     for( int i = 0; i < cntId.size(); i++ )
     {
-      CHECK( cntId[i] >= cntNamesLUT.size(), "Name for id failed!" );
+      CHECK_FATAL( cntId[i] >= cntNamesLUT.size(), "Name for id failed!" );
       addCounter( cntId[i], cntNamesLUT[cntId[i]], init_val );
     }
   }
@@ -449,7 +443,7 @@ public:
     if( it != m_id_map.end() )
       return it->second;
     else
-      THROW( "Not found" );
+      THROW_FATAL( "Not found" );
   }
   StatCounter<T>&       operator[]( int id )       { return StatCountersSet<T>::m_counters[cntPos( id )]; }
   const StatCounter<T>& operator[]( int id ) const { return StatCountersSet<T>::m_counters[cntPos( id )]; }
@@ -727,7 +721,7 @@ public:
     StatCounter2DSet<T>::init( xDim, yDim );
     for( int i = 0; i < cntId.size(); i++ )
     {
-      CHECK( cntId[i] >= cntNamesLUT.size(), "Name for id failed!" );
+      CHECK_FATAL( cntId[i] >= cntNamesLUT.size(), "Name for id failed!" );
       addCounter( cntId[i], cntNamesLUT[cntId[i]], xDim, yDim, init_val );
     }
   }
@@ -744,7 +738,7 @@ public:
     if( it != m_id_map.end() )
       return it->second;
     else
-      THROW( "Not found" );
+      THROW_FATAL( "Not found" );
   }
   StatCounter2D<T>&       operator[]( int id )       { return StatCounter2DSet<T>::m_counters[cntPos( id )]; }
   const StatCounter2D<T>& operator[]( int id ) const { return StatCounter2DSet<T>::m_counters[cntPos( id )]; }

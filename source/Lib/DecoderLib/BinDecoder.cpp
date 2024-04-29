@@ -47,6 +47,7 @@ POSSIBILITY OF SUCH DAMAGE.
 
 #include "BinDecoder.h"
 #include "CommonLib/Rom.h"
+#include "CommonLib/BitStream.h"
 
 #include "CommonLib/dtrace_next.h"
 
@@ -69,7 +70,7 @@ void BinDecoder::uninit()
 
 void BinDecoder::start()
 {
-  CHECK_RECOVERABLE( m_Bitstream->getNumBitsUntilByteAligned(), "Bitstream is not byte aligned." );
+  CHECK( m_Bitstream->getNumBitsUntilByteAligned(), "Bitstream is not byte aligned." );
   m_Range       = 510;
   m_Value       = ( m_Bitstream->readByte() << 8 ) + m_Bitstream->readByte();
   m_bitsNeeded  = -8;
@@ -78,9 +79,8 @@ void BinDecoder::start()
 
 void BinDecoder::finish()
 {
-  unsigned lastByte;
-  m_Bitstream->peekPreviousByte( lastByte );
-  CHECK_RECOVERABLE( ( ( lastByte << ( 8 + m_bitsNeeded ) ) & 0xff ) != 0x80,
+  unsigned lastByte = m_Bitstream->peekPreviousByte();
+  CHECK( ( ( lastByte << ( 8 + m_bitsNeeded ) ) & 0xff ) != 0x80,
         "No proper stop/alignment pattern at end of CABAC stream." );
 }
 
@@ -240,6 +240,12 @@ void BinDecoder::align()
   m_Range = 256;
 }
 
+#if ENABLE_TRACING
+unsigned int BinDecoder::getNumBitsRead() const
+{
+  return m_Bitstream->getNumBitsRead() + m_bitsNeeded;
+}
+#endif   // ENABLE_TRACING
 
 unsigned BinDecoder::decodeAlignedBinsEP( unsigned numBins )
 {

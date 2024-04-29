@@ -46,6 +46,8 @@ POSSIBILITY OF SUCH DAMAGE.
 
 #pragma once
 
+#if ENABLE_TRACING
+
 #include "dtrace.h"
 
 #include "CommonLib/CommonDef.h"
@@ -55,7 +57,6 @@ POSSIBILITY OF SUCH DAMAGE.
 namespace vvdec
 {
 
-#if ENABLE_TRACING
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //
@@ -266,6 +267,8 @@ static CDTrace* tracing_init( const std::string& sTracingFile, const std::string
   return pDtrace;
 }
 
+}   // namespace vvdec
+
 #else   // !ENABLE_TRACING
 
 #define DTRACE(ctx,channel,...)               {}
@@ -279,5 +282,3 @@ static CDTrace* tracing_init( const std::string& sTracingFile, const std::string
 #define DTRACE_GET_COUNTER(ctx,channel)       {}
 
 #endif   // !ENABLE_TRACING
-
-}   // namespace vvdec

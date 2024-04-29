@@ -46,6 +46,8 @@ POSSIBILITY OF SUCH DAMAGE.
 
 #pragma once
 
+#if ENABLE_TRACING
+
 #include "dtrace.h"
 #include "dtrace_next.h"
 
@@ -56,12 +58,8 @@ POSSIBILITY OF SUCH DAMAGE.
 #include "CommonLib/Unit.h"
 #include "CommonLib/UnitTools.h"
 
-#include <cmath>
-
 namespace vvdec
 {
-
-#if ENABLE_TRACING
 
 inline void dtracePicComp( DTRACE_CHANNEL channel, CodingStructure& cs, const CPelUnitBuf& pelUnitBuf, ComponentID compId )
 {
@@ -78,14 +76,14 @@ inline void dtracePicComp( DTRACE_CHANNEL channel, CodingStructure& cs, const CP
   DTRACE_FRAME_BLOCKWISE( g_trace_ctx, channel, piSrc, uiStride, uiWidth, uiHeight, cs.sps->getMaxCUWidth() >> uiChromaScaleX, cs.sps->getMaxCUHeight() >> uiChromaScaleY);
 }
 
+}   // namespace vvdec
+
 #define DTRACE_PIC_COMP(...)             dtracePicComp( __VA_ARGS__ )
 #define DTRACE_STAT(...)                 dtraceComprPicStat(__VA_ARGS__)
 
-#else
+#else   // !ENABLE_TRACING
 
-#define DTRACE_STAT(...)
-#define DTRACE_PIC_COMP(...)
+#define DTRACE_STAT( ... )
+#define DTRACE_PIC_COMP( ... )
 
-#endif
-
-}
+#endif   // !ENABLE_TRACING

@@ -282,10 +282,10 @@ public:
       {
         if( i_arg == argc-1 ){ fprintf( stderr, " - missing argument for: %s \n", argv[i_arg] ); return -1; }
         i_arg++;
-        int iThreads = atoi( argv[i_arg++] );
+        int iDelay = atoi( argv[i_arg++] );
         if( rcParams.logLevel > VVDEC_VERBOSE )
-          fprintf( stdout, "[parsedelay] : %d\n", iThreads );
-        rcParams.parseThreads = iThreads;
+          fprintf( stdout, "[parsedelay] : %d\n", iDelay );
+        rcParams.parseDelay = iDelay;
       }
       else if( (!strcmp( (const char*)argv[i_arg], "-dph" )) || !strcmp( (const char*)argv[i_arg], "--SEIDecodedPictureHash" ) )
       {

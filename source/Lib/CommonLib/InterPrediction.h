@@ -55,7 +55,6 @@ POSSIBILITY OF SUCH DAMAGE.
 #include "Picture.h"
 
 #include "RdCost.h"
-#include "ContextModelling.h"
 
 namespace vvdec
 {

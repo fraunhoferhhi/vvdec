@@ -89,9 +89,7 @@ class ScopeIncDecCounter
 public:
   explicit ScopeIncDecCounter( std::atomic_uint& counter ): m_cntr( counter ) { m_cntr.fetch_add( 1, std::memory_order_relaxed ); }
   ~ScopeIncDecCounter()                                                       { m_cntr.fetch_sub( 1, std::memory_order_relaxed ); }
-
-  ScopeIncDecCounter( const ScopeIncDecCounter& ) = delete;
-  ScopeIncDecCounter( ScopeIncDecCounter&& )      = delete;
+  CLASS_COPY_MOVE_DELETE( ScopeIncDecCounter )
 };
 
 // ---------------------------------------------------------------------------
@@ -119,7 +117,7 @@ ThreadPool::~ThreadPool()
 
 bool ThreadPool::processTasksOnMainThread()
 {
-  CHECK( m_threads.size() != 0, "should not be used with multiple threads" );
+  CHECK_FATAL( m_threads.size() != 0, "should not be used with multiple threads" );
 
   TaskIterator taskIt;
   while( true )

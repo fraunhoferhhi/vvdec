@@ -76,6 +76,8 @@ void applyLut_SIMD( Pel* ptr, ptrdiff_t ptrStride, int width, int height, const 
     {
       for( int x = 0; x < width; x += 32 )
       {
+        GCC_WARNING_DISABLE_maybe_uninitialized
+
         xtmp1.val[ 0 ][ 0 ] = lut[ ptr[ x + 0 ] ];
         xtmp1.val[ 1 ][ 0 ] = lut[ ptr[ x + 1 ] ];
         xtmp1.val[ 2 ][ 0 ] = lut[ ptr[ x + 2 ] ];
@@ -208,6 +210,8 @@ void applyLut_SIMD( Pel* ptr, ptrdiff_t ptrStride, int width, int height, const 
         xtmp4.val[ 1 ][ 7 ] = lut[ ptr[ x + 3 * ptrStride + 29 ] ];
         xtmp4.val[ 2 ][ 7 ] = lut[ ptr[ x + 3 * ptrStride + 30 ] ];
         xtmp4.val[ 3 ][ 7 ] = lut[ ptr[ x + 3 * ptrStride + 31 ] ];
+
+        GCC_WARNING_RESET
 
         // deinterleaved storing
         vst4q_s16( &ptr[ x ], xtmp1 );

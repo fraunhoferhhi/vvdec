@@ -291,7 +291,7 @@ struct TransformUnit : public UnitArea
   uint8_t         maxScanPosX  [MAX_NUM_TBLOCKS];
   uint8_t         maxScanPosY  [MAX_NUM_TBLOCKS];
   int8_t          chromaQp     [2];
-  
+
   uint8_t         _chType    : 2;
   uint8_t         jointCbCr  : 2;
   uint8_t         cbf        : 3;
@@ -328,7 +328,7 @@ struct CodingUnit : public UnitArea
   ptrdiff_t         predBufOff;
   uint32_t          idx;
   uint32_t          tileIdx;
-  
+
   Mv                mv       [NUM_REF_PIC_LIST_01][3];
 
   uint8_t           mvpIdx   [NUM_REF_PIC_LIST_01];
@@ -339,11 +339,11 @@ struct CodingUnit : public UnitArea
 
   uint8_t           geoSplitDir;
   uint8_t           mmvdIdx;
-  
+
   int8_t            chromaQpAdj;
   int8_t            qp;
   uint8_t           _interDir       : 2;
-  uint8_t           _imv            : 2;                                  
+  uint8_t           _imv            : 2;
   uint8_t           _bcw            : 3;
   uint8_t           _mergeType      : 2;
   bool              _dmvrCond;      // avoid data races in a separate bit
@@ -352,42 +352,42 @@ struct CodingUnit : public UnitArea
   uint8_t           qtDepth         : 3;
   uint8_t           depth           : 4;
   uint8_t           _chType         : 1;
-                                     
+
   bool              _rootCbf        : 1;
   bool              _skip           : 1;
   bool              _colorTransform : 1;
   bool              _mipTranspose   : 1;
   uint8_t           _treeType       : 2;
   uint8_t           _modeType       : 2;
-                                    
+
   uint8_t           _predMode       : 2;
   uint8_t           _bdpcmL         : 2;
   uint8_t           _bdpcmC         : 2;
   uint8_t           _lfnstIdx       : 2;
-                                    
-  uint8_t           _ispIdx         : 2;                                 
+
+  uint8_t           _ispIdx         : 2;
   bool              _ciipFlag       : 1;
   bool              _mergeFlag      : 1;
   bool              _mmvdFlag       : 1;
   bool              _affineFlag     : 1;
   bool              _geoFlag        : 1;
-                                    
+
   uint8_t           _mrgIdx         : 3;
   uint8_t           _geoMrgIdx0     : 3;
-                                    
+
   uint8_t           _geoMrgIdx1     : 3;
   uint8_t           _affineType     : 2;
   bool              _mipFlag        : 1;
-  
+
   uint8_t           _multiRefIdx    : 2;
   bool              planeCbfY       : 1;
   bool              planeCbfU       : 1;
   bool              planeCbfV       : 1;
-  
+
   uint8_t           _smvd           : 2;
 
   uint8_t            _geoDir0, _geoDir1;
-  
+
   uint8_t           sbtInfo()                const        { return _sbtInfo; }
   ChannelType       chType()                 const        { return ChannelType( _chType ); }
   bool              rootCbf()                const        { return _rootCbf; }
@@ -417,7 +417,7 @@ struct CodingUnit : public UnitArea
   void              setPlaneCbf( int c, bool b )          { if( !c ) planeCbfY = b; else if( c == 1 ) planeCbfU = b; else planeCbfV = b; }
 
   // Prediction Unit Part
-  
+
   bool              dmvrCondition()          const         { return _dmvrCond; }
   bool              mipTransposedFlag()      const         { return _mipTranspose; }
   bool              ciipFlag()               const         { return _ciipFlag; }
@@ -436,7 +436,7 @@ struct CodingUnit : public UnitArea
   uint8_t           imv()                    const         { return _imv; }
   uint8_t           smvdMode()               const         { return _smvd; }
   uint8_t           BcwIdx()                 const         { return _bcw; }
-                    
+
   uint8_t           interDirrefIdxGeo0()     const         { return _geoDir0; }
   uint8_t           interDirrefIdxGeo1()     const         { return _geoDir1; }
 
@@ -458,7 +458,7 @@ struct CodingUnit : public UnitArea
   void              setImv( uint8_t id )                   { _imv           = id; CHECKD( id >=  4, "IMV needs to be smaller than '4'!"); }
   void              setSmvdMode( uint8_t id )              { _smvd          = id; CHECKD( id >=  4, "SMVD mode needs to be smaller than '4'!"); }
   void              setBcwIdx( uint8_t id )                { _bcw           = id; CHECKD( id >=  5, "BCW idx needs to be smaller than '5'!"); }
-                    
+
   void              setInterDirrefIdxGeo0( uint8_t id )    { _geoDir0       = id; }
   void              setInterDirrefIdxGeo1( uint8_t id )    { _geoDir1       = id; }
 

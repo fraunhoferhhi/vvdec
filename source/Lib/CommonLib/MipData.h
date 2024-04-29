@@ -44,6 +44,8 @@ POSSIBILITY OF SUCH DAMAGE.
 \brief    weight and bias data for matrix-based intra prediction (MIP)
 */
 
+#include "CommonDef.h"
+
 namespace vvdec
 {
 

@@ -45,43 +45,17 @@ POSSIBILITY OF SUCH DAMAGE.
 namespace vvdec
 {
 
-void updateParameterSetChangedFlag( bool&                       bChanged,
-                                    const std::vector<uint8_t>* pOldData,
-                                    const std::vector<uint8_t>* pNewData )
-{
-  if( bChanged )
-  {
-    return;
-  }
-
-  if( pOldData == pNewData )
-  {
-    // pointers equal
-    bChanged = false;
-    return;
-  }
-  else if( pOldData == nullptr || pNewData == nullptr )
-  {
-    // either one is null, but not both
-    bChanged = true;
-    return;
-  }
-
-  // compare the contents
-  bChanged = (*pNewData != *pOldData);
-}
-
 ParameterSetManager::ActivePSs ParameterSetManager::xActivateParameterSets( const bool isFirstSlice, const Slice* pSlicePilot, const PicHeader* picHeader )
 {
   PPS* pps = getPPS( picHeader->getPPSId() );
-  CHECK_RECOVERABLE( pps == 0, "No PPS present" );
+  CHECK( pps == 0, "No PPS present" );
 
   SPS* sps = getSPS( pps->getSPSId() );
-  CHECK_RECOVERABLE( sps == 0, "No SPS present" );
+  CHECK( sps == 0, "No SPS present" );
 
   if( isFirstSlice )
   {
-    CHECK_RECOVERABLE( !pps->pcv->isCorrect( *sps, *pps ), "PPS has PCV already, but values chaged???" );
+    CHECK( !pps->pcv->isCorrect( *sps, *pps ), "PPS has PCV already, but values chaged???" );
 
     sps->clearChangedFlag();
     pps->clearChangedFlag();
@@ -96,9 +70,9 @@ ParameterSetManager::ActivePSs ParameterSetManager::xActivateParameterSets( cons
   }
 
   // luma APSs
-  for( int i = 0; i < pSlicePilot->getAlfApsIdLuma().size(); i++ )
+  for( int i = 0; i < pSlicePilot->getAlfApsIdsLuma().size(); i++ )
   {
-    int apsId = pSlicePilot->getAlfApsIdLuma()[i];
+    int apsId = pSlicePilot->getAlfApsIdsLuma()[i];
     APS *alfApsL = getAPS( apsId, ALF_APS );
 
     if( alfApsL )
@@ -107,12 +81,12 @@ ParameterSetManager::ActivePSs ParameterSetManager::xActivateParameterSets( cons
       m_alfAPSs[apsId] = alfApsL;
       if( false == activateAPS( apsId, ALF_APS ) )
       {
-        THROW( "APS activation failed!" );
+        THROW_RECOVERABLE( "APS activation failed!" );
       }
 
-      CHECK_RECOVERABLE( sps->getUseCCALF() == false && ( alfApsL->getCcAlfAPSParam().newCcAlfFilter[0] || alfApsL->getCcAlfAPSParam().newCcAlfFilter[1] ),
+      CHECK( sps->getUseCCALF() == false && ( alfApsL->getCcAlfAPSParam().newCcAlfFilter[0] || alfApsL->getCcAlfAPSParam().newCcAlfFilter[1] ),
              "When sps_ccalf_enabled_flag is 0, the values of alf_cc_cb_filter_signal_flag and alf_cc_cr_filter_signal_flag shall be equal to 0" );
-      CHECK_RECOVERABLE( sps->getChromaFormatIdc() == CHROMA_400 && alfApsL->chromaPresentFlag,
+      CHECK( sps->getChromaFormatIdc() == CHROMA_400 && alfApsL->chromaPresentFlag,
              "When ChromaArrayType is equal to 0, the value of aps_chroma_present_flag of an ALF_APS shall be equal to 0" );
     }
   }
@@ -128,9 +102,9 @@ ParameterSetManager::ActivePSs ParameterSetManager::xActivateParameterSets( cons
       m_alfAPSs[apsId] = alfApsC;
       if( false == activateAPS( apsId, ALF_APS ) )
       {
-        THROW( "APS activation failed!" );
+        THROW_RECOVERABLE( "APS activation failed!" );
       }
-      CHECK_RECOVERABLE( sps->getUseCCALF() == false && ( alfApsC->getCcAlfAPSParam().newCcAlfFilter[0] || alfApsC->getCcAlfAPSParam().newCcAlfFilter[1] ),
+      CHECK( sps->getUseCCALF() == false && ( alfApsC->getCcAlfAPSParam().newCcAlfFilter[0] || alfApsC->getCcAlfAPSParam().newCcAlfFilter[1] ),
              "When sps_ccalf_enabled_flag is 0, the values of alf_cc_cb_filter_signal_flag and alf_cc_cr_filter_signal_flag shall be equal to 0" );
     }
   }
@@ -146,7 +120,7 @@ ParameterSetManager::ActivePSs ParameterSetManager::xActivateParameterSets( cons
 
         if( false == activateAPS( apsId, ALF_APS ) )
         {
-          THROW( "APS activation failed!" );
+          THROW_RECOVERABLE( "APS activation failed!" );
         }
       }
     }
@@ -163,7 +137,7 @@ ParameterSetManager::ActivePSs ParameterSetManager::xActivateParameterSets( cons
         m_alfAPSs[apsId] = aps;
         if( false == activateAPS( apsId, ALF_APS ) )
         {
-          THROW( "APS activation failed!" );
+          THROW_RECOVERABLE( "APS activation failed!" );
         }
       }
     }
@@ -173,7 +147,7 @@ ParameterSetManager::ActivePSs ParameterSetManager::xActivateParameterSets( cons
   if( picHeader->getLmcsAPSId() != -1 )
   {
     lmcsAPS = getAPS( picHeader->getLmcsAPSId(), LMCS_APS );
-    CHECK_RECOVERABLE( lmcsAPS == 0, "No LMCS APS present" );
+    CHECK( lmcsAPS == 0, "No LMCS APS present" );
   }
 
   if( lmcsAPS )
@@ -181,12 +155,12 @@ ParameterSetManager::ActivePSs ParameterSetManager::xActivateParameterSets( cons
     if( isFirstSlice ) lmcsAPS->clearChangedFlag();
     if( false == activateAPS( picHeader->getLmcsAPSId(), LMCS_APS ) )
     {
-      THROW( "LMCS APS activation failed!" );
+      THROW_RECOVERABLE( "LMCS APS activation failed!" );
     }
 
-    CHECK_RECOVERABLE( sps->getChromaFormatIdc() == CHROMA_400 && lmcsAPS->chromaPresentFlag,
+    CHECK( sps->getChromaFormatIdc() == CHROMA_400 && lmcsAPS->chromaPresentFlag,
            "When ChromaArrayType is equal to 0, the value of aps_chroma_present_flag of an LMCS_APS shall be equal to 0");
-    CHECK_RECOVERABLE( lmcsAPS->getReshaperAPSInfo().maxNbitsNeededDeltaCW - 1 < 0 || lmcsAPS->getReshaperAPSInfo().maxNbitsNeededDeltaCW - 1 > sps->getBitDepth( CHANNEL_TYPE_LUMA ) - 2,
+    CHECK( lmcsAPS->getReshaperAPSInfo().maxNbitsNeededDeltaCW - 1 < 0 || lmcsAPS->getReshaperAPSInfo().maxNbitsNeededDeltaCW - 1 > sps->getBitDepth() - 2,
            "The value of lmcs_delta_cw_prec_minus1 of an LMCS_APS shall be in the range of 0 to BitDepth 2, inclusive" );
   }
 
@@ -194,7 +168,7 @@ ParameterSetManager::ActivePSs ParameterSetManager::xActivateParameterSets( cons
   if( picHeader->getScalingListAPSId() != -1 )
   {
     scalingListAPS = getAPS( picHeader->getScalingListAPSId(), SCALING_LIST_APS );
-    CHECK_RECOVERABLE( scalingListAPS == 0, "No ScalingList APS present" );
+    CHECK( scalingListAPS == 0, "No ScalingList APS present" );
   }
 
   if( scalingListAPS )
@@ -203,10 +177,10 @@ ParameterSetManager::ActivePSs ParameterSetManager::xActivateParameterSets( cons
 
     if( false == activateAPS( picHeader->getScalingListAPSId(), SCALING_LIST_APS ) )
     {
-      THROW( "LMCS APS activation failed!" );
+      THROW_RECOVERABLE( "LMCS APS activation failed!" );
     }
 
-    CHECK_RECOVERABLE( ( sps->getChromaFormatIdc() == CHROMA_400 && scalingListAPS->chromaPresentFlag ) || ( sps->getChromaFormatIdc() != CHROMA_400 && !scalingListAPS->chromaPresentFlag ),
+    CHECK( ( sps->getChromaFormatIdc() == CHROMA_400 && scalingListAPS->chromaPresentFlag ) || ( sps->getChromaFormatIdc() != CHROMA_400 && !scalingListAPS->chromaPresentFlag ),
            "The value of aps_chroma_present_flag of the APS NAL unit having aps_params_type equal to SCALING_APS and adaptation_parameter_set_id equal to ph_scaling_list_aps_id shall be equal to ChromaArrayType  = =  0 ? 0 : 1" );
   }
 

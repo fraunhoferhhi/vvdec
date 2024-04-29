@@ -48,14 +48,13 @@ POSSIBILITY OF SUCH DAMAGE.
 
 #include "CommonDef.h"
 #include "Unit.h"
-#include "ChromaFormat.h"
-#include "Contexts.h"
-#include "ContextModelling.h"
-
-#include "UnitPartitioner.h"
 
 namespace vvdec
 {
+
+struct Picture;
+class ScalingList;
+
 using namespace x86_simd;
 
 // ====================================================================================================================

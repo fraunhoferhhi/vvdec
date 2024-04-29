@@ -70,7 +70,7 @@ void  WeightPrediction::getWpScaling(const Slice                *pcSlice,
                                            WPScalingParam       *wp0,
                                            WPScalingParam       *wp1)
 {
-  CHECK_RECOVERABLE(iRefIdx0 < 0 && iRefIdx1 < 0, "Both picture reference list indizes smaller than '0'");
+  CHECK(iRefIdx0 < 0 && iRefIdx1 < 0, "Both picture reference list indizes smaller than '0'");
 
   const bool wpBiPred        = pcSlice->getPPS()->getWPBiPred();
   const bool bBiPred         = (iRefIdx0 >= 0 && iRefIdx1 >= 0);
@@ -93,7 +93,7 @@ void  WeightPrediction::getWpScaling(const Slice                *pcSlice,
   }
   else
   {
-    THROW( "Unsupported WP configuration" );
+    THROW_RECOVERABLE( "Unsupported WP configuration" );
   }
 
   const uint32_t numValidComponent = getNumberValidComponents(pcSlice->getSPS()->getChromaFormatIdc());
@@ -120,7 +120,7 @@ void  WeightPrediction::getWpScaling(const Slice                *pcSlice,
     // Bi-predictive case
     for (int yuv = 0; yuv < numValidComponent; yuv++)
     {
-      const int bitDepth = pcSlice->getSPS()->getBitDepth(toChannelType(ComponentID(yuv)));
+      const int bitDepth = pcSlice->getSPS()->getBitDepth();
       const int offsetScalingFactor = bUseHighPrecisionPredictionWeighting ? 1 : (1 << (bitDepth - 8));
 
       wp0[yuv] = wp0org[yuv];
@@ -143,7 +143,7 @@ void  WeightPrediction::getWpScaling(const Slice                *pcSlice,
 
     for (int yuv = 0; yuv < numValidComponent; yuv++)
     {
-      const int bitDepth            = pcSlice->getSPS()->getBitDepth(toChannelType(ComponentID(yuv)));
+      const int bitDepth            = pcSlice->getSPS()->getBitDepth();
       const int offsetScalingFactor = bUseHighPrecisionPredictionWeighting ? 1 : (1 << (bitDepth - 8));
       
       pwp[yuv]        = pwporg[yuv];
@@ -207,7 +207,7 @@ void WeightPrediction::addWeightBi(const PelUnitBuf           &pcYuvSrc0,
       g_pelBufOP.wghtAvg4( pSrc0, iSrc0Stride, pSrc1, iSrc1Stride, pDst, iDstStride, iWidth, iHeight, shift, applyOffset, w0, w1, clpRngs );
     else
     {
-      CHECK_RECOVERABLE( iWidth != 2, "Should only happen for width '2'" );
+      CHECK( iWidth != 2, "Should only happen for width '2'" );
 
       for (int y = iHeight - 1; y >= 0; y--)
       {
@@ -348,7 +348,7 @@ void  WeightPrediction::xWeightedPredictionUni(const CodingUnit       &cu,
     iRefIdx = cu.refIdx[eRefPicList];
   }
 
-  CHECK_RECOVERABLE(iRefIdx < 0, "Negative reference picture list index");
+  CHECK(iRefIdx < 0, "Negative reference picture list index");
 
   if (eRefPicList == REF_PIC_LIST_0)
   {
@@ -372,7 +372,7 @@ void  WeightPrediction::xWeightedPredictionBi(const CodingUnit       &cu,
   WPScalingParam  pwp0[MAX_NUM_COMPONENT];
   WPScalingParam  pwp1[MAX_NUM_COMPONENT];
 
-  CHECK_RECOVERABLE( !cu.pps->getWPBiPred(), "Weighted Bi-prediction disabled" );
+  CHECK( !cu.pps->getWPBiPred(), "Weighted Bi-prediction disabled" );
 
   getWpScaling(cu.slice, iRefIdx0, iRefIdx1, pwp0, pwp1);
 
@@ -390,7 +390,7 @@ void  WeightPrediction::xWeightedPredictionBi(const CodingUnit       &cu,
   }
   else
   {
-    THROW( "Both reference picture list indizes are negative" );
+    THROW_RECOVERABLE( "Both reference picture list indices are negative" );
   }
 }
 

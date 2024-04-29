@@ -47,23 +47,26 @@ POSSIBILITY OF SUCH DAMAGE.
 #pragma once
 
 #include "CommonLib/CommonDef.h"
+#include "CommonLib/AdaptiveLoopFilter.h"
+#include "CommonLib/LoopFilter.h"
+#include "CommonLib/InterPrediction.h"
+#include "CommonLib/IntraPrediction.h"
 #include "CommonLib/Picture.h"
 #include "CommonLib/RdCost.h"
 #include "CommonLib/Reshape.h"
-#include "CommonLib/LoopFilter.h"
-#include "CommonLib/AdaptiveLoopFilter.h"
 #include "CommonLib/SampleAdaptiveOffset.h"
+#include "CommonLib/TrQuant.h"
 
+#include "DecCu.h"
 #include "Utilities/ThreadPool.h"
+
 
 namespace vvdec
 {
 
 class DecLibRecon;
-class IntraPrediction;
 class InterPrediction;
 class TrQuant;
-class DecCu;
 
 //! \ingroup DecoderLib
 //! \{
@@ -176,8 +179,7 @@ private:
 public:
   DecLibRecon();
   ~DecLibRecon() = default;
-  DecLibRecon( const DecLibRecon& )  = delete;
-  DecLibRecon( const DecLibRecon&& ) = delete;
+  CLASS_COPY_MOVE_DELETE( DecLibRecon )
 
   void create( ThreadPool* threadPool, unsigned instanceId, bool upscaleOutputEnabled );
   void destroy();

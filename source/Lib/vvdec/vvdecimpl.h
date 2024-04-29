@@ -179,7 +179,7 @@ private:
   int xCreateFrame                 ( vvdecFrame& frame, const CPelUnitBuf& rcPicBuf, uint32_t uiWidth, uint32_t uiHeight, const BitDepths& rcBitDepths, bool bCreateStorage );
 
   static int xRetrieveNalStartCode ( unsigned char *pB, int iZerosInStartcode );
-  static int xConvertPayloadToRBSP ( std::vector<uint8_t>& nalUnitBuf, InputBitstream *bitstream, bool isVclNalUnit);
+  static int xConvertPayloadToRBSP ( const uint8_t* payload, size_t payloadLen, InputBitstream* bitstream, bool isVclNalUnit );
   static int xReadNalUnitHeader    ( InputNALUnit& nalu );
 
   int xHandleOutput( Picture* pcPic );

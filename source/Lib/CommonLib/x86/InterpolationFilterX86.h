@@ -986,14 +986,14 @@ static void simdInterpolateVerM2( const int16_t* src, ptrdiff_t srcStride, int16
   vsrc = _mm_unpacklo_epi64( vsrc, _mm_loadu_si32( (const __m128i*) & src[2 * srcStride] ) );
   Pel out[8];
   _mm_storeu_si128( ( __m128i* ) out, vsrc );
-  CHECK( out[0] != src[0], "" );
-  CHECK( out[1] != src[1], "" );
-  CHECK( out[2] != src[0 + srcStride], "" );
-  CHECK( out[3] != src[1 + srcStride], "" );
-  CHECK( out[4] != src[0 + 2 * srcStride], "" );
-  CHECK( out[5] != src[1 + 2 * srcStride], "" );
-  CHECK( out[6] != 0, "" );
-  CHECK( out[7] != 0, "" );
+  CHECK_FATAL( out[0] != src[0], "" );
+  CHECK_FATAL( out[1] != src[1], "" );
+  CHECK_FATAL( out[2] != src[0 + srcStride], "" );
+  CHECK_FATAL( out[3] != src[1 + srcStride], "" );
+  CHECK_FATAL( out[4] != src[0 + 2 * srcStride], "" );
+  CHECK_FATAL( out[5] != src[1 + 2 * srcStride], "" );
+  CHECK_FATAL( out[6] != 0, "" );
+  CHECK_FATAL( out[7] != 0, "" );
 #else
   vsrc = _mm_setr_epi16( src[0], src[1], src[1 * srcStride], src[1 * srcStride + 1], src[2 * srcStride], src[2 * srcStride + 1], 0, 0 );
 #endif
@@ -1540,7 +1540,7 @@ static void simdInterpolateN2_2D( const ClpRng& clpRng, const Pel* src, const pt
 template<X86_VEXT vext, bool isLast>
 static void simdInterpolateN2(const int16_t* src, ptrdiff_t srcStride, int16_t *dst, ptrdiff_t dstStride, ptrdiff_t cStride, int width, int height, int shift, int offset, const ClpRng& clpRng, int16_t const *c)
 {
-  CHECK( isLast, "Not Supported" );
+  CHECK_FATAL( isLast, "Not Supported" );
 
   const ptrdiff_t halfLine = width >> 1;
 
@@ -1664,7 +1664,7 @@ static void simdFilter( const ClpRng& clpRng, const Pel* src, const ptrdiff_t sr
   int shift    = IF_FILTER_PREC;
   // with the current settings (IF_INTERNAL_PREC = 14 and IF_FILTER_PREC = 6), though headroom can be
   // negative for bit depths greater than 14, shift will remain non-negative for bit depths of 8->20
-  CHECK_RECOVERABLE( shift < 0, "Negative shift" );
+  CHECK( shift < 0, "Negative shift" );
 
 #define USE_M16_AVX2_IF 1
 

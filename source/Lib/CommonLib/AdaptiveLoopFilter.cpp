@@ -382,16 +382,16 @@ const Pel AdaptiveLoopFilter::m_alfClippVls[3][MaxAlfNumClippingValues] =
 
 void AdaptiveLoopFilter::create( const PicHeader* picHeader, const SPS* sps, const PPS* pps, int numThreads, PelUnitBuf& unitBuf )
 {
-  auto & inputBitDepth = sps->getBitDepths().recon;
-  if( m_inputBitDepth[CHANNEL_TYPE_LUMA] != inputBitDepth[CHANNEL_TYPE_LUMA] )
+  auto inputBitDepth = sps->getBitDepths().recon;
+  if( m_inputBitDepth != inputBitDepth )
   {
-    const auto clippVl = m_alfClippVls[inputBitDepth[CHANNEL_TYPE_LUMA] - 8][0];
+    const auto clippVl = m_alfClippVls[inputBitDepth - 8][0];
     for( unsigned i = 0; i < sizeof( m_clipDefault ) / sizeof( m_clipDefault[0] ); i++ )
     {
       m_clipDefault[i] = clippVl;
     }
   }
-  std::memcpy( m_inputBitDepth, inputBitDepth, sizeof( m_inputBitDepth ) );
+  m_inputBitDepth = inputBitDepth;
   m_picWidth  = pps->getPicWidthInLumaSamples();
   m_picHeight = pps->getPicHeightInLumaSamples();
   const int  maxCUWidth  = sps->getMaxCUWidth();
@@ -404,7 +404,7 @@ void AdaptiveLoopFilter::create( const PicHeader* picHeader, const SPS* sps, con
   m_alfVBLumaPos = m_alfVBLumaCTUHeight - ALF_VB_POS_ABOVE_CTUROW_LUMA;
   m_alfVBChmaPos = m_alfVBChmaCTUHeight - ALF_VB_POS_ABOVE_CTUROW_CHMA;
 
-  CHECK_RECOVERABLE( m_inputBitDepth[CHANNEL_TYPE_LUMA] > 10 || m_inputBitDepth[CHANNEL_TYPE_CHROMA] > 10, "m_alfClippingValues or m_alfClippVls needs to be enabled/adjusted" );
+  CHECK( m_inputBitDepth > 10 , "m_alfClippingValues or m_alfClippVls needs to be enabled/adjusted" );
 
   bool loopFilterAcrossSubPicEnabledFlag = true;
   if( sps->getSubPicInfoPresentFlag() )
@@ -474,8 +474,16 @@ void AdaptiveLoopFilter::processCTU( CodingStructure & cs, unsigned col, unsigne
 
 bool AdaptiveLoopFilter::getAlfSkipPic( const CodingStructure & cs )
 {
-  //if( !cs.picHeader->getAlfEnabledFlag( COMPONENT_Y ) && !cs.picHeader->getAlfEnabledFlag  ( COMPONENT_Cb ) && !cs.picHeader->getAlfEnabledFlag  ( COMPONENT_Cr ) &&
-  //                                                       !cs.picHeader->getCcAlfEnabledFlag( COMPONENT_Cb ) && !cs.picHeader->getCcAlfEnabledFlag( COMPONENT_Cr ) ) return true;
+  if( cs.pps->getAlfInfoInPhFlag() )
+  {
+    // ph_alf_enabled_flag, if false, implies chroma ALF and CCALF are also off
+    return !cs.picHeader->getAlfEnabledFlag( COMPONENT_Y );
+  }
+  else if( cs.picture->slices.size() == 1 )
+  {
+    // sh_alf_enabled_flag, if false, implies chroma ALF and CCALF are also off
+    return !cs.picture->slices[0]->getAlfEnabledFlag( COMPONENT_Y );
+  }
 
   return false;
 }
@@ -494,11 +502,11 @@ void AdaptiveLoopFilter::filterAreaLuma( const CPelUnitBuf& srcBuf,
   const short* clip  = nullptr;
   if( filterSetIndex >= NUM_FIXED_FILTER_SETS )
   {
-    CHECK_RECOVERABLE( slice->getNumAlfAps() <= ( filterSetIndex - NUM_FIXED_FILTER_SETS ), "deduemm" );
-    const int apsIdx = slice->getAlfApsIdLuma()[filterSetIndex - NUM_FIXED_FILTER_SETS];
+    CHECK( slice->getNumAlfAps() <= ( filterSetIndex - NUM_FIXED_FILTER_SETS ), "deduemm" );
+    const int apsIdx = slice->getAlfApsIdsLuma()[filterSetIndex - NUM_FIXED_FILTER_SETS];
 
     const APS* curAPS = aps[apsIdx];   // TODO: check this
-    CHECK_RECOVERABLE( curAPS == NULL, "invalid APS" );
+    CHECK( curAPS == NULL, "invalid APS" );
     const AlfSliceParam& alfSliceParam = curAPS->getAlfAPSParam();
     coeff                              = alfSliceParam.lumaCoeffFinal;
     clip                               = alfSliceParam.lumaClippFinal;
@@ -520,8 +528,8 @@ void AdaptiveLoopFilter::filterAreaLuma( const CPelUnitBuf& srcBuf,
     {
       int nWidth = std::min( j + m_CLASSIFICATION_BLK_SIZE, right ) - j;
       
-      m_deriveClassificationBlk( classifier[tId].data(), srcBuf.Y(),     Area( j, i, nWidth, nHeight ), m_inputBitDepth[CHANNEL_TYPE_LUMA] + 4, m_alfVBLumaCTUHeight, m_alfVBLumaPos );
-      m_filter7x7Blk           ( classifier[tId].data(), dstBuf, srcBuf, Area( j, i, nWidth, nHeight ), COMPONENT_Y, coeff, clip, clpRngs,      m_alfVBLumaCTUHeight, m_alfVBLumaPos );
+      m_deriveClassificationBlk( classifier[tId].data(), srcBuf.Y(),     Area( j, i, nWidth, nHeight ), m_inputBitDepth + 4,               m_alfVBLumaCTUHeight, m_alfVBLumaPos );
+      m_filter7x7Blk           ( classifier[tId].data(), dstBuf, srcBuf, Area( j, i, nWidth, nHeight ), COMPONENT_Y, coeff, clip, clpRngs, m_alfVBLumaCTUHeight, m_alfVBLumaPos );
     }
   }
 }
@@ -540,7 +548,7 @@ void AdaptiveLoopFilter::filterAreaChroma( const CPelUnitBuf& srcBuf,
   {
     const int  apsIdxChroma = slice->getAlfApsIdChroma();
     const APS* curAPS       = aps[apsIdxChroma];
-    CHECK_RECOVERABLE( curAPS == NULL, "invalid APS" );
+    CHECK( curAPS == NULL, "invalid APS" );
     const AlfSliceParam& alfSliceParam = curAPS->getAlfAPSParam();
 
     const uint8_t altIdx = ctuAlfData.alfCtuAlternative[compID - 1];
@@ -577,7 +585,7 @@ void AdaptiveLoopFilter::filterAreaChromaCc( const CPelUnitBuf& srcBuf,
                                              const ClpRngs&     clpRngs )
 
 {
-  if( slice->getCcAlfEnabledFlag( compID - 1 ) )
+  if( slice->getCcAlfEnabledFlag( compID ) )
   {
     const int filterIdx = ctuAlfData.ccAlfFilterControl[compID - 1];
 
@@ -603,9 +611,9 @@ void AdaptiveLoopFilter::filterAreaChromaBothCc( const CPelUnitBuf& srcBuf,
 
 {
   const int filterIdxCb =
-      slice->getCcAlfEnabledFlag(COMPONENT_Cb - 1) ? ctuAlfData.ccAlfFilterControl[COMPONENT_Cb - 1] : 0;
+      slice->getCcAlfEnabledFlag(COMPONENT_Cb) ? ctuAlfData.ccAlfFilterControl[COMPONENT_Cb - 1] : 0;
   const int filterIdxCr =
-      slice->getCcAlfEnabledFlag(COMPONENT_Cr - 1) ? ctuAlfData.ccAlfFilterControl[COMPONENT_Cr - 1] : 0;
+      slice->getCcAlfEnabledFlag(COMPONENT_Cr) ? ctuAlfData.ccAlfFilterControl[COMPONENT_Cr - 1] : 0;
   
   if( filterIdxCb && filterIdxCr )
   {
@@ -673,8 +681,8 @@ void AdaptiveLoopFilter::filterCTU( const CPelUnitBuf&     srcBuf,
                                                          rasterSliceAlfPad );
   if( isCrssByVBs )
   {
-    CHECK_RECOVERABLE( numHorVirBndry >= (int)( sizeof(horVirBndryPos) / sizeof(horVirBndryPos[0]) ), "Too many virtual boundaries" );
-    CHECK_RECOVERABLE( numHorVirBndry >= (int)( sizeof(verVirBndryPos) / sizeof(verVirBndryPos[0]) ), "Too many virtual boundaries" );
+    CHECK( numHorVirBndry >= (int)( sizeof(horVirBndryPos) / sizeof(horVirBndryPos[0]) ), "Too many virtual boundaries" );
+    CHECK( numHorVirBndry >= (int)( sizeof(verVirBndryPos) / sizeof(verVirBndryPos[0]) ), "Too many virtual boundaries" );
   }
 
   const int width  = ( ctuPos.x + pcv.maxCUWidth  > pcv.lumaWidth  ) ? ( pcv.lumaWidth  - ctuPos.x ) : pcv.maxCUWidth;
@@ -691,7 +699,7 @@ void AdaptiveLoopFilter::filterCTU( const CPelUnitBuf&     srcBuf,
       if( chType < MAX_NUM_CHANNEL_TYPE && toChannelType( compID ) != chType )
         continue;
   #if ALF_FIX
-      if( !ctuAlfData.alfCtuEnableFlag[compIdx] && ( compIdx == 0 || !slice->getCcAlfEnabledFlag( compIdx-1 ) ) )
+      if( !ctuAlfData.alfCtuEnableFlag[compIdx] && ( compIdx == 0 || !slice->getCcAlfEnabledFlag( compIdx ) ) )
   #else
       if( !ctuAlfData.alfCtuEnableFlag[compIdx] )
   #endif
@@ -733,7 +741,7 @@ void AdaptiveLoopFilter::filterCTU( const CPelUnitBuf&     srcBuf,
       if( chType < MAX_NUM_CHANNEL_TYPE && toChannelType( compID ) != chType )
         continue;
   #if ALF_FIX
-      if( !ctuAlfData.alfCtuEnableFlag[compIdx] && ( compIdx == 0 || !slice->getCcAlfEnabledFlag( compIdx-1 ) ) )
+      if( !ctuAlfData.alfCtuEnableFlag[compIdx] && ( compIdx == 0 || !slice->getCcAlfEnabledFlag( compIdx ) ) )
   #else
       if( !ctuAlfData.alfCtuEnableFlag[compIdx] )
   #endif
@@ -775,7 +783,7 @@ void AdaptiveLoopFilter::filterCTU( const CPelUnitBuf&     srcBuf,
             const Size     paddedSize( w + padL + padR, h + padT + padB );
             const Position posInSrc( xInSrc - padL, yInSrc - padT );
 
-            if( compID == COMPONENT_Y || !slice->getCcAlfEnabledFlag( compIdx - 1 ) )
+            if( compID == COMPONENT_Y || !slice->getCcAlfEnabledFlag( compIdx ) )
             {
               auto tmpSubBuf = m_tempBuf[tid].subBuf( Area( posInSrc, paddedSize ) ).bufs[compID];
               tmpSubBuf.copyFrom( srcBuf.subBuf( Area( posInSrc, paddedSize ) ).bufs[compID] );
@@ -845,9 +853,9 @@ void AdaptiveLoopFilter::reconstructCoeffAPSs( Slice& slice )
   {
     for( int i = 0; i < slice.getNumAlfAps(); i++ )
     {
-      int        apsIdx = slice.getAlfApsIdLuma()[i];
+      int        apsIdx = slice.getAlfApsIdsLuma()[i];
       const APS* curAPS = aps[apsIdx];
-      CHECK_RECOVERABLE( curAPS == NULL, "invalid APS" );
+      CHECK( curAPS == NULL, "invalid APS" );
 
       AlfSliceParam& alfSliceParamTmp = curAPS->getMutableAlfAPSParam();
       reconstructCoeff( alfSliceParamTmp, CHANNEL_TYPE_LUMA, sps->getBitDepths().recon );
@@ -860,7 +868,7 @@ void AdaptiveLoopFilter::reconstructCoeffAPSs( Slice& slice )
   {
     int        apsIdxChroma = slice.getAlfApsIdChroma();
     const APS* curAPS       = aps[apsIdxChroma];
-    CHECK_RECOVERABLE( curAPS == NULL, "invalid APS" );
+    CHECK( curAPS == NULL, "invalid APS" );
 
     AlfSliceParam& alfSliceParamTmp = curAPS->getMutableAlfAPSParam();
     reconstructCoeff( alfSliceParamTmp, CHANNEL_TYPE_CHROMA, sps->getBitDepths().recon );
@@ -868,7 +876,7 @@ void AdaptiveLoopFilter::reconstructCoeffAPSs( Slice& slice )
   }
 }
 
-void AdaptiveLoopFilter::reconstructCoeff( AlfSliceParam& alfSliceParam, ChannelType channel, const int inputBitDepth[MAX_NUM_CHANNEL_TYPE] )
+void AdaptiveLoopFilter::reconstructCoeff( AlfSliceParam& alfSliceParam, ChannelType channel, const int inputBitDepth )
 {
   if( isChroma( channel ) && alfSliceParam.chrmFinalDone )
   {
@@ -893,9 +901,9 @@ void AdaptiveLoopFilter::reconstructCoeff( AlfSliceParam& alfSliceParam, Channel
       for( int coeffIdx = 0; coeffIdx < numCoeffMinus1; ++coeffIdx )
       {
         const int clipIdx = alfSliceParam.nonLinearFlagChroma ? alfSliceParam.chromaClipp[altIdx * MAX_NUM_ALF_CHROMA_COEFF + coeffIdx] : 0;
-        alfSliceParam.chrmClippFinal[altIdx * MAX_NUM_ALF_CHROMA_COEFF + coeffIdx] = m_alfClippVls[inputBitDepth[channel] - 8][clipIdx];
+        alfSliceParam.chrmClippFinal[altIdx * MAX_NUM_ALF_CHROMA_COEFF + coeffIdx] = m_alfClippVls[inputBitDepth - 8][clipIdx];
       }
-      alfSliceParam.chrmClippFinal[altIdx * MAX_NUM_ALF_CHROMA_COEFF + numCoeffMinus1] = m_alfClippVls[inputBitDepth[channel] - 8][0];
+      alfSliceParam.chrmClippFinal[altIdx * MAX_NUM_ALF_CHROMA_COEFF + numCoeffMinus1] = m_alfClippVls[inputBitDepth - 8][0];
     }
     alfSliceParam.chrmFinalDone = true;
     return;
@@ -905,11 +913,11 @@ void AdaptiveLoopFilter::reconstructCoeff( AlfSliceParam& alfSliceParam, Channel
   {
     int filterIdx      = alfSliceParam.filterCoeffDeltaIdx[classIdx];
     memcpy( alfSliceParam.lumaCoeffFinal + classIdx * MAX_NUM_ALF_LUMA_COEFF, alfSliceParam.lumaCoeff + filterIdx * MAX_NUM_ALF_LUMA_COEFF, sizeof( int16_t ) * numCoeffMinus1 );
-    alfSliceParam.lumaClippFinal[classIdx * MAX_NUM_ALF_LUMA_COEFF + numCoeffMinus1] = m_alfClippVls[inputBitDepth[channel] - 8][0];
+    alfSliceParam.lumaClippFinal[classIdx * MAX_NUM_ALF_LUMA_COEFF + numCoeffMinus1] = m_alfClippVls[inputBitDepth - 8][0];
     for( int coeffIdx = 0; coeffIdx < numCoeffMinus1; ++coeffIdx )
     {
       const int clipIdx = alfSliceParam.nonLinearFlagLuma ? alfSliceParam.lumaClipp[filterIdx * MAX_NUM_ALF_LUMA_COEFF + coeffIdx] : 0;
-      alfSliceParam.lumaClippFinal[classIdx * MAX_NUM_ALF_LUMA_COEFF + coeffIdx] = m_alfClippVls[inputBitDepth[channel] - 8][clipIdx];
+      alfSliceParam.lumaClippFinal[classIdx * MAX_NUM_ALF_LUMA_COEFF + coeffIdx] = m_alfClippVls[inputBitDepth - 8][clipIdx];
     }
 #if ALF_PRE_TRANSPOSE
 
@@ -1171,7 +1179,7 @@ void AdaptiveLoopFilter::filterBlk( const AlfClassifier* classifier,
 
   if( bChroma )
   {
-    CHECK_RECOVERABLE( filtType != 0, "Chroma needs to have filtType == 0" );
+    CHECK( filtType != 0, "Chroma needs to have filtType == 0" );
   }
 
   const CPelBuf srcLuma = recSrc.get( compId );
@@ -1197,10 +1205,10 @@ void AdaptiveLoopFilter::filterBlk( const AlfClassifier* classifier,
   const int clsSizeY = 4;
   const int clsSizeX = 4;
 
-  CHECK_RECOVERABLE( startHeight % clsSizeY, "Wrong startHeight in filtering" );
-  CHECK_RECOVERABLE( startWidth  % clsSizeX, "Wrong startWidth in filtering" );
-  CHECK_RECOVERABLE( ( endHeight - startHeight ) % clsSizeY, "Wrong endHeight in filtering" );
-  CHECK_RECOVERABLE( ( endWidth  - startWidth )  % clsSizeX, "Wrong endWidth in filtering" );
+  CHECK( startHeight % clsSizeY, "Wrong startHeight in filtering" );
+  CHECK( startWidth  % clsSizeX, "Wrong startWidth in filtering" );
+  CHECK( ( endHeight - startHeight ) % clsSizeY, "Wrong endHeight in filtering" );
+  CHECK( ( endWidth  - startWidth )  % clsSizeX, "Wrong endWidth in filtering" );
 
   ptrdiff_t dstStride2 = dstStride * clsSizeY;
   ptrdiff_t srcStride2 = srcStride * clsSizeY;
@@ -1333,9 +1341,9 @@ void AdaptiveLoopFilter::filterBlkCcAlf( const PelBuf&      dstBuf,
                                          int                vbCTUHeight,
                                          int                vbPos )
 {
-  CHECK_RECOVERABLE( 1 << getLog2(vbCTUHeight) != vbCTUHeight, "Not a power of 2");
+  CHECK( 1 << getLog2(vbCTUHeight) != vbCTUHeight, "Not a power of 2");
 
-  CHECK_RECOVERABLE(!isChroma(compId), "Must be chroma");
+  CHECK(!isChroma(compId), "Must be chroma");
 
   const int  clsSizeY      = 4;
   const int  clsSizeX      = 4;
@@ -1347,10 +1355,10 @@ void AdaptiveLoopFilter::filterBlkCcAlf( const PelBuf&      dstBuf,
   const int  scaleX        = getComponentScaleX( compId, nChromaFormat );
   const int  scaleY        = getComponentScaleY( compId, nChromaFormat );
 
-  CHECK_RECOVERABLE( startHeight % clsSizeY, "Wrong startHeight in filtering" );
-  CHECK_RECOVERABLE( startWidth % clsSizeX, "Wrong startWidth in filtering" );
-  CHECK_RECOVERABLE( ( endHeight - startHeight ) % clsSizeY, "Wrong endHeight in filtering" );
-  CHECK_RECOVERABLE( ( endWidth - startWidth ) % clsSizeX, "Wrong endWidth in filtering" );
+  CHECK( startHeight % clsSizeY, "Wrong startHeight in filtering" );
+  CHECK( startWidth % clsSizeX, "Wrong startWidth in filtering" );
+  CHECK( ( endHeight - startHeight ) % clsSizeY, "Wrong endHeight in filtering" );
+  CHECK( ( endWidth - startWidth ) % clsSizeX, "Wrong endWidth in filtering" );
 
   CPelBuf         srcBuf     = recSrc.get(COMPONENT_Y);
   const ptrdiff_t lumaStride = srcBuf.stride;
@@ -1426,7 +1434,7 @@ void AdaptiveLoopFilter::filterBlkCcAlfBoth( const PelBuf& dstBufCb, const PelBu
                                             const Area &blkSrc, const int16_t* filterCoeffCb, const int16_t* filterCoeffCr,
                                             const ClpRngs &clpRngs, int vbCTUHeight, int vbPos )
 {
-  CHECK_RECOVERABLE(1 << getLog2(vbCTUHeight) != vbCTUHeight, "Not a power of 2");
+  CHECK(1 << getLog2(vbCTUHeight) != vbCTUHeight, "Not a power of 2");
 
   ChromaFormat nChromaFormat = recSrc.chromaFormat;
   const int clsSizeY = 4;
@@ -1438,10 +1446,10 @@ void AdaptiveLoopFilter::filterBlkCcAlfBoth( const PelBuf& dstBufCb, const PelBu
   const int scaleX = getComponentScaleX(COMPONENT_Cb, nChromaFormat);
   const int scaleY = getComponentScaleY(COMPONENT_Cb, nChromaFormat);
 
-  CHECK_RECOVERABLE(startHeight % clsSizeY, "Wrong startHeight in filtering");
-  CHECK_RECOVERABLE(startWidth % clsSizeX, "Wrong startWidth in filtering");
-  CHECK_RECOVERABLE((endHeight - startHeight) % clsSizeY, "Wrong endHeight in filtering");
-  CHECK_RECOVERABLE((endWidth - startWidth) % clsSizeX, "Wrong endWidth in filtering");
+  CHECK(startHeight % clsSizeY, "Wrong startHeight in filtering");
+  CHECK(startWidth % clsSizeX, "Wrong startWidth in filtering");
+  CHECK((endHeight - startHeight) % clsSizeY, "Wrong endHeight in filtering");
+  CHECK((endWidth - startWidth) % clsSizeX, "Wrong endWidth in filtering");
 
   CPelBuf srcBuf = recSrc.get(COMPONENT_Y);
   const ptrdiff_t lumaStride = srcBuf.stride;

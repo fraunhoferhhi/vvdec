@@ -46,14 +46,15 @@ POSSIBILITY OF SUCH DAMAGE.
 
 #pragma once
 
-#include "CABACReader.h"
-#include "DecCu.h"
+#include "Contexts.h"
 
-#include "CommonLib/CommonDef.h"
-#include "CommonLib/BitStream.h"
+#include <vector>
 
 namespace vvdec
 {
+
+class InputBitstream;
+class Slice;
 
 // ====================================================================================================================
 // Class definition
@@ -77,4 +78,4 @@ public:
   void  destroy           ()                    { m_entropyCodingSyncContextState.clear(); }
 };
 
-}
+}   // namespace vvdec

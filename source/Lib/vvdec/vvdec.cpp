@@ -58,8 +58,8 @@ VVDEC_DECL void vvdec_params_default(vvdecParams *params)
     return;
   }
 
-  params->threads           = -1;                       // thread count        ( default: -1 )
-  params->parseThreads      = -1;                       // parser thread count ( default: -1 )
+  params->threads           = -1;                       // thread count                          ( default: -1 )
+  params->parseDelay        = -1;                       // number of frames to parse in parallel ( default: -1 )
   params->upscaleOutput     = VVDEC_UPSCALING_OFF;      // do internal upscaling of rpr pictures to dest. resolution ( default: off )
   params->logLevel          = VVDEC_WARNING;            // verbosity level
   params->verifyPictureHash = false;                    // verify picture, if digest is available, true: check hash in SEI messages if available, false: ignore SEI message
@@ -67,6 +67,7 @@ VVDEC_DECL void vvdec_params_default(vvdecParams *params)
   params->opaque            = nullptr;                  // opaque pointer for private user data ( can be used to carry caller specific data or contexts )
   params->simd              = VVDEC_SIMD_DEFAULT;       // set specific simd optimization (default: max. availalbe)
   params->errHandlingFlags  = VVDEC_ERR_HANDLING_OFF;   // no special error handling
+  params->parseThreads      = -1;                       // DEPRECATED. Use `parseDelay` instead. Will be removed in the future. Until then, this value is copied to parseDelay if set.
 }
 
 VVDEC_DECL vvdecParams* vvdec_params_alloc()
@@ -160,13 +161,13 @@ VVDEC_DECL const char* vvdec_get_version()
 
 static int paramCheck( vvdecParams *params )
 {
-  int ret = 0;
   if (nullptr == params)
   {
     vvdec::msg( vvdec::ERROR, "vvdecParams is null\n" );
     return -1;
   }
 
+  int ret = 0;
   if( (int)params->simd > (int)VVDEC_SIMD_MAX || (int)params->simd < (int)VVDEC_SIMD_DEFAULT)
   {
     vvdec::msg( vvdec::ERROR, "unsupported simd mode. simd must be 0 <= simd <= %i\n", (int)VVDEC_SIMD_MAX );
@@ -177,6 +178,17 @@ static int paramCheck( vvdecParams *params )
   {
     vvdec::msg( vvdec::ERROR, "unsupported upscaleOutput mode. must be 0 <= upscaleOutput <= 2\n" );
     ret = -1;
+  }
+
+  if( params->parseThreads != -1 )
+  {
+    vvdec::msg( vvdec::WARNING, "Used deprecated field parseThreads. Use parseDelay instead. parseThreads will be removed in the future. Until then, this value is copied to parseDelay if set.\n" );
+
+    if( params->parseThreads != params->parseDelay && params->parseDelay != -1 )
+    {
+      vvdec::msg( vvdec::ERROR, "parseDelay and parseThreads were both set, but to different values. Only set parseDelay in the future.\n" );
+      ret = -1;
+    }
   }
 
   return ret;
@@ -195,6 +207,11 @@ VVDEC_DECL vvdecDecoder* vvdec_decoder_open( vvdecParams *params)
     return nullptr;
   }
 
+  if( params->parseThreads != -1 && params->parseDelay == -1 )   // overwrite parseDelay with deprecated value parseThreads if set
+  {
+    params->parseDelay = params->parseThreads;
+  }
+
   vvdec::VVDecImpl* decCtx = new vvdec::VVDecImpl();
   if (!decCtx)
   {
@@ -205,7 +222,7 @@ VVDEC_DECL vvdecDecoder* vvdec_decoder_open( vvdecParams *params)
   int ret = decCtx->catchExceptions( &vvdec::VVDecImpl::init, *params, nullptr, nullptr );
   if (ret != 0)
   {
-    const std::string initErr( std::move( decCtx->m_cAdditionalErrorString.c_str() ) );
+    const std::string initErr( std::move( decCtx->m_cAdditionalErrorString ) );
 
     // Error initializing the decoder
     delete decCtx;
@@ -247,7 +264,7 @@ VVDEC_DECL vvdecDecoder* vvdec_decoder_open_with_allocator( vvdecParams *params,
   int ret = decCtx->catchExceptions( &vvdec::VVDecImpl::init, *params, callbackBufAlloc, callbackBufUnref );
   if (ret != 0)
   {
-    const std::string initErr( std::move( decCtx->m_cAdditionalErrorString.c_str() ) );
+    const std::string initErr( std::move( decCtx->m_cAdditionalErrorString ) );
 
     // Error initializing the decoder
     delete decCtx;

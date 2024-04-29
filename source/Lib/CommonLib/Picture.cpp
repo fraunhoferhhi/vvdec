@@ -113,7 +113,7 @@ void Picture::createWrapAroundBuf( const bool isWrapAround, const unsigned _maxC
 
 void Picture::resetForUse( int _layerId )
 {
-  CHECK_RECOVERABLE( lockedByApplication, "the picture can not be re-used, because it has not been unlocked by the application." );
+  CHECK( lockedByApplication, "the picture can not be re-used, because it has not been unlocked by the application." );
 
   if( cs )
   {
@@ -178,7 +178,7 @@ void Picture::resetForUse( int _layerId )
 
 void Picture::destroy()
 {
-  CHECK_RECOVERABLE( lockedByApplication, "the picture can not be destroyed, because it has not been unlocked by the application." );
+  CHECK( lockedByApplication, "the picture can not be destroyed, because it has not been unlocked by the application." );
 
   for (uint32_t t = 0; t < NUM_PIC_TYPES; t++)
   {
@@ -362,14 +362,14 @@ void Picture::ensureUsableAsRef()
   // ensure cs->m_colMiMap is set to zero
   cs->initStructData();
 
-  CHECK( reconDone.hasException(), "to be usable as reference the picture should not have an Exception reconDone barrier" );
+  CHECK_FATAL( reconDone.hasException(), "to be usable as reference the picture should not have an Exception reconDone barrier" );
 }
 
 void Picture::fillGrey( const SPS* sps )
 {
   // fill in grey buffer for missing reference pictures (GDR or broken bitstream)
-  const uint32_t yFill = 1 << ( sps->getBitDepth( CHANNEL_TYPE_LUMA ) - 1 );
-  const uint32_t cFill = 1 << ( sps->getBitDepth( CHANNEL_TYPE_CHROMA ) - 1 );
+  const uint32_t yFill = 1 << ( sps->getBitDepth() - 1 );
+  const uint32_t cFill = 1 << ( sps->getBitDepth() - 1 );
   getRecoBuf().Y().fill( yFill );
   getRecoBuf().Cb().fill( cFill );
   getRecoBuf().Cr().fill( cFill );

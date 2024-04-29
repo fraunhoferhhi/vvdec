@@ -217,7 +217,7 @@ void  IntraPredSampleFilterCore(Pel *ptrSrc,const ptrdiff_t  srcStride,PelBuf &p
   PelBuf        dstBuf  = piPred;
 
   const int scale = ((getLog2(iWidth) - 2 + getLog2(iHeight) - 2 + 2) >> 2);
-  CHECK_RECOVERABLE(scale < 0 || scale > 31, "PDPC: scale < 0 || scale > 31");
+  CHECK(scale < 0 || scale > 31, "PDPC: scale < 0 || scale > 31");
 
 #if 1
   if( uiDirMode == PLANAR_IDX || uiDirMode == DC_IDX )
@@ -408,7 +408,7 @@ void IntraPrediction::init(ChromaFormat chromaFormatIDC, const unsigned bitDepth
 //NOTE: Bit-Limit - 25-bit source
 Pel IntraPrediction::xGetPredValDc( const CPelBuf &pSrc, const Size &dstSize, const int mrlIdx )
 {
-  CHECK_RECOVERABLE( dstSize.width == 0 || dstSize.height == 0, "Empty area provided" );
+  CHECK( dstSize.width == 0 || dstSize.height == 0, "Empty area provided" );
 
   int idx, sum = 0;
   Pel dcVal;
@@ -468,15 +468,14 @@ void IntraPrediction::setReferenceArrayLengths( const CompArea &area )
 
 
 
-void IntraPrediction::predIntraAng( const ComponentID compId, PelBuf &piPred, const CodingUnit &cu, const bool useFilteredPredSamples )
+void IntraPrediction::predIntraAng( const ComponentID compID, PelBuf &piPred, const CodingUnit &cu, const bool useFilteredPredSamples )
 {
-  const ComponentID    compID       = MAP_CHROMA( compId );
   const ChannelType    channelType  = toChannelType( compID );
   const int            iWidth       = piPred.width;
   const int            iHeight      = piPred.height;
-  const Size           cuSize       = Size( cu.blocks[compId].width, cu.blocks[compId].height );
-  CHECK_RECOVERABLE( CU::isMIP(cu, toChannelType(compId)), "We should not get here for MIP." );
-  const uint32_t       uiDirMode    = isLuma( compId ) && cu.bdpcmMode() ? BDPCM_IDX : !isLuma(compId) && cu.bdpcmModeChroma() ? BDPCM_IDX : PU::getFinalIntraMode(cu, channelType);
+  const Size           cuSize       = Size( cu.blocks[compID].width, cu.blocks[compID].height );
+  CHECK( CU::isMIP(cu, toChannelType(compID)), "We should not get here for MIP." );
+  const uint32_t       uiDirMode    = isLuma( compID ) && cu.bdpcmMode() ? BDPCM_IDX : !isLuma(compID) && cu.bdpcmModeChroma() ? BDPCM_IDX : PU::getFinalIntraMode(cu, channelType);
 
   CHECKD( iWidth == 2, "Width of 2 is not supported" );
 
@@ -598,7 +597,7 @@ void IntraPrediction::xPredIntraAng( const CPelBuf &pSrc, PelBuf &pDst, const Ch
   int width =int(pDst.width);
   int height=int(pDst.height);
 
-  CHECK_RECOVERABLE( !( dirMode > DC_IDX && dirMode < NUM_LUMA_MODE ), "Invalid intra dir" );
+  CHECK( !( dirMode > DC_IDX && dirMode < NUM_LUMA_MODE ), "Invalid intra dir" );
   int              predMode           = useISP ? getWideAngle( cuSize.width, cuSize.height, dirMode ) : getWideAngle( width, height, dirMode );
   const bool       bIsModeVer         = predMode >= DIA_IDX;
   const int        intraPredAngleMode = (bIsModeVer) ? predMode - VER_IDX : -(predMode - HOR_IDX);
@@ -687,7 +686,7 @@ void IntraPrediction::xPredIntraAng( const CPelBuf &pSrc, PelBuf &pDst, const Ch
     if( doPDPC )
     {
       const int scale = ( ( getLog2( width ) - 2 + getLog2( height ) - 2 + 2 ) >> 2 );
-      CHECK_RECOVERABLE(scale < 0 || scale > 31, "PDPC: scale < 0 || scale > 31");
+      CHECK(scale < 0 || scale > 31, "PDPC: scale < 0 || scale > 31");
       const int lev[4]={std::min(3,width),std::min(6,width),std::min(12,width),std::min(24,width)};
 
       const Pel topLeft = pSrc.at(0, 0);
@@ -745,7 +744,7 @@ void IntraPrediction::xPredIntraAng( const CPelBuf &pSrc, PelBuf &pDst, const Ch
         }
         else
         {
-          CHECK_RECOVERABLE( !useISP, "should not happen" );
+          CHECK( !useISP, "should not happen" );
 
           for (int y = 0; y<height; y++ )
           {
@@ -853,7 +852,7 @@ void IntraPrediction::xPredIntraBDPCM(const CPelBuf &pSrc, PelBuf &pDst, const u
   const ptrdiff_t strideP = pDst.stride;
   const ptrdiff_t strideS = pSrc.stride;
 
-  CHECK_RECOVERABLE( !( dirMode == 1 || dirMode == 2 ), "Incorrect BDPCM mode parameter." );
+  CHECK( !( dirMode == 1 || dirMode == 2 ), "Incorrect BDPCM mode parameter." );
 
   Pel* pred = &pDst.buf[0];
   if( dirMode == 1 )
@@ -944,7 +943,7 @@ inline int isLeftAvailable(const TransformUnit &tu, const ChannelType &chType, c
 
 void IntraPrediction::initIntraPatternChType(const TransformUnit &tu, const CompArea &area, const bool bFilterRefSamples)
 {
-  CHECK_RECOVERABLE( area.width == 2, "Width of 2 is not supported" );
+  CHECK( area.width == 2, "Width of 2 is not supported" );
   const CodingStructure& cs   = *tu.cu->cs;
 
   Pel *refBufUnfiltered   = m_piYuvExt[PRED_BUF_UNFILTERED];
@@ -1097,7 +1096,7 @@ void IntraPrediction::xFillReferenceSamples( const CPelBuf &recoBuf, Pel* refBuf
   const int  numAboveRightUnits = totalAboveUnits - numAboveUnits;
   const int  numLeftBelowUnits  = totalLeftUnits - numLeftUnits;
 
-  CHECK_RECOVERABLE( numAboveUnits <= 0 || numLeftUnits <= 0 || numAboveRightUnits <= 0 || numLeftBelowUnits <= 0, "Size not supported" );
+  CHECK( numAboveUnits <= 0 || numLeftUnits <= 0 || numAboveRightUnits <= 0 || numLeftBelowUnits <= 0, "Size not supported" );
 
   // ----- Step 1: analyze neighborhood -----
   if( m_lastCUidx == tu.cu->idx && area.compID() != getFirstComponentOfChannel( tu.cu->chType() ) )
@@ -1143,7 +1142,7 @@ void IntraPrediction::xFillReferenceSamples( const CPelBuf &recoBuf, Pel* refBuf
   const ptrdiff_t srcStride = recoBuf.stride;
         Pel*  ptrDst    = refBufUnfiltered;
   const Pel*  ptrSrc;
-  const Pel   valueDC   = 1 << (sps.getBitDepth( chType ) - 1);
+  const Pel   valueDC   = 1 << (sps.getBitDepth() - 1);
 
   if( numIntraNeighbor == 0 )
   {
@@ -1418,8 +1417,8 @@ NO_THREAD_SANITIZE void IntraPrediction::xGetLumaRecPixels(const CodingUnit &cu,
                                 recalcSize( cu.chromaFormat, CHANNEL_TYPE_CHROMA, CHANNEL_TYPE_LUMA, chromaArea.size() ) );//needed for correct pos/size (4x4 Tus)
 
 
-  CHECK_RECOVERABLE( lumaArea.width  == chromaArea.width  && CHROMA_444 != cu.chromaFormat, "" );
-  CHECK_RECOVERABLE( lumaArea.height == chromaArea.height && CHROMA_444 != cu.chromaFormat && CHROMA_422 != cu.chromaFormat, "" );
+  CHECK( lumaArea.width  == chromaArea.width  && CHROMA_444 != cu.chromaFormat, "" );
+  CHECK( lumaArea.height == chromaArea.height && CHROMA_444 != cu.chromaFormat && CHROMA_422 != cu.chromaFormat, "" );
 
   const SizeType uiCWidth = chromaArea.width;
   const SizeType uiCHeight = chromaArea.height;
@@ -1693,7 +1692,7 @@ void IntraPrediction::xGetLMParameters(const CodingUnit &cu, const ComponentID c
                                               const CompArea &chromaArea,
                                               int &a, int &b, int &iShift)
 {
-  CHECK_RECOVERABLE(compID == COMPONENT_Y, "");
+  CHECK(compID == COMPONENT_Y, "");
 
   const SizeType cWidth  = chromaArea.width;
   const SizeType cHeight = chromaArea.height;
@@ -1750,7 +1749,7 @@ void IntraPrediction::xGetLMParameters(const CodingUnit &cu, const ComponentID c
 
   curChroma0 += curStride + 1;
 
-  unsigned internalBitDepth = sps.getBitDepth(CHANNEL_TYPE_CHROMA);
+  unsigned internalBitDepth = sps.getBitDepth();
 
   int minLuma[2] = {  MAX_INT, 0 };
   int maxLuma[2] = { -MAX_INT, 0 };
@@ -1903,7 +1902,7 @@ void IntraPrediction::xGetLMParameters(const CodingUnit &cu, const ComponentID c
 
 void IntraPrediction::initIntraMip( const CodingUnit &cu, const CompArea &area )
 {
-  CHECK_RECOVERABLE( area.width > MIP_MAX_WIDTH || area.height > MIP_MAX_HEIGHT, "Error: block size not supported for MIP" );
+  CHECK( area.width > MIP_MAX_WIDTH || area.height > MIP_MAX_HEIGHT, "Error: block size not supported for MIP" );
 
   // prepare input (boundary) data for prediction
 //  CHECK( m_ipaParam.refFilterFlag, "ERROR: unfiltered refs expected for MIP" );
@@ -1911,13 +1910,13 @@ void IntraPrediction::initIntraMip( const CodingUnit &cu, const CompArea &area )
   const int srcStride  = m_topRefLength  + 1; //TODO: check this if correct
   const int srcHStride = m_leftRefLength + 1;
 
-  m_matrixIntraPred.prepareInputForPred( CPelBuf( ptrSrc, srcStride, srcHStride ), area, cu.sps->getBitDepth( toChannelType( area.compID() ) ), area.compID() );
+  m_matrixIntraPred.prepareInputForPred( CPelBuf( ptrSrc, srcStride, srcHStride ), area, cu.sps->getBitDepth(), area.compID() );
 }
 
 void IntraPrediction::predIntraMip( const ComponentID compId, PelBuf &piPred, const CodingUnit &cu )
 {
-  CHECK_RECOVERABLE( piPred.width > MIP_MAX_WIDTH || piPred.height > MIP_MAX_HEIGHT, "Error: block size not supported for MIP" );
-  CHECK_RECOVERABLE( piPred.width != (1 << getLog2(piPred.width)) || piPred.height != (1 << getLog2(piPred.height)), "Error: expecting blocks of size 2^M x 2^N" );
+  CHECK( piPred.width > MIP_MAX_WIDTH || piPred.height > MIP_MAX_HEIGHT, "Error: block size not supported for MIP" );
+  CHECK( piPred.width != (1 << getLog2(piPred.width)) || piPred.height != (1 << getLog2(piPred.height)), "Error: expecting blocks of size 2^M x 2^N" );
 
   // generate mode-specific prediction
   uint32_t modeIdx       = MAX_NUM_MIP_MODE;
@@ -1931,16 +1930,16 @@ void IntraPrediction::predIntraMip( const ComponentID compId, PelBuf &piPred, co
   {
     const CodingUnit &coLocatedLumaPU = PU::getCoLocatedLumaPU(cu);
 
-    CHECK_RECOVERABLE(cu.intraDir[CHANNEL_TYPE_CHROMA] != DM_CHROMA_IDX, "Error: MIP is only supported for chroma with DM_CHROMA.");
-    CHECK_RECOVERABLE(!coLocatedLumaPU.mipFlag(), "Error: Co-located luma CU should use MIP.");
+    CHECK(cu.intraDir[CHANNEL_TYPE_CHROMA] != DM_CHROMA_IDX, "Error: MIP is only supported for chroma with DM_CHROMA.");
+    CHECK(!coLocatedLumaPU.mipFlag(), "Error: Co-located luma CU should use MIP.");
 
     modeIdx       = coLocatedLumaPU.intraDir[CHANNEL_TYPE_LUMA];
     transposeFlag = coLocatedLumaPU.mipTransposedFlag();
   }
 
-  CHECK_RECOVERABLE(modeIdx >= getNumModesMip(piPred), "Error: Wrong MIP mode index");
+  CHECK(modeIdx >= getNumModesMip(piPred), "Error: Wrong MIP mode index");
 
-  const int bitDepth = cu.sps->getBitDepth( toChannelType( compId ) );
+  const int bitDepth = cu.sps->getBitDepth();
   m_matrixIntraPred.predBlock( piPred, modeIdx, piPred, transposeFlag, bitDepth, compId, m_piYuvExt[0] );
 }
 

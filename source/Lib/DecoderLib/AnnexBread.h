@@ -95,7 +95,7 @@ public:
    */
   bool eofBeforeNBytes(uint32_t n)
   {
-    CHECK_RECOVERABLE(n > 4, "Unsupported look-ahead value");
+    CHECK(n > 4, "Unsupported look-ahead value");
     if (m_NumFutureBytes >= n)
     {
       return false;

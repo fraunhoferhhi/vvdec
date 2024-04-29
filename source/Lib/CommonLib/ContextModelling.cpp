@@ -292,7 +292,7 @@ unsigned DeriveCtx::CtxIBCFlag( const CodingUnit& cu )
 
 void MergeCtx::setMergeInfo( CodingUnit& cu, int candIdx )
 {
-  CHECK_RECOVERABLE( candIdx >= numValidMergeCand, "Merge candidate does not exist" );
+  CHECK( candIdx >= numValidMergeCand, "Merge candidate does not exist" );
 
   //cu.setMergeFlag            ( true );
   //cu.setMmvdFlag             ( false );

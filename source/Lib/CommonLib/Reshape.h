@@ -47,11 +47,13 @@ POSSIBILITY OF SUCH DAMAGE.
 #pragma once
 
 #include "CommonDef.h"
-#include "Rom.h"
-#include "CommonLib/Picture.h"
+#include "Buffer.h"
+#include "Slice.h"
 
 namespace vvdec
 {
+
+class CodingStructure;
 
 // ====================================================================================================================
 // Class definition
@@ -100,4 +102,4 @@ public:
   int  getChromaScale() { return m_chromaScale; }
 };// END CLASS DEFINITION Reshape
 
-}
+}   // namespace vvdec

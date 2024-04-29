@@ -42,14 +42,10 @@ POSSIBILITY OF SUCH DAMAGE.
 
 #pragma once
 
-#include <sstream>
-#include <list>
 #include "CommonDef.h"
 
 namespace vvdec
 {
-
-class OutputBitstream;
 
 /**
  * Represents a single NALunit header and the associated RBSPayload
@@ -116,50 +112,6 @@ struct NALUnit
   static bool isVclNalUnitType(NalUnitType t)
   {
     return t <= NAL_UNIT_RESERVED_IRAP_VCL_11;
-  }
-};
-
-struct OutputNALUnit;
-
-/**
- * A single NALunit, with complete payload in EBSP format.
- */
-struct NALUnitEBSP : public NALUnit
-{
-  std::ostringstream m_nalUnitData;
-
-  /**
-   * convert the OutputNALUnit nalu into EBSP format by writing out
-   * the NALUnit header, then the rbsp_bytes including any
-   * emulation_prevention_three_byte symbols.
-   */
-  NALUnitEBSP(OutputNALUnit& nalu);
-};
-//! \}
-//! \}
-
-
-/**
- * An AccessUnit is a list of one or more NAL units, according to the
- * working draft.  All NAL units within the object belong to the same
- * access unit.
- *
- * NALUnits held in the AccessUnit list are in EBSP format.  Attempting
- * to insert an OutputNALUnit into the access unit will automatically cause
- * the nalunit to have its headers written and anti-emulation performed.
- *
- * The AccessUnit owns all pointers stored within.  Destroying the
- * AccessUnit will delete all contained objects.
- */
-class AccessUnit : public std::list<NALUnitEBSP*> // NOTE: Should not inherit from STL.
-{
-public:
-  ~AccessUnit()
-  {
-    for (AccessUnit::iterator it = this->begin(); it != this->end(); it++)
-    {
-      delete *it;
-    }
   }
 };
 

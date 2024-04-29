@@ -111,7 +111,7 @@ void  Reshape::initSlice( int nalUnitLayerId, const PicHeader& picHeader, const 
   {
     if( nalUnitLayerId != picHeader.getLmcsAPS()->getLayerId() )
     {
-      for (int i = 0; i < vps->getNumOutputLayerSets(); i++ )
+      for (int i = 0; vps && i < vps->getNumOutputLayerSets(); i++ )
       {
         bool isCurrLayerInOls = false;
         bool isRefLayerInOls = false;
@@ -126,7 +126,7 @@ void  Reshape::initSlice( int nalUnitLayerId, const PicHeader& picHeader, const 
             isRefLayerInOls = true;
           }
         }
-        CHECK_RECOVERABLE( isCurrLayerInOls && !isRefLayerInOls, "When VCL NAl unit in layer A refers to APS in layer B, all OLS that contains layer A shall also contains layer B" );
+        CHECK( isCurrLayerInOls && !isRefLayerInOls, "When VCL NAl unit in layer A refers to APS in layer B, all OLS that contains layer A shall also contains layer B" );
       }
     }
 
@@ -225,7 +225,7 @@ int  Reshape::calculateChromaAdjVpduNei(TransformUnit &tu, const Position pos)
     Pel* recSrc0 = piRecoY.bufAt(0, 0);
     const uint32_t picH = tu.cu->cs->picture->lheight();
     const uint32_t picW = tu.cu->cs->picture->lwidth();
-    const Pel   valueDC = 1 << (tu.cu->sps->getBitDepth(CHANNEL_TYPE_LUMA) - 1);
+    const Pel   valueDC = 1 << (tu.cu->sps->getBitDepth() - 1);
     int32_t recLuma = 0;
     int pelnum = 0;
     if (cuLeft != nullptr)
@@ -256,7 +256,7 @@ int  Reshape::calculateChromaAdjVpduNei(TransformUnit &tu, const Position pos)
     }
     else
     {
-      CHECK_RECOVERABLE(pelnum != 0, "");
+      CHECK(pelnum != 0, "");
       lumaValue = valueDC;
     }
     chromaScale = calculateChromaAdj(lumaValue);
@@ -329,7 +329,7 @@ void Reshape::constructReshaper()
     }
     else
     {
-      CHECK_RECOVERABLE( m_initCW * (1 << FP_PREC) / m_binCW[i] > (1 << 15) - 1, "Inverse scale coeff doesn't fit in a short!" );
+      CHECK( m_initCW * (1 << FP_PREC) / m_binCW[i] > (1 << 15) - 1, "Inverse scale coeff doesn't fit in a short!" );
       m_invScaleCoef[i] = (int32_t)(m_initCW * (1 << FP_PREC) / m_binCW[i]);
       m_chromaAdjHelpLUT[i] = (int32_t)(m_initCW * (1 << FP_PREC) / ( m_binCW[i] + m_sliceReshapeInfo.chrResScalingOffset ) );
     }

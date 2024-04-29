@@ -47,10 +47,7 @@ POSSIBILITY OF SUCH DAMAGE.
 #pragma once
 
 #include "CommonDef.h"
-#include "Unit.h"
 #include "Buffer.h"
-
-#include <math.h>
 
 namespace vvdec
 {

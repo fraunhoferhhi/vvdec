@@ -53,12 +53,13 @@ POSSIBILITY OF SUCH DAMAGE.
 
 #include <string.h>
 #include <type_traits>
-#include <typeinfo>
-#include <vector>
 #include <utility>
 
 namespace vvdec
 {
+
+struct CodingUnit;
+
 using namespace x86_simd;
 using namespace arm_simd;
 
@@ -405,8 +406,8 @@ void AreaBuf<T>::copyFrom( const AreaBuf<const T> &other ) const
   static_assert( std::is_trivially_copyable<T>::value, "Type T is not trivially_copyable" );
 #endif
 
-  CHECK( width  != other.width,  "Incompatible size" );
-  CHECK( height != other.height, "Incompatible size" );
+  CHECK_FATAL( width  != other.width,  "Incompatible size" );
+  CHECK_FATAL( height != other.height, "Incompatible size" );
 
   if( buf == other.buf )
   {
@@ -438,8 +439,8 @@ void AreaBuf<T>::copyFrom( const AreaBuf<const T> &other ) const
 template<typename T>
 void AreaBuf<T>::subtract( const AreaBuf<const T> &other )
 {
-  CHECK_RECOVERABLE( width  != other.width,  "Incompatible size" );
-  CHECK_RECOVERABLE( height != other.height, "Incompatible size" );
+  CHECK( width  != other.width,  "Incompatible size" );
+  CHECK( height != other.height, "Incompatible size" );
 
         T* dest =       buf;
   const T* subs = other.buf;
@@ -459,7 +460,7 @@ void AreaBuf<T>::subtract( const AreaBuf<const T> &other )
 template<typename T>
 void AreaBuf<T>::reconstruct( const AreaBuf<const T> &pred, const AreaBuf<const T> &resi, const ClpRng& clpRng )
 {
-  THROW( "Type not supported" );
+  THROW_FATAL( "Type not supported" );
 }
 
 template<>
@@ -469,7 +470,7 @@ void AreaBuf<Pel>::reconstruct( const AreaBuf<const Pel> &pred, const AreaBuf<co
 template<typename T>
 void AreaBuf<T>::addAvg( const AreaBuf<const T> &other1, const AreaBuf<const T> &other2, const ClpRng& clpRng )
 {
-  THROW( "Type not supported" );
+  THROW_FATAL( "Type not supported" );
 }
 
 template<>
@@ -478,7 +479,7 @@ void AreaBuf<Pel>::addAvg( const AreaBuf<const Pel> &other1, const AreaBuf<const
 template<typename T>
 void AreaBuf<T>::linearTransform( const int scale, const int shift, const int offset, bool bClip, const ClpRng& clpRng )
 {
-  THROW( "Type not supported" );
+  THROW_FATAL( "Type not supported" );
 }
 
 template<>
@@ -488,7 +489,7 @@ void AreaBuf<Pel>::linearTransform( const int scale, const int shift, const int 
 template<typename T>
 void AreaBuf<T>::rescaleBuf( const AreaBuf<const T>& beforeScaling, ComponentID compID, const std::pair<int, int> scalingRatio, const Window& confBefore, const Window& confAfter, const ChromaFormat chromaFormatIDC, const BitDepths& bitDepths, const bool horCollocatedChromaFlag, const bool verCollocatedChromaFlag )
 {
-  THROW( "Type not supported" );
+  THROW_FATAL( "Type not supported" );
 }
 
 template<>
@@ -502,7 +503,7 @@ void AreaBuf<T>::extendBorderPel( unsigned margin )
   int       w = width;
   ptrdiff_t s = stride;
 
-  CHECK_RECOVERABLE( ( w + 2 * margin ) > s, "Size of buffer too small to extend" );
+  CHECK( ( w + 2 * margin ) > s, "Size of buffer too small to extend" );
   // do left and right margins
   for( int y = 0; y < h; y++ )
   {
@@ -534,7 +535,7 @@ void AreaBuf<T>::extendBorderPel( unsigned margin )
 template<typename T>
 void AreaBuf<T>::extendBorderPel(unsigned margin, bool left, bool right, bool top, bool bottom)
 {
-  CHECK_RECOVERABLE( ( width + left*margin + right*margin) > stride, "Size of buffer too small to extend" );
+  CHECK( ( width + left*margin + right*margin) > stride, "Size of buffer too small to extend" );
   // do left and right margins
 
   if( left && right )
@@ -613,7 +614,7 @@ void AreaBuf<T>::padBorderPel( unsigned marginX, unsigned marginY, int dir )
   int  h = height;
   int  w = width;
 
-  CHECK_RECOVERABLE( w  > s, "Size of buffer too small to extend" );
+  CHECK( w  > s, "Size of buffer too small to extend" );
 
   // top-left margin
   if ( dir == 1 )
@@ -651,7 +652,7 @@ template<> void AreaBuf<Pel>::transposedFrom( const AreaBuf<const Pel> &other );
 template<typename T>
 void AreaBuf<T>::transposedFrom( const AreaBuf<const T> &other )
 {
-  CHECK_RECOVERABLE( width * height != other.width * other.height, "Incompatible size" );
+  CHECK( width * height != other.width * other.height, "Incompatible size" );
 
         T* dst  =       buf;
   const T* src  = other.buf;
@@ -740,6 +741,12 @@ typedef UnitBuf<const Pel> CPelUnitBuf;
 typedef UnitBuf<      TCoeff>  CoeffUnitBuf;
 typedef UnitBuf<const TCoeff> CCoeffUnitBuf;
 
+}   // namespace vvdec
+
+#include <Unit.h>
+
+namespace vvdec
+{
 template<typename T>
 void UnitBuf<T>::fill( const T &val )
 {
@@ -752,7 +759,7 @@ void UnitBuf<T>::fill( const T &val )
 template<typename T>
 void UnitBuf<T>::copyFrom( const UnitBuf<const T> &other ) const
 {
-  CHECK_RECOVERABLE( chromaFormat != other.chromaFormat, "Incompatible formats" );
+  CHECK( chromaFormat != other.chromaFormat, "Incompatible formats" );
 
   for( unsigned i = 0; i < bufs.size(); i++ )
   {
@@ -765,7 +772,7 @@ void UnitBuf<T>::copyFrom( const UnitBuf<const T> &other ) const
 template<typename T>
 void UnitBuf<T>::subtract( const UnitBuf<const T> &other )
 {
-  CHECK_RECOVERABLE( chromaFormat != other.chromaFormat, "Incompatible formats" );
+  CHECK( chromaFormat != other.chromaFormat, "Incompatible formats" );
 
   for( unsigned i = 0; i < bufs.size(); i++ )
   {
@@ -776,8 +783,8 @@ void UnitBuf<T>::subtract( const UnitBuf<const T> &other )
 template<typename T>
 void UnitBuf<T>::reconstruct(const UnitBuf<const T> &pred, const UnitBuf<const T> &resi, const ClpRngs& clpRngs)
 {
-  CHECK_RECOVERABLE( chromaFormat != pred.chromaFormat, "Incompatible formats" );
-  CHECK_RECOVERABLE( chromaFormat != resi.chromaFormat, "Incompatible formats" );
+  CHECK( chromaFormat != pred.chromaFormat, "Incompatible formats" );
+  CHECK( chromaFormat != resi.chromaFormat, "Incompatible formats" );
 
   for( unsigned i = 0; i < bufs.size(); i++ )
   {
@@ -791,7 +798,7 @@ void UnitBuf<T>::addWeightedAvg(const UnitBuf<T> &other1, const UnitBuf<T> &othe
   const size_t istart = chromaOnly ? 1 : 0;
   const size_t iend   = lumaOnly   ? 1 : bufs.size();
 
-  CHECK_RECOVERABLE(lumaOnly && chromaOnly, "should not happen");
+  CHECK(lumaOnly && chromaOnly, "should not happen");
 
   for(size_t i = istart; i < iend; i++)
   {
@@ -805,7 +812,7 @@ void UnitBuf<T>::addAvg(const UnitBuf<T> &other1, const UnitBuf<T> &other2, cons
   const size_t istart = chromaOnly ? 1 : 0;
   const size_t iend   = lumaOnly   ? 1 : bufs.size();
 
-  CHECK_RECOVERABLE( lumaOnly && chromaOnly, "should not happen" );
+  CHECK( lumaOnly && chromaOnly, "should not happen" );
 
   for( size_t i = istart; i < iend; i++)
   {
@@ -816,7 +823,7 @@ void UnitBuf<T>::addAvg(const UnitBuf<T> &other1, const UnitBuf<T> &other2, cons
 template<typename T>
 void UnitBuf<T>::colorSpaceConvert( const UnitBuf<T> &other, const ClpRng& clpRng )
 {
-  THROW( "Type not supported" );
+  THROW_FATAL( "Type not supported" );
 }
 
 template<>
@@ -973,4 +980,4 @@ private:
   const UserAllocator* m_userAlloc  = nullptr;
 };
 
-}
+}   // namespace vvdec

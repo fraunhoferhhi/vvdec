@@ -586,7 +586,7 @@ static void simdFilter5x5Blk( const AlfClassifier*,
                               int                vbCTUHeight,
                               int                vbPos )
 {
-  CHECK_RECOVERABLE(!isChroma(compId), "ALF 5x5 filter is for chroma only");
+  CHECK(!isChroma(compId), "ALF 5x5 filter is for chroma only");
 
 
   const CPelBuf srcBuffer = recSrc.get(compId);
@@ -774,7 +774,7 @@ void simdFilter5x5Blk<AVX2>( const AlfClassifier*,
                              int                    vbCTUHeight,
                              int                    vbPos )
 {
-  CHECK_RECOVERABLE( !isChroma( compId ), "ALF 5x5 filter is for chroma only" );
+  CHECK( !isChroma( compId ), "ALF 5x5 filter is for chroma only" );
 
 
   const CPelBuf srcBuffer = recSrc.get(compId);
@@ -1475,9 +1475,9 @@ void simdFilterBlkCcAlf( const PelBuf&      dstBuf,
                          int                vbCTUHeight,
                          int                vbPos )
 {
-  CHECK_RECOVERABLE( 1 << getLog2( vbCTUHeight ) != vbCTUHeight, "Not a power of 2" );
+  CHECK( 1 << getLog2( vbCTUHeight ) != vbCTUHeight, "Not a power of 2" );
 
-  CHECK_RECOVERABLE( !isChroma( compId ), "Must be chroma" );
+  CHECK( !isChroma( compId ), "Must be chroma" );
 
   static constexpr int scaleBits = 7; // 8-bits
   static constexpr int clsSizeY  = 4;
@@ -1491,10 +1491,10 @@ void simdFilterBlkCcAlf( const PelBuf&      dstBuf,
   const int          scaleX        = getComponentScaleX( compId, nChromaFormat );
   const int          scaleY        = getComponentScaleY( compId, nChromaFormat );
 
-  CHECK_RECOVERABLE( startHeight % clsSizeY, "Wrong startHeight in filtering" );
-  CHECK_RECOVERABLE( startWidth % clsSizeX, "Wrong startWidth in filtering" );
-  CHECK_RECOVERABLE( ( endHeight - startHeight ) % clsSizeY, "Wrong endHeight in filtering" );
-  CHECK_RECOVERABLE( ( endWidth - startWidth ) % clsSizeX, "Wrong endWidth in filtering" );
+  CHECK( startHeight % clsSizeY, "Wrong startHeight in filtering" );
+  CHECK( startWidth % clsSizeX, "Wrong startWidth in filtering" );
+  CHECK( ( endHeight - startHeight ) % clsSizeY, "Wrong endHeight in filtering" );
+  CHECK( ( endWidth - startWidth ) % clsSizeX, "Wrong endWidth in filtering" );
 
   const CPelBuf&   srcBuf  = recSrc.get( COMPONENT_Y );
   const ptrdiff_t  lumaStride = srcBuf.stride;
@@ -1610,7 +1610,7 @@ void simdFilterBlkCcAlf( const PelBuf&      dstBuf,
           //  sum = ClipPel( sum + offset, clpRngs.comp[compId] ) - offset;
           //  sum += srcSelf[jj];
           //
-          //  CHECK_RECOVERABLE( vsum[jj] != sum, "" );
+          //  CHECK( vsum[jj] != sum, "" );
           //}
   
           xin1 = _mm_loadu_si64( ( const __m128i* ) &srcSelf[0] );
@@ -1654,9 +1654,9 @@ void simdFilterBlkCcAlf<AVX2>( const PelBuf&      dstBuf,
     return;
   }
 
-  CHECK_RECOVERABLE( 1 << getLog2( vbCTUHeight ) != vbCTUHeight, "Not a power of 2" );
+  CHECK( 1 << getLog2( vbCTUHeight ) != vbCTUHeight, "Not a power of 2" );
 
-  CHECK_RECOVERABLE( !isChroma( compId ), "Must be chroma" );
+  CHECK( !isChroma( compId ), "Must be chroma" );
 
   static constexpr int scaleBits = 7; // 8-bits
   static constexpr int clsSizeY = 4;
@@ -1670,10 +1670,10 @@ void simdFilterBlkCcAlf<AVX2>( const PelBuf&      dstBuf,
   // const int scaleX = getComponentScaleX( compId, nChromaFormat );
   const int scaleY = getComponentScaleY( compId, nChromaFormat );
 
-  CHECK_RECOVERABLE( startHeight % clsSizeY, "Wrong startHeight in filtering" );
-  CHECK_RECOVERABLE( startWidth % clsSizeX, "Wrong startWidth in filtering" );
-  CHECK_RECOVERABLE( ( endHeight - startHeight ) % clsSizeY, "Wrong endHeight in filtering" );
-  CHECK_RECOVERABLE( ( endWidth - startWidth ) % clsSizeX, "Wrong endWidth in filtering" );
+  CHECK( startHeight % clsSizeY, "Wrong startHeight in filtering" );
+  CHECK( startWidth % clsSizeX, "Wrong startWidth in filtering" );
+  CHECK( ( endHeight - startHeight ) % clsSizeY, "Wrong endHeight in filtering" );
+  CHECK( ( endWidth - startWidth ) % clsSizeX, "Wrong endWidth in filtering" );
 
   const CPelBuf&  srcBuf = recSrc.get( COMPONENT_Y );
   const ptrdiff_t lumaStride = srcBuf.stride;
@@ -1805,7 +1805,7 @@ void simdFilterBlkCcAlfBoth( const PelBuf& dstBufCb, const PelBuf& dstBufCr, con
                              const int16_t* filterCoeffCr, const ClpRngs& clpRngs, int vbCTUHeight,
                              int vbPos)
 {
-  CHECK_RECOVERABLE(1 << getLog2(vbCTUHeight) != vbCTUHeight, "Not a power of 2");
+  CHECK(1 << getLog2(vbCTUHeight) != vbCTUHeight, "Not a power of 2");
   
   static constexpr int scaleBits = 7;  // 8-bits
   static constexpr int clsSizeY = 4;
@@ -1966,7 +1966,7 @@ void simdFilterBlkCcAlfBoth<AVX2>( const PelBuf& dstBufCb, const PelBuf& dstBufC
     return;
   }
   
-  CHECK_RECOVERABLE(1 << getLog2(vbCTUHeight) != vbCTUHeight, "Not a power of 2");
+  CHECK(1 << getLog2(vbCTUHeight) != vbCTUHeight, "Not a power of 2");
 
   static constexpr int scaleBits = 7;  // 8-bits
   static constexpr int clsSizeY = 4;
@@ -1980,10 +1980,10 @@ void simdFilterBlkCcAlfBoth<AVX2>( const PelBuf& dstBufCb, const PelBuf& dstBufC
 //  const int scaleX = getComponentScaleX(COMPONENT_Cb, nChromaFormat);
   const int scaleY = getComponentScaleY(COMPONENT_Cb, nChromaFormat);
 
-  CHECK_RECOVERABLE(startHeight % clsSizeY, "Wrong startHeight in filtering");
-  CHECK_RECOVERABLE(startWidth % clsSizeX, "Wrong startWidth in filtering");
-  CHECK_RECOVERABLE((endHeight - startHeight) % clsSizeY, "Wrong endHeight in filtering");
-  CHECK_RECOVERABLE((endWidth - startWidth) % clsSizeX, "Wrong endWidth in filtering");
+  CHECK(startHeight % clsSizeY, "Wrong startHeight in filtering");
+  CHECK(startWidth % clsSizeX, "Wrong startWidth in filtering");
+  CHECK((endHeight - startHeight) % clsSizeY, "Wrong endHeight in filtering");
+  CHECK((endWidth - startWidth) % clsSizeX, "Wrong endWidth in filtering");
 
   const CPelBuf &srcBuf = recSrcY.get(COMPONENT_Y);
   const ptrdiff_t lumaStride = srcBuf.stride;

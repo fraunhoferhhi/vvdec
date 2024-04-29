@@ -47,7 +47,8 @@ POSSIBILITY OF SUCH DAMAGE.
 
 #pragma once
 
-#include "CommonLib/TypeDef.h"
+#include "CommonLib/CommonDef.h"
+
 #include "CommonLib/Slice.h"
 #include "CommonLib/SEI_internal.h"
 #include "VLCReader.h"

@@ -48,7 +48,6 @@ POSSIBILITY OF SUCH DAMAGE.
 
 #include "CommonLib/InterPrediction.h"
 #include "CommonLib/IntraPrediction.h"
-#include "CommonLib/Picture.h"
 #include "CommonLib/UnitTools.h"
 #include "CommonLib/TimeProfiler.h"
 
@@ -76,7 +75,7 @@ void DecCu::TaskDeriveCtuMotionInfo( CodingStructure &cs, const int ctuRsAddr, c
   
   for( auto &currCU : cs.traverseCUs( ctuRsAddr ) )
   {
-    CHECK_RECOVERABLE( !ctuArea.blocks[currCU.chType()].contains( currCU.blocks[currCU.chType()] ),
+    CHECK( !ctuArea.blocks[currCU.chType()].contains( currCU.blocks[currCU.chType()] ),
            "Traversing CU at (" << currCU.blocks[currCU.chType()].x << "," << currCU.blocks[currCU.chType()].y
            << ") outside of the CTU at (" << ctuArea.blocks[currCU.chType()].x << "," << ctuArea.blocks[currCU.chType()].y << ")!"
     );
@@ -110,7 +109,7 @@ void DecCu::TaskTrafoCtu( CodingStructure &cs, const int ctuRsAddr, const UnitAr
 
   for( auto &currCU : cs.traverseCUs( ctuRsAddr ) )
   {
-    CHECK_RECOVERABLE( !ctuArea.blocks[currCU.chType()].contains( currCU.blocks[currCU.chType()] ), "Should never happen!" );
+    CHECK( !ctuArea.blocks[currCU.chType()].contains( currCU.blocks[currCU.chType()] ), "Should never happen!" );
 
     if( currCU.rootCbf() )
     {
@@ -125,7 +124,7 @@ void DecCu::TaskInterCtu( CodingStructure &cs, const int ctuRsAddr, const UnitAr
 
   for( auto &currCU: cs.traverseCUs( ctuRsAddr ) )
   {
-    CHECK_RECOVERABLE( !ctuArea.blocks[currCU.chType()].contains( currCU.blocks[currCU.chType()] ), "Should never happen!" );
+    CHECK( !ctuArea.blocks[currCU.chType()].contains( currCU.blocks[currCU.chType()] ), "Should never happen!" );
 
     if( !CU::isIntra( currCU ) && !CU::isIBC( currCU ) )
     {
@@ -141,7 +140,7 @@ void DecCu::TaskCriticalIntraKernel( CodingStructure &cs, const int ctuRsAddr, c
 
   for( auto &currCU : cs.traverseCUs( ctuRsAddr ) )
   {
-    CHECK_RECOVERABLE( !ctuArea.blocks[currCU.chType()].contains( currCU.blocks[currCU.chType()] ), "Should never happen!" );
+    CHECK( !ctuArea.blocks[currCU.chType()].contains( currCU.blocks[currCU.chType()] ), "Should never happen!" );
 
     if( CU::isIntra( currCU ) || currCU.ciipFlag() || CU::isIBC( currCU ) )
     {
@@ -431,10 +430,10 @@ void DecCu::predAndReco( CodingUnit& cu, bool doCiipIntra )
     else
     {
       // inter prediction
-      CHECK_RECOVERABLE( CU::isIBC( cu ) && cu.ciipFlag(),       "IBC and CIIP cannot be used together"   );
-      CHECK_RECOVERABLE( CU::isIBC( cu ) && cu.affineFlag(),     "IBC and AFFINE cannot be used together" );
-      CHECK_RECOVERABLE( CU::isIBC( cu ) && cu.geoFlag(),        "IBC and GEO cannot be used together"    );
-      CHECK_RECOVERABLE( CU::isIBC( cu ) && cu.mmvdFlag(),       "IBC and MMVD cannot be used together"     );
+      CHECK( CU::isIBC( cu ) && cu.ciipFlag(),       "IBC and CIIP cannot be used together"   );
+      CHECK( CU::isIBC( cu ) && cu.affineFlag(),     "IBC and AFFINE cannot be used together" );
+      CHECK( CU::isIBC( cu ) && cu.geoFlag(),        "IBC and GEO cannot be used together"    );
+      CHECK( CU::isIBC( cu ) && cu.mmvdFlag(),       "IBC and MMVD cannot be used together"     );
 
       if( !CU::isIBC( cu ) && !doCiipIntra )
       {
@@ -816,7 +815,7 @@ void DecCu::xDeriveCUMV( CodingUnit &cu, MotionHist& hist )
             const unsigned mvp_idx = cu.mvpIdx[eRefList];
 
             //    Mv mv[3];
-            CHECK_RECOVERABLE( cu.refIdx[eRefList] < 0, "Unexpected negative refIdx." );
+            CHECK( cu.refIdx[eRefList] < 0, "Unexpected negative refIdx." );
             const int imvShift = cu.imv() == 2 ? MV_FRACTIONAL_BITS_DIFF : 0;
             Mv mv0 = cu.mv[eRefList][0];
             Mv mv1 = cu.mv[eRefList][1];
@@ -857,7 +856,7 @@ void DecCu::xDeriveCUMV( CodingUnit &cu, MotionHist& hist )
         mvd <<= 4;
         if( cu.slice->getPicHeader()->getMaxNumIBCMergeCand() == 1 )
         {
-          CHECK_RECOVERABLE( cu.mvpIdx[REF_PIC_LIST_0], "mvpIdx for IBC mode should be 0" );
+          CHECK( cu.mvpIdx[REF_PIC_LIST_0], "mvpIdx for IBC mode should be 0" );
         }
         cu.mv[REF_PIC_LIST_0][0] = amvpInfo.mvCand[cu.mvpIdx[REF_PIC_LIST_0]] + mvd;
         cu.mv[REF_PIC_LIST_0][0] . mvCliptoStorageBitDepth();

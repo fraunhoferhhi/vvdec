@@ -62,52 +62,6 @@ namespace vvdec
 
 //! \ingroup DecoderLib
 //! \{
-static void convertPayloadToRBSP(std::vector<uint8_t>& nalUnitBuf, InputBitstream *bitstream, bool isVclNalUnit)
-{
-  uint32_t zeroCount = 0;
-  std::vector<uint8_t>::iterator it_read, it_write;
-
-  uint32_t pos = 0;
-  bitstream->clearEmulationPreventionByteLocation();
-  for (it_read = it_write = nalUnitBuf.begin(); it_read != nalUnitBuf.end(); it_read++, it_write++, pos++)
-  {
-    CHECK_RECOVERABLE(zeroCount >= 2 && *it_read < 0x03, "Zero count is '2' and read value is small than '3'");
-    if (zeroCount == 2 && *it_read == 0x03)
-    {
-      bitstream->pushEmulationPreventionByteLocation( pos );
-      pos++;
-      it_read++;
-      zeroCount = 0;
-      if (it_read == nalUnitBuf.end())
-      {
-        break;
-      }
-      CHECK_RECOVERABLE(*it_read > 0x03, "Read a value bigger than '3'");
-    }
-    zeroCount = (*it_read == 0x00) ? zeroCount+1 : 0;
-    *it_write = *it_read;
-  }
-  CHECK_RECOVERABLE(zeroCount != 0, "Zero count not '0'");
-
-  if (isVclNalUnit)
-  {
-    // Remove cabac_zero_word from payload if present
-    int n = 0;
-
-    while (it_write[-1] == 0x00)
-    {
-      it_write--;
-      n++;
-    }
-
-    if (n > 0)
-    {
-      msg( VERBOSE, "\nDetected %d instances of cabac_zero_word\n", n/2);
-    }
-  }
-
-  nalUnitBuf.resize(it_write - nalUnitBuf.begin());
-}
 
 #if ENABLE_TRACING
 static void xTraceNalUnitHeader(InputNALUnit& nalu)
@@ -133,8 +87,8 @@ void InputNALUnit::readNalUnitHeader()
   nalu.m_forbiddenZeroBit   = bs.read(1);                 // forbidden zero bit
   nalu.m_nuhReservedZeroBit = bs.read(1);                 // nuh_reserved_zero_bit
   nalu.m_nuhLayerId         = bs.read(6);                 // nuh_layer_id
-  CHECK_RECOVERABLE( nalu.m_nuhLayerId < 0, "this needs to be adjusted for the reco yuv output" );
-  CHECK_RECOVERABLE(nalu.m_nuhLayerId > 55, "The value of nuh_layer_id shall be in the range of 0 to 55, inclusive");
+  CHECK( nalu.m_nuhLayerId < 0, "this needs to be adjusted for the reco yuv output" );
+  CHECK( nalu.m_nuhLayerId > 55, "The value of nuh_layer_id shall be in the range of 0 to 55, inclusive" );
   nalu.m_nalUnitType        = (NalUnitType) bs.read(5);   // nal_unit_type
   nalu.m_temporalId         = bs.read(3) - 1;             // nuh_temporal_id_plus1
 
@@ -150,29 +104,8 @@ void InputNALUnit::readNalUnitHeader()
     }
     else
     {
-      CHECK_RECOVERABLE( nalu.m_nalUnitType == NAL_UNIT_CODED_SLICE_STSA, "When NAL unit type is equal to STSA_NUT, TemporalId shall not be equal to 0" );
+      CHECK( nalu.m_nalUnitType == NAL_UNIT_CODED_SLICE_STSA, "When NAL unit type is equal to STSA_NUT, TemporalId shall not be equal to 0" );
     }
   }
 }
-/**
- * create a NALunit structure with given header values and storage for
- * a bitstream
- */
-void InputNALUnit::read()
-{
-  std::vector<uint8_t> & nalUnitBuf = m_Bitstream.getFifo();
-
-  // perform anti-emulation prevention
-  convertPayloadToRBSP( nalUnitBuf, &m_Bitstream, ( nalUnitBuf[0] & 64 ) == 0 );
-  m_Bitstream.resetToStart();
-  readNalUnitHeader();
-}
-
-bool InputNALUnit::checkPictureHeaderInSliceHeaderFlag( InputNALUnit& nalu )
-{
-  InputBitstream& bitstream = nalu.getBitstream();
-  CHECK_RECOVERABLE(bitstream.getByteLocation() != 2, "The picture_header_in_slice_header_flag is the first bit after the NAL unit header");
-  return (bool)bitstream.read(1);
-}
-
 }

@@ -47,8 +47,8 @@ POSSIBILITY OF SUCH DAMAGE.
 #pragma once
 
 #include "CommonDef.h"
-#include "Slice.h"
 
+#include <array>
 #include <vector>
 
 namespace vvdec
@@ -103,7 +103,7 @@ public:
   {
     m_rate0 = 2 + ((log2WindowSize >> 2) & 3);
     m_rate1 = 3 + m_rate0 + (log2WindowSize & 3);
-    CHECK_RECOVERABLE(m_rate1 > 9, "Second window size is too large!");
+    CHECK(m_rate1 > 9, "Second window size is too large!");
     m_rate0 += 5;
     m_rate1 += 1;
     m_delta0[0] = ((0xFFFFU) >> (16 - m_rate0));

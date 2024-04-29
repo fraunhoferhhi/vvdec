@@ -49,6 +49,7 @@ POSSIBILITY OF SUCH DAMAGE.
 
 #include "CommonDefX86.h"
 #include "CommonLib/CommonDef.h"
+#include "CommonLib/InterPrediction.h"
 #include "CommonLib/InterpolationFilter.h"
 #include "CommonLib/TrQuant.h"
 #include "CommonLib/RdCost.h"
@@ -121,7 +122,7 @@ void RdCost::initRdCostX86()
   switch (vext){
     case AVX512:
     case AVX2:
-#if defined( REAL_TARGET_WASM ) || ( defined( _MSC_VER ) && _MSC_VER >= 1938 )
+#if defined( REAL_TARGET_WASM ) || ( defined( _MSC_VER ) && _MSC_VER >= 1938 && _MSC_VER < 1939 )
 #else
       _initRdCostX86<AVX2>();
       break;

@@ -144,7 +144,7 @@ uint32_t calcCRC(const CPelUnitBuf& pic, PictureHash &digest, const BitDepths &b
   {
     const ComponentID compID = ComponentID(chan);
     const CPelBuf area = pic.get(compID);
-    digestLen = compCRC(bitDepths.recon[toChannelType(compID)], area.bufAt(0, 0), area.width, area.height, area.stride, digest );
+    digestLen = compCRC(bitDepths.recon, area.bufAt(0, 0), area.width, area.height, area.stride, digest );
   }
   return digestLen;
 }
@@ -183,7 +183,7 @@ uint32_t calcChecksum(const CPelUnitBuf& pic, PictureHash &digest, const BitDept
   {
     const ComponentID compID=ComponentID(chan);
     const CPelBuf area = pic.get(compID);
-    digestLen=compChecksum(bitDepths.recon[toChannelType(compID)], area.bufAt(0,0), area.width, area.height, area.stride, digest, bitDepths);
+    digestLen=compChecksum(bitDepths.recon, area.bufAt(0,0), area.width, area.height, area.stride, digest, bitDepths);
   }
   return digestLen;
 }
@@ -208,7 +208,7 @@ uint32_t calcMD5(const CPelUnitBuf& pic, PictureHash &digest, const BitDepths &b
   {
     const ComponentID compID=ComponentID(chan);
     const CPelBuf area = pic.get(compID);
-    md5_plane_func = bitDepths.recon[toChannelType(compID)] <= 8 ? (MD5PlaneFunc)md5_plane<1> : (MD5PlaneFunc)md5_plane<2>;
+    md5_plane_func = bitDepths.recon <= 8 ? (MD5PlaneFunc)md5_plane<1> : (MD5PlaneFunc)md5_plane<2>;
     uint8_t tmp_digest[MD5_DIGEST_STRING_LENGTH];
     md5_plane_func(md5[compID], area.bufAt(0, 0), area.width, area.height, area.stride );
     md5[compID].finalize(tmp_digest);
@@ -225,7 +225,7 @@ std::string hashToString(const PictureHash &digest, int numChar)
   static const char* hex = "0123456789abcdef";
   std::string result;
 
-  CHECK(numChar<=0, "numChar needs to be >0");
+  CHECK_FATAL(numChar<=0, "numChar needs to be >0");
 
   for(int pos=0; pos<int(digest.hash.size()); pos++)
   {
@@ -245,7 +245,7 @@ std::string hashToString(const vvdecSEIDecodedPictureHash* digest, int numChar)
   static const char* hex = "0123456789abcdef";
   std::string result;
 
-  CHECK(numChar<=0, "numChar needs to be >0");
+  CHECK_FATAL(numChar<=0, "numChar needs to be >0");
 
   for(int pos=0; pos<int(digest->digist_length); pos++)
   {
@@ -291,7 +291,7 @@ int calcAndPrintHashStatus(const CPelUnitBuf& pic, const vvdecSEIDecodedPictureH
         }
       default:
         {
-          THROW("Unknown hash type");
+          THROW_FATAL("Unknown hash type");
           break;
         }
     }

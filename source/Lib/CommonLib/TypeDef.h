@@ -47,14 +47,15 @@ POSSIBILITY OF SUCH DAMAGE.
 #pragma once
 
 #ifndef COMMONDEF_H
-#error Include CommonDef.h not TypeDef.h
+#  error Include CommonDef.h not TypeDef.h
+#  include "CommonDef.h"   // just to make IDE code model happy in this file. All other compilers will abort due to the line before
 #endif
 
 #include <vector>
-#include <sstream>
 #include <cstddef>
 #include <cstring>
-#include <cassert>
+#include <sstream>
+#include <iostream>
 #include <mutex>
 
 namespace vvdec
@@ -107,6 +108,10 @@ namespace vvdec
 #define VALGRIND_MEMZERO( ref,size )
 #endif
 
+#ifndef ALL_CHECKS_ABORT
+#define ALL_CHECKS_ABORT                                  0 // CHECKs call abort() instead of throwing, to simplify debugging
+#endif
+
 #ifndef ENABLE_TRACING
 #define ENABLE_TRACING                                    0 // DISABLE by default (enable only when debugging)
 #endif // ! ENABLE_TRACING
@@ -125,8 +130,6 @@ namespace vvdec
 // ====================================================================================================================
 // Debugging
 // ====================================================================================================================
-
-#define PRINT_MACRO_VALUES                                1 ///< When enabled, the encoder prints out a list of the non-environment-variable controlled macros and their values on startup
 
 // ====================================================================================================================
 // Tool Switches - transitory (these macros are likely to be removed in future revisions)
@@ -159,7 +162,7 @@ namespace vvdec
 #define ENABLE_SIMD_DBLF                                ( 1 && ENABLE_SIMD_OPT )
 
 #if defined( TARGET_SIMD_X86 ) && !defined( REAL_TARGET_X86 )
-#  define SIMD_EVERYWHERE_EXTENSION_LEVEL                 AVX2
+#  define SIMD_EVERYWHERE_EXTENSION_LEVEL                 SSE41
 #endif
 
 // End of SIMD optimizations
@@ -301,8 +304,6 @@ enum ComponentID : uint8_t
   JOINT_CbCr          = MAX_NUM_COMPONENT,
   MAX_NUM_TBLOCKS     = MAX_NUM_COMPONENT
 };
-
-#define MAP_CHROMA(c) (ComponentID(c))
 
 enum DeblockEdgeDir : uint8_t
 {
@@ -609,15 +610,15 @@ private:
 
 struct BitDepths
 {
-  int recon[MAX_NUM_CHANNEL_TYPE] = {8, 8}; ///< the bit depth as indicated in the SPS
+  int recon = 8;   ///< the bit depth as indicated in the SPS
 };
 
 /// parameters for deblocking filter
 struct LFCUParam
 {
-//  bool internalEdge;                     ///< indicates internal edge
-  bool leftEdge;                         ///< indicates left edge
-  bool topEdge;                          ///< indicates top edge
+//  bool internalEdge = false;               ///< indicates internal edge
+  bool leftEdge = false;                   ///< indicates left edge
+  bool topEdge  = false;                   ///< indicates top edge
 };
 
 
@@ -731,17 +732,12 @@ enum ErrHandlingFlags
 // exception class
 // ---------------------------------------------------------------------------
 
-#ifdef assert
-#undef assert
-#endif
-
-#define assert dont_use_assert_use_CHECK_instead
-
 class Exception : public std::exception
 {
 public:
   explicit Exception( const std::string& _s ) : m_str( _s ) {}
   virtual ~Exception() noexcept = default;
+  CLASS_COPY_MOVE_DEFAULT( Exception )
 
   virtual const char* what() const noexcept                 { return m_str.c_str(); }
   template<typename T> Exception& operator<<( const T& t )  { std::ostringstream oss; oss << t; m_str += oss.str(); return *this; }
@@ -754,19 +750,15 @@ class RecoverableException : public Exception
 public:
   explicit RecoverableException( const std::string& _s ) : Exception( _s ) {}
   virtual ~RecoverableException() noexcept = default;
-
-  RecoverableException& operator=( const RecoverableException& _e )        { Exception::operator=( _e ); return *this; }
-  template<typename T> RecoverableException& operator<<( const T& t )      { Exception::operator<<( t ); return *this; }
+  CLASS_COPY_MOVE_DEFAULT( RecoverableException )
 };
 
 class UnsupportedFeatureException : public Exception
 {
 public:
   explicit UnsupportedFeatureException( const std::string& _s ) : Exception( _s ) {}
-  UnsupportedFeatureException( const UnsupportedFeatureException& _e )                   = default;
-  virtual ~UnsupportedFeatureException() noexcept                                 = default;
-  UnsupportedFeatureException& operator=( const UnsupportedFeatureException& _e )        { Exception::operator=( _e ); return *this; }
-  template<typename T> UnsupportedFeatureException& operator<<( const T& t )      { Exception::operator<<( t ); return *this; }
+  virtual ~UnsupportedFeatureException() noexcept = default;
+  CLASS_COPY_MOVE_DEFAULT( UnsupportedFeatureException )
 };
 
 #if !defined( __PRETTY_FUNCTION__ ) && !defined( __GNUC__ )
@@ -779,25 +771,57 @@ public:
 #  endif
 #endif
 
-// if a check fails with THROW or CHECK, please check if ported correctly from assert in revision 1196)
-#define THROW(x)               throw( Exception( "\nERROR: In function \"" ) << __PRETTY_FUNCTION__ << "\" in " << __FILE__ << ":" << __LINE__ << ": " << x )
-#define ABORT(x)               { std::cerr << "\nERROR: In function \"" << __FUNCTION__ << "\" in " << __FILE__ << ":" << __LINE__ << ": " << x << std::endl; abort(); }
-#define THROW_RECOVERABLE(x)   throw( RecoverableException( "\nERROR: In function \"" ) << __PRETTY_FUNCTION__ << "\" in " << __FILE__ << ":" << __LINE__ << ": " << x )
-#define THROW_UNSUPPORTED(x)   throw( UnsupportedFeatureException( "\nERROR: In function \"" ) << __PRETTY_FUNCTION__ << "\" in " << __FILE__ << ":" << __LINE__ << ": " << x )
-#define CHECK(c,x)             if(c){ THROW( x << "\nERROR CONDITION: " << #c ); }
-#define CHECK_RECOVERABLE(c,x) if(c){ THROW_RECOVERABLE( x << "\nERROR CONDITION: " << #c ); }
-#define CHECK_WARN(c,x)        if(c){ std::cerr << "\nWARNING: In function \"" << __PRETTY_FUNCTION__ << "\" in " << __FILE__ << ":" << __LINE__ << ": " << x << "\nERROR CONDITION: " << #c << std::endl; }
-#define CHECK_UNSUPPORTED(c,x) if(c){ THROW_UNSUPPORTED( x << "\nERROR CONDITION: " << #c ); }
-#define EXIT(x)                throw( Exception( "\n" ) << x << "\n" )
-#define CHECK_NULLPTR(_ptr)    CHECK( !( _ptr ), "Accessing an empty pointer!" )
+#ifdef __has_cpp_attribute
+#  if __has_cpp_attribute( likely ) && __has_cpp_attribute( unlikely ) && __GNUC__ != 9
+#    define LIKELY( expr ) ( expr ) [[likely]]
+#    define UNLIKELY( expr ) ( expr ) [[unlikely]]
+#  endif
+#endif
+
+#ifndef LIKELY
+#  if defined( __GNUC__ )
+#    define LIKELY( expr ) ( __builtin_expect( !!( expr ), 1 ) )
+#    define UNLIKELY( expr ) ( __builtin_expect( !!( expr ), 0 ) )
+#  else
+#    define LIKELY( expr ) ( expr )
+#    define UNLIKELY( expr ) ( expr )
+#  endif
+#endif
+
+
+#ifdef assert
+#  undef assert
+#endif
+#define assert dont_use_assert_use_CHECK_instead
+
+#define FMT_ERROR_LOCATION "In function \"" << __PRETTY_FUNCTION__ << "\" in " << __FILE__ ":" << __LINE__ << ": "
+
+#define WARN( msg )                    { std::cerr << "\nWARNING: " << FMT_ERROR_LOCATION << msg << std::endl;          }
+#define ABORT( msg )                   { std::cerr << "\nERROR: "   << FMT_ERROR_LOCATION << msg << std::endl; abort(); }
+
+#if !ALL_CHECKS_ABORT
+#  define THROW_FATAL( msg )           throw( Exception                  ( "\nERROR: " ) << FMT_ERROR_LOCATION << msg )
+#  define THROW_RECOVERABLE( msg )     throw( RecoverableException       ( "\nERROR: " ) << FMT_ERROR_LOCATION << msg )
+#  define THROW_UNSUPPORTED( msg )     throw( UnsupportedFeatureException( "\nERROR: " ) << FMT_ERROR_LOCATION << msg )
+#else   // ALL_CHECKS_ABORT
+#  define THROW_FATAL( msg )           ABORT( msg )
+#  define THROW_RECOVERABLE( msg )     ABORT( msg )
+#  define THROW_UNSUPPORTED( msg )     ABORT( msg )
+#endif   // ALL_CHECKS_ABORT
+
+#define CHECK_WARN( cond, msg )        { if UNLIKELY( cond ) { WARN             ( msg << "\nWARNING CONDITION: " << #cond ); } }
+#define CHECK_FATAL( cond, msg )       { if UNLIKELY( cond ) { THROW_FATAL      ( msg << "\nERROR CONDITION: "   << #cond ); } }
+#define CHECK( cond, msg )             { if UNLIKELY( cond ) { THROW_RECOVERABLE( msg << "\nERROR CONDITION: "   << #cond ); } }
+#define CHECK_UNSUPPORTED( cond, msg ) { if UNLIKELY( cond ) { THROW_UNSUPPORTED( msg << "\nERROR CONDITION: "   << #cond ); } }
 
 #if defined( _DEBUG )
-#define CHECKD(c,x)            if(c){ ABORT( x << "\nERROR CONDITION: " << #c ); }
+#  define CHECKD( cond, msg )          { if UNLIKELY( cond ) { ABORT            ( msg << "\nERROR CONDITION: "   << #cond ); } }
 #else
-#define CHECKD(c,x)
+#  define CHECKD( cond, msg )
 #endif   // _DEBUG
 
-#define CHECKD_NULLPTR( _ptr ) CHECKD( !( _ptr ), "Accessing an empty pointer!" )
+#define CHECK_NULLPTR( _ptr )  CHECK_FATAL ( !( _ptr ), "Accessing a NULL pointer!" )
+#define CHECKD_NULLPTR( _ptr ) CHECKD( !( _ptr ), "Accessing a NULL pointer!" )
 
 // ---------------------------------------------------------------------------
 // static vector
@@ -900,6 +924,7 @@ public:
 
 #define SIGN(x) ( (x) >= 0 ? 1 : -1 )
 
+#define MAX_NUM_ALF_APS_IDS             8
 #define MAX_NUM_ALF_CLASSES             25
 #define MAX_NUM_ALF_LUMA_COEFF          13
 #define MAX_NUM_ALF_CHROMA_COEFF        7
@@ -923,20 +948,18 @@ enum AlfFilterType
 
 struct AlfSliceParam
 {
-  bool             enabledFlag        [MAX_NUM_COMPONENT];                          // alf_slice_enable_flag, alf_chroma_idc
   bool             nonLinearFlagLuma;
   bool             nonLinearFlagChroma;
-  short            lumaCoeff          [MAX_NUM_ALF_CLASSES * MAX_NUM_ALF_LUMA_COEFF]; // alf_coeff_luma_delta[i][j]
-  short            lumaClipp          [MAX_NUM_ALF_CLASSES * MAX_NUM_ALF_LUMA_COEFF]; // alf_clipp_luma_[i][j]
-  int              numAlternativesChroma;                                                  // alf_chroma_num_alts_minus_one + 1
+  short            lumaCoeff          [MAX_NUM_ALF_CLASSES * MAX_NUM_ALF_LUMA_COEFF];               // alf_coeff_luma_delta[i][j]
+  short            lumaClipp          [MAX_NUM_ALF_CLASSES * MAX_NUM_ALF_LUMA_COEFF];               // alf_clipp_luma_[i][j]
+  int              numAlternativesChroma;                                                           // alf_chroma_num_alts_minus_one + 1
   short            chromaCoeff        [MAX_NUM_ALF_ALTERNATIVES_CHROMA * MAX_NUM_ALF_CHROMA_COEFF]; // alf_coeff_chroma[i]
   short            chromaClipp        [MAX_NUM_ALF_ALTERNATIVES_CHROMA * MAX_NUM_ALF_CHROMA_COEFF]; // alf_clipp_chroma[i]
-  short            filterCoeffDeltaIdx[MAX_NUM_ALF_CLASSES];                        // filter_coeff_delta[i]
-  bool             filterCoeffFlag    [MAX_NUM_ALF_CLASSES];                        // filter_coefficient_flag[i]
-  int              numLumaFilters;                                                  // number_of_filters_minus1 + 1
-  bool             coeffDeltaFlag;                                                  // alf_coefficients_delta_flag
-  
-  bool             lumaCoeffSummed = false;
+  short            filterCoeffDeltaIdx[MAX_NUM_ALF_CLASSES];                                        // filter_coeff_delta[i]
+  bool             filterCoeffFlag    [MAX_NUM_ALF_CLASSES];                                        // filter_coefficient_flag[i]
+  int              numLumaFilters;                                                                  // number_of_filters_minus1 + 1
+  bool             coeffDeltaFlag;                                                                  // alf_coefficients_delta_flag
+
   bool             lumaFinalDone   = false;
   bool             chrmFinalDone   = false;
 #if ALF_PRE_TRANSPOSE
@@ -954,18 +977,14 @@ struct AlfSliceParam
 
   AlfSliceParam()
   {
-    static_assert( offsetof( AlfSliceParam, recostructMutex ) + sizeof( recostructMutex ) == sizeof( AlfSliceParam ), "recostructMutex must be last member" );
-    static_assert( std::is_standard_layout<AlfSliceParam>::value, "AlfSliceParam must be standard layout type for offsetof to work" );
-
-    GCC_WARNING_DISABLE_class_memaccess
-      memset( this, 0, offsetof( AlfSliceParam, recostructMutex ) );
-    GCC_WARNING_RESET
-
-    // GH: why are numLumaFilters and numAlternativesChroma not set to 1 as in reset()?
+    reset();
   }
 
   void reset()
   {
+    static_assert( offsetof( AlfSliceParam, recostructMutex ) + sizeof( recostructMutex ) == sizeof( AlfSliceParam ), "recostructMutex must be last member" );
+    static_assert( std::is_standard_layout<AlfSliceParam>::value, "AlfSliceParam must be standard layout type for offsetof to work" );
+
     GCC_WARNING_DISABLE_class_memaccess
       memset( this, 0, offsetof( AlfSliceParam, recostructMutex ) );
     GCC_WARNING_RESET
@@ -986,27 +1005,25 @@ struct AlfSliceParam
 
 struct CcAlfFilterParam
 {
-  bool    ccAlfFilterEnabled[2];
+  bool    ccAlfFilterEnabled   [2];
   bool    ccAlfFilterIdxEnabled[2][MAX_NUM_CC_ALF_FILTERS];
-  uint8_t ccAlfFilterCount[2];
-  short   ccAlfCoeff[2][MAX_NUM_CC_ALF_FILTERS][MAX_NUM_CC_ALF_CHROMA_COEFF];
-  int     newCcAlfFilter[2];
-  int     numberValidComponents;
+  uint8_t ccAlfFilterCount     [2] = {MAX_NUM_CC_ALF_FILTERS,MAX_NUM_CC_ALF_FILTERS};
+  short   ccAlfCoeff           [2][MAX_NUM_CC_ALF_FILTERS][MAX_NUM_CC_ALF_CHROMA_COEFF];
+  int     newCcAlfFilter       [2];
 
   CcAlfFilterParam()
   {
-    memset( this, 0, sizeof( *this ) );
+    reset();
   }
 
   void reset()
   {
-    std::memset( this, 0, sizeof( CcAlfFilterParam ) );
+    std::memset( this, 0, sizeof( *this ) );
+
     ccAlfFilterCount[0] = ccAlfFilterCount[1] = MAX_NUM_CC_ALF_FILTERS;
-    numberValidComponents = 3;
-    newCcAlfFilter[0] = newCcAlfFilter[1] = 0;
   }
-  
-  const CcAlfFilterParam& operator = ( const CcAlfFilterParam& src )
+
+  const CcAlfFilterParam& operator=( const CcAlfFilterParam& src )
   {
     std::memcpy( this, &src, sizeof( CcAlfFilterParam ) );
     return *this;

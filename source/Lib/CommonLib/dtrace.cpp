@@ -45,7 +45,6 @@ POSSIBILITY OF SUCH DAMAGE.
  */
 
 #include <string>
-#include <iostream>
 #include <sstream>
 #include <vector>
 #include <cstdlib>
@@ -56,6 +55,10 @@ POSSIBILITY OF SUCH DAMAGE.
 
 namespace vvdec
 {
+
+#if ENABLE_TRACING
+CDTrace *g_trace_ctx = NULL;
+#endif
 
 void Channel::update( std::map< CType, int > state )
 {
