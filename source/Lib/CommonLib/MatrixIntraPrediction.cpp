@@ -271,8 +271,8 @@ const uint8_t* PredictorMIP::getMatrixData(const int modeIdx) const
       case 1: return &mipMatrix8x8[modeIdx][0][0];
 
       case 2: return &mipMatrix16x16[modeIdx][0][0];
-    
-      default: THROW( "Invalid mipSizeId" );
+
+      default: THROW_FATAL( "Invalid mipSizeId" );
     }
 }
 
@@ -289,7 +289,7 @@ const uint8_t* PredictorMIP::getMatrixData(const int modeIdx) const
     int sum = 0;
     for( int i = 0; i < inputSize; i++ ) { sum += input[i]; }
   const int offset = (1 << (MIP_SHIFT_MATRIX - 1)) - MIP_OFFSET_MATRIX * sum;
-    CHECK_RECOVERABLE( inputSize != 4 * (inputSize >> 2), "Error, input size not divisible by four" );
+    CHECK( inputSize != 4 * (inputSize >> 2), "Error, input size not divisible by four" );
 
     const uint8_t *weight = matrix;
     const int   inputOffset = transpose ? m_inputOffsetTransp : m_inputOffset;
@@ -344,7 +344,7 @@ void MatrixIntraPrediction::prepareInputForPred(const CPelBuf &src, const Area& 
 
 void MatrixIntraPrediction::predBlock( const Size &puSize, const int intraMode, PelBuf& dst, const bool transpose, const int bitDepth, const ComponentID compId, Pel* const resultMip )
 {
-  CHECK_RECOVERABLE( m_component != compId, "Boundary has not been prepared for this component." );
+  CHECK( m_component != compId, "Boundary has not been prepared for this component." );
 
   m_predictorMip.getPrediction( resultMip, intraMode, transpose, bitDepth );
 

@@ -48,7 +48,6 @@ POSSIBILITY OF SUCH DAMAGE.
 
 #include "CommonDef.h"
 #include "Unit.h"
-#include "Picture.h"
 
 //! \ingroup CommonLib
 //! \{

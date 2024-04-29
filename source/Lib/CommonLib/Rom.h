@@ -48,8 +48,9 @@ POSSIBILITY OF SUCH DAMAGE.
 
 #include "CommonDef.h"
 #include "Common.h"
-#if ENABLE_TRACING
-#include "dtrace.h"
+
+#if ENABLE_TIME_PROFILING || ENABLE_TIME_PROFILING_EXTENDED
+#  include "TimeProfiler.h"
 #endif
 
 #include <atomic>
@@ -160,18 +161,13 @@ extern const SizeIndexInfoLog2 g_sizeIdxInfo;
 extern const UnitScale g_miScaling; // scaling object for motion scaling
 extern const UnitScale g_colMiScaling;
 
-/*! Sophisticated Trace-logging */
-#if ENABLE_TRACING
-extern CDTrace* g_trace_ctx;
-#endif
 
 #if ENABLE_TIME_PROFILING || ENABLE_TIME_PROFILING_EXTENDED
-#include "TimeProfiler.h"
-#if ENABLE_TIME_PROFILING
-extern TimeProfiler *g_timeProfiler;
-#else
-extern TimeProfiler2D *g_timeProfiler;
-#endif
+#  if ENABLE_TIME_PROFILING
+extern TimeProfiler* g_timeProfiler;
+#  else
+extern TimeProfiler2D* g_timeProfiler;
+#  endif
 #endif
 
 const char* nalUnitTypeToString(NalUnitType type);

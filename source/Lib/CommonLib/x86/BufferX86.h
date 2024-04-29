@@ -166,7 +166,7 @@ void addAvg_SSE( const int16_t* src0, ptrdiff_t src0Stride, const int16_t* src1,
   }
   else
   {
-    THROW( "Unsupported size" );
+    THROW_FATAL( "Unsupported size" );
   }
 #if USE_AVX2
 
@@ -263,7 +263,7 @@ void reco_SSE( const int16_t* src0, ptrdiff_t src0Stride, const int16_t* src1, p
   }
   else
   {
-    THROW( "Unsupported size" );
+    THROW_FATAL( "Unsupported size" );
   }
 #if USE_AVX2
 
@@ -375,7 +375,7 @@ void addWghtAvg_SSE( const int16_t* src0, ptrdiff_t src0Stride, const int16_t* s
   }
   else
   {
-    THROW( "Unsupported size" );
+    THROW_FATAL( "Unsupported size" );
   }
 #if USE_AVX2
 
@@ -1033,7 +1033,7 @@ void rspBcwCore_SIMD( Pel* ptr, ptrdiff_t ptrStride, int width, int height, cons
   }
   else
   {
-    THROW( "Unsupported size!" );
+    THROW_FATAL( "Unsupported size!" );
   }
 }
 
@@ -1343,7 +1343,7 @@ void sampleRateConvSIMD_8tap( const std::pair<int, int> scalingRatio, const std:
   int* buf = new int[orgHeight * scaledWidth];
   int maxVal = (1 << bitDepth) - 1;
 
-  CHECK_RECOVERABLE( bitDepth > 17, "Overflow may happen!" );
+  CHECK( bitDepth > 17, "Overflow may happen!" );
 
   const Pel* org = orgSrc;
 
@@ -1611,7 +1611,7 @@ void sampleRateConvSIMD_4tap( const std::pair<int, int> scalingRatio, const std:
   int* buf = new int[orgHeight * scaledWidth];
   int maxVal = (1 << bitDepth) - 1;
 
-  CHECK_RECOVERABLE( bitDepth > 17, "Overflow may happen!" );
+  CHECK( bitDepth > 17, "Overflow may happen!" );
 
   const Pel* org = orgSrc;
 

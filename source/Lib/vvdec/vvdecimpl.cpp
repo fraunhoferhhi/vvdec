@@ -105,9 +105,9 @@ int VVDecImpl::init( const vvdecParams& params, vvdecCreateBufferCallback create
 
     // create decoder class
 #if RPR_YUV_OUTPUT
-    m_cDecLib->create( params.threads, params.parseThreads, m_cUserAllocator, static_cast<ErrHandlingFlags>(params.errHandlingFlags), params.upscaleOutput );
+    m_cDecLib->create( params.threads, params.parseDelay, m_cUserAllocator, static_cast<ErrHandlingFlags>(params.errHandlingFlags), params.upscaleOutput );
 #else
-    m_cDecLib->create( params.threads, params.parseThreads, m_cUserAllocator, static_cast<ErrHandlingFlags>(params.errHandlingFlags) );
+    m_cDecLib->create( params.threads, params.parseDelay, m_cUserAllocator, static_cast<ErrHandlingFlags>(params.errHandlingFlags) );
 #endif
 
     g_verbosity = MsgLevel( params.logLevel );
@@ -281,9 +281,9 @@ int VVDecImpl::decode( vvdecAccessUnit& rcAccessUnit, vvdecFrame** ppcFrame )
       while( pos+3 < rcAccessUnit.payloadUsedSize )
       {
         // no start code found
-        if( pos >= rcAccessUnit.payloadUsedSize ) { THROW( "could not find a startcode" ); }
+        CHECK( pos >= rcAccessUnit.payloadUsedSize, "could not find a startcode" );
 
-        int iFound = xRetrieveNalStartCode(&rcAccessUnit.payload[pos], 3);
+        int iFound = xRetrieveNalStartCode( &rcAccessUnit.payload[pos], 3 );
         if( iFound == 1 )
         {
           bStartCodeFound = true;
@@ -330,30 +330,28 @@ int VVDecImpl::decode( vvdecAccessUnit& rcAccessUnit, vvdecFrame** ppcFrame )
       }
       iAUEndPosVec.push_back( iLastPos );
 
-      // check if first AU begins on begin of payload (otherwise wrong input)
-      if(!iStartCodePosVec.empty() && (iStartCodePosVec[0] != 3 && iStartCodePosVec[0] != 4 ))
+      // check if first AU begins on begin of payload (otherwise wrong input), but we allow empty input
+      if( !iStartCodePosVec.empty() && iStartCodePosVec[0] != iStartCodeSizeVec[0] )
       {
         m_cErrorString = "vvdecAccessUnit does not start with valid start code.";
         return VVDEC_ERR_DEC_INPUT;
       }
 
+      InputBitstream& rBitstream = nalu.getBitstream();
       // iterate over all AU´s
       for( size_t iAU = 0; iAU < iStartCodePosVec.size(); iAU++ )
       {
-        std::vector<uint8_t>& nalUnit = nalu.getBitstream().getFifo();
-        uint32_t uiNaluBytes = (uint32_t)iStartCodeSizeVec[iAU];
-        for( size_t pos = iStartCodePosVec[iAU]; pos < iAUEndPosVec[iAU]; pos++ )
-        {
-          nalUnit.push_back( rcAccessUnit.payload[pos]);
-          uiNaluBytes++;
-        }
+        rBitstream.resetToStart();
+        rBitstream.getFifo().clear();
+        rBitstream.clearEmulationPreventionByteLocation();
 
-        if( uiNaluBytes )
+        size_t numNaluBytes = iAUEndPosVec[iAU] - iStartCodePosVec[iAU];
+        if( numNaluBytes )
         {
-          InputBitstream& rBitstream = nalu.getBitstream();
-          const int nut = ( nalUnit[1] >> 3 ) & 0x1f;
+          const uint8_t*    naluData = &rcAccessUnit.payload[iStartCodePosVec[iAU]];
+          const NalUnitType nut      = (NalUnitType) ( ( naluData[1] >> 3 ) & 0x1f );
           // perform anti-emulation prevention
-          if( 0 != xConvertPayloadToRBSP( nalUnit, &rBitstream, NALUnit::isVclNalUnitType( (NalUnitType) nut ) ) )
+          if( 0 != xConvertPayloadToRBSP( naluData, numNaluBytes, &rBitstream, NALUnit::isVclNalUnitType( nut ) ) )
           {
             return VVDEC_ERR_UNSPECIFIED;
           }
@@ -374,7 +372,7 @@ int VVDecImpl::decode( vvdecAccessUnit& rcAccessUnit, vvdecFrame** ppcFrame )
           if( rcAccessUnit.ctsValid ){  nalu.m_cts = rcAccessUnit.cts; }
           if( rcAccessUnit.dtsValid ){  nalu.m_dts = rcAccessUnit.dts; }
           nalu.m_rap = rcAccessUnit.rap;
-          nalu.m_bits = uiNaluBytes*8;
+          nalu.m_bits = ( numNaluBytes + iStartCodeSizeVec[iAU] ) * 8;
 
           pcPic = m_cDecLib->decode( nalu );
 
@@ -383,13 +381,6 @@ int VVDecImpl::decode( vvdecAccessUnit& rcAccessUnit, vvdecFrame** ppcFrame )
           {
             return iRet;
           }
-        }
-
-        if( iAU != iStartCodePosVec.size() - 1 )
-        {
-          // reset nalu only when not last nal
-          nalu.getBitstream().resetToStart();
-          nalu.getBitstream().getFifo().clear();
         }
       }
     }
@@ -857,7 +848,7 @@ int VVDecImpl::xAddPicture( Picture* pcPic )
     return VVDEC_ERR_UNSPECIFIED;
   }
 
-  bool bCreateStorage = (bitDepths.recon[0] == 8) ? true : false; // for 8bit output we need to copy the lib picture from unsigned short into unsigned char buffer
+  bool bCreateStorage = ( bitDepths.recon == 8 );   // for 8bit output we need to copy the lib picture from unsigned short into unsigned char buffer
   bCreateStorage = bCreateStorage || m_bRemovePadding;
 
   // create a brand new picture object
@@ -917,7 +908,7 @@ int VVDecImpl::xAddPicture( Picture* pcPic )
         const uint32_t    csx         = getComponentScaleX(compID, cPicBuf.chromaFormat);
         const uint32_t    csy         = getComponentScaleY(compID, cPicBuf.chromaFormat);
         const CPelBuf     area        = upscaledPic.get(compID);
-        unsigned int uiBytesPerSample = bitDepths.recon[0] > 8 ? 2 : 1;
+        unsigned int uiBytesPerSample = bitDepths.recon > 8 ? 2 : 1;
 
         const ptrdiff_t planeOffset = ( confLeft >> csx ) + ( confTop >> csy ) * area.stride;
         const Pel*      planeOrigin = area.buf;
@@ -940,7 +931,7 @@ int VVDecImpl::xAddPicture( Picture* pcPic )
         const uint32_t    csx         = getComponentScaleX(compID, cPicBuf.chromaFormat);
         const uint32_t    csy         = getComponentScaleY(compID, cPicBuf.chromaFormat);
         const CPelBuf     area        = cPicBuf.get(compID);
-        unsigned int uiBytesPerSample = bitDepths.recon[0] > 8 ? 2 : 1;
+        unsigned int uiBytesPerSample = bitDepths.recon > 8 ? 2 : 1;
 
         const ptrdiff_t planeOffset = ( confLeft >> csx ) + ( confTop >> csy ) * area.stride;
         const Pel*      planeOrigin = area.buf;
@@ -1032,11 +1023,11 @@ int VVDecImpl::xAddPicture( Picture* pcPic )
         cFrame.picAttributes->hrd = new vvdecHrd;
         cFrame.picAttributes->hrd->numUnitsInTick                   = hrd->getNumUnitsInTick();
         cFrame.picAttributes->hrd->timeScale                        = hrd->getTimeScale();
-        cFrame.picAttributes->hrd->generalNalHrdParamsPresentFlag   = hrd->getGeneralNalHrdParametersPresentFlag();
-        cFrame.picAttributes->hrd->generalVclHrdParamsPresentFlag   = hrd->getGeneralVclHrdParametersPresentFlag();
+        cFrame.picAttributes->hrd->generalNalHrdParamsPresentFlag   = hrd->getGeneralNalHrdParamsPresentFlag();
+        cFrame.picAttributes->hrd->generalVclHrdParamsPresentFlag   = hrd->getGeneralVclHrdParamsPresentFlag();
         cFrame.picAttributes->hrd->generalSamePicTimingInAllOlsFlag = hrd->getGeneralSamePicTimingInAllOlsFlag();
         cFrame.picAttributes->hrd->tickDivisor                      = hrd->getTickDivisorMinus2()+2;
-        cFrame.picAttributes->hrd->generalDecodingUnitHrdParamsPresentFlag = hrd->getGeneralDecodingUnitHrdParamsPresentFlag();
+        cFrame.picAttributes->hrd->generalDecodingUnitHrdParamsPresentFlag = hrd->getGeneralDuHrdParamsPresentFlag();
         cFrame.picAttributes->hrd->bitRateScale                     = hrd->getBitRateScale();
         cFrame.picAttributes->hrd->cpbSizeScale                     = hrd->getCpbSizeScale();
         cFrame.picAttributes->hrd->cpbSizeDuScale                   = hrd->getCpbSizeDuScale();
@@ -1044,31 +1035,28 @@ int VVDecImpl::xAddPicture( Picture* pcPic )
       }
     }
 
-    if( pcPic->slices.front()->getSPS()->getOlsHrdParameters() )
+    if( !pcPic->slices.front()->getSPS()->getOlsHrdParameters().empty() )
     {
-      const OlsHrdParams* ols = pcPic->slices.front()->getSPS()->getOlsHrdParameters();
-      if( ols != NULL )
+      const OlsHrdParams& ols = pcPic->slices.front()->getSPS()->getOlsHrdParameters()[0];
+      cFrame.picAttributes->olsHrd = new vvdecOlsHrd;
+      memset( ( void* ) cFrame.picAttributes->olsHrd, 0, sizeof( vvdecOlsHrd ) );
+      cFrame.picAttributes->olsHrd->fixedPicRateGeneralFlag       = ols.getFixedPicRateGeneralFlag();
+      cFrame.picAttributes->olsHrd->fixedPicRateWithinCvsFlag     = ols.getFixedPicRateWithinCvsFlag();
+      cFrame.picAttributes->olsHrd->elementDurationInTc           = ols.getElementDurationInTcMinus1() + 1;
+      cFrame.picAttributes->olsHrd->lowDelayHrdFlag               = ols.getLowDelayHrdFlag();
+
+      for( int j = 0; j < 2; j++ )
       {
-        cFrame.picAttributes->olsHrd = new vvdecOlsHrd;
-        memset( ( void* ) cFrame.picAttributes->olsHrd, 0, sizeof( vvdecOlsHrd ) );
-        cFrame.picAttributes->olsHrd->fixedPicRateGeneralFlag       = ols->getFixedPicRateGeneralFlag();
-        cFrame.picAttributes->olsHrd->fixedPicRateWithinCvsFlag     = ols->getFixedPicRateWithinCvsFlag();
-        cFrame.picAttributes->olsHrd->elementDurationInTc           = ols->getElementDurationInTcMinus1() + 1;
-        cFrame.picAttributes->olsHrd->lowDelayHrdFlag               = ols->getLowDelayHrdFlag();
+        if( j == 0 && !cFrame.picAttributes->hrd->generalNalHrdParamsPresentFlag ) continue;
+        if( j == 1 && !cFrame.picAttributes->hrd->generalVclHrdParamsPresentFlag ) continue;
 
-        for( int j = 0; j < 2; j++ )
+        for( int i = 0; i < cFrame.picAttributes->hrd->hrdCpbCnt; i++ )
         {
-          if( j == 0 && !cFrame.picAttributes->hrd->generalNalHrdParamsPresentFlag ) continue;
-          if( j == 1 && !cFrame.picAttributes->hrd->generalVclHrdParamsPresentFlag ) continue;
-
-          for( int i = 0; i < cFrame.picAttributes->hrd->hrdCpbCnt; i++ )
-          {
-            cFrame.picAttributes->olsHrd->bitRateValueMinus1  [i][j] = ols->getBitRateValueMinus1( i, j );
-            cFrame.picAttributes->olsHrd->cpbSizeValueMinus1  [i][j] = ols->getCpbSizeValueMinus1( i, j );
-            cFrame.picAttributes->olsHrd->ducpbSizeValueMinus1[i][j] = ols->getDuCpbSizeValueMinus1( i, j );
-            cFrame.picAttributes->olsHrd->duBitRateValueMinus1[i][j] = ols->getDuBitRateValueMinus1( i, j );
-            cFrame.picAttributes->olsHrd->cbrFlag             [i][j] = ols->getCbrFlag( i, j );
-          }
+          cFrame.picAttributes->olsHrd->bitRateValueMinus1  [i][j] = ols.getBitRateValueMinus1( i, j );
+          cFrame.picAttributes->olsHrd->cpbSizeValueMinus1  [i][j] = ols.getCpbSizeValueMinus1( i, j );
+          cFrame.picAttributes->olsHrd->ducpbSizeValueMinus1[i][j] = ols.getDuCpbSizeValueMinus1( i, j );
+          cFrame.picAttributes->olsHrd->duBitRateValueMinus1[i][j] = ols.getDuBitRateValueMinus1( i, j );
+          cFrame.picAttributes->olsHrd->cbrFlag             [i][j] = ols.getCbrFlag( i, j );
         }
       }
     }
@@ -1114,11 +1102,11 @@ int VVDecImpl::xCreateFrame( vvdecFrame& rcFrame, const CPelUnitBuf& rcPicBuf, u
   rcFrame.height      = uiHeight;
   rcFrame.bitDepth    = 8;
   rcFrame.frameFormat = VVDEC_FF_PROGRESSIVE;
-  rcFrame.bitDepth    = std::max( (uint32_t)rcBitDepths.recon[CHANNEL_TYPE_LUMA], rcFrame.bitDepth );
+  rcFrame.bitDepth    = std::max( (uint32_t)rcBitDepths.recon, rcFrame.bitDepth );
 
   rcFrame.planes[VVDEC_CT_Y].width          = uiWidth;
   rcFrame.planes[VVDEC_CT_Y].height         = uiHeight;
-  rcFrame.planes[VVDEC_CT_Y].bytesPerSample = rcBitDepths.recon[CHANNEL_TYPE_LUMA] > 8 ? 2 : 1;
+  rcFrame.planes[VVDEC_CT_Y].bytesPerSample = rcBitDepths.recon > 8 ? 2 : 1;
   rcFrame.planes[VVDEC_CT_Y].stride         = bCreateStorage  ? uiWidth                                    * rcFrame.planes[VVDEC_CT_Y].bytesPerSample
                                                               : (uint32_t)rcPicBuf.get(COMPONENT_Y).stride * rcFrame.planes[VVDEC_CT_Y].bytesPerSample;
 
@@ -1165,7 +1153,7 @@ int VVDecImpl::xCreateFrame( vvdecFrame& rcFrame, const CPelUnitBuf& rcPicBuf, u
         break;
       }
     default:
-        THROW( "unsupported chroma fromat " << rcPicBuf.chromaFormat );
+        THROW_FATAL( "unsupported chroma fromat " << rcPicBuf.chromaFormat );
   }
 
   if( rcPicBuf.chromaFormat == CHROMA_400 )
@@ -1187,11 +1175,11 @@ int VVDecImpl::xCreateFrame( vvdecFrame& rcFrame, const CPelUnitBuf& rcPicBuf, u
   {
     rcFrame.planes[VVDEC_CT_U].width          = uiCWidth;
     rcFrame.planes[VVDEC_CT_U].height         = uiCHeight;
-    rcFrame.planes[VVDEC_CT_U].bytesPerSample = rcBitDepths.recon[CHANNEL_TYPE_CHROMA] > 8 ? 2 : 1;
+    rcFrame.planes[VVDEC_CT_U].bytesPerSample = rcBitDepths.recon > 8 ? 2 : 1;
 
     rcFrame.planes[VVDEC_CT_V].width          = uiCWidth;
     rcFrame.planes[VVDEC_CT_V].height         = uiCHeight;
-    rcFrame.planes[VVDEC_CT_V].bytesPerSample = rcBitDepths.recon[CHANNEL_TYPE_CHROMA] > 8 ? 2 : 1;
+    rcFrame.planes[VVDEC_CT_V].bytesPerSample = rcBitDepths.recon > 8 ? 2 : 1;
 
     if( bCreateStorage )
     {
@@ -1277,38 +1265,39 @@ int VVDecImpl::xRetrieveNalStartCode( unsigned char *pB, int iZerosInStartcode )
   return found;
 }
 
-
-int VVDecImpl::xConvertPayloadToRBSP( std::vector<uint8_t>& nalUnitBuf, InputBitstream *bitstream, bool isVclNalUnit)
+int VVDecImpl::xConvertPayloadToRBSP( const uint8_t* payload, size_t payloadLen, InputBitstream* bitstream, bool isVclNalUnit )
 {
   uint32_t zeroCount = 0;
-  std::vector<uint8_t>::iterator it_read, it_write;
-
-  uint32_t pos = 0;
   bitstream->clearEmulationPreventionByteLocation();
-  for (it_read = it_write = nalUnitBuf.begin(); it_read != nalUnitBuf.end(); it_read++, it_write++, pos++)
+
+  std::vector<uint8_t>& nalUnitBuf = bitstream->getFifo();
+  nalUnitBuf.resize( payloadLen );
+
+  const uint8_t*                 it_read  = payload;
+  std::vector<uint8_t>::iterator it_write = nalUnitBuf.begin();
+  for( size_t pos = 0; pos < payloadLen; it_read++, it_write++, pos++ )
   {
     if(zeroCount >= 2 && *it_read < 0x03 )
     {
-      msg( ERROR, "Zero count is '2' and read value is small than '3'\n");
+      msg( ERROR, "Zero count is '2' and read value is smaller than '0x03'\n");
       return -1;
     }
     if (zeroCount == 2 && *it_read == 0x03)
     {
-      bitstream->pushEmulationPreventionByteLocation( pos );
+      bitstream->pushEmulationPreventionByteLocation( (uint32_t) pos );
       pos++;
       it_read++;
       zeroCount = 0;
-      if (it_read == nalUnitBuf.end())
+      if( pos >= payloadLen )
       {
         break;
       }
 
       if( *it_read > 0x03 )
       {
-        msg( ERROR, "Read a value bigger than '3'\n");
+        msg( ERROR, "Read a value bigger than '0x03'\n");
         return -1;
       }
-
     }
     zeroCount = (*it_read == 0x00) ? zeroCount+1 : 0;
     *it_write = *it_read;
@@ -1347,38 +1336,27 @@ int VVDecImpl::xReadNalUnitHeader(InputNALUnit& nalu)
   InputBitstream& bs = nalu.getBitstream();
 
   nalu.m_forbiddenZeroBit   = bs.read(1);                 // forbidden zero bit
-  nalu.m_nuhReservedZeroBit = bs.read(1);                 // nuh_reserved_zero_bit
-  nalu.m_nuhLayerId         = bs.read(6);                 // nuh_layer_id
+  CHECK_WARN( nalu.m_forbiddenZeroBit != 0, "forbidden_zero_bit shall be equal to 0." );
 
-  if( nalu.m_nuhLayerId < 0)
-  {
-    msg( ERROR, "this needs to be adjusted for the reco yuv output\n");
-    return -1;
-  }
+  nalu.m_nuhReservedZeroBit = bs.read(1);                 // nuh_reserved_zero_bit
+  CHECK_WARN( nalu.m_forbiddenZeroBit != 0, "nuh_reserved_zero_bit shall be equal to 0." );
+
+  nalu.m_nuhLayerId         = bs.read(6);                 // nuh_layer_id
   if( nalu.m_nuhLayerId > 55 )
   {
-    msg( ERROR, "The value of nuh_layer_id shall be in the range of 0 to 55, inclusive\n");
+    msg( WARNING, "ignoring NAL unit with nuh_layer_id > 55. (%d)", nalu.m_nuhLayerId );
     return -1;
   }
 
   nalu.m_nalUnitType        = (NalUnitType) bs.read(5);   // nal_unit_type
   nalu.m_temporalId         = bs.read(3) - 1;             // nuh_temporal_id_plus1
+  CHECK( nalu.m_temporalId + 1 == 0, "The value of nuh_temporal_id_plus1 shall not be equal to 0." );
+  CHECK( nalu.m_nalUnitType >= NAL_UNIT_CODED_SLICE_IDR_W_RADL && nalu.m_nalUnitType <= NAL_UNIT_RESERVED_IRAP_VCL_11 && nalu.m_temporalId != 0,
+                     "When nal_unit_type is in the range of IDR_W_RADL to RSV_IRAP_11, inclusive, TemporalId shall be equal to 0." );
 
   // only check these rules for base layer
-  if (nalu.m_nuhLayerId == 0)
-  {
-    if ( nalu.m_temporalId )
-    {
-    }
-    else
-    {
-      if( nalu.m_nalUnitType == NAL_UNIT_CODED_SLICE_STSA )
-      {
-        msg( ERROR, "hen NAL unit type is equal to STSA_NUT, TemporalId shall not be equal to 0\n" );
-        return -1;
-      }
-    }
-  }
+  CHECK( nalu.m_nuhLayerId == 0 && nalu.m_temporalId == 0 && nalu.m_nalUnitType == NAL_UNIT_CODED_SLICE_STSA,
+                     "When NAL unit type is equal to STSA_NUT, TemporalId shall not be equal to 0\n" );
 
   return 0;
 }

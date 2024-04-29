@@ -437,8 +437,8 @@ typedef struct vvdecFrame
 */
 typedef struct vvdecParams
 {
-  int                   threads;           // thread count        ( default: -1 )
-  int                   parseThreads;      // parser thread count ( default: -1 )
+  int                   threads;           // thread count                          ( default: -1 )
+  int                   parseDelay;        // number of frames to parse in parallel ( default: -1 )
   vvdecRPRUpscaling     upscaleOutput;     // do internal upscaling of rpl pictures to dest. resolution ( default: 0 )
   vvdecLogLevel         logLevel;          // verbosity level
   bool                  verifyPictureHash; // verify picture, if digest is available, true: check hash in SEI messages if available, false: ignore SEI message
@@ -446,8 +446,8 @@ typedef struct vvdecParams
   vvdecSIMD_Extension   simd;              // set specific simd optimization (default: max. availalbe)
   void                 *opaque;            // opaque pointer for private user data ( can be used to carry application specific data or contexts )
   vvdecErrHandlingFlags errHandlingFlags;  // set of flags defining how to handle bitstream errors
-  int                   padding1;          // reserved space for future parameters
-  int                   padding2;
+  int                   parseThreads;      // DEPRECATED. Use `parseDelay` instead. This will be removed in the future. Until then, this value is copied to parseDelay if set.
+  int                   padding2;          // reserved space for future parameters
   int                   padding3;
   int                   padding4;
 } vvdecParams;

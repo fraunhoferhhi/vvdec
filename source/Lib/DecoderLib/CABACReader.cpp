@@ -72,7 +72,7 @@ void CABACReader::initCtxModels( Slice& slice )
       sliceType = P_SLICE;
       break;
     default     :           // should not occur
-      THROW( "Invalid slice type" );
+      THROW_RECOVERABLE( "Invalid slice type" );
       break;
     }
   }
@@ -102,17 +102,14 @@ void CABACReader::remaining_bytes( bool noTrailingBytesExpected )
 {
   if( noTrailingBytesExpected )
   {
-//    CHECK_RECOVERABLE( 0 != m_Bitstream->getNumBitsLeft(), "Bits left when not supposed" );
+//    CHECK( 0 != m_Bitstream->getNumBitsLeft(), "Bits left when not supposed" );
   }
   else
   {
     while( m_Bitstream->getNumBitsLeft() )
     {
       unsigned trailingNullByte = m_Bitstream->readByte();
-      if( trailingNullByte != 0 )
-      {
-        THROW( "Trailing byte should be '0', but has a value of " << std::hex << trailingNullByte << std::dec << "\n" );
-      }
+      CHECK( trailingNullByte != 0, "Trailing byte should be '0', but has a value of " << std::hex << trailingNullByte << std::dec << "\n" );
     }
   }
 }
@@ -165,8 +162,8 @@ bool CABACReader::coding_tree_unit( CodingStructure& cs, Slice* slice, const Uni
     qps[CH_L] = cuCtx.qp;
   }
 
-  DTRACE_COND( ctuRsAddr == 0, g_trace_ctx, D_QP_PER_CTU, "\n%4d %2d", cs.picture->poc, m_slice->getSliceQpBase() );
-  DTRACE     (                 g_trace_ctx, D_QP_PER_CTU, " %3d",           qps[CH_L] - m_slice->getSliceQpBase() );
+  DTRACE_COND( ctuRsAddr == 0, g_trace_ctx, D_QP_PER_CTU, "\n%4d %2d", cs.picture->poc, m_slice->getSliceQp() );
+  DTRACE     (                 g_trace_ctx, D_QP_PER_CTU, " %3d",           qps[CH_L] - m_slice->getSliceQp() );
 
   return isLast;
 }
@@ -343,7 +340,7 @@ void CABACReader::sao( CodingStructure& cs, unsigned ctuRsAddr )
 
     // sao_offset_abs
     int       offset[4];
-    const int maxOffsetQVal = SampleAdaptiveOffset::getMaxOffsetQVal( sps.getBitDepth( toChannelType(compID) ) );
+    const int maxOffsetQVal = SampleAdaptiveOffset::getMaxOffsetQVal( sps.getBitDepth() );
     offset    [0]           = (int)unary_max_eqprob( maxOffsetQVal );
     offset    [1]           = (int)unary_max_eqprob( maxOffsetQVal );
     offset    [2]           = (int)unary_max_eqprob( maxOffsetQVal );
@@ -428,7 +425,7 @@ void CABACReader::readAlf( CodingStructure& cs, unsigned int ctuRsAddr, const Pa
         if( isChroma( ( ComponentID ) compIdx ) )
         {
           const int apsIdx                  = m_slice->getAlfApsIdChroma();
-          CHECK_RECOVERABLE( m_slice->getAlfAPSs()[apsIdx] == nullptr, "APS not initialized" );
+          CHECK( m_slice->getAlfAPSs()[apsIdx] == nullptr, "APS not initialized" );
           const AlfSliceParam& alfParam     = m_slice->getAlfAPSs()[apsIdx]->getAlfAPSParam();
           const int numAlts                 = alfParam.numAlternativesChroma;
           currAlfData.alfCtuAlternative[compIdx - 1] = 0;
@@ -446,7 +443,7 @@ void CABACReader::readAlf( CodingStructure& cs, unsigned int ctuRsAddr, const Pa
   }
   for( int compIdx = 1; compIdx < getNumberValidComponents( cs.pcv->chrFormat ); compIdx++ )
   {
-    if( m_slice->getCcAlfEnabledFlag( compIdx - 1 ) )
+    if( m_slice->getCcAlfEnabledFlag( compIdx ) )
     {
       int ctxt = 0;
       ctxt += ( leftAlfData.ccAlfFilterControl[compIdx - 1] ) ? 1 : 0;
@@ -506,7 +503,7 @@ bool CABACReader::coding_tree( CodingStructure& cs, Partitioner& partitioner, CU
     //decide chroma split or not
     chromaNotSplit = modeTypeParent == MODE_TYPE_ALL && partitioner.modeType == MODE_TYPE_INTRA;
 
-    CHECK_RECOVERABLE( chromaNotSplit && partitioner.chType != CHANNEL_TYPE_LUMA, "chType must be luma" );
+    CHECK( chromaNotSplit && partitioner.chType != CHANNEL_TYPE_LUMA, "chType must be luma" );
 
     if( partitioner.treeType == TREE_D )
     {
@@ -537,7 +534,7 @@ bool CABACReader::coding_tree( CodingStructure& cs, Partitioner& partitioner, CU
       }
       else
       {
-        THROW( "Unexpected behavior, not parsing chroma even though luma data is available!" );
+        THROW_RECOVERABLE( "Unexpected behavior, not parsing chroma even though luma data is available!" );
       }
       
       //recover treeType
@@ -589,7 +586,7 @@ bool CABACReader::coding_tree( CodingStructure& cs, Partitioner& partitioner, CU
     //therefore, after decoding the chroma CU, the cuCtx.qp shall be recovered to luma qp in order to decode next luma cu qp
 //    const CodingUnit* colLumaCu = cs.getLumaCU( lumaRefPos );
     const CodingUnit* colLumaCu = cs.getCU( lumaRefPos, CHANNEL_TYPE_LUMA );
-    CHECK_RECOVERABLE( colLumaCu == nullptr, "colLumaCU shall exist" );
+    CHECK( colLumaCu == nullptr, "colLumaCU shall exist" );
     lumaQPinLocalDualTree = cuCtx.qp;
 
     if( colLumaCu ) cuCtx.qp = colLumaCu->qp;
@@ -1187,7 +1184,7 @@ void CABACReader::cu_bcw_flag(CodingUnit& cu)
     return;
   }
 
-  CHECK_RECOVERABLE(!(BCW_NUM > 1 && (BCW_NUM == 2 || (BCW_NUM & 0x01) == 1)), " !( BCW_NUM > 1 && ( BCW_NUM == 2 || ( BCW_NUM & 0x01 ) == 1 ) ) ");
+  CHECK(!(BCW_NUM > 1 && (BCW_NUM == 2 || (BCW_NUM & 0x01) == 1)), " !( BCW_NUM > 1 && ( BCW_NUM == 2 || ( BCW_NUM & 0x01 ) == 1 ) ) ");
 
   uint32_t idx    = 0;
   uint32_t symbol = m_BinDecoder.decodeBin( Ctx::BcwIdx( 0 ) );
@@ -1819,7 +1816,7 @@ void CABACReader::merge_idx( CodingUnit& cu )
     const int maxNumGeoCand = cu.sps->getMaxNumGeoCand();
     const int numCandminus2 = maxNumGeoCand - 2;
 
-    CHECK_RECOVERABLE( maxNumGeoCand < 2, "Incorrect max number of geo candidates" );
+    CHECK( maxNumGeoCand < 2, "Incorrect max number of geo candidates" );
 
     int mergeCand0 = 0;
     int mergeCand1 = 0;
@@ -2043,7 +2040,7 @@ void CABACReader::transform_tree( CodingStructure &cs, CodingUnit &cu, Partition
       partitioner.splitCurrArea( PartSplit( CU::getSbtTuSplit( cu ) ), cs );
     }
     else
-      THROW( "Implicit TU split not available!" );
+      THROW_RECOVERABLE( "Implicit TU split not available!" );
 
     do
     {
@@ -2296,7 +2293,7 @@ void CABACReader::transform_unit( TransformUnit& tu, CUCtx& cuCtx, Partitioner& 
 
 void CABACReader::cu_qp_delta( CodingUnit& cu, int predQP, int8_t& qp )
 {
-  CHECK_RECOVERABLE( predQP == std::numeric_limits<int>::max(), "Invalid predicted QP" );
+  CHECK( predQP == std::numeric_limits<int>::max(), "Invalid predicted QP" );
   int qpY = predQP;
   int DQp = unary_max_symbol( Ctx::DeltaQP(), Ctx::DeltaQP(1), CU_DQP_TU_CMAX );
   if( DQp >= CU_DQP_TU_CMAX )
@@ -2309,7 +2306,7 @@ void CABACReader::cu_qp_delta( CodingUnit& cu, int predQP, int8_t& qp )
     {
       DQp = -DQp;
     }
-    int     qpBdOffsetY = cu.sps->getQpBDOffset( CHANNEL_TYPE_LUMA );
+    int     qpBdOffsetY = cu.sps->getQpBDOffset();
     qpY = ( (predQP + DQp + (MAX_QP + 1) + 2 * qpBdOffsetY) % ((MAX_QP + 1) + qpBdOffsetY)) - qpBdOffsetY;
   }
   qp = (int8_t)qpY;

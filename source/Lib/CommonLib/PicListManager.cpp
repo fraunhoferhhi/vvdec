@@ -120,7 +120,7 @@ void PicListManager::create(int frameDelay, int decInstances, bool upscaleOutput
 
 Picture* PicListManager::getNewPicBuffer( const SPS& sps, const PPS& pps, const uint32_t temporalLayer, const int layerId, const VPS* vps )
 {
-  CHECK( m_parseFrameDelay < 0, "Parser frame delay is invalid" );
+  CHECK_FATAL( m_parseFrameDelay < 0, "Parser frame delay is invalid" );
 
   Picture*  pcPic         = nullptr;
   const int iMaxRefPicNum = ( vps == nullptr || vps->m_numLayersInOls[vps->m_iTargetLayer] == 1 )
@@ -131,7 +131,7 @@ Picture* PicListManager::getNewPicBuffer( const SPS& sps, const PPS& pps, const 
   bool externAllocator = m_userAllocator.enabled;
   if ( externAllocator )
   {
-    if (sps.getBitDepth( CHANNEL_TYPE_LUMA ) == 8 )
+    if (sps.getBitDepth() == 8 )
     {
       externAllocator = false;
     }

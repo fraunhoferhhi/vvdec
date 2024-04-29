@@ -852,7 +852,7 @@ void gradFilter_SSE( int16_t* src, ptrdiff_t _srcStride, int width, int height, 
   }
   else
   {
-    CHECK_RECOVERABLE( widthInside != 4, "Width needs to be '4'!" );
+    CHECK( widthInside != 4, "Width needs to be '4'!" );
 
     for( int y = 0; y < ( PAD ? heightInside : 4 ); y++ )
     {
@@ -1167,7 +1167,7 @@ template<X86_VEXT vext>
 void InterPrediction::_initInterPredictionX86()
 {
   BiOptFlow       = BiOptFlowCoreSIMD  <vext>;
-  PaddBIO         = PaddBIO_SIMD       <vext>;
+	PaddBIO         = PaddBIO_SIMD       <vext>;
 #if !defined( REAL_TARGET_WASM ) // profilings show those functions are slower with WASM SIMD emulation than C++->WASM
   BioGradFilter   = gradFilter_SSE     <vext, true>;
   profGradFilter  = gradFilter_SSE     <vext, false>;

@@ -622,7 +622,7 @@ void InterPrediction::xPredInterUni( const CodingUnit &cu, const RefPicList &eRe
 
   if( affine )
   {
-    CHECK_RECOVERABLE( iRefIdx < 0, "iRefIdx incorrect." );
+    CHECK( iRefIdx < 0, "iRefIdx incorrect." );
 
     mv[0] = cu.mv[eRefPicList][0];
     mv[1] = cu.mv[eRefPicList][1];
@@ -632,7 +632,7 @@ void InterPrediction::xPredInterUni( const CodingUnit &cu, const RefPicList &eRe
   {
     mv[0] = cu.mv[eRefPicList][0];
 
-    CHECK_RECOVERABLE( !refPic, "xPredInterUni missing ref pic" );
+    CHECK( !refPic, "xPredInterUni missing ref pic" );
 
     if( !isIBC && !scaled )
     {
@@ -651,7 +651,7 @@ void InterPrediction::xPredInterUni( const CodingUnit &cu, const RefPicList &eRe
 
     if( affine )
     {
-      CHECK_RECOVERABLE( bioApplied, "BIO is not allowed with affine" );
+      CHECK( bioApplied, "BIO is not allowed with affine" );
       m_iRefListIdx = eRefPicList;
       xPredAffineBlk( compID, cu, refPic, eRefPicList, pcYuvPred, bi, cu.slice->clpRng( compID ), cu.slice->getScalingRatio( eRefPicList, iRefIdx ) );
     }
@@ -751,7 +751,7 @@ void InterPrediction::xPredInterBlk( const ComponentID&    compID,
                                      Pel*                  srcPadBuf,
                                      ptrdiff_t             srcPadStride )
 {
-  CHECK_RECOVERABLE( srcPadBuf == NULL && altSrc, "wrong" );
+  CHECK( srcPadBuf == NULL && altSrc, "wrong" );
   
   const ChromaFormat  chFmt = cu.chromaFormat;
   const bool          rndRes = !bi;
@@ -1301,7 +1301,7 @@ void InterPrediction::applyBiOptFlow( const CodingUnit &cu,
   Pel *           dstY      = yuvDst.Y().buf;
   const ptrdiff_t dstStride = yuvDst.Y().stride;
 
-  const int       bitDepth  = clipBitDepths.recon[toChannelType( COMPONENT_Y )];
+  const int       bitDepth  = clipBitDepths.recon;
 
   for( int refList = 0; refList < NUM_REF_PIC_LIST_01; refList++ )
   {
@@ -1344,7 +1344,7 @@ void InterPrediction::xWeightedAverage(const CodingUnit& cu, const PelUnitBuf& p
 
   if( cu.BcwIdx() != BCW_DEFAULT && !cu.ciipFlag() )
   {
-    CHECK_RECOVERABLE( bioApplied, "Bcw is disallowed with BIO" );
+    CHECK( bioApplied, "Bcw is disallowed with BIO" );
     pcYuvDst.addWeightedAvg( pcYuvSrc0, pcYuvSrc1, clpRngs, g_BcwInternBcw[cu.BcwIdx()] );
     return;
   }
@@ -1374,7 +1374,7 @@ void InterPrediction::motionCompensation( CodingUnit &cu, PelUnitBuf &predBuf, c
 
   if( CU::isIBC( cu ) )
   {
-    CHECK_RECOVERABLE( !luma, "IBC only for Chroma is not allowed." );
+    CHECK( !luma, "IBC only for Chroma is not allowed." );
     xIntraBlockCopy( cu, predBuf, COMPONENT_Y );
     if( chroma )
     {
@@ -2133,7 +2133,7 @@ void InterPrediction::xPredInterBlkRPR( const std::pair<int, int>& scalingRatio,
                 - ( ( ( (int32_t) y0Int +              0 * stepY ) + offY ) >> posShift ) + 1;
   refHeight = std::max<int>( 1, refHeight );
 
-  CHECK_RECOVERABLE( MAX_CU_SIZE * MAX_SCALING_RATIO + 16 < refHeight + vFilterSize - 1 + extSize,
+  CHECK( MAX_CU_SIZE * MAX_SCALING_RATIO + 16 < refHeight + vFilterSize - 1 + extSize,
                      "Buffer size is not enough, scaling more than MAX_SCALING_RATIO" );
 
   Pel buffer[ ( MAX_CU_SIZE + 16 ) * ( MAX_CU_SIZE * MAX_SCALING_RATIO + 16 ) ];
@@ -2151,7 +2151,7 @@ void InterPrediction::xPredInterBlkRPR( const std::pair<int, int>& scalingRatio,
         xInt = Clip3( -( NTAPS_LUMA / 2 ), ( refPicWidth >> csx ) + ( NTAPS_LUMA / 2 ), xInt );
     int xFrac = ( ( posX + offX ) >> ( posShift - shiftHor ) ) & ( ( 1 << shiftHor ) - 1 );
 
-    CHECK_RECOVERABLE( xInt0 > xInt, "Wrong horizontal starting point" );
+    CHECK( xInt0 > xInt, "Wrong horizontal starting point" );
 
     const Pel* refPtr    = refBuf.bufAt( xInt, yInt0 );
     ptrdiff_t  refStride = refBuf.stride;
@@ -2185,7 +2185,7 @@ void InterPrediction::xPredInterBlkRPR( const std::pair<int, int>& scalingRatio,
         yInt = Clip3( -( NTAPS_LUMA / 2 ), ( refPicHeight >> csy ) + ( NTAPS_LUMA / 2 ), yInt );
     int yFrac = ( ( posY + offY ) >> ( posShift - shiftVer ) ) & ( ( 1 << shiftVer ) - 1 );
 
-    CHECK_RECOVERABLE( yInt0 > yInt, "Wrong vertical starting point" );
+    CHECK( yInt0 > yInt, "Wrong vertical starting point" );
 
     m_if.filterVer( compID,
                     GET_OFFSETY( buffer, tmpStride, ( yInt - yInt0 ) + ( ( vFilterSize >> 1 ) - 1 ) ), tmpStride,

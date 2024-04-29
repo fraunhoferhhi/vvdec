@@ -123,7 +123,7 @@ struct Barrier
     std::lock_guard<std::mutex> l( s_exceptionLock );
     if( m_hasException )
     {
-      CHECK( m_exception == nullptr, "no exception currently stored, but flag is set" );
+      CHECK_FATAL( m_exception == nullptr, "no exception currently stored, but flag is set" );
       // exception is already set -> no-op
       return;
     }
@@ -164,7 +164,7 @@ struct Barrier
     std::lock_guard<std::mutex> l( s_exceptionLock );
     if( m_hasException )
     {
-      CHECK( m_exception == nullptr, "no exception currently stored, but flag is set" );
+      CHECK_FATAL( m_exception == nullptr, "no exception currently stored, but flag is set" );
       std::rethrow_exception( m_exception );
     }
   }
@@ -172,12 +172,7 @@ struct Barrier
   Barrier()  = default;
   virtual ~Barrier() = default;
   explicit Barrier( bool locked ) : m_lockState( locked ) {}
-
-  Barrier( const Barrier & ) = delete;
-  Barrier( Barrier && )      = delete;
-
-  Barrier& operator=( const Barrier & ) = delete;
-  Barrier& operator=( Barrier && )      = delete;
+  CLASS_COPY_MOVE_DELETE( Barrier )
 
 private:
   std::atomic_bool   m_lockState{ true };
@@ -226,12 +221,7 @@ struct BlockingBarrier: public Barrier
 
   BlockingBarrier()  = default;
   ~BlockingBarrier() { std::lock_guard<std::mutex> l( m_lock ); }   // ensure all threads have unlocked the mutex, when we start destruction
-
-  BlockingBarrier( const BlockingBarrier& ) = delete;
-  BlockingBarrier( BlockingBarrier&& )      = delete;
-
-  BlockingBarrier& operator=( const BlockingBarrier& ) = delete;
-  BlockingBarrier& operator=( BlockingBarrier&& ) = delete;
+  CLASS_COPY_MOVE_DELETE( BlockingBarrier )
 
 private:
   mutable std::condition_variable m_cond;
@@ -298,12 +288,7 @@ struct WaitCounter
 
   WaitCounter() = default;
   ~WaitCounter() { std::lock_guard<std::mutex> l( m_lock ); }   // ensure all threads have unlocked the mutex, when we start destruction
-
-  WaitCounter( const WaitCounter & ) = delete;
-  WaitCounter( WaitCounter && )      = delete;
-
-  WaitCounter &operator=( const WaitCounter & ) = delete;
-  WaitCounter &operator=( WaitCounter && )      = delete;
+  CLASS_COPY_MOVE_DELETE( WaitCounter )
 
   const Barrier* donePtr() const { return &m_done; }
 
@@ -392,9 +377,7 @@ class ThreadPool
 
     ChunkedTaskQueue() = default;
     ~ChunkedTaskQueue();
-
-    ChunkedTaskQueue( const ChunkedTaskQueue& ) = delete;
-    ChunkedTaskQueue( ChunkedTaskQueue&& )      = delete;
+    CLASS_COPY_MOVE_DELETE( ChunkedTaskQueue )
 
     // grow the queue by adding a chunk and return an iterator to the first new task-slot
     Iterator grow();

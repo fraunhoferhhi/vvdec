@@ -47,10 +47,10 @@ POSSIBILITY OF SUCH DAMAGE.
 #pragma once
 
 #include "CommonLib/Contexts.h"
-#include "CommonLib/BitStream.h"
 
 namespace vvdec
 {
+class InputBitstream;
 
 class BinDecoder
 {
@@ -73,7 +73,9 @@ public:
   unsigned          decodeRemAbsEP      ( unsigned goRicePar, unsigned cutoff, int maxLog2TrDynamicRange );
   unsigned          decodeBinTrm        ();
   void              align               ();
-  unsigned          getNumBitsRead      () { return m_Bitstream->getNumBitsRead() + m_bitsNeeded; }
+#if ENABLE_TRACING
+  unsigned          getNumBitsRead() const;
+#endif
 
 private:
   unsigned          decodeAlignedBinsEP ( unsigned numBins  );

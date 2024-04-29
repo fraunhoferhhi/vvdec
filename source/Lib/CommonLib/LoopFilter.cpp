@@ -128,9 +128,9 @@ static inline void xBilinearFilter( Pel* srcP, Pel* srcQ, ptrdiff_t offset, int 
 
 void xFilteringPandQCore( Pel* src, ptrdiff_t step, const ptrdiff_t offset, int numberPSide, int numberQSide, int tc )
 {
-  CHECK_RECOVERABLE( numberPSide <= 3 && numberQSide <= 3, "Short filtering in long filtering function" );
-  CHECK_RECOVERABLE( numberPSide != 3 && numberPSide != 5 && numberPSide != 7, "invalid numberPSide" );
-  CHECK_RECOVERABLE( numberQSide != 3 && numberQSide != 5 && numberQSide != 7, "invalid numberQSide" );
+  CHECK( numberPSide <= 3 && numberQSide <= 3, "Short filtering in long filtering function" );
+  CHECK( numberPSide != 3 && numberPSide != 5 && numberPSide != 7, "invalid numberPSide" );
+  CHECK( numberQSide != 3 && numberQSide != 5 && numberQSide != 7, "invalid numberQSide" );
 
   const int*       dbCoeffsP    = numberPSide == 7 ? dbCoeffs7 : ( numberPSide == 5 ) ? dbCoeffs5 : dbCoeffs3;
   const int*       dbCoeffsQ    = numberQSide == 7 ? dbCoeffs7 : ( numberQSide == 5 ) ? dbCoeffs5 : dbCoeffs3;
@@ -526,8 +526,8 @@ void LoopFilter::calcFilterStrengths( const CodingUnit& cu ) const
                                                                             horVirBndryPos, verVirBndryPos );
   if( isCuCrossedByVirtualBoundaries )
   {
-    CHECK_RECOVERABLE( numHorVirBndry >= (int)( sizeof(horVirBndryPos) / sizeof(horVirBndryPos[0]) ), "Too many virtual boundaries" );
-    CHECK_RECOVERABLE( numHorVirBndry >= (int)( sizeof(verVirBndryPos) / sizeof(verVirBndryPos[0]) ), "Too many virtual boundaries" );
+    CHECK( numHorVirBndry >= (int)( sizeof(horVirBndryPos) / sizeof(horVirBndryPos[0]) ), "Too many virtual boundaries" );
+    CHECK( numHorVirBndry >= (int)( sizeof(verVirBndryPos) / sizeof(verVirBndryPos[0]) ), "Too many virtual boundaries" );
   }
   
 
@@ -573,7 +573,7 @@ void LoopFilter::calcFilterStrengths( const CodingUnit& cu ) const
 
   if( ( currPU.mergeFlag() && currPU.mergeType() == MRG_TYPE_SUBPU_ATMVP ) || currPU.affineFlag() )
   {
-    CHECK_RECOVERABLE( cu.chType() != CH_L, "This path is only valid for single tree blocks!" );
+    CHECK( cu.chType() != CH_L, "This path is only valid for single tree blocks!" );
 
     for( int off = subBlockSize; off < areaPu.width; off += subBlockSize )
     {
@@ -1055,19 +1055,26 @@ LFCUParam LoopFilter::xGetLoopfilterParam( const CodingUnit& cu ) const
   const PPS& pps = *cu.pps;
   const SPS& sps = *cu.sps;
 
-  const CodingUnit* cuLeft  = ( pos.x > 0 && cu.left  == nullptr ) ? cu.cs->getCU( pos.offset( -1, 0 ), cu.chType() ) : cu.left;
-  const CodingUnit* cuAbove = ( pos.y > 0 && cu.above == nullptr ) ? cu.cs->getCU( pos.offset( 0, -1 ), cu.chType() ) : cu.above;
-
-  const bool loopFilterAcrossSubPicEnabledFlagLeft = !sps.getSubPicInfoPresentFlag() ||
-                                                     ( pps.getSubPicFromCU( cu ).getloopFilterAcrossSubPicEnabledFlag() &&
-                                                       pps.getSubPicFromCU( *cuLeft ).getloopFilterAcrossSubPicEnabledFlag() );
-  const bool loopFilterAcrossSubPicEnabledFlagTop = !sps.getSubPicInfoPresentFlag() ||
-                                                    ( pps.getSubPicFromCU( cu ).getloopFilterAcrossSubPicEnabledFlag() &&
-                                                      pps.getSubPicFromCU( *cuAbove ).getloopFilterAcrossSubPicEnabledFlag() );
-
   LFCUParam stLFCUParam;   ///< status structure
-  stLFCUParam.leftEdge = ( pos.x > 0 ) && CU::isAvailable( cu, *cuLeft,  !pps.getLoopFilterAcrossSlicesEnabledFlag(), !pps.getLoopFilterAcrossTilesEnabledFlag(), !loopFilterAcrossSubPicEnabledFlagLeft );
-  stLFCUParam.topEdge  = ( pos.y > 0 ) && CU::isAvailable( cu, *cuAbove, !pps.getLoopFilterAcrossSlicesEnabledFlag(), !pps.getLoopFilterAcrossTilesEnabledFlag(), !loopFilterAcrossSubPicEnabledFlagTop );
+  if( pos.x > 0 )
+  {
+    const CodingUnit* cuLeft = cu.left ? cu.left : cu.cs->getCU( pos.offset( -1, 0 ), cu.chType() ) ;
+    const bool loopFilterAcrossSubPicEnabledFlagLeft = !sps.getSubPicInfoPresentFlag() ||
+                                                       ( pps.getSubPicFromCU( cu ).getloopFilterAcrossSubPicEnabledFlag() &&
+                                                         pps.getSubPicFromCU( *cuLeft ).getloopFilterAcrossSubPicEnabledFlag() );
+
+    stLFCUParam.leftEdge = CU::isAvailable( cu, *cuLeft, !pps.getLoopFilterAcrossSlicesEnabledFlag(), !pps.getLoopFilterAcrossTilesEnabledFlag(), !loopFilterAcrossSubPicEnabledFlagLeft );
+  }
+
+  if( pos.y > 0 )
+  {
+    const CodingUnit* cuAbove = cu.above ? cu.above : cu.cs->getCU( pos.offset( 0, -1 ), cu.chType() );
+    const bool loopFilterAcrossSubPicEnabledFlagTop = !sps.getSubPicInfoPresentFlag() ||
+                                                      ( pps.getSubPicFromCU( cu ).getloopFilterAcrossSubPicEnabledFlag() &&
+                                                        pps.getSubPicFromCU( *cuAbove ).getloopFilterAcrossSubPicEnabledFlag() );
+
+    stLFCUParam.topEdge = CU::isAvailable( cu, *cuAbove, !pps.getLoopFilterAcrossSlicesEnabledFlag(), !pps.getLoopFilterAcrossTilesEnabledFlag(), !loopFilterAcrossSubPicEnabledFlagTop );
+  }
   return stLFCUParam;
 }
 
@@ -1096,7 +1103,7 @@ void LoopFilter::xGetBoundaryStrengthSingle( LoopFilterParam& lfp, const CodingU
 
   if( hasChroma )
   {
-    const int qpBdOffset2     = cuQ.sps->getQpBDOffset( CH_C ) << 1;
+    const int qpBdOffset2     = cuQ.sps->getQpBDOffset() << 1;
     const bool isPQDiffCh     = !chType && cuP.treeType() != TREE_D;
     const TransformUnit &tuQc = cuQ.ispMode() ? *cuQ.lastTU : tuQ;
     const Position      posPc = isPQDiffCh ? recalcPosition( cuQ.chromaFormat, chType, CH_C, posP ) : Position();
@@ -1312,8 +1319,8 @@ void LoopFilter::xGetBoundaryStrengthSingle( LoopFilterParam& lfp, const CodingU
   }
 
   // pcSlice->isInterP()
-  CHECK_RECOVERABLE( CU::isInter( cuP ) && isMotionInvalid( miP.miRefIdx[0], MI_NOT_VALID ), "Invalid reference picture list index" );
-  CHECK_RECOVERABLE( CU::isInter( cuP ) && isMotionInvalid( miQ.miRefIdx[0], MI_NOT_VALID ), "Invalid reference picture list index" );
+  CHECK( CU::isInter( cuP ) && isMotionInvalid( miP.miRefIdx[0], MI_NOT_VALID ), "Invalid reference picture list index" );
+  CHECK( CU::isInter( cuP ) && isMotionInvalid( miQ.miRefIdx[0], MI_NOT_VALID ), "Invalid reference picture list index" );
 
   const Picture *piRefP0 = ( CU::isIBC( cuP ) ? sliceP.getPic() : sliceP.getRefPic( REF_PIC_LIST_0, miP.miRefIdx[0] ) );
   const Picture *piRefQ0 = ( CU::isIBC( cuQ ) ? sliceQ.getPic() : sliceQ.getRefPic( REF_PIC_LIST_0, miQ.miRefIdx[0] ) );
@@ -1439,7 +1446,7 @@ void LoopFilter::xEdgeFilterLuma( CodingStructure& cs, const Position& pos, cons
   Pel *           piSrc        = picYuvRec.bufAt( pos );
   const ptrdiff_t iStride      = picYuvRec.stride;
   
-  const int       bitDepthLuma = slice.getSPS()->getBitDepth( CHANNEL_TYPE_LUMA );
+  const int       bitDepthLuma = slice.getSPS()->getBitDepth();
   const ClpRng&         clpRng = slice.clpRng( COMPONENT_Y );
 
   const int  betaOffsetDiv2    = slice.getDeblockingFilterBetaOffsetDiv2();
@@ -1604,7 +1611,7 @@ void LoopFilter::xEdgeFilterChroma( CodingStructure &cs, const Position &pos, co
   Pel *              piSrcCr             = picYuvRecCr.bufAt( pos );
   const ptrdiff_t    iStride             = picYuvRecCb.stride;
   const SPS &        sps                 = *cs.sps;
-  const int          bitDepthChroma      = sps.getBitDepth( CHANNEL_TYPE_CHROMA );
+  const int          bitDepthChroma      = sps.getBitDepth();
 
   const int tcOffsetDiv2[2]              = { slice.getDeblockingFilterCbTcOffsetDiv2(),   slice.getDeblockingFilterCrTcOffsetDiv2() };
   const int betaOffsetDiv2[2]            = { slice.getDeblockingFilterCbBetaOffsetDiv2(), slice.getDeblockingFilterCrBetaOffsetDiv2() };

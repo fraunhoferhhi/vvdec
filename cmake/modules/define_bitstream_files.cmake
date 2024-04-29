@@ -10,12 +10,12 @@ endif()
 list( APPEND BITSTREAM_FILES
   10b400_A_Bytedance_2.zip
   10b400_B_Bytedance_2.zip
-  10b422_B_Sony_5.zip
+  10b444_A_Kwai_3.zip
+  10b444_B_Kwai_3.zip
   8b400_A_Bytedance_2.zip
   8b400_B_Bytedance_2.zip
   8b420_A_Bytedance_2.zip
   8b420_B_Bytedance_2.zip
-  8b422_B_Sony_5.zip
   ACTPIC_A_Huawei_3.zip
   ACTPIC_B_Huawei_3.zip
   ACTPIC_C_Huawei_3.zip
@@ -256,6 +256,7 @@ list( APPEND BITSTREAM_FAULTY_FILES
 # put bitstreams from the conformance set that are not supported (wrong profile/level etc)
 list( APPEND BITSTREAM_NOT_MAIN10_FILES
   10b422_A_Sony_5.zip                               # MAIN_10_444 and MAIN_10_444_STILL_PICTURE is still experimental.
+  10b422_B_Sony_5.zip                               # decodes correctly, when inferring sps_chroma_vertical_collocated_flag to be 0
   10b422_C_Sony_5.zip                               # MAIN_10_444 and MAIN_10_444_STILL_PICTURE is still experimental.
   10b422_D_Sony_5.zip                               # MAIN_10_444 and MAIN_10_444_STILL_PICTURE is still experimental.
   10b422_E_Sony_5.zip                               # MAIN_10_444 and MAIN_10_444_STILL_PICTURE is still experimental.
@@ -266,9 +267,8 @@ list( APPEND BITSTREAM_NOT_MAIN10_FILES
   10b422_J_Sony_5.zip                               # palette mode is not yet supported
   10b422_K_Sony_5.zip                               # palette mode is not yet supported
   10b422_L_Sony_5.zip                               # palette mode is not yet supported
-  10b444_A_Kwai_3.zip
-  10b444_B_Kwai_3.zip
   8b422_A_Sony_5.zip                                # MAIN_10_444 and MAIN_10_444_STILL_PICTURE is still experimental.
+  8b422_B_Sony_5.zip                                # decodes correctly, when inferring sps_chroma_vertical_collocated_flag to be 0
   8b422_C_Sony_5.zip                                # MAIN_10_444 and MAIN_10_444_STILL_PICTURE is still experimental.
   8b422_D_Sony_5.zip                                # MAIN_10_444 and MAIN_10_444_STILL_PICTURE is still experimental.
   8b422_E_Sony_5.zip                                # MAIN_10_444 and MAIN_10_444_STILL_PICTURE is still experimental.

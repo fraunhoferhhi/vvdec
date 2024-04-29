@@ -179,15 +179,10 @@ void Partitioner::initCtu( const UnitArea& ctuArea, const ChannelType _chType, c
   }
   else
   {
-    const unsigned maxBtDepthArr[] = { sps.getMaxBTDepthI(), sps.getMaxBTDepth(), sps.getMaxBTDepthIChroma() };
-    const unsigned maxBtSizeArr[]  = { sps.getMaxBTSizeI(), sps.getMaxBTSize(), sps.getMaxBTSizeIChroma() };
-    const unsigned maxTtSizeArr[]  = { sps.getMaxTTSizeI(), sps.getMaxTTSize(), sps.getMaxTTSizeIChroma() };
-    const unsigned minQtSizeArr[]  = { sps.getMinQTSize( I_SLICE, CHANNEL_TYPE_LUMA ), sps.getMinQTSize( B_SLICE, CHANNEL_TYPE_LUMA ), sps.getMinQTSize( I_SLICE, CHANNEL_TYPE_CHROMA ) };
-
-    maxBTD    = maxBtDepthArr[valIdx];
-    maxBtSize = maxBtSizeArr [valIdx];
-    maxTtSize = maxTtSizeArr [valIdx];
-    minQtSize = minQtSizeArr [valIdx];
+    maxBTD    = sps.getMaxMTTHierarchyDepths()[valIdx];
+    maxBtSize = sps.getMaxBTSizes()[valIdx];
+    maxTtSize = sps.getMaxTTSizes()[valIdx];
+    minQtSize = sps.getMinQTSizes()[valIdx];
   }
 
   maxTrSize = cs.sps->getMaxTbSize();
@@ -219,7 +214,7 @@ void Partitioner::splitCurrArea( const PartSplit split, const CodingStructure& c
   back.numParts = numParts;
   m_partBufIdx += numParts;
 
-  CHECK_RECOVERABLE( m_partBufIdx > partBufSize, "Partition buffer overflow" );
+  CHECK( m_partBufIdx > partBufSize, "Partition buffer overflow" );
 
   switch( split )
   {
@@ -256,7 +251,7 @@ void Partitioner::splitCurrArea( const PartSplit split, const CodingStructure& c
     currTrDepth++;
     break;
   default:
-    THROW( "Unknown split mode" );
+    THROW_RECOVERABLE( "Unknown split mode" );
     break;
   }
 
@@ -538,7 +533,7 @@ int PartitionerImpl::getCUSubPartitions( const UnitArea &cuArea, const CodingStr
         if( i &  1 ) blk.x += blk.width;
       }
 
-      CHECK_RECOVERABLE( sub[i].lumaSize().height < MIN_TU_SIZE, "the split causes the block to be smaller than the minimal TU size" );
+      CHECK( sub[i].lumaSize().height < MIN_TU_SIZE, "the split causes the block to be smaller than the minimal TU size" );
     }
 
     return 4;
@@ -557,7 +552,7 @@ int PartitionerImpl::getCUSubPartitions( const UnitArea &cuArea, const CodingStr
         if (i == 1) blk.y += blk.height;
       }
 
-      CHECK_RECOVERABLE(sub[i].lumaSize().height < MIN_TU_SIZE, "the cs split causes the block to be smaller than the minimal TU size");
+      CHECK(sub[i].lumaSize().height < MIN_TU_SIZE, "the cs split causes the block to be smaller than the minimal TU size");
     }
 
     return 2;
@@ -576,7 +571,7 @@ int PartitionerImpl::getCUSubPartitions( const UnitArea &cuArea, const CodingStr
         if( i == 1 ) blk.x += blk.width;
       }
 
-      CHECK_RECOVERABLE( sub[i].lumaSize().width < MIN_TU_SIZE, "the split causes the block to be smaller than the minimal TU size" );
+      CHECK( sub[i].lumaSize().width < MIN_TU_SIZE, "the split causes the block to be smaller than the minimal TU size" );
     }
 
     return 2;
@@ -597,7 +592,7 @@ int PartitionerImpl::getCUSubPartitions( const UnitArea &cuArea, const CodingStr
         if( i == 2 )        blk.y       += 3 * blk.height;
       }
 
-      CHECK_RECOVERABLE( sub[i].lumaSize().height < MIN_TU_SIZE, "the cs split causes the block to be smaller than the minimal TU size" );
+      CHECK( sub[i].lumaSize().height < MIN_TU_SIZE, "the cs split causes the block to be smaller than the minimal TU size" );
     }
 
     return 3;
@@ -619,14 +614,14 @@ int PartitionerImpl::getCUSubPartitions( const UnitArea &cuArea, const CodingStr
         if( i == 2 )        blk.x      += 3 * blk.width;
       }
 
-      CHECK_RECOVERABLE( sub[i].lumaSize().width < MIN_TU_SIZE, "the cs split causes the block to be smaller than the minimal TU size" );
+      CHECK( sub[i].lumaSize().width < MIN_TU_SIZE, "the cs split causes the block to be smaller than the minimal TU size" );
     }
 
     return 3;
   }
   else
   {
-    THROW( "Unknown CU sub-partitioning" );
+    THROW_RECOVERABLE( "Unknown CU sub-partitioning" );
   }
 }
 
@@ -647,7 +642,7 @@ int PartitionerImpl::getTUIntraSubPartitions( const UnitArea &tuArea, const Codi
       blkY.height = splitDimensionSize;
       blkY.y = i > 0 ? sub[i - 1].blocks[COMPONENT_Y].y + splitDimensionSize : blkY.y;
 
-      CHECK_RECOVERABLE( sub[i].lumaSize().height < 1, "the cs split causes the block to be smaller than the minimal TU size" );
+      CHECK( sub[i].lumaSize().height < 1, "the cs split causes the block to be smaller than the minimal TU size" );
     }
   }
   else if( splitType == TU_1D_VERT_SPLIT )
@@ -661,12 +656,12 @@ int PartitionerImpl::getTUIntraSubPartitions( const UnitArea &tuArea, const Codi
 
       blkY.width = splitDimensionSize;
       blkY.x = i > 0 ? sub[i - 1].blocks[COMPONENT_Y].x + splitDimensionSize : blkY.x;
-      CHECK_RECOVERABLE( sub[i].lumaSize().width < 1, "the split causes the block to be smaller than the minimal TU size" );
+      CHECK( sub[i].lumaSize().width < 1, "the split causes the block to be smaller than the minimal TU size" );
     }
   }
   else
   {
-    THROW( "Unknown TU sub-partitioning" );
+    THROW_RECOVERABLE( "Unknown TU sub-partitioning" );
   }
   //we only partition luma, so there is going to be only one chroma tu at the end (unless it is dual tree, in which case there won't be any chroma components)
   uint32_t partitionsWithoutChroma = (cs.area.chromaFormat == CHROMA_400) ? 0 : (isDualTree ? nPartitions : nPartitions - 1);
@@ -718,7 +713,7 @@ int PartitionerImpl::getMaxTuTiling( const UnitArea &cuArea, const CodingStructu
   const int numLog2H  = getLog2( numTilesH );
   const int* rsScanToZ = g_rsScanToZ[numLog2H];
 
-  CHECK_RECOVERABLE( numTiles > MAX_CU_TILING_PARTITIONS, "CU partitioning requires more partitions than available" );
+  CHECK( numTiles > MAX_CU_TILING_PARTITIONS, "CU partitioning requires more partitions than available" );
 
   Partitioning& ret = dst;
 
@@ -754,7 +749,7 @@ int PartitionerImpl::getSbtTuTiling( const UnitArea& cuArea, const CodingStructu
   int numTiles      = 2;
   int widthFactor, heightFactor, xOffsetFactor, yOffsetFactor;
 
-  CHECK_RECOVERABLE( !(splitType >= SBT_VER_HALF_POS0_SPLIT && splitType <= SBT_HOR_QUAD_POS1_SPLIT), "wrong" );
+  CHECK( !(splitType >= SBT_VER_HALF_POS0_SPLIT && splitType <= SBT_HOR_QUAD_POS1_SPLIT), "wrong" );
 
   for( int i = 0; i < numTiles; i++ )
   {

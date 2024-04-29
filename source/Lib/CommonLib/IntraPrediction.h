@@ -49,7 +49,6 @@ POSSIBILITY OF SUCH DAMAGE.
 // Include files
 #include "Unit.h"
 #include "Buffer.h"
-#include "Picture.h"
 
 #include "MatrixIntraPrediction.h"
 

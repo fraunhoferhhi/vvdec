@@ -49,8 +49,6 @@ POSSIBILITY OF SUCH DAMAGE.
 #define COMMONDEF_H
 
 #include <algorithm>
-#include <iostream>
-#include <iomanip>
 #include <limits>
 #include <cmath>   // needed for std::log2()
 #include <cstdarg>
@@ -117,6 +115,17 @@ POSSIBILITY OF SUCH DAMAGE.
 # define GCC_WARNING_DISABLE_class_memaccess
 #endif
 
+#define CLASS_COPY_MOVE_DEFAULT( Class )      \
+  Class( const Class& )            = default; \
+  Class( Class&& )                 = default; \
+  Class& operator=( const Class& ) = default; \
+  Class& operator=( Class&& )      = default;
+
+#define CLASS_COPY_MOVE_DELETE( Class )      \
+  Class( const Class& )            = delete; \
+  Class( Class&& )                 = delete; \
+  Class& operator=( const Class& ) = delete; \
+  Class& operator=( Class&& )      = delete;
 
 #include "TypeDef.h"
 #include "vvdec/version.h"
@@ -446,7 +455,7 @@ static inline T* aligned_malloc(size_t len, size_t alignement) {
   T* p = NULL;
   if( posix_memalign( (void**)&p, alignement, sizeof(T)*(len) ) )
   {
-    THROW("posix_memalign failed");
+    THROW_FATAL( "posix_memalign failed" );
   }
   return p;
 }

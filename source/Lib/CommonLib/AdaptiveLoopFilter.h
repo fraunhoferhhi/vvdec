@@ -49,12 +49,17 @@ POSSIBILITY OF SUCH DAMAGE.
 #include "CommonDef.h"
 
 #include "Unit.h"
-#include "UnitTools.h"
 
+#include <array>
 #include <vector>
 
 namespace vvdec
 {
+
+class APS;
+struct CtuAlfData;
+class PicHeader;
+
 
 struct AlfClassifier
 {
@@ -109,7 +114,7 @@ public:
          void processCTU    ( CodingStructure &cs, unsigned col, unsigned line, int tid = 0, const ChannelType chType = MAX_NUM_CHANNEL_TYPE );
   static bool getAlfSkipPic       ( const CodingStructure& cs );
   static void reconstructCoeffAPSs( Slice& slice );
-  static void reconstructCoeff    ( AlfSliceParam& alfSliceParam, ChannelType channel, const int inputBitDepth[MAX_NUM_CHANNEL_TYPE] );
+  static void reconstructCoeff    ( AlfSliceParam& alfSliceParam, ChannelType channel, const int inputBitDepth );
 
 protected:
 
@@ -159,14 +164,14 @@ protected:
   static const Pel        m_alfClippVls[3][MaxAlfNumClippingValues];
   std::vector<PelStorage> m_tempBuf;
   PelUnitBuf              m_alfBuf;
-  int           m_inputBitDepth[MAX_NUM_CHANNEL_TYPE] = { 0, 0 };
-  int           m_picWidth;
-  int           m_picHeight;
-  int           m_alfVBLumaPos;
-  int           m_alfVBChmaPos;
-  int           m_alfVBLumaCTUHeight;
-  int           m_alfVBChmaCTUHeight;
-  std::vector<std::array<AlfClassifier, m_CLASSIFICATION_ARR_SIZE> > classifier;
+  int                     m_inputBitDepth      = 0;
+  int                     m_picWidth           = 0;
+  int                     m_picHeight          = 0;
+  int                     m_alfVBLumaPos       = 0;
+  int                     m_alfVBChmaPos       = 0;
+  int                     m_alfVBLumaCTUHeight = 0;
+  int                     m_alfVBChmaCTUHeight = 0;
+  std::vector<std::array<AlfClassifier, m_CLASSIFICATION_ARR_SIZE>> classifier;
 };
 
-}
+}   // namespace vvdec

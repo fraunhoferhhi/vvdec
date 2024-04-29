@@ -46,14 +46,12 @@ POSSIBILITY OF SUCH DAMAGE.
 
 #pragma once
 
-#include "CABACReader.h"
-
 #include "CommonLib/TrQuant.h"
 #include "CommonLib/InterPrediction.h"
 #include "CommonLib/IntraPrediction.h"
-#include "CommonLib/LoopFilter.h"
 #include "CommonLib/Unit.h"
 #include "CommonLib/Reshape.h"
+#include "ContextModelling.h"
 
 namespace vvdec
 {

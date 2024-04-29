@@ -584,7 +584,7 @@ void InterpolationFilter::filter(const ClpRng& clpRng, const Pel* src, const ptr
   int shift    = IF_FILTER_PREC;
   // with the current settings (IF_INTERNAL_PREC = 14 and IF_FILTER_PREC = 6), though headroom can be
   // negative for bit depths greater than 14, shift will remain non-negative for bit depths of 8->20
-  CHECK_RECOVERABLE(shift < 0, "Negative shift");
+  CHECK(shift < 0, "Negative shift");
 
   if( N == 2 )
   {
@@ -996,7 +996,7 @@ void InterpolationFilter::filterHor(const ClpRng& clpRng, const Pel* src, const 
   }
   else
   {
-    THROW( "Invalid tap number" );
+    THROW_FATAL( "Invalid tap number" );
   }
 }
 
@@ -1033,7 +1033,7 @@ void InterpolationFilter::filterVer( const ClpRng& clpRng, const Pel* src, const
   }
   else
   {
-    THROW( "Invalid tap number" );
+    THROW_FATAL( "Invalid tap number" );
   }
 }
 
@@ -1067,7 +1067,7 @@ void InterpolationFilter::filterHor( const ComponentID compID, const Pel* src, c
   }
   else if( isLuma( compID ) )
   {
-    CHECK_RECOVERABLE( frac < 0 || frac >= LUMA_INTERPOLATION_FILTER_SUB_SAMPLE_POSITIONS, "Invalid fraction" );
+    CHECK( frac < 0 || frac >= LUMA_INTERPOLATION_FILTER_SUB_SAMPLE_POSITIONS, "Invalid fraction" );
 
     if( nFilterIdx == 0 )
     {
@@ -1099,14 +1099,14 @@ void InterpolationFilter::filterHor( const ComponentID compID, const Pel* src, c
     }
     else
     {
-      THROW( "Unknown luma filter index '" << nFilterIdx << "'!" );
+      THROW_FATAL( "Unknown luma filter index '" << nFilterIdx << "'!" );
     }
   }
   else
   {
     const uint32_t csx = getComponentScaleX( compID, fmt );
 
-    CHECK_RECOVERABLE( frac < 0 || csx >= 2 || ( frac << ( 1 - csx ) ) >= CHROMA_INTERPOLATION_FILTER_SUB_SAMPLE_POSITIONS, "Invalid fraction" );
+    CHECK( frac < 0 || csx >= 2 || ( frac << ( 1 - csx ) ) >= CHROMA_INTERPOLATION_FILTER_SUB_SAMPLE_POSITIONS, "Invalid fraction" );
     
     if( nFilterIdx == 0 )
     {
@@ -1152,7 +1152,7 @@ void InterpolationFilter::filterVer( const ComponentID compID, const Pel* src, c
   }
   else if( isLuma( compID ) )
   {
-    CHECK_RECOVERABLE( frac < 0 || frac >= LUMA_INTERPOLATION_FILTER_SUB_SAMPLE_POSITIONS, "Invalid fraction" );
+    CHECK( frac < 0 || frac >= LUMA_INTERPOLATION_FILTER_SUB_SAMPLE_POSITIONS, "Invalid fraction" );
 
     if( nFilterIdx == 0 )
     {
@@ -1184,13 +1184,13 @@ void InterpolationFilter::filterVer( const ComponentID compID, const Pel* src, c
     }
     else
     {
-      THROW( "Unknown luma filter index '" << nFilterIdx << "'!" );
+      THROW_FATAL( "Unknown luma filter index '" << nFilterIdx << "'!" );
     }
   }
   else
   {
     const uint32_t csy = getComponentScaleY( compID, fmt );
-    CHECK_RECOVERABLE( frac < 0 || csy >= 2 || ( frac << ( 1 - csy ) ) >= CHROMA_INTERPOLATION_FILTER_SUB_SAMPLE_POSITIONS, "Invalid fraction" );
+    CHECK( frac < 0 || csy >= 2 || ( frac << ( 1 - csy ) ) >= CHROMA_INTERPOLATION_FILTER_SUB_SAMPLE_POSITIONS, "Invalid fraction" );
 
     if( nFilterIdx == 0 )
     {

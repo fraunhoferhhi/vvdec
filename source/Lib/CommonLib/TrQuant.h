@@ -48,11 +48,6 @@ POSSIBILITY OF SUCH DAMAGE.
 
 #include "CommonDef.h"
 #include "Unit.h"
-#include "ChromaFormat.h"
-#include "Contexts.h"
-#include "ContextModelling.h"
-
-#include "UnitPartitioner.h"
 #include "Quant.h"
 
 namespace vvdec

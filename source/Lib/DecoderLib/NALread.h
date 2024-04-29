@@ -65,18 +65,16 @@ class InputNALUnit : public NALUnit
     InputBitstream m_Bitstream;
 
   public:
-    InputNALUnit( const InputNALUnit & src ) : NALUnit( src ), m_Bitstream( src.m_Bitstream ){};
     InputNALUnit()  = default;
     ~InputNALUnit() = default;
+    CLASS_COPY_MOVE_DEFAULT( InputNALUnit )
 
     const InputBitstream & getBitstream() const { return m_Bitstream; }
           InputBitstream & getBitstream()       { return m_Bitstream; }
 
     bool empty() { return m_Bitstream.getFifo().empty(); }
 
-    void read();
     void readNalUnitHeader();
-    bool checkPictureHeaderInSliceHeaderFlag(InputNALUnit & nalu);
 };
 
 }

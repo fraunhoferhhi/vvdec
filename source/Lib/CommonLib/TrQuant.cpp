@@ -86,7 +86,7 @@ static void invLfnstNxNCore( int* src, int* dst, const uint32_t mode, const uint
   int             resi;
   int*            out                   =  dst;
 
-  CHECK_RECOVERABLE( index > 2, "wrong" );
+  CHECK( index > 2, "wrong" );
 
   for( int j = 0; j < trSize; j++, trMat += 16 )
   {
@@ -369,7 +369,7 @@ void TrQuant::getTrTypes( const TransformUnit& tu, const ComponentID compID, int
 
     if( sbtIdx == SBT_VER_HALF || sbtIdx == SBT_VER_QUAD )
     {
-      CHECK_RECOVERABLE( lwidth > MTS_INTER_MAX_CU_SIZE, "wrong" );
+      CHECK( lwidth > MTS_INTER_MAX_CU_SIZE, "wrong" );
       if( lheight > MTS_INTER_MAX_CU_SIZE )
       {
         trTypeHor = trTypeVer = DCT2;
@@ -382,7 +382,7 @@ void TrQuant::getTrTypes( const TransformUnit& tu, const ComponentID compID, int
     }
     else
     {
-      CHECK_RECOVERABLE( lheight > MTS_INTER_MAX_CU_SIZE, "wrong" );
+      CHECK( lheight > MTS_INTER_MAX_CU_SIZE, "wrong" );
       if( lwidth > MTS_INTER_MAX_CU_SIZE )
       {
         trTypeHor = trTypeVer = DCT2;
@@ -412,7 +412,7 @@ void TrQuant::xIT( const TransformUnit &tu, const ComponentID &compID, const CCo
   const int      width                  = pCoeff.width;
   const int      height                 = pCoeff.height;
   const unsigned maxLog2TrDynamicRange  = tu.cu->sps->getMaxLog2TrDynamicRange( toChannelType( compID ) );
-  const unsigned bitDepth               = tu.cu->sps->getBitDepth(              toChannelType( compID ) );
+  const unsigned bitDepth               = tu.cu->sps->getBitDepth();
   const int      TRANSFORM_MATRIX_SHIFT = g_transformMatrixShift;
   const TCoeff   clipMinimum            = -( 1 << maxLog2TrDynamicRange );
   const TCoeff   clipMaximum            =  ( 1 << maxLog2TrDynamicRange ) - 1;
@@ -456,8 +456,8 @@ void TrQuant::xIT( const TransformUnit &tu, const ComponentID &compID, const CCo
   {
     const int      shift_1st              =   TRANSFORM_MATRIX_SHIFT + 1 + COM16_C806_TRANS_PREC; // 1 has been added to shift_1st at the expense of shift_2nd
     const int      shift_2nd              = ( TRANSFORM_MATRIX_SHIFT + maxLog2TrDynamicRange - 1 ) - bitDepth + COM16_C806_TRANS_PREC;
-    CHECK_RECOVERABLE( shift_1st < 0, "Negative shift" );
-    CHECK_RECOVERABLE( shift_2nd < 0, "Negative shift" );
+    CHECK( shift_1st < 0, "Negative shift" );
+    CHECK( shift_2nd < 0, "Negative shift" );
     TCoeff *tmp   = m_tmp;
     fastInvTrans[trTypeVer][transformHeightIndex](pCoeff.buf, tmp, shift_1st, width, skipWidth, skipHeight, true,  clipMinimum, clipMaximum);
     fastInvTrans[trTypeHor][transformWidthIndex] (tmp,      block, shift_2nd, height,         0, skipWidth, false, clipMinimum, clipMaximum);
@@ -466,16 +466,16 @@ void TrQuant::xIT( const TransformUnit &tu, const ComponentID &compID, const CCo
   else if( width == 1 ) //1-D vertical transform
   {
     int shift = ( TRANSFORM_MATRIX_SHIFT + maxLog2TrDynamicRange - 1 ) - bitDepth + COM16_C806_TRANS_PREC;
-    CHECK_RECOVERABLE( shift < 0, "Negative shift" );
-    CHECK_RECOVERABLE( ( transformHeightIndex < 0 ), "There is a problem with the height." );
+    CHECK( shift < 0, "Negative shift" );
+    CHECK( ( transformHeightIndex < 0 ), "There is a problem with the height." );
     fastInvTrans[trTypeVer][transformHeightIndex]( pCoeff.buf, block, shift + 1, 1, 0, skipHeight, false, clipMinimum, clipMaximum );
     shiftlast = shift + 1;
   }
   else //if(iHeight == 1) //1-D horizontal transform
   {
     const int      shift              = ( TRANSFORM_MATRIX_SHIFT + maxLog2TrDynamicRange - 1 ) - bitDepth + COM16_C806_TRANS_PREC;
-    CHECK_RECOVERABLE( shift < 0, "Negative shift" );
-    CHECK_RECOVERABLE( ( transformWidthIndex < 0 ), "There is a problem with the width." );
+    CHECK( shift < 0, "Negative shift" );
+    CHECK( ( transformWidthIndex < 0 ), "There is a problem with the width." );
     fastInvTrans[trTypeHor][transformWidthIndex]( pCoeff.buf, block, shift + 1, 1, 0, skipWidth, false, clipMinimum, clipMaximum );
     shiftlast = shift + 1;
   }

@@ -48,8 +48,9 @@ POSSIBILITY OF SUCH DAMAGE.
 
 #include <stdint.h>
 #include <vector>
-#include <stdio.h>
+#include <memory>
 #include "CommonDef.h"
+#include "CommonDefX86.h"   // needed for simde_bswap64, but don't just include simde-common.h, because it breaks other files
 
 namespace vvdec
 {
@@ -57,92 +58,6 @@ namespace vvdec
 // ====================================================================================================================
 // Class definition
 // ====================================================================================================================
-/**
- * Model of a writable bitstream that accumulates bits to produce a
- * bytestream.
- */
-class OutputBitstream
-{
-  /**
-   * FIFO for storage of bytes.  Use:
-   *  - fifo.push_back(x) to append words
-   *  - fifo.clear() to empty the FIFO
-   *  - &fifo.front() to get a pointer to the data array.
-   *    NB, this pointer is only valid until the next push_back()/clear()
-   */
-  std::vector<uint8_t> m_fifo;
-
-  uint32_t m_num_held_bits; /// number of bits not flushed to bytestream.
-  uint8_t m_held_bits; /// the bits held and not flushed to bytestream.
-                             /// this value is always msb-aligned, bigendian.
-public:
-  // create / destroy
-  OutputBitstream();
-  ~OutputBitstream();
-
-  // interface for encoding
-  /**
-   * append uiNumberOfBits least significant bits of uiBits to
-   * the current bitstream
-   */
-  void        write           ( uint32_t uiBits, uint32_t uiNumberOfBits );
-
-  /** insert one bits until the bitstream is byte-aligned */
-  void        writeAlignOne   ();
-
-  /** insert zero bits until the bitstream is byte-aligned */
-  void        writeAlignZero  ();
-
-  // utility functions
-
-  /**
-   * Return a pointer to the start of the byte-stream buffer.
-   * Pointer is valid until the next write/flush/reset call.
-   * NB, data is arranged such that subsequent bytes in the
-   * bytestream are stored in ascending addresses.
-   */
-  uint8_t* getByteStream() const;
-
-  /**
-   * Return the number of valid bytes available from  getByteStream()
-   */
-  uint32_t getByteStreamLength();
-
-  /**
-   * Reset all internal state.
-   */
-  void clear();
-
-  /**
-   * returns the number of bits that need to be written to
-   * achieve byte alignment.
-   */
-  int getNumBitsUntilByteAligned() const { return (8 - m_num_held_bits) & 0x7; }
-
-  /**
-   * Return the number of bits that have been written since the last clear()
-   */
-  uint32_t getNumberOfWrittenBits() const { return uint32_t(m_fifo.size()) * 8 + m_num_held_bits; }
-
-  void insertAt(const OutputBitstream& src, uint32_t pos);
-
-  /**
-   * Return a reference to the internal fifo
-   */
-  std::vector<uint8_t>& getFIFO() { return m_fifo; }
-
-  uint8_t getHeldBits  ()          { return m_held_bits;          }
-
-  //OutputBitstream& operator= (const OutputBitstream& src);
-  /** Return a reference to the internal fifo */
-  const std::vector<uint8_t>& getFIFO() const { return m_fifo; }
-
-  void          addSubstream    ( OutputBitstream* pcSubstream );
-  void writeByteAlignment();
-
-  //! returns the number of start code emulations contained in the current buffer
-  int countStartCodeEmulations();
-};
 
 /**
  * Model of an input bitstream that extracts bits from a predefined
@@ -150,92 +65,106 @@ public:
  */
 class InputBitstream
 {
-protected:
+private:
   std::vector<uint8_t>  m_fifo;   /// FIFO for storage of complete bytes
   std::vector<uint32_t> m_emulationPreventionByteLocation;
 
   uint32_t m_fifo_idx = 0;   /// Read index into m_fifo
 
   uint32_t m_num_held_bits = 0;
-  uint8_t  m_held_bits     = 0;
+  uint64_t m_held_bits     = 0;
+
+  bool m_zeroByteAdded = false;
+
+#if ENABLE_TRACING
   uint32_t m_numBitsRead   = 0;
+#endif
 
 public:
   /**
    * Create a new bitstream reader object that reads from buf.
    */
-  InputBitstream()                            = default;
-  ~InputBitstream()                           = default;
-  InputBitstream( const InputBitstream& src ) = default;
-  InputBitstream( InputBitstream&& src )      = default;
+  InputBitstream()  = default;
+  ~InputBitstream() = default;
+  CLASS_COPY_MOVE_DEFAULT( InputBitstream )
 
   void resetToStart();
-  
-  void inputZeroByte() { m_fifo.push_back(0); };
+
+  void inputZeroByte() { if( !m_zeroByteAdded ) m_fifo.push_back(0); };
 
   // interface for decoding
-  void pseudoRead( uint32_t uiNumberOfBits, uint32_t& ruiBits );
-  void read      ( uint32_t uiNumberOfBits, uint32_t& ruiBits );
-  void readByte  ( uint32_t& ruiBits )
+  uint32_t       peekBits( uint32_t uiNumberOfBits );
+  uint32_t       read    ( uint32_t uiNumberOfBits );
+  inline uint8_t readByte()
   {
-    ruiBits = m_fifo[m_fifo_idx++];
 #if ENABLE_TRACING
     m_numBitsRead += 8;
 #endif
+
+    if( m_num_held_bits )
+    {
+      CHECKD( m_num_held_bits & 7, "held bits should be byte-aligned" );
+    }
+    else
+    {
+      load_next_bits( 8 );
+    }
+
+    uint32_t uiBits = 0xff & ( m_held_bits >> ( m_num_held_bits - 8 ) );
+    m_num_held_bits -= 8;
+    return uiBits;
   }
-  
+
   // In the function initBitstream, add a Byte at the end of m_fifo
   // In the past, readByteFlag judged whether to read data according to the flag, so it would not cross the boundary
   // Now, in order to speed up, readByteFlag will definitely read data, so it may cross the boundary
-  void readByteFlag(uint32_t& ruiBits, int flag) {
-    ruiBits = flag & m_fifo[m_fifo_idx];
-    m_fifo_idx += flag & 1;
+  inline uint8_t readByteFlag( uint8_t flag )
+  {
 #if ENABLE_TRACING
-    m_numBitsRead += flag & 8;
+    m_numBitsRead += (flag & 1) * 8;
 #endif
+
+    if( m_num_held_bits )
+    {
+      CHECKD( m_num_held_bits & 7, "held bits should be byte-aligned" );
+    }
+    else
+    {
+      load_next_bits( 8 );
+    }
+
+    uint32_t uiBits = flag & ( m_held_bits >> ( m_num_held_bits - 8 ) );
+    m_num_held_bits -= 8 * ( flag & 1 );
+    return uiBits;
   }
 
-  void peekPreviousByte( uint32_t& byte ) { byte = m_fifo[m_fifo_idx - 1]; }
+  inline uint8_t peekPreviousByte()
+  {
+    CHECKD( m_num_held_bits & 7, "held bits should be byte-aligned" );
+
+    // We don't know if m_heldBits actually contains the previous byte, because readByteFlag()
+    // sometimes refills m_heldBits, but doesn't actually consume any of the loaded bits. So
+    // we always need to look at the actual data buffer.
+    const unsigned held_bytes = m_num_held_bits >> 3;
+    CHECK( m_fifo_idx - held_bytes - 1 >= m_fifo.size(), "Exceeded FIFO size" );
+    return m_fifo[m_fifo_idx - held_bytes - 1];
+  }
 
   uint32_t         readOutTrailingBits();
-  uint8_t          getHeldBits() { return m_held_bits; }
-  OutputBitstream& operator=( const OutputBitstream& src );
-  uint32_t         getByteLocation() { return m_fifo_idx; }
-
-  // Peek at bits in word-storage. Used in determining if we have completed reading of current bitstream and therefore
-  // slice in LCEC.
-  uint32_t peekBits( uint32_t uiBits )
+  inline uint8_t   getHeldBits()     { return m_held_bits; }
+  inline uint32_t  getByteLocation()
   {
-    uint32_t tmp;
-    pseudoRead( uiBits, tmp );
-    return tmp;
+    CHECKD( m_num_held_bits & 7, "held bits should be byte-aligned" );
+    return m_fifo_idx - m_num_held_bits / 8;
   }
 
-  // utility functions
-  uint32_t read( uint32_t numberOfBits )
-  {
-    uint32_t tmp;
-    read( numberOfBits, tmp );
-    return tmp;
-  }
-  uint32_t readByte()
-  {
-    uint32_t tmp;
-    readByte( tmp );
-    return tmp;
-  }
-  
-  uint32_t readByteFlag(int flag)
-  {
-    uint32_t tmp;
-    readByteFlag(tmp, flag);
-    return tmp;
-  }
-  uint32_t        getNumBitsUntilByteAligned()            { return m_num_held_bits & ( 0x7 ); }
-  uint32_t        getNumBitsLeft()                        { return 8 * ( (uint32_t) m_fifo.size() - m_fifo_idx ) + m_num_held_bits; }
-  uint32_t        getNumBitsRead()                        { return m_numBitsRead; }
+  inline uint8_t  getNumBitsUntilByteAligned() const { return m_num_held_bits & ( 0x7 ); }
+  inline uint32_t getNumBitsLeft()             const { return ( m_fifo_idx < m_fifo.size() ? 8 * ( (uint32_t) m_fifo.size() - m_fifo_idx ) : 0 ) + m_num_held_bits; }
+#if ENABLE_TRACING
+  inline uint32_t getNumBitsRead()             const { return m_numBitsRead; }
+#endif
   uint32_t        readByteAlignment();
-  InputBitstream* extractSubstream( uint32_t uiNumBits );   // Read the nominated number of bits, and return as a bitstream.
+  std::unique_ptr<InputBitstream> extractSubstream( uint32_t uiNumBits );   // Read the nominated number of bits, and return as a bitstream.
 
   void                         pushEmulationPreventionByteLocation( uint32_t pos )                    { m_emulationPreventionByteLocation.push_back( pos ); }
   uint32_t                     numEmulationPreventionBytesRead()                                      { return (uint32_t) m_emulationPreventionByteLocation.size(); }
@@ -246,7 +175,41 @@ public:
 
   const std::vector<uint8_t>& getFifo() const { return m_fifo; }
         std::vector<uint8_t>& getFifo()       { return m_fifo; }
-  void                        clearFifo()     { m_fifo.clear(); }
+  void                        clearFifo()     { m_fifo.clear(); m_zeroByteAdded = false; }
+
+private:
+  inline void load_next_bits( int requiredBits )
+  {
+    uint32_t num_bytes_to_load = 8;
+    if UNLIKELY( m_fifo_idx + num_bytes_to_load > m_fifo.size() )
+    {
+      const int required_bytes = ( requiredBits + 7 ) >> 3;
+      CHECK( m_fifo_idx + required_bytes > m_fifo.size(), "Exceeded FIFO size" );
+
+      num_bytes_to_load = (uint32_t)m_fifo.size() - m_fifo_idx;
+
+      m_held_bits = 0;
+      switch( num_bytes_to_load )
+      {
+      case 8: m_held_bits =  static_cast<uint64_t>( m_fifo[m_fifo_idx++] ) << ( 7 * 8 );
+      case 7: m_held_bits |= static_cast<uint64_t>( m_fifo[m_fifo_idx++] ) << ( 6 * 8 );
+      case 6: m_held_bits |= static_cast<uint64_t>( m_fifo[m_fifo_idx++] ) << ( 5 * 8 );
+      case 5: m_held_bits |= static_cast<uint64_t>( m_fifo[m_fifo_idx++] ) << ( 4 * 8 );
+      case 4: m_held_bits |= static_cast<uint64_t>( m_fifo[m_fifo_idx++] ) << ( 3 * 8 );
+      case 3: m_held_bits |= static_cast<uint64_t>( m_fifo[m_fifo_idx++] ) << ( 2 * 8 );
+      case 2: m_held_bits |= static_cast<uint64_t>( m_fifo[m_fifo_idx++] ) << ( 1 * 8 );
+      case 1: m_held_bits |= static_cast<uint64_t>( m_fifo[m_fifo_idx++] );
+      }
+    }
+    else
+    {
+      m_held_bits = simde_bswap64( *reinterpret_cast<uint64_t*>( &m_fifo[m_fifo_idx] ) );
+      m_fifo_idx += num_bytes_to_load;
+    }
+
+    /* resolve remainder bits */
+    m_num_held_bits = num_bytes_to_load * 8;
+  }
 };
 
 }

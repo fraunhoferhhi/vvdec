@@ -304,7 +304,7 @@ void fastInv_SSE( const TMatrixCoeff* it, const TCoeff* src, TCoeff* dst, unsign
   }
   else
   {
-    THROW( "Unsupported size" );
+    THROW_FATAL( "Unsupported size" );
   }
 #if USE_AVX2
 
@@ -364,7 +364,7 @@ void roundClip_SSE( TCoeff *dst, unsigned width, unsigned height, unsigned strid
   }
   else
   {
-    THROW( "Unsupported size" );
+    THROW_FATAL( "Unsupported size" );
   }
 #if USE_AVX2
 
@@ -466,14 +466,14 @@ void cpyResiClip_SSE( const TCoeff* src, Pel* dst, ptrdiff_t stride, unsigned wi
   }
   else
   {
-    THROW( "Unsupported size" );
+    THROW_FATAL( "Unsupported size" );
   }
 }
 
 template<X86_VEXT vext>
 static void simdInvLfnstNxNCore( int* src, int* dst, const uint32_t mode, const uint32_t index, const uint32_t size, int zeroOutSize )
 {
-  CHECK_RECOVERABLE( index > 2 || ( zeroOutSize != 8 && zeroOutSize != 16 ), "Wrong parameters" );
+  CHECK( index > 2 || ( zeroOutSize != 8 && zeroOutSize != 16 ), "Wrong parameters" );
 
   static constexpr int maxLog2TrDynamicRange = 15;
   const TCoeff    outputMinimum = -( 1 << maxLog2TrDynamicRange );

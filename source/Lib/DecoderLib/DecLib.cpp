@@ -130,7 +130,7 @@ void DecLib::create( int numDecThreads, int parserFrameDelay, const UserAllocato
 
   if( parserFrameDelay < 0 )
   {
-    CHECK( numDecThreads < 0, "invalid number of threads" );
+    CHECK_FATAL( numDecThreads < 0, "invalid number of threads" );
     parserFrameDelay = std::min<int>( ( numDecThreads * DEFAULT_PARSE_DELAY_FACTOR ) >> 4, DEFAULT_PARSE_DELAY_MAX );
   }
   m_parseFrameDelay = parserFrameDelay;
@@ -201,7 +201,7 @@ Picture* DecLib::decode( InputNALUnit& nalu )
     {
       while( pcParsedPic->error || pcParsedPic->wasLost || pcParsedPic->parseDone.hasException() )
       {
-        CHECK( pcParsedPic->progress >= Picture::reconstructing, "The error picture shouldn't be in reconstructing state yet." );
+        CHECK_FATAL( pcParsedPic->progress >= Picture::reconstructing, "The error picture shouldn't be in reconstructing state yet." );
 
         std::exception_ptr parsing_exception = pcParsedPic->parseDone.hasException() ? pcParsedPic->parseDone.getException() : nullptr;
         if( parsing_exception )
@@ -226,7 +226,7 @@ Picture* DecLib::decode( InputNALUnit& nalu )
         // this exception has not been thrown outside (error must have happened in slice parsing task)
         if( parsing_exception )
         {
-          CHECK( pcParsedPic->exceptionThrownOut, "The exception shouldn't have been thrown out already." );
+          CHECK_FATAL( pcParsedPic->exceptionThrownOut, "The exception shouldn't have been thrown out already." );
           pcParsedPic->exceptionThrownOut = true;
           std::rethrow_exception( parsing_exception );
         }
@@ -249,14 +249,14 @@ Picture* DecLib::decode( InputNALUnit& nalu )
       {
         blockAndFinishPictures( outPic );
 
-        CHECK_RECOVERABLE( outPic->progress < Picture::finished, "Picture still not finished. Something is really broken." );
+        CHECK( outPic->progress < Picture::finished, "Picture still not finished. Something is really broken." );
       }
 
       m_checkMissingOutput = true;
     }
 
     // warn if we don't produce an output picture for every incoming picture
-    CHECK_WARN( m_checkMissingOutput && !outPic, "missing output picture" ); // this CHECK is not needed in flushPic(), because in flushPic() the nullptr signals the end of the bitstream
+    CHECK_WARN( m_checkMissingOutput && !outPic, "missing output picture" ); // this CHECK_FATAL is not needed in flushPic(), because in flushPic() the nullptr signals the end of the bitstream
     return outPic;
   }
 
@@ -298,12 +298,12 @@ Picture* DecLib::flushPic()
     return outPic;
   }
 
-  CHECK_RECOVERABLE( outPic, "we shouldn't be holding an output picture here" );
+  CHECK( outPic, "we shouldn't be holding an output picture here" );
   // flush remaining pictures without considering num reorder pics
   outPic = getNextOutputPic( true );
   if( outPic )
   {
-    CHECK_RECOVERABLE( outPic->progress != Picture::finished, "all pictures should have been finished by now" );
+    CHECK( outPic->progress != Picture::finished, "all pictures should have been finished by now" );
     // outPic->referenced = false;
     return outPic;
   }
@@ -459,7 +459,7 @@ void DecLib::checkPictureHashSEI( Picture* pcPic )
     return;
   }
 
-  CHECK_RECOVERABLE( pcPic->progress < Picture::reconstructed, "picture not reconstructed" );
+  CHECK( pcPic->progress < Picture::reconstructed, "picture not reconstructed" );
 
   seiMessages pictureHashes = SEI_internal::getSeisByType( pcPic->seiMessageList, VVDEC_DECODED_PICTURE_HASH );
 
@@ -488,7 +488,7 @@ void DecLib::checkPictureHashSEI( Picture* pcPic )
     seiMessages scalableNestingSeis = SEI_internal::getSeisByType( pcPic->seiMessageList, VVDEC_SCALABLE_NESTING );
     for( auto* seiIt: scalableNestingSeis )
     {
-      CHECK_RECOVERABLE( seiIt->payloadType != VVDEC_SCALABLE_NESTING, "expected nesting SEI" );
+      CHECK( seiIt->payloadType != VVDEC_SCALABLE_NESTING, "expected nesting SEI" );
 
       const vvdecSEIScalableNesting* nestingSei = (vvdecSEIScalableNesting*)seiIt->payload;
       if( !nestingSei->snSubpicFlag )
@@ -499,7 +499,7 @@ void DecLib::checkPictureHashSEI( Picture* pcPic )
       for( int i = 0; i < nestingSei->snNumSEIs; ++i )
       {
         auto& nestedSei = nestingSei->nestedSEIs[i];
-        CHECK_RECOVERABLE( nestedSei == nullptr, "missing nested sei" );
+        CHECK( nestedSei == nullptr, "missing nested sei" );
         if( nestedSei && nestedSei->payloadType != VVDEC_DECODED_PICTURE_HASH )
           continue;
 
@@ -511,7 +511,7 @@ void DecLib::checkPictureHashSEI( Picture* pcPic )
         }
         else
         {
-          CHECK_RECOVERABLE( pcPic->subpicsCheckedDPH.size() != pcPic->subPictures.size(), "Picture::subpicsCheckedDPH not properly initialized" );
+          CHECK( pcPic->subpicsCheckedDPH.size() != pcPic->subPictures.size(), "Picture::subpicsCheckedDPH not properly initialized" );
         }
 
         for( int j = 0; j < nestingSei->snNumSubpics; ++j )
@@ -577,7 +577,7 @@ Picture* DecLib::getNextOutputPic( bool bFlush )
 
 void DecLib::reconPicture( Picture* pcPic )
 {
-  CHECK( std::any_of( m_decLibRecon.begin(), m_decLibRecon.end(), [=]( auto& rec ) { return rec.getCurrPic() == pcPic; } ),
+  CHECK_FATAL( std::any_of( m_decLibRecon.begin(), m_decLibRecon.end(), [=]( auto& rec ) { return rec.getCurrPic() == pcPic; } ),
          "(Reused) Picture structure is still in progress in decLibRecon." );
 
   DecLibRecon* reconInstance = &m_decLibRecon.front();
@@ -635,26 +635,26 @@ void DecLib::xCheckNalUnitConstraintFlags( const ConstraintInfo *cInfo, uint32_t
 {
   if( cInfo != NULL )
   {
-    CHECK_RECOVERABLE( cInfo->getNoTrailConstraintFlag() && naluType == NAL_UNIT_CODED_SLICE_TRAIL,
-                       "Non-conforming bitstream. no_trail_constraint_flag is equal to 1 but bitstream contains NAL unit of type TRAIL_NUT." );
-    CHECK_RECOVERABLE( cInfo->getNoStsaConstraintFlag()  && naluType == NAL_UNIT_CODED_SLICE_STSA,
-                       "Non-conforming bitstream. no_stsa_constraint_flag is equal to 1 but bitstream contains NAL unit of type STSA_NUT." );
-    CHECK_RECOVERABLE( cInfo->getNoRaslConstraintFlag()  && naluType == NAL_UNIT_CODED_SLICE_RASL,
-                       "Non-conforming bitstream. no_rasl_constraint_flag is equal to 1 but bitstream contains NAL unit of type RASL_NUT." );
-    CHECK_RECOVERABLE( cInfo->getNoRadlConstraintFlag()  && naluType == NAL_UNIT_CODED_SLICE_RADL,
-                       "Non-conforming bitstream. no_radl_constraint_flag is equal to 1 but bitstream contains NAL unit of type RADL_NUT." );
-    CHECK_RECOVERABLE( cInfo->getNoIdrConstraintFlag()   && naluType == NAL_UNIT_CODED_SLICE_IDR_W_RADL,
-                       "Non-conforming bitstream. no_idr_constraint_flag is equal to 1 but bitstream contains NAL unit of type IDR_W_RADL." );
-    CHECK_RECOVERABLE( cInfo->getNoIdrConstraintFlag()   && naluType == NAL_UNIT_CODED_SLICE_IDR_N_LP,
-                       "Non-conforming bitstream. no_idr_constraint_flag is equal to 1 but bitstream contains NAL unit of type IDR_N_LP." );
-    CHECK_RECOVERABLE( cInfo->getNoCraConstraintFlag()   && naluType == NAL_UNIT_CODED_SLICE_CRA,
-                       "Non-conforming bitstream. no_cra_constraint_flag is equal to 1 but bitstream contains NAL unit of type CRA_NUT." );
-    CHECK_RECOVERABLE( cInfo->getNoGdrConstraintFlag()   && naluType == NAL_UNIT_CODED_SLICE_GDR,
-                       "Non-conforming bitstream. no_gdr_constraint_flag is equal to 1 but bitstream contains NAL unit of type GDR_NUT." );
-    CHECK_RECOVERABLE( cInfo->getNoApsConstraintFlag()   && naluType == NAL_UNIT_PREFIX_APS,
-                       "Non-conforming bitstream. no_aps_constraint_flag is equal to 1 but bitstream contains NAL unit of type APS_PREFIX_NUT." );
-    CHECK_RECOVERABLE( cInfo->getNoApsConstraintFlag()   && naluType == NAL_UNIT_SUFFIX_APS,
-                       "Non-conforming bitstream. no_aps_constraint_flag is equal to 1 but bitstream contains NAL unit of type APS_SUFFIX_NUT." );
+    CHECK( cInfo->getNoTrailConstraintFlag() && naluType == NAL_UNIT_CODED_SLICE_TRAIL,
+           "Non-conforming bitstream. no_trail_constraint_flag is equal to 1 but bitstream contains NAL unit of type TRAIL_NUT." );
+    CHECK( cInfo->getNoStsaConstraintFlag()  && naluType == NAL_UNIT_CODED_SLICE_STSA,
+           "Non-conforming bitstream. no_stsa_constraint_flag is equal to 1 but bitstream contains NAL unit of type STSA_NUT." );
+    CHECK( cInfo->getNoRaslConstraintFlag()  && naluType == NAL_UNIT_CODED_SLICE_RASL,
+           "Non-conforming bitstream. no_rasl_constraint_flag is equal to 1 but bitstream contains NAL unit of type RASL_NUT." );
+    CHECK( cInfo->getNoRadlConstraintFlag()  && naluType == NAL_UNIT_CODED_SLICE_RADL,
+           "Non-conforming bitstream. no_radl_constraint_flag is equal to 1 but bitstream contains NAL unit of type RADL_NUT." );
+    CHECK( cInfo->getNoIdrConstraintFlag()   && naluType == NAL_UNIT_CODED_SLICE_IDR_W_RADL,
+           "Non-conforming bitstream. no_idr_constraint_flag is equal to 1 but bitstream contains NAL unit of type IDR_W_RADL." );
+    CHECK( cInfo->getNoIdrConstraintFlag()   && naluType == NAL_UNIT_CODED_SLICE_IDR_N_LP,
+           "Non-conforming bitstream. no_idr_constraint_flag is equal to 1 but bitstream contains NAL unit of type IDR_N_LP." );
+    CHECK( cInfo->getNoCraConstraintFlag()   && naluType == NAL_UNIT_CODED_SLICE_CRA,
+           "Non-conforming bitstream. no_cra_constraint_flag is equal to 1 but bitstream contains NAL unit of type CRA_NUT." );
+    CHECK( cInfo->getNoGdrConstraintFlag()   && naluType == NAL_UNIT_CODED_SLICE_GDR,
+           "Non-conforming bitstream. no_gdr_constraint_flag is equal to 1 but bitstream contains NAL unit of type GDR_NUT." );
+    CHECK( cInfo->getNoApsConstraintFlag()   && naluType == NAL_UNIT_PREFIX_APS,
+           "Non-conforming bitstream. no_aps_constraint_flag is equal to 1 but bitstream contains NAL unit of type APS_PREFIX_NUT." );
+    CHECK( cInfo->getNoApsConstraintFlag()   && naluType == NAL_UNIT_SUFFIX_APS,
+           "Non-conforming bitstream. no_aps_constraint_flag is equal to 1 but bitstream contains NAL unit of type APS_SUFFIX_NUT." );
   }
 }
 
@@ -682,21 +682,21 @@ void DecLib::checkSeiInPictureUnit()
 
       do
       {
-        bs.readByte(val);
+        val = bs.readByte();
         payloadType += val;
       } while (val==0xFF);
 
       uint32_t payloadSize = 0;
       do
       {
-        bs.readByte(val);
+        val = bs.readByte();
         payloadSize += val;
       } while (val==0xFF);
-    
+
       uint8_t *payload = new uint8_t[payloadSize];
       for( uint32_t i = 0; i < payloadSize; i++ )
       {
-        bs.readByte(val);
+        val = bs.readByte();
         payload[i] = (uint8_t)val;
       }
       seiList.push_back(std::tuple<int, uint32_t, uint8_t*>(payloadType, payloadSize, payload));
@@ -741,7 +741,7 @@ void DecLib::checkSeiInPictureUnit()
         }
       }
     }
-    CHECK_RECOVERABLE(count > 4, "There shall be less than or equal to 4 identical sei_payload( ) syntax structures within a picture unit.");
+    CHECK(count > 4, "There shall be less than or equal to 4 identical sei_payload( ) syntax structures within a picture unit.");
   }
 
   // free SEI message list memory
@@ -770,11 +770,11 @@ void DecLib::checkAPSInPictureUnit()
     if (NALUnit::isVclNalUnitType(nalu))
     {
       firstVCLFound = true;
-      CHECK_RECOVERABLE( suffixAPSFound, "When any suffix APS NAL units are present in a PU, they shall follow the last VCL unit of the PU" );
+      CHECK( suffixAPSFound, "When any suffix APS NAL units are present in a PU, they shall follow the last VCL unit of the PU" );
     }
     else if (nalu == NAL_UNIT_PREFIX_APS)
     {
-      CHECK_RECOVERABLE( firstVCLFound, "When any prefix APS NAL units are present in a PU, they shall precede the first VCL unit of the PU");
+      CHECK( firstVCLFound, "When any prefix APS NAL units are present in a PU, they shall precede the first VCL unit of the PU");
     }
     else if (nalu == NAL_UNIT_SUFFIX_APS)
     {

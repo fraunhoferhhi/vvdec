@@ -261,7 +261,7 @@ void sampleRateConvCore( const std::pair<int, int> scalingRatio, const std::pair
   int* buf = new int[orgHeight * scaledWidth];
   int maxVal = (1 << bitDepth) - 1;
 
-  CHECK_RECOVERABLE( bitDepth > 17, "Overflow may happen!" );
+  CHECK( bitDepth > 17, "Overflow may happen!" );
 
   for( int i = 0; i < scaledWidth; i++ )
   {
@@ -421,7 +421,7 @@ void AreaBuf<Pel>::rescaleBuf( const AreaBuf<const Pel>& beforeScaling, Componen
                              confBefore.getWindowLeftOffset() * SPS::getWinUnitX( chromaFormatIDC ), confBefore.getWindowTopOffset() * SPS::getWinUnitY( chromaFormatIDC ),
                              buf, stride, width, height,
                              confAfter.getWindowLeftOffset() * SPS::getWinUnitX( chromaFormatIDC ), confAfter.getWindowTopOffset() * SPS::getWinUnitY( chromaFormatIDC ),
-                             bitDepths.recon[toChannelType( compID )], isLuma( compID ),
+                             bitDepths.recon, isLuma( compID ),
                              isLuma( compID ) ? 1 : horCollocatedChromaFlag, isLuma( compID ) ? 1 : verCollocatedChromaFlag );
 }
 
@@ -537,7 +537,7 @@ void AreaBuf<Pel>::linearTransform( const int scale, const int shift, const int 
 
   if( width == 1 )
   {
-    THROW( "Blocks of width = 1 not supported" );
+    THROW_FATAL( "Blocks of width = 1 not supported" );
   }
   else if( ( width & 7 ) == 0 )
   {
@@ -565,7 +565,7 @@ void AreaBuf<Pel>::linearTransform( const int scale, const int shift, const int 
 template<>
 void AreaBuf<Pel>::transposedFrom( const AreaBuf<const Pel> &other )
 {
-  CHECK_RECOVERABLE( width != other.height || height != other.width, "Incompatible size" );
+  CHECK( width != other.height || height != other.width, "Incompatible size" );
 
   if( ( ( width | height ) & 7 ) == 0 )
   {
@@ -661,7 +661,7 @@ void PelStorage::create( const UnitArea &_UnitArea )
 
 void PelStorage::create( const ChromaFormat _chromaFormat, const Size& _size, const unsigned _maxCUSize, const unsigned _margin, const unsigned _alignmentByte, const bool _scaleChromaMargin, const UserAllocator* userAlloc )
 {
-  CHECK_RECOVERABLE( !bufs.empty(), "Trying to re-create an already initialized buffer" );
+  CHECK( !bufs.empty(), "Trying to re-create an already initialized buffer" );
 
   chromaFormat = _chromaFormat;
 
@@ -702,7 +702,7 @@ void PelStorage::create( const ChromaFormat _chromaFormat, const Size& _size, co
     if( _alignment )
     {
       // make sure buffer lines are align
-      CHECK_RECOVERABLE( _alignmentByte != MEMORY_ALIGN_DEF_SIZE, "Unsupported alignment" );
+      CHECK( _alignmentByte != MEMORY_ALIGN_DEF_SIZE, "Unsupported alignment" );
       totalWidth = ( ( totalWidth + _alignment - 1 ) / _alignment ) * _alignment;
     }
 
@@ -711,13 +711,13 @@ void PelStorage::create( const ChromaFormat _chromaFormat, const Size& _size, co
 #else
     uint32_t area = totalWidth * totalHeight;
 #endif
-    CHECK_RECOVERABLE( !area, "Trying to create a buffer with zero area" );
+    CHECK( !area, "Trying to create a buffer with zero area" );
 
     m_origSi[i] = Size{ totalWidth, totalHeight };
     if( userAlloc && userAlloc->enabled )
     {
       m_origin[i] = ( Pel* ) userAlloc->create( userAlloc->opaque, (vvdecComponentType)i, sizeof(Pel)*area, MEMORY_ALIGN_DEF_SIZE, &m_allocator[i] );
-      CHECK_RECOVERABLE( m_origin[i] == nullptr, "external allocator callback failed (returned NULL)." );
+      CHECK( m_origin[i] == nullptr, "external allocator callback failed (returned NULL)." );
       m_externAllocator = true;
       m_userAlloc       = userAlloc;
     }
@@ -752,9 +752,9 @@ void PelStorage::swap( PelStorage& other )
   for( uint32_t i = 0; i < numCh; i++ )
   {
     // check this otherwise it would turn out to get very weird
-    CHECK_RECOVERABLE( chromaFormat                   != other.chromaFormat                  , "Incompatible formats" );
-    CHECK_RECOVERABLE( get( ComponentID( i ) )        != other.get( ComponentID( i ) )       , "Incompatible formats" );
-    CHECK_RECOVERABLE( get( ComponentID( i ) ).stride != other.get( ComponentID( i ) ).stride, "Incompatible formats" );
+    CHECK( chromaFormat                   != other.chromaFormat                  , "Incompatible formats" );
+    CHECK( get( ComponentID( i ) )        != other.get( ComponentID( i ) )       , "Incompatible formats" );
+    CHECK( get( ComponentID( i ) ).stride != other.get( ComponentID( i ) ).stride, "Incompatible formats" );
 
     std::swap( bufs[i].buf,    other.bufs[i].buf );
     std::swap( bufs[i].stride, other.bufs[i].stride );
@@ -778,7 +778,7 @@ void PelStorage::destroy()
       }
       else if( m_allocator[i])
       {
-        CHECK_RECOVERABLE( m_userAlloc->unref == nullptr, "vvdecUnrefBufferCallback not valid, cannot unref picture buffer" )
+        CHECK( m_userAlloc->unref == nullptr, "vvdecUnrefBufferCallback not valid, cannot unref picture buffer" )
         m_userAlloc->unref( m_userAlloc->opaque, m_allocator[i] );
       }
       m_origin[i] = nullptr;
@@ -877,7 +877,7 @@ template<typename T>
 void UnitBuf<T>::writeToFile( std::string filename ) const
 {
   FILE* f = fopen( filename.c_str(), "w" );
-  CHECK( f == nullptr, "writeToFile() cannot open file for writing" )
+  CHECK_FATAL( f == nullptr, "writeToFile() cannot open file for writing" )
 
   for( auto& b: bufs )
   {

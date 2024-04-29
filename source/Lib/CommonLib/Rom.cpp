@@ -68,9 +68,6 @@ namespace vvdec
 // Initialize / destroy functions
 // ====================================================================================================================
 
-#if ENABLE_TRACING
-CDTrace *g_trace_ctx = NULL;
-#endif
 
 #if ENABLE_TIME_PROFILING
 TimeProfiler *g_timeProfiler = nullptr;

@@ -46,6 +46,9 @@ POSSIBILITY OF SUCH DAMAGE.
 #pragma once
 
 #include "CommonDef.h"
+
+#if ENABLE_TIME_PROFILING || ENABLE_TIME_PROFILING_EXTENDED
+
 #include "StatCounter.h"
 
 #include <stdlib.h>
@@ -65,7 +68,6 @@ POSSIBILITY OF SUCH DAMAGE.
 namespace vvdec
 {
 
-#if ENABLE_TIME_PROFILING || ENABLE_TIME_PROFILING_EXTENDED
 
 // Make enum and strings macros, used for TimeProfiler and DTrace
 #define MAKE_ENUM(VAR) VAR,
@@ -352,7 +354,10 @@ public:
 #define BH_(cs,ch)  ( Log2( ((cs)->area.block( ComponentID(ch) ).height) ) )
 #define PROFILER_SCOPE_AND_STAGE_EXT2D(cond,p,s,cs,ch)          PROFILER_SCOPE_AND_STAGE_EXT2D_(cond,p,s,!(cs).slice->isIntra(), BX_(cs,ch), BY_(cs,ch), BW_(cs,ch), BH_(cs,ch) )
 #endif
-#endif
+
+}   // namespace vvdec
+
+#endif   // ENABLE_TIME_PROFILING || ENABLE_TIME_PROFILING_EXTENDED
 
 #if ENABLE_TIME_PROFILING
 #define PROFILER_ACCUM_AND_START_NEW_SET(cond,p,s)              (*(p))(s)
@@ -369,5 +374,3 @@ public:
 #define PROFILER_SCOPE_AND_STAGE(cond,p,s)
 #define PROFILER_SCOPE_AND_STAGE_EXT(cond,p,s,cs,ch)
 #endif
-
-}

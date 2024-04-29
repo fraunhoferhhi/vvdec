@@ -46,13 +46,12 @@ POSSIBILITY OF SUCH DAMAGE.
 #include "CommonLib/Picture.h"
 
 #include "DecSlice.h"
-#include "VLCReader.h"
 #include "SEIread.h"
 #include "NALread.h"
+#include "HLSyntaxReader.h"
 
 #include "CommonLib/ParameterSetManager.h"
 
-#include <deque>
 #include <unordered_set>
 
 namespace vvdec

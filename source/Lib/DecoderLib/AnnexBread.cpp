@@ -85,7 +85,7 @@ _byteStreamNALUnit(
   &&     (bs.eofBeforeNBytes(32/8) || bs.peekBytes(32/8) != 0x00000001))
   {
     uint8_t leading_zero_8bits = bs.readByte();
-    if(leading_zero_8bits != 0) { THROW( "Leading zero bits not zero" ); }
+    CHECK( leading_zero_8bits != 0, "Leading zero bits not zero" );
     stats.m_numLeadingZero8BitsBytes++;
   }
 
@@ -100,7 +100,7 @@ _byteStreamNALUnit(
   if (bs.peekBytes(24/8) != 0x000001)
   {
     uint8_t zero_byte = bs.readByte();
-    CHECK_RECOVERABLE( zero_byte != 0, "Zero byte not '0'" );
+    CHECK( zero_byte != 0, "Zero byte not '0'" );
     stats.m_numZeroByteBytes++;
   }
 
@@ -111,7 +111,7 @@ _byteStreamNALUnit(
    */
   /* NB, (1) guarantees that the next three bytes are 0x00 00 01 */
   uint32_t start_code_prefix_one_3bytes = bs.readBytes(24/8);
-  if(start_code_prefix_one_3bytes != 0x000001) { THROW( "Invalid code prefix" );}
+  CHECK(start_code_prefix_one_3bytes != 0x000001, "Invalid code prefix" );
   stats.m_numStartCodePrefixBytes += 3;
 
   /* 3. NumBytesInNALunit is set equal to the number of bytes starting with
@@ -152,7 +152,7 @@ _byteStreamNALUnit(
   &&     (bs.eofBeforeNBytes(32/8) || bs.peekBytes(32/8) != 0x00000001))
   {
     uint8_t trailing_zero_8bits = bs.readByte();
-    CHECK_RECOVERABLE( trailing_zero_8bits != 0, "Trailing zero bits not '0'" );
+    CHECK( trailing_zero_8bits != 0, "Trailing zero bits not '0'" );
     stats.m_numTrailingZero8BitsBytes++;
   }
 }

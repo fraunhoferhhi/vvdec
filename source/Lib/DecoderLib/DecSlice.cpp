@@ -44,10 +44,11 @@ POSSIBILITY OF SUCH DAMAGE.
     \brief    slice decoder class
 */
 
+#include "CABACReader.h"
 #include "DecSlice.h"
+#include "Picture.h"
+#include "Slice.h"
 
-#include "CommonLib/TrQuant.h"
-#include "CommonLib/UnitTools.h"
 #include "CommonLib/dtrace_next.h"
 #include "CommonLib/TimeProfiler.h"
 #include "CommonLib/AdaptiveLoopFilter.h"
@@ -67,11 +68,10 @@ void DecSlice::parseSlice( Slice* slice, InputBitstream* bitstream, int threadId
   PROFILER_SCOPE_AND_STAGE_EXT( 1, g_timeProfiler, P_CONTROL_PARSE_DERIVE_LL, *slice->getPic()->cs, CH_L );
   const unsigned numSubstreams = slice->getNumberOfSubstreamSizes() + 1;
   // Table of extracted substreams.
-  std::vector<std::shared_ptr<InputBitstream>> ppcSubstreams( numSubstreams );
+  std::vector<std::unique_ptr<InputBitstream>> ppcSubstreams( numSubstreams );
   for( unsigned idx = 0; idx < numSubstreams; idx++ )
   {
-    ppcSubstreams[idx].reset( bitstream->extractSubstream( idx + 1 < numSubstreams ? ( slice->getSubstreamSize( idx ) << 3 )
-                                                                                   : bitstream->getNumBitsLeft() ) );
+    ppcSubstreams[idx] = bitstream->extractSubstream( idx + 1 < numSubstreams ? ( slice->getSubstreamSize( idx ) << 3 ) : bitstream->getNumBitsLeft() );
   }
 
   const SPS* sps = slice->getSPS();
@@ -100,7 +100,7 @@ void DecSlice::parseSlice( Slice* slice, InputBitstream* bitstream, int threadId
 
   // Quantization parameter
   int prevQP[2] = { slice->getSliceQp(), slice->getSliceQp() };
-  CHECK_RECOVERABLE( prevQP[0] == std::numeric_limits<int>::max(), "Invalid previous QP" );
+  CHECK( prevQP[0] == std::numeric_limits<int>::max(), "Invalid previous QP" );
 
   DTRACE( g_trace_ctx, D_HEADER, "=========== POC: %d ===========\n", slice->getPOC() );
 
@@ -122,8 +122,8 @@ void DecSlice::parseSlice( Slice* slice, InputBitstream* bitstream, int threadId
     const UnitArea ctuArea( cs.area.chromaFormat, Area( pos.x, pos.y, maxCUSize, maxCUSize ) );
 
     // these checks only work, since we wait for the previous slice to finish parsing
-    CHECK_RECOVERABLE( ctuXPosInCtus > 0 && cs.getCtuData( ctuRsAddr - 1           ).slice == nullptr, "CTU left not available RS:" << ctuRsAddr - 1 );
-    CHECK_RECOVERABLE( ctuYPosInCtus > 0 && cs.getCtuData( ctuRsAddr - widthInCtus ).slice == nullptr, "CTU above not available RS:" << ctuRsAddr - widthInCtus );
+    CHECK( ctuXPosInCtus > 0 && cs.getCtuData( ctuRsAddr - 1           ).slice == nullptr, "CTU left not available RS:" << ctuRsAddr - 1 );
+    CHECK( ctuYPosInCtus > 0 && cs.getCtuData( ctuRsAddr - widthInCtus ).slice == nullptr, "CTU above not available RS:" << ctuRsAddr - widthInCtus );
 
     DTRACE_UPDATE( g_trace_ctx, std::make_pair( "ctu", ctuRsAddr ) );
 
@@ -169,7 +169,7 @@ void DecSlice::parseSlice( Slice* slice, InputBitstream* bitstream, int threadId
     if( ctuIdx == slice->getNumCtuInSlice()-1 )
     {
       unsigned binVal = cabacReader.terminating_bit();
-      CHECK_RECOVERABLE( !binVal, "Expecting a terminating bit" );
+      CHECK( !binVal, "Expecting a terminating bit" );
 #if DECODER_CHECK_SUBSTREAM_AND_SLICE_TRAILING_BYTES
       cabacReader.remaining_bytes( false );
 #endif
@@ -180,7 +180,7 @@ void DecSlice::parseSlice( Slice* slice, InputBitstream* bitstream, int threadId
       // The sub-stream/stream should be terminated after this CTU.
       // (end of slice-segment, end of tile, end of wavefront-CTU-row)
       unsigned binVal = cabacReader.terminating_bit();
-      CHECK_RECOVERABLE( !binVal, "Expecting a terminating bit" );
+      CHECK( !binVal, "Expecting a terminating bit" );
 
       if( entryPointPresent )
       {

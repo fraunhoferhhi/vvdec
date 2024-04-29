@@ -63,12 +63,10 @@ namespace vvdec
 // QpParam constructor
 // ====================================================================================================================
 
-QpParam::QpParam( const TransformUnit& tu, const ComponentID& compIDX, const bool allowACTQpoffset )
+QpParam::QpParam( const TransformUnit& tu, const ComponentID& compID, const bool allowACTQpoffset )
 {
-  const ComponentID compID     = MAP_CHROMA( compIDX );
-  const ChannelType chType     = toChannelType( compID );
   const SPS&        sps        = *tu.cu->sps;
-  const int         qpBdOffset = sps.getQpBDOffset( chType );
+  const int         qpBdOffset = sps.getQpBDOffset();
   const bool        useJQP     = isChroma( compID ) && TU::getICTMode( tu, false ) == 2;
   const ComponentID jCbCr      = useJQP ? JOINT_CbCr : compID;
 
@@ -109,7 +107,7 @@ QpParam::QpParam( const TransformUnit& tu, const ComponentID& compIDX, const boo
   }
   //else
   {
-    int internalMinusInputBitDepth = sps.getInternalMinusInputBitDepth( chType );
+    int internalMinusInputBitDepth = sps.getInternalMinusInputBitDepth();
     int baseQpTS                   = std::max( baseQp, 4 + 6 * internalMinusInputBitDepth );
     Qps [1] = baseQpTS;
     pers[1] = baseQpTS / 6;
@@ -302,7 +300,7 @@ static inline int getTransformShift( const int channelBitDepth, const Size size,
 
 static inline int getScalingListType( const PredMode predMode, const ComponentID compID )
 {
-  return ( ( predMode == MODE_INTRA ) ? 0 : MAX_NUM_COMPONENT ) + MAP_CHROMA( compID );
+  return ( predMode == MODE_INTRA ? 0 : MAX_NUM_COMPONENT ) + compID;
 }
 
 void Quant::dequant( const TransformUnit& tu, CoeffBuf& dstCoeff, const ComponentID& compID, const QpParam& cQP )
@@ -323,7 +321,7 @@ void Quant::dequant( const TransformUnit& tu, CoeffBuf& dstCoeff, const Componen
   const bool             disableSMForACT       = tu.cu->sps->getScalingMatrixForAlternativeColourSpaceDisabledFlag() && tu.cu->sps->getScalingMatrixDesignatedColourSpaceFlag() == tu.cu->colorTransform();
   const bool             enableScalingLists    = getUseScalingList( isTransformSkip, isLfnstApplied, disableSMForLFNST, disableSMForACT );
   const int              scalingListType       = getScalingListType( tu.cu->predMode(), compID );
-  const int              channelBitDepth       = sps->getBitDepth( toChannelType( compID ) );
+  const int              channelBitDepth       = sps->getBitDepth();
 
   int maxX, maxY;
 
@@ -340,7 +338,7 @@ void Quant::dequant( const TransformUnit& tu, CoeffBuf& dstCoeff, const Componen
     maxY = tu.maxScanPosY[compID];
   }
   
-  CHECK_RECOVERABLE(scalingListType >= SCALING_LIST_NUM, "Invalid scaling list");
+  CHECK(scalingListType >= SCALING_LIST_NUM, "Invalid scaling list");
 
   // Represents scaling through forward transform
   const bool bClipTransformShiftTo0 = false;// tu.mtsIdx[compID] != 1 && sps->getSpsRangeExtension().getExtendedPrecisionProcessingFlag();
@@ -522,7 +520,7 @@ void Quant::setScalingListDec( const ScalingList& scalingList )
       for( uint32_t list = 0; list < SCALING_LIST_NUM; list++ )   // 9
       {
         int largerSide = ( sizew > sizeh ) ? sizew : sizeh;
-        CHECK_RECOVERABLE( largerSide < SCALING_LIST_4x4, "Rectangle Error!" );
+        CHECK( largerSide < SCALING_LIST_4x4, "Rectangle Error!" );
         recScalingListId = g_scalingListId[largerSide][list];
         xSetRecScalingListDec( scalingList, list, sizew, sizeh, recScalingListId );
       }
@@ -708,7 +706,7 @@ void Quant::xInitScalingList( const Quant* other )
     }
   }
 
-  CHECK_RECOVERABLE( numQuants != g_numScalingListCoeffs, "Incorrect size of scaling list entries number!" );
+  CHECK( numQuants != g_numScalingListCoeffs, "Incorrect size of scaling list entries number!" );
 }
 
 /** destroy quantization matrix array
@@ -744,8 +742,8 @@ void Quant::init( const Picture *pic )
     const std::shared_ptr<const APS> scalingListAPS = slice->getPicHeader()->getScalingListAPS();
     if( slice->getNalUnitLayerId() != scalingListAPS->getLayerId() )
     {
-      CHECK_RECOVERABLE( scalingListAPS->getLayerId() > slice->getNalUnitLayerId(), "Layer Id of APS cannot be greater than layer Id of VCL NAL unit the refer to it" );
-      CHECK_RECOVERABLE( slice->getSPS()->getVPSId() == 0, "VPSId of the referred SPS cannot be 0 when layer Id of APS and layer Id of current slice are different" );
+      CHECK( scalingListAPS->getLayerId() > slice->getNalUnitLayerId(), "Layer Id of APS cannot be greater than layer Id of VCL NAL unit the refer to it" );
+      CHECK( slice->getSPS()->getVPSId() == 0, "VPSId of the referred SPS cannot be 0 when layer Id of APS and layer Id of current slice are different" );
       for( int i = 0; i < slice->getVPS()->getNumOutputLayerSets(); i++ )
       {
         bool isCurrLayerInOls = false;
@@ -761,7 +759,7 @@ void Quant::init( const Picture *pic )
             isRefLayerInOls = true;
           }
         }
-        CHECK_RECOVERABLE( isCurrLayerInOls && !isRefLayerInOls, "When VCL NAl unit in layer A refers to APS in layer B, all OLS that contains layer A shall also contains layer B" );
+        CHECK( isCurrLayerInOls && !isRefLayerInOls, "When VCL NAl unit in layer A refers to APS in layer B, all OLS that contains layer A shall also contains layer B" );
       }
     }
     const ScalingList& scalingList = scalingListAPS->getScalingList();

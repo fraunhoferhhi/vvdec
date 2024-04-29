@@ -140,7 +140,7 @@ void SEIReader::parseSEImessage(InputBitstream* bs, seiMessages& seiList,
                                 const VPS *vps, const SPS *sps, HRD &hrd, std::ostream *pDecodedMessageOutputStream )
 {
   setBitstream(bs);
-  CHECK_RECOVERABLE(m_pcBitstream->getNumBitsUntilByteAligned(), "Bitstream not aligned");
+  CHECK(m_pcBitstream->getNumBitsUntilByteAligned(), "Bitstream not aligned");
 
   seiMessages seiListInCurNalu;
   do
@@ -149,12 +149,12 @@ void SEIReader::parseSEImessage(InputBitstream* bs, seiMessages& seiList,
     if( !seiList.empty() ){  seiListInCurNalu.push_back(seiList.back()); }
     /* SEI messages are an integer number of bytes, something has failed
     * in the parsing if bitstream not byte-aligned */
-    CHECK_RECOVERABLE(m_pcBitstream->getNumBitsUntilByteAligned(), "Bitstream not aligned");
+    CHECK(m_pcBitstream->getNumBitsUntilByteAligned(), "Bitstream not aligned");
   }
   while (m_pcBitstream->getNumBitsLeft() > 8);
 
   seiMessages fillerData = SEI_internal::getSeisByType(seiListInCurNalu, VVDEC_FILLER_PAYLOAD);
-  CHECK_RECOVERABLE(fillerData.size() > 0 && fillerData.size() != seiListInCurNalu.size(), "When an SEI NAL unit contains an SEI message with payloadType equal to filler payload, the SEI NAL unit shall not contain any other SEI message with payloadType not equal to filler payload");
+  CHECK(fillerData.size() > 0 && fillerData.size() != seiListInCurNalu.size(), "When an SEI NAL unit contains an SEI message with payloadType equal to filler payload, the SEI NAL unit shall not contain any other SEI message with payloadType not equal to filler payload");
 
   xReadRbspTrailingBits();
 }
@@ -192,7 +192,8 @@ void SEIReader::xReadSEImessage( seiMessages& seiList, const NalUnitType nalUnit
    * bitstream.
    */
   InputBitstream *bs = getBitstream();
-  setBitstream(bs->extractSubstream(payloadSize * 8));
+  auto substream = bs->extractSubstream( payloadSize * 8 );
+  setBitstream( substream.get() );
 
   const vvdecSEIBufferingPeriod *bp = NULL;
 
@@ -415,8 +416,7 @@ void SEIReader::xReadSEImessage( seiMessages& seiList, const NalUnitType nalUnit
   }
 
   /* restore primary bitstream for sei_message */
-  delete getBitstream();
-  setBitstream(bs);
+  setBitstream( bs );
 }
 
 
@@ -430,7 +430,7 @@ void SEIReader::xParseSEIDecodedPictureHash(vvdecSEI* s, uint32_t payloadSize, s
   uint32_t bytesRead = 0;
   output_sei_message_header(s, pDecodedMessageOutputStream, payloadSize);
 
-  CHECK( !s || s->payload == NULL, "allocation error in vvdecSEIDecodedPictureHash" );
+  CHECK_FATAL( !s || s->payload == NULL, "allocation error in vvdecSEIDecodedPictureHash" );
 
   vvdecSEIDecodedPictureHash* sei =(vvdecSEIDecodedPictureHash*)s->payload;
   ::memset(sei, 0, sizeof(vvdecSEIDecodedPictureHash));
@@ -443,7 +443,7 @@ void SEIReader::xParseSEIDecodedPictureHash(vvdecSEI* s, uint32_t payloadSize, s
   sei_read_code( pDecodedMessageOutputStream, 7, val, "dph_sei_reserved_zero_7bits");
   bytesRead++;
   uint32_t expectedSize = ( sei->singleCompFlag ? 1 : 3 ) * (sei->method == 0 ? 16 : (sei->method == 1 ? 2 : 4));
-  CHECK_RECOVERABLE ((payloadSize - bytesRead) != expectedSize, "The size of the decoded picture hash does not match the expected size.");
+  CHECK ((payloadSize - bytesRead) != expectedSize, "The size of the decoded picture hash does not match the expected size.");
 
   const char *traceString="\0";
   switch (sei->method)
@@ -451,7 +451,7 @@ void SEIReader::xParseSEIDecodedPictureHash(vvdecSEI* s, uint32_t payloadSize, s
     case VVDEC_HASHTYPE_MD5: traceString="picture_md5"; break;
     case VVDEC_HASHTYPE_CRC: traceString="picture_crc"; break;
     case VVDEC_HASHTYPE_CHECKSUM: traceString="picture_checksum"; break;
-    default: THROW("Unknown hash type"); break;
+    default: THROW_RECOVERABLE("Unknown hash type"); break;
   }
 
   if (pDecodedMessageOutputStream)
@@ -459,7 +459,7 @@ void SEIReader::xParseSEIDecodedPictureHash(vvdecSEI* s, uint32_t payloadSize, s
     (*pDecodedMessageOutputStream) << "  " << std::setw(55) << traceString << ": " << std::hex << std::setfill('0');
   }
 
-  CHECK_RECOVERABLE( payloadSize-bytesRead > 48, "payload size of digest must be <= 48 in vvdecSEIDecodedPictureHash" );
+  CHECK( payloadSize-bytesRead > 48, "payload size of digest must be <= 48 in vvdecSEIDecodedPictureHash" );
   for(int i=0;bytesRead < payloadSize; bytesRead++,i++)
   {
     sei_read_code( NULL, 8, val, traceString);
@@ -483,7 +483,7 @@ void SEIReader::xParseSEIScalableNesting(vvdecSEI* s, const NalUnitType nalUnitT
   uint32_t symbol;
   output_sei_message_header(s, decodedMessageOutputStream, payloadSize);
 
-  CHECK( !s || s->payload == NULL, "allocation error in vvdecSEIScalableNesting" );
+  CHECK_FATAL( !s || s->payload == NULL, "allocation error in vvdecSEIScalableNesting" );
   vvdecSEIScalableNesting* sei =(vvdecSEIScalableNesting*)s->payload;
   ::memset(sei, 0, sizeof(vvdecSEIScalableNesting));
 
@@ -492,7 +492,7 @@ void SEIReader::xParseSEIScalableNesting(vvdecSEI* s, const NalUnitType nalUnitT
   if (sei->snOlsFlag)
   {
     sei_read_uvlc(decodedMessageOutputStream, symbol, "sn_nuolss_minus1"); sei->snNumOlss = symbol+1;
-    CHECK_RECOVERABLE( sei->snNumOlss > 64, "sn_nuolss_minus1 must be < 64 in vvdecSEIScalableNesting" );
+    CHECK( sei->snNumOlss > 64, "sn_nuolss_minus1 must be < 64 in vvdecSEIScalableNesting" );
 
     for (uint32_t i = 0; i < sei->snNumOlss; i++)
     {
@@ -523,7 +523,7 @@ void SEIReader::xParseSEIScalableNesting(vvdecSEI* s, const NalUnitType nalUnitT
           }
         }
       }
-      CHECK_RECOVERABLE(lowestLayerId!= nuhLayerId, "nuh_layer_id is not equal to the lowest layer among Olss that the scalable SEI applies");
+      CHECK(lowestLayerId!= nuhLayerId, "nuh_layer_id is not equal to the lowest layer among Olss that the scalable SEI applies");
     }
   }
   else
@@ -550,10 +550,10 @@ void SEIReader::xParseSEIScalableNesting(vvdecSEI* s, const NalUnitType nalUnitT
   }
 
   sei_read_uvlc(decodedMessageOutputStream, symbol, "sn_nuseis_minus1"); sei->snNumSEIs = symbol + 1;
-  CHECK_RECOVERABLE (sei->snNumSEIs > 64, "The value of sn_nuseis_minus1 shall be in the range of 0 to 63");
+  CHECK (sei->snNumSEIs > 64, "The value of sn_nuseis_minus1 shall be in the range of 0 to 63");
 
   // byte alignment
-  while (m_pcBitstream->getNumBitsRead() % 8 != 0)
+  while( m_pcBitstream->getNumBitsUntilByteAligned() )
   {
     sei_read_flag(decodedMessageOutputStream, symbol, "sn_zero_bit");
   }
@@ -563,7 +563,7 @@ void SEIReader::xParseSEIScalableNesting(vvdecSEI* s, const NalUnitType nalUnitT
   {
     seiMessages tmpSeiList;
     xReadSEImessage(tmpSeiList, nalUnitType, nuhLayerId, 0, vps, sps, m_nestedHrd, decodedMessageOutputStream);
-    CHECK_RECOVERABLE( tmpSeiList.empty(), "read empty nested sei list." );
+    CHECK( tmpSeiList.empty(), "read empty nested sei list." );
 
     if (tmpSeiList.front()->payloadType == VVDEC_BUFFERING_PERIOD)
     {
@@ -594,38 +594,38 @@ void SEIReader::xCheckScalableNestingConstraints(const vvdecSEIScalableNesting* 
     {
       continue;
     }
-    CHECK_RECOVERABLE(nestedsei->payloadType == VVDEC_FILLER_PAYLOAD || nestedsei->payloadType == VVDEC_SCALABLE_NESTING, "An SEI message that has payloadType equal to filler payload or scalable nesting shall not be contained in a scalable nesting SEI message");
+    CHECK(nestedsei->payloadType == VVDEC_FILLER_PAYLOAD || nestedsei->payloadType == VVDEC_SCALABLE_NESTING, "An SEI message that has payloadType equal to filler payload or scalable nesting shall not be contained in a scalable nesting SEI message");
 
-    CHECK_RECOVERABLE(nestedsei->payloadType != VVDEC_FILLER_PAYLOAD && nestedsei->payloadType != VVDEC_DECODED_PICTURE_HASH && nalUnitType != NAL_UNIT_PREFIX_SEI, "When a scalable nesting SEI message contains an SEI message that has payloadType not equal to filler payload or decoded picture hash, the SEI NAL unit containing the scalable nesting SEI message shall have nal_unit_type equal to PREFIX_SEI_NUT");
+    CHECK(nestedsei->payloadType != VVDEC_FILLER_PAYLOAD && nestedsei->payloadType != VVDEC_DECODED_PICTURE_HASH && nalUnitType != NAL_UNIT_PREFIX_SEI, "When a scalable nesting SEI message contains an SEI message that has payloadType not equal to filler payload or decoded picture hash, the SEI NAL unit containing the scalable nesting SEI message shall have nal_unit_type equal to PREFIX_SEI_NUT");
 
-    CHECK_RECOVERABLE(nestedsei->payloadType == VVDEC_DECODED_PICTURE_HASH && nalUnitType != NAL_UNIT_SUFFIX_SEI, "When a scalable nesting SEI message contains an SEI message that has payloadType equal to decoded picture hash, the SEI NAL unit containing the scalable nesting SEI message shall have nal_unit_type equal to SUFFIX_SEI_NUT");
+    CHECK(nestedsei->payloadType == VVDEC_DECODED_PICTURE_HASH && nalUnitType != NAL_UNIT_SUFFIX_SEI, "When a scalable nesting SEI message contains an SEI message that has payloadType equal to decoded picture hash, the SEI NAL unit containing the scalable nesting SEI message shall have nal_unit_type equal to SUFFIX_SEI_NUT");
 
-    CHECK_RECOVERABLE(nestedsei->payloadType == VVDEC_DECODED_PICTURE_HASH && !sei->snSubpicFlag, "When the scalable nesting SEI message contains an SEI message that has payloadType equal to decoded picture hash, the value of sn_subpic_flag shall be equal to 1");
+    CHECK(nestedsei->payloadType == VVDEC_DECODED_PICTURE_HASH && !sei->snSubpicFlag, "When the scalable nesting SEI message contains an SEI message that has payloadType equal to decoded picture hash, the value of sn_subpic_flag shall be equal to 1");
 
-    CHECK_RECOVERABLE(nestedsei->payloadType == VVDEC_SUBPICTURE_LEVEL_INFO && sei->snSubpicFlag, "When the scalable nesting SEI message contains an SEI message that has payloadType equal to SLI, the value of sn_subpic_flag shall be equal to 0");
+    CHECK(nestedsei->payloadType == VVDEC_SUBPICTURE_LEVEL_INFO && sei->snSubpicFlag, "When the scalable nesting SEI message contains an SEI message that has payloadType equal to SLI, the value of sn_subpic_flag shall be equal to 0");
 
     if( vps )
     {
-      CHECK_RECOVERABLE( vps->getGeneralHrdParameters()->getGeneralSamePicTimingInAllOlsFlag() && nestedsei->payloadType == VVDEC_PICTURE_TIMING,
+      CHECK( vps->getGeneralHrdParameters()->getGeneralSamePicTimingInAllOlsFlag() && nestedsei->payloadType == VVDEC_PICTURE_TIMING,
              "When general_same_pic_timing_in_all_ols_flag is equal to 1, there shall be no SEI NAL unit that contain a scalable-nested SEI message with payloadType equal to PT" );
     }
 
     for (int i = 0; i < (int)vclAssociatedSeiList.size(); i++)
     {
-      CHECK_RECOVERABLE(nestedsei->payloadType == vclAssociatedSeiList[i] && sei->snOlsFlag, "When the scalable nesting SEI message contains an SEI message that has payloadType equal to a value in vclAssociatedSeiList, the value of sn_ols_flag shall be equal to 0");
+      CHECK(nestedsei->payloadType == vclAssociatedSeiList[i] && sei->snOlsFlag, "When the scalable nesting SEI message contains an SEI message that has payloadType equal to a value in vclAssociatedSeiList, the value of sn_ols_flag shall be equal to 0");
     }
 
     if (nestedsei->payloadType == VVDEC_BUFFERING_PERIOD || nestedsei->payloadType == VVDEC_PICTURE_TIMING || nestedsei->payloadType == VVDEC_DECODING_UNIT_INFO || nestedsei->payloadType == VVDEC_SUBPICTURE_LEVEL_INFO)
     {
       containBPorPTorDUIorSLI = true;
-      CHECK_RECOVERABLE(!sei->snOlsFlag, "When the scalable nesting SEI message contains an SEI message that has payloadType equal to BP, PT, or DUI, or SLI, the value of sn_ols_flag shall be equal to 1");
+      CHECK(!sei->snOlsFlag, "When the scalable nesting SEI message contains an SEI message that has payloadType equal to BP, PT, or DUI, or SLI, the value of sn_ols_flag shall be equal to 1");
     }
     if (!(nestedsei->payloadType == VVDEC_BUFFERING_PERIOD || nestedsei->payloadType == VVDEC_PICTURE_TIMING || nestedsei->payloadType == VVDEC_DECODING_UNIT_INFO || nestedsei->payloadType == VVDEC_SUBPICTURE_LEVEL_INFO))
     {
       containNoBPorPTorDUIorSLI = true;
     }
   }
-  CHECK_RECOVERABLE(containBPorPTorDUIorSLI && containNoBPorPTorDUIorSLI, "When a scalable nesting SEI message contains a BP, PT, DUI, or SLI SEI message, the scalable nesting SEI message shall not contain any other SEI message with payloadType not equal to BP, PT, DUI, or SLI");
+  CHECK(containBPorPTorDUIorSLI && containNoBPorPTorDUIorSLI, "When a scalable nesting SEI message contains a BP, PT, DUI, or SLI SEI message, the scalable nesting SEI message shall not contain any other SEI message with payloadType not equal to BP, PT, DUI, or SLI");
 }
 
 void SEIReader::xParseSEIDecodingUnitInfo(vvdecSEI* s, uint32_t payloadSize, const vvdecSEIBufferingPeriod& bp, const uint32_t temporalId, std::ostream *pDecodedMessageOutputStream)
@@ -633,7 +633,7 @@ void SEIReader::xParseSEIDecodingUnitInfo(vvdecSEI* s, uint32_t payloadSize, con
   uint32_t val;
 
   output_sei_message_header(s, pDecodedMessageOutputStream, payloadSize);
-  CHECK( !s || s->payload == NULL, "allocation error in vvdecSEIDecodingUnitInfo" );
+  CHECK_FATAL( !s || s->payload == NULL, "allocation error in vvdecSEIDecodingUnitInfo" );
   vvdecSEIDecodingUnitInfo* sei =(vvdecSEIDecodingUnitInfo*)s->payload;
   ::memset(sei, 0, sizeof(vvdecSEIDecodingUnitInfo));
 
@@ -692,7 +692,7 @@ void SEIReader::xParseSEIBufferingPeriod(vvdecSEI* s, uint32_t payloadSize, std:
   uint32_t code;
 
   output_sei_message_header(s, pDecodedMessageOutputStream, payloadSize);
-  CHECK( !s || s->payload == NULL, "allocation error in vvdecSEIBufferingPeriod" );
+  CHECK_FATAL( !s || s->payload == NULL, "allocation error in vvdecSEIBufferingPeriod" );
   vvdecSEIBufferingPeriod* sei =(vvdecSEIBufferingPeriod*)s->payload;
   ::memset(sei, 0, sizeof(vvdecSEIBufferingPeriod));
 
@@ -717,7 +717,7 @@ void SEIReader::xParseSEIBufferingPeriod(vvdecSEI* s, uint32_t payloadSize, std:
     sei->decodingUnitDpbDuParamsInPicTimingSeiFlag = false;
   }
 
-  CHECK_RECOVERABLE(sei->altCpbParamsPresentFlag && sei->bpDecodingUnitHrdParamsPresentFlag,"When bp_alt_cpb_params_present_flag is equal to 1, the value of bp_du_hrd_params_present_flag shall be equal to 0");
+  CHECK(sei->altCpbParamsPresentFlag && sei->bpDecodingUnitHrdParamsPresentFlag,"When bp_alt_cpb_params_present_flag is equal to 1, the value of bp_du_hrd_params_present_flag shall be equal to 0");
 
   sei_read_flag( pDecodedMessageOutputStream, code, "concatenation_flag");
   sei->concatenationFlag = code;
@@ -746,7 +746,7 @@ void SEIReader::xParseSEIBufferingPeriod(vvdecSEI* s, uint32_t payloadSize, std:
   if (sei->cpbRemovalDelayDeltasPresentFlag)
   {
     sei_read_uvlc( pDecodedMessageOutputStream, code, "nucpb_removal_delay_deltas_minus1" );               sei->numCpbRemovalDelayDeltas = code + 1;
-    CHECK_RECOVERABLE( sei->numCpbRemovalDelayDeltas > 14, "nucpb_removal_delay_deltas_minus1 must be <= 13 in vvdecSEIBufferingPeriod" );
+    CHECK( sei->numCpbRemovalDelayDeltas > 14, "nucpb_removal_delay_deltas_minus1 must be <= 13 in vvdecSEIBufferingPeriod" );
 
     for( i = 0; i < sei->numCpbRemovalDelayDeltas; i ++ )
     {
@@ -810,7 +810,7 @@ void SEIReader::xParseSEIBufferingPeriod(vvdecSEI* s, uint32_t payloadSize, std:
 
 void SEIReader::xParseSEIPictureTiming(vvdecSEI* s, uint32_t payloadSize, const uint32_t temporalId, const vvdecSEIBufferingPeriod& bp, std::ostream *pDecodedMessageOutputStream)
 {
-  CHECK( !s || s->payload == NULL, "allocation error in vvdecSEIPictureTiming" );
+  CHECK_FATAL( !s || s->payload == NULL, "allocation error in vvdecSEIPictureTiming" );
 
   output_sei_message_header(s, pDecodedMessageOutputStream, payloadSize);
 
@@ -963,7 +963,7 @@ void SEIReader::xParseSEIPictureTiming(vvdecSEI* s, uint32_t payloadSize, const 
 
 void SEIReader::xParseSEIFrameFieldinfo(vvdecSEI* s, uint32_t payloadSize, std::ostream *pDecodedMessageOutputStream)
 {
-  CHECK( !s || s->payload == NULL, "allocation error in vvdecSEIFrameFieldInfo" );
+  CHECK_FATAL( !s || s->payload == NULL, "allocation error in vvdecSEIFrameFieldInfo" );
 
   uint32_t symbol;
   output_sei_message_header(s, pDecodedMessageOutputStream, payloadSize);
@@ -1005,7 +1005,7 @@ void SEIReader::xParseSEIFrameFieldinfo(vvdecSEI* s, uint32_t payloadSize, std::
 
 void SEIReader::xParseSEIDependentRAPIndication( vvdecSEI* s, uint32_t payloadSize, std::ostream *pDecodedMessageOutputStream )
 {
-  CHECK( !s || s->payload == NULL, "allocation error in vvdecSeidependent_rap_indication_t" );
+  CHECK_FATAL( !s || s->payload == NULL, "allocation error in vvdecSeidependent_rap_indication_t" );
 
   output_sei_message_header(s, pDecodedMessageOutputStream, payloadSize);
 }
@@ -1013,7 +1013,7 @@ void SEIReader::xParseSEIDependentRAPIndication( vvdecSEI* s, uint32_t payloadSi
 void SEIReader::xParseSEIFramePacking(vvdecSEI* s, uint32_t payloadSize, std::ostream *pDecodedMessageOutputStream)
 {
   uint32_t val;
-  CHECK( !s || s->payload == NULL, "allocation error in vvdecSEIFramePacking" );
+  CHECK_FATAL( !s || s->payload == NULL, "allocation error in vvdecSEIFramePacking" );
 
   output_sei_message_header(s, pDecodedMessageOutputStream, payloadSize);
 
@@ -1026,7 +1026,7 @@ void SEIReader::xParseSEIFramePacking(vvdecSEI* s, uint32_t payloadSize, std::os
   if( !sei->arrangementCancelFlag )
   {
     sei_read_code( pDecodedMessageOutputStream, 7, val, "frame_packing_arrangement_type" );          sei->arrangementType = val;
-    CHECK_RECOVERABLE( ( sei->arrangementType <= 2 ) || ( sei->arrangementType >= 6 ), "Invalid arrangement type" );
+    CHECK( ( sei->arrangementType <= 2 ) || ( sei->arrangementType >= 6 ), "Invalid arrangement type" );
 
     sei_read_flag( pDecodedMessageOutputStream, val, "quincunx_sampling_flag" );                     sei->quincunxSamplingFlag = val;
 
@@ -1055,7 +1055,7 @@ void SEIReader::xParseSEIFramePacking(vvdecSEI* s, uint32_t payloadSize, std::os
 void SEIReader::xParseSEIParameterSetsInclusionIndication(vvdecSEI* s, uint32_t payloadSize, std::ostream* pDecodedMessageOutputStream)
 {
   uint32_t val;
-  CHECK( !s || s->payload == NULL, "allocation error in vvdecSEIParameterSetsInclusionIndication" );
+  CHECK_FATAL( !s || s->payload == NULL, "allocation error in vvdecSEIParameterSetsInclusionIndication" );
 
   output_sei_message_header(s, pDecodedMessageOutputStream, payloadSize);
 
@@ -1067,7 +1067,7 @@ void SEIReader::xParseSEIParameterSetsInclusionIndication(vvdecSEI* s, uint32_t 
 void SEIReader::xParseSEIMasteringDisplayColourVolume( vvdecSEI* s, uint32_t payloadSize, std::ostream *pDecodedMessageOutputStream)
 {
   uint32_t code;
-  CHECK( !s || s->payload == NULL, "allocation error in vvdecSEIMasteringDisplayColourVolume" );
+  CHECK_FATAL( !s || s->payload == NULL, "allocation error in vvdecSEIMasteringDisplayColourVolume" );
 
   output_sei_message_header(s, pDecodedMessageOutputStream, payloadSize);
   
@@ -1094,7 +1094,7 @@ void SEIReader::xParseSEIMasteringDisplayColourVolume( vvdecSEI* s, uint32_t pay
 void SEIReader::xParseSEIAlternativeTransferCharacteristics(vvdecSEI* s, uint32_t payloadSize, std::ostream* pDecodedMessageOutputStream)
 {
   uint32_t code;
-  CHECK( !s || s->payload == NULL, "allocation error in vvdecSEIAlternativeTransferCharacteristics" );
+  CHECK_FATAL( !s || s->payload == NULL, "allocation error in vvdecSEIAlternativeTransferCharacteristics" );
 
   output_sei_message_header(s, pDecodedMessageOutputStream, payloadSize);
   
@@ -1106,17 +1106,17 @@ void SEIReader::xParseSEIAlternativeTransferCharacteristics(vvdecSEI* s, uint32_
 void SEIReader::xParseSEIUserDataRegistered(vvdecSEI* sei, uint32_t payloadSize, std::ostream *pDecodedMessageOutputStream)
 {
   uint32_t code;
-  CHECK( !sei || sei->payload == NULL, "allocation error in vvdecSEIUserDataRegistered" );
+  CHECK_FATAL( !sei || sei->payload == NULL, "allocation error in vvdecSEIUserDataRegistered" );
 
   output_sei_message_header(sei, pDecodedMessageOutputStream, payloadSize);
 
   vvdecSEIUserDataRegistered t;
 
-  CHECK_RECOVERABLE(payloadSize == 0, "no payload" );
+  CHECK(payloadSize == 0, "no payload" );
   sei_read_code(pDecodedMessageOutputStream, 8, code, "itu_t_t35_country_code"); payloadSize--;
   if (code == 255)
   {
-    CHECK_RECOVERABLE(payloadSize == 0, "no payload" );
+    CHECK(payloadSize == 0, "no payload" );
     sei_read_code(pDecodedMessageOutputStream, 8, code, "itu_t_t35_country_code_extension_byte"); payloadSize--;
     code += 255;
   }
@@ -1134,7 +1134,7 @@ void SEIReader::xParseSEIUserDataRegistered(vvdecSEI* sei, uint32_t payloadSize,
       free( sei->payload );
 
   SEI_internal::allocSEIPayload( sei, sizeof( vvdecSEIUserDataRegistered ) + sizeof( uint8_t )*(t.userDataLength + 1) );
-  CHECK( sei->payload == NULL, "allocation error in vvdecSEIUserDataRegistered" );
+  CHECK_FATAL( sei->payload == NULL, "allocation error in vvdecSEIUserDataRegistered" );
 
   vvdecSEIUserDataRegistered* target = (vvdecSEIUserDataRegistered*)sei->payload;
   target->ituCountryCode = t.ituCountryCode;
@@ -1159,8 +1159,8 @@ void SEIReader::xParseSEIUserDataRegistered(vvdecSEI* sei, uint32_t payloadSize,
  */
 void SEIReader::xParseSEIuserDataUnregistered(vvdecSEI* sei, uint32_t payloadSize, std::ostream *pDecodedMessageOutputStream)
 {
-  CHECK_RECOVERABLE(payloadSize < 16, "Payload too small");
-  CHECK( !sei || sei->payload == NULL, "allocation error in vvdecSEIUserDataUnregistered" );
+  CHECK(payloadSize < 16, "Payload too small");
+  CHECK_FATAL( !sei || sei->payload == NULL, "allocation error in vvdecSEIUserDataUnregistered" );
 
   uint32_t val;
 
@@ -1185,7 +1185,7 @@ void SEIReader::xParseSEIuserDataUnregistered(vvdecSEI* sei, uint32_t payloadSiz
       free( sei->payload );
 
   SEI_internal::allocSEIPayload( sei,  sizeof( vvdecSEIUserDataUnregistered ) + sizeof( uint8_t )*(t.userDataLength + 1) );
-  CHECK( sei->payload == NULL, "allocation error in vvdecSEIUserDataUnregistered" );
+  CHECK_FATAL( sei->payload == NULL, "allocation error in vvdecSEIUserDataUnregistered" );
 
   vvdecSEIUserDataUnregistered* target = (vvdecSEIUserDataUnregistered*)sei->payload;
   target->userDataLength = t.userDataLength;
@@ -1206,7 +1206,7 @@ void SEIReader::xParseSEIuserDataUnregistered(vvdecSEI* sei, uint32_t payloadSiz
 void SEIReader::xParseSEIFilmGrainCharacteristics(vvdecSEI* s, uint32_t payloadSize, std::ostream *pDecodedMessageOutputStream)
 {
   uint32_t code;
-  CHECK( !s || s->payload == NULL, "allocation error in vvdecSEIFilmGrainCharacteristics" );
+  CHECK_FATAL( !s || s->payload == NULL, "allocation error in vvdecSEIFilmGrainCharacteristics" );
 
   output_sei_message_header(s, pDecodedMessageOutputStream, payloadSize);
 
@@ -1242,8 +1242,8 @@ void SEIReader::xParseSEIFilmGrainCharacteristics(vvdecSEI* s, uint32_t payloadS
         sei_read_code(pDecodedMessageOutputStream, 8, code, "nuintensity_intervals_minus1[c]"); numIntensityIntervals = code + 1;
         sei_read_code(pDecodedMessageOutputStream, 3, code, "numodel_values_minus1[c]");        cm.numModelValues = code + 1;
 
-        CHECK_RECOVERABLE ( numIntensityIntervals > 256, "nuintensity_intervals_minus1[c] out of range" );
-        CHECK_RECOVERABLE ( cm.numModelValues > 5, "numodel_values_minus1[c] out of range" );
+        CHECK ( numIntensityIntervals > 256, "nuintensity_intervals_minus1[c] out of range" );
+        CHECK ( cm.numModelValues > 5, "numodel_values_minus1[c] out of range" );
 
         for (uint32_t interval = 0; interval < numIntensityIntervals; interval++)
         {
@@ -1264,7 +1264,7 @@ void SEIReader::xParseSEIFilmGrainCharacteristics(vvdecSEI* s, uint32_t payloadS
 void SEIReader::xParseSEIContentLightLevelInfo(vvdecSEI* s, uint32_t payloadSize, std::ostream *pDecodedMessageOutputStream)
 {
   uint32_t code;
-  CHECK( !s || s->payload == NULL, "allocation error in vvdecSEIContentLightLevelInfo" );
+  CHECK_FATAL( !s || s->payload == NULL, "allocation error in vvdecSEIContentLightLevelInfo" );
 
   output_sei_message_header(s, pDecodedMessageOutputStream, payloadSize);
 
@@ -1278,7 +1278,7 @@ void SEIReader::xParseSEIContentLightLevelInfo(vvdecSEI* s, uint32_t payloadSize
 void SEIReader::xParseSEIAmbientViewingEnvironment(vvdecSEI* s, uint32_t payloadSize, std::ostream *pDecodedMessageOutputStream)
 {
   uint32_t code;
-  CHECK( !s || s->payload == NULL, "allocation error in vvdecSEIAmbientViewingEnvironment" );
+  CHECK_FATAL( !s || s->payload == NULL, "allocation error in vvdecSEIAmbientViewingEnvironment" );
 
   output_sei_message_header(s, pDecodedMessageOutputStream, payloadSize);
 
@@ -1294,7 +1294,7 @@ void SEIReader::xParseSEIContentColourVolume(vvdecSEI* s, uint32_t payloadSize, 
   {
   int i;
   uint32_t val;
-  CHECK( !s || s->payload == NULL, "allocation error in vvdecSEIContentColourVolume" );
+  CHECK_FATAL( !s || s->payload == NULL, "allocation error in vvdecSEIContentColourVolume" );
 
   output_sei_message_header(s, pDecodedMessageOutputStream, payloadSize);
 
@@ -1336,7 +1336,7 @@ void SEIReader::xParseSEIContentColourVolume(vvdecSEI* s, uint32_t payloadSize, 
 void SEIReader::xParseSEIEquirectangularProjection(vvdecSEI* s, uint32_t payloadSize, std::ostream *pDecodedMessageOutputStream)
 {
   uint32_t val;
-  CHECK( !s || s->payload == NULL, "allocation error in vvdecSEIEquirectangularProjection" );
+  CHECK_FATAL( !s || s->payload == NULL, "allocation error in vvdecSEIEquirectangularProjection" );
 
   output_sei_message_header(s, pDecodedMessageOutputStream, payloadSize);
 
@@ -1362,7 +1362,7 @@ void SEIReader::xParseSEISphereRotation(vvdecSEI* s, uint32_t payloadSize, std::
 {
   uint32_t val;
   int  sval;
-  CHECK( !s || s->payload == NULL, "allocation error in vvdecSEISphereRotation" );
+  CHECK_FATAL( !s || s->payload == NULL, "allocation error in vvdecSEISphereRotation" );
   output_sei_message_header(s, pDecodedMessageOutputStream, payloadSize);
 
   vvdecSEISphereRotation* sei =(vvdecSEISphereRotation*)s->payload;
@@ -1383,7 +1383,7 @@ void SEIReader::xParseSEIOmniViewport(vvdecSEI* s, uint32_t payloadSize, std::os
 {
   uint32_t code;
   int  scode;
-  CHECK( !s || s->payload == NULL, "allocation error in vvdecSEIOmniViewport" );
+  CHECK_FATAL( !s || s->payload == NULL, "allocation error in vvdecSEIOmniViewport" );
   output_sei_message_header(s, pDecodedMessageOutputStream, payloadSize);
 
   vvdecSEIOmniViewport* sei =(vvdecSEIOmniViewport*)s->payload;
@@ -1396,7 +1396,7 @@ void SEIReader::xParseSEIOmniViewport(vvdecSEI* s, uint32_t payloadSize, std::os
   {
     sei_read_flag( pDecodedMessageOutputStream,    code, "omni_viewport_persistence_flag" );  sei->omniViewportPersistenceFlag = code;
     sei_read_code( pDecodedMessageOutputStream, 4, code, "omni_viewport_cnt_minus1"       );  sei->omniViewportCnt =  code+1;
-    CHECK_RECOVERABLE( sei->omniViewportCnt > 16, "omni_viewport_cnt_minus1 must be < 16 in vvdecSEIDecodedPictureHash" );
+    CHECK( sei->omniViewportCnt > 16, "omni_viewport_cnt_minus1 must be < 16 in vvdecSEIDecodedPictureHash" );
 
     for(uint32_t region=0; region < sei->omniViewportCnt; region++)
     {
@@ -1417,7 +1417,7 @@ void SEIReader::xParseSEIOmniViewport(vvdecSEI* s, uint32_t payloadSize, std::os
 void SEIReader::xParseSEIRegionWisePacking(vvdecSEI* s, uint32_t payloadSize, std::ostream *pDecodedMessageOutputStream)
 {
   uint32_t val;
-  CHECK( !s || s->payload == NULL, "allocation error in vvdecSEIRegionWisePacking" );
+  CHECK_FATAL( !s || s->payload == NULL, "allocation error in vvdecSEIRegionWisePacking" );
   output_sei_message_header(s, pDecodedMessageOutputStream, payloadSize);
 
   vvdecSEIRegionWisePacking* sei =(vvdecSEIRegionWisePacking*)s->payload;
@@ -1468,7 +1468,7 @@ void SEIReader::xParseSEIGeneralizedCubemapProjection(vvdecSEI* s, uint32_t payl
 {
   uint32_t val;
 
-  CHECK( !s || s->payload == NULL, "allocation error in vvdecSEIGeneralizedCubemapProjection" );
+  CHECK_FATAL( !s || s->payload == NULL, "allocation error in vvdecSEIGeneralizedCubemapProjection" );
   output_sei_message_header(s, pDecodedMessageOutputStream, payloadSize);
   
   vvdecSEIGeneralizedCubemapProjection* sei =(vvdecSEIGeneralizedCubemapProjection*)s->payload;
@@ -1507,28 +1507,28 @@ void SEIReader::xParseSEIGeneralizedCubemapProjection(vvdecSEI* s, uint32_t payl
 
 void SEIReader::xParseSEISubpictureLevelInfo(vvdecSEI* s, uint32_t payloadSize, std::ostream *pDecodedMessageOutputStream)
 {
-  CHECK( !s || s->payload == NULL, "allocation error in vvdecSEISubpictureLevelInfo" );
+  CHECK_FATAL( !s || s->payload == NULL, "allocation error in vvdecSEISubpictureLevelInfo" );
   output_sei_message_header(s, pDecodedMessageOutputStream, payloadSize);
   vvdecSEISubpictureLevelInfo* sei =(vvdecSEISubpictureLevelInfo*)s->payload;
   ::memset(sei, 0, sizeof(vvdecSEISubpictureLevelInfo));
 
   uint32_t val;
   sei_read_code( pDecodedMessageOutputStream,   3,  val,    "sli_nuref_levels_minus1" );              sei->numRefLevels  = val + 1;
-  CHECK_RECOVERABLE( sei->numRefLevels > 6, "sli_nuref_levels_minus1 must be < 6 in vvdecSEISubpictureLevelInfo" );
+  CHECK( sei->numRefLevels > 6, "sli_nuref_levels_minus1 must be < 6 in vvdecSEISubpictureLevelInfo" );
 
   sei_read_flag( pDecodedMessageOutputStream,       val,    "sli_cbr_constraint_flag" );              sei->cbrConstraintFlag = val;
   sei_read_flag( pDecodedMessageOutputStream,       val,    "sli_explicit_fraction_present_flag" );   sei->explicitFractionPresentFlag = val;
   if (sei->explicitFractionPresentFlag)
   {
     sei_read_uvlc(pDecodedMessageOutputStream,      val,    "sli_nusubpics_minus1");                  sei->numSubpics = val + 1;
-    CHECK_RECOVERABLE( sei->numSubpics > 64, "sli_nusubpics_minus1 must be < 64 in vvdecSEISubpictureLevelInfo" );
+    CHECK( sei->numSubpics > 64, "sli_nusubpics_minus1 must be < 64 in vvdecSEISubpictureLevelInfo" );
     sei_read_code(pDecodedMessageOutputStream,  3,  val,    "sli_max_sublayers_minus1"  );            sei->sliMaxSublayers = val + 1;
-    CHECK_RECOVERABLE( sei->sliMaxSublayers > 6, "sli_max_sublayers_minus1 must be < 6 in vvdecSEISubpictureLevelInfo" );
+    CHECK( sei->sliMaxSublayers > 6, "sli_max_sublayers_minus1 must be < 6 in vvdecSEISubpictureLevelInfo" );
 
     sei_read_flag(pDecodedMessageOutputStream,      val,    "sli_sublayer_info_present_flag");        sei->sliSublayerInfoPresentFlag = val;
     while (!isByteAligned())
     {
-      sei_read_flag( pDecodedMessageOutputStream,   val,    "sli_alignment_zero_bit" );           CHECK_RECOVERABLE (val != 0, "sli_alignment_zero_bit not equal to zero" );
+      sei_read_flag( pDecodedMessageOutputStream,   val,    "sli_alignment_zero_bit" );           CHECK (val != 0, "sli_alignment_zero_bit not equal to zero" );
     }
   }
 
@@ -1596,7 +1596,7 @@ void SEIReader::xParseSEISubpictureLevelInfo(vvdecSEI* s, uint32_t payloadSize, 
 void SEIReader::xParseSEISampleAspectRatioInfo(vvdecSEI* s, uint32_t payloadSize, std::ostream *pDecodedMessageOutputStream)
 {
   uint32_t val;
-  CHECK( !s || s->payload == NULL, "allocation error in vvdecSEISampleAspectRatioInfo" );
+  CHECK_FATAL( !s || s->payload == NULL, "allocation error in vvdecSEISampleAspectRatioInfo" );
   output_sei_message_header(s, pDecodedMessageOutputStream, payloadSize);
 
   vvdecSEISampleAspectRatioInfo* sei =(vvdecSEISampleAspectRatioInfo*)s->payload;

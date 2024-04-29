@@ -49,9 +49,7 @@ POSSIBILITY OF SUCH DAMAGE.
 #include "BinDecoder.h"
 
 #include "CommonLib/ContextModelling.h"
-#include "CommonLib/MotionInfo.h"
 #include "CommonLib/UnitPartitioner.h"
-#include "CommonLib/TrQuant.h"
 
 namespace vvdec
 {
@@ -157,7 +155,9 @@ private:
   unsigned    unary_max_symbol          ( unsigned ctxId0, unsigned ctxIdN, unsigned maxSymbol );
   unsigned    unary_max_eqprob          (                                   unsigned maxSymbol );
   unsigned    exp_golomb_eqprob         ( unsigned count );
+#if ENABLE_TRACING
   unsigned    get_num_bits_read         () { return m_BinDecoder.getNumBitsRead(); }
+#endif
   unsigned    code_unary_fixed          ( unsigned ctxId, unsigned unary_max, unsigned fixed );
 
   void        xReadTruncBinCode         ( uint32_t &symbol, uint32_t maxSymbol );

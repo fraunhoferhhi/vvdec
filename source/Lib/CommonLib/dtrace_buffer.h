@@ -46,6 +46,7 @@ POSSIBILITY OF SUCH DAMAGE.
 
 #pragma once
 
+#if ENABLE_TRACING
 #include "dtrace.h"
 #include "dtrace_next.h"
 
@@ -79,8 +80,6 @@ inline unsigned calcCheckSum( const CPelBuf& buf, int bitdepth )
 {
   return calcCheckSum( buf.width, buf.height, buf.buf, buf.stride, bitdepth );
 }
-
-#if ENABLE_TRACING
 
 //////////////////////////////////////////////////////////////////////////
 //
@@ -158,12 +157,12 @@ inline void dtraceCRC( CDTrace *trace_ctx, DTRACE_CHANNEL channel, const CodingS
 {
   const Area& area = parea ? *parea : cs.area.Y();
   DTRACE( trace_ctx, channel, " CRC: %6lld %3d @(%4d,%4d) [%2dx%2d] ,Checksum(%x %x %x)\n",
-      DTRACE_GET_COUNTER( g_trace_ctx, channel ),
-      cs.picture->poc,
-      area.x, area.y, area.width, area.height,
-      calcCheckSum( pelUnitBuf.bufs[COMPONENT_Y], cs.sps->getBitDepth (CHANNEL_TYPE_LUMA)),
-      calcCheckSum( pelUnitBuf.bufs[COMPONENT_Cb], cs.sps->getBitDepth (CHANNEL_TYPE_CHROMA)),
-      calcCheckSum( pelUnitBuf.bufs[COMPONENT_Cr], cs.sps->getBitDepth (CHANNEL_TYPE_CHROMA)));
+          DTRACE_GET_COUNTER( g_trace_ctx, channel ),
+          cs.picture->poc,
+          area.x, area.y, area.width, area.height,
+          calcCheckSum( pelUnitBuf.bufs[COMPONENT_Y], cs.sps->getBitDepth() ),
+          pelUnitBuf.chromaFormat != CHROMA_400 ? calcCheckSum( pelUnitBuf.bufs[COMPONENT_Cb], cs.sps->getBitDepth() ) : 0,
+          pelUnitBuf.chromaFormat != CHROMA_400 ? calcCheckSum( pelUnitBuf.bufs[COMPONENT_Cr], cs.sps->getBitDepth() ) : 0 );
 }
 
 inline void dtraceCCRC( CDTrace *trace_ctx, DTRACE_CHANNEL channel, const CodingStructure& cs, const CPelBuf& pelBuf, ComponentID compId, const Area* parea = NULL )
@@ -173,7 +172,7 @@ inline void dtraceCCRC( CDTrace *trace_ctx, DTRACE_CHANNEL channel, const Coding
       DTRACE_GET_COUNTER( g_trace_ctx, channel ),
       cs.picture->poc,
       area.x, area.y, area.width, area.height, compId,
-      calcCheckSum( pelBuf, cs.sps->getBitDepth ( toChannelType(compId) )));
+      calcCheckSum( pelBuf, cs.sps->getBitDepth()));
 }
 
 
@@ -187,18 +186,18 @@ inline void dtraceCCRC( CDTrace *trace_ctx, DTRACE_CHANNEL channel, const Coding
 #define DTRACE_CRC(...)                  dtraceCRC( __VA_ARGS__ )
 #define DTRACE_CCRC(...)                 dtraceCCRC( __VA_ARGS__ )
 
-#else
+}   // namespace vvdec
 
-#define DTRACE_PEL_BUF(...)
-#define DTRACE_COEFF_BUF(...)
-#define DTRACE_BLOCK_REC(...)
-#define DTRACE_PEL_BUF_COND(...)
-#define DTRACE_COEFF_BUF_COND(...)
-#define DTRACE_BLOCK_REC_COND(...)
-#define DTRACE_UNIT_COMP(...)
-#define DTRACE_CRC(...)
-#define DTRACE_CCRC(...)
+#else   // !ENABLE_TRACING
 
-#endif
+#define DTRACE_PEL_BUF( ... )
+#define DTRACE_COEFF_BUF( ... )
+#define DTRACE_BLOCK_REC( ... )
+#define DTRACE_PEL_BUF_COND( ... )
+#define DTRACE_COEFF_BUF_COND( ... )
+#define DTRACE_BLOCK_REC_COND( ... )
+#define DTRACE_UNIT_COMP( ... )
+#define DTRACE_CRC( ... )
+#define DTRACE_CCRC( ... )
 
-}
+#endif   // !ENABLE_TRACING

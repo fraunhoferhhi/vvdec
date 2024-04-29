@@ -334,7 +334,7 @@ void SampleAdaptiveOffset::offsetBlock_core( const int            channelBitDept
   break;
   default:
   {
-    THROW("Not a supported SAO types\n");
+    THROW_FATAL( "Not a supported SAO types\n" );
   }
   }
 }
@@ -344,7 +344,7 @@ SampleAdaptiveOffset::~SampleAdaptiveOffset()
   destroy();
 }
 
-void SampleAdaptiveOffset::create( int picWidth, int picHeight, ChromaFormat format, uint32_t maxCUWidth, uint32_t maxCUHeight, uint32_t maxCUDepth, uint32_t lumaBitShift, uint32_t chromaBitShift, PelUnitBuf& unitBuf )
+void SampleAdaptiveOffset::create( int picWidth, int picHeight, ChromaFormat format, uint32_t maxCUWidth, uint32_t maxCUHeight, uint32_t maxCUDepth, uint32_t bitShift, PelUnitBuf& unitBuf )
 {
   offsetBlock = offsetBlock_core;
 #if ENABLE_SIMD_OPT_SAO && defined( TARGET_SIMD_X86 )
@@ -354,10 +354,7 @@ void SampleAdaptiveOffset::create( int picWidth, int picHeight, ChromaFormat for
   m_tempBuf = unitBuf;
 
   //bit-depth related
-  for( int compIdx = 0; compIdx < MAX_NUM_COMPONENT; compIdx++ )
-  {
-    m_offsetStepLog2[compIdx] = isLuma(ComponentID(compIdx)) ? lumaBitShift : chromaBitShift;
-  }
+  m_offsetStepLog2 = bitShift;
   m_numberOfComponents = getNumberValidComponents(format);
 }
 
@@ -549,16 +546,16 @@ void SampleAdaptiveOffset::invertQuantOffsets(ComponentID compIdx, int typeIdc, 
   {
     for(int i=0; i< 4; i++)
     {
-      dstOffsets[(typeAuxInfo+ i)%NUM_SAO_BO_CLASSES] = codedOffset[(typeAuxInfo+ i)%NUM_SAO_BO_CLASSES]*(1<<m_offsetStepLog2[compIdx]);
+      dstOffsets[(typeAuxInfo+ i)%NUM_SAO_BO_CLASSES] = codedOffset[(typeAuxInfo+ i)%NUM_SAO_BO_CLASSES]*(1<<m_offsetStepLog2);
     }
   }
   else //EO
   {
     for(int i=0; i< NUM_SAO_EO_CLASSES; i++)
     {
-      dstOffsets[i] = codedOffset[i] *(1<<m_offsetStepLog2[compIdx]);
+      dstOffsets[i] = codedOffset[i] *(1<<m_offsetStepLog2);
     }
-    CHECK_RECOVERABLE(dstOffsets[SAO_CLASS_EO_PLAIN] != 0, "EO offset is not '0'"); //keep EO plain offset as zero
+    CHECK(dstOffsets[SAO_CLASS_EO_PLAIN] != 0, "EO offset is not '0'"); //keep EO plain offset as zero
   }
 
 }
@@ -573,40 +570,34 @@ int SampleAdaptiveOffset::getMergeList(CodingStructure& cs, int ctuRsAddr, SAOBl
   int mergedCTUPos;
   int numValidMergeCandidates = 0;
 
-  for(int mergeType=0; mergeType< NUM_SAO_MERGE_TYPES; mergeType++)
+  for( auto mergeType: { SAO_MERGE_LEFT, SAO_MERGE_ABOVE } )
   {
     SAOBlkParam* mergeCandidate = NULL;
 
     switch(mergeType)
     {
     case SAO_MERGE_ABOVE:
+      if( ctuY > 0 )
       {
-        if(ctuY > 0)
+        mergedCTUPos = ctuRsAddr - pcv.widthInCtus;
+        if( cu.above )
         {
-          mergedCTUPos = ctuRsAddr- pcv.widthInCtus;
-          if(cu.above)
-          {
-            mergeCandidate = &(cs.m_ctuData[mergedCTUPos].saoParam);
-          }
+          mergeCandidate = &( cs.m_ctuData[mergedCTUPos].saoParam );
         }
       }
       break;
     case SAO_MERGE_LEFT:
+      if( ctuX > 0 )
       {
-        if(ctuX > 0)
+        mergedCTUPos = ctuRsAddr - 1;
+        if( cu.left )
         {
-          mergedCTUPos = ctuRsAddr- 1;
-          if(cu.left)
-          {
-            mergeCandidate = &(cs.m_ctuData[mergedCTUPos].saoParam);
-          }
+          mergeCandidate = &( cs.m_ctuData[mergedCTUPos].saoParam );
         }
       }
       break;
     default:
-      {
-        THROW("not a supported merge type");
-      }
+      THROW_FATAL( "not a supported merge type" );
     }
 
     mergeList[mergeType] = mergeCandidate;
@@ -643,14 +634,14 @@ void SampleAdaptiveOffset::reconstructBlkSAOParam(SAOBlkParam& recParam, SAOBlkP
     case SAO_MODE_MERGE:
       {
         const SAOBlkParam* mergeTarget = mergeList[offsetParam.typeIdc];
-        CHECK_RECOVERABLE(mergeTarget == NULL, "Merge target does not exist");
+        CHECK(mergeTarget == NULL, "Merge target does not exist");
 
         offsetParam = (*mergeTarget)[component];
       }
       break;
     default:
       {
-        THROW("Not a supported mode");
+        THROW_RECOVERABLE( "Not a supported mode" );
       }
     }
   }
@@ -691,8 +682,8 @@ void SampleAdaptiveOffset::offsetCTU( const UnitArea& area, const CPelUnitBuf& s
                                                                        horVirBndryPos, verVirBndryPos );
   if( isCtuCrossedByVirtualBoundaries )
   {
-    CHECK_RECOVERABLE( numHorVirBndry >= (int)( sizeof(horVirBndryPos) / sizeof(horVirBndryPos[0]) ), "Too many virtual boundaries" );
-    CHECK_RECOVERABLE( numHorVirBndry >= (int)( sizeof(verVirBndryPos) / sizeof(verVirBndryPos[0]) ), "Too many virtual boundaries" );
+    CHECK( numHorVirBndry >= (int)( sizeof(horVirBndryPos) / sizeof(horVirBndryPos[0]) ), "Too many virtual boundaries" );
+    CHECK( numHorVirBndry >= (int)( sizeof(verVirBndryPos) / sizeof(verVirBndryPos[0]) ), "Too many virtual boundaries" );
   }
 
   for(int compIdx = 0; compIdx < numberOfComponents; compIdx++)
@@ -717,7 +708,7 @@ void SampleAdaptiveOffset::offsetCTU( const UnitArea& area, const CPelUnitBuf& s
         verVirBndryPosComp[i] = (verVirBndryPos[i] >> getComponentScaleX(compID, area.chromaFormat)) - compArea.x;
       }
 
-      offsetBlock( cs.sps->getBitDepth(toChannelType(compID)),
+      offsetBlock( cs.sps->getBitDepth(),
                    cs.getCtuData(cs.ctuRsAddr(area.Y().pos(), CH_L)).cuPtr[0][0]->slice->clpRng(compID),
                    ctbOffset.typeIdc, ctbOffset.offset,ctbOffset.typeAuxInfo
                   , srcBlk, resBlk, srcStride, resStride, compArea.width, compArea.height

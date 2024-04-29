@@ -1336,7 +1336,7 @@ void offsetBlock_SIMD( const int            channelBitDepth,
     break;
 
   default:
-    THROW( "Not a supported SAO types\n" );
+    THROW_FATAL( "Not a supported SAO types\n" );
   }
 
 #  if USE_AVX2

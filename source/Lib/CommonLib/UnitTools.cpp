@@ -107,31 +107,31 @@ bool CU::getRprScaling( const SPS* sps, const PPS* curPPS, const PPS* refPPS, in
   int curPicHeightY = curPPS->getPicHeightInLumaSamples();                      // pic_height_in_luma_samples
   int max8MinCbSizeY = std::max((int)8, (1<<sps->getLog2MinCodingBlockSize())); // Max(8, MinCbSizeY)
 
-  CHECK_RECOVERABLE((curPicWidth * curSeqMaxPicWidthY) < refPicWidth * (curPicWidthY - max8MinCbSizeY), "(curPicWidth * curSeqMaxPicWidthY) should be greater than or equal to refPicWidth * (curPicWidthY - max8MinCbSizeY))");
-  CHECK_RECOVERABLE((curPicHeight * curSeqMaxPicHeightY) < refPicHeight * (curPicHeightY - max8MinCbSizeY), "(curPicHeight * curSeqMaxPicHeightY) should be greater than or equal to refPicHeight * (curPicHeightY - max8MinCbSizeY))");
+  CHECK((curPicWidth * curSeqMaxPicWidthY) < refPicWidth * (curPicWidthY - max8MinCbSizeY), "(curPicWidth * curSeqMaxPicWidthY) should be greater than or equal to refPicWidth * (curPicWidthY - max8MinCbSizeY))");
+  CHECK((curPicHeight * curSeqMaxPicHeightY) < refPicHeight * (curPicHeightY - max8MinCbSizeY), "(curPicHeight * curSeqMaxPicHeightY) should be greater than or equal to refPicHeight * (curPicHeightY - max8MinCbSizeY))");
 
-  CHECK_RECOVERABLE(curPicWidth * 2 < refPicWidth, "curPicWidth * 2 shall be greater than or equal to refPicWidth");
-  CHECK_RECOVERABLE(curPicHeight * 2 < refPicHeight, "curPicHeight * 2 shall be greater than or equal to refPicHeight");
-  CHECK_RECOVERABLE(curPicWidth > refPicWidth * 8, "curPicWidth shall be less than or equal to refPicWidth * 8");
-  CHECK_RECOVERABLE(curPicHeight > refPicHeight * 8, "curPicHeight shall be less than or equal to refPicHeight * 8");
+  CHECK(curPicWidth * 2 < refPicWidth, "curPicWidth * 2 shall be greater than or equal to refPicWidth");
+  CHECK(curPicHeight * 2 < refPicHeight, "curPicHeight * 2 shall be greater than or equal to refPicHeight");
+  CHECK(curPicWidth > refPicWidth * 8, "curPicWidth shall be less than or equal to refPicWidth * 8");
+  CHECK(curPicHeight > refPicHeight * 8, "curPicHeight shall be less than or equal to refPicHeight * 8");
 
   int subWidthC = SPS::getWinUnitX(sps->getChromaFormatIdc());
   int subHeightC = SPS::getWinUnitY(sps->getChromaFormatIdc());
 
-  CHECK_RECOVERABLE(subWidthC * curScalingWindow.getWindowLeftOffset() < (-curPicWidthY) * 15, "The value of SubWidthC * pps_scaling_win_left_offset shall be greater than or equal to -pps_pic_width_in_luma_samples * 15");
-  CHECK_RECOVERABLE(subWidthC * curScalingWindow.getWindowLeftOffset() >= curPicWidthY, "The value of SubWidthC * pps_scaling_win_left_offset shall be less than pic_width_in_luma_samples");
-  CHECK_RECOVERABLE(subWidthC * curScalingWindow.getWindowRightOffset() < (-curPicWidthY) * 15, "The value of SubWidthC * pps_scaling_win_right_offset shall be greater than or equal to -pps_pic_width_in_luma_samples * 15");
-  CHECK_RECOVERABLE(subWidthC * curScalingWindow.getWindowRightOffset() >= curPicWidthY, "The value of SubWidthC * pps_scaling_win_right_offset shall be less than pic_width_in_luma_samples");
+  CHECK(subWidthC * curScalingWindow.getWindowLeftOffset() < (-curPicWidthY) * 15, "The value of SubWidthC * pps_scaling_win_left_offset shall be greater than or equal to -pps_pic_width_in_luma_samples * 15");
+  CHECK(subWidthC * curScalingWindow.getWindowLeftOffset() >= curPicWidthY, "The value of SubWidthC * pps_scaling_win_left_offset shall be less than pic_width_in_luma_samples");
+  CHECK(subWidthC * curScalingWindow.getWindowRightOffset() < (-curPicWidthY) * 15, "The value of SubWidthC * pps_scaling_win_right_offset shall be greater than or equal to -pps_pic_width_in_luma_samples * 15");
+  CHECK(subWidthC * curScalingWindow.getWindowRightOffset() >= curPicWidthY, "The value of SubWidthC * pps_scaling_win_right_offset shall be less than pic_width_in_luma_samples");
 
-  CHECK_RECOVERABLE(subHeightC * curScalingWindow.getWindowTopOffset() < (-curPicHeightY) * 15, "The value of SubHeightC * pps_scaling_win_top_offset shall be greater than or equal to -pps_pic_height_in_luma_samples * 15");
-  CHECK_RECOVERABLE(subHeightC * curScalingWindow.getWindowTopOffset() >= curPicHeightY, "The value of SubHeightC * pps_scaling_win_top_offset shall be less than pps_pic_height_in_luma_samples");
-  CHECK_RECOVERABLE(subHeightC * curScalingWindow.getWindowBottomOffset() < (-curPicHeightY) * 15, "The value of SubHeightC *pps_scaling_win_bottom_offset shall be greater than or equal to -pps_pic_height_in_luma_samples * 15");
-  CHECK_RECOVERABLE(subHeightC * curScalingWindow.getWindowBottomOffset() >= curPicHeightY, "The value of SubHeightC *pps_scaling_win_bottom_offset shall be less than pps_pic_height_in_luma_samples");
+  CHECK(subHeightC * curScalingWindow.getWindowTopOffset() < (-curPicHeightY) * 15, "The value of SubHeightC * pps_scaling_win_top_offset shall be greater than or equal to -pps_pic_height_in_luma_samples * 15");
+  CHECK(subHeightC * curScalingWindow.getWindowTopOffset() >= curPicHeightY, "The value of SubHeightC * pps_scaling_win_top_offset shall be less than pps_pic_height_in_luma_samples");
+  CHECK(subHeightC * curScalingWindow.getWindowBottomOffset() < (-curPicHeightY) * 15, "The value of SubHeightC *pps_scaling_win_bottom_offset shall be greater than or equal to -pps_pic_height_in_luma_samples * 15");
+  CHECK(subHeightC * curScalingWindow.getWindowBottomOffset() >= curPicHeightY, "The value of SubHeightC *pps_scaling_win_bottom_offset shall be less than pps_pic_height_in_luma_samples");
 
-  CHECK_RECOVERABLE(subWidthC * (curScalingWindow.getWindowLeftOffset() + curScalingWindow.getWindowRightOffset()) < (-curPicWidthY) * 15, "The value of SubWidthC * ( pps_scaling_win_left_offset + pps_scaling_win_right_offset ) shall be greater than or equal to -pps_pic_width_in_luma_samples * 15");
-  CHECK_RECOVERABLE(subWidthC * (curScalingWindow.getWindowLeftOffset() + curScalingWindow.getWindowRightOffset()) >= curPicWidthY, "The value of SubWidthC * ( pps_scaling_win_left_offset + pps_scaling_win_right_offset ) shall be less than pic_width_in_luma_samples");
-  CHECK_RECOVERABLE(subHeightC * (curScalingWindow.getWindowTopOffset() + curScalingWindow.getWindowBottomOffset()) < (-curPicHeightY) * 15, "The value of SubHeightC * ( pps_scaling_win_top_offset + pps_scaling_win_bottom_offset ) shall be greater than or equal to -pps_pic_height_in_luma_samples * 15");
-  CHECK_RECOVERABLE(subHeightC * (curScalingWindow.getWindowTopOffset() + curScalingWindow.getWindowBottomOffset()) >= curPicHeightY, "The value of SubHeightC * ( pps_scaling_win_top_offset + pps_scaling_win_bottom_offset ) shall be less than pic_height_in_luma_samples");
+  CHECK(subWidthC * (curScalingWindow.getWindowLeftOffset() + curScalingWindow.getWindowRightOffset()) < (-curPicWidthY) * 15, "The value of SubWidthC * ( pps_scaling_win_left_offset + pps_scaling_win_right_offset ) shall be greater than or equal to -pps_pic_width_in_luma_samples * 15");
+  CHECK(subWidthC * (curScalingWindow.getWindowLeftOffset() + curScalingWindow.getWindowRightOffset()) >= curPicWidthY, "The value of SubWidthC * ( pps_scaling_win_left_offset + pps_scaling_win_right_offset ) shall be less than pic_width_in_luma_samples");
+  CHECK(subHeightC * (curScalingWindow.getWindowTopOffset() + curScalingWindow.getWindowBottomOffset()) < (-curPicHeightY) * 15, "The value of SubHeightC * ( pps_scaling_win_top_offset + pps_scaling_win_bottom_offset ) shall be greater than or equal to -pps_pic_height_in_luma_samples * 15");
+  CHECK(subHeightC * (curScalingWindow.getWindowTopOffset() + curScalingWindow.getWindowBottomOffset()) >= curPicHeightY, "The value of SubHeightC * ( pps_scaling_win_top_offset + pps_scaling_win_bottom_offset ) shall be less than pic_height_in_luma_samples");
 
   return false; // return whatever, because it's not used... to be changed
 }
@@ -152,7 +152,7 @@ void CU::checkConformanceILRP(Slice *slice)
     }
   }
 
-  CHECK_RECOVERABLE( currentSubPicIdx == NOT_VALID, "Sub-picture was not found" );
+  CHECK( currentSubPicIdx == NOT_VALID, "Sub-picture was not found" );
 
   if( !slice->getPic()->cs->sps->getSubPicTreatedAsPicFlag( currentSubPicIdx ) )
   {
@@ -213,7 +213,7 @@ void CU::checkConformanceILRP(Slice *slice)
       for (int refIdx = 0; refIdx < slice->getNumRefIdx(eRefPicList); refIdx++)
       {
         const Picture* refPic = slice->getRefPic( eRefPicList, refIdx );
-        CHECK_RECOVERABLE( refPic->layerId == slice->getPic()->layerId || refPic->subPictures.size() > 1, "The inter-layer reference shall contain a single subpicture or have same subpicture layout with the current picture" );
+        CHECK( refPic->layerId == slice->getPic()->layerId || refPic->subPictures.size() > 1, "The inter-layer reference shall contain a single subpicture or have same subpicture layout with the current picture" );
       }
     }
   }
@@ -292,7 +292,7 @@ int CU::predictQP( const CodingUnit& cu, const int prevQP )
 
 bool CU::divideTuInRows( const CodingUnit &cu )
 {
-  CHECK_RECOVERABLE( cu.ispMode() != HOR_INTRA_SUBPARTITIONS && cu.ispMode() != VER_INTRA_SUBPARTITIONS, "Intra Subpartitions type not recognized!" );
+  CHECK( cu.ispMode() != HOR_INTRA_SUBPARTITIONS && cu.ispMode() != VER_INTRA_SUBPARTITIONS, "Intra Subpartitions type not recognized!" );
   return cu.ispMode() == HOR_INTRA_SUBPARTITIONS ? true : false;
 }
 
@@ -336,7 +336,7 @@ bool CU::canUseLfnstWithISP( const CompArea& cuArea, const ISPType ispSplitType 
 
 bool CU::canUseLfnstWithISP( const CodingUnit& cu, const ChannelType chType )
 {
-  CHECK_RECOVERABLE( !isLuma( chType ), "Wrong ISP mode!" );
+  CHECK( !isLuma( chType ), "Wrong ISP mode!" );
   return CU::canUseLfnstWithISP( cu.blocks[chType == CHANNEL_TYPE_LUMA ? 0 : 1], (ISPType)cu.ispMode() );
 }
 
@@ -377,7 +377,7 @@ uint32_t CU::getISPSplitDim( const int width, const int height, const PartSplit 
   const int factorToMinSamples = nonSplitDimensionSize < minNumberOfSamplesPerCu ? minNumberOfSamplesPerCu >> getLog2(nonSplitDimensionSize) : 1;
   partitionSize = ( splitDimensionSize >> divShift ) < factorToMinSamples ? factorToMinSamples : ( splitDimensionSize >> divShift );
 
-  CHECK_RECOVERABLE( getLog2(partitionSize) + getLog2(nonSplitDimensionSize) < getLog2(minNumberOfSamplesPerCu), "A partition has less than the minimum amount of samples!" );
+  CHECK( getLog2(partitionSize) + getLog2(nonSplitDimensionSize) < getLog2(minNumberOfSamplesPerCu), "A partition has less than the minimum amount of samples!" );
   return partitionSize;
 }
 
@@ -387,7 +387,7 @@ int PU::getIntraMPMs( const CodingUnit &cu, unsigned* mpm, const ChannelType &ch
 {
   const int numMPMs = NUM_MOST_PROBABLE_MODES;
   {
-    CHECK_RECOVERABLE(channelType != CHANNEL_TYPE_LUMA, "Not harmonized yet");
+    CHECK(channelType != CHANNEL_TYPE_LUMA, "Not harmonized yet");
     int numCand      = -1;
     int leftIntraDir = PLANAR_IDX, aboveIntraDir = PLANAR_IDX;
 
@@ -409,7 +409,7 @@ int PU::getIntraMPMs( const CodingUnit &cu, unsigned* mpm, const ChannelType &ch
       aboveIntraDir = PU::getIntraDirLuma( *cuAbove );
     }
 
-    CHECK_RECOVERABLE(2 >= numMPMs, "Invalid number of most probable modes");
+    CHECK(2 >= numMPMs, "Invalid number of most probable modes");
 
     const int offset = (int)NUM_LUMA_MODE - 6;
     const int mod = offset + 3;
@@ -486,9 +486,9 @@ int PU::getIntraMPMs( const CodingUnit &cu, unsigned* mpm, const ChannelType &ch
     }
     for (int i = 0; i < numMPMs; i++)
     {
-      CHECK_RECOVERABLE(mpm[i] >= NUM_LUMA_MODE, "Invalid MPM");
+      CHECK(mpm[i] >= NUM_LUMA_MODE, "Invalid MPM");
     }
-    CHECK_RECOVERABLE(numCand == 0, "No candidates found");
+    CHECK(numCand == 0, "No candidates found");
     return numCand;
   }
 }
@@ -1454,7 +1454,7 @@ bool PU::getColocatedMVP(const CodingUnit &cu, const RefPicList &eRefPicList, co
     }
   }
 
-  CHECK_RECOVERABLE( pColSlice == nullptr, "Slice segment not found" );
+  CHECK( pColSlice == nullptr, "Slice segment not found" );
 
   const Slice &colSlice = *pColSlice;
 
@@ -2276,7 +2276,7 @@ void PU::getAffineControlPointCand( const CodingUnit &cu, MotionInfo mi[4], bool
         break;
 
       default:
-        CHECK_RECOVERABLE( 1, "Invalid model index!\n" );
+        CHECK( 1, "Invalid model index!\n" );
         break;
       }
     }
@@ -2671,7 +2671,7 @@ void PU::getAffineMergeCand( const CodingUnit &cu, AffineMergeCtx& affMrgCtx, co
 void PU::setAllAffineMvField( CodingUnit &cu, MvField *mvField, RefPicList eRefList )
 {
   // Set RefIdx
-  CHECK_RECOVERABLE( mvField[0].mfRefIdx != mvField[1].mfRefIdx || mvField[0].mfRefIdx != mvField[2].mfRefIdx, "Affine mv corners don't have the same refIdx." );
+  CHECK( mvField[0].mfRefIdx != mvField[1].mfRefIdx || mvField[0].mfRefIdx != mvField[2].mfRefIdx, "Affine mv corners don't have the same refIdx." );
   cu.refIdx[eRefList] = mvField[0].mfRefIdx;
 
   setAllAffineMv( cu, mvField[0].mv, mvField[1].mv, mvField[2].mv, eRefList );
@@ -2813,7 +2813,7 @@ static bool deriveScaledMotionTemporal( const Slice&      slice,
                                               Mv&         cColMv,
                                         const RefPicList  eFetchRefPicList )
 {
-  CHECK_RECOVERABLE( pColSlice == nullptr, "Couldn't find the colocated slice" );
+  CHECK( pColSlice == nullptr, "Couldn't find the colocated slice" );
 
   const Slice &colSlice = *pColSlice;
 
@@ -3442,10 +3442,10 @@ uint8_t CU::getSbtTuSplit( const CodingUnit& cu )
   case SBT_HOR_HALF: sbtTuSplitType = ( getSbtPos( cu ) == SBT_POS0 ? 0 : 1 ) + SBT_HOR_HALF_POS0_SPLIT; break;
   case SBT_VER_QUAD: sbtTuSplitType = ( getSbtPos( cu ) == SBT_POS0 ? 0 : 1 ) + SBT_VER_QUAD_POS0_SPLIT; break;
   case SBT_HOR_QUAD: sbtTuSplitType = ( getSbtPos( cu ) == SBT_POS0 ? 0 : 1 ) + SBT_HOR_QUAD_POS0_SPLIT; break;
-  default: CHECK_RECOVERABLE( true, "wrong split" );  break;
+  default: CHECK( true, "wrong split" );  break;
   }
 
-  CHECK_RECOVERABLE( !( sbtTuSplitType <= SBT_HOR_QUAD_POS1_SPLIT && sbtTuSplitType >= SBT_VER_HALF_POS0_SPLIT ), "wrong split type" );
+  CHECK( !( sbtTuSplitType <= SBT_HOR_QUAD_POS1_SPLIT && sbtTuSplitType >= SBT_VER_HALF_POS0_SPLIT ), "wrong split type" );
   return sbtTuSplitType;
 }
 
@@ -3471,7 +3471,7 @@ void CU::adjustPredArea(CompArea &area)
 
 PartSplit CU::getSplitAtDepth( const CodingUnit& cu, const unsigned depth )
 {
-  CHECK_RECOVERABLE( depth >= 3, "Only works up to the split depth of '3'" );
+  CHECK( depth >= 3, "Only works up to the split depth of '3'" );
 
   if( depth >= cu.depth ) return CU_DONT_SPLIT;
 
@@ -3485,7 +3485,8 @@ PartSplit CU::getSplitAtDepth( const CodingUnit& cu, const unsigned depth )
 
   else if( cuSplitType == CU_TRIH_SPLIT    ) return CU_TRIH_SPLIT;
   else if( cuSplitType == CU_TRIV_SPLIT    ) return CU_TRIV_SPLIT;
-  else   { THROW( "Unknown split mode"    ); return CU_QUAD_SPLIT; }
+
+  THROW_RECOVERABLE( "Unknown split mode" );
 }
 
 bool CU::checkCCLMAllowed( const CodingUnit& cu )
@@ -3547,7 +3548,7 @@ bool CU::isBcwIdxCoded( const CodingUnit &cu )
 {
   if( cu.sps->getUseBcw() == false )
   {
-    CHECK_RECOVERABLE( cu.BcwIdx() != BCW_DEFAULT, "Error: cu.BcwIdx != BCW_DEFAULT" );
+    CHECK( cu.BcwIdx() != BCW_DEFAULT, "Error: cu.BcwIdx != BCW_DEFAULT" );
     return false;
   }
 
@@ -3599,7 +3600,7 @@ void CU::setBcwIdx( CodingUnit &cu, uint8_t uh )
     cu.setBcwIdx( BCW_DEFAULT );
   }
 
-  CHECK_RECOVERABLE(uhCnt <= 0, " uhCnt <= 0 ");
+  CHECK(uhCnt <= 0, " uhCnt <= 0 ");
 }
 
 
@@ -3792,7 +3793,7 @@ int getNumModesMip( const Size& block )
     case 0: return 16;
     case 1: return  8;
     case 2: return  6;
-    default: THROW( "Invalid mipSizeId" );
+    default: THROW_FATAL( "Invalid mipSizeId" );
   }
 }
 

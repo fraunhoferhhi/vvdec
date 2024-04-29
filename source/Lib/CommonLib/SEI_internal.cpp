@@ -158,13 +158,13 @@ vvdecSEI* SEI_internal::allocSEI( vvdecSEIPayloadType payloadType )
   }
   else
   {
-    CHECK( !sei, "sei memory allocation error" );
+    CHECK_FATAL( !sei, "sei memory allocation error" );
     return nullptr;
   }
 
   if( 0 != allocSEIPayload( sei ))
   {
-    CHECK( !sei, "sei payload allocation error" );
+    CHECK_FATAL( !sei, "sei payload allocation error" );
     delete sei ;
     return nullptr;
   }

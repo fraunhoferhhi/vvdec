@@ -46,6 +46,7 @@ POSSIBILITY OF SUCH DAMAGE.
 
 #pragma once
 
+#include "Rom.h"
 #include "Unit.h"
 #include "Buffer.h"
 #include "CommonDef.h"

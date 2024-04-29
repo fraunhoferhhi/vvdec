@@ -80,6 +80,7 @@ struct Picture : public UnitArea
 {
   Picture() = default;
   ~Picture() = default;
+  CLASS_COPY_MOVE_DELETE( Picture )
 
   void create(const ChromaFormat &_chromaFormat, const Size &size, const unsigned _maxCUSize, const unsigned margin, const int layerId, UserAllocator* userAlloc = nullptr );
   void createWrapAroundBuf( const bool isWrapAround, const unsigned _maxCUSize );
@@ -104,7 +105,7 @@ struct Picture : public UnitArea
   // Also, handle with care, because stride < width.
   const CPelBuf getSubPicBuf( int subPicIdx, const ComponentID compID, bool wrap = false ) const
   {
-    CHECK_RECOVERABLE( wrap, "wraparound for subpics not supported yet" );
+    CHECK( wrap, "wraparound for subpics not supported yet" );
 
     Position subPicPos( subPictures[subPicIdx].getSubPicLeft() >> getComponentScaleX( compID, m_subPicRefBufs[subPicIdx].chromaFormat ),
                         subPictures[subPicIdx].getSubPicTop()  >> getComponentScaleY( compID, m_subPicRefBufs[subPicIdx].chromaFormat ) );

@@ -42,11 +42,9 @@ POSSIBILITY OF SUCH DAMAGE.
 
 #pragma once
 
-#include "CommonDef.h"
-#include "Common.h"
+#include "Unit.h"
 #include "Picture.h"
 
-#include <list>
 #include <unordered_set>
 
 namespace vvdec

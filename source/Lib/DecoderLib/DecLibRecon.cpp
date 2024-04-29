@@ -140,7 +140,7 @@ void DecLibRecon::create( ThreadPool* threadPool, unsigned instanceId, bool upsc
     itt_domain_decInst.push_back( __itt_domain_create( name.c_str() ) );
     itt_domain_decInst.back()->flags = 1;
 
-    CHECK( itt_domain_decInst.back() != itt_domain_decInst[instanceId], "current decLibRecon ITT-Domain is not the last in vector. Instances created in the wrong order?" );
+    CHECK_FATAL( itt_domain_decInst.back() != itt_domain_decInst[instanceId], "current decLibRecon ITT-Domain is not the last in vector. Instances created in the wrong order?" );
   }
   m_itt_decInst = itt_domain_decInst[instanceId];
 #endif
@@ -236,7 +236,7 @@ void DecLibRecon::borderExtPic( Picture* pic, const Picture* currPic )
   pic->waitForAllTasks();
   if( pic->progress < Picture::reconstructed )   // an exception must have happended in the picture, so we need to clean it up
   {
-    CHECK( pic->progress < Picture::parsing, "Slice parsing should have started, so all structures are there" );
+    CHECK_FATAL( pic->progress < Picture::parsing, "Slice parsing should have started, so all structures are there" );
     try
     {
       pic->reconDone.checkAndRethrowException();
@@ -429,11 +429,11 @@ void DecLibRecon::decompressPicture( Picture* pcPic )
   {
     if( sps->getUseReshaper() )
     {
-      m_pcThreadResource[i]->m_cReshaper.createDec( sps->getBitDepth( CHANNEL_TYPE_LUMA ) );
-      m_pcThreadResource[i]->m_cReshaper.initSlice( pcPic->slices[0]->getNalUnitLayerId(), *pcPic->slices[0]->getPicHeader(), pcPic->slices[0]->getVPS() );
+      m_pcThreadResource[i]->m_cReshaper.createDec( sps->getBitDepth() );
+      m_pcThreadResource[i]->m_cReshaper.initSlice( pcPic->slices[0]->getNalUnitLayerId(), *pcPic->slices[0]->getPicHeader(), pcPic->slices[0]->getVPS_nothrow() );
     }
 
-    m_pcThreadResource[i]->m_cIntraPred.init( sps->getChromaFormatIdc(), sps->getBitDepth( CHANNEL_TYPE_LUMA ) );
+    m_pcThreadResource[i]->m_cIntraPred.init( sps->getChromaFormatIdc(), sps->getBitDepth() );
     m_pcThreadResource[i]->m_cInterPred.init( &m_cRdCost, sps->getChromaFormatIdc(), sps->getMaxCUHeight() );
 
     // Recursive structure
@@ -443,8 +443,7 @@ void DecLibRecon::decompressPicture( Picture* pcPic )
 
   getCompatibleBuffer( *pcPic->cs, pcPic->cs->getRecoBuf(), m_fltBuf, pcPic->getUserAllocator() );
 
-  const uint32_t  log2SaoOffsetScaleLuma   = (uint32_t) std::max(0, sps->getBitDepth(CHANNEL_TYPE_LUMA  ) - MAX_SAO_TRUNCATED_BITDEPTH);
-  const uint32_t  log2SaoOffsetScaleChroma = (uint32_t) std::max(0, sps->getBitDepth(CHANNEL_TYPE_CHROMA) - MAX_SAO_TRUNCATED_BITDEPTH);
+  const uint32_t  log2SaoOffsetScale = (uint32_t) std::max(0, sps->getBitDepth() - MAX_SAO_TRUNCATED_BITDEPTH);
   const int maxDepth = getLog2(sps->getMaxCUWidth()) - pps->pcv->minCUWidthLog2;
   m_cSAO.create( pps->getPicWidthInLumaSamples(),
                  pps->getPicHeightInLumaSamples(),
@@ -452,8 +451,7 @@ void DecLibRecon::decompressPicture( Picture* pcPic )
                  sps->getMaxCUWidth(),
                  sps->getMaxCUHeight(),
                  maxDepth,
-                 log2SaoOffsetScaleLuma,
-                 log2SaoOffsetScaleChroma,
+                 log2SaoOffsetScale,
                  m_fltBuf
                );
 
@@ -539,8 +537,8 @@ void DecLibRecon::decompressPicture( Picture* pcPic )
 
     if( !refPic->subPicExtStarted && numSubPic > 1 && refPic->m_subPicRefBufs.size() != numSubPic )
     {
-      CHECK_RECOVERABLE( !refPic->m_subPicRefBufs.empty(), "Wrong number of subpics already present in reference picture" );
-      CHECK_RECOVERABLE( cs.sps->getUseWrapAround(), "Wraparound + subpics not implemented" );
+      CHECK( !refPic->m_subPicRefBufs.empty(), "Wrong number of subpics already present in reference picture" );
+      CHECK( cs.sps->getUseWrapAround(), "Wraparound + subpics not implemented" );
 
       createSubPicRefBufs( refPic, pcPic );
     }
@@ -673,7 +671,7 @@ Picture* DecLibRecon::waitForPrevDecompressedPic()
   if( m_decodeThreadPool->numThreads() == 0 )
   {
     m_decodeThreadPool->processTasksOnMainThread();
-    CHECK( m_currDecompPic->reconDone.isBlocked(), "can't make progress. some dependecy has not been finished" );
+    CHECK_FATAL( m_currDecompPic->reconDone.isBlocked(), "can't make progress. some dependecy has not been finished" );
   }
 
   try

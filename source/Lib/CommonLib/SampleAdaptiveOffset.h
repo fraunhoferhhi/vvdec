@@ -76,7 +76,7 @@ public:
   SampleAdaptiveOffset() {}
   ~SampleAdaptiveOffset();
 
-  void create( int picWidth, int picHeight, ChromaFormat format, uint32_t maxCUWidth, uint32_t maxCUHeight, uint32_t maxCUDepth, uint32_t lumaBitShift, uint32_t chromaBitShift, PelUnitBuf& unitBuf );
+  void create( int picWidth, int picHeight, ChromaFormat format, uint32_t maxCUWidth, uint32_t maxCUHeight, uint32_t maxCUDepth, uint32_t bitShift, PelUnitBuf& unitBuf );
   void destroy();
 
 //  void SAOProcess( CodingStructure& cs );
@@ -171,9 +171,9 @@ protected:
 
 
 protected:
-  std::array<uint32_t, MAX_NUM_COMPONENT> m_offsetStepLog2;   // offset step
-  PelUnitBuf                              m_tempBuf;
-  uint32_t                                m_numberOfComponents;
+  uint32_t   m_offsetStepLog2;   // offset step
+  uint32_t   m_numberOfComponents;
+  PelUnitBuf m_tempBuf;
 };
 
 }

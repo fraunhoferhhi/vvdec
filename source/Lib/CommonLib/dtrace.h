@@ -53,12 +53,15 @@ POSSIBILITY OF SUCH DAMAGE.
 #include <map>
 #include <set>
 #include <vector>
-#include <cstdarg>
 
 namespace vvdec
 {
 
 class CDTrace;
+
+#if ENABLE_TRACING
+extern CDTrace* g_trace_ctx;
+#endif
 
 typedef std::string CType;
 

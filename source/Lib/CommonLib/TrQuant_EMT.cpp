@@ -48,9 +48,6 @@ POSSIBILITY OF SUCH DAMAGE.
 
 #include "Rom.h"
 
-#include <stdlib.h>
-#include <math.h>
-#include <limits>
 #include <memory.h>
 
 namespace vvdec
