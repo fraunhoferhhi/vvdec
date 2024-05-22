@@ -236,13 +236,19 @@ build_mingw_ubuntu2204:
   extends: .build_only_template_full
   image: $CI_REGISTRY/pub/dockerimages/ubuntu_2204_full:latest
   variables:
-    toolchainfile: cmake/toolchains/x86_64-w64-mingw32-gcc-posix-ubuntu2204.cmake
+    toolchainfile: cmake/toolchains/x86_64-w64-mingw32-gcc-posix-ubuntu.cmake
 
 build_aarch64_gcc_ubuntu2204:
   extends: .build_only_template_full
   image: $CI_REGISTRY/pub/dockerimages/ubuntu_2204_full:latest
   variables:
-    toolchainfile: cmake/toolchains/aarch64-linux-gnu-gcc-ubuntu2204.cmake
+    toolchainfile: cmake/toolchains/aarch64-linux-gnu-gcc-ubuntu.cmake
+
+build_armv7_gcc_ubuntu2204:
+  extends: .build_only_template_full
+  image: $CI_REGISTRY/pub/dockerimages/ubuntu_2204_full:latest
+  variables:
+    toolchainfile: cmake/toolchains/arm-linux-gnueabihf-gcc-ubuntu.cmake
 
 build_ios:
   extends: .build_only_template_full
@@ -296,6 +302,15 @@ test_vc193x_Win32:
     MSVC_ARCH: Win32
   tags:
     - vc193x
+
+build_vc193x_arm64:
+  extends: .build_only_template_full
+  variables:
+    MSVC_ARCH: arm64
+  tags:
+    - vc193x
+  script:
+    - make msvc-arch=${MSVC_ARCH} all
 
 test_macos_arm64:
   extends: .build_test_macos_template

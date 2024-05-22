@@ -67,6 +67,13 @@ namespace vvdec
 
 #ifdef TARGET_SIMD_X86
 
+#  if defined( REAL_TARGET_X86 ) \
+    || ( defined( SIMD_EVERYWHERE_EXTENSION_LEVEL_ID ) && SIMD_EVERYWHERE_EXTENSION_LEVEL_ID >= X86_SIMD_AVX2 )
+#    define ENABLE_AVX2_IMPLEMENTATIONS 1
+#  else
+#    define ENABLE_AVX2_IMPLEMENTATIONS 0
+#  endif
+
 
 #if ENABLE_SIMD_OPT_MCIF
 void InterpolationFilter::initInterpolationFilterX86( /*int iBitDepthY, int iBitDepthC*/ )
@@ -75,10 +82,10 @@ void InterpolationFilter::initInterpolationFilterX86( /*int iBitDepthY, int iBit
   switch (vext){
   case AVX512:
   case AVX2:
-#ifndef REAL_TARGET_WASM
+#if ENABLE_AVX2_IMPLEMENTATIONS
     _initInterpolationFilterX86<AVX2>(/*iBitDepthY, iBitDepthC*/);
     break;
-#endif  // !REAL_TARGET_WASM
+#endif  // ENABLE_AVX2_IMPLEMENTATIONS
   case AVX:
   case SSE42:
   case SSE41:
@@ -97,10 +104,10 @@ void PelBufferOps::initPelBufOpsX86()
   switch (vext){
     case AVX512:
     case AVX2:
-#ifndef REAL_TARGET_WASM
+#if ENABLE_AVX2_IMPLEMENTATIONS
       _initPelBufOpsX86<AVX2>();
       break;
-#endif  // !REAL_TARGET_WASM
+#endif  // ENABLE_AVX2_IMPLEMENTATIONS
     case AVX:
     case SSE42:
     case SSE41:
@@ -112,9 +119,6 @@ void PelBufferOps::initPelBufOpsX86()
 }
 #endif
 
-
-
-
 #if ENABLE_SIMD_OPT_DIST
 void RdCost::initRdCostX86()
 {
@@ -122,11 +126,12 @@ void RdCost::initRdCostX86()
   switch (vext){
     case AVX512:
     case AVX2:
-#if defined( REAL_TARGET_WASM ) || ( defined( _MSC_VER ) && _MSC_VER >= 1938 && _MSC_VER < 1939 )
-#else
+#if ENABLE_AVX2_IMPLEMENTATIONS
+#if !(defined(_MSC_VER) && _MSC_VER >= 1938 && _MSC_VER < 1939) // workaround for buggy msvc versions
       _initRdCostX86<AVX2>();
       break;
 #endif
+#endif  // ENABLE_AVX2_IMPLEMENTATIONS
     case AVX:
     case SSE42:
     case SSE41:
@@ -146,10 +151,10 @@ void AdaptiveLoopFilter::initAdaptiveLoopFilterX86()
   {
   case AVX512:
   case AVX2:
-#ifndef REAL_TARGET_WASM
+#if ENABLE_AVX2_IMPLEMENTATIONS
     _initAdaptiveLoopFilterX86<AVX2>();
     break;
-#endif  // !REAL_TARGET_WASM
+#endif  // ENABLE_AVX2_IMPLEMENTATIONS
   case AVX:
   case SSE42:
   case SSE41:
@@ -169,10 +174,10 @@ void LoopFilter::initLoopFilterX86()
   {
   case AVX512:
   case AVX2:
-#ifndef REAL_TARGET_WASM
+#if ENABLE_AVX2_IMPLEMENTATIONS
     _initLoopFilterX86<AVX2>();
     break;
-#endif  // !REAL_TARGET_WASM
+#endif  // ENABLE_AVX2_IMPLEMENTATIONS
   case AVX:
   case SSE42:
   case SSE41:
@@ -193,10 +198,10 @@ void TCoeffOps::initTCoeffOpsX86()
   {
   case AVX512:
   case AVX2:
-#ifndef REAL_TARGET_WASM
+#if ENABLE_AVX2_IMPLEMENTATIONS
     _initTCoeffOpsX86<AVX2>();
     break;
-#endif  // !REAL_TARGET_WASM
+#endif  // ENABLE_AVX2_IMPLEMENTATIONS
   case AVX:
   case SSE42:
   case SSE41:
@@ -215,10 +220,10 @@ void TrQuant::initTrQuantX86()
   {
   case AVX512:
   case AVX2:
-#ifndef REAL_TARGET_WASM
+#if ENABLE_AVX2_IMPLEMENTATIONS
     _initTrQuantX86<AVX2>();
     break;
-#endif  // !REAL_TARGET_WASM
+#endif  // ENABLE_AVX2_IMPLEMENTATIONS
   case AVX:
   case SSE42:
   case SSE41:
@@ -237,10 +242,10 @@ void IntraPrediction::initIntraPredictionX86()
   switch (vext){
     case AVX512:
     case AVX2:
-#ifndef REAL_TARGET_WASM
+#if ENABLE_AVX2_IMPLEMENTATIONS
       _initIntraPredictionX86<AVX2>();
       break;
-#endif  // !REAL_TARGET_WASM
+#endif  // ENABLE_AVX2_IMPLEMENTATIONS
     case AVX:
     case SSE42:
     case SSE41:
@@ -260,10 +265,10 @@ void SampleAdaptiveOffset::initSampleAdaptiveOffsetX86()
   switch (vext){
     case AVX512:
     case AVX2:
-#ifndef REAL_TARGET_WASM
+#if ENABLE_AVX2_IMPLEMENTATIONS
       _initSampleAdaptiveOffsetX86<AVX2>();
       break;
-#endif  // !REAL_TARGET_WASM
+#endif  // ENABLE_AVX2_IMPLEMENTATIONS
     case AVX:
     case SSE42:
     case SSE41:
@@ -284,10 +289,10 @@ void InterPrediction::initInterPredictionX86()
   switch (vext){
     case AVX512:
     case AVX2:
-#ifndef REAL_TARGET_WASM
+#if ENABLE_AVX2_IMPLEMENTATIONS
       _initInterPredictionX86<AVX2>();
       break;
-#endif  // !REAL_TARGET_WASM
+#endif  // ENABLE_AVX2_IMPLEMENTATIONS
     case AVX:
     case SSE42:
     case SSE41:
@@ -307,10 +312,10 @@ void Picture::initPictureX86()
   switch (vext){
     case AVX512:
     case AVX2:
-#ifndef REAL_TARGET_WASM
+#if ENABLE_AVX2_IMPLEMENTATIONS
       _initPictureX86<AVX2>();
       break;
-#endif  // !REAL_TARGET_WASM
+#endif  // ENABLE_AVX2_IMPLEMENTATIONS
     case AVX:
     case SSE42:
     case SSE41:
@@ -330,10 +335,10 @@ void Quant::initQuantX86()
   switch (vext){
     case AVX512:
     case AVX2:
-#ifndef REAL_TARGET_WASM
+#if ENABLE_AVX2_IMPLEMENTATIONS
       _initQuantX86<AVX2>();
       break;
-#endif  // !REAL_TARGET_WASM
+#endif  // ENABLE_AVX2_IMPLEMENTATIONS
     case AVX:
     case SSE42:
     case SSE41:
@@ -347,8 +352,6 @@ void Quant::initQuantX86()
 
 #endif
 
+#endif  // TARGET_SIMD_X86
 
-
-#endif
-
-}
+}   // namespace vvdec

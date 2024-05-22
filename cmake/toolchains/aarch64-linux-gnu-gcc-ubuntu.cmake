@@ -27,19 +27,11 @@ set( CMAKE_FIND_ROOT_PATH_MODE_LIBRARY BOTH )
 
 set( CMAKE_FIND_ROOT_PATH_MODE_INCLUDE ONLY )
 
-set( USE_OPENCV_TOOLCHAIN_FLAGS ON )
-if( USE_OPENCV_TOOLCHAIN_FLAGS )
-  # ---
-  # Snatched from OpenCV 3.4.2-1
-  # ---
+set( ARM_COMPILER_FLAGS "-fdata-sections -Wa,--noexecstack -fsigned-char" )
+set( CMAKE_C_FLAGS_INIT   "${ARM_COMPILER_FLAGS}" )
+set( CMAKE_CXX_FLAGS_INIT "${ARM_COMPILER_FLAGS}" )
 
-  set( CMAKE_CXX_FLAGS_INIT      "-fdata-sections -Wa,--noexecstack -fsigned-char" )
-  set( CMAKE_C_FLAGS_INIT        "-fdata-sections -Wa,--noexecstack -fsigned-char" )
-
-  set( ARM_LINKER_FLAGS "-Wl,--no-undefined -Wl,--gc-sections -Wl,-z,noexecstack -Wl,-z,relro -Wl,-z,now" )
-
-  set( CMAKE_SHARED_LINKER_FLAGS_INIT "${ARM_LINKER_FLAGS}" )
-  set( CMAKE_MODULE_LINKER_FLAGS_INIT "${ARM_LINKER_FLAGS}" )
-  set( CMAKE_EXE_LINKER_FLAGS_INIT    "${ARM_LINKER_FLAGS}" )
-
-endif()
+set( ARM_LINKER_FLAGS "-Wl,--no-undefined -Wl,--gc-sections -Wl,-z,noexecstack -Wl,-z,relro -Wl,-z,now" )
+set( CMAKE_SHARED_LINKER_FLAGS_INIT "${ARM_LINKER_FLAGS}" )
+set( CMAKE_MODULE_LINKER_FLAGS_INIT "${ARM_LINKER_FLAGS}" )
+set( CMAKE_EXE_LINKER_FLAGS_INIT    "${ARM_LINKER_FLAGS}" )

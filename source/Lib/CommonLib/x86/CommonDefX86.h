@@ -49,6 +49,13 @@ POSSIBILITY OF SUCH DAMAGE.
 
 #ifdef TARGET_SIMD_X86
 
+#ifdef _WIN32
+# define WIN32_LEAN_AND_MEAN
+// wingdi.h breaks compilation (why only on arm?). It defines some
+// constants like ERROR (included by windows.h, included by simd-everywhere)
+# define NOGDI
+#endif
+
 #  if REAL_TARGET_X86 || REAL_TARGET_WASM
 #    ifdef _WIN32
 #      include <intrin.h>

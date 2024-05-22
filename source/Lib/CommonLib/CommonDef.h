@@ -63,13 +63,9 @@ POSSIBILITY OF SUCH DAMAGE.
 # define REAL_TARGET_WASM 1
 #endif
 
-#if defined( TARGET_SIMD_X86 )
-# ifdef _WIN32
+#ifdef _WIN32
 #  include <intrin.h>
-//# elif defined( __GNUC__ )
-//#  include <simde/x86/sse2.h>
-# endif
-#endif // TARGET_SIMD_X86
+#endif
 
 #if defined( __INTEL_COMPILER )
 #pragma warning( disable : 1786 )
@@ -515,18 +511,27 @@ template<class T> struct AlignedDeleter
 
 #if ENABLE_SIMD_OPT
 
+//necessary to be able to compare with SIMD_EVERYWHERE_EXTENSION_LEVEL in the preprocessor
+#define X86_SIMD_UNDEFINED -1
+#define X86_SIMD_SCALAR     0
+#define X86_SIMD_SSE41      1
+#define X86_SIMD_SSE42      2
+#define X86_SIMD_AVX        3
+#define X86_SIMD_AVX2       4
+#define X86_SIMD_AVX512     5
+
 namespace x86_simd
 {
 #  ifdef TARGET_SIMD_X86
   typedef enum
   {
-    UNDEFINED = -1,
-    SCALAR    = 0,
-    SSE41,
-    SSE42,
-    AVX,
-    AVX2,
-    AVX512
+    UNDEFINED = X86_SIMD_UNDEFINED,
+    SCALAR    = X86_SIMD_SCALAR,
+    SSE41     = X86_SIMD_SSE41,
+    SSE42     = X86_SIMD_SSE42,
+    AVX       = X86_SIMD_AVX,
+    AVX2      = X86_SIMD_AVX2,
+    AVX512    = X86_SIMD_AVX512,
   } X86_VEXT;
 #  endif   // TARGET_SIMD_X86
 }   // namespace x86_simd
@@ -548,19 +553,13 @@ namespace arm_simd
 template <typename ValueType> static inline ValueType rightShift      (const ValueType value, const int shift) { return (shift >= 0) ? ( value                                  >> shift) : ( value                                   << -shift); }
 template <typename ValueType> static inline ValueType rightShift_round(const ValueType value, const int shift) { return (shift >= 0) ? ((value + (ValueType(1) << (shift - 1))) >> shift) : ( value                                   << -shift); }
 
-#if defined( _WIN32 ) && defined( TARGET_SIMD_X86 )
+#if defined( _WIN32 )
 static inline unsigned int bit_scan_reverse( int a )
 {
   unsigned long idx = 0;
   _BitScanReverse( &idx, a );
   return idx;
 }
-// disabled because it requires x86intrin.h which conflicts with simd-everywhere
-// #elif defined( __GNUC__ ) && defined( TARGET_SIMD_X86 ) && !defined( REAL_TARGET_WASM )
-// static inline unsigned int bit_scan_reverse( int a )
-// {
-//   return _bit_scan_reverse( a );
-// }
 #elif defined( __GNUC__ )
 static inline unsigned int bit_scan_reverse( int a )
 {
