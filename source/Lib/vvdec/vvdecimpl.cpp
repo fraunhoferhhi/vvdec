@@ -232,7 +232,7 @@ int VVDecImpl::reset()
 #endif
 
 #if ENABLE_FILM_GRAIN
-  m_eFgs = 0;
+  m_filmGrainCharacteristicsState = FgcNone;
 #endif   // ENABLE_FILM_GRAIN
   m_uiSeqNumber    = 0;
   m_uiSeqNumOutput = 0;
@@ -830,19 +830,19 @@ int VVDecImpl::copyComp( const unsigned char* pucSrc, unsigned char* pucDest, un
 }
 
 #if ENABLE_FILM_GRAIN
-int VVDecImpl::xUpdateFGC( vvdecSEI* s )
+void VVDecImpl::xUpdateFGC( vvdecSEI* s )
 {
   vvdecSEIFilmGrainCharacteristics* sei = (vvdecSEIFilmGrainCharacteristics*) s->payload;
 
   if( sei->filmGrainCharacteristicsCancelFlag )
   {
-    m_eFgs = 0;
-    return VVDEC_OK;
+    m_filmGrainCharacteristicsState = FgcNone;
+    return;
   }
 
   if( !m_filmGrainSynth )
   {
-    m_filmGrainSynth = std::make_unique<FilmGrain>( 10, 2 );
+    m_filmGrainSynth = std::make_unique<FilmGrain>( 10, 2 );   // TODO: (GH) set correct bit depth and color format, and apply changes
   }
 
   fgs_sei fgs;   // TODO: maybe make it a member ? (idea would be to re-seed patterns for each picture)
@@ -868,11 +868,17 @@ int VVDecImpl::xUpdateFGC( vvdecSEI* s )
           fgs.comp_model_value[c][i][v] = cmiv.compModelValue[v];
         }
         // Fill with default model values (VFGS needs them; it actually ignores num_model_values)
-        if( fgs.num_model_values[c] < 2 ) { fgs.comp_model_value[c][i][1] = fgs.model_id ? 0 : 8;                             }   // H high cutoff / 1st AR coef (left & top)
-        if( fgs.num_model_values[c] < 3 ) { fgs.comp_model_value[c][i][2] = fgs.model_id ? 0 : fgs.comp_model_value[c][i][1]; }   // V high cutoff / x-comp corr
-        if( fgs.num_model_values[c] < 4 ) { fgs.comp_model_value[c][i][3] = 0;                                                }   // H low cutoff / 2nd AR coef (top-left, top-right)
-        if( fgs.num_model_values[c] < 5 ) { fgs.comp_model_value[c][i][4] = fgs.model_id << fgs.log2_scale_factor;            }   // V low cutoff / aspect ratio
-        if( fgs.num_model_values[c] < 5 ) { fgs.comp_model_value[c][i][5] = 0;                                                }   // x-comp corr / 3rd AR coef (left-left, top-top)
+        switch( fgs.num_model_values[c] )
+        {
+          // clang-format off
+          case 0:
+          case 1: fgs.comp_model_value[c][i][1] = fgs.model_id ? 0 : 8;                               // H high cutoff / 1st AR coef (left & top)
+          case 2: fgs.comp_model_value[c][i][2] = fgs.model_id ? 0 : fgs.comp_model_value[c][i][1];   // V high cutoff / x-comp corr
+          case 3: fgs.comp_model_value[c][i][3] = 0;                                                  // H low cutoff / 2nd AR coef (top-left, top-right)
+          case 4: fgs.comp_model_value[c][i][4] = fgs.model_id << fgs.log2_scale_factor;              // V low cutoff / aspect ratio
+                  fgs.comp_model_value[c][i][5] = 0;                                                  // x-comp corr / 3rd AR coef (left-left, top-top)
+          // clang-format on
+        }
       }
     }
   }
@@ -902,38 +908,37 @@ int VVDecImpl::xUpdateFGC( vvdecSEI* s )
   //      // TODO: make seed also impact the pattern gen
   //    vfgs_set_seed(uint32_t seed);
 
-  m_eFgs = sei->filmGrainCharacteristicsPersistenceFlag ? 2 : 1;
-
-  return VVDEC_OK;
+  m_filmGrainCharacteristicsState = sei->filmGrainCharacteristicsPersistenceFlag ? FgcPersist : FgcDontPersist;
 }
 
-int VVDecImpl::xAddGrain( vvdecFrame* frame )
+void VVDecImpl::xAddGrain( vvdecFrame* frame )
 {
-  if( m_eFgs )
+  if( m_filmGrainCharacteristicsState == FgcNone )
   {
-    uint8_t* Y = (uint8_t*) frame->planes[0].ptr;
-    uint8_t* U = (uint8_t*) frame->planes[1].ptr;
-    uint8_t* V = (uint8_t*) frame->planes[2].ptr;
+    return;
+  }
 
-    CHECK( frame->bitDepth != 10, "Bitdepth is not 10" );
+  uint8_t* Y = (uint8_t*) frame->planes[0].ptr;
+  uint8_t* U = (uint8_t*) frame->planes[1].ptr;
+  uint8_t* V = (uint8_t*) frame->planes[2].ptr;
 
-    for( int y = 0; y < frame->planes[0].height; y++ )
+  CHECK( frame->bitDepth != 10, "Bitdepth is not 10" );
+
+  for( int y = 0; y < frame->planes[0].height; y++ )
+  {
+    m_filmGrainSynth->add_grain_line( Y, U, V, y, frame->planes[0].width );
+    Y += frame->planes[0].stride;
+    if( ( y & 1 ) || ( frame->planes[0].height == frame->planes[1].height ) )
     {
-      m_filmGrainSynth->add_grain_line( Y, U, V, y, frame->planes[0].width );
-      Y += frame->planes[0].stride;
-      if( ( y & 1 ) || ( frame->planes[0].height == frame->planes[1].height ) )
-      {
-        U += frame->planes[1].stride;
-        V += frame->planes[1].stride;
-      }
-    }
-
-    if( m_eFgs < 2 )   // Not persistent
-    {
-      m_eFgs = 0;
+      U += frame->planes[1].stride;
+      V += frame->planes[2].stride;
     }
   }
-  return VVDEC_OK;
+
+  if( m_filmGrainCharacteristicsState != FgcPersist )   // Not persistent
+  {
+    m_filmGrainCharacteristicsState = FgcNone;
+  }
 }
 #endif   // ENABLE_FILM_GRAIN
 
@@ -984,7 +989,7 @@ int VVDecImpl::xAddPicture( Picture* pcPic )
       msg( DETAILS, "vvdecimpl [detail]: SEI FILM_GRAIN_CHARACTERISTICS\n");
     }
   }
-  bCreateStorage = bCreateStorage || m_eFgs;
+  bCreateStorage = bCreateStorage || m_filmGrainCharacteristicsState;
 #endif   // ENABLE_FILM_GRAIN
 
   // create a brand new picture object

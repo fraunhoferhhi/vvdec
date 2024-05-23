@@ -176,8 +176,8 @@ private:
   int xAddPicture                  ( Picture* pcPic );
   int xCreateFrame                 ( vvdecFrame& frame, const CPelUnitBuf& rcPicBuf, uint32_t uiWidth, uint32_t uiHeight, const BitDepths& rcBitDepths, bool bCreateStorage );
 
-  int xUpdateFGC                   ( vvdecSEI *sei );
-  int xAddGrain                    ( vvdecFrame *frame );
+  void xUpdateFGC                  ( vvdecSEI *sei );
+  void xAddGrain                   ( vvdecFrame *frame );
 
   static int xRetrieveNalStartCode ( unsigned char *pB, int iZerosInStartcode );
   static int xConvertPayloadToRBSP ( const uint8_t* payload, size_t payloadLen, InputBitstream* bitstream, bool isVclNalUnit );
@@ -217,7 +217,12 @@ private:
   uint64_t                                 m_uiSeqNumber       = 0;
   uint64_t                                 m_uiSeqNumOutput    = 0;
 #if ENABLE_FILM_GRAIN
-  int                                      m_eFgs = 0;
+  enum
+  {
+    FgcNone        = 0,
+    FgcDontPersist = 1,
+    FgcPersist     = 2
+  }                                        m_filmGrainCharacteristicsState = FgcNone;
   std::unique_ptr<FilmGrain>               m_filmGrainSynth;
 #endif   // ENABLE_FILM_GRAIN
 };
