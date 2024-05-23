@@ -163,6 +163,7 @@ namespace vvdec
 
 #if defined( TARGET_SIMD_X86 ) && !defined( REAL_TARGET_X86 )
 #  define SIMD_EVERYWHERE_EXTENSION_LEVEL                 SSE41
+#  define SIMD_EVERYWHERE_EXTENSION_LEVEL_ID              X86_SIMD_SSE41
 #endif
 
 // End of SIMD optimizations
@@ -731,6 +732,10 @@ enum ErrHandlingFlags
 // ---------------------------------------------------------------------------
 // exception class
 // ---------------------------------------------------------------------------
+#if defined( __MINGW32__ ) && !defined( __MINGW64__ )
+namespace   // anonymous namespace to fix linker (bug?) in i686-mingw, which results in duplicate symbols for Exception::operator<<(char[])
+{
+#endif      // __MINGW32__
 
 class Exception : public std::exception
 {
@@ -760,6 +765,10 @@ public:
   virtual ~UnsupportedFeatureException() noexcept = default;
   CLASS_COPY_MOVE_DEFAULT( UnsupportedFeatureException )
 };
+
+#if defined( __MINGW32__ ) && !defined( __MINGW64__ )
+}   // anonymous namespace
+#endif   // __MINGW32__
 
 #if !defined( __PRETTY_FUNCTION__ ) && !defined( __GNUC__ )
 # define __PRETTY_FUNCTION__ __FUNCSIG__

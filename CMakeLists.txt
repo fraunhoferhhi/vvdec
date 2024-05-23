@@ -17,12 +17,59 @@ endif()
 list( APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake/modules" )
 message( STATUS "CMAKE_MODULE_PATH: updating module path to: ${CMAKE_MODULE_PATH}" )
 
-set( VVDEC_ARM_SIMD_DEFAULT FALSE )
-if( ( "${CMAKE_SYSTEM_PROCESSOR}" MATCHES "aarch64\|arm"
-    OR "${CMAKE_CXX_COMPILER}" MATCHES "aarch64\|arm"
-    OR "${CMAKE_OSX_ARCHITECTURES}" MATCHES "arm64\|armv" )
-    AND NOT "${CMAKE_OSX_ARCHITECTURES}" MATCHES "x86\|x64" )
+# # dump all cmake variables
+# get_cmake_property(_variableNames VARIABLES)
+# list (SORT _variableNames)
+# foreach (_variableName ${_variableNames})
+#     message(STATUS "${_variableName}=${${_variableName}}")
+# endforeach()
+
+function( append_cpu_type_guess output_list input_str )
+  set( ret ${${output_list}} )
+
+  string( TOLOWER "${input_str}" input_lower )
+  if( ${input_lower} MATCHES "x86\|i386\|x64\|win32\|amd64" )
+    list( APPEND ret "X86" )
+  elseif( ${input_lower} MATCHES "aarch64\|arm")
+    list( APPEND ret "ARM" )
+  endif()
+
+  set( ${output_list} ${ret} PARENT_SCOPE )
+endfunction()
+
+# try to detect the actual target architecture
+if( ${CMAKE_SYSTEM_NAME} STREQUAL "Emscripten" )
+  message( DEBUG  "Emscripten" )
+  # Emscripten doesn't set the CMAKE_SYSTEM_PROCESSOR
+  list( PREPEND vvdec_target_arch_list "WASM" )
+elseif( NOT CMAKE_SYSTEM_PROCESSOR STREQUAL CMAKE_HOST_SYSTEM_PROCESSOR )
+  message( DEBUG  "sys != host ${CMAKE_SYSTEM_PROCESSOR} STREQUAL ${CMAKE_HOST_SYSTEM_PROCESSOR} " )
+  # cross compiling: CMAKE_SYSTEM_PROCESSOR was set explicitly, so we use that as first guess
+  append_cpu_type_guess( vvdec_target_arch_list "${CMAKE_SYSTEM_PROCESSOR}" )
+endif()
+
+# build list of architectures in order of probability
+append_cpu_type_guess( vvdec_target_arch_list "${CMAKE_VS_PLATFORM_NAME}" )
+append_cpu_type_guess( vvdec_target_arch_list "${CMAKE_OSX_ARCHITECTURES}" )
+append_cpu_type_guess( vvdec_target_arch_list "${CMAKE_CXX_COMPILER_ARCHITECTURE_ID}" ) # set by msvc, wen not using msbuild
+append_cpu_type_guess( vvdec_target_arch_list "${CMAKE_ANDROID_ARCH_ABI}" )
+append_cpu_type_guess( vvdec_target_arch_list "${CMAKE_C_LIBRARY_ARCHITECTURE}" )
+append_cpu_type_guess( vvdec_target_arch_list "${CMAKE_SYSTEM_PROCESSOR}" )
+append_cpu_type_guess( vvdec_target_arch_list "${CMAKE_HOST_SYSTEM_PROCESSOR}" )
+list( APPEND vvdec_target_arch_list "UNKNOWN" ) # no architecture for which we have specific optimizations
+message( DEBUG "vvdec_target_arch_list: ${vvdec_target_arch_list}" )
+
+# get most probable architecture
+list( POP_FRONT vvdec_target_arch_list VVDEC_TARGET_ARCH )
+message( STATUS "normalized target architecture: ${VVDEC_TARGET_ARCH}" )
+unset( vvdec_target_arch_list )
+
+if( VVDEC_TARGET_ARCH STREQUAL "ARM" )
   set( VVDEC_ARM_SIMD_DEFAULT TRUE )
+  if( MSVC )
+    message( STATUS "ARM SIMD intinsics disabling default on MSVC" )
+    set( VVDEC_ARM_SIMD_DEFAULT FALSE )
+  endif()
 endif()
 
 # we enable x86 intrinsics for all target architectures, because they are implemented through simd-everywhere on non-x86
@@ -61,9 +108,7 @@ if( VVDEC_ENABLE_ARM_SIMD )
   add_compile_definitions( TARGET_SIMD_ARM )
 endif()
 
-if( ${CMAKE_SYSTEM_NAME} STREQUAL "Emscripten" )
-  set( VVDEC_TARGET_WASM TRUE )
-
+if( VVDEC_TARGET_ARCH STREQUAL "WASM" )
   add_compile_options( -pthread )
   add_link_options(
     --bind
