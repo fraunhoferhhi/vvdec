@@ -58,6 +58,10 @@ POSSIBILITY OF SUCH DAMAGE.
 
 #include "FilmGrainImpl.h"
 
+#include <cstring>
+
+#include "vvdec/sei.h"
+
 namespace vvdec
 {
 
@@ -65,6 +69,8 @@ namespace vvdec
 
 struct fgs_sei
 {
+  fgs_sei() { memset( this, 0, sizeof( *this ) ); }
+
   uint8_t  model_id;
   uint8_t  log2_scale_factor;
   uint8_t  comp_model_present_flag[3];
@@ -83,7 +89,9 @@ public:
     set_depth( depth );
     set_chroma_subsampling( chromaSubsampling, chromaSubsampling );
   }
+  void updateFGC( vvdecSEIFilmGrainCharacteristics* fgc );
 
+private:
   void init_sei( fgs_sei* cfg );
 };
 

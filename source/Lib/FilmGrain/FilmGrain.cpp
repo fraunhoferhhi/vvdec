@@ -720,4 +720,69 @@ void FilmGrain::init_sei( fgs_sei* cfg )
   set_scale_shift( cfg->log2_scale_factor - ( cfg->model_id ? 1 : 0 ) );   // -1 for grain shift in pattern generation (see above)
 }
 
+void FilmGrain::updateFGC( vvdecSEIFilmGrainCharacteristics* fgc )
+{
+  fgs_sei fgs;   // TODO: maybe make it a member ? (idea would be to re-seed patterns for each picture)
+  // Copy SEI message in vfgs structure format
+  // TODO: check some values and warn about unsupported stuff ?
+  fgs.model_id          = fgc->filmGrainModelId;
+  fgs.log2_scale_factor = fgc->log2ScaleFactor;
+  for( int c = 0; c < 3; c++ )
+  {
+    vvdecCompModel& cm = fgc->compModel[c];
+    if( cm.presentFlag )
+    {
+      fgs.comp_model_present_flag[c] = 1;
+      fgs.num_intensity_intervals[c] = cm.numIntensityIntervals;
+      fgs.num_model_values[c]        = cm.numModelValues;
+      for( int i = 0; i < fgs.num_intensity_intervals[c]; i++ )
+      {
+        vvdecCompModelIntensityValues& cmiv      = cm.intensityValues[i];
+        fgs.intensity_interval_lower_bound[c][i] = cmiv.intensityIntervalLowerBound;
+        fgs.intensity_interval_upper_bound[c][i] = cmiv.intensityIntervalUpperBound;
+        for( int v = 0; v < fgs.num_model_values[c]; v++ )
+        {
+          fgs.comp_model_value[c][i][v] = cmiv.compModelValue[v];
+        }
+        // Fill with default model values (VFGS needs them; it actually ignores num_model_values)
+        switch( fgs.num_model_values[c] )
+        {
+          // clang-format off
+          case 0:
+          case 1: fgs.comp_model_value[c][i][1] = fgs.model_id ? 0 : 8;                               // H high cutoff / 1st AR coef (left & top)
+          case 2: fgs.comp_model_value[c][i][2] = fgs.model_id ? 0 : fgs.comp_model_value[c][i][1];   // V high cutoff / x-comp corr
+          case 3: fgs.comp_model_value[c][i][3] = 0;                                                  // H low cutoff / 2nd AR coef (top-left, top-right)
+          case 4: fgs.comp_model_value[c][i][4] = fgs.model_id << fgs.log2_scale_factor;              // V low cutoff / aspect ratio
+                  fgs.comp_model_value[c][i][5] = 0;                                                  // x-comp corr / 3rd AR coef (left-left, top-top)
+          // clang-format on
+        }
+      }
+    }
+  }
+
+  // Conversion of component model values for 4:2:0 chroma format
+  if( fgs.model_id == 0 )
+  {
+    for( int c = 1; c < 3; c++ )
+    {
+      if( fgs.comp_model_present_flag[c] )
+      {
+        for( int k = 0; k < fgs.num_intensity_intervals[c]; k++ )
+        {
+          fgs.comp_model_value[c][k][1] = std::max( 2, std::min( 14, fgs.comp_model_value[c][k][1] << 1 ) );   // Horizontal frequency
+          fgs.comp_model_value[c][k][2] = std::max( 2, std::min( 14, fgs.comp_model_value[c][k][2] << 1 ) );   // Vertical frequency
+          fgs.comp_model_value[c][k][0] >>= 1;
+        }
+      }
+    }
+  }
+
+  init_sei( &fgs );
+
+  //  if (!m_bFgs)
+  //    // TODO: get something random
+  //      // TODO: make seed also impact the pattern gen
+  //    vfgs_set_seed(uint32_t seed);
+}
+
 }   // namespace vvdec
