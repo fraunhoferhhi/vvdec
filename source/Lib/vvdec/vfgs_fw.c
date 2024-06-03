@@ -64,7 +64,7 @@ POSSIBILITY OF SUCH DAMAGE.
 #define clip( x, lo, hi ) ( ( x ) > ( hi ) ? hi : ( x ) < ( lo ) ? ( lo ) : ( x ) )
 
 // clang-format off
-static const int8 Gaussian_LUT[2048] = {
+static const int8_t Gaussian_LUT[2048] = {
    -11,  12, 103, -11,  42, -35,  12,  59,  77,  98, -87,   3,  65, -78,  45,  56,
    -51,  21,  13, -11, -20, -19,  33,-127,  17,  -6,-105,  18,  19,  71,  48, -10,
    -38,  42,  -2,  75, -67,  52, -90,  33, -47,  21,  -3, -56,  49,   1, -57, -42,
@@ -195,7 +195,7 @@ static const int8 Gaussian_LUT[2048] = {
     19,   2,-111,   4, -66, -81, 122, -20, -34, -37, -84, 127,  68,  46,  17,  47
 };
 
-static const uint32 Seed_LUT[256] = {
+static const uint32_t Seed_LUT[256] = {
 	 747538460, 1088979410, 1744950180, 1767011913, 1403382928,  521866116, 1060417601, 2110622736,
 	1557184770,  105289385,  585624216, 1827676546, 1191843873, 1018104344, 1123590530,  663361569,
 	2023850500,   76561770, 1226763489,   80325252, 1992581442,  502705249,  740409860,  516219202,
@@ -298,29 +298,29 @@ static const uint32 Seed_LUT[256] = {
   { ck, -cj,  ci, -ch,  cg, -cf,  ce, -cd,  cc, -cb,  ca, -bz,  by, -bx,  bw, -bv,  bu, -bt,  bs, -br,  bq, -bp,  bo, -bn,  bm, -bl,  bk, -bj,  bi, -bh,  bg, -bf,  bf, -bg,  bh, -bi,  bj, -bk,  bl, -bm,  bn, -bo,  bp, -bq,  br, -bs,  bt, -bu,  bv, -bw,  bx, -by,  bz, -ca,  cb, -cc,  cd, -ce,  cf, -cg,  ch, -ci,  cj, -ck }, \
  }
 
-static const int8 DCT2_64[64][64] = \
+static const int8_t DCT2_64[64][64] = \
   DEFINE_DCT2_P64_MATRIX(64, 83, 36, 89, 75, 50, 18, 90, 87, 80, 70, 57, 43, 25, 9, 90, 90, 88, 85, 82, 78, 73, 67, 61, 54, 46, 38, 31, 22, 13, 4, 91, 90, 90, 90, 88, 87, 86, 84, 83, 81, 79, 77, 73, 71, 69, 65, 62, 59, 56, 52, 48, 44, 41, 37, 33, 28, 24, 20, 15, 11, 7, 2);
 // clang-format on
 
 /** Pseudo-random number generator (32-bit) */
-static uint32 prng( uint32 x )
+static uint32_t prng( uint32_t x )
 {
 #if 1   // same as HW (bit-reversed RDD-5)
-  uint32 s = ( ( x << 30 ) ^ ( x << 2 ) ) & 0x80000000;
-  x        = s | ( x >> 1 );
+  uint32_t s = ( ( x << 30 ) ^ ( x << 2 ) ) & 0x80000000;
+  x          = s | ( x >> 1 );
 #else   // RDD-5
-  uint32 s = ( ( x >> 30 ) ^ ( x >> 2 ) ) & 1;
-  x        = ( x << 1 ) | s;
+  uint32_t s = ( ( x >> 30 ) ^ ( x >> 2 ) ) & 1;
+  x          = ( x << 1 ) | s;
 #endif
   return x;
 }
 
 /** Apply iDCT2 to block B[64][64] + clipping */
-static void idct2_64( int8 B[][64] )
+static void idct2_64( int8_t B[][64] )
 {
-  int16 X[64][64];
-  int   i, j, k;
-  int32 acc;
+  int16_t X[64][64];
+  int     i, j, k;
+  int32_t acc;
 
   /* 1st pass (DCT2_64'*B) = vertical */
   for( j = 0; j < 64; j++ )
@@ -330,7 +330,7 @@ static void idct2_64( int8 B[][64] )
       acc = 256;
       for( k = 0; k < 64; k++ )
       {
-        acc += (int32) DCT2_64[k][j] * B[k][i];   // iDCT bases are vertical (transpose of DCT2_64)
+        acc += (int32_t) DCT2_64[k][j] * B[k][i];   // iDCT bases are vertical (transpose of DCT2_64)
       }
 
       X[j][i] = ( acc >> 9 );
@@ -345,7 +345,7 @@ static void idct2_64( int8 B[][64] )
       acc = 256;
       for( k = 0; k < 64; k++ )
       {
-        acc += (int32) X[j][k] * DCT2_64[k][i];
+        acc += (int32_t) X[j][k] * DCT2_64[k][i];
       }
 
       acc >>= 9;
@@ -363,11 +363,11 @@ static void idct2_64( int8 B[][64] )
 }
 
 /** Apply iDCT2 to block B[32][32] + clipping */
-static void idct2_32( int8 B[][32] )
+static void idct2_32( int8_t B[][32] )
 {
-  int16 X[32][32];
-  int   i, j, k;
-  int32 acc;
+  int16_t X[32][32];
+  int     i, j, k;
+  int32_t acc;
 
   /* 1st pass (R32'*B) = vertical */
   for( j = 0; j < 32; j++ )
@@ -377,7 +377,7 @@ static void idct2_32( int8 B[][32] )
       acc = 128;
       for( k = 0; k < 32; k++ )
       {
-        acc += (int32) DCT2_64[k * 2][j] * B[k][i];   // iDCT bases are vertical (transpose of DCT2_64=DCT)
+        acc += (int32_t) DCT2_64[k * 2][j] * B[k][i];   // iDCT bases are vertical (transpose of DCT2_64=DCT)
       }
 
       X[j][i] = ( acc >> 8 );
@@ -392,7 +392,7 @@ static void idct2_32( int8 B[][32] )
       acc = 256;
       for( k = 0; k < 32; k++ )
       {
-        acc += (int32) X[j][k] * DCT2_64[k * 2][i];
+        acc += (int32_t) X[j][k] * DCT2_64[k * 2][i];
       }
 
       acc >>= 9;
@@ -409,15 +409,15 @@ static void idct2_32( int8 B[][32] )
   }
 }
 
-static void vfgs_make_sei_ff_pattern64( int8 B[][64], int fh, int fv )
+static void vfgs_make_sei_ff_pattern64( int8_t B[][64], int fh, int fv )
 {
-  int    k, l;
-  uint32 n;
+  int      k, l;
+  uint32_t n;
   fh = 4 * ( fh + 1 );
   fv = 4 * ( fv + 1 );
 
   n = Seed_LUT[0];
-  memset( B, 0, 64 * 64 * sizeof( int8 ) );
+  memset( B, 0, 64 * 64 * sizeof( int8_t ) );
   for( l = 0; l < 64; l++ )
   {
     for( k = 0; k < 64; k += 4 )
@@ -436,15 +436,15 @@ static void vfgs_make_sei_ff_pattern64( int8 B[][64], int fh, int fv )
   idct2_64( B );
 }
 
-static void vfgs_make_sei_ff_pattern32( int8 B[][32], int fh, int fv )
+static void vfgs_make_sei_ff_pattern32( int8_t B[][32], int fh, int fv )
 {
-  int    k, l;
-  uint32 n;
+  int      k, l;
+  uint32_t n;
   fh = 2 * ( fh + 1 );
   fv = 2 * ( fv + 1 );
 
   n = Seed_LUT[1];
-  memset( B, 0, 32 * 32 * sizeof( int8 ) );
+  memset( B, 0, 32 * 32 * sizeof( int8_t ) );
   for( l = 0; l < 32; l++ )
   {
     for( k = 0; k < 32; k += 2 )
@@ -461,14 +461,14 @@ static void vfgs_make_sei_ff_pattern32( int8 B[][32], int fh, int fv )
   idct2_32( B );
 }
 
-static void vfgs_make_ar_pattern( int8 buf[], int8 P[], int size, const int16 ar_coef[], int nb_coef, int shift, int scale, uint32 seed )
+static void vfgs_make_ar_pattern( int8_t buf[], int8_t P[], int size, const int16_t ar_coef[], int nb_coef, int shift, int scale, uint32_t seed )
 {
-  int16  coef[4][7];
-  int    L = 0;
-  int    x, y, i, j, k;
-  int    g;
-  int    subx, suby, width, height;
-  uint32 rnd = seed;
+  int16_t  coef[4][7];
+  int      L = 0;
+  int      x, y, i, j, k;
+  int      g;
+  int      subx, suby, width, height;
+  uint32_t rnd = seed;
 
   memset( coef, 0, sizeof( coef ) );
   subx = suby = ( size == 32 ) ? 2 : 1;
@@ -479,12 +479,12 @@ static void vfgs_make_ar_pattern( int8 buf[], int8 P[], int size, const int16 ar
   {
   case 6:
     // SEI.AR mode
-    coef[3][2] = ar_coef[1];                                                          // left
-    coef[2][3] = ( ar_coef[1] * ar_coef[4] ) >> scale;                                // top
-    coef[2][2] = ( ar_coef[3] * ar_coef[4] ) >> scale;                                // top-left
-    coef[2][4] = ( ar_coef[3] * ar_coef[4] ) >> scale;                                // top-right
-    coef[3][1] = ar_coef[5];                                                          // left-left
-    coef[1][3] = ( (int32) ar_coef[5] * ar_coef[4] * ar_coef[4] ) >> ( 2 * scale );   // top-top
+    coef[3][2] = ar_coef[1];                                                            // left
+    coef[2][3] = ( ar_coef[1] * ar_coef[4] ) >> scale;                                  // top
+    coef[2][2] = ( ar_coef[3] * ar_coef[4] ) >> scale;                                  // top-left
+    coef[2][4] = ( ar_coef[3] * ar_coef[4] ) >> scale;                                  // top-right
+    coef[3][1] = ar_coef[5];                                                            // left-left
+    coef[1][3] = ( (int32_t) ar_coef[5] * ar_coef[4] * ar_coef[4] ) >> ( 2 * scale );   // top-top
 
     L = 2;
     break;
@@ -542,10 +542,10 @@ static void vfgs_make_ar_pattern( int8 buf[], int8 P[], int size, const int16 ar
   }
 }
 
-int same_pattern( fgs_sei* cfg, int32 a, int32 b )
+int same_pattern( fgs_sei* cfg, int32_t a, int32_t b )
 {
-  int16* coef_a = &cfg->comp_model_value[0][0][0] + a;
-  int16* coef_b = &cfg->comp_model_value[0][0][0] + b;
+  int16_t* coef_a = &cfg->comp_model_value[0][0][0] + a;
+  int16_t* coef_b = &cfg->comp_model_value[0][0][0] + b;
 
   for( int i = 1; i < SEI_MAX_MODEL_VALUES; i++ )
   {
@@ -561,16 +561,16 @@ int same_pattern( fgs_sei* cfg, int32 a, int32 b )
 /** Initialize "hardware" interface from FGS SEI parameters */
 void vfgs_init_sei( fgs_sei* cfg )
 {
-  int8   P[64 * 64];
-  int8   Lbuf[73 * 82];
-  int8   Cbuf[38 * 44];
-  uint8  slut[256];
-  uint8  plut[256];
-  uint8  intensities[VFGS_MAX_PATTERNS];
-  uint32 patterns[VFGS_MAX_PATTERNS];
-  uint8  np = 0;   // number of patterns
-  uint8  a, b, i;
-  int    c, k;
+  int8_t   P[64 * 64];
+  int8_t   Lbuf[73 * 82];
+  int8_t   Cbuf[38 * 44];
+  uint8_t  slut[256];
+  uint8_t  plut[256];
+  uint8_t  intensities[VFGS_MAX_PATTERNS];
+  uint32_t patterns[VFGS_MAX_PATTERNS];
+  uint8_t  np = 0;   // number of patterns
+  uint8_t  a, b, i;
+  int      c, k;
 
   for( c = 0; c < 3; c++ )
   {
@@ -586,8 +586,8 @@ void vfgs_init_sei( fgs_sei* cfg )
     {
       for( k = 0; k < cfg->num_intensity_intervals[c]; k++ )
       {
-        a         = cfg->intensity_interval_lower_bound[c][k];
-        uint32 id = SEI_MAX_MODEL_VALUES * ( k + 256 * c );
+        a           = cfg->intensity_interval_lower_bound[c][k];
+        uint32_t id = SEI_MAX_MODEL_VALUES * ( k + 256 * c );
 
         for( i = 0; i < VFGS_MAX_PATTERNS; i++ )
         {
@@ -624,7 +624,7 @@ void vfgs_init_sei( fgs_sei* cfg )
       // 2. Register the patterns (with correct order)
       for( i = 0; i < np; i++ )
       {
-        int16* coef = &cfg->comp_model_value[0][0][0] + patterns[i];
+        int16_t* coef = &cfg->comp_model_value[0][0][0] + patterns[i];
 
         if( c == 0 )
         {
@@ -634,7 +634,7 @@ void vfgs_init_sei( fgs_sei* cfg )
           }
           else
           {
-            vfgs_make_sei_ff_pattern64( (int8( * )[64]) P, coef[1], coef[2] );
+            vfgs_make_sei_ff_pattern64( (int8_t( * )[64]) P, coef[1], coef[2] );
           }
 
           vfgs_set_luma_pattern( i, P );
@@ -647,7 +647,7 @@ void vfgs_init_sei( fgs_sei* cfg )
           }
           else
           {
-            vfgs_make_sei_ff_pattern32( (int8( * )[32]) P, coef[1], coef[2] );
+            vfgs_make_sei_ff_pattern32( (int8_t( * )[32]) P, coef[1], coef[2] );
           }
 
           vfgs_set_chroma_pattern( i, P );
@@ -662,9 +662,9 @@ void vfgs_init_sei( fgs_sei* cfg )
           // 3a. Fill valid patterns
           for( k = 0; k < cfg->num_intensity_intervals[cc]; k++ )
           {
-            a         = cfg->intensity_interval_lower_bound[cc][k];
-            b         = cfg->intensity_interval_upper_bound[cc][k];
-            uint32 id = SEI_MAX_MODEL_VALUES * ( k + 256 * cc );
+            a           = cfg->intensity_interval_lower_bound[cc][k];
+            b           = cfg->intensity_interval_upper_bound[cc][k];
+            uint32_t id = SEI_MAX_MODEL_VALUES * ( k + 256 * cc );
 
             for( i = 0; i < VFGS_MAX_PATTERNS; i++ )
             {
@@ -677,7 +677,7 @@ void vfgs_init_sei( fgs_sei* cfg )
 
             for( int l = a; l <= b; l++ )
             {
-              slut[l] = (uint8) cfg->comp_model_value[cc][k][0];
+              slut[l] = (uint8_t) cfg->comp_model_value[cc][k][0];
               if( i < VFGS_MAX_PATTERNS )
               {
                 plut[l] = i << 4;

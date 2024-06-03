@@ -888,7 +888,7 @@ int VVDecImpl::xUpdateFGC( vvdecSEI* s )
     //  if (!m_bFgs)
     //    // TODO: get something random
     //      // TODO: make seed also impact the pattern gen
-    //    vfgs_set_seed(uint32 seed);
+    //    vfgs_set_seed(uint32_t seed);
 
     m_eFgs = sei->filmGrainCharacteristicsPersistenceFlag ? 2 : 1;
   }
@@ -904,9 +904,9 @@ int VVDecImpl::xAddGrain( vvdecFrame* frame )
 {
   if( m_eFgs )
   {
-    uint8* Y = (uint8*) frame->planes[0].ptr;
-    uint8* U = (uint8*) frame->planes[1].ptr;
-    uint8* V = (uint8*) frame->planes[2].ptr;
+    uint8_t* Y = (uint8_t*) frame->planes[0].ptr;
+    uint8_t* U = (uint8_t*) frame->planes[1].ptr;
+    uint8_t* V = (uint8_t*) frame->planes[2].ptr;
 
     CHECK( frame->bitDepth != 10, "Bitdepth is not 10" );
 

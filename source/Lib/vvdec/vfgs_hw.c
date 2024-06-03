@@ -66,40 +66,40 @@ POSSIBILITY OF SUCH DAMAGE.
 
 // Note: declarations optimized for code readability; e.g. pattern storage in
 //       actual hardware implementation would differ significantly
-static int8 pattern[2][VFGS_MAX_PATTERNS + 1][64][64] = {
+static int8_t pattern[2][VFGS_MAX_PATTERNS + 1][64][64] = {
   0,
 };   // +1 to simplify interpolation code
-static uint8 sLUT[3][256] = {
+static uint8_t sLUT[3][256] = {
   0,
 };
-static uint8 pLUT[3][256] = {
+static uint8_t pLUT[3][256] = {
   0,
 };
-static uint32 rnd         = 0xdeadbeef;
-static uint32 rnd_up      = 0xdeadbeef;
-static uint32 line_rnd    = 0xdeadbeef;
-static uint32 line_rnd_up = 0xdeadbeef;
-static uint8  scale_shift = 5 + 6;
-static uint8  bs          = 0;   // bitshift = bitdepth - 8
-static uint8  Y_min       = 0;
-static uint8  Y_max       = 255;
-static uint8  C_min       = 0;
-static uint8  C_max       = 255;
-static int    csubx       = 2;
-static int    csuby       = 2;
+static uint32_t rnd         = 0xdeadbeef;
+static uint32_t rnd_up      = 0xdeadbeef;
+static uint32_t line_rnd    = 0xdeadbeef;
+static uint32_t line_rnd_up = 0xdeadbeef;
+static uint8_t  scale_shift = 5 + 6;
+static uint8_t  bs          = 0;   // bitshift = bitdepth - 8
+static uint8_t  Y_min       = 0;
+static uint8_t  Y_max       = 255;
+static uint8_t  C_min       = 0;
+static uint8_t  C_max       = 255;
+static int      csubx       = 2;
+static int      csuby       = 2;
 
 // Processing pipeline (needs only 2 registers for each color actually, for horizontal deblocking)
-static int16 grain[3][32];   // 9 bit needed because of overlap (has norm > 1)
-static uint8 scale[3][32];
+static int16_t grain[3][32];   // 9 bit needed because of overlap (has norm > 1)
+static uint8_t scale[3][32];
 
 /** Pseudo-random number generator
  * Note: loops on the 31 MSBs, so seed should be MSB-aligned in the register
  * (the register LSB has basically no effect since it is never fed back)
  */
-static uint32 prng( uint32 x )
+static uint32_t prng( uint32_t x )
 {
-  uint32 s = ( ( x << 30 ) ^ ( x << 2 ) ) & 0x80000000;
-  x        = s | ( x >> 1 );
+  uint32_t s = ( ( x << 30 ) ^ ( x << 2 ) ) & 0x80000000;
+  x          = s | ( x >> 1 );
   return x;
 }
 
@@ -121,9 +121,9 @@ static uint32 prng( uint32 x )
  * Note: to fully support cross-component correlation within patterns, we would
  * need to align luma/chroma offsets.
  */
-static void get_offset_y( uint32 val, int* s, uint8* x, uint8* y )
+static void get_offset_y( uint32_t val, int* s, uint8_t* x, uint8_t* y )
 {
-  uint32 bf;   // bit field
+  uint32_t bf;   // bit field
 
   *s = ( ( val >> 31 ) & 1 ) ? -1 : 1;
 
@@ -136,9 +136,9 @@ static void get_offset_y( uint32 val, int* s, uint8* x, uint8* y )
                                     // pattern samples (when using overlap).
 }
 
-static void get_offset_u( uint32 val, int* s, uint8* x, uint8* y )
+static void get_offset_u( uint32_t val, int* s, uint8_t* x, uint8_t* y )
 {
-  uint32 bf;   // bit field
+  uint32_t bf;   // bit field
 
   *s = ( ( val >> 2 ) & 1 ) ? -1 : 1;
 
@@ -149,9 +149,9 @@ static void get_offset_u( uint32 val, int* s, uint8* x, uint8* y )
   *y = ( ( bf * 12 ) >> 10 ) * ( 4 / csuby );
 }
 
-static void get_offset_v( uint32 val, int* s, uint8* x, uint8* y )
+static void get_offset_v( uint32_t val, int* s, uint8_t* x, uint8_t* y )
 {
-  uint32 bf;   // bit field
+  uint32_t bf;   // bit field
 
   *s = ( ( val >> 15 ) & 1 ) ? -1 : 1;
 
@@ -164,27 +164,27 @@ static void get_offset_v( uint32 val, int* s, uint8* x, uint8* y )
 
 static void add_grain_block( void* I, int c, int x, int y, int width )
 {
-  uint8*  I8  = (uint8*) I;
-  uint16* I16 = (uint16*) I;
+  uint8_t*  I8  = (uint8_t*) I;
+  uint16_t* I16 = (uint16_t*) I;
 
-  int   s, s_up;        // random sign flip (current + upper row)
-  uint8 ox, oy;         // random offset (current)
-  uint8 ox_up, oy_up;   // random offset (upper row)
-  uint8 oc1, oc2;       // overlapping coefficients
-  uint8 pi;             // pattern index integer part
-  int   i, j;
-  int   P;              // Pattern sample (from current pattern index)
+  int     s, s_up;        // random sign flip (current + upper row)
+  uint8_t ox, oy;         // random offset (current)
+  uint8_t ox_up, oy_up;   // random offset (upper row)
+  uint8_t oc1, oc2;       // overlapping coefficients
+  uint8_t pi;             // pattern index integer part
+  int     i, j;
+  int     P;              // Pattern sample (from current pattern index)
 #if PATTERN_INTERPOLATION
-  int   Pn;             // Next-pattern sample (from pattern index+1)
-  uint8 pf;             // pattern index fractional part
+  int     Pn;             // Next-pattern sample (from pattern index+1)
+  uint8_t pf;             // pattern index fractional part
 #endif
 
-  uint8 intensity;
-  int   flush = 0;
-  int   subx  = c ? csubx : 1;
-  int   suby  = c ? csuby : 1;
-  uint8 I_min = c ? C_min : Y_min;
-  uint8 I_max = c ? C_max : Y_max;
+  uint8_t intensity;
+  int     flush = 0;
+  int     subx  = c ? csubx : 1;
+  int     suby  = c ? csuby : 1;
+  uint8_t I_min = c ? C_min : Y_min;
+  uint8_t I_max = c ? C_max : Y_max;
 
   if( ( y & 1 ) && suby > 1 )
   {
@@ -284,8 +284,8 @@ static void add_grain_block( void* I, int c, int x, int y, int width )
   {
     if( x > 0 )
     {
-      int32 g;
-      int16 l1, l0, r0, r1;
+      int32_t g;
+      int16_t l1, l0, r0, r1;
 
       if( !flush )
       {
@@ -300,7 +300,7 @@ static void add_grain_block( void* I, int c, int x, int y, int width )
       for( i = 0; i < 16 / subx; i++ )
       {
         // Output previous block (or flush current)
-        g = round( scale[c][i] * (int16) grain[c][i], scale_shift );
+        g = round( scale[c][i] * (int16_t) grain[c][i], scale_shift );
         if( bs )
         {
           I16[( x - 16 ) / subx + i] = max( I_min << bs, min( I_max << bs, I16[( x - 16 ) / subx + i] + g ) );
@@ -355,13 +355,13 @@ void vfgs_add_grain_line( void* Y, void* U, void* V, int y, int width )
   }
 }
 
-void vfgs_set_luma_pattern( int index, int8* P )
+void vfgs_set_luma_pattern( int index, int8_t* P )
 {
   assert( index >= 0 && index < 8 );
   memcpy( pattern[0][index], P, 64 * 64 );
 }
 
-void vfgs_set_chroma_pattern( int index, int8* P )
+void vfgs_set_chroma_pattern( int index, int8_t* P )
 {
   assert( index >= 0 && index < 8 );
   for( int i = 0; i < 64 / csuby; i++ )
@@ -370,19 +370,19 @@ void vfgs_set_chroma_pattern( int index, int8* P )
   }
 }
 
-void vfgs_set_scale_lut( int c, uint8 lut[] )
+void vfgs_set_scale_lut( int c, uint8_t lut[] )
 {
   assert( c >= 0 && c < 3 );
   memcpy( sLUT[c], lut, 256 );
 }
 
-void vfgs_set_pattern_lut( int c, uint8 lut[] )
+void vfgs_set_pattern_lut( int c, uint8_t lut[] )
 {
   assert( c >= 0 && c < 3 );
   memcpy( pLUT[c], lut, 256 );
 }
 
-void vfgs_set_seed( uint32 seed )
+void vfgs_set_seed( uint32_t seed )
 {
   // Note: shift left the seed as the LFSR loops on the 31 MSBs, so
   // the LFSR register LSB has no effect on random sequence initialization

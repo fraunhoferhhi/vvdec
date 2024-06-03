@@ -57,23 +57,16 @@ POSSIBILITY OF SUCH DAMAGE.
 #ifndef _VFGS_HW_H_
 #define _VFGS_HW_H_
 
-#ifndef int32
-#  define int32 signed int
-#  define uint32 unsigned int
-#  define int16 signed short
-#  define uint16 unsigned short
-#  define int8 signed char
-#  define uint8 unsigned char
-#endif
+#include <stdint.h>
 
 #define VFGS_MAX_PATTERNS 8
 
-void vfgs_set_luma_pattern( int index, int8* P );
-void vfgs_set_chroma_pattern( int index, int8* P );
-void vfgs_set_scale_lut( int c, uint8 lut[] );
-void vfgs_set_pattern_lut( int c, uint8 lut[] );
+void vfgs_set_luma_pattern( int index, int8_t* P );
+void vfgs_set_chroma_pattern( int index, int8_t* P );
+void vfgs_set_scale_lut( int c, uint8_t lut[] );
+void vfgs_set_pattern_lut( int c, uint8_t lut[] );
 
-void vfgs_set_seed( uint32 seed );
+void vfgs_set_seed( uint32_t seed );
 void vfgs_set_scale_shift( int shift );
 void vfgs_set_depth( int depth );
 void vfgs_set_chroma_subsampling( int subx, int suby );
