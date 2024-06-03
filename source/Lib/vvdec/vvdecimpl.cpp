@@ -827,98 +827,98 @@ int VVDecImpl::copyComp( const unsigned char* pucSrc, unsigned char* pucDest, un
 }
 
 #if ENABLE_FILM_GRAIN
-int VVDecImpl::xUpdateFGC( vvdecSEI *s )
+int VVDecImpl::xUpdateFGC( vvdecSEI* s )
 {
-	vvdecSEIFilmGrainCharacteristics* sei =(vvdecSEIFilmGrainCharacteristics*)s->payload;
+  vvdecSEIFilmGrainCharacteristics* sei = (vvdecSEIFilmGrainCharacteristics*) s->payload;
 
-    if (!sei->filmGrainCharacteristicsCancelFlag)
+  if( !sei->filmGrainCharacteristicsCancelFlag )
+  {
+    fgs_sei fgs;   // TODO: maybe make it a member ? (idea would be to re-seed patterns for each picture)
+    // Copy SEI message in vfgs structure format
+    // TODO: check some values and warn about unsupported stuff ?
+    fgs.model_id          = sei->filmGrainModelId;
+    fgs.log2_scale_factor = sei->log2ScaleFactor;
+    for( int c = 0; c < 3; c++ )
     {
-    	fgs_sei fgs; // TODO: maybe make it a member ? (idea would be to re-seed patterns for each picture)
-		// Copy SEI message in vfgs structure format
-		// TODO: check some values and warn about unsupported stuff ?
-		fgs.model_id = sei->filmGrainModelId;
-		fgs.log2_scale_factor = sei->log2ScaleFactor;
-		for (int c=0; c<3; c++)
-		{
-			vvdecCompModel &cm = sei->compModel[c];
-			if (cm.presentFlag)
-			{
-				fgs.comp_model_present_flag[c] = 1;
-				fgs.num_intensity_intervals[c] = cm.numIntensityIntervals;
-				fgs.num_model_values[c] = cm.numModelValues;
-				for (int i=0; i<fgs.num_intensity_intervals[c]; i++)
-				{
-					vvdecCompModelIntensityValues &cmiv = cm.intensityValues[i];
-					fgs.intensity_interval_lower_bound[c][i] = cmiv.intensityIntervalLowerBound;
-					fgs.intensity_interval_upper_bound[c][i] = cmiv.intensityIntervalUpperBound;
-					for (int v=0; v<fgs.num_model_values[c]; v++)
-						fgs.comp_model_value[c][i][v] = cmiv.compModelValue[v];
-					// Fill with default model values (VFGS needs them; it actually ignores num_model_values)
-					if (fgs.num_model_values[c]<2) fgs.comp_model_value[c][i][1] = fgs.model_id ? 0 : 8; // H high cutoff / 1st AR coef (left & top)
-					if (fgs.num_model_values[c]<3) fgs.comp_model_value[c][i][2] = fgs.model_id ? 0 : fgs.comp_model_value[c][i][1]; // V high cutoff / x-comp corr
-					if (fgs.num_model_values[c]<4) fgs.comp_model_value[c][i][3] = 0; // H low cutoff / 2nd AR coef (top-left, top-right)
-					if (fgs.num_model_values[c]<5) fgs.comp_model_value[c][i][4] = fgs.model_id << fgs.log2_scale_factor; // V low cutoff / aspect ratio
-					if (fgs.num_model_values[c]<5) fgs.comp_model_value[c][i][5] = 0; // x-comp corr / 3rd AR coef (left-left, top-top)
-				}
-			}
-		}
+      vvdecCompModel& cm = sei->compModel[c];
+      if( cm.presentFlag )
+      {
+        fgs.comp_model_present_flag[c] = 1;
+        fgs.num_intensity_intervals[c] = cm.numIntensityIntervals;
+        fgs.num_model_values[c]        = cm.numModelValues;
+        for( int i = 0; i < fgs.num_intensity_intervals[c]; i++ )
+        {
+          vvdecCompModelIntensityValues& cmiv      = cm.intensityValues[i];
+          fgs.intensity_interval_lower_bound[c][i] = cmiv.intensityIntervalLowerBound;
+          fgs.intensity_interval_upper_bound[c][i] = cmiv.intensityIntervalUpperBound;
+          for( int v = 0; v < fgs.num_model_values[c]; v++ )
+            fgs.comp_model_value[c][i][v] = cmiv.compModelValue[v];
+          // Fill with default model values (VFGS needs them; it actually ignores num_model_values)
+          if( fgs.num_model_values[c] < 2 ) fgs.comp_model_value[c][i][1] = fgs.model_id ? 0 : 8;                               // H high cutoff / 1st AR coef (left & top)
+          if( fgs.num_model_values[c] < 3 ) fgs.comp_model_value[c][i][2] = fgs.model_id ? 0 : fgs.comp_model_value[c][i][1];   // V high cutoff / x-comp corr
+          if( fgs.num_model_values[c] < 4 ) fgs.comp_model_value[c][i][3] = 0;                                                  // H low cutoff / 2nd AR coef (top-left, top-right)
+          if( fgs.num_model_values[c] < 5 ) fgs.comp_model_value[c][i][4] = fgs.model_id << fgs.log2_scale_factor;              // V low cutoff / aspect ratio
+          if( fgs.num_model_values[c] < 5 ) fgs.comp_model_value[c][i][5] = 0;                                                  // x-comp corr / 3rd AR coef (left-left, top-top)
+        }
+      }
+    }
 
-		vfgs_set_depth(10);
-		vfgs_set_chroma_subsampling(2,2);
-		// Conversion of component model values for 4:2:0 chroma format
-		if (fgs.model_id == 0)
-		{
-			for (int c=1; c<3; c++)
-				if (fgs.comp_model_present_flag[c])
-					for (int k=0; k<fgs.num_intensity_intervals[c]; k++)
-					{
-						fgs.comp_model_value[c][k][1] = std::max(2, std::min(14, fgs.comp_model_value[c][k][1] << 1)); // Horizontal frequency
-						fgs.comp_model_value[c][k][2] = std::max(2, std::min(14, fgs.comp_model_value[c][k][2] << 1)); // Vertical frequency
-						fgs.comp_model_value[c][k][0] >>= 1;
-					}
-		}
-		vfgs_init_sei(&fgs);
+    vfgs_set_depth( 10 );
+    vfgs_set_chroma_subsampling( 2, 2 );
+    // Conversion of component model values for 4:2:0 chroma format
+    if( fgs.model_id == 0 )
+    {
+      for( int c = 1; c < 3; c++ )
+        if( fgs.comp_model_present_flag[c] )
+          for( int k = 0; k < fgs.num_intensity_intervals[c]; k++ )
+          {
+            fgs.comp_model_value[c][k][1] = std::max( 2, std::min( 14, fgs.comp_model_value[c][k][1] << 1 ) );   // Horizontal frequency
+            fgs.comp_model_value[c][k][2] = std::max( 2, std::min( 14, fgs.comp_model_value[c][k][2] << 1 ) );   // Vertical frequency
+            fgs.comp_model_value[c][k][0] >>= 1;
+          }
+    }
+    vfgs_init_sei( &fgs );
 
-		//	if (!m_bFgs)
-		//		// TODO: get something random
-		//	    // TODO: make seed also impact the pattern gen
-		//		vfgs_set_seed(uint32 seed);
+    //  if (!m_bFgs)
+    //    // TODO: get something random
+    //      // TODO: make seed also impact the pattern gen
+    //    vfgs_set_seed(uint32 seed);
 
-		m_eFgs = sei->filmGrainCharacteristicsPersistenceFlag ? 2 : 1;
-	}
-	else
-	{
-		m_eFgs = 0;
-	}
+    m_eFgs = sei->filmGrainCharacteristicsPersistenceFlag ? 2 : 1;
+  }
+  else
+  {
+    m_eFgs = 0;
+  }
 
-	return VVDEC_OK;
+  return VVDEC_OK;
 }
 
-int VVDecImpl::xAddGrain( vvdecFrame *frame )
+int VVDecImpl::xAddGrain( vvdecFrame* frame )
 {
-	if (m_eFgs)
-	{
-		uint8 *Y = (uint8*)frame->planes[0].ptr;
-		uint8 *U = (uint8*)frame->planes[1].ptr;
-		uint8 *V = (uint8*)frame->planes[2].ptr;
+  if( m_eFgs )
+  {
+    uint8* Y = (uint8*) frame->planes[0].ptr;
+    uint8* U = (uint8*) frame->planes[1].ptr;
+    uint8* V = (uint8*) frame->planes[2].ptr;
 
-		CHECK(frame->bitDepth != 10, "Bitdepth is not 10");
+    CHECK( frame->bitDepth != 10, "Bitdepth is not 10" );
 
-		for (int y=0; y<frame->planes[0].height; y++)
-		{
-			vfgs_add_grain_line(Y, U, V, y, frame->planes[0].width);
-			Y += frame->planes[0].stride;
-			if ((y & 1) || (frame->planes[0].height == frame->planes[1].height))
-			{
-				U += frame->planes[1].stride;
-				V += frame->planes[1].stride;
-			}
-		}
-
-    	if (m_eFgs < 2) // Not persistent
-    		m_eFgs = 0;
+    for( int y = 0; y < frame->planes[0].height; y++ )
+    {
+      vfgs_add_grain_line( Y, U, V, y, frame->planes[0].width );
+      Y += frame->planes[0].stride;
+      if( ( y & 1 ) || ( frame->planes[0].height == frame->planes[1].height ) )
+      {
+        U += frame->planes[1].stride;
+        V += frame->planes[1].stride;
+      }
     }
-	return VVDEC_OK;
+
+    if( m_eFgs < 2 )   // Not persistent
+      m_eFgs = 0;
+  }
+  return VVDEC_OK;
 }
 #endif   // ENABLE_FILM_GRAIN
 
