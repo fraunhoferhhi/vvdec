@@ -47,6 +47,7 @@ POSSIBILITY OF SUCH DAMAGE.
 
 namespace vvdec {
 
+class FilmGrain;
 
 static const char * const vvdecNalTypeNames[] = { "NAL_UNIT_CODED_SLICE_TRAIL", "NAL_UNIT_CODED_SLICE_STSA", "NAL_UNIT_CODED_SLICE_RADL", "NAL_UNIT_CODED_SLICE_RASL",
                                                   "NAL_UNIT_RESERVED_VCL_4", "NAL_UNIT_RESERVED_VCL_5", "NAL_UNIT_RESERVED_VCL_6",
@@ -98,11 +99,8 @@ public:
 
 public:
 
-  /// Constructor
-  VVDecImpl() = default;
-
-  /// Destructor
-  ~VVDecImpl() = default;
+  VVDecImpl();
+  ~VVDecImpl();
 
   class FrameStorage
   {
@@ -220,6 +218,7 @@ private:
   uint64_t                                 m_uiSeqNumOutput    = 0;
 #if ENABLE_FILM_GRAIN
   int                                      m_eFgs = 0;
+  std::unique_ptr<FilmGrain>               m_filmGrainSynth;
 #endif   // ENABLE_FILM_GRAIN
 };
 

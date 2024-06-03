@@ -54,14 +54,16 @@ POSSIBILITY OF SUCH DAMAGE.
  * message).
  */
 
-#ifndef _VFGS_FW_H_
-#define _VFGS_FW_H_
+#pragma once
 
-#include <stdint.h>
+#include "FilmGrainImpl.h"
+
+namespace vvdec
+{
 
 #define SEI_MAX_MODEL_VALUES 6
 
-typedef struct fgs_sei_s
+struct fgs_sei
 {
   uint8_t  model_id;
   uint8_t  log2_scale_factor;
@@ -71,8 +73,18 @@ typedef struct fgs_sei_s
   uint8_t  intensity_interval_lower_bound[3][256];
   uint8_t  intensity_interval_upper_bound[3][256];
   int16_t  comp_model_value[3][256][SEI_MAX_MODEL_VALUES];
-} fgs_sei;
+};
 
-void vfgs_init_sei( fgs_sei* cfg );
+class FilmGrain : public FilmGrainImpl
+{
+public:
+  FilmGrain( int depth, int chromaSubsampling )
+  {
+    set_depth( depth );
+    set_chroma_subsampling( chromaSubsampling, chromaSubsampling );
+  }
 
-#endif   // _VFGS_FW_H_
+  void init_sei( fgs_sei* cfg );
+};
+
+}   // namespace vvdec

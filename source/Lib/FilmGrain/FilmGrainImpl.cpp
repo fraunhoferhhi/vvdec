@@ -54,49 +54,29 @@ POSSIBILITY OF SUCH DAMAGE.
  * message).
  */
 
-#include "vfgs_hw.h"
-#include <string.h>   // memcpy
-#include <assert.h>
+#include "FilmGrainImpl.h"
 
-#define min( a, b ) ( ( a ) < ( b ) ? ( a ) : ( b ) )
-#define max( a, b ) ( ( a ) > ( b ) ? ( a ) : ( b ) )
-#define round( a, s ) ( ( ( a ) + ( 1 << ( ( s ) - 1 ) ) ) >> ( s ) )
+#include <cstring>   // memcpy
+#include <algorithm>
+
+#include <CommonDef.h>
 
 #define PATTERN_INTERPOLATION 0
 
-// Note: declarations optimized for code readability; e.g. pattern storage in
-//       actual hardware implementation would differ significantly
-static int8_t pattern[2][VFGS_MAX_PATTERNS + 1][64][64] = {
-  0,
-};   // +1 to simplify interpolation code
-static uint8_t sLUT[3][256] = {
-  0,
-};
-static uint8_t pLUT[3][256] = {
-  0,
-};
-static uint32_t rnd         = 0xdeadbeef;
-static uint32_t rnd_up      = 0xdeadbeef;
-static uint32_t line_rnd    = 0xdeadbeef;
-static uint32_t line_rnd_up = 0xdeadbeef;
-static uint8_t  scale_shift = 5 + 6;
-static uint8_t  bs          = 0;   // bitshift = bitdepth - 8
-static uint8_t  Y_min       = 0;
-static uint8_t  Y_max       = 255;
-static uint8_t  C_min       = 0;
-static uint8_t  C_max       = 255;
-static int      csubx       = 2;
-static int      csuby       = 2;
+namespace vvdec
+{
 
-// Processing pipeline (needs only 2 registers for each color actually, for horizontal deblocking)
-static int16_t grain[3][32];   // 9 bit needed because of overlap (has norm > 1)
-static uint8_t scale[3][32];
+template<class T>
+constexpr inline auto round( T a, uint8_t s )
+{
+  return ( a + ( 1 << ( s - 1 ) ) ) >> s;
+}
 
 /** Pseudo-random number generator
  * Note: loops on the 31 MSBs, so seed should be MSB-aligned in the register
  * (the register LSB has basically no effect since it is never fed back)
  */
-static uint32_t prng( uint32_t x )
+static inline uint32_t prng( uint32_t x )
 {
   uint32_t s = ( ( x << 30 ) ^ ( x << 2 ) ) & 0x80000000;
   x          = s | ( x >> 1 );
@@ -136,7 +116,7 @@ static void get_offset_y( uint32_t val, int* s, uint8_t* x, uint8_t* y )
                                     // pattern samples (when using overlap).
 }
 
-static void get_offset_u( uint32_t val, int* s, uint8_t* x, uint8_t* y )
+void FilmGrainImpl::get_offset_u( uint32_t val, int* s, uint8_t* x, uint8_t* y )
 {
   uint32_t bf;   // bit field
 
@@ -149,7 +129,7 @@ static void get_offset_u( uint32_t val, int* s, uint8_t* x, uint8_t* y )
   *y = ( ( bf * 12 ) >> 10 ) * ( 4 / csuby );
 }
 
-static void get_offset_v( uint32_t val, int* s, uint8_t* x, uint8_t* y )
+void FilmGrainImpl::get_offset_v( uint32_t val, int* s, uint8_t* x, uint8_t* y )
 {
   uint32_t bf;   // bit field
 
@@ -162,7 +142,7 @@ static void get_offset_v( uint32_t val, int* s, uint8_t* x, uint8_t* y )
   *y = ( ( bf * 12 ) >> 10 ) * ( 4 / csuby );
 }
 
-static void add_grain_block( void* I, int c, int x, int y, int width )
+void FilmGrainImpl::add_grain_block( void* I, int c, int x, int y, int width )
 {
   uint8_t*  I8  = (uint8_t*) I;
   uint16_t* I16 = (uint16_t*) I;
@@ -191,10 +171,11 @@ static void add_grain_block( void* I, int c, int x, int y, int width )
     return;
   }
 
-  assert( !( x & 15 ) );
-  assert( width > 128 );
-  assert( bs == 0 || bs == 2 );
-  assert( scale_shift + bs >= 8 && scale_shift + bs <= 13 );
+  CHECK( x & 15, "x not a multiple of 16" );
+  CHECK( width <= 128, "wrong width" );
+  CHECK( bs != 0 && bs != 2, "wrong bs" );
+  CHECK( scale_shift + bs < 8 || scale_shift + bs > 13, "wrong scale_shift" );
+
   // TODO: assert subx, suby, Y/C min/max, max pLUT values, etc
 
   j = y & 0xf;
@@ -303,11 +284,11 @@ static void add_grain_block( void* I, int c, int x, int y, int width )
         g = round( scale[c][i] * (int16_t) grain[c][i], scale_shift );
         if( bs )
         {
-          I16[( x - 16 ) / subx + i] = max( I_min << bs, min( I_max << bs, I16[( x - 16 ) / subx + i] + g ) );
+          I16[( x - 16 ) / subx + i] = std::max( I_min << bs, std::min( I_max << bs, I16[( x - 16 ) / subx + i] + g ) );
         }
         else
         {
-          I8[( x - 16 ) / subx + i] = max( I_min, min( I_max, I8[( x - 16 ) / subx + i] + g ) );
+          I8[( x - 16 ) / subx + i] = std::max<int32_t>( I_min, std::min<int32_t>( I_max, I8[( x - 16 ) / subx + i] + g ) );
         }
       }
     }
@@ -329,7 +310,7 @@ static void add_grain_block( void* I, int c, int x, int y, int width )
 
 /* Public interface ***********************************************************/
 
-void vfgs_add_grain_line( void* Y, void* U, void* V, int y, int width )
+void FilmGrainImpl::add_grain_line( void* Y, void* U, void* V, int y, int width )
 {
   // Generate / backup / restore per-line random seeds (needed to make multi-line blocks)
   if( y && ( y & 0x0f ) == 0 )
@@ -355,49 +336,47 @@ void vfgs_add_grain_line( void* Y, void* U, void* V, int y, int width )
   }
 }
 
-void vfgs_set_luma_pattern( int index, int8_t* P )
+void FilmGrainImpl::set_luma_pattern( int index, int8_t* P )
 {
-  assert( index >= 0 && index < 8 );
+  CHECK( index < 0 || index >= 8, "luma pattern index out of bounds" );
   memcpy( pattern[0][index], P, 64 * 64 );
 }
 
-void vfgs_set_chroma_pattern( int index, int8_t* P )
+void FilmGrainImpl::set_chroma_pattern( int index, int8_t* P )
 {
-  assert( index >= 0 && index < 8 );
+  CHECK( index < 0 || index >= 8, "chroma pattern index out of bounds" );
   for( int i = 0; i < 64 / csuby; i++ )
   {
     memcpy( pattern[1][index][i], P + ( 64 / csuby ) * i, 64 / csubx );
   }
 }
 
-void vfgs_set_scale_lut( int c, uint8_t lut[] )
+void FilmGrainImpl::set_scale_lut( int c, uint8_t lut[] )
 {
-  assert( c >= 0 && c < 3 );
+  CHECK( c < 0 || c >= 3, "scale lut idx out of bounds" );
   memcpy( sLUT[c], lut, 256 );
 }
 
-void vfgs_set_pattern_lut( int c, uint8_t lut[] )
+void FilmGrainImpl::set_pattern_lut( int c, uint8_t lut[] )
 {
-  assert( c >= 0 && c < 3 );
+  CHECK( c < 0 || c >= 3, "pattern lut idx out of bounds" );
   memcpy( pLUT[c], lut, 256 );
 }
 
-void vfgs_set_seed( uint32_t seed )
+void FilmGrainImpl::set_seed( uint32_t seed )
 {
-  // Note: shift left the seed as the LFSR loops on the 31 MSBs, so
-  // the LFSR register LSB has no effect on random sequence initialization
-  rnd = rnd_up = line_rnd = line_rnd_up = ( seed << 1 );
+  rnd = rnd_up = line_rnd = line_rnd_up = seed;
 }
 
-void vfgs_set_scale_shift( int shift )
+void FilmGrainImpl::set_scale_shift( int shift )
 {
-  assert( shift >= 2 && shift < 8 );
+  CHECK( shift < 2 || shift >= 8, "scale shift out of range" );
   scale_shift = shift + 6 - bs;
 }
 
-void vfgs_set_depth( int depth )
+void FilmGrainImpl::set_depth( int depth )
 {
-  assert( depth == 8 || depth == 10 );
+  CHECK( depth != 8 && depth != 10, "only bit depth 8 and 10 supported." )
 
   if( bs == 0 && depth > 8 )
   {
@@ -411,10 +390,12 @@ void vfgs_set_depth( int depth )
   bs = depth - 8;
 }
 
-void vfgs_set_chroma_subsampling( int subx, int suby )
+void FilmGrainImpl::set_chroma_subsampling( int subx, int suby )
 {
-  assert( subx == 1 || subx == 2 );
-  assert( suby == 1 || suby == 2 );
+  CHECK( subx != 1 && subx != 2, "chroma subsampling should be 1 or 2" );
+  CHECK( suby != 1 && suby != 2, "chroma subsampling should be 1 or 2" );
   csubx = subx;
   csuby = suby;
 }
+
+}   // namespace vvdec
