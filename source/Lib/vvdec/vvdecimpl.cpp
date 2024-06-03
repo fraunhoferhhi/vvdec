@@ -52,14 +52,18 @@ POSSIBILITY OF SUCH DAMAGE.
 #include "CommonLib/CommonDef.h"
 #include "CommonLib/x86/CommonDefX86.h"
 #include "CommonLib/arm/CommonDefARM.h"
-extern "C" {
-#include "vfgs_fw.h"
-#include "vfgs_hw.h"
+
+#if ENABLE_FILM_GRAIN
+#  include "vvdec/sei.h"
+extern "C"
+{
+#  include "vfgs_fw.h"
+#  include "vfgs_hw.h"
 }
-#include "vvdec/sei.h"
+#endif   // ENABLE_FILM_GRAIN
 
-
-namespace vvdec {
+namespace vvdec
+{
 
 int VVDecImpl::init( const vvdecParams& params, vvdecCreateBufferCallback createBufCallback, vvdecUnrefBufferCallback unrefBufCallback )
 {
@@ -224,7 +228,9 @@ int VVDecImpl::reset()
   malloc_trim(0);
 #endif
 
-  m_eFgs           = 0;
+#if ENABLE_FILM_GRAIN
+  m_eFgs = 0;
+#endif   // ENABLE_FILM_GRAIN
   m_uiSeqNumber    = 0;
   m_uiSeqNumOutput = 0;
   m_eState         = INTERNAL_STATE_INITIALIZED;
@@ -820,6 +826,7 @@ int VVDecImpl::copyComp( const unsigned char* pucSrc, unsigned char* pucDest, un
   return 0;
 }
 
+#if ENABLE_FILM_GRAIN
 int VVDecImpl::xUpdateFGC( vvdecSEI *s )
 {
 	vvdecSEIFilmGrainCharacteristics* sei =(vvdecSEIFilmGrainCharacteristics*)s->payload;
@@ -913,6 +920,7 @@ int VVDecImpl::xAddGrain( vvdecFrame *frame )
     }
 	return VVDEC_OK;
 }
+#endif   // ENABLE_FILM_GRAIN
 
 int VVDecImpl::xAddPicture( Picture* pcPic )
 {
@@ -951,6 +959,7 @@ int VVDecImpl::xAddPicture( Picture* pcPic )
   bool bCreateStorage = ( bitDepths.recon == 8 );   // for 8bit output we need to copy the lib picture from unsigned short into unsigned char buffer
   bCreateStorage = bCreateStorage || m_bRemovePadding;
 
+#if ENABLE_FILM_GRAIN
   // find FGC SEI
   for( auto& s : pcPic->seiMessageList )
   {
@@ -961,6 +970,7 @@ int VVDecImpl::xAddPicture( Picture* pcPic )
     }
   }
   bCreateStorage = bCreateStorage || m_eFgs;
+#endif   // ENABLE_FILM_GRAIN
 
   // create a brand new picture object
   vvdecFrame cFrame;
@@ -1173,8 +1183,10 @@ int VVDecImpl::xAddPicture( Picture* pcPic )
     }
   }
 
+#if ENABLE_FILM_GRAIN
   // Grain synthesis
   xAddGrain( &cFrame );
+#endif   // ENABLE_FILM_GRAIN
 
   m_rcFrameList.emplace_back( cFrame, bCreateStorage ? nullptr : pcPic );
 
@@ -1607,4 +1619,4 @@ void VVDecImpl::vvdec_frame_reset(vvdecFrame *frame)
   vvdec_frame_default( frame );
 }
 
-} // namespace
+}   // namespace vvdec

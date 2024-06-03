@@ -218,7 +218,9 @@ private:
 
   uint64_t                                 m_uiSeqNumber       = 0;
   uint64_t                                 m_uiSeqNumOutput    = 0;
+#if ENABLE_FILM_GRAIN
   int                                      m_eFgs = 0;
+#endif   // ENABLE_FILM_GRAIN
 };
 
 template<class MembFunc, class... Args>
