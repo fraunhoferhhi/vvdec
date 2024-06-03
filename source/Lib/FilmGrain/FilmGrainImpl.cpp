@@ -6,7 +6,7 @@ the Software are granted under this license.
 
 The Clear BSD License
 
-Copyright (c) 2018-2024, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. & The VVdeC Authors.
+Copyright (c) 2018-2024, Fraunhofer-Gesellschaft zur FÃ¶rderung der angewandten Forschung e.V. & The VVdeC Authors.
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without modification,
@@ -379,6 +379,15 @@ void FilmGrainImpl::set_chroma_subsampling( int subx, int suby )
   CHECK( suby != 1 && suby != 2, "chroma subsampling should be 1 or 2" );
   csubx = subx;
   csuby = suby;
+}
+
+FilmGrainImpl::FilmGrainImpl()
+{
+  memset( pattern, 0, sizeof( pattern ) );
+  memset( sLUT,    0, sizeof( sLUT ) );
+  memset( pLUT,    0, sizeof( pLUT ) );
+  memset( grain,   0, sizeof( grain ) );
+  memset( scale,   0, sizeof( scale ) );
 }
 
 }   // namespace vvdec

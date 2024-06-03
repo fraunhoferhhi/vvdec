@@ -89,9 +89,9 @@ class FilmGrainImpl
 {
   // Note: declarations optimized for code readability; e.g. pattern storage in
   //       actual hardware implementation would differ significantly
-  int8_t  pattern[2][VFGS_MAX_PATTERNS + 1][64][64] = { 0, };   // +1 to simplify interpolation code
-  uint8_t sLUT[3][256]                              = { 0, };
-  uint8_t pLUT[3][256]                              = { 0, };
+  int8_t  pattern[2][VFGS_MAX_PATTERNS + 1][64][64];   // +1 to simplify interpolation code
+  uint8_t sLUT[3][256];
+  uint8_t pLUT[3][256];
 
   uint32_t rnd         = 0xdeadbeef;
   uint32_t rnd_up      = 0xdeadbeef;
@@ -116,6 +116,8 @@ class FilmGrainImpl
   void add_grain_block( void* I, int c, int x, int y, int width );
 
 protected:
+  FilmGrainImpl();
+
   void set_luma_pattern( int index, int8_t* P );
   void set_chroma_pattern( int index, int8_t* P );
   void set_scale_lut( int c, uint8_t lut[] );
