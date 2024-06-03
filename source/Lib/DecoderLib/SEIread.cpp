@@ -1238,14 +1238,13 @@ void SEIReader::xParseSEIFilmGrainCharacteristics(vvdecSEI* s, uint32_t payloadS
       vvdecCompModel &cm = sei->compModel[c];
       if (cm.presentFlag)
       {
-        uint32_t numIntensityIntervals;
-        sei_read_code(pDecodedMessageOutputStream, 8, code, "nuintensity_intervals_minus1[c]"); numIntensityIntervals = code + 1;
+        sei_read_code(pDecodedMessageOutputStream, 8, code, "nuintensity_intervals_minus1[c]"); cm.numIntensityIntervals = code + 1;
         sei_read_code(pDecodedMessageOutputStream, 3, code, "numodel_values_minus1[c]");        cm.numModelValues = code + 1;
 
-        CHECK ( numIntensityIntervals > 256, "nuintensity_intervals_minus1[c] out of range" );
-        CHECK ( cm.numModelValues > 5, "numodel_values_minus1[c] out of range" );
+        CHECK ( cm.numIntensityIntervals > 256, "nuintensity_intervals_minus1[c] out of range" );
+        CHECK ( cm.numModelValues > 6, "numodel_values_minus1[c] out of range" );
 
-        for (uint32_t interval = 0; interval < numIntensityIntervals; interval++)
+        for (uint32_t interval = 0; interval < cm.numIntensityIntervals; interval++)
         {
           vvdecCompModelIntensityValues &cmiv = cm.intensityValues[interval];
           sei_read_code(pDecodedMessageOutputStream, 8, code, "intensity_interval_lower_bound[c][i]"); cmiv.intensityIntervalLowerBound = code;

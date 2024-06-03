@@ -10,3 +10,4 @@
 * X Rayleigh, @xrayleigh2000,
 * Matthieu Sauer, ,
 * Florian Eisenreich, , Fraunhofer HHI
+* Philippe de Lagrange, @delagrangep, InterDigital

@@ -201,6 +201,7 @@ typedef struct vvdecCompModel
 {
   bool                          presentFlag;
   uint8_t                       numModelValues;
+  uint16_t                      numIntensityIntervals;
   vvdecCompModelIntensityValues intensityValues[256];
 }vvdecCompModel;
 
