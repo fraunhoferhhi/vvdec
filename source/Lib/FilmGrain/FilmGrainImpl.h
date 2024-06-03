@@ -54,31 +54,83 @@ POSSIBILITY OF SUCH DAMAGE.
  * message).
  */
 
-#ifndef _VFGS_HW_H_
-#define _VFGS_HW_H_
+#pragma once
 
-#ifndef int32
-#define int32  signed int
-#define uint32 unsigned int
-#define int16  signed short
-#define uint16 unsigned short
-#define int8   signed char
-#define uint8  unsigned char
-#endif
+#include <cstdint>
 
 #define VFGS_MAX_PATTERNS 8
 
-void vfgs_set_luma_pattern(int index, int8* P);
-void vfgs_set_chroma_pattern(int index, int8 *P);
-void vfgs_set_scale_lut(int c, uint8 lut[]);
-void vfgs_set_pattern_lut(int c, uint8 lut[]);
+namespace vvdec
+{
 
-void vfgs_set_seed(uint32 seed);
-void vfgs_set_scale_shift(int shift);
-void vfgs_set_depth(int depth);
-void vfgs_set_chroma_subsampling(int subx, int suby);
+/** Pseudo-random number generator (32-bit)
+ * Note: loops on the 31 MSBs, so seed should be MSB-aligned in the register
+ * (the register LSB has basically no effect since it is never fed back)
+ */
+static inline uint32_t prng( uint32_t x )
+{
+#if 1   // same as HW (bit-reversed RDD-5)
+  uint32_t s = ( ( x << 30 ) ^ ( x << 2 ) ) & 0x80000000;
+  x          = s | ( x >> 1 );
+#else   // RDD-5
+  uint32_t s = ( ( x >> 30 ) ^ ( x >> 2 ) ) & 1;
+  x          = ( x << 1 ) | s;
+#endif
+  return x;
+}
 
-void vfgs_add_grain_line(void* Y, void* U, void* V, int y, int width);
+template<class T>
+constexpr inline auto round( T a, uint8_t s )
+{
+  return ( a + ( 1 << ( s - 1 ) ) ) >> s;
+}
 
-#endif  // _VFGS_HW_H_
+class FilmGrainImpl
+{
+  // Note: declarations optimized for code readability; e.g. pattern storage in
+  //       actual hardware implementation would differ significantly
+  int8_t  pattern[2][VFGS_MAX_PATTERNS + 1][64][64];   // +1 to simplify interpolation code
+  uint8_t sLUT[3][256];
+  uint8_t pLUT[3][256];
 
+  uint32_t rnd         = 0xdeadbeef;
+  uint32_t rnd_up      = 0xdeadbeef;
+  uint32_t line_rnd    = 0xdeadbeef;
+  uint32_t line_rnd_up = 0xdeadbeef;
+  uint8_t  scale_shift = 5 + 6;
+  uint8_t  bs          = 0;   // bitshift = bitdepth - 8
+  int      csubx       = 2;
+  int      csuby       = 2;
+
+  constexpr static uint8_t Y_min = 0;
+  constexpr static uint8_t Y_max = 255;
+  constexpr static uint8_t C_min = 0;
+  constexpr static uint8_t C_max = 255;
+
+  // Processing pipeline (needs only 2 registers for each color actually, for horizontal deblocking)
+  int16_t grain[3][32];   // 9 bit needed because of overlap (has norm > 1)
+  uint8_t scale[3][32];
+
+  void get_offset_u( uint32_t val, int* s, uint8_t* x, uint8_t* y );
+  void get_offset_v( uint32_t val, int* s, uint8_t* x, uint8_t* y );
+  void add_grain_block( void* I, int c, int x, int y, int width );
+
+protected:
+  FilmGrainImpl();
+
+  void set_luma_pattern( int index, int8_t* P );
+  void set_chroma_pattern( int index, int8_t* P );
+  void set_scale_lut( int c, uint8_t lut[] );
+  void set_pattern_lut( int c, uint8_t lut[] );
+
+  void set_seed( uint32_t seed );
+  void set_scale_shift( int shift );
+
+public:
+  void set_depth( int depth );
+  void set_chroma_subsampling( int subx, int suby );
+
+  void add_grain_line( void* Y, void* U, void* V, int y, int width );
+};
+
+}   // namespace vvdec

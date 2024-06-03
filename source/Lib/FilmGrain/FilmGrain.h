@@ -54,32 +54,45 @@ POSSIBILITY OF SUCH DAMAGE.
  * message).
  */
 
-#ifndef _VFGS_FW_H_
-#define _VFGS_FW_H_
+#pragma once
 
-#ifndef int32
-#define int32  signed int
-#define uint32 unsigned int
-#define int16  signed short
-#define uint16 unsigned short
-#define int8   signed char
-#define uint8  unsigned char
-#endif
+#include "FilmGrainImpl.h"
+
+#include <cstring>
+
+#include "vvdec/sei.h"
+
+namespace vvdec
+{
 
 #define SEI_MAX_MODEL_VALUES 6
 
-typedef struct fgs_sei_s {
-	uint8 model_id;
-	uint8 log2_scale_factor;
-	uint8 comp_model_present_flag[3];
-	uint16 num_intensity_intervals[3];
-	uint8 num_model_values[3];
-	uint8 intensity_interval_lower_bound[3][256];
-	uint8 intensity_interval_upper_bound[3][256];
-	int16 comp_model_value[3][256][SEI_MAX_MODEL_VALUES];
-} fgs_sei;
+struct fgs_sei
+{
+  fgs_sei() { memset( this, 0, sizeof( *this ) ); }
 
-void vfgs_init_sei(fgs_sei* cfg);
+  uint8_t  model_id;
+  uint8_t  log2_scale_factor;
+  uint8_t  comp_model_present_flag[3];
+  uint16_t num_intensity_intervals[3];
+  uint8_t  num_model_values[3];
+  uint8_t  intensity_interval_lower_bound[3][256];
+  uint8_t  intensity_interval_upper_bound[3][256];
+  int16_t  comp_model_value[3][256][SEI_MAX_MODEL_VALUES];
+};
 
-#endif  // _VFGS_FW_H_
+class FilmGrain : public FilmGrainImpl
+{
+public:
+  FilmGrain( int depth, int chromaSubsampling )
+  {
+    set_depth( depth );
+    set_chroma_subsampling( chromaSubsampling, chromaSubsampling );
+  }
+  void updateFGC( vvdecSEIFilmGrainCharacteristics* fgc );
 
+private:
+  void init_sei( fgs_sei* cfg );
+};
+
+}   // namespace vvdec

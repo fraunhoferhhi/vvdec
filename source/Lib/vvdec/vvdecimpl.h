@@ -47,6 +47,7 @@ POSSIBILITY OF SUCH DAMAGE.
 
 namespace vvdec {
 
+class FilmGrain;
 
 static const char * const vvdecNalTypeNames[] = { "NAL_UNIT_CODED_SLICE_TRAIL", "NAL_UNIT_CODED_SLICE_STSA", "NAL_UNIT_CODED_SLICE_RADL", "NAL_UNIT_CODED_SLICE_RASL",
                                                   "NAL_UNIT_RESERVED_VCL_4", "NAL_UNIT_RESERVED_VCL_5", "NAL_UNIT_RESERVED_VCL_6",
@@ -98,11 +99,8 @@ public:
 
 public:
 
-  /// Constructor
-  VVDecImpl() = default;
-
-  /// Destructor
-  ~VVDecImpl() = default;
+  VVDecImpl();
+  ~VVDecImpl();
 
   class FrameStorage
   {
@@ -178,8 +176,8 @@ private:
   int xAddPicture                  ( Picture* pcPic );
   int xCreateFrame                 ( vvdecFrame& frame, const CPelUnitBuf& rcPicBuf, uint32_t uiWidth, uint32_t uiHeight, const BitDepths& rcBitDepths, bool bCreateStorage );
 
-  int xUpdateFGC                   ( vvdecSEI *sei );
-  int xAddGrain                    ( vvdecFrame *frame );
+  void xUpdateFGC                  ( vvdecSEI *sei );
+  void xAddGrain                   ( vvdecFrame *frame );
 
   static int xRetrieveNalStartCode ( unsigned char *pB, int iZerosInStartcode );
   static int xConvertPayloadToRBSP ( const uint8_t* payload, size_t payloadLen, InputBitstream* bitstream, bool isVclNalUnit );
@@ -219,7 +217,13 @@ private:
   uint64_t                                 m_uiSeqNumber       = 0;
   uint64_t                                 m_uiSeqNumOutput    = 0;
 #if ENABLE_FILM_GRAIN
-  int                                      m_eFgs = 0;
+  enum
+  {
+    FgcNone        = 0,
+    FgcDontPersist = 1,
+    FgcPersist     = 2
+  }                                        m_filmGrainCharacteristicsState = FgcNone;
+  std::unique_ptr<FilmGrain>               m_filmGrainSynth;
 #endif   // ENABLE_FILM_GRAIN
 };
 
