@@ -12,7 +12,7 @@ else()
 endif()
 
 # get source files
-file( GLOB BASE_SRC_FILES "*.c" "*.cpp"  "../CommonLib/*.cpp"  "../Utilities/*.cpp" "../DecoderLib/*.cpp")
+file( GLOB BASE_SRC_FILES "*.cpp"  "../CommonLib/*.cpp"  "../Utilities/*.cpp" "../DecoderLib/*.cpp")
 
 # get include files
 file( GLOB BASE_INC_FILES "*.h" "../CommonLib/*.h"  "../Utilities/*.h" "../DecoderLib/*.h" )
@@ -41,20 +41,26 @@ if( VVDEC_ENABLE_ARM_SIMD )
   file( GLOB ARM_NEON_SRC_FILES "../CommonLib/arm/neon/*.cpp" )
 endif()
 
-
 # get libmd5 source files
 file( GLOB MD5_SRC_FILES "../libmd5/*.cpp" )
 file( GLOB MD5_INC_FILES "../libmd5/*.h" )
+
+if( VVDEC_ENABLE_FILM_GRAIN )
+  file( GLOB FGS_SRC_FILES "vfgs_*.c" )
+  file( GLOB FGS_INC_FILES "vfgs_*.h" )
+
+  set_property( SOURCE vvdec.cpp vvdecimpl.cpp APPEND PROPERTY COMPILE_DEFINITIONS ENABLE_FILM_GRAIN )
+endif()
 
 # get public/extern include files
 file( GLOB PUBLIC_INC_FILES  "../../../include/${LIB_NAME}/*.h" )
 
 # get all private include files
-set( PRIVATE_INC_FILES ${BASE_INC_FILES} ${X86_INC_FILES} ${ARM_INC_FILES} ${MD5_INC_FILES}  )
+set( PRIVATE_INC_FILES ${BASE_INC_FILES} ${X86_INC_FILES} ${ARM_INC_FILES} ${MD5_INC_FILES} ${FGS_INC_FILES} )
 
 # get all source files
-set( SRC_FILES ${BASE_SRC_FILES} ${X86_SRC_FILES} ${ARM_SRC_FILES} ${MD5_SRC_FILES} )
-set( INC_FILES ${PRIVATE_INC_FILES} ${PUBLIC_INC_FILES}  )
+set( SRC_FILES ${BASE_SRC_FILES} ${X86_SRC_FILES} ${ARM_SRC_FILES} ${MD5_SRC_FILES} ${FGS_SRC_FILES} )
+set( INC_FILES ${PRIVATE_INC_FILES} ${PUBLIC_INC_FILES} )
 
 # NATVIS files for Visual Studio
 if( MSVC )
