@@ -65,12 +65,6 @@ POSSIBILITY OF SUCH DAMAGE.
 namespace vvdec
 {
 
-template<class T>
-constexpr inline auto round( T a, uint8_t s )
-{
-  return ( a + ( 1 << ( s - 1 ) ) ) >> s;
-}
-
 // clang-format off
 static constexpr int8_t Gaussian_LUT[2048] = {
    -11,  12, 103, -11,  42, -35,  12,  59,  77,  98, -87,   3,  65, -78,  45,  56,
@@ -309,19 +303,6 @@ static constexpr uint32_t Seed_LUT[256] = {
 static constexpr int8_t DCT2_64[64][64] = \
   DEFINE_DCT2_P64_MATRIX(64, 83, 36, 89, 75, 50, 18, 90, 87, 80, 70, 57, 43, 25, 9, 90, 90, 88, 85, 82, 78, 73, 67, 61, 54, 46, 38, 31, 22, 13, 4, 91, 90, 90, 90, 88, 87, 86, 84, 83, 81, 79, 77, 73, 71, 69, 65, 62, 59, 56, 52, 48, 44, 41, 37, 33, 28, 24, 20, 15, 11, 7, 2);
 // clang-format on
-
-/** Pseudo-random number generator (32-bit) */
-static inline uint32_t prng( uint32_t x )
-{
-#if 1   // same as HW (bit-reversed RDD-5)
-  uint32_t s = ( ( x << 30 ) ^ ( x << 2 ) ) & 0x80000000;
-  x          = s | ( x >> 1 );
-#else   // RDD-5
-  uint32_t s = ( ( x >> 30 ) ^ ( x >> 2 ) ) & 1;
-  x          = ( x << 1 ) | s;
-#endif
-  return x;
-}
 
 /** Apply iDCT2 to block B[64][64] + clipping */
 static void idct2_64( int8_t B[][64] )

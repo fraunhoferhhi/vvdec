@@ -66,23 +66,6 @@ POSSIBILITY OF SUCH DAMAGE.
 namespace vvdec
 {
 
-template<class T>
-constexpr inline auto round( T a, uint8_t s )
-{
-  return ( a + ( 1 << ( s - 1 ) ) ) >> s;
-}
-
-/** Pseudo-random number generator
- * Note: loops on the 31 MSBs, so seed should be MSB-aligned in the register
- * (the register LSB has basically no effect since it is never fed back)
- */
-static inline uint32_t prng( uint32_t x )
-{
-  uint32_t s = ( ( x << 30 ) ^ ( x << 2 ) ) & 0x80000000;
-  x          = s | ( x >> 1 );
-  return x;
-}
-
 /** Derive Y x/y offsets from (random) number
  *
  * Bit fields are designed to minimize overlaps across color channels, to
