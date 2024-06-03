@@ -187,7 +187,9 @@ static void add_grain_block( void* I, int c, int x, int y, int width )
   uint8 I_max = c ? C_max : Y_max;
 
   if( ( y & 1 ) && suby > 1 )
+  {
     return;
+  }
 
   assert( !( x & 15 ) );
   assert( width > 128 );
@@ -214,20 +216,32 @@ static void add_grain_block( void* I, int c, int x, int y, int width )
 
   // Derive block offsets + sign
   if( c == 0 )
+  {
     get_offset_y( rnd, &s, &ox, &oy );
+  }
   else if( c == 1 )
+  {
     get_offset_u( rnd, &s, &ox, &oy );
+  }
   else
+  {
     get_offset_v( rnd, &s, &ox, &oy );
+  }
   oy += j / suby;
 
   // Same for upper block (overlap)
   if( c == 0 )
+  {
     get_offset_y( rnd_up, &s_up, &ox_up, &oy_up );
+  }
   else if( c == 1 )
+  {
     get_offset_u( rnd_up, &s_up, &ox_up, &oy_up );
+  }
   else
+  {
     get_offset_v( rnd_up, &s_up, &ox_up, &oy_up );
+  }
   oy_up += ( 16 + j ) / suby;
 
   // Make grain pattern
@@ -288,9 +302,13 @@ static void add_grain_block( void* I, int c, int x, int y, int width )
         // Output previous block (or flush current)
         g = round( scale[c][i] * (int16) grain[c][i], scale_shift );
         if( bs )
+        {
           I16[( x - 16 ) / subx + i] = max( I_min << bs, min( I_max << bs, I16[( x - 16 ) / subx + i] + g ) );
+        }
         else
+        {
           I8[( x - 16 ) / subx + i] = max( I_min, min( I_max, I8[( x - 16 ) / subx + i] + g ) );
+        }
       }
     }
 
@@ -347,7 +365,9 @@ void vfgs_set_chroma_pattern( int index, int8* P )
 {
   assert( index >= 0 && index < 8 );
   for( int i = 0; i < 64 / csuby; i++ )
+  {
     memcpy( pattern[1][index][i], P + ( 64 / csuby ) * i, 64 / csubx );
+  }
 }
 
 void vfgs_set_scale_lut( int c, uint8 lut[] )
@@ -380,9 +400,13 @@ void vfgs_set_depth( int depth )
   assert( depth == 8 || depth == 10 );
 
   if( bs == 0 && depth > 8 )
+  {
     scale_shift -= 2;
+  }
   if( bs == 2 && depth == 8 )
+  {
     scale_shift += 2;
+  }
 
   bs = depth - 8;
 }

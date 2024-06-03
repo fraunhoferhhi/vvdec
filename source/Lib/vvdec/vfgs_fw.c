@@ -324,30 +324,42 @@ static void idct2_64( int8 B[][64] )
 
   /* 1st pass (DCT2_64'*B) = vertical */
   for( j = 0; j < 64; j++ )
+  {
     for( i = 0; i < 64; i++ )
     {
       acc = 256;
       for( k = 0; k < 64; k++ )
+      {
         acc += (int32) DCT2_64[k][j] * B[k][i];   // iDCT bases are vertical (transpose of DCT2_64)
+      }
 
       X[j][i] = ( acc >> 9 );
     }
+  }
 
   /* 2nd pass (...)*DCT2_64 = horizontal + clipping */
   for( j = 0; j < 64; j++ )
+  {
     for( i = 0; i < 64; i++ )
     {
       acc = 256;
       for( k = 0; k < 64; k++ )
+      {
         acc += (int32) X[j][k] * DCT2_64[k][i];
+      }
 
       acc >>= 9;
       if( acc > 127 )
+      {
         acc = 127;
+      }
       if( acc < -127 )
+      {
         acc = -127;
+      }
       B[j][i] = acc;
     }
+  }
 }
 
 /** Apply iDCT2 to block B[32][32] + clipping */
@@ -359,30 +371,42 @@ static void idct2_32( int8 B[][32] )
 
   /* 1st pass (R32'*B) = vertical */
   for( j = 0; j < 32; j++ )
+  {
     for( i = 0; i < 32; i++ )
     {
       acc = 128;
       for( k = 0; k < 32; k++ )
+      {
         acc += (int32) DCT2_64[k * 2][j] * B[k][i];   // iDCT bases are vertical (transpose of DCT2_64=DCT)
+      }
 
       X[j][i] = ( acc >> 8 );
     }
+  }
 
   /* 2nd pass (...)*R32 = horizontal + clipping */
   for( j = 0; j < 32; j++ )
+  {
     for( i = 0; i < 32; i++ )
     {
       acc = 256;
       for( k = 0; k < 32; k++ )
+      {
         acc += (int32) X[j][k] * DCT2_64[k * 2][i];
+      }
 
       acc >>= 9;
       if( acc > 127 )
+      {
         acc = 127;
+      }
       if( acc < -127 )
+      {
         acc = -127;
+      }
       B[j][i] = acc;
     }
+  }
 }
 
 static void vfgs_make_sei_ff_pattern64( int8 B[][64], int fh, int fv )
@@ -395,6 +419,7 @@ static void vfgs_make_sei_ff_pattern64( int8 B[][64], int fh, int fv )
   n = Seed_LUT[0];
   memset( B, 0, 64 * 64 * sizeof( int8 ) );
   for( l = 0; l < 64; l++ )
+  {
     for( k = 0; k < 64; k += 4 )
     {
       if( k < fh && l < fv )
@@ -406,6 +431,7 @@ static void vfgs_make_sei_ff_pattern64( int8 B[][64], int fh, int fv )
       }
       n = prng( n );
     }
+  }
   B[0][0] = 0;
   idct2_64( B );
 }
@@ -420,6 +446,7 @@ static void vfgs_make_sei_ff_pattern32( int8 B[][32], int fh, int fv )
   n = Seed_LUT[1];
   memset( B, 0, 32 * 32 * sizeof( int8 ) );
   for( l = 0; l < 32; l++ )
+  {
     for( k = 0; k < 32; k += 2 )
     {
       if( k < fh && l < fv )
@@ -429,6 +456,7 @@ static void vfgs_make_sei_ff_pattern32( int8 B[][32], int fh, int fv )
       }
       n = prng( n );
     }
+  }
   B[0][0] = 0;
   idct2_32( B );
 }
@@ -465,12 +493,19 @@ static void vfgs_make_ar_pattern( int8 buf[], int8 P[], int size, const int16 ar
     assert( 0 );
   }
   if( nb_coef != 6 )
+  {
     for( k = 0, j = -L; j <= 0; j++ )
+    {
       for( i = -L; i <= L && ( i < 0 || j < 0 ); i++, k++ )
+      {
         coef[3 + j][3 + i] = ar_coef[k];
+      }
+    }
+  }
 
   memset( buf, 0, width * height );   // debug (not needed)
   for( y = 0; y < height; y++ )
+  {
     for( x = 0; x < width; x++ )
     {
       // Filter
@@ -478,8 +513,12 @@ static void vfgs_make_ar_pattern( int8 buf[], int8 P[], int size, const int16 ar
       if( y >= 3 && y < height && x >= 3 && x < width - 3 )
       {
         for( j = -3; j <= 0; j++ )
+        {
           for( i = -3; i <= 3 && ( i < 0 || j < 0 ); i++ )
+          {
             g += (int) coef[3 + j][3 + i] * buf[width * ( y + j ) + x + i];
+          }
+        }
 
         g = round( g, scale );
       }
@@ -490,12 +529,17 @@ static void vfgs_make_ar_pattern( int8 buf[], int8 P[], int size, const int16 ar
 
       buf[width * y + x] = clip( g, -127, 127 );
     }
+  }
 
   // Copy cropped area to output
   memset( P, 0, size * size );
   for( y = 0; y < 64 / suby; y++ )
+  {
     for( x = 0; x < 64 / subx; x++ )
+    {
       P[size * y + x] = buf[width * ( 3 + 6 / suby + y ) + ( 3 + 6 / subx + x )];
+    }
+  }
 }
 
 int same_pattern( fgs_sei* cfg, int32 a, int32 b )
@@ -504,8 +548,12 @@ int same_pattern( fgs_sei* cfg, int32 a, int32 b )
   int16* coef_b = &cfg->comp_model_value[0][0][0] + b;
 
   for( int i = 1; i < SEI_MAX_MODEL_VALUES; i++ )
+  {
     if( coef_a[i] != coef_b[i] )
+    {
       return 0;
+    }
+  }
 
   return 1;
 }
@@ -542,8 +590,12 @@ void vfgs_init_sei( fgs_sei* cfg )
         uint32 id = SEI_MAX_MODEL_VALUES * ( k + 256 * c );
 
         for( i = 0; i < VFGS_MAX_PATTERNS; i++ )
+        {
           if( same_pattern( cfg, patterns[i], id ) )
+          {
             break;
+          }
+        }
 
         if( i == VFGS_MAX_PATTERNS && np < VFGS_MAX_PATTERNS )   // can add it
         {
@@ -557,7 +609,9 @@ void vfgs_init_sei( fgs_sei* cfg )
               patterns[i]    = patterns[i - 1];
             }
             else
+            {
               break;
+            }
           }
           intensities[i] = a;
           patterns[i]    = id;
@@ -575,18 +629,26 @@ void vfgs_init_sei( fgs_sei* cfg )
         if( c == 0 )
         {
           if( cfg->model_id )
+          {
             vfgs_make_ar_pattern( Lbuf, P, 64, coef, 6, 1, cfg->log2_scale_factor, Seed_LUT[0] );
+          }
           else
+          {
             vfgs_make_sei_ff_pattern64( (int8( * )[64]) P, coef[1], coef[2] );
+          }
 
           vfgs_set_luma_pattern( i, P );
         }
         else if( c == 2 )
         {
           if( cfg->model_id )
+          {
             vfgs_make_ar_pattern( Cbuf, P, 32, coef, 6, 1, cfg->log2_scale_factor, Seed_LUT[1] );
+          }
           else
+          {
             vfgs_make_sei_ff_pattern32( (int8( * )[32]) P, coef[1], coef[2] );
+          }
 
           vfgs_set_chroma_pattern( i, P );
         }
@@ -605,15 +667,21 @@ void vfgs_init_sei( fgs_sei* cfg )
             uint32 id = SEI_MAX_MODEL_VALUES * ( k + 256 * cc );
 
             for( i = 0; i < VFGS_MAX_PATTERNS; i++ )
+            {
               if( same_pattern( cfg, patterns[i], id ) )
+              {
                 break;
+              }
+            }
             // Note: if not found, could try to find interpolation value
 
             for( int l = a; l <= b; l++ )
             {
               slut[l] = (uint8) cfg->comp_model_value[cc][k][0];
               if( i < VFGS_MAX_PATTERNS )
+              {
                 plut[l] = i << 4;
+              }
             }
           }
           // 3b. Fill holes (no interp. yet, just repeat last)
@@ -621,9 +689,13 @@ void vfgs_init_sei( fgs_sei* cfg )
           for( k = 0; k < 256; k++ )
           {
             if( plut[k] == 255 )
+            {
               plut[k] = i;
+            }
             else
+            {
               i = plut[k];
+            }
           }
         }
         else
