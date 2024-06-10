@@ -4060,7 +4060,7 @@ void HLSyntaxReader::parsePicOrSliceHeaderRPL( HeaderT* header, const SPS* sps, 
 
     if( sps_num_ref_pic_lists_i > 0 && ( listIdx == 0 || ( listIdx == 1 && pps_rpl1_idx_present_flag ) ) )
     {
-      X_READ_FLAG_idx( ref_pic_list_sps_flag, "[i]" );
+      X_READ_FLAG_idx( ref_pic_list_sps_flag, "[i]" );   // rpl_sps_flag[i] in the standard
       rplSpsFlag[listIdx] = ref_pic_list_sps_flag;
     }
     else if( sps_num_ref_pic_lists_i == 0 )
@@ -4072,27 +4072,31 @@ void HLSyntaxReader::parsePicOrSliceHeaderRPL( HeaderT* header, const SPS* sps, 
       rplSpsFlag[listIdx] = rplSpsFlag[0];
     }
 
-    // When rpl_sps_flag[ i ] is equal to 1 and sps_num_ref_pic_lists[ i ] is equal to 1, the value of rpl_idx[ i ] is inferred to be
-    // equal to 0. When rpl_sps_flag[ 1 ] is equal to 1, pps_rpl1_idx_present_flag is equal to 0, and sps_num_ref_pic_lists[ 1 ]
-    // is greater than 1, the value of rpl_idx[ 1 ] is inferred to be equal to rpl_idx[ 0 ].
-    int rpl_idx_i = 0;
-    if( rplSpsFlag[listIdx] && sps_num_ref_pic_lists_i == 1 )
-    {
-      rpl_idx_i = 0;
-    }
-    else if( listIdx == REF_PIC_LIST_1 && rplSpsFlag[listIdx] && !pps_rpl1_idx_present_flag && sps->getNumRPL( REF_PIC_LIST_1 ) > 1 )
-    {
-      rpl_idx_i = header->getRPLIdx( REF_PIC_LIST_0 );
-    }
-
     if( rplSpsFlag[listIdx] )
     {
+      // When rpl_sps_flag[ i ] is equal to 1 and sps_num_ref_pic_lists[ i ] is equal to 1, the value of rpl_idx[ i ] is inferred to be
+      // equal to 0. When rpl_sps_flag[ 1 ] is equal to 1, pps_rpl1_idx_present_flag is equal to 0, and sps_num_ref_pic_lists[ 1 ]
+      // is greater than 1, the value of rpl_idx[ 1 ] is inferred to be equal to rpl_idx[ 0 ].
+      int rpl_idx_i = 0;
+      if( rplSpsFlag[listIdx] && sps_num_ref_pic_lists_i == 1 )
+      {
+        rpl_idx_i = 0;
+      }
+      else if( listIdx == REF_PIC_LIST_1 && rplSpsFlag[1] && !pps_rpl1_idx_present_flag && sps->getNumRPL( REF_PIC_LIST_1 ) > 1 )
+      {
+        rpl_idx_i = header->getRPLIdx( REF_PIC_LIST_0 );
+      }
+
       if( sps_num_ref_pic_lists_i > 1 && ( listIdx == REF_PIC_LIST_0 || ( listIdx == REF_PIC_LIST_1 && pps_rpl1_idx_present_flag ) ) )
       {
         int numBits = std::ceil( std::log2( sps_num_ref_pic_lists_i ) );
-        X_READ_CODE_idx( ref_pic_list_idx, "[ listIdx ]", numBits, 0, sps_num_ref_pic_lists_i - 1 );
+        X_READ_CODE_idx( ref_pic_list_idx, "[ listIdx ]", numBits, 0, sps_num_ref_pic_lists_i - 1 );   // rpl_idx[i] in the standard
         rpl_idx_i = ref_pic_list_idx;
       }
+
+      CHECK( rpl_idx_i < 0 || rpl_idx_i > (int) sps_num_ref_pic_lists_i - 1,
+             "The value of rpl_idx[ i ] shall be in the range of 0 to sps_num_ref_pic_lists[ i ] - 1, inclusive." );
+
       header->setRPL( listIdx, sps->getRPLList( listIdx )[rpl_idx_i] );
       header->setRPLIdx( listIdx, rpl_idx_i );
     }
@@ -4101,11 +4105,7 @@ void HLSyntaxReader::parsePicOrSliceHeaderRPL( HeaderT* header, const SPS* sps, 
       header->clearRPL( listIdx );
       parseRefPicList( header->getRPL( listIdx ), -1, sps );   // ref_pic_list_struct( i, sps_num_ref_pic_lists[ i ] )
       header->setRPLIdx( listIdx, -1 );
-
     }
-
-    CHECK( rpl_idx_i < 0 || rpl_idx_i > (int) sps_num_ref_pic_lists_i - 1,
-           "The value of rpl_idx[ i ] shall be in the range of 0 to sps_num_ref_pic_lists[ i ] - 1, inclusive." );
 
     if( std::is_same<HeaderT, PicHeader>::value )   // The contained CHECK is only valid, when we are in a PicHeader.
     {
