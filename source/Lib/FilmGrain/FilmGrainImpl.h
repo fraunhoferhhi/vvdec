@@ -59,6 +59,7 @@ POSSIBILITY OF SUCH DAMAGE.
 #include <cstdint>
 
 #define VFGS_MAX_PATTERNS 8
+#define PATTERN_INTERPOLATION 0
 
 namespace vvdec
 {
@@ -87,50 +88,64 @@ constexpr inline auto round( T a, uint8_t s )
 
 class FilmGrainImpl
 {
+protected:
   // Note: declarations optimized for code readability; e.g. pattern storage in
   //       actual hardware implementation would differ significantly
   int8_t  pattern[2][VFGS_MAX_PATTERNS + 1][64][64];   // +1 to simplify interpolation code
   uint8_t sLUT[3][256];
   uint8_t pLUT[3][256];
 
-  uint32_t rnd         = 0xdeadbeef;
-  uint32_t rnd_up      = 0xdeadbeef;
-  uint32_t line_rnd    = 0xdeadbeef;
-  uint32_t line_rnd_up = 0xdeadbeef;
-  uint8_t  scale_shift = 5 + 6;
-  uint8_t  bs          = 0;   // bitshift = bitdepth - 8
-  int      csubx       = 2;
-  int      csuby       = 2;
+  uint8_t scale_shift = 5 + 6;
+  uint8_t bs          = 0;   // bitshift = bitdepth - 8
+  int     csubx       = 2;
+  int     csuby       = 2;
+  bool    allZero[3]  = { 0, 0, 0 };
 
   constexpr static uint8_t Y_min = 0;
   constexpr static uint8_t Y_max = 255;
   constexpr static uint8_t C_min = 0;
   constexpr static uint8_t C_max = 255;
 
-  // Processing pipeline (needs only 2 registers for each color actually, for horizontal deblocking)
-  int16_t grain[3][32];   // 9 bit needed because of overlap (has norm > 1)
-  uint8_t scale[3][32];
+  static void get_offset_y( uint32_t val, int* s, uint8_t* x, uint8_t* y );
+         void get_offset_u( uint32_t val, int* s, uint8_t* x, uint8_t* y ) const;
+         void get_offset_v( uint32_t val, int* s, uint8_t* x, uint8_t* y ) const;
 
-  void get_offset_u( uint32_t val, int* s, uint8_t* x, uint8_t* y );
-  void get_offset_v( uint32_t val, int* s, uint8_t* x, uint8_t* y );
-  void add_grain_block( void* I, int c, int x, int y, int width );
-
-protected:
+public:
   FilmGrainImpl();
+  virtual ~FilmGrainImpl() = default;
 
+  void add_grain_block( void* I, int c, int x, int y, int width, uint32_t rnd, uint32_t rnd_up, int16_t grain[3][32], uint8_t scale[3][32] ) const;
   void set_luma_pattern( int index, int8_t* P );
   void set_chroma_pattern( int index, int8_t* P );
   void set_scale_lut( int c, uint8_t lut[] );
-  void set_pattern_lut( int c, uint8_t lut[] );
-
-  void set_seed( uint32_t seed );
+  void set_pattern_lut( int c, uint8_t lut[], bool all0 );
   void set_scale_shift( int shift );
 
-public:
   void set_depth( int depth );
   void set_chroma_subsampling( int subx, int suby );
 
-  void add_grain_line( void* Y, void* U, void* V, int y, int width );
+private:
+  virtual void make_grain_pattern( const void* I,
+                                   int         c,
+                                   int         x,
+                                   int         subx,
+                                   uint8_t     oc1,
+                                   uint8_t     oc2,
+                                   uint8_t     ox,
+                                   uint8_t     ox_up,
+                                   uint8_t     oy,
+                                   uint8_t     oy_up,
+                                   int         s,
+                                   int         s_up,
+                                   int16_t     grain[3][32],
+                                   uint8_t     scale[3][32] ) const;
+  virtual void scale_and_output( void*   I,   //
+                                 int     c,
+                                 int     x,
+                                 int     subx,
+                                 int     width,
+                                 int16_t grain[3][32],
+                                 uint8_t scale[3][32] ) const;
 };
 
 }   // namespace vvdec

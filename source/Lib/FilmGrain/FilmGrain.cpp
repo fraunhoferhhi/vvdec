@@ -62,6 +62,10 @@ POSSIBILITY OF SUCH DAMAGE.
 
 #include "CommonDef.h"
 
+#if defined( TARGET_SIMD_X86 ) && defined( USE_SIMD )
+#  include "FilmGrainImplX86.h"
+#endif
+
 namespace vvdec
 {
 
@@ -547,19 +551,26 @@ static int same_pattern( fgs_sei* cfg, int32_t a, int32_t b )
   return 1;
 }
 
-/** Initialize "hardware" interface from FGS SEI parameters */
-void FilmGrain::init_sei( fgs_sei* cfg )
+void FilmGrain::set_seed( uint32_t seed )
 {
-  int8_t   P[64 * 64];
-  int8_t   Lbuf[73 * 82];
-  int8_t   Cbuf[38 * 44];
-  uint8_t  slut[256];
-  uint8_t  plut[256];
-  uint8_t  intensities[VFGS_MAX_PATTERNS];
-  uint32_t patterns[VFGS_MAX_PATTERNS];
-  uint8_t  np = 0;   // number of patterns
-  uint8_t  a, b, i;
-  int      c, k;
+  m_line_rnd = m_line_rnd_up = seed;
+}
+
+/** Initialize "hardware" interface from FGS SEI parameters */
+void FilmGrain::init_sei()
+{
+  int8_t        P[64 * 64];
+  int8_t        Lbuf[73 * 82];
+  int8_t        Cbuf[38 * 44];
+  uint8_t       slut[256];
+  uint8_t       plut[256];
+  uint8_t       intensities[VFGS_MAX_PATTERNS];
+  uint32_t      patterns[VFGS_MAX_PATTERNS];
+  uint8_t       np = 0;   // number of patterns
+  uint8_t       a, b, i;
+  unsigned char all0 = 1;
+
+  int c, k;
 
   for( c = 0; c < 3; c++ )
   {
@@ -571,16 +582,16 @@ void FilmGrain::init_sei( fgs_sei* cfg )
       memset( patterns, ~0, sizeof( patterns ) );
     }
     // 1. Look for different patterns, up to max supported number
-    if( cfg->comp_model_present_flag[c] )
+    if( fgs.comp_model_present_flag[c] )
     {
-      for( k = 0; k < cfg->num_intensity_intervals[c]; k++ )
+      for( k = 0; k < fgs.num_intensity_intervals[c]; k++ )
       {
-        a           = cfg->intensity_interval_lower_bound[c][k];
+        a           = fgs.intensity_interval_lower_bound[c][k];
         uint32_t id = SEI_MAX_MODEL_VALUES * ( k + 256 * c );
 
         for( i = 0; i < VFGS_MAX_PATTERNS; i++ )
         {
-          if( same_pattern( cfg, patterns[i], id ) )
+          if( same_pattern( &fgs, patterns[i], id ) )
           {
             break;
           }
@@ -613,51 +624,50 @@ void FilmGrain::init_sei( fgs_sei* cfg )
       // 2. Register the patterns (with correct order)
       for( i = 0; i < np; i++ )
       {
-        int16_t* coef = &cfg->comp_model_value[0][0][0] + patterns[i];
+        int16_t* coef = &fgs.comp_model_value[0][0][0] + patterns[i];
 
         if( c == 0 )
         {
-          if( cfg->model_id )
+          if( fgs.model_id )
           {
-            make_ar_pattern( Lbuf, P, 64, coef, 6, 1, cfg->log2_scale_factor, Seed_LUT[0] );
+            make_ar_pattern( Lbuf, P, 64, coef, 6, 1, fgs.log2_scale_factor, Seed_LUT[0] );
           }
           else
           {
             make_sei_ff_pattern64( (int8_t( * )[64]) P, coef[1], coef[2] );
           }
 
-          set_luma_pattern( i, P );
+          m_impl->set_luma_pattern( i, P );
         }
         else if( c == 2 )
         {
-          if( cfg->model_id )
+          if( fgs.model_id )
           {
-            make_ar_pattern( Cbuf, P, 32, coef, 6, 1, cfg->log2_scale_factor, Seed_LUT[1] );
+            make_ar_pattern( Cbuf, P, 32, coef, 6, 1, fgs.log2_scale_factor, Seed_LUT[1] );
           }
           else
           {
             make_sei_ff_pattern32( (int8_t( * )[32]) P, coef[1], coef[2] );
           }
-
-          set_chroma_pattern( i, P );
+          m_impl->set_chroma_pattern( i, P );
         }
       }
       // 3. Fill up LUTs
       for( int cc = std::min( c, 1 ); cc <= c; cc++ )
       {
-        if( cfg->comp_model_present_flag[cc] )
+        if( fgs.comp_model_present_flag[cc] )
         {
           memset( plut, 255, sizeof( plut ) );
           // 3a. Fill valid patterns
-          for( k = 0; k < cfg->num_intensity_intervals[cc]; k++ )
+          for( k = 0; k < fgs.num_intensity_intervals[cc]; k++ )
           {
-            a           = cfg->intensity_interval_lower_bound[cc][k];
-            b           = cfg->intensity_interval_upper_bound[cc][k];
+            a           = fgs.intensity_interval_lower_bound[cc][k];
+            b           = fgs.intensity_interval_upper_bound[cc][k];
             uint32_t id = SEI_MAX_MODEL_VALUES * ( k + 256 * cc );
 
             for( i = 0; i < VFGS_MAX_PATTERNS; i++ )
             {
-              if( same_pattern( cfg, patterns[i], id ) )
+              if( same_pattern( &fgs, patterns[i], id ) )
               {
                 break;
               }
@@ -666,7 +676,7 @@ void FilmGrain::init_sei( fgs_sei* cfg )
 
             for( int l = a; l <= b; l++ )
             {
-              slut[l] = (uint8_t) cfg->comp_model_value[cc][k][0];
+              slut[l] = (uint8_t) fgs.comp_model_value[cc][k][0];
               if( i < VFGS_MAX_PATTERNS )
               {
                 plut[l] = i << 4;
@@ -674,7 +684,8 @@ void FilmGrain::init_sei( fgs_sei* cfg )
             }
           }
           // 3b. Fill holes (no interp. yet, just repeat last)
-          i = 0;
+          i       = 0;
+          int tmp = 0;
           for( k = 0; k < 256; k++ )
           {
             if( plut[k] == 255 )
@@ -685,25 +696,39 @@ void FilmGrain::init_sei( fgs_sei* cfg )
             {
               i = plut[k];
             }
+            tmp += plut[k];
+          }
+          if( tmp != 0 )
+          {
+            all0 = 0;
           }
         }
         else
         {
           memset( plut, 0, sizeof( plut ) );
+          all0 = 1;
         }
         // 3c. Register LUTs
-        set_scale_lut( cc, slut );
-        set_pattern_lut( cc, plut );
+        m_impl->set_scale_lut( cc, slut );
+        m_impl->set_pattern_lut( cc, plut, all0 );
       }
     }
   }
 
-  set_scale_shift( cfg->log2_scale_factor - ( cfg->model_id ? 1 : 0 ) );   // -1 for grain shift in pattern generation (see above)
+  m_impl->set_scale_shift( fgs.log2_scale_factor - ( fgs.model_id ? 1 : 0 ) );   // -1 for grain shift in pattern generation (see above)
+}
+
+FilmGrain::FilmGrain()
+{
+#if defined( TARGET_SIMD_X86 ) && defined( USE_SIMD )
+  m_impl = FilmGrainImplX86<UNDEFINED>::makeFilmGrainImpl();
+#else
+  m_impl = std::make_unique<FilmGrainImpl>();
+#endif
 }
 
 void FilmGrain::updateFGC( vvdecSEIFilmGrainCharacteristics* fgc )
 {
-  fgs_sei fgs;   // TODO: maybe make it a member ? (idea would be to re-seed patterns for each picture)
   // Copy SEI message in vfgs structure format
   // TODO: check some values and warn about unsupported stuff ?
   fgs.model_id          = fgc->filmGrainModelId;
@@ -758,12 +783,87 @@ void FilmGrain::updateFGC( vvdecSEIFilmGrainCharacteristics* fgc )
     }
   }
 
-  init_sei( &fgs );
+  init_sei();
 
   //  if (!m_bFgs)
   //    // TODO: get something random
   //      // TODO: make seed also impact the pattern gen
-  //    vfgs_set_seed(uint32_t seed);
+  //    set_seed(uint32_t seed);
+}
+
+void FilmGrain::prepareBlockSeeds( int width, int height )
+{
+  m_line_seeds.resize( ( height + 15 ) / 16 );
+
+  m_prev_frame_line_rnd_up = m_line_rnd_up;
+
+  uint32_t rnd = 0;
+  for( int y = 0; y < m_line_seeds.size(); ++y )
+  {
+    // Generate / backup / restore per-line random seeds (needed to make multi-line blocks)
+    if( y != 0 )
+    {
+      // new line of blocks
+      m_line_rnd_up = m_line_rnd;
+      m_line_rnd    = rnd;
+    }
+
+    m_line_seeds[y] = m_line_rnd;
+
+    // Crank random generator
+    rnd = m_line_rnd;
+    for( int x = 0; x < ( width + 15 ) / 16; ++x )
+    {
+      rnd = prng( rnd );
+    }
+  }
+}
+
+void FilmGrain::setColorFormat( vvdecColorFormat fmt )
+{
+  switch( fmt )
+  {
+    // clang-format off
+    case VVDEC_CF_YUV400_PLANAR: m_impl->set_chroma_subsampling( 0, 0 ); break;
+    case VVDEC_CF_YUV420_PLANAR: m_impl->set_chroma_subsampling( 2, 2 ); break;
+    case VVDEC_CF_YUV422_PLANAR: m_impl->set_chroma_subsampling( 2, 1 ); break;
+    case VVDEC_CF_YUV444_PLANAR: m_impl->set_chroma_subsampling( 1, 1 ); break;
+    default: THROW_FATAL( "invalid color format: " );
+    // clang-format on
+  }
+}
+
+void FilmGrain::add_grain_line( void* Y, void* U, void* V, int y, int width )
+{
+  uint32_t rnd_up = y < 16 ? m_prev_frame_line_rnd_up : m_line_seeds[y / 16 - 1];
+  uint32_t rnd    = m_line_seeds[y / 16];
+
+  int16_t grain[3][32];
+  uint8_t scale[3][32];
+
+  // Process line
+  for( int x = 0; x < width; x += 16 )
+  {
+    // Process pixels for each color component
+    if( fgs.comp_model_present_flag[0] )
+    {
+      m_impl->add_grain_block( Y, 0, x, y, width, rnd, rnd_up, grain, scale );
+    }
+    if( U && V )
+    {
+      if( fgs.comp_model_present_flag[1] )
+      {
+        m_impl->add_grain_block( U, 1, x, y, width, rnd, rnd_up, grain, scale );
+      }
+      if( fgs.comp_model_present_flag[2] )
+      {
+        m_impl->add_grain_block( V, 2, x, y, width, rnd, rnd_up, grain, scale );
+      }
+    }
+    // Crank random generator
+    rnd    = prng( rnd );
+    rnd_up = prng( rnd_up );   // upper block (overlapping)
+  }
 }
 
 }   // namespace vvdec

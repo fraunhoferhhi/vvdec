@@ -483,8 +483,16 @@ int main( int argc, char* argv[] )
     return 0;
   }
 
+  int iRet = -1;
+  try {
+    vvdecoderapp::CmdLineParser cmdLineParser;
+    iRet = cmdLineParser.parse_command_line( argc, argv, params, cBitstreamFile, cOutputFile, iMaxFrames, iLoopCount, cExpectedYuvMD5, y4mOutput, externAllocator, sTracingFile, sTracingRule, iPrintPicHash );
+  }
+  catch( std::exception& )
+  {
+    iRet = -1;
+  }
 
-  int iRet = vvdecoderapp::CmdLineParser::parse_command_line( argc, argv, params, cBitstreamFile, cOutputFile, iMaxFrames, iLoopCount, cExpectedYuvMD5, y4mOutput, externAllocator, sTracingFile, sTracingRule, iPrintPicHash );
   if( iRet != 0 )
   {
     if( iRet == 2 )
@@ -1055,9 +1063,9 @@ static bool handle_frame( vvdecFrame*   pcFrame,
 
     if( pcFrame->frameFormat == VVDEC_FF_PROGRESSIVE )
     {
-      if( iPrintPicHash > 1 )
+      if( iPrintPicHash >= 11 )
       {
-        printPicHash( pcFrame, logStream, uiFrames-1, iPrintPicHash-11 );
+        printPicHash( pcFrame, logStream, uiFrames - 1, iPrintPicHash - 11 );
       }
 
       if( md5Stream )

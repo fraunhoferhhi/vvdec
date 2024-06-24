@@ -131,6 +131,9 @@ int VVDecImpl::init( const vvdecParams& params, vvdecCreateBufferCallback create
 
     m_sDecoderCapabilities = m_cDecLib->getDecoderCapabilities();
 
+#if ENABLE_FILM_GRAIN
+    m_enableFilmGrain   = params.filmGrainSynthesis;
+#endif   // ENABLE_FILM_GRAIN
     m_bRemovePadding    = params.removePadding;
     m_eErrHandlingFlags = static_cast<ErrHandlingFlags>(params.errHandlingFlags);
     m_uiSeqNumber       = 0;
@@ -774,7 +777,13 @@ bool VVDecImpl::isNalUnitSlice( vvdecNalType t )
       || t == VVC_NAL_UNIT_CODED_SLICE_GDR;
 }
 
-int VVDecImpl::copyComp( const unsigned char* pucSrc, unsigned char* pucDest, unsigned int uiWidth, unsigned int uiHeight, ptrdiff_t iStrideSrc, ptrdiff_t iStrideDest, int iBytesPerSample  )
+int VVDecImpl::copyComp( const unsigned char* pucSrc,
+                         unsigned char*       pucDest,
+                         unsigned int         uiWidth,
+                         unsigned int         uiHeight,
+                         ptrdiff_t            iStrideSrc,
+                         ptrdiff_t            iStrideDest,
+                         int                  iBytesPerSample )
 {
   if( NULL != pucSrc && NULL != pucDest )
   {
@@ -842,7 +851,7 @@ void VVDecImpl::xUpdateFGC( vvdecSEI* s )
 
   if( !m_filmGrainSynth )
   {
-    m_filmGrainSynth = std::make_unique<FilmGrain>( 10, 2 );   // TODO: (GH) set correct bit depth and color format, and apply changes
+    m_filmGrainSynth = std::make_unique<FilmGrain>();
   }
 
   m_filmGrainSynth->updateFGC( sei );
@@ -856,22 +865,50 @@ void VVDecImpl::xAddGrain( vvdecFrame* frame )
     return;
   }
 
-  uint8_t* Y = (uint8_t*) frame->planes[0].ptr;
-  uint8_t* U = (uint8_t*) frame->planes[1].ptr;
-  uint8_t* V = (uint8_t*) frame->planes[2].ptr;
+  m_filmGrainSynth->setDepth( frame->bitDepth );
+  m_filmGrainSynth->setColorFormat( frame->colorFormat );
+  m_filmGrainSynth->prepareBlockSeeds( frame->planes[0].width, frame->planes[0].height );
 
-  CHECK( frame->bitDepth != 10, "Bitdepth is not 10" );
-
-  for( int y = 0; y < frame->planes[0].height; y++ )
+  struct GrainTaskData
   {
-    m_filmGrainSynth->add_grain_line( Y, U, V, y, frame->planes[0].width );
-    Y += frame->planes[0].stride;
-    if( ( y & 1 ) || ( frame->planes[0].height == frame->planes[1].height ) )
+    vvdecFrame* frame;
+    uint32_t    startLine;
+    FilmGrain*  filmGrainSynth;
+  };
+  constexpr static int       LINES_PER_TASK = 16;
+  const int                  numTasks       = ( frame->planes[0].height + ( LINES_PER_TASK - 1 ) ) / LINES_PER_TASK;
+  std::vector<GrainTaskData> grainTaskData( numTasks );
+
+  WaitCounter grainTaskCounter;
+  for( int i = 0; i < numTasks; ++i )
+  {
+    grainTaskData[i].frame          = frame;
+    grainTaskData[i].startLine      = i * LINES_PER_TASK;
+    grainTaskData[i].filmGrainSynth = m_filmGrainSynth.get();
+
+    static auto grainTask = []( int, GrainTaskData* data )
     {
-      U += frame->planes[1].stride;
-      V += frame->planes[2].stride;
-    }
+      auto* frame = data->frame;
+      for( unsigned y = data->startLine; y < std::min( data->startLine + LINES_PER_TASK, frame->planes[0].height ); ++y )
+      {
+        uint8_t* Y = (uint8_t*) frame->planes[0].ptr + frame->planes[0].stride * y;
+        uint8_t* U = nullptr;
+        uint8_t* V = nullptr;
+        if( frame->colorFormat != VVDEC_CF_YUV400_PLANAR )
+        {
+          const int chromaSub = frame->colorFormat == VVDEC_CF_YUV420_PLANAR ? 2 : 1;
+
+          U = (uint8_t*) frame->planes[1].ptr + frame->planes[1].stride * y / chromaSub;
+          V = (uint8_t*) frame->planes[2].ptr + frame->planes[2].stride * y / chromaSub;
+        }
+
+        data->filmGrainSynth->add_grain_line( Y, U, V, y, frame->planes[0].width );
+      }
+      return true;
+    };
+    m_cDecLib->getThreadPool().addBarrierTask<GrainTaskData>( grainTask, &( grainTaskData[i] ), &grainTaskCounter );
   }
+  grainTaskCounter.wait();
 
   if( m_filmGrainCharacteristicsState != FgcPersist )   // Not persistent
   {
@@ -918,16 +955,23 @@ int VVDecImpl::xAddPicture( Picture* pcPic )
   bCreateStorage = bCreateStorage || m_bRemovePadding;
 
 #if ENABLE_FILM_GRAIN
-  // find FGC SEI
-  for( auto& sei: pcPic->seiMessageList )
+  if( m_enableFilmGrain )
   {
-    if( sei->payloadType == VVDEC_FILM_GRAIN_CHARACTERISTICS )
+    // find FGC SEI
+    for( auto& sei: pcPic->seiMessageList )
     {
-      xUpdateFGC( sei );
-      msg( DETAILS, "vvdecimpl [detail]: SEI FILM_GRAIN_CHARACTERISTICS\n");
+      if( sei->payloadType == VVDEC_FILM_GRAIN_CHARACTERISTICS )
+      {
+        xUpdateFGC( sei );
+        msg( DETAILS, "vvdecimpl [detail]: SEI FILM_GRAIN_CHARACTERISTICS\n");
+      }
+    }
+    const bool fgsReuseBuffer = bitDepths.recon == 10 && !m_bRemovePadding && !pcPic->stillReferenced;
+    if( !fgsReuseBuffer )
+    {
+      bCreateStorage |= m_filmGrainCharacteristicsState != FgcNone;
     }
   }
-  bCreateStorage = bCreateStorage || m_filmGrainCharacteristicsState;
 #endif   // ENABLE_FILM_GRAIN
 
   // create a brand new picture object
@@ -935,22 +979,22 @@ int VVDecImpl::xAddPicture( Picture* pcPic )
   vvdec_frame_default( &cFrame );
 
   cFrame.sequenceNumber = m_uiSeqNumber;
-  cFrame.cts      = pcPic->getCts();
-  cFrame.ctsValid = true;
+  cFrame.cts            = pcPic->getCts();
+  cFrame.ctsValid       = true;
 
   int ret;
 #if RPR_YUV_OUTPUT
   if( m_cDecLib->getUpscaledOutput() && ( uiWidth != orgWidth || uiHeight != orgHeight ) )
   {
     bCreateStorage = true;
-    ret = xCreateFrame ( cFrame, cPicBuf, orgWidth, orgHeight, bitDepths, bCreateStorage );
+    ret = xCreateFrame( cFrame, cPicBuf, orgWidth, orgHeight, bitDepths, bCreateStorage );
   }
   else
   {
-    ret = xCreateFrame ( cFrame, cPicBuf, uiWidth, uiHeight, bitDepths, bCreateStorage );
+    ret = xCreateFrame( cFrame, cPicBuf, uiWidth, uiHeight, bitDepths, bCreateStorage, m_filmGrainCharacteristicsState != FgcNone );
   }
 #else
-  ret = xCreateFrame ( cFrame, cPicBuf, uiWidth, uiHeight, bitDepths, bCreateStorage );
+  ret = xCreateFrame( cFrame, cPicBuf, uiWidth, uiHeight, bitDepths, bCreateStorage, m_filmGrainCharacteristicsState != FgcNone );
 #endif
   if( ret != VVDEC_OK )
   {
@@ -994,9 +1038,12 @@ int VVDecImpl::xAddPicture( Picture* pcPic )
 
         copyComp( (const unsigned char*) ( planeOrigin + planeOffset ),
                   cFrame.planes[comp].ptr,
-                  cFrame.planes[comp].width, cFrame.planes[comp].height,
-                  area.stride<<1, cFrame.planes[comp].stride, uiBytesPerSample );
-        cFrame.planes[comp].allocator = upscaledPic.getBufAllocator( (ComponentID)comp );
+                  area.width,   // need to use source width & height here, for VVDEC_UPSCALING_COPY_ONLY to work
+                  area.height,
+                  area.stride * sizeof( *area.buf ),
+                  cFrame.planes[comp].stride,
+                  uiBytesPerSample );
+        cFrame.planes[comp].allocator = upscaledPic.getBufAllocator( (ComponentID) comp );
       }
       upscaledPic.destroy();
     }
@@ -1017,8 +1064,25 @@ int VVDecImpl::xAddPicture( Picture* pcPic )
 
         copyComp( (const unsigned char*) ( planeOrigin + planeOffset ),
                   cFrame.planes[comp].ptr,
-                  cFrame.planes[comp].width, cFrame.planes[comp].height,
-                  area.stride<<1, cFrame.planes[comp].stride, uiBytesPerSample );
+                  area.width,   // need to use source width & height here, for VVDEC_UPSCALING_COPY_ONLY to work
+                  area.height,
+                  area.stride * sizeof( *area.buf ),
+                  cFrame.planes[comp].stride,
+                  uiBytesPerSample );
+
+        // zero the surrounding area for VVDEC_UPSCALING_COPY_ONLY
+        if( m_cDecLib->getUpscaledOutput() == (int) VVDEC_UPSCALING_COPY_ONLY
+            && ( area.width < cFrame.planes[comp].width || area.height < cFrame.planes[comp].height ) )
+        {
+          unsigned char* linePtr        = cFrame.planes[comp].ptr;
+          const auto     bytesPerSample = cFrame.planes[comp].bytesPerSample;
+          for( unsigned y = 0; y < area.height; ++y )
+          {
+            ::memset( linePtr + area.width * bytesPerSample, 0, ( cFrame.planes[comp].width - area.width ) * bytesPerSample );
+            linePtr += cFrame.planes[comp].stride;
+          }
+          ::memset( linePtr, 0, ( cFrame.planes[comp].height - area.height ) * cFrame.planes[comp].stride );
+        }
       }
     }
   }
@@ -1143,7 +1207,10 @@ int VVDecImpl::xAddPicture( Picture* pcPic )
 
 #if ENABLE_FILM_GRAIN
   // Grain synthesis
-  xAddGrain( &cFrame );
+  if( m_enableFilmGrain && m_filmGrainCharacteristicsState != FgcNone )
+  {
+    xAddGrain( &cFrame );
+  }
 #endif   // ENABLE_FILM_GRAIN
 
   m_rcFrameList.emplace_back( cFrame, bCreateStorage ? nullptr : pcPic );
@@ -1178,9 +1245,13 @@ int VVDecImpl::xAddPicture( Picture* pcPic )
   return 0;
 }
 
-
-
-int VVDecImpl::xCreateFrame( vvdecFrame& rcFrame, const CPelUnitBuf& rcPicBuf, uint32_t uiWidth, uint32_t uiHeight, const BitDepths& rcBitDepths, bool bCreateStorage )
+int VVDecImpl::xCreateFrame( vvdecFrame&        rcFrame,
+                             const CPelUnitBuf& rcPicBuf,
+                             uint32_t           uiWidth,
+                             uint32_t           uiHeight,
+                             const BitDepths&   rcBitDepths,
+                             bool               bCreateStorage,
+                             bool               origStride )
 {
   rcFrame.width       = uiWidth;
   rcFrame.height      = uiHeight;
@@ -1191,11 +1262,11 @@ int VVDecImpl::xCreateFrame( vvdecFrame& rcFrame, const CPelUnitBuf& rcPicBuf, u
   rcFrame.planes[VVDEC_CT_Y].width          = uiWidth;
   rcFrame.planes[VVDEC_CT_Y].height         = uiHeight;
   rcFrame.planes[VVDEC_CT_Y].bytesPerSample = rcBitDepths.recon > 8 ? 2 : 1;
-  rcFrame.planes[VVDEC_CT_Y].stride         = bCreateStorage  ? uiWidth                                    * rcFrame.planes[VVDEC_CT_Y].bytesPerSample
-                                                              : (uint32_t)rcPicBuf.get(COMPONENT_Y).stride * rcFrame.planes[VVDEC_CT_Y].bytesPerSample;
+  rcFrame.planes[VVDEC_CT_Y].stride         = bCreateStorage && !origStride ? uiWidth                                       * rcFrame.planes[VVDEC_CT_Y].bytesPerSample
+                                                                            : (uint32_t) rcPicBuf.get( COMPONENT_Y ).stride * rcFrame.planes[VVDEC_CT_Y].bytesPerSample;
 
   size_t nBufSize = 0;
-  size_t nLSize   = rcFrame.planes[VVDEC_CT_Y].stride * uiHeight;
+  size_t nLSize   = rcFrame.planes[VVDEC_CT_Y].stride * rcFrame.planes[VVDEC_CT_Y].height;
   size_t nCSize   = 0;
 
   unsigned int uiCWidth  = 0;
@@ -1265,7 +1336,7 @@ int VVDecImpl::xCreateFrame( vvdecFrame& rcFrame, const CPelUnitBuf& rcPicBuf, u
     rcFrame.planes[VVDEC_CT_V].height         = uiCHeight;
     rcFrame.planes[VVDEC_CT_V].bytesPerSample = rcBitDepths.recon > 8 ? 2 : 1;
 
-    if( bCreateStorage )
+    if( bCreateStorage && !origStride )
     {
       rcFrame.planes[VVDEC_CT_U].stride       = uiCWidth * rcFrame.planes[CHANNEL_TYPE_CHROMA].bytesPerSample;
       rcFrame.planes[VVDEC_CT_V].stride       = uiCWidth * rcFrame.planes[CHANNEL_TYPE_CHROMA].bytesPerSample;
@@ -1276,8 +1347,8 @@ int VVDecImpl::xCreateFrame( vvdecFrame& rcFrame, const CPelUnitBuf& rcPicBuf, u
       rcFrame.planes[VVDEC_CT_V].stride       = (uint32_t)rcPicBuf.get(COMPONENT_Cr).stride * rcFrame.planes[CHANNEL_TYPE_CHROMA].bytesPerSample;
     }
 
-    nCSize   = rcFrame.planes[VVDEC_CT_U].stride * uiCHeight;
-    nBufSize = nLSize + ( nCSize << 1 );
+    nCSize   = rcFrame.planes[VVDEC_CT_U].stride * rcFrame.planes[VVDEC_CT_U].height;
+    nBufSize = nLSize + nCSize * 2;
   }
 
 

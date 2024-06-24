@@ -1,7 +1,7 @@
 /* -----------------------------------------------------------------------------
 The copyright in this software is being made available under the Clear BSD
-License, included below. No patent rights, trademark rights and/or 
-other Intellectual Property Rights other than the copyrights concerning 
+License, included below. No patent rights, trademark rights and/or
+other Intellectual Property Rights other than the copyrights concerning
 the Software are granted under this license.
 
 The Clear BSD License
@@ -42,28 +42,118 @@ POSSIBILITY OF SUCH DAMAGE.
 
 #pragma once
 
+#include <cctype>
+#include <cstdio>
+#include <cstring>
+#include <cassert>
 #include <string>
 #include <iostream>
-#include <stdio.h>
-#include <string.h>
 #include <algorithm>
-#include <cctype>
 
 #include "vvdec/vvdec.h"
 
-namespace vvdecoderapp {
+namespace vvdecoderapp
+{
 
 class CmdLineParser
 {
+  int32_t m_iArg = 0;
+  int     m_argc = 0;
+  char**  m_argv = nullptr;
+
+  // parse a parameter with the corresponding argument
+  template<class TOut>
+  bool parse_param( std::initializer_list<const char*> paramNames, TOut& outputVar, bool argOptional = false, const TOut optionalDefault = {} )
+  {
+    if( m_iArg >= m_argc )
+    {
+      return false;
+    }
+
+    const std::string currArg( m_argv[m_iArg] );
+    if( std::any_of( paramNames.begin(), paramNames.end(),
+                     [&]( const char* name ) { return currArg == name; } ) )
+    {
+      ++m_iArg;
+
+      if( m_iArg < m_argc && parse_param_arg( outputVar ) )
+      {
+        return true;
+      }
+      if( argOptional )
+      {
+        outputVar = optionalDefault;
+        return true;
+      }
+      if( std::is_same<bool, TOut>::value )
+      {
+        outputVar = true;   // default value for bool always true, if present
+        return true;
+      }
+
+      fprintf( stderr, " - missing argument for: %s \n", m_argv[m_iArg - 1] );
+      throw MissingArgumentException();
+    }
+    return false;
+  }
+
+  // parse boolean arguments
+  bool parse_param_arg( bool& outputVar )
+  {
+    outputVar = true;   // boolean always defaults to true
+    if( strlen( m_argv[m_iArg] ) >= 1 && std::isdigit( m_argv[m_iArg][0] ) )
+    {
+      outputVar = !!atoi( m_argv[m_iArg] );
+      ++m_iArg;
+      return true;
+    }
+    return true;
+  }
+
+  // parse string arguments
+  bool parse_param_arg( std::string& outputVar )
+  {
+    outputVar = std::string( m_argv[m_iArg] );
+    ++m_iArg;
+    return true;
+  }
+
+  // parse signed int arguments
+  bool parse_param_arg( int& outputVar )
+  {
+    const size_t argStrLen = strlen( m_argv[m_iArg] );
+    if( ( argStrLen >= 1 && std::isdigit( m_argv[m_iArg][0] ) )                                    // positive number
+        || ( argStrLen >= 2 && m_argv[m_iArg][0] == '-' && std::isdigit( m_argv[m_iArg][1] ) ) )   // negative number
+    {
+      outputVar = atoi( m_argv[m_iArg] );
+      ++m_iArg;
+      return true;
+    }
+
+    return false;
+  }
+
+  // parse unsigned int arguments
+  bool parse_param_arg( unsigned int& outputVar )
+  {
+    if( strlen( m_argv[m_iArg] ) >= 1 && std::isdigit( m_argv[m_iArg][0] ) )
+    {
+      outputVar = atoi( m_argv[m_iArg] );
+      ++m_iArg;
+      return true;
+    }
+    return false;
+  }
+
 public:
   /// Constructor
-  CmdLineParser(){}
-
+  CmdLineParser() = default;
   /// Destructor
-  virtual ~CmdLineParser() {}
+  ~CmdLineParser() = default;
 
   static void print_usage( std::string cApp, vvdecParams& rcParams, bool fullHelp )
   {
+    // clang-format off
     std::cout <<   std::endl;
     std::cout <<   " Usage:  " << cApp << "  [param1] [pararm2] [...]" << std::endl;
     std::cout <<   std::endl;
@@ -78,6 +168,7 @@ public:
     if( fullHelp )
     {
       std::cout << "\t\t [--upscale,-uo             ] : set upscaling mode for RPR pictures(default: 0: off, 1: copy without rescaling, 2: rescale to target resolution)" << std::endl;
+      std::cout << "\t\t [--filmGrain,-fg <int>     ] : set film grain synthesis using Film Grain Charactersitics SEI (default: 1, off: 0, on: 1)" << std::endl;
     }
     std::cout <<   "\t\t [--y4m                     ] : force y4m output (for pipe output; auto enable for .y4m output file extension)" << std::endl;
     std::cout <<   std::endl;
@@ -123,12 +214,22 @@ public:
     std::cout <<   "\t\t [--fullhelp                ] : show full help including expert options" << std::endl;
     std::cout <<   std::endl;
     std::cout <<   std::endl;
+    // clang-format on
   }
 
-
-  static int parse_command_line( int argc, char* argv[] , vvdecParams& rcParams, std::string& rcBitstreamFile, std::string& rcOutputFile,
-                                 int& riFrames, int& riLoops, std::string& rcExpectYuvMD5, bool& useY4mFormat, bool &useExternAllocator,
-                                 std::string& sTracingFile, std::string& sTracingRule, int& riPrintPicHash )
+  int parse_command_line( int          argc,
+                          char*        argv[],
+                          vvdecParams& rcParams,
+                          std::string& rcBitstreamFile,
+                          std::string& rcOutputFile,
+                          int&         riFrames,
+                          int&         riLoops,
+                          std::string& rcExpectYuvMD5,
+                          bool&        useY4mFormat,
+                          bool&        useExternAllocator,
+                          std::string& sTracingFile,
+                          std::string& sTracingRule,
+                          int&         riPrintPicHash )
   {
 #ifndef ENABLE_TRACING
     // ignore unused variables
@@ -136,221 +237,132 @@ public:
     (void) sTracingRule;
 #endif   // !ENABLE_TRACING
 
-    int iRet = 0;
     /* Check command line parameters */
-    int32_t  i_arg = 1;
+    m_iArg = 1;
+    m_argc = argc;
+    m_argv = argv;
 
     /* Check general options first */
-    while( i_arg < argc )
+    while( m_iArg < argc )
     {
-      if( (!strcmp( (const char*)argv[i_arg], "-v" )) || !strcmp( (const char*)argv[i_arg], "--verbosity" ) )
+      bool     _dummy   = false;
+      unsigned logLevel = 0;
+      if( parse_param( { "-v", "--verbosity" }, logLevel ) )
       {
-        if( i_arg == argc-1 ){ fprintf( stderr, " - missing argument for: %s \n", argv[i_arg] ); return -1; }
-        i_arg++;
-        int iLogLevel = atoi( argv[i_arg++] );
-        if( iLogLevel < 0 ) iLogLevel = 0;
-        if( iLogLevel > (int)vvdecLogLevel::VVDEC_DETAILS ) iLogLevel = (int)vvdecLogLevel::VVDEC_DETAILS ;
-        rcParams.logLevel = (vvdecLogLevel)iLogLevel;
+        rcParams.logLevel = std::min( (vvdecLogLevel) logLevel, VVDEC_DETAILS );
 
         if( rcParams.logLevel > VVDEC_VERBOSE )
         {
-          std::string cll;
-          switch (rcParams.logLevel)
+          const char* cll;
+          switch( rcParams.logLevel )
           {
-            case VVDEC_SILENT : cll = "SILENT"; break;
-            case VVDEC_ERROR  : cll = "ERROR"; break;
+            // clang-format off
+            case VVDEC_SILENT : cll = "SILENT";  break;
+            case VVDEC_ERROR  : cll = "ERROR";   break;
             case VVDEC_WARNING: cll = "WARNING"; break;
-            case VVDEC_INFO   : cll = "INFO"; break;
-            case VVDEC_NOTICE : cll = "NOTICE"; break;
+            case VVDEC_INFO   : cll = "INFO";    break;
+            case VVDEC_NOTICE : cll = "NOTICE";  break;
             case VVDEC_VERBOSE: cll = "VERBOSE"; break;
             case VVDEC_DETAILS: cll = "DETAILS"; break;
-            default: cll = "UNKNOWN"; break;
+            default:            cll = "UNKNOWN"; break;
+            // clang-format on
           };
-          fprintf( stdout, "[verbosity] : %d - %s\n", (int)rcParams.logLevel, cll.c_str() );
+          fprintf( stdout, "[verbosity] : %d - %s\n", (int) rcParams.logLevel, cll );
         }
       }
-      else if( (!strcmp( (const char*)argv[i_arg], "-h" )) || !strcmp( (const char*)argv[i_arg], "--help" ) )
+      else if( parse_param( { "-h", "--help" }, _dummy ) )
       {
-        i_arg++;
-        iRet = 2;
-        return iRet;
+        return 2;
       }
-      else if( !strcmp( ( const char* ) argv[i_arg], "--fullhelp" ) )
+      else if( parse_param( { "--fullhelp", "--full-help" }, _dummy ) )
       {
-        i_arg++;
-        iRet = 3;
-        return iRet;
+        return 3;
       }
-      else if( !strcmp( (const char*)argv[i_arg], "--version" ) )
+      else if( parse_param( { "--version" }, _dummy ) )
       {
-        i_arg++;
-        iRet = 4;
-        return iRet;
+        return 4;
       }
       else
       {
-        i_arg++;
+        m_iArg++;
       }
     }
 
-
-    i_arg = 1;
-    while( i_arg < argc )
+    // restart from the beginning to parse the remainig options
+    m_iArg = 1;
+    while( m_iArg < argc )
     {
-      if( (!strcmp( (const char*)argv[i_arg], "-b" )) || !strcmp( (const char*)argv[i_arg], "--bitstream" ) ) /* In: input-file */
+      int      simd_arg         = 0;
+      int      err_handle_flags = 0;
+      int      upscale_output   = 0;
+      unsigned logLevel         = 0;
+      if( parse_param( { "-b", "--bitstream" }, rcBitstreamFile ) ) /* In: input-file */
       {
-        if( i_arg == argc-1 ){ fprintf( stderr, " - missing argument for: %s \n", argv[i_arg] ); return -1; }
-        i_arg++;
         if( rcParams.logLevel > VVDEC_VERBOSE )
-          fprintf( stdout, "[bitstream] input-file:    %s\n", argv[i_arg] );
-        rcBitstreamFile = argv[i_arg++];
+          fprintf( stdout, "[bitstream] input-file:    %s\n", argv[m_iArg] );
       }
-      else if( (!strcmp( (const char*)argv[i_arg], "-o" )) || !strcmp( (const char*)argv[i_arg], "--output" ) ) /* Out: bitstream-file */
+      else if( parse_param( { "-o", "--output" }, rcOutputFile ) ) /* Out: bitstream-file */
       {
-        if( i_arg == argc-1 ){ fprintf( stderr, " - missing argument for: %s \n", argv[i_arg] ); return -1; }
-        i_arg++;
-        if( i_arg < argc && strlen( argv[i_arg] ) > 0 )
-        {
-          if( rcParams.logLevel > VVDEC_VERBOSE )
-            fprintf( stdout, "[output] yuv-file:    %s\n", argv[i_arg] );
-          rcOutputFile = argv[i_arg++];
-        }
+        if( rcParams.logLevel > VVDEC_VERBOSE )
+          fprintf( stdout, "[output] yuv-file:    %s\n", argv[m_iArg] );
       }
-      else if( (!strcmp( (const char*)argv[i_arg], "-uo" )) || !strcmp( (const char*)argv[i_arg], "--upscale" ) ) /* In: upscale */
+      else if( parse_param( { "-uo", "--upscale" }, upscale_output ) ) /* In: upscale */
       {
-        i_arg++;
-
-        rcParams.upscaleOutput = (vvdecRPRUpscaling) atoi( argv[i_arg++]);
-
+        rcParams.upscaleOutput = vvdecRPRUpscaling( upscale_output );
         if( rcParams.logLevel > VVDEC_VERBOSE )
         {
           std::string scale;
           switch( rcParams.upscaleOutput )
           {
-          case VVDEC_UPSCALING_OFF      : scale = "OFF"; break;
-          case VVDEC_UPSCALING_COPY_ONLY: scale = "COPY_ONLY"; break;
-          case VVDEC_UPSCALING_RESCALE  : scale = "RESCALE"; break;
-          default: scale = "UNKNOWN"; break;
+            // clang-format off
+            case VVDEC_UPSCALING_OFF      : scale = "OFF";       break;
+            case VVDEC_UPSCALING_COPY_ONLY: scale = "COPY_ONLY"; break;
+            case VVDEC_UPSCALING_RESCALE  : scale = "RESCALE";   break;
+            default                       : scale = "UNKNOWN";   break;
+            // clang-format on
           };
           fprintf( stdout, "[upscale] : %s\n", scale.c_str() );
         }
       }
-      else if( !strcmp( (const char*)argv[i_arg], "--y4m" ) )
+      else if( parse_param( { "-fg", "--filmGrain" }, rcParams.filmGrainSynthesis ) ) {}
+      else if( parse_param( { "--y4m" }, useY4mFormat ) ) {}
+      else if( parse_param( { "--extern" }, useExternAllocator ) ) {}
+      else if( parse_param( { "-f", "--frames" }, riFrames ) )
       {
-        i_arg++;
-        useY4mFormat = true;
-
-        if( i_arg < argc )
-        {
-          if( std::isdigit(argv[i_arg][0]))
-          {
-            i_arg++;
-          }
-        }
-      }
-      else if( !strcmp( (const char*)argv[i_arg], "--extern" ) )
-      {
-        i_arg++;
-        useExternAllocator = true;
-
-        if( i_arg < argc )
-        {
-          if( std::isdigit(argv[i_arg][0]))
-          {
-            i_arg++;
-          }
-        }
-      }
-      else if( (!strcmp( (const char*)argv[i_arg], "-f" )) || !strcmp( (const char*)argv[i_arg], "--frames" ) )
-      {
-        if( i_arg == argc-1 ){ fprintf( stderr, " - missing argument for: %s \n", argv[i_arg] ); return -1; }
-        i_arg++;
-        riFrames = atoi( argv[i_arg++] );
         if( rcParams.logLevel > VVDEC_VERBOSE )
           fprintf( stdout, "[frames] : %d\n", riFrames );
       }
-      else if( (!strcmp( (const char*)argv[i_arg], "-t" )) || !strcmp( (const char*)argv[i_arg], "--threads" ) )
+      else if( parse_param( { "-t", "--threads" }, rcParams.threads ) )
       {
-        if( i_arg == argc-1 ){ fprintf( stderr, " - missing argument for: %s \n", argv[i_arg] ); return -1; }
-        i_arg++;
-        int iThreads = atoi( argv[i_arg++] );
         if( rcParams.logLevel > VVDEC_VERBOSE )
-          fprintf( stdout, "[threads] : %d\n", iThreads );
-        rcParams.threads = iThreads;
+          fprintf( stdout, "[threads] : %d\n", rcParams.threads );
       }
-      else if( (!strcmp( (const char*)argv[i_arg], "-p" )) || !strcmp( (const char*)argv[i_arg], "--parsedelay" ) )
+      else if( parse_param( { "-p", "--parsedelay" }, rcParams.parseDelay ) )
       {
-        if( i_arg == argc-1 ){ fprintf( stderr, " - missing argument for: %s \n", argv[i_arg] ); return -1; }
-        i_arg++;
-        int iDelay = atoi( argv[i_arg++] );
         if( rcParams.logLevel > VVDEC_VERBOSE )
-          fprintf( stdout, "[parsedelay] : %d\n", iDelay );
-        rcParams.parseDelay = iDelay;
+          fprintf( stdout, "[parsedelay] : %d\n", rcParams.parseDelay );
       }
-      else if( (!strcmp( (const char*)argv[i_arg], "-dph" )) || !strcmp( (const char*)argv[i_arg], "--SEIDecodedPictureHash" ) )
+      else if( parse_param( { "-dph", "--SEIDecodedPictureHash" }, riPrintPicHash, true, 1 ) )
       {
-        i_arg++;
-        if( i_arg < argc && std::isdigit( argv[i_arg][0] ) )
+        if( riPrintPicHash == 1 )   // dph levels > 11 print the DPH, but don't verify it (only 1 actually verifies)
         {
-          riPrintPicHash = atoi( argv[i_arg] );
-          i_arg++;
-        }
-        else
-        {
-          riPrintPicHash = 1;
-        }
-
-        if( riPrintPicHash <= 1 )
-        {
+          rcParams.verifyPictureHash = true;
           if( rcParams.logLevel > VVDEC_VERBOSE )
             fprintf( stdout, "[SEIDecodedPictureHash] : true\n" );
-          rcParams.verifyPictureHash = true;
         }
       }
-      else if( ( !strcmp( (const char*)argv[i_arg], "-md5" ) ) || !strcmp( (const char*)argv[i_arg], "--CheckYuvMD5" ) )
+      else if( parse_param( { "-md5", "--CheckYuvMD5" }, rcExpectYuvMD5 ) )
       {
-        if( i_arg >= argc - 1 ) { fprintf( stderr, " - missing argument for: %s \n", argv[i_arg] ); return -1; }
-        i_arg++;
-        if( strlen( argv[i_arg] ) != 32 )
-        {
-          fprintf( stderr, " - the provided md5 hash to %s should be exactly 32 characters long\n", argv[i_arg - 1] );
-          return -1;
-        }
-
-        rcExpectYuvMD5 = std::string( argv[i_arg++] );
-
         if( rcParams.logLevel > VVDEC_VERBOSE )
           fprintf( stdout, "[CheckYuvMD5] : %s\n", rcExpectYuvMD5.c_str() );
       }
-      else if( (!strcmp( (const char*)argv[i_arg], "-L" )) || !strcmp( (const char*)argv[i_arg], "--loops" ) )
+      else if( parse_param( { "-L", "--loops" }, riLoops ) )
       {
-        if( i_arg == argc-1 ){ fprintf( stderr, " - missing argument for: %s \n", argv[i_arg] ); return -1; }
-        i_arg++;
-        riLoops = atoi( argv[i_arg++] );
         if( rcParams.logLevel > VVDEC_VERBOSE )
           fprintf( stdout, "[loops] : %d\n", riLoops );
       }
-      else if( (!strcmp( (const char*)argv[i_arg], "-v" )) || !strcmp( (const char*)argv[i_arg], "--verbosity" ) )
+      else if( parse_param( { "--simd" }, simd_arg ) )
       {
-        // already processed
-        i_arg++;
-        i_arg++;
-      }
-      else if( (!strcmp( (const char*)argv[i_arg], "-h" )) || !strcmp( (const char*)argv[i_arg], "--help" ) )
-      {
-        // already processed
-        i_arg++;
-      }
-      else if( !strcmp( (const char*)argv[i_arg], "--version" ) )
-      {
-        // already processed
-        i_arg++;
-      }
-      else if( !strcmp( ( const char* ) argv[i_arg], "--simd" ) )
-      {
-        if( i_arg == argc-1 ){ fprintf( stderr, " - missing argument for: %s \n", argv[i_arg] ); return -1; }
-        i_arg++;
-        const int simd_arg = atoi( argv[i_arg++] );
         if( simd_arg < -1 || simd_arg > VVDEC_SIMD_MAX - 1 )
         {
           fprintf( stderr, " - unsupported simd mode. Should be between -1 and %i inclusive.\n", VVDEC_SIMD_MAX - 1 );
@@ -363,31 +375,29 @@ public:
           const char* cll;
           switch( rcParams.simd )
           {
-          case VVDEC_SIMD_DEFAULT: cll = "DEFAULT";   break;
-          case VVDEC_SIMD_SCALAR:  cll = "SCALAR";    break;
+            // clang-format off
+            case VVDEC_SIMD_DEFAULT:   cll = "DEFAULT";   break;
+            case VVDEC_SIMD_SCALAR:    cll = "SCALAR";    break;
 #if VVDEC_ARCH_X86
-          case VVDEC_SIMD_SSE41:   cll = "SSE41";     break;
-          case VVDEC_SIMD_SSE42:   cll = "SSE42";     break;
-          case VVDEC_SIMD_AVX:     cll = "AVX";       break;
-          case VVDEC_SIMD_AVX2:    cll = "AVX2";      break;
+            case VVDEC_SIMD_SSE41:     cll = "SSE41";     break;
+            case VVDEC_SIMD_SSE42:     cll = "SSE42";     break;
+            case VVDEC_SIMD_AVX:       cll = "AVX";       break;
+            case VVDEC_SIMD_AVX2:      cll = "AVX2";      break;
 #elif VVDEC_ARCH_ARM
-          case VVDEC_SIMD_NEON:    cll = "NEON";      break;
+            case VVDEC_SIMD_NEON:      cll = "NEON";      break;
 #elif VVDEC_ARCH_WASM
-          case VVDEC_SIMD_WASM:    cll = "WASM-SIMD"; break;
+            case VVDEC_SIMD_WASM:      cll = "WASM-SIMD"; break;
 #else
-          case VVDEC_SIMD_SIMDE_ANY:cll = "SIMDE-ANY"; break;
+            case VVDEC_SIMD_SIMDE_ANY: cll = "SIMDE-ANY"; break;
 #endif
-          default:                 return -1;
+            default:                   return -1;
+            // clang-format on
           };
           fprintf( stdout, "[simd] : %s\n", cll );
         }
       }
-      else if( (!strcmp( argv[i_arg], "-eh" )) || !strcmp( argv[i_arg], "--errHandling" ) )
+      else if( parse_param( { "-eh", "--errHandling" }, err_handle_flags ) )
       {
-        if( i_arg == argc-1 ){ fprintf( stderr, " - missing argument for: %s \n", argv[i_arg] ); return -1; }
-        i_arg++;
-
-        const int err_handle_flags = atoi( argv[i_arg++] );
         if( err_handle_flags < 0 || err_handle_flags > VVDEC_ERR_HANDLING_TRY_CONTINUE )
         {
           fprintf( stderr, " - unsupported error handling flags. Should be between 0 and %i.\n", VVDEC_ERR_HANDLING_TRY_CONTINUE );
@@ -397,32 +407,26 @@ public:
         rcParams.errHandlingFlags = vvdecErrHandlingFlags( err_handle_flags );
       }
 #ifdef ENABLE_TRACING
-      else if( !strcmp( (const char*)argv[i_arg], "--TraceFile" ) || !strcmp( (const char*)argv[i_arg], "-tf" ) )
+      else if( parse_param( { "-tf", "--TraceFile" }, sTracingFile ) ) {}
+      else if( parse_param( { "-tr", "--TraceRule" }, sTracingRule ) ) {}
+#endif
+      else if( parse_param( { "-v", "--verbosity" }, logLevel ) )   // already processed. Parse again so we don't detect an unknown argument
       {
-        sTracingFile = argv[++i_arg];
-        i_arg++;
+        assert( logLevel == rcParams.logLevel );
       }
-      else if( !strcmp( (const char*)argv[i_arg], "--TraceRule" ) || !strcmp( (const char*)argv[i_arg], "-tr" ) )
-      {
-        sTracingRule = argv[++i_arg];
-        i_arg++;
-      }
-#endif   // ENABLE_TRACING
       else
       {
-        fprintf( stderr, " - unknown argument: %s \n", argv[i_arg++] );
-        iRet = -1;
+        fprintf( stderr, " - unknown argument: %s \n", argv[m_iArg++] );
+        return -1;
       }
     }
 
-    return iRet;
+    return 0;
   }
 
-private:
-  std::ofstream m_cOS;
+  struct MissingArgumentException : std::exception
+  {
+  };
 };
 
-
-
-} // namespace
-
+}   // namespace vvdecoderapp

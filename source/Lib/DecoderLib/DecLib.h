@@ -120,6 +120,8 @@ public:
   unsigned int getUpscaledOutput() { return m_upscaledOutput; }
 #endif
 
+  ThreadPool& getThreadPool() { return *m_decodeThreadPool; }
+
 private:
   void     reconPicture( Picture* pcPic );
 #if JVET_R0270
