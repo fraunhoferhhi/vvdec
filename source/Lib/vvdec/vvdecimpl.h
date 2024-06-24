@@ -174,7 +174,13 @@ public:
 
 private:
   int xAddPicture                  ( Picture* pcPic );
-  int xCreateFrame                 ( vvdecFrame& frame, const CPelUnitBuf& rcPicBuf, uint32_t uiWidth, uint32_t uiHeight, const BitDepths& rcBitDepths, bool bCreateStorage );
+  int xCreateFrame                 ( vvdecFrame&        frame,
+                                     const CPelUnitBuf& rcPicBuf,
+                                     uint32_t           uiWidth,
+                                     uint32_t           uiHeight,
+                                     const BitDepths&   rcBitDepths,
+                                     bool               bCreateStorage,
+                                     bool               origStride = false );
 
   void xUpdateFGC                  ( vvdecSEI *sei );
   void xAddGrain                   ( vvdecFrame *frame );
@@ -223,6 +229,7 @@ private:
     FgcDontPersist = 1,
     FgcPersist     = 2
   }                                        m_filmGrainCharacteristicsState = FgcNone;
+  bool                                     m_enableFilmGrain               = false;
   std::unique_ptr<FilmGrain>               m_filmGrainSynth;
 #endif   // ENABLE_FILM_GRAIN
 };

@@ -77,7 +77,7 @@ set( VVDEC_ENABLE_X86_SIMD   TRUE                      CACHE BOOL "enable x86 in
 set( VVDEC_ENABLE_ARM_SIMD   ${VVDEC_ARM_SIMD_DEFAULT} CACHE BOOL "enable ARM intrinsics" )
 
 set( VVDEC_ENABLE_TRACING    FALSE                     CACHE BOOL "Compile in tracing functionality" )
-set( VVDEC_ENABLE_FILM_GRAIN FALSE                     CACHE BOOL "Build with film grain synthesis support" )
+set( VVDEC_ENABLE_FILM_GRAIN TRUE                      CACHE BOOL "Build with film grain synthesis support" )
 
 include( vvdecCompilerSupport )
 

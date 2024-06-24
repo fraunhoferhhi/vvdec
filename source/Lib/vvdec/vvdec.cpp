@@ -58,16 +58,25 @@ VVDEC_DECL void vvdec_params_default(vvdecParams *params)
     return;
   }
 
-  params->threads           = -1;                       // thread count                          ( default: -1 )
-  params->parseDelay        = -1;                       // number of frames to parse in parallel ( default: -1 )
-  params->upscaleOutput     = VVDEC_UPSCALING_OFF;      // do internal upscaling of rpr pictures to dest. resolution ( default: off )
-  params->logLevel          = VVDEC_WARNING;            // verbosity level
-  params->verifyPictureHash = false;                    // verify picture, if digest is available, true: check hash in SEI messages if available, false: ignore SEI message
-  params->removePadding     = false;                    // copy output pictures to new buffer to remove padding (stride==width)
-  params->opaque            = nullptr;                  // opaque pointer for private user data ( can be used to carry caller specific data or contexts )
-  params->simd              = VVDEC_SIMD_DEFAULT;       // set specific simd optimization (default: max. availalbe)
-  params->errHandlingFlags  = VVDEC_ERR_HANDLING_OFF;   // no special error handling
-  params->parseThreads      = -1;                       // DEPRECATED. Use `parseDelay` instead. Will be removed in the future. Until then, this value is copied to parseDelay if set.
+  // ensure the padding parameters are cleared also, so we don't read undefined values,
+  // when new parameters are introduced and the library is used with an old executable
+  memset( params, 0, sizeof( vvdecParams ) );
+
+  params->threads            = -1;                      // thread count                          ( default: -1 )
+  params->parseDelay         = -1;                      // number of frames to parse in parallel ( default: -1 )
+  params->upscaleOutput      = VVDEC_UPSCALING_OFF;     // do internal upscaling of rpr pictures to dest. resolution ( default: off )
+  params->logLevel           = VVDEC_WARNING;           // verbosity level
+  params->verifyPictureHash  = false;                   // verify picture, if digest is available, true: check hash in SEI messages if available, false: ignore SEI message
+  params->removePadding      = false;                   // copy output pictures to new buffer to remove padding (stride==width)
+  params->opaque             = nullptr;                 // opaque pointer for private user data ( can be used to carry caller specific data or contexts )
+  params->simd               = VVDEC_SIMD_DEFAULT;      // set specific simd optimization (default: max. availalbe)
+  params->errHandlingFlags   = VVDEC_ERR_HANDLING_OFF;  // no special error handling
+#if ENABLE_FILM_GRAIN
+  params->filmGrainSynthesis = true;                    // enable film grain synthesis using Film Grain Charactersitics SEI ( default: true )
+#else
+  params->filmGrainSynthesis = false;                   // built without film grain support
+#endif
+  params->parseThreads       = -1;                      // DEPRECATED. Use `parseDelay` instead. Will be removed in the future. Until then, this value is copied to parseDelay if set.
 }
 
 VVDEC_DECL vvdecParams* vvdec_params_alloc()
@@ -190,6 +199,14 @@ static int paramCheck( vvdecParams *params )
       ret = -1;
     }
   }
+
+#if !ENABLE_FILM_GRAIN
+  if( params->filmGrainSynthesis )
+  {
+    vvdec::msg( vvdec::ERROR, "VVdeC was built without ENABLE_FILM_GRAIN. filmGrainSynthesis parameter must be 0.\n" );
+    ret = -1;
+  }
+#endif   // !ENABLE_FILM_GRAIN
 
   return ret;
 }

@@ -59,8 +59,13 @@ POSSIBILITY OF SUCH DAMAGE.
 #include "FilmGrainImpl.h"
 
 #include <cstring>
+#include <vector>
+#include <memory>
 
 #include "vvdec/sei.h"
+#include "vvdec/vvdec.h"
+
+#define USE_SIMD
 
 namespace vvdec
 {
@@ -81,18 +86,31 @@ struct fgs_sei
   int16_t  comp_model_value[3][256][SEI_MAX_MODEL_VALUES];
 };
 
-class FilmGrain : public FilmGrainImpl
+class FilmGrain
 {
+  std::unique_ptr<FilmGrainImpl> m_impl;
+
+  uint32_t m_line_rnd               = 0xdeadbeef;
+  uint32_t m_line_rnd_up            = 0xdeadbeef;
+  uint32_t m_prev_frame_line_rnd_up = 0xdeadbeef;
+
+  std::vector<uint32_t> m_line_seeds;
+  fgs_sei               fgs;
+
 public:
-  FilmGrain( int depth, int chromaSubsampling )
-  {
-    set_depth( depth );
-    set_chroma_subsampling( chromaSubsampling, chromaSubsampling );
-  }
+  FilmGrain();
+  ~FilmGrain() = default;
+
   void updateFGC( vvdecSEIFilmGrainCharacteristics* fgc );
+  void setDepth( int depth ) { m_impl->set_depth( depth ); }
+  void setColorFormat( vvdecColorFormat fmt );
+  void prepareBlockSeeds( int width, int height );
+
+  void add_grain_line( void* Y, void* U, void* V, int y, int width );
 
 private:
-  void init_sei( fgs_sei* cfg );
+  void set_seed( uint32_t seed );
+  void init_sei();
 };
 
 }   // namespace vvdec

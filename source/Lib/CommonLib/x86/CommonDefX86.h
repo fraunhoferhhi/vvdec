@@ -85,6 +85,13 @@ POSSIBILITY OF SUCH DAMAGE.
 #    include <simde/x86/sse4.1.h>
 #  endif
 
+#  if defined( REAL_TARGET_X86 ) \
+    || ( defined( SIMD_EVERYWHERE_EXTENSION_LEVEL_ID ) && SIMD_EVERYWHERE_EXTENSION_LEVEL_ID >= X86_SIMD_AVX2 )
+#    define ENABLE_AVX2_IMPLEMENTATIONS 1
+#  else
+#    define ENABLE_AVX2_IMPLEMENTATIONS 0
+#  endif
+
 namespace vvdec
 {
 using namespace x86_simd;

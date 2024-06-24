@@ -29,9 +29,7 @@ if( VVDEC_ENABLE_X86_SIMD )
   file( GLOB X86_SSE41_SRC_FILES "../CommonLib/x86/sse41/*.cpp" )
   #file( GLOB X86_SSE42_SRC_FILES "../CommonLib/x86/sse42/*.cpp" )
   #file( GLOB X86_AVX_SRC_FILES   "../CommonLib/x86/avx/*.cpp"   )
-  if( VVDEC_TARGET_ARCH STREQUAL "X86" )
-    file( GLOB X86_AVX2_SRC_FILES "../CommonLib/x86/avx2/*.cpp" )
-  endif()
+  file( GLOB X86_AVX2_SRC_FILES "../CommonLib/x86/avx2/*.cpp" )
 endif()
 
 if( VVDEC_ENABLE_ARM_SIMD )
@@ -46,10 +44,21 @@ file( GLOB MD5_SRC_FILES "../libmd5/*.cpp" )
 file( GLOB MD5_INC_FILES "../libmd5/*.h" )
 
 if( VVDEC_ENABLE_FILM_GRAIN )
-  file( GLOB FGS_SRC_FILES "../FilmGrain/*.cpp" )
-  file( GLOB FGS_INC_FILES "../FilmGrain/*.h"   )
+  file( GLOB FGS_SRC_FILES "../FilmGrain/FilmGrain.cpp" "../FilmGrain/FilmGrainImpl.cpp" )
+  file( GLOB FGS_INC_FILES "../FilmGrain/FilmGrain.h"   "../FilmGrain/FilmGrainImpl.h"   )
 
-  set_property( SOURCE vvdec.cpp vvdecimpl.cpp APPEND PROPERTY COMPILE_DEFINITIONS ENABLE_FILM_GRAIN )
+  file( GLOB FGS_X86_SSE41_SRC_FILES "../FilmGrain/*_sse41.cpp" )
+  file( GLOB FGS_X86_AVX2_SRC_FILES  "../FilmGrain/*_avx2.cpp" )
+
+  list( APPEND X86_SSE41_SRC_FILES ${FGS_X86_SSE41_SRC_FILES} )
+  list( APPEND X86_AVX2_SRC_FILES  ${FGS_X86_AVX2_SRC_FILES}  )
+
+  set_property( SOURCE
+                vvdec.cpp vvdecimpl.cpp
+                ${FGS_SRC_FILES}
+                ${FGS_X86_SSE41_SRC_FILES}
+                ${FGS_X86_AVX2_SRC_FILES}
+                APPEND PROPERTY COMPILE_DEFINITIONS ENABLE_FILM_GRAIN )
 endif()
 
 # get public/extern include files
@@ -94,12 +103,10 @@ if( VVDEC_ENABLE_X86_SIMD )
   #set_property( SOURCE ${X86_SSE42_SRC_FILES} APPEND PROPERTY COMPILE_DEFINITIONS USE_SSE42 )
   #set_property( SOURCE ${X86_AVX_SRC_FILES}   APPEND PROPERTY COMPILE_DEFINITIONS USE_AVX )
   set_property( SOURCE ${X86_AVX2_SRC_FILES}  APPEND PROPERTY COMPILE_DEFINITIONS USE_AVX2 )
-  set_property( SOURCE ${FGS_SRC_FILES}       APPEND PROPERTY COMPILE_DEFINITIONS USE_AVX2 )
   # set needed compile flags
   if( MSVC )
     #set_property( SOURCE ${X86_AVX_SRC_FILES}   APPEND PROPERTY COMPILE_FLAGS "/arch:AVX" )
     set_property( SOURCE ${X86_AVX2_SRC_FILES}  APPEND PROPERTY COMPILE_FLAGS "/arch:AVX2" )
-    set_property( SOURCE ${FGS_SRC_FILES}       APPEND PROPERTY COMPILE_FLAGS "/arch:AVX2" )
   elseif( UNIX OR MINGW )
     include( vvdecCompilerSupport )
 
@@ -116,11 +123,14 @@ if( VVDEC_ENABLE_X86_SIMD )
     #set_property( SOURCE ${X86_SSE42_SRC_FILES} APPEND PROPERTY COMPILE_FLAGS "${FLAG_msse42}" )
     #set_property( SOURCE ${X86_AVX_SRC_FILES}   APPEND PROPERTY COMPILE_FLAGS "${FLAG_mavx}"   )
     set_property( SOURCE ${X86_AVX2_SRC_FILES}  APPEND PROPERTY COMPILE_FLAGS "${FLAG_mavx2}"  )
-    set_property( SOURCE ${FGS_SRC_FILES}       APPEND PROPERTY COMPILE_FLAGS "${FLAG_mavx2}"  )
+  endif()
+
+  if( NOT VVDEC_TARGET_ARCH STREQUAL "X86" )  # only build AVX2 files for X86
+    set( X86_AVX2_SRC_FILES "" )
   endif()
 
   #add_library( ${LIB_NAME}_x86_simd OBJECT ${X86_SSE41_SRC_FILES} ${X86_SSE42_SRC_FILES} ${X86_AVX_SRC_FILES} ${X86_AVX2_SRC_FILES} )
-  add_library( ${LIB_NAME}_x86_simd OBJECT ${X86_SSE41_SRC_FILES} ${X86_AVX2_SRC_FILES} ${X86_AVX2_C_FILES} )
+  add_library( ${LIB_NAME}_x86_simd OBJECT ${X86_SSE41_SRC_FILES} ${X86_AVX2_SRC_FILES} )
   target_link_libraries( ${LIB_NAME}_x86_simd ${INTEL_ITT_LINK_TARGET} )
 
   # disble LTO for the files compiled with special architecture flags

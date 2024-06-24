@@ -61,8 +61,6 @@ POSSIBILITY OF SUCH DAMAGE.
 
 #include <CommonDef.h>
 
-#define PATTERN_INTERPOLATION 0
-
 namespace vvdec
 {
 
@@ -84,7 +82,7 @@ namespace vvdec
  * Note: to fully support cross-component correlation within patterns, we would
  * need to align luma/chroma offsets.
  */
-static void get_offset_y( uint32_t val, int* s, uint8_t* x, uint8_t* y )
+void FilmGrainImpl::get_offset_y( uint32_t val, int* s, uint8_t* x, uint8_t* y )
 {
   uint32_t bf;   // bit field
 
@@ -99,7 +97,7 @@ static void get_offset_y( uint32_t val, int* s, uint8_t* x, uint8_t* y )
                                     // pattern samples (when using overlap).
 }
 
-void FilmGrainImpl::get_offset_u( uint32_t val, int* s, uint8_t* x, uint8_t* y )
+void FilmGrainImpl::get_offset_u( uint32_t val, int* s, uint8_t* x, uint8_t* y ) const
 {
   uint32_t bf;   // bit field
 
@@ -112,7 +110,7 @@ void FilmGrainImpl::get_offset_u( uint32_t val, int* s, uint8_t* x, uint8_t* y )
   *y = ( ( bf * 12 ) >> 10 ) * ( 4 / csuby );
 }
 
-void FilmGrainImpl::get_offset_v( uint32_t val, int* s, uint8_t* x, uint8_t* y )
+void FilmGrainImpl::get_offset_v( uint32_t val, int* s, uint8_t* x, uint8_t* y ) const
 {
   uint32_t bf;   // bit field
 
@@ -125,29 +123,10 @@ void FilmGrainImpl::get_offset_v( uint32_t val, int* s, uint8_t* x, uint8_t* y )
   *y = ( ( bf * 12 ) >> 10 ) * ( 4 / csuby );
 }
 
-void FilmGrainImpl::add_grain_block( void* I, int c, int x, int y, int width )
+void FilmGrainImpl::add_grain_block( void* I, int c, int x, int y, int width, uint32_t rnd, uint32_t rnd_up, int16_t grain[3][32], uint8_t scale[3][32] ) const
 {
-  uint8_t*  I8  = (uint8_t*) I;
-  uint16_t* I16 = (uint16_t*) I;
-
-  int     s, s_up;        // random sign flip (current + upper row)
-  uint8_t ox, oy;         // random offset (current)
-  uint8_t ox_up, oy_up;   // random offset (upper row)
-  uint8_t oc1, oc2;       // overlapping coefficients
-  uint8_t pi;             // pattern index integer part
-  int     i, j;
-  int     P;              // Pattern sample (from current pattern index)
-#if PATTERN_INTERPOLATION
-  int     Pn;             // Next-pattern sample (from pattern index+1)
-  uint8_t pf;             // pattern index fractional part
-#endif
-
-  uint8_t intensity;
-  int     flush = 0;
-  int     subx  = c ? csubx : 1;
-  int     suby  = c ? csuby : 1;
-  uint8_t I_min = c ? C_min : Y_min;
-  uint8_t I_max = c ? C_max : Y_max;
+  const int subx = c ? csubx : 1;
+  const int suby = c ? csuby : 1;
 
   if( ( y & 1 ) && suby > 1 )
   {
@@ -161,8 +140,9 @@ void FilmGrainImpl::add_grain_block( void* I, int c, int x, int y, int width )
 
   // TODO: assert subx, suby, Y/C min/max, max pLUT values, etc
 
-  j = y & 0xf;
+  const int j = y & 0xf;
 
+  uint8_t oc1, oc2;                 // overlapping coefficients
   if( y > 15 && j == 0 )            // first line of overlap
   {
     oc1 = ( suby > 1 ) ? 20 : 12;   // current
@@ -179,6 +159,8 @@ void FilmGrainImpl::add_grain_block( void* I, int c, int x, int y, int width )
   }
 
   // Derive block offsets + sign
+  int     s;        // random sign flip (current)
+  uint8_t ox, oy;   // random offset (current)
   if( c == 0 )
   {
     get_offset_y( rnd, &s, &ox, &oy );
@@ -194,6 +176,8 @@ void FilmGrainImpl::add_grain_block( void* I, int c, int x, int y, int width )
   oy += j / suby;
 
   // Same for upper block (overlap)
+  int     s_up;           // random sign flip (upper row)
+  uint8_t ox_up, oy_up;   // random offset (upper row)
   if( c == 0 )
   {
     get_offset_y( rnd_up, &s_up, &ox_up, &oy_up );
@@ -209,78 +193,124 @@ void FilmGrainImpl::add_grain_block( void* I, int c, int x, int y, int width )
   oy_up += ( 16 + j ) / suby;
 
   // Make grain pattern
-  for( i = 0; i < 16 / subx; i++ )
-  {
-    intensity = bs ? I16[x / subx + i] >> bs : I8[x / subx + i];
-    pi        = pLUT[c][intensity] >> 4;   // pattern index (integer part)
-#if PATTERN_INTERPOLATION
-    pf = pLUT[c][intensity] & 15;          // fractional part (interpolate with next) -- could restrict to less bits (e.g. 2)
-#endif
-
-    // Pattern
-    P = pattern[c ? 1 : 0][pi][oy][ox + i] * s;   // We could consider just XORing the sign bit
-#if PATTERN_INTERPOLATION
-    Pn =
-      pattern[c ? 1 : 0][pi + 1][oy][ox + i] * s;   // But there are equivalent hw tricks, e.g. storing values as sign + amplitude instead of two's complement
-#endif
-
-    if( oc1 )   // overlap
-    {
-      P = round( P * oc1 + pattern[c ? 1 : 0][pi][oy_up][ox_up + i] * oc2 * s_up, 5 );
-#if PATTERN_INTERPOLATION
-      Pn = round( Pn * oc1 + pattern[c ? 1 : 0][pi + 1][oy_up][ox_up + i] * oc2 * s_up, 5 );
-#endif
-    }
-
-#if PATTERN_INTERPOLATION
-    // Pattern interpolation: P is current, Pn is next, pf is interpolation coefficient
-    grain[c][16 / subx + i] = round( P * ( 16 - pf ) + Pn * pf, 4 );
-#else
-    grain[c][16 / subx + i] = P;
-#endif
-
-    // Scale sign already integrated above because of overlap
-    scale[c][16 / subx + i] = sLUT[c][intensity];
-  }
+  make_grain_pattern( I, c, x, subx, oc1, oc2, ox, ox_up, oy, oy_up, s, s_up, grain, scale );
 
   // Scale & output
+  scale_and_output( I, c, x, subx, width, grain, scale );
+}
+
+void FilmGrainImpl::make_grain_pattern( const void* I,
+                                        int         c,
+                                        int         x,
+                                        int         subx,
+                                        uint8_t     oc1,
+                                        uint8_t     oc2,
+                                        uint8_t     ox,
+                                        uint8_t     ox_up,
+                                        uint8_t     oy,
+                                        uint8_t     oy_up,
+                                        int         s,
+                                        int         s_up,
+                                        int16_t     grain[3][32],
+                                        uint8_t     scale[3][32] ) const
+{
+  const uint8_t*  I8  = (const uint8_t*) I;
+  const uint16_t* I16 = (const uint16_t*) I;
+  {
+    for( int i = 0; i < 16 / subx; i++ )
+    {
+      uint8_t intensity = bs ? I16[x / subx + i] >> bs : I8[x / subx + i];
+      uint8_t pi        = pLUT[c][intensity] >> 4;                  // pattern index (integer part)
+      int     P         = pattern[c ? 1 : 0][pi][oy][ox + i] * s;   // Pattern sample (from current pattern index)
+                                                                    // We could consider just XORing the sign bit
+#if PATTERN_INTERPOLATION
+      uint8_t pf = pLUT[c][intensity] & 15;           // pattern index fractional part (interpolate with next) -- could restrict to less bits (e.g. 2)
+      int     Pn =
+        pattern[c ? 1 : 0][pi + 1][oy][ox + i] * s;   // Next-pattern sample (from pattern index+1)
+                                                      // But there are equivalent hw tricks, e.g. storing values as sign + amplitude instead of two's complement
+#endif
+
+      if( oc1 )   // overlap
+      {
+        P = round( P * oc1 + pattern[c ? 1 : 0][pi][oy_up][ox_up + i] * oc2 * s_up, 5 );
+#if PATTERN_INTERPOLATION
+        Pn = round( Pn * oc1 + pattern[c ? 1 : 0][pi + 1][oy_up][ox_up + i] * oc2 * s_up, 5 );
+#endif
+      }
+#if PATTERN_INTERPOLATION
+      // Pattern interpolation: P is current, Pn is next, pf is interpolation coefficient
+      grain[c][16 / subx + i] = round( P * ( 16 - pf ) + Pn * pf, 4 );
+#else
+      grain[c][16 / subx + i] = P;
+#endif
+      // Scale sign already integrated above because of overlap
+      scale[c][16 / subx + i] = sLUT[c][intensity];
+    }
+  }
+}
+
+void FilmGrainImpl::scale_and_output( void* I, int c, int x, int subx, int width, int16_t grain[3][32], uint8_t scale[3][32] ) const
+{
+  uint8_t*  I8  = (uint8_t*) I;
+  uint16_t* I16 = (uint16_t*) I;
+
+  const uint8_t I_min = c ? C_min : Y_min;
+  const uint8_t I_max = c ? C_max : Y_max;
+
+  int flush = 0;
   do
   {
     if( x > 0 )
     {
-      int32_t g;
-      int16_t l1, l0, r0, r1;
-
       if( !flush )
       {
         // Horizontal deblock (across previous block)
-        l1                      = grain[c][16 / subx - 2];
-        l0                      = grain[c][16 / subx - 1];
-        r0                      = grain[c][16 / subx + 0];
-        r1                      = grain[c][16 / subx + 1];
+        int16_t l1, l0, r0, r1;
+
+        l1 = grain[c][16 / subx - 2];
+        l0 = grain[c][16 / subx - 1];
+        r0 = grain[c][16 / subx + 0];
+        r1 = grain[c][16 / subx + 1];
+
         grain[c][16 / subx - 1] = round( l1 + 3 * l0 + r0, 2 );
         grain[c][16 / subx + 0] = round( l0 + 3 * r0 + r1, 2 );
       }
-      for( i = 0; i < 16 / subx; i++ )
       {
-        // Output previous block (or flush current)
-        g = round( scale[c][i] * (int16_t) grain[c][i], scale_shift );
-        if( bs )
+        for( int i = 0; i < 16 / subx; i++ )
         {
-          I16[( x - 16 ) / subx + i] = std::max( I_min << bs, std::min( I_max << bs, I16[( x - 16 ) / subx + i] + g ) );
-        }
-        else
-        {
-          I8[( x - 16 ) / subx + i] = std::max<int32_t>( I_min, std::min<int32_t>( I_max, I8[( x - 16 ) / subx + i] + g ) );
+          // Output previous block (or flush current)
+          int32_t g = round( scale[c][i] * (int16_t) grain[c][i], scale_shift );
+          if( bs )
+          {
+            I16[( x - 16 ) / subx + i] = std::max<int32_t>( I_min << bs, std::min<int32_t>( I_max << bs, I16[( x - 16 ) / subx + i] + g ) );
+          }
+          else
+          {
+            I8[( x - 16 ) / subx + i] = std::max<int32_t>( I_min, std::min<int32_t>( I_max, I8[( x - 16 ) / subx + i] + g ) );
+          }
         }
       }
     }
 
     // Shift pipeline
-    for( i = 0; i < 16 / subx && !flush; i++ )
+    if( !flush )
     {
-      grain[c][i] = grain[c][i + 16 / subx];
-      scale[c][i] = scale[c][i + 16 / subx];
+      if( c == 0 )
+      {
+        for( int i = 0; i < 16; i++ )
+        {
+          grain[0][i] = grain[0][i + 16];
+          scale[0][i] = scale[0][i + 16];
+        }
+      }
+      else
+      {
+        for( int i = 0; i < 8; i++ )
+        {
+          grain[c][i] = grain[c][i + 8];
+          scale[c][i] = scale[c][i + 8];
+        }
+      }
     }
 
     if( x + 16 >= width )
@@ -292,32 +322,6 @@ void FilmGrainImpl::add_grain_block( void* I, int c, int x, int y, int width )
 }
 
 /* Public interface ***********************************************************/
-
-void FilmGrainImpl::add_grain_line( void* Y, void* U, void* V, int y, int width )
-{
-  // Generate / backup / restore per-line random seeds (needed to make multi-line blocks)
-  if( y && ( y & 0x0f ) == 0 )
-  {
-    // new line of blocks --> backup + copy current to upper
-    line_rnd_up = line_rnd;
-    line_rnd    = rnd;
-  }
-  rnd_up = line_rnd_up;
-  rnd    = line_rnd;
-
-  // Process line
-  for( int x = 0; x < width; x += 16 )
-  {
-    // Process pixels for each color component
-    add_grain_block( Y, 0, x, y, width );
-    add_grain_block( U, 1, x, y, width );
-    add_grain_block( V, 2, x, y, width );
-
-    // Crank random generator
-    rnd    = prng( rnd );
-    rnd_up = prng( rnd_up );   // upper block (overlapping)
-  }
-}
 
 void FilmGrainImpl::set_luma_pattern( int index, int8_t* P )
 {
@@ -340,15 +344,11 @@ void FilmGrainImpl::set_scale_lut( int c, uint8_t lut[] )
   memcpy( sLUT[c], lut, 256 );
 }
 
-void FilmGrainImpl::set_pattern_lut( int c, uint8_t lut[] )
+void FilmGrainImpl::set_pattern_lut( int c, uint8_t lut[], bool all0 )
 {
   CHECK( c < 0 || c >= 3, "pattern lut idx out of bounds" );
+  allZero[c] = all0;
   memcpy( pLUT[c], lut, 256 );
-}
-
-void FilmGrainImpl::set_seed( uint32_t seed )
-{
-  rnd = rnd_up = line_rnd = line_rnd_up = seed;
 }
 
 void FilmGrainImpl::set_scale_shift( int shift )
@@ -386,8 +386,6 @@ FilmGrainImpl::FilmGrainImpl()
   memset( pattern, 0, sizeof( pattern ) );
   memset( sLUT,    0, sizeof( sLUT ) );
   memset( pLUT,    0, sizeof( pLUT ) );
-  memset( grain,   0, sizeof( grain ) );
-  memset( scale,   0, sizeof( scale ) );
 }
 
 }   // namespace vvdec
