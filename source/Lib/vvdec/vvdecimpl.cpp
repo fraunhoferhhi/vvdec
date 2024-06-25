@@ -983,6 +983,11 @@ int VVDecImpl::xAddPicture( Picture* pcPic )
   cFrame.ctsValid       = true;
 
   int ret;
+#if ENABLE_FILM_GRAIN
+  bool origStride = m_filmGrainCharacteristicsState != FgcNone;
+#else
+  bool origStride = false;
+#endif
 #if RPR_YUV_OUTPUT
   if( m_cDecLib->getUpscaledOutput() && ( uiWidth != orgWidth || uiHeight != orgHeight ) )
   {
@@ -991,10 +996,10 @@ int VVDecImpl::xAddPicture( Picture* pcPic )
   }
   else
   {
-    ret = xCreateFrame( cFrame, cPicBuf, uiWidth, uiHeight, bitDepths, bCreateStorage, m_filmGrainCharacteristicsState != FgcNone );
+    ret = xCreateFrame( cFrame, cPicBuf, uiWidth, uiHeight, bitDepths, bCreateStorage, origStride );
   }
 #else
-  ret = xCreateFrame( cFrame, cPicBuf, uiWidth, uiHeight, bitDepths, bCreateStorage, m_filmGrainCharacteristicsState != FgcNone );
+  ret = xCreateFrame( cFrame, cPicBuf, uiWidth, uiHeight, bitDepths, bCreateStorage, origStride );
 #endif
   if( ret != VVDEC_OK )
   {
