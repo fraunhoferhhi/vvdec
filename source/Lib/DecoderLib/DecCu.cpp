@@ -719,10 +719,10 @@ void DecCu::xIntraRecACT( CodingUnit &cu )
 
 void DecCu::xDeriveCUMV( CodingUnit &cu, MotionHist& hist )
 {
-  MergeCtx mrgCtx;
-
   if( cu.mergeFlag() )
   {
+    MergeCtx mrgCtx;
+
     if( cu.mmvdFlag() )
     {
       int fPosBaseIdx = cu.mmvdIdx / MMVD_MAX_REFINE_NUM;
@@ -731,7 +731,7 @@ void DecCu::xDeriveCUMV( CodingUnit &cu, MotionHist& hist )
       PU::getInterMMVDMergeCandidates ( cu, mrgCtx,       cu.mmvdIdx );
       mrgCtx.setMmvdMergeCandiInfo    ( cu, cu.mmvdIdx );
 
-      PU::spanMotionInfo              ( cu, mrgCtx );
+      PU::spanMotionInfo              ( cu );
     }
     else if( cu.geoFlag() )
     {
@@ -749,8 +749,7 @@ void DecCu::xDeriveCUMV( CodingUnit &cu, MotionHist& hist )
 
       if( cu.sps->getSBTMVPEnabledFlag() )
       {
-        mrgCtx.subPuMvpMiBuf  = cu.getMotionBuf();
-        affineMergeCtx.mrgCtx = &mrgCtx;
+        affineMergeCtx.subPuMvpMiBuf = cu.getMotionBuf();
       }
 
       int mergeIdx = cu.mergeIdx();
@@ -779,7 +778,7 @@ void DecCu::xDeriveCUMV( CodingUnit &cu, MotionHist& hist )
         }
       }
 
-      PU::spanMotionInfo( cu, mrgCtx );
+      PU::spanMotionInfo( cu );
     }
     else
     {
@@ -790,7 +789,7 @@ void DecCu::xDeriveCUMV( CodingUnit &cu, MotionHist& hist )
 
       mrgCtx.setMergeInfo         ( cu, cu.mergeIdx() );
 
-      PU::spanMotionInfo          ( cu, mrgCtx );
+      PU::spanMotionInfo          ( cu );
     }
   }
   else
@@ -878,7 +877,7 @@ void DecCu::xDeriveCUMV( CodingUnit &cu, MotionHist& hist )
           }
         }
       }
-      PU::spanMotionInfo( cu, mrgCtx );
+      PU::spanMotionInfo( cu );
     }
   }
 

@@ -200,8 +200,6 @@ static inline int retrieveNalStartCode( unsigned char *pB, int iZerosInStartcode
   return info;
 }
 
-
-
 /**
  * \brief Reading of one Annex B NAL unit from file stream
  */
@@ -343,7 +341,6 @@ static int readBitstreamFromFile( std::ifstream *f, vvdecAccessUnit* pcAccessUni
   return len;
 }
 
-
 /**
   This method writes the y4m header in front of every frame
 */
@@ -401,32 +398,32 @@ static int writeY4MHeader( std::ostream *f, vvdecFrame *frame )
 */
 static int writeYUVToFile( std::ostream *f, vvdecFrame *frame, bool y4mFormat )
 {
- int ret;
- uint32_t c = 0;
+  uint32_t c = 0;
 
- uint32_t uiBytesPerSample = 1;
+  uint32_t uiBytesPerSample = 1;
 
- assert( f != NULL );
+  assert( f != NULL );
 
- if ( y4mFormat )
- {
-   writeY4MHeader( f, frame );
- }
+  if( y4mFormat )
+  {
+    writeY4MHeader( f, frame );
+  }
 
- for( c = 0; c < frame->numPlanes; c++ )
- {
-   uiBytesPerSample = std::max( (uint32_t)frame->planes[c].bytesPerSample, uiBytesPerSample );
- }
+  for( c = 0; c < frame->numPlanes; c++ )
+  {
+    uiBytesPerSample = std::max( (uint32_t) frame->planes[c].bytesPerSample, uiBytesPerSample );
+  }
 
- for( c = 0; c < frame->numPlanes; c++ )
- {
-   if( ( ret = _writeComponentToFile( f, &frame->planes[c], nullptr, uiBytesPerSample ) ) != 0 )
-   {
-     return ret;
-   }
- }
+  for( c = 0; c < frame->numPlanes; c++ )
+  {
+    int ret;
+    if( ( ret = _writeComponentToFile( f, &frame->planes[c], nullptr, uiBytesPerSample ) ) != 0 )
+    {
+      return ret;
+    }
+  }
 
- return 0;
+  return 0;
 }
 
  /**
@@ -874,6 +871,72 @@ void printPicHash( vvdecFrame *frame, std::ostream * logStream, unsigned int fra
       break;
     }
   }
-  
+
   *logStream << "vvdecapp picHash frame " << frames <<  "  [" << hashType << ":" << hashToString( picHash, numChar ) << "]"  << std::endl;
+}
+
+namespace vvdec
+{
+// This is defined in the vvdec lib but not exported in the official header
+VVDEC_DECL void rescalePlane( const vvdecPlane&      srcPlane,
+                              vvdecPlane&            dstPlane,
+                              int                    planeComponent,
+                              const vvdecColorFormat colorFormat,
+                              int                    bitDepth,
+                              const bool             horCollocatedChromaFlag,
+                              const bool             verCollocatedChromaFlag );
+};   // namespace vvdec
+
+static void upscaleFrame( const vvdecFrame* srcFrame, vvdecFrame* dstFrame )
+{
+  bool collChromaHor = true;   // for chroma format other than 4:2:0  hor- & ver- are always collocated and vui_chroma_sample_loc_type* shall be ignored
+  bool collChromaVer = true;
+
+  if( srcFrame->colorFormat == VVDEC_CF_YUV420_PLANAR )
+  {
+    // default for 4:2:0
+    collChromaHor = true;
+    collChromaVer = false;
+
+    const auto* vui = srcFrame->picAttributes ? srcFrame->picAttributes->vui : nullptr;
+    if( vui && vui->colourPrimaries == 9 )
+    {
+      collChromaVer = true;   // default for Bt.2020
+    }
+    if( vui && vui->chromaLocInfoPresentFlag )
+    {
+      switch( vui->chromaSampleLocType )
+      {
+        // clang-format off
+      case 0: collChromaHor = true;  collChromaVer = false; break;
+      case 1: collChromaHor = false; collChromaVer = false; break;
+      case 2: collChromaHor = true;  collChromaVer = true;  break;
+      case 3: collChromaHor = false; collChromaVer = true;  break;
+      case 6: /* unspecified */;                            break;
+        // clang-format on
+      default:
+        std::cerr << "chromaSampleLocType==" << vui->chromaSampleLocType << "not implemented" << std::endl;
+        return;
+      }
+    }
+  }
+
+  for( unsigned i = 0; i < srcFrame->numPlanes; ++i )
+  {
+    vvdec::rescalePlane( srcFrame->planes[i], dstFrame->planes[i], i, srcFrame->colorFormat, srcFrame->bitDepth, collChromaHor, collChromaVer );
+  }
+}
+
+static void copyIntoFrame( const vvdecFrame* srcFrame, vvdecFrame* dstFrame )
+{
+  for( unsigned i = 0; i < srcFrame->numPlanes; ++i )
+  {
+    memset( dstFrame->planes[i].ptr, 0, dstFrame->planes[i].stride * dstFrame->planes[i].height );
+    for( unsigned j = 0; j < srcFrame->planes[i].height; ++j )
+    {
+      memcpy( dstFrame->planes[i].ptr + j * dstFrame->planes[i].stride,
+              srcFrame->planes[i].ptr + j * srcFrame->planes[i].stride,
+              srcFrame->planes[i].width * srcFrame->planes[i].bytesPerSample );
+    }
+  }
 }

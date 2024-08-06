@@ -61,9 +61,8 @@ class PicListManager
 {
 private:
   PicList                            m_cPicList;   //  Dynamic buffer
-  int                                m_parseFrameDelay      = -1;
-  int                                m_parallelDecInst      = 1;
-  bool                               m_upscaleOutputEnabled = false;
+  int                                m_parseFrameDelay = -1;
+  int                                m_parallelDecInst = 1;
   UserAllocator                      m_userAllocator;
   int                                m_tuneInDelay    = 0;
   bool                               m_firstOutputPic = true;
@@ -73,7 +72,7 @@ public:
   PicListManager() = default;
   ~PicListManager() { deleteBuffers(); }
 
-  void create( int frameDelay, int decInstances, bool upscaleOutputEnabled, const UserAllocator& userAllocator );
+  void create( int frameDelay, int decInstances, const UserAllocator& userAllocator );
   void restart()
   {
     m_firstOutputPic = true;

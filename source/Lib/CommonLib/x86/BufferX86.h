@@ -1316,12 +1316,21 @@ void fillN_CU_SIMD( CodingUnit** ptr, ptrdiff_t ptrStride, int width, int height
 #endif  // INTPTR_MAX == INT32_MAX
 
 template<X86_VEXT vext>
-void sampleRateConvSIMD_8tap( const std::pair<int, int> scalingRatio, const std::pair<int, int> compScale,
-                              const Pel* orgSrc, const ptrdiff_t orgStride, const int orgWidth, const int orgHeight,
-                              const int beforeScaleLeftOffset, const int beforeScaleTopOffset,
-                              Pel* scaledSrc, const ptrdiff_t scaledStride, const int scaledWidth, const int scaledHeight,
-                              const int afterScaleLeftOffset, const int afterScaleTopOffset,
-                              const int bitDepth )
+void sampleRateConvSIMD_8tap( const std::pair<int, int> scalingRatio,
+                              const std::pair<int, int> compScale,
+                              const Pel*                orgSrc,
+                              const ptrdiff_t           orgStride,
+                              const int                 orgWidth,
+                              const int                 orgHeight,
+                              const int                 beforeScaleLeftOffset,
+                              const int                 beforeScaleTopOffset,
+                              Pel*                      scaledSrc,
+                              const ptrdiff_t           scaledStride,
+                              const int                 scaledWidth,
+                              const int                 scaledHeight,
+                              const int                 afterScaleLeftOffset,
+                              const int                 afterScaleTopOffset,
+                              const int                 bitDepth )
 {
   static constexpr bool useLumaFilter = true;
   static constexpr int horCollocatedPositionFlag = 1;
@@ -1340,19 +1349,19 @@ void sampleRateConvSIMD_8tap( const std::pair<int, int> scalingRatio, const std:
   const int filterLength = useLumaFilter ? NTAPS_LUMA : NTAPS_CHROMA;
   const int log2Norm = 12;
 
-  int* buf = new int[orgHeight * scaledWidth];
-  int maxVal = (1 << bitDepth) - 1;
-
   CHECK( bitDepth > 17, "Overflow may happen!" );
+  const int maxVal = (1 << bitDepth) - 1;
 
-  const Pel* org = orgSrc;
+  const int tmpStride = ( ( scaledWidth + 3 ) / 4 ) * 4;
+  const int tmpHeight = ( ( orgHeight + 3 ) / 4 ) * 4;
+  int*      tmpBuf    = new int[tmpStride * tmpHeight];
 
   for( int j = 0; j < orgHeight; j += 4 )
   {
-    const Pel* org0 = org;
-    const Pel* org1 = org0 + orgStride;
-    const Pel* org2 = org1 + orgStride;
-    const Pel* org3 = org2 + orgStride;
+    const Pel* org0 = orgSrc +                                j * orgStride;
+    const Pel* org1 = orgSrc + std::min( j + 1, orgHeight - 1 ) * orgStride;
+    const Pel* org2 = orgSrc + std::min( j + 2, orgHeight - 1 ) * orgStride;
+    const Pel* org3 = orgSrc + std::min( j + 3, orgHeight - 1 ) * orgStride;
 
     _mm_prefetch( ( const char* ) (org0 + (orgStride << 2)), _MM_HINT_T0 );
     _mm_prefetch( ( const char* ) (org1 + (orgStride << 2)), _MM_HINT_T0 );
@@ -1410,12 +1419,10 @@ void sampleRateConvSIMD_8tap( const std::pair<int, int> scalingRatio, const std:
 
       vres0 = _mm_hadd_epi32( vres0, vres2 );
 
-      int* tmp = buf + i * orgHeight + j;
+      int* tmp = tmpBuf + i * tmpHeight + j;
 
       _mm_storeu_si128( (__m128i*) tmp, vres0 );
     }
-
-    org = org3 + orgStride;
   }
 
   __m128i vzero = _mm_setzero_si128();
@@ -1425,15 +1432,15 @@ void sampleRateConvSIMD_8tap( const std::pair<int, int> scalingRatio, const std:
   {
     Pel* dst = scaledSrc;
 
-    int* tmp0 = buf + i * orgHeight;
-    int* tmp1 = i + 1 < scaledWidth ? buf + (i + 1) * orgHeight : tmp0;
-    int* tmp2 = i + 2 < scaledWidth ? buf + (i + 2) * orgHeight : tmp0;
-    int* tmp3 = i + 3 < scaledWidth ? buf + (i + 3) * orgHeight : tmp0;
+    int* tmp0 =                       tmpBuf + i       * tmpHeight;
+    int* tmp1 = i + 1 < scaledWidth ? tmpBuf + (i + 1) * tmpHeight : tmp0;
+    int* tmp2 = i + 2 < scaledWidth ? tmpBuf + (i + 2) * tmpHeight : tmp0;
+    int* tmp3 = i + 3 < scaledWidth ? tmpBuf + (i + 3) * tmpHeight : tmp0;
 
-    _mm_prefetch( ( const char* ) (tmp0 + (orgHeight << 2)), _MM_HINT_T0 );
-    _mm_prefetch( ( const char* ) (tmp1 + (orgHeight << 2)), _MM_HINT_T0 );
-    _mm_prefetch( ( const char* ) (tmp2 + (orgHeight << 2)), _MM_HINT_T0 );
-    _mm_prefetch( ( const char* ) (tmp3 + (orgHeight << 2)), _MM_HINT_T0 );
+    _mm_prefetch( ( const char* ) (tmp0 + (tmpHeight << 2)), _MM_HINT_T0 );
+    _mm_prefetch( ( const char* ) (tmp1 + (tmpHeight << 2)), _MM_HINT_T0 );
+    _mm_prefetch( ( const char* ) (tmp2 + (tmpHeight << 2)), _MM_HINT_T0 );
+    _mm_prefetch( ( const char* ) (tmp3 + (tmpHeight << 2)), _MM_HINT_T0 );
 
     for( int j = 0; j < scaledHeight; j++ )
     {
@@ -1581,17 +1588,27 @@ void sampleRateConvSIMD_8tap( const std::pair<int, int> scalingRatio, const std:
     }
   }
 
-  delete[] buf;
+  delete[] tmpBuf;
 }
 
 template<X86_VEXT vext>
-void sampleRateConvSIMD_4tap( const std::pair<int, int> scalingRatio, const std::pair<int, int> compScale,
-                              const Pel* orgSrc, const ptrdiff_t orgStride, const int orgWidth, const int orgHeight,
-                              const int beforeScaleLeftOffset, const int beforeScaleTopOffset,
-                              Pel* scaledSrc, const ptrdiff_t scaledStride, const int scaledWidth, const int scaledHeight,
-                              const int afterScaleLeftOffset, const int afterScaleTopOffset,
-                              const int bitDepth,
-                              const bool horCollocatedPositionFlag, const bool verCollocatedPositionFlag )
+void sampleRateConvSIMD_4tap( const std::pair<int, int> scalingRatio,
+                              const std::pair<int, int> compScale,
+                              const Pel*                orgSrc,
+                              const ptrdiff_t           orgStride,
+                              const int                 orgWidth,
+                              const int                 orgHeight,
+                              const int                 beforeScaleLeftOffset,
+                              const int                 beforeScaleTopOffset,
+                              Pel*                      scaledSrc,
+                              const ptrdiff_t           scaledStride,
+                              const int                 scaledWidth,
+                              const int                 scaledHeight,
+                              const int                 afterScaleLeftOffset,
+                              const int                 afterScaleTopOffset,
+                              const int                 bitDepth,
+                              const bool                horCollocatedPositionFlag,
+                              const bool                verCollocatedPositionFlag )
 {
   static constexpr bool useLumaFilter = false;
 
@@ -1608,19 +1625,19 @@ void sampleRateConvSIMD_4tap( const std::pair<int, int> scalingRatio, const std:
   const int filterLength = useLumaFilter ? NTAPS_LUMA : NTAPS_CHROMA;
   const int log2Norm = 12;
 
-  int* buf = new int[orgHeight * scaledWidth];
-  int maxVal = (1 << bitDepth) - 1;
-
   CHECK( bitDepth > 17, "Overflow may happen!" );
+  const int maxVal = (1 << bitDepth) - 1;
 
-  const Pel* org = orgSrc;
+  const int tmpStride = ( ( scaledWidth + 3 ) / 4 ) * 4;
+  const int tmpHeight = ( ( orgHeight + 3 ) / 4 ) * 4;
+  int*      tmpBuf    = new int[tmpStride * tmpHeight];
 
   for( int j = 0; j < orgHeight; j += 4 )
   {
-    const Pel* org0 = org;
-    const Pel* org1 = org0 + orgStride;
-    const Pel* org2 = org1 + orgStride;
-    const Pel* org3 = org2 + orgStride;
+    const Pel* org0 = orgSrc +                                j * orgStride;
+    const Pel* org1 = orgSrc + std::min( j + 1, orgHeight - 1 ) * orgStride;
+    const Pel* org2 = orgSrc + std::min( j + 2, orgHeight - 1 ) * orgStride;
+    const Pel* org3 = orgSrc + std::min( j + 3, orgHeight - 1 ) * orgStride;
 
     _mm_prefetch( ( const char* ) (org0 + (orgStride << 1)), _MM_HINT_T0 );
     _mm_prefetch( ( const char* ) (org1 + (orgStride << 1)), _MM_HINT_T0 );
@@ -1674,12 +1691,10 @@ void sampleRateConvSIMD_4tap( const std::pair<int, int> scalingRatio, const std:
 
       vres0 = _mm_hadd_epi32( vres0, vres2 );
 
-      int* tmp = buf + i * orgHeight + j;
+      int* tmp = tmpBuf + i * tmpHeight + j;
 
       _mm_storeu_si128( (__m128i*) tmp, vres0 );
     }
-
-    org = org3 + orgStride;
   }
 
   __m128i vzero = _mm_setzero_si128();
@@ -1689,15 +1704,15 @@ void sampleRateConvSIMD_4tap( const std::pair<int, int> scalingRatio, const std:
   {
     Pel* dst = scaledSrc;
 
-    int* tmp0 = buf + i * orgHeight;
-    int* tmp1 = i + 1 < scaledWidth ? buf + (i + 1) * orgHeight : tmp0;
-    int* tmp2 = i + 2 < scaledWidth ? buf + (i + 2) * orgHeight : tmp0;
-    int* tmp3 = i + 3 < scaledWidth ? buf + (i + 3) * orgHeight : tmp0;
+    int* tmp0 =                       tmpBuf + i       * tmpHeight;
+    int* tmp1 = i + 1 < scaledWidth ? tmpBuf + (i + 1) * tmpHeight : tmp0;
+    int* tmp2 = i + 2 < scaledWidth ? tmpBuf + (i + 2) * tmpHeight : tmp0;
+    int* tmp3 = i + 3 < scaledWidth ? tmpBuf + (i + 3) * tmpHeight : tmp0;
 
-    _mm_prefetch( ( const char* ) (tmp0 + (orgHeight << 2)), _MM_HINT_T0 );
-    _mm_prefetch( ( const char* ) (tmp1 + (orgHeight << 2)), _MM_HINT_T0 );
-    _mm_prefetch( ( const char* ) (tmp2 + (orgHeight << 2)), _MM_HINT_T0 );
-    _mm_prefetch( ( const char* ) (tmp3 + (orgHeight << 2)), _MM_HINT_T0 );
+    _mm_prefetch( ( const char* ) (tmp0 + (tmpHeight << 2)), _MM_HINT_T0 );
+    _mm_prefetch( ( const char* ) (tmp1 + (tmpHeight << 2)), _MM_HINT_T0 );
+    _mm_prefetch( ( const char* ) (tmp2 + (tmpHeight << 2)), _MM_HINT_T0 );
+    _mm_prefetch( ( const char* ) (tmp3 + (tmpHeight << 2)), _MM_HINT_T0 );
 
     for( int j = 0; j < scaledHeight; j++ )
     {
@@ -1777,17 +1792,28 @@ void sampleRateConvSIMD_4tap( const std::pair<int, int> scalingRatio, const std:
     }
   }
 
-  delete[] buf;
+  delete[] tmpBuf;
 }
 
 template<X86_VEXT vext>
-void sampleRateConvSIMD( const std::pair<int, int> scalingRatio, const std::pair<int, int> compScale,
-                         const Pel* orgSrc, const ptrdiff_t orgStride, const int orgWidth, const int orgHeight,
-                         const int beforeScaleLeftOffset, const int beforeScaleTopOffset,
-                         Pel* scaledSrc, const ptrdiff_t scaledStride, const int scaledWidth, const int scaledHeight,
-                         const int afterScaleLeftOffset, const int afterScaleTopOffset,
-                         const int bitDepth, const bool useLumaFilter,
-                         const bool horCollocatedPositionFlag, const bool verCollocatedPositionFlag )
+void sampleRateConvSIMD( const std::pair<int, int> scalingRatio,
+                         const std::pair<int, int> compScale,
+                         const Pel*                orgSrc,
+                         const ptrdiff_t           orgStride,
+                         const int                 orgWidth,
+                         const int                 orgHeight,
+                         const int                 beforeScaleLeftOffset,
+                         const int                 beforeScaleTopOffset,
+                         Pel*                      scaledSrc,
+                         const ptrdiff_t           scaledStride,
+                         const int                 scaledWidth,
+                         const int                 scaledHeight,
+                         const int                 afterScaleLeftOffset,
+                         const int                 afterScaleTopOffset,
+                         const int                 bitDepth,
+                         const bool                useLumaFilter,
+                         const bool                horCollocatedPositionFlag,
+                         const bool                verCollocatedPositionFlag )
 {
   if( orgWidth == scaledWidth && orgHeight == scaledHeight && scalingRatio == SCALE_1X && !beforeScaleLeftOffset && !beforeScaleTopOffset && !afterScaleLeftOffset && !afterScaleTopOffset )
   {

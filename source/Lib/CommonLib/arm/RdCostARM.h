@@ -194,7 +194,7 @@ void xGetSADX5_16xN_SIMDImp( const DistParam& rcDtParam, Distortion* cost )
         cur2 = vextq_s16( s1, s3, 2 );
       cur3 = vextq_s16( s1, s3, 1 );
 
-      sum0 = vabaq_s16( sum0, org0, cur0 );   // komplett insane
+      sum0 = vabaq_s16( sum0, org0, cur0 );
       sum1 = vabaq_s16( sum1, org1, cur1 );
       if( isCalCentrePos )
         sum2 = vabaq_s16( sum2, org2, cur2 );
@@ -206,8 +206,15 @@ void xGetSADX5_16xN_SIMDImp( const DistParam& rcDtParam, Distortion* cost )
     INCY( piCur, iStrideCur );
   }
 
-  int32x4_t sum = { vaddlvq_s16( sum0 ), vaddlvq_s16( sum1 ), vaddlvq_s16( sum3 ), vaddlvq_s16( sum4 ) };
-
+#if defined(_MSC_VER) && !defined(__clang__) && !defined(__INTEL_COMPILER)
+  int32x4_t sum = vdupq_n_s32(0);
+  sum = vsetq_lane_s32(vaddlvq_s16(sum0), sum, 0);
+  sum = vsetq_lane_s32(vaddlvq_s16(sum1), sum, 1);
+  sum = vsetq_lane_s32(vaddlvq_s16(sum3), sum, 2);
+  sum = vsetq_lane_s32(vaddlvq_s16(sum4), sum, 3);
+#else
+  int32x4_t sum = { vaddlvq_s16(sum0), vaddlvq_s16(sum1), vaddlvq_s16(sum3), vaddlvq_s16(sum4) };
+#endif
   int32x4_t sumTwo;
   if( isCalCentrePos )
     sumTwo = vdupq_n_s32( vaddlvq_s16( sum2 ) );

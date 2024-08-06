@@ -83,21 +83,21 @@ struct LateFrames
 int writeYUVToFile( std::ostream *f, vvdecFrame *frame, bool y4mFormat = false );
 int writeYUVToFileInterlaced( std::ostream *f, vvdecFrame *topField, vvdecFrame *botField = nullptr, bool y4mFormat = false );
 
-static bool handle_frame( vvdecFrame*   pcFrame,
-                          vvdecFrame*&  pcPrevField,
-                          unsigned int& prevFrameW,
-                          unsigned int& prevFrameH,
-                          bool&         bTunedIn,
-                          const bool    externAllocator,
-                          vvdecDecoder* dec,
-                          int           iPrintPicHash,
-                          unsigned int& uiFrames,
-                          unsigned int& uiFramesTmp,
-                          vvdecLogLevel logLevel,
-                          std::ostream* logStream,
-                          std::ostream* outStream,
-                          std::ostream* md5Stream,
-                          bool          y4mOutput
+static bool handle_frame( vvdecFrame*                   pcFrame,
+                          vvdecFrame*&                  pcPrevField,
+                          unsigned int&                 prevFrameW,
+                          unsigned int&                 prevFrameH,
+                          bool&                         bTunedIn,
+                          const bool                    externAllocator,
+                          vvdecDecoder*                 dec,
+                          int                           iPrintPicHash,
+                          unsigned int&                 uiFrames,
+                          unsigned int&                 uiFramesTmp,
+                          vvdecLogLevel                 logLevel,
+                          std::ostream*                 logStream,
+                          std::ostream*                 outStream,
+                          std::ostream*                 md5Stream,
+                          vvdecoderapp::AppOutputParams y4mOutput
 #if DEC_AT_FPS
                           ,
                           hi_res_time_point& first_frame_time,
@@ -462,18 +462,20 @@ int main( int argc, char* argv[] )
     }
   }
 
-  std::string cBitstreamFile = "";
-  std::string cOutputFile    = "";
-  int         iMaxFrames     = -1;
-  int         iLoopCount     = 1;
-  bool        y4mOutput      = false;
+  std::string cBitstreamFile  = "";
+  std::string cOutputFile     = "";
+  int         iMaxFrames      = -1;
+  int         iLoopCount      = 1;
   bool        externAllocator = false;
   std::string cExpectedYuvMD5;
   std::string sTracingRule;
   std::string sTracingFile;
   vvdecParams params;
-  vvdec_params_default(&params);
-  int         iPrintPicHash = 0;
+  vvdec_params_default( &params );
+
+  vvdecoderapp::AppOutputParams appOutputParams;
+
+  int iPrintPicHash = 0;
 
   params.logLevel = VVDEC_NOTICE;
 
@@ -486,7 +488,7 @@ int main( int argc, char* argv[] )
   int iRet = -1;
   try {
     vvdecoderapp::CmdLineParser cmdLineParser;
-    iRet = cmdLineParser.parse_command_line( argc, argv, params, cBitstreamFile, cOutputFile, iMaxFrames, iLoopCount, cExpectedYuvMD5, y4mOutput, externAllocator, sTracingFile, sTracingRule, iPrintPicHash );
+    iRet = cmdLineParser.parse_command_line( argc, argv, params, cBitstreamFile, cOutputFile, iMaxFrames, iLoopCount, cExpectedYuvMD5, appOutputParams, externAllocator, sTracingFile, sTracingRule, iPrintPicHash );
   }
   catch( std::exception& )
   {
@@ -552,7 +554,7 @@ int main( int argc, char* argv[] )
     {
       if( cOutputFile.substr( 4, cOutputFile.length() - 5 ) == ".y4m" )
       {
-        y4mOutput = true;
+        appOutputParams.y4mOutput = true;
       }
 
       cRecFile.open( cOutputFile.c_str(), std::fstream::binary | std::fstream::out );
@@ -798,7 +800,7 @@ int main( int argc, char* argv[] )
                              logStream,
                              outStream,
                              !cExpectedYuvMD5.empty() ? &md5Stream : nullptr,
-                             y4mOutput
+                             appOutputParams
 #if DEC_AT_FPS
                              ,
                              first_frame_time,
@@ -865,7 +867,7 @@ int main( int argc, char* argv[] )
                            logStream,
                            outStream,
                            !cExpectedYuvMD5.empty() ? &md5Stream : nullptr,
-                           y4mOutput
+                           appOutputParams
 #if DEC_AT_FPS
                            ,
                            first_frame_time,
@@ -1003,25 +1005,25 @@ int main( int argc, char* argv[] )
   return 0;
 }
 
-static bool handle_frame( vvdecFrame*   pcFrame,
-                          vvdecFrame*&  pcPrevField,
-                          unsigned int& prevFrameW,
-                          unsigned int& prevFrameH,
-                          bool&         bTunedIn,
-                          const bool    externAllocator,
-                          vvdecDecoder* dec,
-                          int           iPrintPicHash,
-                          unsigned int& uiFrames,
-                          unsigned int& uiFramesTmp,
-                          vvdecLogLevel logLevel,
-                          std::ostream* logStream,
-                          std::ostream* outStream,
-                          std::ostream* md5Stream,
-                          bool          y4mOutput
+static bool handle_frame( vvdecFrame*                   pcFrame,
+                          vvdecFrame*&                  pcPrevField,
+                          unsigned int&                 prevFrameW,
+                          unsigned int&                 prevFrameH,
+                          bool&                         bTunedIn,
+                          const bool                    externAllocator,
+                          vvdecDecoder*                 dec,
+                          int                           iPrintPicHash,
+                          unsigned int&                 uiFrames,
+                          unsigned int&                 uiFramesTmp,
+                          vvdecLogLevel                 logLevel,
+                          std::ostream*                 logStream,
+                          std::ostream*                 outStream,
+                          std::ostream*                 md5Stream,
+                          vvdecoderapp::AppOutputParams outputParams
 #if DEC_AT_FPS
                           ,
-                          hi_res_time_point& first_frame_time,
-                          LateFrames&        lateFrames
+                          hi_res_time_point&            first_frame_time,
+                          LateFrames&                   lateFrames
 #endif   // DEC_AT_FPS
 )
 {
@@ -1063,21 +1065,73 @@ static bool handle_frame( vvdecFrame*   pcFrame,
 
     if( pcFrame->frameFormat == VVDEC_FF_PROGRESSIVE )
     {
+      vvdecFrame* outputFrame = pcFrame;
+
+      vvdecFrame tmpFrame;   // local frame storage for upscaling
+      if( outputParams.upscaleOutput
+          && pcFrame->picAttributes && pcFrame->picAttributes->seqInfo
+          && pcFrame->width < pcFrame->picAttributes->seqInfo->maxWidth
+          && pcFrame->height < pcFrame->picAttributes->seqInfo->maxHeight )
+      {
+        memcpy( &tmpFrame, pcFrame, sizeof( vvdecFrame ) );
+        tmpFrame.width  = pcFrame->picAttributes->seqInfo->maxWidth;
+        tmpFrame.height = pcFrame->picAttributes->seqInfo->maxHeight;
+
+        const int chromaSubX = 1 << (int)( pcFrame->colorFormat == VVDEC_CF_YUV420_PLANAR || pcFrame->colorFormat == VVDEC_CF_YUV422_PLANAR );
+        const int chromaSubY = 1 << (int)( pcFrame->colorFormat == VVDEC_CF_YUV420_PLANAR );
+        for( unsigned i = 0; i < tmpFrame.numPlanes; ++i )
+        {
+          if( i == 0 )
+          {
+            tmpFrame.planes[i].width        = tmpFrame.width;
+            tmpFrame.planes[i].height       = tmpFrame.height;
+          }
+          else
+          {
+            tmpFrame.planes[i].width        = tmpFrame.width  / chromaSubX;
+            tmpFrame.planes[i].height       = tmpFrame.height / chromaSubY;
+          }
+          tmpFrame.planes[i].bytesPerSample = pcFrame->planes[i].bytesPerSample;
+          tmpFrame.planes[i].stride         = tmpFrame.planes[i].width * tmpFrame.planes[i].bytesPerSample;
+          tmpFrame.planes[i].ptr            = (unsigned char*) malloc( tmpFrame.planes[i].stride * tmpFrame.planes[i].height );
+          tmpFrame.planes[i].allocator      = nullptr;
+        }
+
+        if( outputParams.upscaleOutput == vvdecoderapp::UPSCALING_COPY_ONLY )
+        {
+          copyIntoFrame( pcFrame, &tmpFrame );
+        }
+        else if( outputParams.upscaleOutput == vvdecoderapp::UPSCALING_RESCALE )
+        {
+          upscaleFrame( pcFrame, &tmpFrame );
+        }
+
+        outputFrame = &tmpFrame;
+      }
+
       if( iPrintPicHash >= 11 )
       {
-        printPicHash( pcFrame, logStream, uiFrames - 1, iPrintPicHash - 11 );
+        printPicHash( outputFrame, logStream, uiFrames - 1, iPrintPicHash - 11 );
       }
 
       if( md5Stream )
       {
-        writeYUVToFile( md5Stream, pcFrame );
+        writeYUVToFile( md5Stream, outputFrame );
       }
       if( outStream )
       {
-        if( 0 != writeYUVToFile( outStream, pcFrame, y4mOutput ) )
+        if( 0 != writeYUVToFile( outStream, outputFrame, outputParams.y4mOutput ) )
         {
-          *logStream << "vvdecapp [error]: write of rec. yuv failed for picture seq. " <<  pcFrame->sequenceNumber << std::endl;
+          *logStream << "vvdecapp [error]: write of rec. yuv failed for picture seq. " <<  outputFrame->sequenceNumber << std::endl;
           return false;
+        }
+      }
+
+      if( outputFrame != pcFrame )
+      {
+        for( auto& p: tmpFrame.planes )
+        {
+          free( p.ptr );
         }
       }
     }
@@ -1096,7 +1150,7 @@ static bool handle_frame( vvdecFrame*   pcFrame,
         }
         if( outStream )
         {
-          if( 0 != writeYUVToFileInterlaced( outStream, pcPrevField, pcFrame, y4mOutput ) )
+          if( 0 != writeYUVToFileInterlaced( outStream, pcPrevField, pcFrame, outputParams.y4mOutput ) )
           {
             *logStream << "vvdecapp [error]: write of rec. yuv failed for picture seq. " <<  pcFrame->sequenceNumber << std::endl;
             return false;

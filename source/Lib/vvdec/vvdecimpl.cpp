@@ -48,18 +48,31 @@ POSSIBILITY OF SUCH DAMAGE.
 
 #include "vvdecimpl.h"
 #include "vvdec/version.h"
+#include "vvdec/sei.h"
 #include "DecoderLib/NALread.h"
 #include "CommonLib/CommonDef.h"
 #include "CommonLib/x86/CommonDefX86.h"
 #include "CommonLib/arm/CommonDefARM.h"
-
-#if ENABLE_FILM_GRAIN
-#  include "vvdec/sei.h"
-#  include "FilmGrain/FilmGrain.h"
-#endif   // ENABLE_FILM_GRAIN
+#include "FilmGrain/FilmGrain.h"
 
 namespace vvdec
 {
+
+// calculate size of T and ensure the size is aligned to 8 bytes
+template<class T>
+constexpr size_t paddedSizeOf()
+{
+  return ( ( sizeof( T ) + 7 ) / 8 ) * 8;
+}
+
+// allocate object of type T in storage and advance pointer, to ensure it is still aligned to 8 bytes
+template<class T>
+constexpr T* allocInto( char** storage )
+{
+  T* ret    = new( *storage ) T;
+  *storage += paddedSizeOf<T>();
+  return ret;
+}
 
 VVDecImpl::VVDecImpl() = default;
 VVDecImpl::~VVDecImpl() = default;
@@ -112,11 +125,7 @@ int VVDecImpl::init( const vvdecParams& params, vvdecCreateBufferCallback create
     initROM();
 
     // create decoder class
-#if RPR_YUV_OUTPUT
-    m_cDecLib->create( params.threads, params.parseDelay, m_cUserAllocator, static_cast<ErrHandlingFlags>(params.errHandlingFlags), params.upscaleOutput );
-#else
     m_cDecLib->create( params.threads, params.parseDelay, m_cUserAllocator, static_cast<ErrHandlingFlags>(params.errHandlingFlags) );
-#endif
 
     g_verbosity = MsgLevel( params.logLevel );
     g_context   = this;
@@ -131,10 +140,7 @@ int VVDecImpl::init( const vvdecParams& params, vvdecCreateBufferCallback create
 
     m_sDecoderCapabilities = m_cDecLib->getDecoderCapabilities();
 
-#if ENABLE_FILM_GRAIN
     m_enableFilmGrain   = params.filmGrainSynthesis;
-#endif   // ENABLE_FILM_GRAIN
-    m_bRemovePadding    = params.removePadding;
     m_eErrHandlingFlags = static_cast<ErrHandlingFlags>(params.errHandlingFlags);
     m_uiSeqNumber       = 0;
     m_uiSeqNumOutput    = 0;
@@ -178,9 +184,7 @@ int VVDecImpl::uninit()
   m_bInitialized = false;
   m_eState       = INTERNAL_STATE_UNINITIALIZED;
 
-#if ENABLE_FILM_GRAIN
   m_filmGrainSynth.reset();
-#endif
 
   return VVDEC_OK;
 }
@@ -234,12 +238,10 @@ int VVDecImpl::reset()
   malloc_trim(0);
 #endif
 
-#if ENABLE_FILM_GRAIN
   m_filmGrainCharacteristicsState = FgcNone;
-#endif   // ENABLE_FILM_GRAIN
-  m_uiSeqNumber    = 0;
-  m_uiSeqNumOutput = 0;
-  m_eState         = INTERNAL_STATE_INITIALIZED;
+  m_uiSeqNumber                   = 0;
+  m_uiSeqNumOutput                = 0;
+  m_eState                        = INTERNAL_STATE_INITIALIZED;
 
   return VVDEC_OK;
 }
@@ -838,7 +840,6 @@ int VVDecImpl::copyComp( const unsigned char* pucSrc,
   return 0;
 }
 
-#if ENABLE_FILM_GRAIN
 void VVDecImpl::xUpdateFGC( vvdecSEI* s )
 {
   vvdecSEIFilmGrainCharacteristics* sei = (vvdecSEIFilmGrainCharacteristics*) s->payload;
@@ -915,7 +916,6 @@ void VVDecImpl::xAddGrain( vvdecFrame* frame )
     m_filmGrainCharacteristicsState = FgcNone;
   }
 }
-#endif   // ENABLE_FILM_GRAIN
 
 int VVDecImpl::xAddPicture( Picture* pcPic )
 {
@@ -932,16 +932,10 @@ int VVDecImpl::xAddPicture( Picture* pcPic )
   int confTop    = conf.getWindowTopOffset()    * SPS::getWinUnitY(pcPic->cs->sps->getChromaFormatIdc())  + defDisp.getWindowTopOffset();
   int confBottom = conf.getWindowBottomOffset() * SPS::getWinUnitY(pcPic->cs->sps->getChromaFormatIdc())  + defDisp.getWindowBottomOffset();
 
-  const CPelUnitBuf& cPicBuf =  pcPic->getRecoBuf();
+  const CPelUnitBuf& cPicBuf = pcPic->getRecoBuf();
 
-  const CPelBuf  areaY    = cPicBuf.get( COMPONENT_Y );
-  const uint32_t uiWidth  = areaY.width  - confLeft - confRight;
-  const uint32_t uiHeight = areaY.height - confTop  - confBottom;
-
-#if RPR_YUV_OUTPUT
-  const uint32_t orgWidth  = pcPic->cs->sps->getMaxPicWidthInLumaSamples()  - confLeft - confRight;
-  const uint32_t orgHeight = pcPic->cs->sps->getMaxPicHeightInLumaSamples() - confTop  - confBottom;
-#endif
+  const uint32_t uiWidth  = cPicBuf.Y().width - confLeft - confRight;
+  const uint32_t uiHeight = cPicBuf.Y().height - confTop - confBottom;
 
   const BitDepths &bitDepths= pcPic->cs->sps->getBitDepths(); // use bit depths of first reconstructed picture.
 
@@ -952,11 +946,14 @@ int VVDecImpl::xAddPicture( Picture* pcPic )
   }
 
   bool bCreateStorage = ( bitDepths.recon == 8 );   // for 8bit output we need to copy the lib picture from unsigned short into unsigned char buffer
-  bCreateStorage = bCreateStorage || m_bRemovePadding;
 
-#if ENABLE_FILM_GRAIN
   if( m_enableFilmGrain )
   {
+    if( pcPic->isCLVSS() )
+    {
+      m_filmGrainCharacteristicsState = FgcNone;
+    }
+
     // find FGC SEI
     for( auto& sei: pcPic->seiMessageList )
     {
@@ -966,13 +963,12 @@ int VVDecImpl::xAddPicture( Picture* pcPic )
         msg( DETAILS, "vvdecimpl [detail]: SEI FILM_GRAIN_CHARACTERISTICS\n");
       }
     }
-    const bool fgsReuseBuffer = bitDepths.recon == 10 && !m_bRemovePadding && !pcPic->stillReferenced;
+    const bool fgsReuseBuffer = bitDepths.recon == 10 && !pcPic->stillReferenced;
     if( !fgsReuseBuffer )
     {
       bCreateStorage |= m_filmGrainCharacteristicsState != FgcNone;
     }
   }
-#endif   // ENABLE_FILM_GRAIN
 
   // create a brand new picture object
   vvdecFrame cFrame;
@@ -982,141 +978,85 @@ int VVDecImpl::xAddPicture( Picture* pcPic )
   cFrame.cts            = pcPic->getCts();
   cFrame.ctsValid       = true;
 
-  int ret;
-#if ENABLE_FILM_GRAIN
-  bool origStride = m_filmGrainCharacteristicsState != FgcNone;
-#else
-  bool origStride = false;
-#endif
-#if RPR_YUV_OUTPUT
-  if( m_cDecLib->getUpscaledOutput() && ( uiWidth != orgWidth || uiHeight != orgHeight ) )
-  {
-    bCreateStorage = true;
-    ret = xCreateFrame( cFrame, cPicBuf, orgWidth, orgHeight, bitDepths, bCreateStorage );
-  }
-  else
-  {
-    ret = xCreateFrame( cFrame, cPicBuf, uiWidth, uiHeight, bitDepths, bCreateStorage, origStride );
-  }
-#else
-  ret = xCreateFrame( cFrame, cPicBuf, uiWidth, uiHeight, bitDepths, bCreateStorage, origStride );
-#endif
+  const bool origStride = m_filmGrainCharacteristicsState != FgcNone;
+  const int  ret        = xCreateFrame( cFrame, cPicBuf, uiWidth, uiHeight, bitDepths, bCreateStorage, origStride );
   if( ret != VVDEC_OK )
   {
     return ret;
   }
 
   const int maxComponent = getNumberValidComponents( cPicBuf.chromaFormat );
-
-  if( m_cUserAllocator.enabled && !bCreateStorage )
+  for( int comp = 0; comp < maxComponent; comp++ )
   {
-    for( int comp=0; comp < maxComponent; comp++ )
+    const ComponentID  compID         = ComponentID( comp );
+    const uint32_t     csx            = getComponentScaleX( compID, cPicBuf.chromaFormat );
+    const uint32_t     csy            = getComponentScaleY( compID, cPicBuf.chromaFormat );
+    const CPelBuf      area           = cPicBuf.get( compID );
+    const unsigned int bytesPerSample = bitDepths.recon > 8 ? 2 : 1;
+
+    const Pel*      planeOrigin = area.buf;
+    const ptrdiff_t planeOffset = ( confLeft >> csx ) + ( confTop >> csy ) * area.stride;
+
+    if( bCreateStorage )
     {
-      cFrame.planes[comp].allocator = pcPic->getBufAllocator( (ComponentID)comp );
-    }
-  }
-
-  if( bCreateStorage )
-  {
-#if RPR_YUV_OUTPUT
-    if( m_cDecLib->getUpscaledOutput() == (int)VVDEC_UPSCALING_RESCALE )
-    {
-      PelStorage upscaledPic;
-      upscaledPic.create( cPicBuf.chromaFormat, Size( orgWidth, orgHeight ), 0, 0, 0, true, &m_cUserAllocator );
-
-      int xScale = ( ( uiWidth  << SCALE_RATIO_BITS ) + ( orgWidth  >> 1 ) ) / orgWidth;
-      int yScale = ( ( uiHeight << SCALE_RATIO_BITS ) + ( orgHeight >> 1 ) ) / orgHeight;
-
-      upscaledPic.rescaleBuf( cPicBuf, std::pair<int, int>( xScale, yScale ), conf, defDisp, bitDepths, pcPic->cs->sps->getHorCollocatedChromaFlag(), pcPic->cs->sps->getVerCollocatedChromaFlag() );
+      const unsigned int copyWidth  = area.width - ( ( confLeft + confRight ) >> csx );
+      const unsigned int copyHeight = area.height - ( ( confTop + confBottom ) >> csy );
 
       // copy picture into target memory
-      for( int comp=0; comp < maxComponent; comp++ )
-      {
-        const ComponentID compID      = ComponentID(comp);
-        const uint32_t    csx         = getComponentScaleX(compID, cPicBuf.chromaFormat);
-        const uint32_t    csy         = getComponentScaleY(compID, cPicBuf.chromaFormat);
-        const CPelBuf     area        = upscaledPic.get(compID);
-        unsigned int uiBytesPerSample = bitDepths.recon > 8 ? 2 : 1;
-
-        const ptrdiff_t planeOffset = ( confLeft >> csx ) + ( confTop >> csy ) * area.stride;
-        const Pel*      planeOrigin = area.buf;
-
-        copyComp( (const unsigned char*) ( planeOrigin + planeOffset ),
-                  cFrame.planes[comp].ptr,
-                  area.width,   // need to use source width & height here, for VVDEC_UPSCALING_COPY_ONLY to work
-                  area.height,
-                  area.stride * sizeof( *area.buf ),
-                  cFrame.planes[comp].stride,
-                  uiBytesPerSample );
-        cFrame.planes[comp].allocator = upscaledPic.getBufAllocator( (ComponentID) comp );
-      }
-      upscaledPic.destroy();
+      copyComp( (const unsigned char*) ( planeOrigin + planeOffset ),
+                cFrame.planes[comp].ptr,
+                copyWidth,
+                copyHeight,
+                area.stride * sizeof( *area.buf ),
+                cFrame.planes[comp].stride,
+                bytesPerSample );
     }
-    else
-#endif
+    else   // !bCreateStorage
     {
-      // copy picture into target memory
-      for( int comp=0; comp < maxComponent; comp++ )
+      if( m_cUserAllocator.enabled )
       {
-        const ComponentID compID      = ComponentID(comp);
-        const uint32_t    csx         = getComponentScaleX(compID, cPicBuf.chromaFormat);
-        const uint32_t    csy         = getComponentScaleY(compID, cPicBuf.chromaFormat);
-        const CPelBuf     area        = cPicBuf.get(compID);
-        unsigned int uiBytesPerSample = bitDepths.recon > 8 ? 2 : 1;
-
-        const ptrdiff_t planeOffset = ( confLeft >> csx ) + ( confTop >> csy ) * area.stride;
-        const Pel*      planeOrigin = area.buf;
-
-        copyComp( (const unsigned char*) ( planeOrigin + planeOffset ),
-                  cFrame.planes[comp].ptr,
-                  area.width,   // need to use source width & height here, for VVDEC_UPSCALING_COPY_ONLY to work
-                  area.height,
-                  area.stride * sizeof( *area.buf ),
-                  cFrame.planes[comp].stride,
-                  uiBytesPerSample );
-
-        // zero the surrounding area for VVDEC_UPSCALING_COPY_ONLY
-        if( m_cDecLib->getUpscaledOutput() == (int) VVDEC_UPSCALING_COPY_ONLY
-            && ( area.width < cFrame.planes[comp].width || area.height < cFrame.planes[comp].height ) )
-        {
-          unsigned char* linePtr        = cFrame.planes[comp].ptr;
-          const auto     bytesPerSample = cFrame.planes[comp].bytesPerSample;
-          for( unsigned y = 0; y < area.height; ++y )
-          {
-            ::memset( linePtr + area.width * bytesPerSample, 0, ( cFrame.planes[comp].width - area.width ) * bytesPerSample );
-            linePtr += cFrame.planes[comp].stride;
-          }
-          ::memset( linePtr, 0, ( cFrame.planes[comp].height - area.height ) * cFrame.planes[comp].stride );
-        }
+        cFrame.planes[comp].allocator = pcPic->getBufAllocator( (ComponentID) comp );
       }
-    }
-  }
-  else
-  {
-    // use internal lib picture memory
-    for( int comp=0; comp < maxComponent; comp++ )
-    {
-      const ComponentID compID      = ComponentID(comp);
-      const uint32_t    csx         = getComponentScaleX(compID, cPicBuf.chromaFormat);
-      const uint32_t    csy         = getComponentScaleY(compID, cPicBuf.chromaFormat);
-      const CPelBuf     area        = cPicBuf.get(compID);
 
-      const ptrdiff_t planeOffset = ( confLeft >> csx ) + ( confTop >> csy ) * area.stride;
-      Pel*            planeOrigin = const_cast<Pel*>( area.buf );
-
-      cFrame.planes[comp].ptr = (unsigned char*)(planeOrigin + planeOffset);
+      // use internal lib picture memory
+      cFrame.planes[comp].ptr = (unsigned char*) ( const_cast<Pel*>( planeOrigin + planeOffset ) );
     }
   }
 
   // set picture attributes
 
-  cFrame.picAttributes = new vvdecPicAttributes();
+  const SPS* sps = !pcPic->slices.empty() ? pcPic->slices.front()->getSPS() : nullptr;
+
+  const VUI*              vui = sps && sps->getVuiParametersPresentFlag()  ? sps->getVuiParameters()        : nullptr;
+  const GeneralHrdParams* hrd = sps && sps->getGeneralHrdParameters()      ? sps->getGeneralHrdParameters() : nullptr;
+  const OlsHrdParams*     ols = sps && !sps->getOlsHrdParameters().empty() ? &sps->getOlsHrdParameters()[0] : nullptr;
+
+  // use paddedSizeOf() instead of sizeof() to ensure all structs start aligned to an 8 byte boundary
+  size_t allocSize = paddedSizeOf<vvdecPicAttributes>() + paddedSizeOf<vvdecSeqInfo>();
+  if( vui ) allocSize += paddedSizeOf<vvdecVui>();
+  if( hrd ) allocSize += paddedSizeOf<vvdecHrd>();
+  if( ols ) allocSize += paddedSizeOf<vvdecOlsHrd>();
+
+  char* allocPtr = (char*) xMalloc( char, allocSize );
+  if( !allocPtr )
+  {
+    return VVDEC_NOT_ENOUGH_MEM;
+  }
+  memset( allocPtr, 0, allocSize );
+
+  cFrame.picAttributes = allocInto<vvdecPicAttributes>( &allocPtr );
+
   vvdec_picAttributes_default( cFrame.picAttributes );
   cFrame.picAttributes->poc           = pcPic->poc;
   cFrame.picAttributes->temporalLayer = pcPic->getTLayer();
   cFrame.picAttributes->bits          = pcPic->getNaluBits();
   cFrame.picAttributes->nalType       = (vvdecNalType)pcPic->eNalUnitType;
   cFrame.picAttributes->isRefPic      = pcPic->isReferencePic;
+
+  cFrame.picAttributes->seqInfo = allocInto<vvdecSeqInfo>( &allocPtr );
+
+  cFrame.picAttributes->seqInfo->maxWidth  = pcPic->cs->sps->getMaxPicWidthInLumaSamples();
+  cFrame.picAttributes->seqInfo->maxHeight = pcPic->cs->sps->getMaxPicHeightInLumaSamples();
 
   if( pcPic->fieldPic )
   {
@@ -1133,65 +1073,58 @@ int VVDecImpl::xAddPicture( Picture* pcPic )
       default:      cFrame.picAttributes->sliceType = VVDEC_SLICETYPE_UNKNOWN; break;
     }
 
-    if( pcPic->slices.front()->getSPS()->getVuiParametersPresentFlag() )
+    if( vui )
     {
-      const VUI* vui = pcPic->slices.front()->getSPS()->getVuiParameters();
-      if( vui != NULL )
-      {
-        cFrame.picAttributes->vui = new vvdecVui;
-        cFrame.picAttributes->vui->aspectRatioInfoPresentFlag    = vui->getAspectRatioInfoPresentFlag();
-        cFrame.picAttributes->vui->aspectRatioConstantFlag       = vui->getAspectRatioConstantFlag();
-        cFrame.picAttributes->vui->nonPackedFlag                 = vui->getNonPackedFlag();
-        cFrame.picAttributes->vui->nonProjectedFlag              = vui->getNonProjectedFlag();
-        cFrame.picAttributes->vui->aspectRatioIdc                = vui->getAspectRatioIdc();
-        cFrame.picAttributes->vui->sarWidth                      = vui->getSarWidth();
-        cFrame.picAttributes->vui->sarHeight                     = vui->getSarHeight();
-        cFrame.picAttributes->vui->colourDescriptionPresentFlag  = vui->getColourDescriptionPresentFlag();
-        cFrame.picAttributes->vui->colourPrimaries               = vui->getColourPrimaries();
-        cFrame.picAttributes->vui->transferCharacteristics       = vui->getTransferCharacteristics();
-        cFrame.picAttributes->vui->matrixCoefficients            = vui->getMatrixCoefficients();
-        cFrame.picAttributes->vui->progressiveSourceFlag         = vui->getProgressiveSourceFlag();
-        cFrame.picAttributes->vui->interlacedSourceFlag          = vui->getInterlacedSourceFlag();
-        cFrame.picAttributes->vui->chromaLocInfoPresentFlag      = vui->getChromaLocInfoPresentFlag();
-        cFrame.picAttributes->vui->chromaSampleLocTypeTopField   = vui->getChromaSampleLocTypeTopField();
-        cFrame.picAttributes->vui->chromaSampleLocTypeBottomField= vui->getChromaSampleLocTypeBottomField();
-        cFrame.picAttributes->vui->chromaSampleLocType           = vui->getChromaSampleLocType();
-        cFrame.picAttributes->vui->overscanInfoPresentFlag       = vui->getOverscanInfoPresentFlag();
-        cFrame.picAttributes->vui->overscanAppropriateFlag       = vui->getOverscanAppropriateFlag();
-        cFrame.picAttributes->vui->videoSignalTypePresentFlag    = vui->getVideoSignalTypePresentFlag();
-        cFrame.picAttributes->vui->videoFullRangeFlag            = vui->getVideoFullRangeFlag();
-      }
+      cFrame.picAttributes->vui = allocInto<vvdecVui>( &allocPtr );
+
+      cFrame.picAttributes->vui->aspectRatioInfoPresentFlag     = vui->getAspectRatioInfoPresentFlag();
+      cFrame.picAttributes->vui->aspectRatioConstantFlag        = vui->getAspectRatioConstantFlag();
+      cFrame.picAttributes->vui->nonPackedFlag                  = vui->getNonPackedFlag();
+      cFrame.picAttributes->vui->nonProjectedFlag               = vui->getNonProjectedFlag();
+      cFrame.picAttributes->vui->aspectRatioIdc                 = vui->getAspectRatioIdc();
+      cFrame.picAttributes->vui->sarWidth                       = vui->getSarWidth();
+      cFrame.picAttributes->vui->sarHeight                      = vui->getSarHeight();
+      cFrame.picAttributes->vui->colourDescriptionPresentFlag   = vui->getColourDescriptionPresentFlag();
+      cFrame.picAttributes->vui->colourPrimaries                = vui->getColourPrimaries();
+      cFrame.picAttributes->vui->transferCharacteristics        = vui->getTransferCharacteristics();
+      cFrame.picAttributes->vui->matrixCoefficients             = vui->getMatrixCoefficients();
+      cFrame.picAttributes->vui->progressiveSourceFlag          = vui->getProgressiveSourceFlag();
+      cFrame.picAttributes->vui->interlacedSourceFlag           = vui->getInterlacedSourceFlag();
+      cFrame.picAttributes->vui->chromaLocInfoPresentFlag       = vui->getChromaLocInfoPresentFlag();
+      cFrame.picAttributes->vui->chromaSampleLocTypeTopField    = vui->getChromaSampleLocTypeTopField();
+      cFrame.picAttributes->vui->chromaSampleLocTypeBottomField = vui->getChromaSampleLocTypeBottomField();
+      cFrame.picAttributes->vui->chromaSampleLocType            = vui->getChromaSampleLocType();
+      cFrame.picAttributes->vui->overscanInfoPresentFlag        = vui->getOverscanInfoPresentFlag();
+      cFrame.picAttributes->vui->overscanAppropriateFlag        = vui->getOverscanAppropriateFlag();
+      cFrame.picAttributes->vui->videoSignalTypePresentFlag     = vui->getVideoSignalTypePresentFlag();
+      cFrame.picAttributes->vui->videoFullRangeFlag             = vui->getVideoFullRangeFlag();
     }
 
-    if( pcPic->slices.front()->getSPS()->getGeneralHrdParameters() )
+    if( hrd )
     {
-      const GeneralHrdParams* hrd = pcPic->slices.front()->getSPS()->getGeneralHrdParameters();
-      if( hrd != NULL )
-      {
-        cFrame.picAttributes->hrd = new vvdecHrd;
-        cFrame.picAttributes->hrd->numUnitsInTick                   = hrd->getNumUnitsInTick();
-        cFrame.picAttributes->hrd->timeScale                        = hrd->getTimeScale();
-        cFrame.picAttributes->hrd->generalNalHrdParamsPresentFlag   = hrd->getGeneralNalHrdParamsPresentFlag();
-        cFrame.picAttributes->hrd->generalVclHrdParamsPresentFlag   = hrd->getGeneralVclHrdParamsPresentFlag();
-        cFrame.picAttributes->hrd->generalSamePicTimingInAllOlsFlag = hrd->getGeneralSamePicTimingInAllOlsFlag();
-        cFrame.picAttributes->hrd->tickDivisor                      = hrd->getTickDivisorMinus2()+2;
-        cFrame.picAttributes->hrd->generalDecodingUnitHrdParamsPresentFlag = hrd->getGeneralDuHrdParamsPresentFlag();
-        cFrame.picAttributes->hrd->bitRateScale                     = hrd->getBitRateScale();
-        cFrame.picAttributes->hrd->cpbSizeScale                     = hrd->getCpbSizeScale();
-        cFrame.picAttributes->hrd->cpbSizeDuScale                   = hrd->getCpbSizeDuScale();
-        cFrame.picAttributes->hrd->hrdCpbCnt                        = hrd->getHrdCpbCntMinus1()+1;
-      }
+      cFrame.picAttributes->hrd = allocInto<vvdecHrd>( &allocPtr );
+
+      cFrame.picAttributes->hrd->numUnitsInTick                          = hrd->getNumUnitsInTick();
+      cFrame.picAttributes->hrd->timeScale                               = hrd->getTimeScale();
+      cFrame.picAttributes->hrd->generalNalHrdParamsPresentFlag          = hrd->getGeneralNalHrdParamsPresentFlag();
+      cFrame.picAttributes->hrd->generalVclHrdParamsPresentFlag          = hrd->getGeneralVclHrdParamsPresentFlag();
+      cFrame.picAttributes->hrd->generalSamePicTimingInAllOlsFlag        = hrd->getGeneralSamePicTimingInAllOlsFlag();
+      cFrame.picAttributes->hrd->tickDivisor                             = hrd->getTickDivisorMinus2() + 2;
+      cFrame.picAttributes->hrd->generalDecodingUnitHrdParamsPresentFlag = hrd->getGeneralDuHrdParamsPresentFlag();
+      cFrame.picAttributes->hrd->bitRateScale                            = hrd->getBitRateScale();
+      cFrame.picAttributes->hrd->cpbSizeScale                            = hrd->getCpbSizeScale();
+      cFrame.picAttributes->hrd->cpbSizeDuScale                          = hrd->getCpbSizeDuScale();
+      cFrame.picAttributes->hrd->hrdCpbCnt                               = hrd->getHrdCpbCntMinus1() + 1;
     }
 
-    if( !pcPic->slices.front()->getSPS()->getOlsHrdParameters().empty() )
+    if( ols )
     {
-      const OlsHrdParams& ols = pcPic->slices.front()->getSPS()->getOlsHrdParameters()[0];
-      cFrame.picAttributes->olsHrd = new vvdecOlsHrd;
-      memset( ( void* ) cFrame.picAttributes->olsHrd, 0, sizeof( vvdecOlsHrd ) );
-      cFrame.picAttributes->olsHrd->fixedPicRateGeneralFlag       = ols.getFixedPicRateGeneralFlag();
-      cFrame.picAttributes->olsHrd->fixedPicRateWithinCvsFlag     = ols.getFixedPicRateWithinCvsFlag();
-      cFrame.picAttributes->olsHrd->elementDurationInTc           = ols.getElementDurationInTcMinus1() + 1;
-      cFrame.picAttributes->olsHrd->lowDelayHrdFlag               = ols.getLowDelayHrdFlag();
+      cFrame.picAttributes->olsHrd = allocInto<vvdecOlsHrd>( &allocPtr );
+
+      cFrame.picAttributes->olsHrd->fixedPicRateGeneralFlag   = ols->getFixedPicRateGeneralFlag();
+      cFrame.picAttributes->olsHrd->fixedPicRateWithinCvsFlag = ols->getFixedPicRateWithinCvsFlag();
+      cFrame.picAttributes->olsHrd->elementDurationInTc       = ols->getElementDurationInTcMinus1() + 1;
+      cFrame.picAttributes->olsHrd->lowDelayHrdFlag           = ols->getLowDelayHrdFlag();
 
       for( int j = 0; j < 2; j++ )
       {
@@ -1200,23 +1133,21 @@ int VVDecImpl::xAddPicture( Picture* pcPic )
 
         for( int i = 0; i < cFrame.picAttributes->hrd->hrdCpbCnt; i++ )
         {
-          cFrame.picAttributes->olsHrd->bitRateValueMinus1  [i][j] = ols.getBitRateValueMinus1( i, j );
-          cFrame.picAttributes->olsHrd->cpbSizeValueMinus1  [i][j] = ols.getCpbSizeValueMinus1( i, j );
-          cFrame.picAttributes->olsHrd->ducpbSizeValueMinus1[i][j] = ols.getDuCpbSizeValueMinus1( i, j );
-          cFrame.picAttributes->olsHrd->duBitRateValueMinus1[i][j] = ols.getDuBitRateValueMinus1( i, j );
-          cFrame.picAttributes->olsHrd->cbrFlag             [i][j] = ols.getCbrFlag( i, j );
+          cFrame.picAttributes->olsHrd->bitRateValueMinus1  [i][j] = ols->getBitRateValueMinus1( i, j );
+          cFrame.picAttributes->olsHrd->cpbSizeValueMinus1  [i][j] = ols->getCpbSizeValueMinus1( i, j );
+          cFrame.picAttributes->olsHrd->ducpbSizeValueMinus1[i][j] = ols->getDuCpbSizeValueMinus1( i, j );
+          cFrame.picAttributes->olsHrd->duBitRateValueMinus1[i][j] = ols->getDuBitRateValueMinus1( i, j );
+          cFrame.picAttributes->olsHrd->cbrFlag             [i][j] = ols->getCbrFlag( i, j );
         }
       }
     }
   }
 
-#if ENABLE_FILM_GRAIN
   // Grain synthesis
   if( m_enableFilmGrain && m_filmGrainCharacteristicsState != FgcNone )
   {
     xAddGrain( &cFrame );
   }
-#endif   // ENABLE_FILM_GRAIN
 
   m_rcFrameList.emplace_back( cFrame, bCreateStorage ? nullptr : pcPic );
 
@@ -1561,42 +1492,29 @@ bool VVDecImpl::isFrameConverted( vvdecFrame* frame )
 
 void VVDecImpl::vvdec_picAttributes_default(vvdecPicAttributes *attributes)
 {
-  attributes->nalType         = VVC_NAL_UNIT_INVALID;     ///< nal unit type
-  attributes->sliceType       = VVDEC_SLICETYPE_UNKNOWN;  ///< slice type (I/P/B) */
-  attributes->isRefPic        = false;                    ///< reference picture
-  attributes->temporalLayer   = 0;                        ///< temporal layer
-  attributes->poc             = 0;                        ///< picture order count
-  attributes->bits            = 0;                        ///< bits of the compr. image packet
-  attributes->vui             = NULL;                     ///< if available, pointer to VUI (Video Usability Information)
-  attributes->hrd             = NULL;                     ///< if available, pointer to HRD (Hypothetical Reference Decoder)
+  memset( attributes, 0, sizeof( vvdecPicAttributes ) );
+
+  attributes->nalType   = VVC_NAL_UNIT_INVALID;      ///< nal unit type
+  attributes->sliceType = VVDEC_SLICETYPE_UNKNOWN;   ///< slice type (I/P/B)
 }
 
 void VVDecImpl::vvdec_frame_default(vvdecFrame *frame)
 {
+  memset( frame, 0, sizeof( vvdecFrame ) );
+
   for( auto & p : frame->planes )
   {
     vvdec_plane_default( &p );
   }
-  frame->numPlanes       = 0;                 ///< number of color components
-  frame->width           = 0;                 ///< width of the luminance plane
-  frame->height          = 0;                 ///< height of the luminance plane
-  frame->bitDepth        = 0;                 ///< bit depth of input signal (8: depth 8 bit, 10: depth 10 bit  )
-  frame->frameFormat     = VVDEC_FF_INVALID;  ///< interlace format (VVC_FF_PROGRESSIVE)
-  frame->colorFormat     = VVDEC_CF_INVALID;  ///< color format     (VVC_CF_YUV420_PLANAR)
-  frame->sequenceNumber  = 0;                 ///< sequence number of the picture
-  frame->cts             = 0;                 ///< composition time stamp in TicksPerSecond (see HEVCEncoderParameter)
-  frame->ctsValid        = false;             ///< composition time stamp valid flag (true: valid, false: CTS not set)
-  frame->picAttributes   = NULL;              ///< pointer to PicAttribute that might be NULL, containing decoder side information
+  frame->frameFormat = VVDEC_FF_INVALID;   ///< interlace format (VVC_FF_PROGRESSIVE)
+  frame->colorFormat = VVDEC_CF_INVALID;   ///< color format     (VVC_CF_YUV420_PLANAR)
 }
 
 void VVDecImpl::vvdec_plane_default(vvdecPlane *plane)
 {
-  plane->ptr     = nullptr;      ///< pointer to plane buffer
-  plane->width   = 0;            ///< width of the plane
-  plane->height  = 0;            ///< height of the plane
-  plane->stride  = 0;            ///< stride (width + left margin + right margins) of plane in samples
-  plane->bytesPerSample = 1;     ///< number of bytes per sample
-  plane->allocator = nullptr;    ///< opaque pointer to memory allocator (only valid, when memory is maintained by caller)
+  memset( plane, 0, sizeof( vvdecPlane ) );
+
+  plane->bytesPerSample = 1;   ///< number of bytes per sample
 }
 
 void VVDecImpl::vvdec_frame_reset(vvdecFrame *frame)
@@ -1619,22 +1537,7 @@ void VVDecImpl::vvdec_frame_reset(vvdecFrame *frame)
 
   if( frame->picAttributes )
   {
-    if( frame->picAttributes->vui )
-    {
-      delete frame->picAttributes->vui;
-    }
-
-    if( frame->picAttributes->hrd )
-    {
-      delete frame->picAttributes->hrd;
-    }
-
-    if( frame->picAttributes->olsHrd )
-    {
-      delete frame->picAttributes->olsHrd;
-    }
-
-    delete frame->picAttributes;
+    xFree( frame->picAttributes );
     frame->picAttributes = NULL;
   }
 
@@ -1651,6 +1554,45 @@ void VVDecImpl::vvdec_frame_reset(vvdecFrame *frame)
   }
 
   vvdec_frame_default( frame );
+}
+
+VVDEC_DECL void rescalePlane( const vvdecPlane&      srcPlane,
+                              vvdecPlane&            dstPlane,
+                              int                    planeComponent,
+                              const vvdecColorFormat colorFormat,
+                              int                    bitDepth,
+                              const bool             horCollocatedChromaFlag,
+                              const bool             verCollocatedChromaFlag )
+{
+  const ChromaFormat chromaFormatIDC = static_cast<ChromaFormat>( colorFormat );
+  const ComponentID  compID          = static_cast<ComponentID>( planeComponent );
+
+  const int xScale = ( ( srcPlane.width  << SCALE_RATIO_BITS ) + ( dstPlane.width  >> 1 ) ) / dstPlane.width;
+  const int yScale = ( ( srcPlane.height << SCALE_RATIO_BITS ) + ( dstPlane.height >> 1 ) ) / dstPlane.height;
+
+#if ENABLE_SIMD_OPT_BUFFER
+  g_pelBufOP.sampleRateConv
+#else
+  sampleRateConvCore
+#endif
+    ( { xScale, yScale },
+      { getComponentScaleX( compID, chromaFormatIDC ), getComponentScaleY( compID, chromaFormatIDC ) },
+      (Pel*) srcPlane.ptr,
+      srcPlane.stride / srcPlane.bytesPerSample,
+      srcPlane.width,
+      srcPlane.height,
+      0,
+      0,
+      (Pel*) dstPlane.ptr,
+      dstPlane.stride / dstPlane.bytesPerSample,
+      dstPlane.width,
+      dstPlane.height,
+      0,
+      0,
+      bitDepth,
+      isLuma( compID ),
+      isLuma( compID ) ? 1 : horCollocatedChromaFlag,
+      isLuma( compID ) ? 1 : verCollocatedChromaFlag );
 }
 
 }   // namespace vvdec

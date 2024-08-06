@@ -55,6 +55,19 @@ POSSIBILITY OF SUCH DAMAGE.
 namespace vvdecoderapp
 {
 
+enum RPRUpscaling
+{
+  UPSCALING_OFF       = 0,   // no RPR scaling
+  UPSCALING_COPY_ONLY = 1,   // copy picture into target resolution only
+  UPSCALING_RESCALE   = 2    // auto rescale RPR pictures into target resolution
+};
+
+struct AppOutputParams
+{
+  RPRUpscaling upscaleOutput = UPSCALING_OFF;
+  bool         y4mOutput     = false;
+};
+
 class CmdLineParser
 {
   int32_t m_iArg = 0;
@@ -178,11 +191,11 @@ public:
     if( fullHelp )
     {
       std::cout << "\t\t [--parsedelay,-p  <int>    ] : maximal number of frames to read before decoding (default: <= 0 auto detection )" << std::endl;
-#if VVDEC_ARCH_X86
+#if defined( VVDEC_ARCH_X86 )
       std::cout << "\t\t [--simd <int>              ] : used simd extension (-1: auto, 0: scalar, 1: sse41, 2: sse42, 3: avx, 4: avx2) (default: -1)" << std::endl;
-#elif VVDEC_ARCH_ARM
+#elif defined( VVDEC_ARCH_ARM)
       std::cout << "\t\t [--simd <int>              ] : used simd extension (-1: auto, 0: scalar, 1: neon) (default: -1)" << std::endl;
-#elif VVDEC_ARCH_WASM
+#elif defined(VVDEC_ARCH_WASM)
       std::cout << "\t\t [--simd <int>              ] : used simd extension (-1: auto, 0: scalar, 1: wasm-simd) (default: -1)" << std::endl;
 #endif
       std::cout << "\t\t [--errHandling,-eh <int>   ] : error handling flags ( 0: off, 1: try continue ) (default: " << rcParams.errHandlingFlags << ")" << std::endl;
@@ -217,19 +230,19 @@ public:
     // clang-format on
   }
 
-  int parse_command_line( int          argc,
-                          char*        argv[],
-                          vvdecParams& rcParams,
-                          std::string& rcBitstreamFile,
-                          std::string& rcOutputFile,
-                          int&         riFrames,
-                          int&         riLoops,
-                          std::string& rcExpectYuvMD5,
-                          bool&        useY4mFormat,
-                          bool&        useExternAllocator,
-                          std::string& sTracingFile,
-                          std::string& sTracingRule,
-                          int&         riPrintPicHash )
+  int parse_command_line( int              argc,
+                          char*            argv[],
+                          vvdecParams&     rcParams,
+                          std::string&     rcBitstreamFile,
+                          std::string&     rcOutputFile,
+                          int&             riFrames,
+                          int&             riLoops,
+                          std::string&     rcExpectYuvMD5,
+                          AppOutputParams& appParams,
+                          bool&            useExternAllocator,
+                          std::string&     sTracingFile,
+                          std::string&     sTracingRule,
+                          int&             riPrintPicHash )
   {
 #ifndef ENABLE_TRACING
     // ignore unused variables
@@ -308,24 +321,24 @@ public:
       }
       else if( parse_param( { "-uo", "--upscale" }, upscale_output ) ) /* In: upscale */
       {
-        rcParams.upscaleOutput = vvdecRPRUpscaling( upscale_output );
+        appParams.upscaleOutput = RPRUpscaling( upscale_output );
         if( rcParams.logLevel > VVDEC_VERBOSE )
         {
-          std::string scale;
-          switch( rcParams.upscaleOutput )
+          const char* scale;
+          switch( appParams.upscaleOutput )
           {
             // clang-format off
-            case VVDEC_UPSCALING_OFF      : scale = "OFF";       break;
-            case VVDEC_UPSCALING_COPY_ONLY: scale = "COPY_ONLY"; break;
-            case VVDEC_UPSCALING_RESCALE  : scale = "RESCALE";   break;
-            default                       : scale = "UNKNOWN";   break;
+            case UPSCALING_OFF      : scale = "OFF";       break;
+            case UPSCALING_COPY_ONLY: scale = "COPY_ONLY"; break;
+            case UPSCALING_RESCALE  : scale = "RESCALE";   break;
+            default                 : scale = "UNKNOWN";   break;
             // clang-format on
           };
-          fprintf( stdout, "[upscale] : %s\n", scale.c_str() );
+          fprintf( stdout, "[upscale] : %s\n", scale );
         }
       }
       else if( parse_param( { "-fg", "--filmGrain" }, rcParams.filmGrainSynthesis ) ) {}
-      else if( parse_param( { "--y4m" }, useY4mFormat ) ) {}
+      else if( parse_param( { "--y4m" }, appParams.y4mOutput ) ) {}
       else if( parse_param( { "--extern" }, useExternAllocator ) ) {}
       else if( parse_param( { "-f", "--frames" }, riFrames ) )
       {
@@ -378,14 +391,14 @@ public:
             // clang-format off
             case VVDEC_SIMD_DEFAULT:   cll = "DEFAULT";   break;
             case VVDEC_SIMD_SCALAR:    cll = "SCALAR";    break;
-#if VVDEC_ARCH_X86
+#if defined (VVDEC_ARCH_X86)
             case VVDEC_SIMD_SSE41:     cll = "SSE41";     break;
             case VVDEC_SIMD_SSE42:     cll = "SSE42";     break;
             case VVDEC_SIMD_AVX:       cll = "AVX";       break;
             case VVDEC_SIMD_AVX2:      cll = "AVX2";      break;
-#elif VVDEC_ARCH_ARM
+#elif defined (VVDEC_ARCH_ARM)
             case VVDEC_SIMD_NEON:      cll = "NEON";      break;
-#elif VVDEC_ARCH_WASM
+#elif defined (VVDEC_ARCH_WASM)
             case VVDEC_SIMD_WASM:      cll = "WASM-SIMD"; break;
 #else
             case VVDEC_SIMD_SIMDE_ANY: cll = "SIMDE-ANY"; break;

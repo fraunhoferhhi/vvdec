@@ -72,9 +72,6 @@ class DecLib
   std::unique_ptr<ThreadPool> m_decodeThreadPool;
 
   unsigned int m_parseFrameDelay = 0;
-#if RPR_YUV_OUTPUT
-  unsigned int m_upscaledOutput  = 0;
-#endif
 
   int         m_decodedPictureHashSEIEnabled   = 0;   ///< Checksum(3)/CRC(2)/MD5(1)/disable(0) acting on decoded picture hash SEI message
   uint32_t    m_numberOfChecksumErrorsDetected = 0;
@@ -90,11 +87,7 @@ public:
   DecLib();
   ~DecLib() = default;
 
-#if RPR_YUV_OUTPUT
-  void create( int numDecThreads, int parserFrameDelay, const UserAllocator& userAllocator, ErrHandlingFlags errHandlingFlags, int upscaledOutput );
-#else
   void create( int numDecThreads, int parserFrameDelay, const UserAllocator& userAllocator, ErrHandlingFlags errHandlingFlags);
-#endif
   void destroy();
 
   const char* getDecoderCapabilities() const { return m_sDecoderCapabilities.c_str(); }
@@ -116,9 +109,6 @@ public:
   void     checkAPSInPictureUnit();
   void     resetPictureUnitNals() { m_pictureUnitNals.clear(); }
 
-#if RPR_YUV_OUTPUT
-  unsigned int getUpscaledOutput() { return m_upscaledOutput; }
-#endif
 
   ThreadPool& getThreadPool() { return *m_decodeThreadPool; }
 

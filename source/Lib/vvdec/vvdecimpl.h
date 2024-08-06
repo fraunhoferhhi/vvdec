@@ -205,7 +205,6 @@ private:
   typedef FrameStorageMap::value_type      FrameStorageMapType;
 
   bool                                     m_bInitialized   = false;
-  bool                                     m_bRemovePadding = false; // copy picture before output to remove padding
   VVDecInternalState                       m_eState         = INTERNAL_STATE_UNINITIALIZED;
   ErrHandlingFlags                         m_eErrHandlingFlags = ERR_HANDLING_TRY_CONTINUE;
 
@@ -222,7 +221,6 @@ private:
 
   uint64_t                                 m_uiSeqNumber       = 0;
   uint64_t                                 m_uiSeqNumOutput    = 0;
-#if ENABLE_FILM_GRAIN
   enum
   {
     FgcNone        = 0,
@@ -231,7 +229,6 @@ private:
   }                                        m_filmGrainCharacteristicsState = FgcNone;
   bool                                     m_enableFilmGrain               = false;
   std::unique_ptr<FilmGrain>               m_filmGrainSynth;
-#endif   // ENABLE_FILM_GRAIN
 };
 
 template<class MembFunc, class... Args>
@@ -287,5 +284,14 @@ inline auto VVDecImpl::catchExceptions( MembFunc fn, Args... args )
     return returnErrOrNullptr( VVDEC_ERR_RESTART_REQUIRED );
   }
 }
+
+// this is needed by the vvdecapp to implement upscaling, but is not an official API for libvvdec
+VVDEC_DECL void rescalePlane( const vvdecPlane&      srcPlane,
+                              vvdecPlane&            dstPlane,
+                              int                    planeComponent,
+                              const vvdecColorFormat colorFormat,
+                              int                    bitDepth,
+                              const bool             horCollocatedChromaFlag,
+                              const bool             verCollocatedChromaFlag );
 
 }   // namespace vvdec
