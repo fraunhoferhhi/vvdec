@@ -471,7 +471,6 @@ public:
   MergeType     mrgTypeNeighbours [ MRG_MAX_NUM_CANDS      ];
   int           numValidMergeCand;
 
-  MotionBuf     subPuMvpMiBuf;
   MvField       mmvdBaseMv        [MMVD_BASE_MV_NUM        ][2];
 
   void setMmvdMergeCandiInfo( CodingUnit& cu, int candIdx );
@@ -494,7 +493,7 @@ public:
   int           numValidMergeCand;
   int           maxNumMergeCand;
 
-  MergeCtx     *mrgCtx;
+  MotionBuf     subPuMvpMiBuf;
   MergeType     mergeType         [AFFINE_MRG_MAX_NUM_CANDS     ];
 };
 

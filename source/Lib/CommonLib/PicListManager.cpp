@@ -110,11 +110,10 @@ void PicListManager::deleteBuffers()
   m_cPicList.clear();
 }
 
-void PicListManager::create(int frameDelay, int decInstances, bool upscaleOutputEnabled, const UserAllocator& userAllocator )
+void PicListManager::create(int frameDelay, int decInstances, const UserAllocator& userAllocator )
 {
   m_parseFrameDelay      = frameDelay;
   m_parallelDecInst      = decInstances;
-  m_upscaleOutputEnabled = upscaleOutputEnabled;
   m_userAllocator        = userAllocator;
 }
 
@@ -135,23 +134,6 @@ Picture* PicListManager::getNewPicBuffer( const SPS& sps, const PPS& pps, const 
     {
       externAllocator = false;
     }
-#if RPR_YUV_OUTPUT
-    else if( m_upscaleOutputEnabled )
-    {
-      const Window &conf = pps.getConformanceWindow();
-      const Window  defDisp =  Window();
-      int confLeft   = conf.getWindowLeftOffset()   * SPS::getWinUnitX(sps.getChromaFormatIdc()) + defDisp.getWindowLeftOffset();
-      int confRight  = conf.getWindowRightOffset()  * SPS::getWinUnitX(sps.getChromaFormatIdc()) + defDisp.getWindowRightOffset();
-      int confTop    = conf.getWindowTopOffset()    * SPS::getWinUnitY(sps.getChromaFormatIdc()) + defDisp.getWindowTopOffset();
-      int confBottom = conf.getWindowBottomOffset() * SPS::getWinUnitY(sps.getChromaFormatIdc()) + defDisp.getWindowBottomOffset();
-      const uint32_t width  = pps.getPicWidthInLumaSamples()  - confLeft - confRight;
-      const uint32_t height = pps.getPicHeightInLumaSamples() - confTop  - confBottom;
-      if ( sps.getMaxPicWidthInLumaSamples() != width || sps.getMaxPicHeightInLumaSamples() != height )
-      {
-        externAllocator = false; // extern allocator have to allocate the resized picture
-      }
-    }
-#endif
   }
   UserAllocator* userAllocator = externAllocator ? &m_userAllocator : nullptr;
 

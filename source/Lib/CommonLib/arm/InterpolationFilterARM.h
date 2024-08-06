@@ -208,7 +208,13 @@ void simdFilter16xX_N8( const ClpRng&       clpRng,
   int64x1x2_t vcoeff0 = vld2_s64( (int64_t*) coeffH );
   //  int16x8_t vcoeff1 = vld1q_s16(coeffV); // apparently its faster to access a pointer
   int16x8_t vsum;
+
+// MSVC requires neon variables to be initialised when their elements are set with vsetq_lane (it outputs a warning). However, this is not the case for datatypes like int16x8x4_t.
+#if defined(_MSC_VER) && !defined(__clang__) && !defined(__INTEL_COMPILER)
+  int32x4_t vsuma = vdupq_n_s32(0), vsumb = vdupq_n_s32(0);
+#else
   int32x4_t vsuma, vsumb;
+#endif
 
   int32x4_t vsrcv[ 2 ][ 9 ];
 
@@ -217,7 +223,14 @@ void simdFilter16xX_N8( const ClpRng&       clpRng,
 
   for( int row = 0; row < extHeight; row++ )
   {
+
+// MSVC requires neon variables to be initialised when their elements are set with vsetq_lane (it outputs a warning). However, this is not the case for datatypes like int16x8x4_t.
+#if defined(_MSC_VER) && !defined(__clang__) && !defined(__INTEL_COMPILER)
+    int32x4_t vsrc0 = vdupq_n_s32(0), vsrc1 = vdupq_n_s32(0);
+#else
     int32x4_t vsrc0, vsrc1;
+#endif
+
     int16x4_t vsrca00, vsrca01, vsrca10, vsrca11;
     int16x4_t vsrcb00, vsrcb01, vsrcb10, vsrcb11;
 
@@ -237,30 +250,30 @@ void simdFilter16xX_N8( const ClpRng&       clpRng,
 
       GCC_WARNING_DISABLE_maybe_uninitialized   // when building for aarch64 without LTO gcc complains about vsum{a,b},vsrc{0,1} not being initialized
 
-      vsuma[ 0 ] = vaddvq_s32( vmull_s16( vsrca00, vreinterpret_s16_s64( vcoeff0.val[ 0 ] ) ) );
-      vsuma[ 1 ] = vaddvq_s32( vmull_s16( vsrca01, vreinterpret_s16_s64( vcoeff0.val[ 0 ] ) ) );
-      vsuma[ 2 ] = vaddvq_s32( vmull_s16( vsrca10, vreinterpret_s16_s64( vcoeff0.val[ 0 ] ) ) );
-      vsuma[ 3 ] = vaddvq_s32( vmull_s16( vsrca11, vreinterpret_s16_s64( vcoeff0.val[ 0 ] ) ) );
+      vsuma = vsetq_lane_s32( vaddvq_s32( vmull_s16( vsrca00, vreinterpret_s16_s64( vcoeff0.val[ 0 ] ) ) ), vsuma, 0 );
+      vsuma = vsetq_lane_s32( vaddvq_s32( vmull_s16( vsrca01, vreinterpret_s16_s64( vcoeff0.val[ 0 ] ) ) ), vsuma, 1 );
+      vsuma = vsetq_lane_s32( vaddvq_s32( vmull_s16( vsrca10, vreinterpret_s16_s64( vcoeff0.val[ 0 ] ) ) ), vsuma, 2 );
+      vsuma = vsetq_lane_s32( vaddvq_s32( vmull_s16( vsrca11, vreinterpret_s16_s64( vcoeff0.val[ 0 ] ) ) ), vsuma, 3 );
 
-      vsumb[ 0 ] = vaddvq_s32( vmull_s16( vsrcb00, vreinterpret_s16_s64( vcoeff0.val[ 0 ] ) ) );
-      vsumb[ 1 ] = vaddvq_s32( vmull_s16( vsrcb01, vreinterpret_s16_s64( vcoeff0.val[ 0 ] ) ) );
-      vsumb[ 2 ] = vaddvq_s32( vmull_s16( vsrcb10, vreinterpret_s16_s64( vcoeff0.val[ 0 ] ) ) );
-      vsumb[ 3 ] = vaddvq_s32( vmull_s16( vsrcb11, vreinterpret_s16_s64( vcoeff0.val[ 0 ] ) ) );
+      vsumb = vsetq_lane_s32( vaddvq_s32( vmull_s16( vsrcb00, vreinterpret_s16_s64( vcoeff0.val[ 0 ] ) ) ), vsumb, 0 );
+      vsumb = vsetq_lane_s32( vaddvq_s32( vmull_s16( vsrcb01, vreinterpret_s16_s64( vcoeff0.val[ 0 ] ) ) ), vsumb, 1 );
+      vsumb = vsetq_lane_s32( vaddvq_s32( vmull_s16( vsrcb10, vreinterpret_s16_s64( vcoeff0.val[ 0 ] ) ) ), vsumb, 2 );
+      vsumb = vsetq_lane_s32( vaddvq_s32( vmull_s16( vsrcb11, vreinterpret_s16_s64( vcoeff0.val[ 0 ] ) ) ), vsumb, 3 );
 
-      vsrc1[ 0 ] = vaddvq_s32( vmull_s16( vsrcb00, vreinterpret_s16_s64( vcoeff0.val[ 1 ] ) ) );
-      vsrc1[ 1 ] = vaddvq_s32( vmull_s16( vsrcb01, vreinterpret_s16_s64( vcoeff0.val[ 1 ] ) ) );
-      vsrc1[ 2 ] = vaddvq_s32( vmull_s16( vsrcb10, vreinterpret_s16_s64( vcoeff0.val[ 1 ] ) ) );
-      vsrc1[ 3 ] = vaddvq_s32( vmull_s16( vsrcb11, vreinterpret_s16_s64( vcoeff0.val[ 1 ] ) ) );
+      vsrc1 = vsetq_lane_s32( vaddvq_s32( vmull_s16( vsrcb00, vreinterpret_s16_s64( vcoeff0.val[ 1 ] ) ) ), vsrc1, 0 );
+      vsrc1 = vsetq_lane_s32( vaddvq_s32( vmull_s16( vsrcb01, vreinterpret_s16_s64( vcoeff0.val[ 1 ] ) ) ), vsrc1, 1 );
+      vsrc1 = vsetq_lane_s32( vaddvq_s32( vmull_s16( vsrcb10, vreinterpret_s16_s64( vcoeff0.val[ 1 ] ) ) ), vsrc1, 2 );
+      vsrc1 = vsetq_lane_s32( vaddvq_s32( vmull_s16( vsrcb11, vreinterpret_s16_s64( vcoeff0.val[ 1 ] ) ) ), vsrc1, 3 );
 
       vsrca00 = vld1_s16( &src[ ( j << 3 ) + 8 ] );
       vsrca01 = vld1_s16( &src[ ( j << 3 ) + 9 ] );
       vsrca10 = vld1_s16( &src[ ( j << 3 ) + 10 ] );
       vsrca11 = vld1_s16( &src[ ( j << 3 ) + 11 ] );
 
-      vsrc0[ 0 ] = vaddvq_s32( vmull_s16( vsrca00, vreinterpret_s16_s64( vcoeff0.val[ 1 ] ) ) );
-      vsrc0[ 1 ] = vaddvq_s32( vmull_s16( vsrca01, vreinterpret_s16_s64( vcoeff0.val[ 1 ] ) ) );
-      vsrc0[ 2 ] = vaddvq_s32( vmull_s16( vsrca10, vreinterpret_s16_s64( vcoeff0.val[ 1 ] ) ) );
-      vsrc0[ 3 ] = vaddvq_s32( vmull_s16( vsrca11, vreinterpret_s16_s64( vcoeff0.val[ 1 ] ) ) );
+      vsrc0 = vsetq_lane_s32( vaddvq_s32( vmull_s16( vsrca00, vreinterpret_s16_s64( vcoeff0.val[ 1 ] ) ) ), vsrc0, 0 );
+      vsrc0 = vsetq_lane_s32( vaddvq_s32( vmull_s16( vsrca01, vreinterpret_s16_s64( vcoeff0.val[ 1 ] ) ) ), vsrc0, 1 );
+      vsrc0 = vsetq_lane_s32( vaddvq_s32( vmull_s16( vsrca10, vreinterpret_s16_s64( vcoeff0.val[ 1 ] ) ) ), vsrc0, 2 );
+      vsrc0 = vsetq_lane_s32( vaddvq_s32( vmull_s16( vsrca11, vreinterpret_s16_s64( vcoeff0.val[ 1 ] ) ) ), vsrc0, 3 );
 
       GCC_WARNING_RESET
 

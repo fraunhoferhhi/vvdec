@@ -83,7 +83,6 @@ namespace vvdec
 #define DISABLE_CHECK_NO_OUTPUT_PRIOR_PICS_FLAG           0
 
 #define RPR_FIX                                           1
-#define RPR_YUV_OUTPUT                                    1
 #define RPR_OUTPUT_MSG                                    1
 
 #define GDR_ADJ                                           1

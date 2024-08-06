@@ -2388,9 +2388,7 @@ void PU::getAffineMergeCand( const CodingUnit &cu, AffineMergeCtx& affMrgCtx, co
   bool isAvailableSubPu = false;
   if ( enableSubPuMvp && slice.getPicHeader()->getEnableTMVPFlag() )
   {
-    MergeCtx mrgCtx = *affMrgCtx.mrgCtx;
-
-    CHECKD( mrgCtx.subPuMvpMiBuf.area() == 0 || !mrgCtx.subPuMvpMiBuf.buf, "Buffer not initialized" );
+    CHECKD( affMrgCtx.subPuMvpMiBuf.area() == 0 || !affMrgCtx.subPuMvpMiBuf.buf, "Buffer not initialized" );
 
     int pos = 0;
     // Get spatial MV
@@ -2403,32 +2401,30 @@ void PU::getAffineMergeCand( const CodingUnit &cu, AffineMergeCtx& affMrgCtx, co
     {
       const MotionInfo& miLeft = cuLeft->getMotionInfo( posCurLB.offset( -1, 0 ) );
       // get Inter Dir
-      mrgCtx.interDirNeighbours[pos] = miLeft.interDir();
+      affMrgCtx.interDirNeighbours[pos] = miLeft.interDir();
 
       // get Mv from Left
-      mrgCtx.mvFieldNeighbours[pos << 1].setMvField( miLeft.mv[0], miLeft.miRefIdx[0] );
+      affMrgCtx.mvFieldNeighbours[pos << 1][0].setMvField(miLeft.mv[0], miLeft.miRefIdx[0]);
 
       if ( slice.isInterB() )
       {
-        mrgCtx.mvFieldNeighbours[(pos << 1) + 1].setMvField( miLeft.mv[1], miLeft.miRefIdx[1] );
+        affMrgCtx.mvFieldNeighbours[(pos << 1) + 1][0].setMvField(miLeft.mv[1], miLeft.miRefIdx[1]);
       }
       pos++;
     }
 
-    mrgCtx.numValidMergeCand = pos;
-
-    isAvailableSubPu = getInterMergeSubPuMvpCand( cu, mrgCtx, pos );
+    isAvailableSubPu = getInterMergeSubPuMvpCand( cu, affMrgCtx, pos );
 
     if( isAvailableSubPu )
     {
       affMrgCtx.mergeType[affMrgCtx.numValidMergeCand] = MRG_TYPE_SUBPU_ATMVP;
 
-      if( affMrgCtx.numValidMergeCand == mrgCandIdx )
+      affMrgCtx.numValidMergeCand++;
+
+      if( affMrgCtx.numValidMergeCand == mrgCandIdx + 1 )
       {
         return;
       }
-
-      affMrgCtx.numValidMergeCand++;
 
       // early termination
       if( affMrgCtx.numValidMergeCand == maxNumAffineMergeCand )
@@ -2907,7 +2903,7 @@ void clipColPos(int& posX, int& posY, const CodingUnit& cu)
   posY = std::min(verMax, std::max(verMin, posY));
 }
 
-bool PU::getInterMergeSubPuMvpCand(const CodingUnit &cu, MergeCtx& mrgCtx, const int count )
+bool PU::getInterMergeSubPuMvpCand(const CodingUnit &cu, AffineMergeCtx& mrgCtx, const int count )
 {
   const Slice   &slice = *cu.slice;
 
@@ -2917,13 +2913,13 @@ bool PU::getInterMergeSubPuMvpCand(const CodingUnit &cu, MergeCtx& mrgCtx, const
 
   if( count )
   {
-    if(                          ( mrgCtx.interDirNeighbours[0] & ( 1 << REF_PIC_LIST_0 ) ) && slice.getRefPic( REF_PIC_LIST_0, mrgCtx.mvFieldNeighbours[REF_PIC_LIST_0].mfRefIdx ) == pColPic )
+    if(                          ( mrgCtx.interDirNeighbours[0] & ( 1 << REF_PIC_LIST_0 ) ) && slice.getRefPic( REF_PIC_LIST_0, mrgCtx.mvFieldNeighbours[REF_PIC_LIST_0][0].mfRefIdx) == pColPic )
     {
-      cTMv = mrgCtx.mvFieldNeighbours[REF_PIC_LIST_0].mv;
+      cTMv = mrgCtx.mvFieldNeighbours[REF_PIC_LIST_0][0].mv;
     }
-    else if( slice.isInterB() && ( mrgCtx.interDirNeighbours[0] & ( 1 << REF_PIC_LIST_1 ) ) && slice.getRefPic( REF_PIC_LIST_1, mrgCtx.mvFieldNeighbours[REF_PIC_LIST_1].mfRefIdx ) == pColPic )
+    else if( slice.isInterB() && ( mrgCtx.interDirNeighbours[0] & ( 1 << REF_PIC_LIST_1 ) ) && slice.getRefPic( REF_PIC_LIST_1, mrgCtx.mvFieldNeighbours[REF_PIC_LIST_1][0].mfRefIdx) == pColPic )
     {
-      cTMv = mrgCtx.mvFieldNeighbours[REF_PIC_LIST_1].mv;
+      cTMv = mrgCtx.mvFieldNeighbours[REF_PIC_LIST_1][0].mv;
     }
   }
 
@@ -2972,14 +2968,14 @@ bool PU::getInterMergeSubPuMvpCand(const CodingUnit &cu, MergeCtx& mrgCtx, const
       if (deriveScaledMotionTemporal(slice, mi, pColPic, pColSlice, currRefPicList, cColMv, fetchRefPicList))
       {
         // set as default, for further motion vector field spanning
-        mrgCtx.mvFieldNeighbours[(count << 1) + currRefListId].setMvField(cColMv, 0);
+        mrgCtx.mvFieldNeighbours[(count << 1) + currRefListId][0].setMvField(cColMv, 0);
         mrgCtx.interDirNeighbours[count] |= (1 << currRefListId);
         mrgCtx.BcwIdx[count] = BCW_DEFAULT;
         found = true;
       }
       else
       {
-        mrgCtx.mvFieldNeighbours[(count << 1) + currRefListId].setMvField(Mv(), MF_NOT_VALID);
+        mrgCtx.mvFieldNeighbours[(count << 1) + currRefListId][0].setMvField(Mv(), MF_NOT_VALID);
         mrgCtx.interDirNeighbours[count] &= ~(1 << currRefListId);
       }
     }
@@ -3039,10 +3035,10 @@ bool PU::getInterMergeSubPuMvpCand(const CodingUnit &cu, MergeCtx& mrgCtx, const
         if( !found )
         {
           // intra coded, in this case, no motion vector is available for list 0 or list 1, so use default
-          mi.mv[0] = mrgCtx.mvFieldNeighbours[(count << 1) + 0].mv;
-          mi.mv[1] = mrgCtx.mvFieldNeighbours[(count << 1) + 1].mv;
-          mi.miRefIdx[0] = mrgCtx.mvFieldNeighbours[(count << 1) + 0].mfRefIdx;
-          mi.miRefIdx[1] = mrgCtx.mvFieldNeighbours[(count << 1) + 1].mfRefIdx;
+          mi.mv[0] = mrgCtx.mvFieldNeighbours[(count << 1) + 0][0].mv;
+          mi.mv[1] = mrgCtx.mvFieldNeighbours[(count << 1) + 1][0].mv;
+          mi.miRefIdx[0] = mrgCtx.mvFieldNeighbours[(count << 1) + 0][0].mfRefIdx;
+          mi.miRefIdx[1] = mrgCtx.mvFieldNeighbours[(count << 1) + 1][0].mfRefIdx;
         }
 
         if( isBiPred && mi.interDir() == 3 )
@@ -3061,7 +3057,7 @@ bool PU::getInterMergeSubPuMvpCand(const CodingUnit &cu, MergeCtx& mrgCtx, const
   return true;
 }
 
-void PU::spanMotionInfo( CodingUnit &cu, const MergeCtx &mrgCtx )
+void PU::spanMotionInfo( CodingUnit &cu )
 {
   MotionBuf mb = cu.getMotionBuf();
 
@@ -3103,6 +3099,7 @@ void PU::spanMotionInfo( CodingUnit &cu, const MergeCtx &mrgCtx )
   }
   else
   {
+    // cu.mergeType() == MRG_TYPE_SUBPU_ATMVP
     // already done
   }
 }

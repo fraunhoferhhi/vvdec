@@ -409,23 +409,6 @@ void AreaBuf<Pel>::addWeightedAvg(const AreaBuf<const Pel> &other1, const AreaBu
 }
 
 template<>
-void AreaBuf<Pel>::rescaleBuf( const AreaBuf<const Pel>& beforeScaling, ComponentID compID, const std::pair<int, int> scalingRatio, const Window& confBefore, const Window& confAfter, const ChromaFormat chromaFormatIDC, const BitDepths& bitDepths, const bool horCollocatedChromaFlag, const bool verCollocatedChromaFlag )
-{
-#if ENABLE_SIMD_OPT_BUFFER
-  g_pelBufOP.sampleRateConv
-#else
-  sampleRateConvCore
-#endif
-                           ( scalingRatio, std::pair<int, int>( getComponentScaleX( compID, chromaFormatIDC ), getComponentScaleY( compID, chromaFormatIDC ) ),
-                             beforeScaling.buf, beforeScaling.stride, beforeScaling.width, beforeScaling.height,
-                             confBefore.getWindowLeftOffset() * SPS::getWinUnitX( chromaFormatIDC ), confBefore.getWindowTopOffset() * SPS::getWinUnitY( chromaFormatIDC ),
-                             buf, stride, width, height,
-                             confAfter.getWindowLeftOffset() * SPS::getWinUnitX( chromaFormatIDC ), confAfter.getWindowTopOffset() * SPS::getWinUnitY( chromaFormatIDC ),
-                             bitDepths.recon, isLuma( compID ),
-                             isLuma( compID ) ? 1 : horCollocatedChromaFlag, isLuma( compID ) ? 1 : verCollocatedChromaFlag );
-}
-
-template<>
 void AreaBuf<Pel>::scaleSignal(const int scale, const ClpRng& clpRng)
 {
   Pel* dst = buf;
@@ -760,9 +743,9 @@ void PelStorage::swap( PelStorage& other )
     std::swap( bufs[i].stride, other.bufs[i].stride );
     std::swap( m_origin[i],    other.m_origin[i] );
     std::swap( m_allocator[i], other.m_allocator[i] );
-    std::swap( m_externAllocator, other.m_externAllocator );
-    std::swap( m_userAlloc, other.m_userAlloc );
   }
+  std::swap( m_externAllocator, other.m_externAllocator );
+  std::swap( m_userAlloc,       other.m_userAlloc );
 }
 
 void PelStorage::destroy()

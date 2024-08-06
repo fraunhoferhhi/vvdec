@@ -44,7 +44,6 @@ POSSIBILITY OF SUCH DAMAGE.
 
 #include "vvdec/vvdecDecl.h"
 
-#include <stdio.h>
 #include <stdint.h>
 #include <stdbool.h>
 
@@ -123,16 +122,16 @@ typedef enum
 {
   VVDEC_SIMD_DEFAULT  = 0,
   VVDEC_SIMD_SCALAR   = 1,
-#if VVDEC_ARCH_X86
+#if defined( VVDEC_ARCH_X86 )
   VVDEC_SIMD_SSE41    = 2,
   VVDEC_SIMD_SSE42    = 3,
   VVDEC_SIMD_AVX      = 4,
   VVDEC_SIMD_AVX2     = 5,
   VVDEC_SIMD_MAX      = VVDEC_SIMD_AVX2
-#elif VVDEC_ARCH_ARM
+#elif defined( VVDEC_ARCH_ARM )
   VVDEC_SIMD_NEON     = 3,
   VVDEC_SIMD_MAX      = VVDEC_SIMD_NEON
-#elif VVDEC_ARCH_WASM
+#elif defined( VVDEC_ARCH_WASM )
   VVDEC_SIMD_WASM     = 3,
   VVDEC_SIMD_MAX      = VVDEC_SIMD_WASM
 #else
@@ -142,15 +141,15 @@ typedef enum
 }vvdecSIMD_Extension;
 
 /*
-  \enum vvdecRPRUpscaling
-  The enum vvdecRPRUpscaling enumerates supported RPR upscaling handling
+  \enum vvdecObsoleteEnum
+  Placeholder for an obsolete field, that will be removed later. Don't use.
 */
 typedef enum
 {
-  VVDEC_UPSCALING_OFF       = 0,     // no RPR scaling
-  VVDEC_UPSCALING_COPY_ONLY = 1,     // copy picture into target resolution only
-  VVDEC_UPSCALING_RESCALE   = 2      // auto rescale RPR pictures into target resolution
-}vvdecRPRUpscaling;
+  VVDEC_OBSOLETE_ENUM_0 = 0,
+  VVDEC_OBSOLETE_ENUM_1 = 1,
+  VVDEC_OBSOLETE_ENUM_2 = 2
+} vvdecObsoleteEnum;
 
 /*
   \enum vvdecErrHandlingFlags
@@ -383,6 +382,15 @@ typedef struct vvdecOlsHrd
 }vvdecOlsHrd;
 
 /*
+  The struct vvdecSeqInfo contains some selected fields extracted from the Sequence Parameter Set (SPS)
+ */
+typedef struct vvdecSeqInfo
+{
+  uint32_t maxWidth;    // the maxium picture width contained in the current sequence (sps_pic_width_max_in_luma_samples)
+  uint32_t maxHeight;   // the maxium picture height contained in the current sequence (sps_pic_height_max_in_luma_samples)
+} vvdecSeqInfo;
+
+/*
   The struct vvdecPicAttributes contains additional picture side information
 */
 typedef struct vvdecPicAttributes
@@ -396,6 +404,7 @@ typedef struct vvdecPicAttributes
   vvdecVui       *vui;                 // if available, pointer to VUI (Video Usability Information)
   vvdecHrd       *hrd;                 // if available, pointer to HRD (Hypothetical Reference Decoder)
   vvdecOlsHrd    *olsHrd;              // if available, pointer to OLS HRD (Output Layer Set Hypothetical Reference Decoder)
+  vvdecSeqInfo   *seqInfo;             // if available, pointer to some data extracted from the SPS (Sequence Parameter Set)
 } vvdecPicAttributes;
 
 /*
@@ -439,10 +448,10 @@ typedef struct vvdecParams
 {
   int                   threads;            // thread count                          ( default: -1 )
   int                   parseDelay;         // number of frames to parse in parallel ( default: -1 )
-  vvdecRPRUpscaling     upscaleOutput;      // do internal upscaling of rpl pictures to dest. resolution ( default: 0 )
+  vvdecObsoleteEnum     obsolete_1;         // removed feature, must be 0
   vvdecLogLevel         logLevel;           // verbosity level
   bool                  verifyPictureHash;  // verify picture, if digest is available, true: check hash in SEI messages if available, false: ignore SEI message
-  bool                  removePadding;      // copy output pictures to new buffer to remove padding (stride==width) ( default: false )
+  bool                  obsolete_2;         // removed feature, muste be 0
   vvdecSIMD_Extension   simd;               // set specific simd optimization (default: max. availalbe)
   void                 *opaque;             // opaque pointer for private user data ( can be used to carry application specific data or contexts )
   vvdecErrHandlingFlags errHandlingFlags;   // set of flags defining how to handle bitstream errors

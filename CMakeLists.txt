@@ -66,10 +66,6 @@ unset( vvdec_target_arch_list )
 
 if( VVDEC_TARGET_ARCH STREQUAL "ARM" )
   set( VVDEC_ARM_SIMD_DEFAULT TRUE )
-  if( MSVC )
-    message( STATUS "ARM SIMD intinsics disabling default on MSVC" )
-    set( VVDEC_ARM_SIMD_DEFAULT FALSE )
-  endif()
 endif()
 
 # we enable x86 intrinsics for all target architectures, because they are implemented through simd-everywhere on non-x86
@@ -77,7 +73,6 @@ set( VVDEC_ENABLE_X86_SIMD   TRUE                      CACHE BOOL "enable x86 in
 set( VVDEC_ENABLE_ARM_SIMD   ${VVDEC_ARM_SIMD_DEFAULT} CACHE BOOL "enable ARM intrinsics" )
 
 set( VVDEC_ENABLE_TRACING    FALSE                     CACHE BOOL "Compile in tracing functionality" )
-set( VVDEC_ENABLE_FILM_GRAIN TRUE                      CACHE BOOL "Build with film grain synthesis support" )
 
 include( vvdecCompilerSupport )
 

@@ -163,11 +163,9 @@ EMSCRIPTEN_BINDINGS( vvdec )
     .constructor( vvdec_params_alloc )
     .property( "threads",           &vvdecParams::threads           )
     .property( "parseThreads",      &vvdecParams::parseThreads      )
-    .property( "upscaleOutput",     &vvdecParams::upscaleOutput     )
     .property( "logLevel",          &vvdecParams::logLevel          )
     .property( "verifyPictureHash", &vvdecParams::verifyPictureHash )
     // .property( "simd",              &vvdecParams::simd              ) // SIMD is currently hardcoded to SSE42 for wasm
-    .property( "removePadding",     &vvdecParams::removePadding     )
   ;
 
   class_<vvdecPlane>( "Plane" )
@@ -262,12 +260,6 @@ EMSCRIPTEN_BINDINGS( vvdec )
     .value( "SIMD_DEFAULT", VVDEC_SIMD_DEFAULT )
     .value( "SIMD_SCALAR",  VVDEC_SIMD_SCALAR  )
     .value( "SIMD_WASM",    VVDEC_SIMD_WASM    )
-  ;
-
-  enum_<vvdecRPRUpscaling>( "RPRUpscaling" )
-    .value( "UPSCALING_OFF",       VVDEC_UPSCALING_OFF       )
-    .value( "UPSCALING_COPY_ONLY", VVDEC_UPSCALING_COPY_ONLY )
-    .value( "UPSCALING_RESCALE",   VVDEC_UPSCALING_RESCALE   )
   ;
 
   enum_<vvdecColorFormat>( "ColorFormat" )

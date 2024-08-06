@@ -145,13 +145,13 @@ namespace PU
   void                  addAMVPHMVPCand                  (const CodingUnit &cu, MotionHist& hist, const RefPicList eRefPicList, const RefPicList eRefPicList2nd, const int currRefPOC, AMVPInfo &info, uint8_t imv);
   bool                  addAffineMVPCandUnscaled         (const CodingUnit &cu, const RefPicList &refPicList, const int &refIdx, const Position &pos, const MvpDir &dir, AffineAMVPInfo &affiAmvpInfo );
   bool                  isBipredRestriction              (const CodingUnit &cu);
-  void                  spanMotionInfo                   (      CodingUnit &cu, const MergeCtx &mrgCtx = MergeCtx() );
+  void                  spanMotionInfo                   (      CodingUnit &cu );
   void                  applyImv                         (      CodingUnit &cu, MotionHist& hist);
   void                  getAffineControlPointCand        (const CodingUnit &cu, MotionInfo mi[4], bool isAvailable[4], int verIdx[4], int8_t gbiIdx, int modelIdx, int verNum, AffineMergeCtx& affMrgCtx);
   void                  getAffineMergeCand               (const CodingUnit &cu, AffineMergeCtx& affMrgCtx, const int mrgCandIdx = -1 );
   void                  setAllAffineMvField              (      CodingUnit &cu, MvField *mvField, RefPicList eRefList );
   void                  setAllAffineMv                   (      CodingUnit &cu, Mv affLT, Mv affRT, Mv affLB, RefPicList eRefList, bool clipCPMVs = false );
-  bool                  getInterMergeSubPuMvpCand        (const CodingUnit &cu, MergeCtx &mrgCtx, const int count);
+  bool                  getInterMergeSubPuMvpCand        (const CodingUnit &cu, AffineMergeCtx &mrgCtx, const int count);
   bool                  isBiPredFromDifferentDirEqDistPoc(const CodingUnit &cu);
   void                  restrictBiPredMergeCandsOne      (      CodingUnit &cu);
 

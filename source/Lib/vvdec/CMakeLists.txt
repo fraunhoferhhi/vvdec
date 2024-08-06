@@ -43,23 +43,14 @@ endif()
 file( GLOB MD5_SRC_FILES "../libmd5/*.cpp" )
 file( GLOB MD5_INC_FILES "../libmd5/*.h" )
 
-if( VVDEC_ENABLE_FILM_GRAIN )
-  file( GLOB FGS_SRC_FILES "../FilmGrain/FilmGrain.cpp" "../FilmGrain/FilmGrainImpl.cpp" )
-  file( GLOB FGS_INC_FILES "../FilmGrain/FilmGrain.h"   "../FilmGrain/FilmGrainImpl.h"   )
+# begin film-grain source files
+file( GLOB FGS_SRC_FILES "../FilmGrain/FilmGrain.cpp" "../FilmGrain/FilmGrainImpl.cpp" )
+file( GLOB FGS_INC_FILES "../FilmGrain/FilmGrain.h"   "../FilmGrain/FilmGrainImpl.h"   )
 
-  file( GLOB FGS_X86_SSE41_SRC_FILES "../FilmGrain/*_sse41.cpp" )
-  file( GLOB FGS_X86_AVX2_SRC_FILES  "../FilmGrain/*_avx2.cpp" )
-
-  list( APPEND X86_SSE41_SRC_FILES ${FGS_X86_SSE41_SRC_FILES} )
-  list( APPEND X86_AVX2_SRC_FILES  ${FGS_X86_AVX2_SRC_FILES}  )
-
-  set_property( SOURCE
-                vvdec.cpp vvdecimpl.cpp
-                ${FGS_SRC_FILES}
-                ${FGS_X86_SSE41_SRC_FILES}
-                ${FGS_X86_AVX2_SRC_FILES}
-                APPEND PROPERTY COMPILE_DEFINITIONS ENABLE_FILM_GRAIN )
-endif()
+file( GLOB FGS_X86_SSE41_SRC_FILES "../FilmGrain/*_sse41.cpp" )
+file( GLOB FGS_X86_AVX2_SRC_FILES  "../FilmGrain/*_avx2.cpp"  )
+list( APPEND X86_SSE41_SRC_FILES ${FGS_X86_SSE41_SRC_FILES} )
+list( APPEND X86_AVX2_SRC_FILES  ${FGS_X86_AVX2_SRC_FILES}  )
 
 # get public/extern include files
 file( GLOB PUBLIC_INC_FILES  "../../../include/${LIB_NAME}/*.h" )
@@ -177,7 +168,10 @@ target_link_libraries( ${LIB_NAME} ${INTEL_ITT_LINK_TARGET} Threads::Threads )
 
 set_target_properties( ${LIB_NAME} PROPERTIES
                                    SOVERSION ${PROJECT_VERSION_MAJOR}
-                                   VERSION   ${PROJECT_VERSION} )
+                                   VERSION   ${PROJECT_VERSION}
+                                   INSTALL_NAME_DIR ${CMAKE_INSTALL_PREFIX}/lib
+                                   MACOSX_RPATH FALSE 
+                                   )
 
 # set the folder where to place the projects
 set_target_properties( ${LIB_NAME} PROPERTIES FOLDER lib )
