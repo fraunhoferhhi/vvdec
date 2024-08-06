@@ -1205,7 +1205,7 @@ void HLSyntaxReader::parseGeneralHrdParameters( GeneralHrdParams *hrd )
   hrd->setGeneralNalHrdParamsPresentFlag( general_nal_hrd_params_present_flag );
 
   X_READ_FLAG( general_vcl_hrd_params_present_flag );
-  hrd->setGeneralVclHrdParamsPresentFlag( general_nal_hrd_params_present_flag );
+  hrd->setGeneralVclHrdParamsPresentFlag( general_vcl_hrd_params_present_flag );
 
   if( general_nal_hrd_params_present_flag || general_vcl_hrd_params_present_flag )
   {
@@ -1275,9 +1275,11 @@ void HLSyntaxReader::parseOlsHrdParameters( GeneralHrdParams * generalHrd, std::
       hrd.setLowDelayHrdFlag( low_delay_hrd_flag );
     }
 
-    for( int nalOrVcl = 0; nalOrVcl < 2; nalOrVcl++ )
+    using NalOrVcl = enum { NAL = 0, VCL = 1 };
+    for( NalOrVcl nalOrVcl: { NAL, VCL } )
     {
-      if( ( nalOrVcl == 0 && generalHrd->getGeneralNalHrdParamsPresentFlag() ) || ( nalOrVcl == 1 && generalHrd->getGeneralVclHrdParamsPresentFlag() ) )
+      if( ( nalOrVcl == NAL && generalHrd->getGeneralNalHrdParamsPresentFlag() ) ||   //
+          ( nalOrVcl == VCL && generalHrd->getGeneralVclHrdParamsPresentFlag() ) )
       {
         for( int j = 0; j <= generalHrd->getHrdCpbCntMinus1(); j++ )
         {
@@ -2256,7 +2258,7 @@ void HLSyntaxReader::parseSPS( SPS* sps, const ParameterSetManager* parameterSet
       }
 
       uint32_t firstSubLayer = sps->getSubLayerParametersPresentFlag() ? 0 : sps_max_sublayers_minus1;
-      parseOlsHrdParameters( sps->getGeneralHrdParameters(), sps->getOlsHrdParameters(), firstSubLayer, sps->getMaxTLayers() - 1 );
+      parseOlsHrdParameters( sps->getGeneralHrdParameters(), sps->getOlsHrdParameters(), firstSubLayer, sps_max_sublayers_minus1 );
     }
   }
 
