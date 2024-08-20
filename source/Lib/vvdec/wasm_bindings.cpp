@@ -161,10 +161,11 @@ EMSCRIPTEN_BINDINGS( vvdec )
 
   class_<vvdecParams>( "Params" )
     .constructor( vvdec_params_alloc )
-    .property( "threads",           &vvdecParams::threads           )
-    .property( "parseThreads",      &vvdecParams::parseThreads      )
-    .property( "logLevel",          &vvdecParams::logLevel          )
-    .property( "verifyPictureHash", &vvdecParams::verifyPictureHash )
+    .property( "threads",            &vvdecParams::threads            )
+    .property( "parseDelay",         &vvdecParams::parseDelay         )
+    .property( "logLevel",           &vvdecParams::logLevel           )
+    .property( "verifyPictureHash",  &vvdecParams::verifyPictureHash  )
+    .property( "filmGrainSynthesis", &vvdecParams::filmGrainSynthesis )
     // .property( "simd",              &vvdecParams::simd              ) // SIMD is currently hardcoded to SSE42 for wasm
   ;
 
