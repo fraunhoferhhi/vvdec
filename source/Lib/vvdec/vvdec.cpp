@@ -72,7 +72,6 @@ VVDEC_DECL void vvdec_params_default(vvdecParams *params)
   params->simd               = VVDEC_SIMD_DEFAULT;      // set specific simd optimization (default: max. availalbe)
   params->errHandlingFlags   = VVDEC_ERR_HANDLING_OFF;  // no special error handling
   params->filmGrainSynthesis = true;                    // enable film grain synthesis using Film Grain Charactersitics SEI ( default: true )
-  params->parseThreads       = -1;                      // DEPRECATED. Use `parseDelay` instead. Will be removed in the future. Until then, this value is copied to parseDelay if set.
 }
 
 VVDEC_DECL vvdecParams* vvdec_params_alloc()
@@ -179,25 +178,6 @@ static int paramCheck( vvdecParams *params )
     ret = -1;
   }
 
-  if( params->parseThreads != -1 )
-  {
-    vvdec::msg( vvdec::WARNING, "Used deprecated field parseThreads. Use parseDelay instead. parseThreads will be removed in the future. Until then, this value is copied to parseDelay if set.\n" );
-
-    if( params->parseThreads != params->parseDelay && params->parseDelay != -1 )
-    {
-      vvdec::msg( vvdec::ERROR, "parseDelay and parseThreads were both set, but to different values. Only set parseDelay in the future.\n" );
-      ret = -1;
-    }
-  }
-
-  if( params->obsolete_1 != 0 || params->obsolete_2 != 0 )
-  {
-    vvdec::msg( vvdec::ERROR,
-                "The fields upscaleOutput and removePadding in vvdecParams and the corresponding features were removed from vvdec.\n"
-                "The new fields in the same positions vvdecParams::obsolete_1 and vvdecParams::obsolete_2 must be 0.\n" );
-    ret = -1;
-  }
-
   return ret;
 }
 
@@ -212,11 +192,6 @@ VVDEC_DECL vvdecDecoder* vvdec_decoder_open( vvdecParams *params)
   if ( 0 != paramCheck( params ))
   {
     return nullptr;
-  }
-
-  if( params->parseThreads != -1 && params->parseDelay == -1 )   // overwrite parseDelay with deprecated value parseThreads if set
-  {
-    params->parseDelay = params->parseThreads;
   }
 
   vvdec::VVDecImpl* decCtx = new vvdec::VVDecImpl();

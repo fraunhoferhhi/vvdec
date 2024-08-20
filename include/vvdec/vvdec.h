@@ -97,7 +97,7 @@ typedef enum
   VVDEC_ERR_CPU               = -30,   // unsupported CPU SSE 4.1 needed
   VVDEC_TRY_AGAIN             = -40,   // decoder needs more input and cannot return a picture
   VVDEC_EOF                   = -50    // end of file
-}vvdecErrorCodes;
+} vvdecErrorCodes;
 
 /*
   \enum LogLevel
@@ -112,7 +112,7 @@ typedef enum
   VVDEC_NOTICE  = 4,
   VVDEC_VERBOSE = 5,
   VVDEC_DETAILS = 6
-}vvdecLogLevel;
+} vvdecLogLevel;
 
 /*
   \enum SIMD_Extension
@@ -138,18 +138,7 @@ typedef enum
   VVDEC_SIMD_SIMDE_ANY= 3,
   VVDEC_SIMD_MAX      = VVDEC_SIMD_SIMDE_ANY
 #endif
-}vvdecSIMD_Extension;
-
-/*
-  \enum vvdecObsoleteEnum
-  Placeholder for an obsolete field, that will be removed later. Don't use.
-*/
-typedef enum
-{
-  VVDEC_OBSOLETE_ENUM_0 = 0,
-  VVDEC_OBSOLETE_ENUM_1 = 1,
-  VVDEC_OBSOLETE_ENUM_2 = 2
-} vvdecObsoleteEnum;
+} vvdecSIMD_Extension;
 
 /*
   \enum vvdecErrHandlingFlags
@@ -172,7 +161,7 @@ typedef enum
   VVDEC_CF_YUV420_PLANAR =  1,         // YUV420 planar color format
   VVDEC_CF_YUV422_PLANAR =  2,         // YUV422 planar color format
   VVDEC_CF_YUV444_PLANAR =  3          // YUV444 planar color format
-}vvdecColorFormat;
+} vvdecColorFormat;
 
 /*
   The class InterlaceFormat enumerates several supported picture formats.
@@ -194,7 +183,7 @@ typedef enum
   VVDEC_FF_BOT_PW_PREV = 10,           // bottom field (is paired with previous top field)
   VVDEC_FF_TOP_PW_NEXT = 11,           // top field    (is paired with next bottom field)
   VVDEC_FF_BOT_PW_NEXT = 12,           // bottom field (is paired with next top field)
-}vvdecFrameFormat;
+} vvdecFrameFormat;
 
 /*
   The class SliceType enumerates several supported slice types.
@@ -205,7 +194,7 @@ typedef enum
   VVDEC_SLICETYPE_P,
   VVDEC_SLICETYPE_B,
   VVDEC_SLICETYPE_UNKNOWN
-}vvdecSliceType;
+} vvdecSliceType;
 
 typedef enum
 {
@@ -248,7 +237,7 @@ typedef enum
   VVC_NAL_UNIT_UNSPECIFIED_30,
   VVC_NAL_UNIT_UNSPECIFIED_31,
   VVC_NAL_UNIT_INVALID
-}vvdecNalType;
+} vvdecNalType;
 
 
 typedef enum
@@ -257,7 +246,7 @@ typedef enum
   VVDEC_CT_U = 1,                      // U component
   VVDEC_CT_V = 2,                      // V component
   VVDEC_MAX_NUM_COMPONENT = 3
-}vvdecComponentType;
+} vvdecComponentType;
 
 
 /* vvdecAccessUnit
@@ -337,7 +326,7 @@ typedef struct vvdecVui
   bool       overscanAppropriateFlag;
   bool       videoSignalTypePresentFlag;
   bool       videoFullRangeFlag;
-}vvdecVui;
+} vvdecVui;
 
 /*
   The struct vvdecHrd contains information about the Hypothetical Reference Decoder
@@ -355,14 +344,14 @@ typedef struct vvdecHrd
   uint32_t   cpbSizeScale;
   uint32_t   cpbSizeDuScale;
   uint32_t   hrdCpbCnt;
-}vvdecHrd;
+} vvdecHrd;
 
 typedef enum
 {
   VVDEC_GENEREAL_NAL_HRD_PARAM = 0,
   VVDEC_GENEREAL_VCL_HRD_PARAM = 1,
   VVDEC_NUM_GENEREAL_HRD_PARAM = 2
-}vvdecGeneralHrdParamsType;
+} vvdecGeneralHrdParamsType;
 
 /*
   The struct vvdecOlsHrd contains information about the Output Layer Set HRD
@@ -379,15 +368,20 @@ typedef struct vvdecOlsHrd
   uint32_t ducpbSizeValueMinus1[32][VVDEC_NUM_GENEREAL_HRD_PARAM];
   uint32_t duBitRateValueMinus1[32][VVDEC_NUM_GENEREAL_HRD_PARAM];
   bool     cbrFlag             [32][VVDEC_NUM_GENEREAL_HRD_PARAM];
-}vvdecOlsHrd;
+} vvdecOlsHrd;
 
 /*
   The struct vvdecSeqInfo contains some selected fields extracted from the Sequence Parameter Set (SPS)
  */
 typedef struct vvdecSeqInfo
 {
-  uint32_t maxWidth;    // the maxium picture width contained in the current sequence (sps_pic_width_max_in_luma_samples)
-  uint32_t maxHeight;   // the maxium picture height contained in the current sequence (sps_pic_height_max_in_luma_samples)
+  uint32_t maxWidth;                   // the maxium picture width contained in the current sequence (sps_pic_width_max_in_luma_samples)
+  uint32_t maxHeight;                  // the maxium picture height contained in the current sequence (sps_pic_height_max_in_luma_samples)
+
+  void*    reservedPtr_1;              // reserved space for future use
+  void*    reservedPtr_2;              // ...
+  int64_t  reserved_1;                 // ...
+  int64_t  reserved_2;                 // ...
 } vvdecSeqInfo;
 
 /*
@@ -405,6 +399,11 @@ typedef struct vvdecPicAttributes
   vvdecHrd       *hrd;                 // if available, pointer to HRD (Hypothetical Reference Decoder)
   vvdecOlsHrd    *olsHrd;              // if available, pointer to OLS HRD (Output Layer Set Hypothetical Reference Decoder)
   vvdecSeqInfo   *seqInfo;             // if available, pointer to some data extracted from the SPS (Sequence Parameter Set)
+
+  void*           reservedPtr_1;       // reserved space for future use
+  void*           reservedPtr_2;       // ...
+  int64_t         reserved_1;          // ...
+  int64_t         reserved_2;          // ...
 } vvdecPicAttributes;
 
 /*
@@ -438,7 +437,7 @@ typedef struct vvdecFrame
   uint64_t            cts;             // composition time stamp in TicksPerSecond
   bool                ctsValid;        // composition time stamp valid flag (true: valid, false: CTS not set)
   vvdecPicAttributes *picAttributes;   // pointer to vvdecPicAttributes that might be NULL, containing decoder side information
-}vvdecFrame;
+} vvdecFrame;
 
 /*
   The struct vvdecParams is a container for decoder configuration parameters.
@@ -448,20 +447,17 @@ typedef struct vvdecParams
 {
   int                   threads;            // thread count                          ( default: -1 )
   int                   parseDelay;         // number of frames to parse in parallel ( default: -1 )
-  vvdecObsoleteEnum     obsolete_1;         // removed feature, must be 0
   vvdecLogLevel         logLevel;           // verbosity level
   bool                  verifyPictureHash;  // verify picture, if digest is available, true: check hash in SEI messages if available, false: ignore SEI message
-  bool                  obsolete_2;         // removed feature, muste be 0
+  bool                  filmGrainSynthesis; // set film grain synthesis using Film Grain Charactersitics SEI ( default: true )
   vvdecSIMD_Extension   simd;               // set specific simd optimization (default: max. availalbe)
   void                 *opaque;             // opaque pointer for private user data ( can be used to carry application specific data or contexts )
   vvdecErrHandlingFlags errHandlingFlags;   // set of flags defining how to handle bitstream errors
-  int                   parseThreads;       // DEPRECATED. Use `parseDelay` instead. This will be removed in the future. Until then, this value is copied to parseDelay if set.
-  bool                  filmGrainSynthesis; // set film grain synthesis using Film Grain Charactersitics SEI ( default: true )
-  int8_t                padding2_1;         // reserved space for future parameters
-  int8_t                padding2_2;
-  int8_t                padding2_3;
-  int                   padding3;
-  int                   padding4;
+
+  int32_t               reserved_1;         // reserved space for future parameters
+  int32_t               reserved_2;         // ...
+  int32_t               reserved_3;         // ...
+  int32_t               reserved_4;         // ...
 } vvdecParams;
 
 /* vvdecCreateBufferCallback
