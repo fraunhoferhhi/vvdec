@@ -464,7 +464,7 @@ void SEIReader::xParseSEIDecodedPictureHash(vvdecSEI* s, uint32_t payloadSize, s
   {
     sei_read_code( NULL, 8, val, traceString);
     sei->digest[i] = (uint8_t)val;
-    sei->digist_length++;
+    sei->digest_length++;
 
     if (pDecodedMessageOutputStream)
     {

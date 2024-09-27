@@ -106,7 +106,7 @@ struct PictureHash
 
   bool equal( vvdecSEIDecodedPictureHash digest ) const
   {
-    if ((size_t)digest.digist_length != hash.size())
+    if ((size_t)digest.digest_length != hash.size())
     {
       return false;
     }

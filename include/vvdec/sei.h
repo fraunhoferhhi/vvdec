@@ -263,7 +263,7 @@ typedef struct vvdecSEIDecodedPictureHash
 {
   vvdecHashType method;
   bool          singleCompFlag;
-  int           digist_length;
+  int           digest_length;
   unsigned char digest[16*3];
 }vvdecSEIDecodedPictureHash;
 

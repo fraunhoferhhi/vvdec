@@ -34,7 +34,7 @@ HEDLEY_DIAGNOSTIC_PUSH
 SIMDE_DISABLE_UNWANTED_DIAGNOSTICS
 SIMDE_BEGIN_DECLS_
 
-static uint8_t xtime(uint8_t x)
+static uint8_t simde_xtime(uint8_t x)
 {
   return HEDLEY_STATIC_CAST(uint8_t, (x<<1) ^ (((x>>7) & 1) * 0x1b));
 }
@@ -42,7 +42,7 @@ static uint8_t xtime(uint8_t x)
 SIMDE_FUNCTION_ATTRIBUTES
 simde_uint8x16_t
 simde_vaeseq_u8(simde_uint8x16_t data, simde_uint8x16_t key) {
-  #if defined(SIMDE_ARM_NEON_A32V8_NATIVE) && defined(__ARM_FEATURE_AES)
+  #if defined(SIMDE_ARM_NEON_A32V8_NATIVE) && defined(SIMDE_ARCH_ARM_AES)
     return vaeseq_u8(data, key);
   #else
     /* ref: https://github.com/kokke/tiny-AES-c/blob/master/aes.c */
@@ -92,7 +92,7 @@ simde_vaeseq_u8(simde_uint8x16_t data, simde_uint8x16_t key) {
 SIMDE_FUNCTION_ATTRIBUTES
 simde_uint8x16_t
 simde_vaesdq_u8(simde_uint8x16_t data, simde_uint8x16_t key) {
-  #if defined(SIMDE_ARM_NEON_A32V8_NATIVE) && defined(__ARM_FEATURE_AES)
+  #if defined(SIMDE_ARM_NEON_A32V8_NATIVE) && defined(SIMDE_ARCH_ARM_AES)
     return vaesdq_u8(data, key);
   #else
     /* ref: https://github.com/kokke/tiny-AES-c/blob/master/aes.c */
@@ -140,7 +140,7 @@ simde_vaesdq_u8(simde_uint8x16_t data, simde_uint8x16_t key) {
 SIMDE_FUNCTION_ATTRIBUTES
 simde_uint8x16_t
 simde_vaesmcq_u8(simde_uint8x16_t data) {
-  #if defined(SIMDE_ARM_NEON_A32V8_NATIVE) && defined(__ARM_FEATURE_AES)
+  #if defined(SIMDE_ARM_NEON_A32V8_NATIVE) && defined(SIMDE_ARCH_ARM_AES)
     return vaesmcq_u8(data);
   #else
     /* ref: https://github.com/kokke/tiny-AES-c/blob/master/aes.c */
@@ -152,10 +152,10 @@ simde_vaesmcq_u8(simde_uint8x16_t data) {
     {
       t   = a_.values[i*4+0];
       Tmp = a_.values[i*4+0] ^ a_.values[i*4+1] ^ a_.values[i*4+2] ^ a_.values[i*4+3] ;
-      Tm  = a_.values[i*4+0] ^ a_.values[i*4+1] ; Tm = xtime(Tm);  a_.values[i*4+0] ^= Tm ^ Tmp ;
-      Tm  = a_.values[i*4+1] ^ a_.values[i*4+2] ; Tm = xtime(Tm);  a_.values[i*4+1] ^= Tm ^ Tmp ;
-      Tm  = a_.values[i*4+2] ^ a_.values[i*4+3] ; Tm = xtime(Tm);  a_.values[i*4+2] ^= Tm ^ Tmp ;
-      Tm  = a_.values[i*4+3] ^ t ;        Tm = xtime(Tm);  a_.values[i*4+3] ^= Tm ^ Tmp ;
+      Tm  = a_.values[i*4+0] ^ a_.values[i*4+1] ; Tm = simde_xtime(Tm);  a_.values[i*4+0] ^= Tm ^ Tmp ;
+      Tm  = a_.values[i*4+1] ^ a_.values[i*4+2] ; Tm = simde_xtime(Tm);  a_.values[i*4+1] ^= Tm ^ Tmp ;
+      Tm  = a_.values[i*4+2] ^ a_.values[i*4+3] ; Tm = simde_xtime(Tm);  a_.values[i*4+2] ^= Tm ^ Tmp ;
+      Tm  = a_.values[i*4+3] ^ t ;        Tm = simde_xtime(Tm);  a_.values[i*4+3] ^= Tm ^ Tmp ;
     }
     return simde_uint8x16_from_private(a_);
   #endif
@@ -168,16 +168,16 @@ simde_vaesmcq_u8(simde_uint8x16_t data) {
 static uint8_t Multiply(uint8_t x, uint8_t y)
 {
   return (((y & 1) * x) ^
-       ((y>>1 & 1) * xtime(x)) ^
-       ((y>>2 & 1) * xtime(xtime(x))) ^
-       ((y>>3 & 1) * xtime(xtime(xtime(x)))) ^
-       ((y>>4 & 1) * xtime(xtime(xtime(xtime(x)))))); /* this last call to xtime() can be omitted */
+       ((y>>1 & 1) * simde_xtime(x)) ^
+       ((y>>2 & 1) * simde_xtime(simde_xtime(x))) ^
+       ((y>>3 & 1) * simde_xtime(simde_xtime(simde_xtime(x)))) ^
+       ((y>>4 & 1) * simde_xtime(simde_xtime(simde_xtime(simde_xtime(x)))))); /* this last call to simde_xtime() can be omitted */
 }
 
 SIMDE_FUNCTION_ATTRIBUTES
 simde_uint8x16_t
 simde_vaesimcq_u8(simde_uint8x16_t data) {
-  #if defined(SIMDE_ARM_NEON_A32V8_NATIVE) && defined(__ARM_FEATURE_AES)
+  #if defined(SIMDE_ARM_NEON_A32V8_NATIVE) && defined(SIMDE_ARCH_ARM_AES)
     return vaesimcq_u8(data);
   #else
     simde_uint8x16_private

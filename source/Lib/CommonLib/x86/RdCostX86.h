@@ -273,8 +273,8 @@ void xGetSADX5_8xN_SIMDImp(const DistParam& rcDtParam, Distortion* cost) {
   sum0 = _mm_hadd_epi32(sum0, sum3);
   if (isCalCentrePos) sum2 = _mm_hadd_epi32(sum2, sum2);
 
-  sum0 = _mm_slli_epi32(sum0, iSubShift);
-  if (isCalCentrePos) sum2 = _mm_slli_epi32(sum2, iSubShift);
+  sum0 = _mm_sll_epi32(sum0, _mm_cvtsi32_si128(iSubShift));
+  if (isCalCentrePos) sum2 = _mm_sll_epi32(sum2, _mm_cvtsi32_si128(iSubShift));
 
   sum0 = _mm_srli_epi32(sum0, 1);
   if (isCalCentrePos) sum2 = _mm_srli_epi32(sum2, 1);
@@ -500,7 +500,7 @@ void xGetSADX5_16xN_SIMDImp(const DistParam& rcDtParam, Distortion* cost) {
 
     __m128i sum0134 = _mm_add_epi32(_mm256_castsi256_si128(sum0), _mm256_extracti128_si256(sum0, 1));
 
-    sum0134 = _mm_slli_epi32(sum0134, iSubShift);
+    sum0134 = _mm_sll_epi32(sum0134, _mm_cvtsi32_si128(iSubShift));
 
     sum0134 = _mm_srli_epi32(sum0134, 1);
 
@@ -583,8 +583,8 @@ void xGetSADX5_16xN_SIMDImp(const DistParam& rcDtParam, Distortion* cost) {
     sum0 = _mm_hadd_epi32(sum0, sum3);
     if (isCalCentrePos) sum2 = _mm_hadd_epi32(sum2, sum2);
 
-    sum0 = _mm_slli_epi32(sum0, iSubShift);
-    if (isCalCentrePos) sum2 = _mm_slli_epi32(sum2, iSubShift);
+    sum0 = _mm_sll_epi32(sum0, _mm_cvtsi32_si128(iSubShift));
+    if (isCalCentrePos) sum2 = _mm_sll_epi32(sum2, _mm_cvtsi32_si128(iSubShift));
 
     sum0 = _mm_srli_epi32(sum0, 1);
     if (isCalCentrePos) sum2 = _mm_srli_epi32(sum2, 1);

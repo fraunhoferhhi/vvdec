@@ -79,6 +79,7 @@ static void fullPelCopySSE( const ClpRng& clpRng, const void*_src, ptrdiff_t src
   int offset   = IF_INTERNAL_OFFS;
   __m128i voffset  = _mm_set1_epi16( offset );
   __m128i voffset_headroom  = _mm_set1_epi16( headroom_offset );
+  __m128i vheadroom = _mm_cvtsi32_si128( headroom );
   __m128i vmin = _mm_set1_epi16( clpRng.min() );
   __m128i vmax = _mm_set1_epi16( clpRng.max() );
 
@@ -108,14 +109,14 @@ static void fullPelCopySSE( const ClpRng& clpRng, const void*_src, ptrdiff_t src
         }
         else if( isFirst )
         {
-          vsrc = _mm_slli_epi16( vsrc, headroom );
+          vsrc = _mm_sll_epi16( vsrc, vheadroom );
           vsum = _mm_sub_epi16( vsrc, voffset );
         }
         else
         {
           vsrc = _mm_add_epi16( vsrc, voffset );
           vsrc = _mm_add_epi16( vsrc, voffset_headroom );
-          vsrc = _mm_srai_epi16( vsrc, headroom );
+          vsrc = _mm_sra_epi16( vsrc, vheadroom );
           vsum = vsrc;
 
           if( isLast )
@@ -142,6 +143,7 @@ static void fullPelCopySSE_M4( const ClpRng& clpRng, const void*_src, ptrdiff_t 
   int offset   = IF_INTERNAL_OFFS;
   __m128i voffset  = _mm_set1_epi16( offset );
   __m128i voffset_headroom  = _mm_set1_epi16( headroom_offset );
+  __m128i vheadroom = _mm_cvtsi32_si128( headroom );
   __m128i vmin = _mm_set1_epi16( clpRng.min() );
   __m128i vmax = _mm_set1_epi16( clpRng.max() );
 
@@ -170,14 +172,14 @@ static void fullPelCopySSE_M4( const ClpRng& clpRng, const void*_src, ptrdiff_t 
       }
       else if( isFirst )
       {
-        vsrc = _mm_slli_epi16( vsrc, headroom );
+        vsrc = _mm_sll_epi16( vsrc, vheadroom );
         vsum = _mm_sub_epi16( vsrc, voffset );
       }
       else
       {
         vsrc = _mm_add_epi16( vsrc, voffset );
         vsrc = _mm_add_epi16( vsrc, voffset_headroom );
-        vsrc = _mm_srai_epi16( vsrc, headroom );
+        vsrc = _mm_sra_epi16( vsrc, vheadroom );
         vsum = vsrc;
 
         if( isLast )
@@ -207,6 +209,7 @@ static void fullPelCopyAVX2( const ClpRng& clpRng, const void*_src, ptrdiff_t sr
   __m256i vheadroom_offset = _mm256_set1_epi16( offset );
   __m256i vmin = _mm256_set1_epi16( clpRng.min() );
   __m256i vmax = _mm256_set1_epi16( clpRng.max() );
+  __m128i vheadroom = _mm_cvtsi32_si128( headroom );
 
   __m256i vsrc, vsum;
 
@@ -235,14 +238,14 @@ static void fullPelCopyAVX2( const ClpRng& clpRng, const void*_src, ptrdiff_t sr
         }
         else if( isFirst )
         {
-          vsrc = _mm256_slli_epi16( vsrc, headroom );
+          vsrc = _mm256_sll_epi16( vsrc, vheadroom );
           vsum = _mm256_sub_epi16( vsrc, vinternal_offset );
         }
         else
         {
           vsrc = _mm256_add_epi16( vsrc, vinternal_offset );
           vsrc = _mm256_add_epi16( vsrc, vheadroom_offset );
-          vsrc = _mm256_srai_epi16( vsrc, headroom );
+          vsrc = _mm256_sra_epi16( vsrc, vheadroom );
           vsum = vsrc;
 
           if( isLast )
@@ -268,6 +271,7 @@ template<X86_VEXT vext>
 void fullPelCopyDMVR_SSE( const int16_t* src, ptrdiff_t srcStride, int16_t* dst, ptrdiff_t dstStride, int width, int height, const ClpRng& clpRng )
 {
   const int shift = IF_INTERNAL_PREC_BILINEAR - clpRng.bd;
+  const __m128i vshift = _mm_cvtsi32_si128( shift );
 
   CHECKD( shift < 0, "Only bit-depths of up to 10 supported!" );
 
@@ -289,13 +293,13 @@ void fullPelCopyDMVR_SSE( const int16_t* src, ptrdiff_t srcStride, int16_t* dst,
       {
         __m256i vmm;
         vmm = _mm256_loadu_si256( ( const __m256i * ) &src[x] );
-        vmm = _mm256_slli_epi16 ( vmm, shift );
+        vmm = _mm256_sll_epi16  ( vmm, vshift );
         _mm256_storeu_si256     ( ( __m256i * )&dst[x], vmm );
       }
 
       __m128i xmm;
       xmm = _mm_loadu_si64    ( ( const __m128i * ) &src[x] );
-      xmm = _mm_slli_epi16    ( xmm, shift );
+      xmm = _mm_sll_epi16     ( xmm, vshift );
       _mm_storeu_si64         ( ( __m128i * )&dst[x], xmm );
 
       src += srcStride;
@@ -315,12 +319,12 @@ void fullPelCopyDMVR_SSE( const int16_t* src, ptrdiff_t srcStride, int16_t* dst,
       for( ; x < width - 4; x += 8 )
       {
         xmm = _mm_loadu_si128( ( const __m128i * ) &src[x] );
-        xmm = _mm_slli_epi16 ( xmm, shift );
+        xmm = _mm_sll_epi16  ( xmm, vshift );
         _mm_storeu_si128     ( ( __m128i * )&dst[x], xmm );
       }
 
       xmm = _mm_loadu_si64( ( const __m128i * ) &src[x] );
-      xmm = _mm_slli_epi16( xmm, shift );
+      xmm = _mm_sll_epi16 ( xmm, vshift );
       _mm_storeu_si64     ( ( __m128i * )&dst[x], xmm );
 
       src += srcStride;
