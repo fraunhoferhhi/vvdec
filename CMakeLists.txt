@@ -168,7 +168,7 @@ set( VVDEC_ENABLE_BUILD_TYPE_POSTFIX        OFF CACHE BOOL   "Enable or disable 
 
 set( VVDEC_ENABLE_LINK_TIME_OPT             ON  CACHE BOOL   "Enable link time optimization for release and profile builds" )
 
-set( VVDEC_ENABLE_WARNINGS_AS_WERROR        ON  CACHE BOOL   "Treat warnings as errors (-Werror or /WX)" )
+set( VVDEC_ENABLE_WERROR                    ON  CACHE BOOL   "Treat warnings as errors (-Werror or /WX)" )
 
 if( CMAKE_CXX_COMPILER_ID STREQUAL "GNU" OR
     CMAKE_CXX_COMPILER_ID STREQUAL "Clang" )
@@ -291,7 +291,7 @@ if( VVDEC_USE_THREAD_SANITIZER )
   add_link_options( "-fsanitize=thread" )
 endif()
 
-if( VVDEC_ENABLE_WARNINGS_AS_WERROR )
+if( VVDEC_ENABLE_WERROR )
     add_compile_options( "$<$<OR:$<CXX_COMPILER_ID:GNU>,$<CXX_COMPILER_ID:Clang>,$<CXX_COMPILER_ID:AppleClang>>:-Werror>" )
     add_compile_options( "$<$<CXX_COMPILER_ID:MSVC>:/WX>" )
 endif()

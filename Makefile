@@ -60,7 +60,7 @@ CONFIG_OPTIONS += -DVVDEC_ENABLE_LINK_TIME_OPT=OFF
 endif
 
 ifneq ($(enable-werror),)
-CONFIG_OPTIONS += -DVVDEC_ENABLE_WARNINGS_AS_WERROR=$(enable-werror)
+CONFIG_OPTIONS += -DVVDEC_ENABLE_WERROR=$(enable-werror)
 endif
 
 ifneq ($(osx-arch),)

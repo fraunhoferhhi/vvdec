@@ -26,9 +26,6 @@ if( VVDEC_INSTALL_RPATH )
   set_target_properties( ${EXE_NAME} PROPERTIES INSTALL_RPATH        "${VVDEC_INSTALL_RPATH}" )
 endif()
 
-target_compile_options( ${EXE_NAME} PRIVATE $<$<OR:$<CXX_COMPILER_ID:Clang>,$<CXX_COMPILER_ID:AppleClang>>:-Wall -Werror>
-                                            $<$<CXX_COMPILER_ID:GNU>:-Wall -Werror>
-                                            $<$<CXX_COMPILER_ID:MSVC>:/W4 /WX /wd4244 /wd4456 >)
 target_link_libraries( ${EXE_NAME} Threads::Threads vvdec )
 target_include_directories( ${EXE_NAME} PRIVATE  ../../Lib/libmd5 )
 
