@@ -24,46 +24,9 @@ message( STATUS "CMAKE_MODULE_PATH: updating module path to: ${CMAKE_MODULE_PATH
 #     message(STATUS "${_variableName}=${${_variableName}}")
 # endforeach()
 
-function( append_cpu_type_guess output_list input_str )
-  set( ret ${${output_list}} )
+include( vvdecCompilerSupport )
 
-  string( TOLOWER "${input_str}" input_lower )
-  if( ${input_lower} MATCHES "x86\|i386\|x64\|win32\|amd64" )
-    list( APPEND ret "X86" )
-  elseif( ${input_lower} MATCHES "aarch64\|arm")
-    list( APPEND ret "ARM" )
-  endif()
-
-  set( ${output_list} ${ret} PARENT_SCOPE )
-endfunction()
-
-# try to detect the actual target architecture
-if( ${CMAKE_SYSTEM_NAME} STREQUAL "Emscripten" )
-  message( DEBUG  "Emscripten" )
-  # Emscripten doesn't set the CMAKE_SYSTEM_PROCESSOR
-  list( PREPEND vvdec_target_arch_list "WASM" )
-elseif( NOT CMAKE_SYSTEM_PROCESSOR STREQUAL CMAKE_HOST_SYSTEM_PROCESSOR )
-  message( DEBUG  "sys != host ${CMAKE_SYSTEM_PROCESSOR} STREQUAL ${CMAKE_HOST_SYSTEM_PROCESSOR} " )
-  # cross compiling: CMAKE_SYSTEM_PROCESSOR was set explicitly, so we use that as first guess
-  append_cpu_type_guess( vvdec_target_arch_list "${CMAKE_SYSTEM_PROCESSOR}" )
-endif()
-
-# build list of architectures in order of probability
-append_cpu_type_guess( vvdec_target_arch_list "${CMAKE_VS_PLATFORM_NAME}" )
-append_cpu_type_guess( vvdec_target_arch_list "${CMAKE_OSX_ARCHITECTURES}" )
-append_cpu_type_guess( vvdec_target_arch_list "${CMAKE_CXX_COMPILER_ARCHITECTURE_ID}" ) # set by msvc, wen not using msbuild
-append_cpu_type_guess( vvdec_target_arch_list "${CMAKE_ANDROID_ARCH_ABI}" )
-append_cpu_type_guess( vvdec_target_arch_list "${CMAKE_C_LIBRARY_ARCHITECTURE}" )
-append_cpu_type_guess( vvdec_target_arch_list "${CMAKE_SYSTEM_PROCESSOR}" )
-append_cpu_type_guess( vvdec_target_arch_list "${CMAKE_HOST_SYSTEM_PROCESSOR}" )
-list( APPEND vvdec_target_arch_list "UNKNOWN" ) # no architecture for which we have specific optimizations
-message( DEBUG "vvdec_target_arch_list: ${vvdec_target_arch_list}" )
-
-# get most probable architecture
-list( POP_FRONT vvdec_target_arch_list VVDEC_TARGET_ARCH )
-message( STATUS "normalized target architecture: ${VVDEC_TARGET_ARCH}" )
-unset( vvdec_target_arch_list )
-
+detect_target_architecture( VVDEC_TARGET_ARCH )
 if( VVDEC_TARGET_ARCH STREQUAL "ARM" )
   set( VVDEC_ARM_SIMD_DEFAULT TRUE )
 endif()
@@ -74,11 +37,8 @@ set( VVDEC_ENABLE_ARM_SIMD   ${VVDEC_ARM_SIMD_DEFAULT} CACHE BOOL "enable ARM in
 
 set( VVDEC_ENABLE_TRACING    FALSE                     CACHE BOOL "Compile in tracing functionality" )
 
-include( vvdecCompilerSupport )
-
 # enable sse4.1 build for all source files for gcc and clang
 if( VVDEC_ENABLE_X86_SIMD )
-
   if( UNIX OR MINGW )
     # when building for non-x86, but emulating simd using simd-everywhere (e.g. on ARM),
     # the x86-compiler flags are not understood by the compiler

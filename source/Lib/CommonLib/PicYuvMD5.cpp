@@ -247,7 +247,7 @@ std::string hashToString(const vvdecSEIDecodedPictureHash* digest, int numChar)
 
   CHECK_FATAL(numChar<=0, "numChar needs to be >0");
 
-  for(int pos=0; pos<int(digest->digist_length); pos++)
+  for(int pos=0; pos<int(digest->digest_length); pos++)
   {
     if ((pos % numChar) == 0 && pos!=0 )
     {

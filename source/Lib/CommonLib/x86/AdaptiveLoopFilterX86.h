@@ -479,7 +479,7 @@ void simdDeriveClassificationBlk<AVX2>(AlfClassifier *classifier, const CPelBuf 
       const uint32_t scale  = ( z  == vbPos - 4 || z  == vbPos ) ? 96 : 64;
       const uint32_t scale2 = ( z2 == vbPos - 4 || z2 == vbPos ) ? 96 : 64;
       __m256i activity = _mm256_mullo_epi32(tempAct, _mm256_unpacklo_epi64(_mm256_set1_epi32(scale), _mm256_set1_epi32(scale2)));
-      activity         = _mm256_srli_epi32(activity, shift);
+      activity         = _mm256_srl_epi32(activity, _mm_cvtsi32_si128(shift));
       activity         = _mm256_min_epi32(activity, _mm256_set1_epi32(15));
       __m256i classIdx = _mm256_shuffle_epi8(_mm256_setr_epi8(0, 1, 2, 2, 2, 2, 2, 3, 3, 3, 3, 3, 3, 3, 3, 4, 0, 1, 2, 2, 2, 2, 2, 3, 3, 3, 3, 3, 3, 3, 3, 4), activity);
 

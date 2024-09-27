@@ -115,6 +115,21 @@ typedef enum
 } vvdecLogLevel;
 
 /*
+  \enum PicHashError
+  Result of the Decoded Picture hash verification.
+
+  When subpictures are present, and no DPH-SEI covering the full picture is available, but only DPHs
+  for some subpictures are available, VVDEC_DPH_NOT_VERIFIED will be signalled instead of VVDEC_DPH_OK,
+  to signify that parts of the picture could not be verified.
+*/
+typedef enum
+{
+  VVDEC_DPH_NOT_VERIFIED = -1,  // either no Decoded Picture Hash SEI was available or verification was disabled (default)
+  VVDEC_DPH_OK           = 0,   // the verification for hash for the Picture was successful
+  VVDEC_DPH_MISMATCH     = 1,   // the verification of Decoded Picture Hash produced an error
+} vvdecPicHashError;
+
+/*
   \enum SIMD_Extension
   The enum SIMD_Extension enumerates the supported simd optimizations.
 */
@@ -389,21 +404,22 @@ typedef struct vvdecSeqInfo
 */
 typedef struct vvdecPicAttributes
 {
-  vvdecNalType    nalType;             // nal unit type
-  vvdecSliceType  sliceType;           // slice type (I/P/B) */
-  bool            isRefPic;            // reference picture
-  uint32_t        temporalLayer;       // temporal layer
-  int64_t         poc;                 // picture order count
-  uint32_t        bits;                // bits of the compr. image packet
-  vvdecVui       *vui;                 // if available, pointer to VUI (Video Usability Information)
-  vvdecHrd       *hrd;                 // if available, pointer to HRD (Hypothetical Reference Decoder)
-  vvdecOlsHrd    *olsHrd;              // if available, pointer to OLS HRD (Output Layer Set Hypothetical Reference Decoder)
-  vvdecSeqInfo   *seqInfo;             // if available, pointer to some data extracted from the SPS (Sequence Parameter Set)
+  vvdecNalType      nalType;           // nal unit type
+  vvdecSliceType    sliceType;         // slice type (I/P/B) */
+  bool              isRefPic;          // reference picture
+  uint32_t          temporalLayer;     // temporal layer
+  int64_t           poc;               // picture order count
+  uint32_t          bits;              // bits of the compr. image packet
+  vvdecVui*         vui;               // if available, pointer to VUI (Video Usability Information)
+  vvdecHrd*         hrd;               // if available, pointer to HRD (Hypothetical Reference Decoder)
+  vvdecOlsHrd*      olsHrd;            // if available, pointer to OLS HRD (Output Layer Set Hypothetical Reference Decoder)
+  vvdecSeqInfo*     seqInfo;           // if available, pointer to some data extracted from the SPS (Sequence Parameter Set)
+  vvdecPicHashError picHashError;      // result of the decoded picture hash verification if enabled
 
-  void*           reservedPtr_1;       // reserved space for future use
-  void*           reservedPtr_2;       // ...
-  int64_t         reserved_1;          // ...
-  int64_t         reserved_2;          // ...
+  void*             reservedPtr_1;     // reserved space for future use
+  void*             reservedPtr_2;     // ...
+  int64_t           reserved_1;        // ...
+  int64_t           reserved_2;        // ...
 } vvdecPicAttributes;
 
 /*

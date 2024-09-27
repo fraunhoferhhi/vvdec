@@ -793,13 +793,14 @@ template< X86_VEXT vext>
 void xPredIntraPlanar_SIMD( const CPelBuf &pSrc, PelBuf &pDst, const SPS& sps )
 {
 
-  const uint32_t width  = pDst.width;
-  const uint32_t height = pDst.height;
-  const uint32_t log2W  = getLog2( width );
-  const uint32_t log2H  = getLog2( height );
-  const uint32_t offset = 1 << (log2W + log2H);
-  const ptrdiff_t stride     = pDst.stride;
-  Pel*       pred       = pDst.buf;
+  const uint32_t width      = pDst.width;
+  const uint32_t height     = pDst.height;
+  const uint32_t log2W      = getLog2( width );
+  const uint32_t log2H      = getLog2( height );
+  const uint32_t finalShift = 1 + log2W + log2H;
+  const uint32_t offset     = 1 << (log2W + log2H);
+  const ptrdiff_t stride    = pDst.stride;
+  Pel*            pred      = pDst.buf;
 
   const Pel *ptrSrc =pSrc.buf;
 
@@ -808,22 +809,23 @@ void xPredIntraPlanar_SIMD( const CPelBuf &pSrc, PelBuf &pDst, const SPS& sps )
   int topRight = pSrc.at( width + 1, 0 );
 
   tmp=pSrc.at( 0, height+1 );
-  __m128i bottomLeft16 = _mm_set_epi16(tmp,tmp,tmp,tmp,tmp,tmp,tmp,tmp);
-  __m128i zero = _mm_xor_si128(bottomLeft16,bottomLeft16);
-  __m128i eight = _mm_set_epi16(8,8,8,8,8,8,8,8);
-  __m128i offset32 = _mm_set_epi32(offset,offset,offset,offset);
-
-  const uint32_t finalShift = 1 + log2W + log2H;
+  const __m128i bottomLeft16 = _mm_set_epi16(tmp,tmp,tmp,tmp,tmp,tmp,tmp,tmp);
+  const __m128i zero = _mm_setzero_si128();
+  const __m128i eight = _mm_set_epi16(8,8,8,8,8,8,8,8);
+  const __m128i offset32 = _mm_set_epi32(offset,offset,offset,offset);
+  const __m128i vLog2W = _mm_cvtsi32_si128(log2W);
+  const __m128i vLog2H = _mm_cvtsi32_si128(log2H);
+  const __m128i vFinalShift = _mm_cvtsi32_si128(finalShift);
 
   for( int y = 0; y < height; y++)
   {
     leftColumn=pSrc.at(  0, y + 1 );
     rightColumn = topRight - leftColumn;
     leftColumn  = leftColumn << log2W;
-    __m128i leftColumn32 = _mm_set_epi32(leftColumn,leftColumn,leftColumn,leftColumn);
-    __m128i rightcolumn16 = _mm_set_epi16(rightColumn,rightColumn,rightColumn,rightColumn,rightColumn,rightColumn,rightColumn,rightColumn);
-    __m128i y16 = _mm_set_epi16(y+1,y+1,y+1,y+1,y+1,y+1,y+1,y+1);
-    __m128i x16 = _mm_set_epi16(8,7,6,5,4,3,2,1);
+    const __m128i leftColumn32 = _mm_set_epi32(leftColumn,leftColumn,leftColumn,leftColumn);
+    const __m128i rightcolumn16 = _mm_set_epi16(rightColumn,rightColumn,rightColumn,rightColumn,rightColumn,rightColumn,rightColumn,rightColumn);
+    const __m128i y16 = _mm_set_epi16(y+1,y+1,y+1,y+1,y+1,y+1,y+1,y+1);
+          __m128i x16 = _mm_set_epi16(8,7,6,5,4,3,2,1);
 
     for( int x = 0; x < width; x+=8 )
     {
@@ -840,8 +842,8 @@ void xPredIntraPlanar_SIMD( const CPelBuf &pSrc, PelBuf &pDst, const SPS& sps )
       // (topRow[x] topRow16H<< log2H)
       __m128i topRow32L = _mm_unpacklo_epi16(topRow16,zero);
       __m128i topRow32H = _mm_unpackhi_epi16(topRow16,zero);
-      topRow32L = _mm_slli_epi32(topRow32L,log2H);
-      topRow32H = _mm_slli_epi32(topRow32H,log2H);
+      topRow32L = _mm_sll_epi32(topRow32L,vLog2H);
+      topRow32H = _mm_sll_epi32(topRow32H,vLog2H);
       // vertPred    = (topRow[x] << log2H) + (y+1)*bottomRow[x];
       topRow32L = _mm_add_epi32(topRow32L,bottomRow16L);
       topRow32H = _mm_add_epi32(topRow32H,bottomRow16H);
@@ -853,16 +855,16 @@ void xPredIntraPlanar_SIMD( const CPelBuf &pSrc, PelBuf &pDst, const SPS& sps )
       horpred32L = _mm_add_epi32(leftColumn32,horpred32L);
       horpred32H = _mm_add_epi32(leftColumn32,horpred32H);
       // pred[x]      = ( ( horPred << log2H ) + ( vertPred << log2W ) + offset ) >> finalShift;
-      horpred32L = _mm_slli_epi32(horpred32L,log2H);
-      horpred32H = _mm_slli_epi32(horpred32H,log2H);
-      topRow32L = _mm_slli_epi32(topRow32L,log2W);
-      topRow32H = _mm_slli_epi32(topRow32H,log2W);
+      horpred32L = _mm_sll_epi32(horpred32L,vLog2H);
+      horpred32H = _mm_sll_epi32(horpred32H,vLog2H);
+      topRow32L = _mm_sll_epi32(topRow32L,vLog2W);
+      topRow32H = _mm_sll_epi32(topRow32H,vLog2W);
       horpred32L = _mm_add_epi32(horpred32L,topRow32L);
       horpred32H = _mm_add_epi32(horpred32H,topRow32H);
       horpred32L = _mm_add_epi32(horpred32L,offset32);
       horpred32H = _mm_add_epi32(horpred32H,offset32);
-      horpred32L = _mm_srli_epi32(horpred32L,finalShift);
-      horpred32H = _mm_srli_epi32(horpred32H,finalShift);
+      horpred32L = _mm_srl_epi32(horpred32L,vFinalShift);
+      horpred32H = _mm_srl_epi32(horpred32H,vFinalShift);
 
       tmpL = _mm_packs_epi32(horpred32L,horpred32H);
       if (width>=8)

@@ -63,6 +63,7 @@ inline void PaddBIO_SIMD( const Pel* refPel, Pel* dstPel, unsigned width, const 
 {
   int w;
   __m128i off = _mm_set1_epi16( ( Pel ) IF_INTERNAL_OFFS );
+  __m128i vshift = _mm_cvtsi32_si128( shift );
 
   if( width > 4 )
   {
@@ -70,14 +71,14 @@ inline void PaddBIO_SIMD( const Pel* refPel, Pel* dstPel, unsigned width, const 
     {
 
       __m128i ref = _mm_lddqu_si128( ( __m128i const * )&refPel[w] );
-      ref = _mm_slli_epi16( ref, shift );
+      ref = _mm_sll_epi16( ref, vshift );
       ref = _mm_sub_epi16( ref, off );
       _mm_storeu_si128( ( __m128i * )&dstPel[w], ref );
 
     }
     //2 * BIO_EXTEND_SIZE
     __m128i ref = _mm_lddqu_si128( ( __m128i const * )&refPel[w] );
-    ref = _mm_slli_epi16( ref, shift );
+    ref = _mm_sll_epi16( ref, vshift );
     ref = _mm_sub_epi16( ref, off );
     _mm_storeu_si32( ( __m128i * )&dstPel[w], ref );
 
@@ -85,7 +86,7 @@ inline void PaddBIO_SIMD( const Pel* refPel, Pel* dstPel, unsigned width, const 
   else
   {
     __m128i ref = _mm_lddqu_si128( ( __m128i const * )&refPel[0] );
-    ref = _mm_slli_epi16( ref, shift );
+    ref = _mm_sll_epi16( ref, vshift );
     ref = _mm_sub_epi16( ref, off );
     _mm_storeu_si64( ( __m128i * )&dstPel[0], ref );
     ref = _mm_srli_si128( ref, 8 );

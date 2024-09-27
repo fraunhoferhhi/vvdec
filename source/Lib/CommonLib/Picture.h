@@ -206,6 +206,7 @@ public:
 
   bool              picCheckedDPH = false;
   std::vector<bool> subpicsCheckedDPH;
+  bool              dphMismatch   = false;
 
   // As long as this field is true, the picture will not be reused or deleted.
   // An external application needs to call DecLib::releasePicture(), when it is done using the picture buffer.

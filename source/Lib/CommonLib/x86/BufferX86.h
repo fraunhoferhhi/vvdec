@@ -385,13 +385,13 @@ void addWghtAvg_SSE( const int16_t* src0, ptrdiff_t src0Stride, const int16_t* s
 
 template<bool doShift, bool shiftR, typename T> static inline void do_shift( T &vreg, int num );
 #if USE_AVX2
-template<> inline void do_shift<true,  true , __m256i>( __m256i &vreg, int num ) { vreg = _mm256_srai_epi32( vreg, num ); }
-template<> inline void do_shift<true,  false, __m256i>( __m256i &vreg, int num ) { vreg = _mm256_slli_epi32( vreg, num ); }
+template<> inline void do_shift<true,  true , __m256i>( __m256i &vreg, int num ) { vreg = _mm256_sra_epi32( vreg, _mm_cvtsi32_si128( num ) ); }
+template<> inline void do_shift<true,  false, __m256i>( __m256i &vreg, int num ) { vreg = _mm256_sll_epi32( vreg, _mm_cvtsi32_si128( num ) ); }
 template<> inline void do_shift<false, true , __m256i>( __m256i &vreg, int num ) { }
 template<> inline void do_shift<false, false, __m256i>( __m256i &vreg, int num ) { }
 #endif
-template<> inline void do_shift<true,  true , __m128i>( __m128i &vreg, int num ) { vreg = _mm_srai_epi32( vreg, num ); }
-template<> inline void do_shift<true,  false, __m128i>( __m128i &vreg, int num ) { vreg = _mm_slli_epi32( vreg, num ); }
+template<> inline void do_shift<true,  true , __m128i>( __m128i &vreg, int num ) { vreg = _mm_sra_epi32( vreg, _mm_cvtsi32_si128( num ) ); }
+template<> inline void do_shift<true,  false, __m128i>( __m128i &vreg, int num ) { vreg = _mm_sll_epi32( vreg, _mm_cvtsi32_si128( num ) ); }
 template<> inline void do_shift<false, true , __m128i>( __m128i &vreg, int num ) { }
 template<> inline void do_shift<false, false, __m128i>( __m128i &vreg, int num ) { }
 

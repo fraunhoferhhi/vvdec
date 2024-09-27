@@ -1057,6 +1057,10 @@ int VVDecImpl::xAddPicture( Picture* pcPic )
 
   cFrame.picAttributes->seqInfo->maxWidth  = pcPic->cs->sps->getMaxPicWidthInLumaSamples();
   cFrame.picAttributes->seqInfo->maxHeight = pcPic->cs->sps->getMaxPicHeightInLumaSamples();
+  cFrame.picAttributes->picHashError =
+    pcPic->dphMismatch ? VVDEC_DPH_MISMATCH                                   // first check pcPic->dphMismatch,
+                       : ( pcPic->picCheckedDPH ? VVDEC_DPH_OK                // and then pcPic->picCheckedDPH, because it will only be set when all subpics
+                                                : VVDEC_DPH_NOT_VERIFIED );   // have been checked, but the DPH-SEIs for some subpics could be missing,
 
   if( pcPic->fieldPic )
   {
@@ -1494,8 +1498,9 @@ void VVDecImpl::vvdec_picAttributes_default(vvdecPicAttributes *attributes)
 {
   memset( attributes, 0, sizeof( vvdecPicAttributes ) );
 
-  attributes->nalType   = VVC_NAL_UNIT_INVALID;      ///< nal unit type
-  attributes->sliceType = VVDEC_SLICETYPE_UNKNOWN;   ///< slice type (I/P/B)
+  attributes->nalType      = VVC_NAL_UNIT_INVALID;      ///< nal unit type
+  attributes->sliceType    = VVDEC_SLICETYPE_UNKNOWN;   ///< slice type (I/P/B)
+  attributes->picHashError = VVDEC_DPH_NOT_VERIFIED;
 }
 
 void VVDecImpl::vvdec_frame_default(vvdecFrame *frame)

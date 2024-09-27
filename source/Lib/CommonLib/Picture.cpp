@@ -140,6 +140,7 @@ void Picture::resetForUse( int _layerId )
 
   picCheckedDPH = false;
   subpicsCheckedDPH.clear();
+  dphMismatch   = false;
 
   lockedByApplication = false;
 
