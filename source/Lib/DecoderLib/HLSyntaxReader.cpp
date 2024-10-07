@@ -1194,11 +1194,11 @@ void HLSyntaxReader::parseVUI( VUI* pcVUI, unsigned vuiPayloadSize )
 void HLSyntaxReader::parseGeneralHrdParameters( GeneralHrdParams *hrd )
 {
   X_READ_CODE_NO_RANGE( num_units_in_tick, 32 );
-  // CHECK( num_units_in_tick <= 0, "num_units_in_tick shall be greater than 0" );   // this breaks the testset (TEMPSCAL_B_Panasonic_7.bit) although specified in the spec
+  CHECK( num_units_in_tick <= 0, "num_units_in_tick shall be greater than 0" );
   hrd->setNumUnitsInTick( num_units_in_tick );
 
   X_READ_CODE_NO_RANGE( time_scale, 32 );
-  // CHECK( time_scale <= 0, "The value of time_scale shall be greater than 0." );   // this breaks the testset (HRD_A_Fujitsu_3.bit & HRD_B_Fujitsu_2.bit) although specified in the spec
+  CHECK( time_scale <= 0, "The value of time_scale shall be greater than 0." );
   hrd->setTimeScale( time_scale );
 
   X_READ_FLAG( general_nal_hrd_params_present_flag );
