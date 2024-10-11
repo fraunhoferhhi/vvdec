@@ -70,7 +70,7 @@ template< X86_VEXT vext>
 static void DeQuantCoreSIMD(const int maxX,const int restX,const int maxY,const int scale,const TCoeffSig*const piQCoef,const size_t piQCfStride,TCoeff   *const piCoef,const int rightShift,const int inputMaximum,const TCoeff transformMaximum)
 {
   const int inputMinimum = -(inputMaximum+1);
-  const TCoeff transformMinimum = -(transformMaximum);
+  const TCoeff transformMinimum = -(transformMaximum+1);
   const int width = restX+maxX+1;
   __m128i vlevmask;
   if (maxX<7)

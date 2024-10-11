@@ -76,8 +76,8 @@ void  WeightPrediction::getWpScaling(const Slice                *pcSlice,
   const bool bBiPred         = (iRefIdx0 >= 0 && iRefIdx1 >= 0);
   const bool bUniPred        = !bBiPred;
 
-  WPScalingParam* wp0org;
-  WPScalingParam* wp1org;
+  const WPScalingParam* wp0org;
+  const WPScalingParam* wp1org;
 
   if (bUniPred || wpBiPred)
   {
@@ -138,8 +138,8 @@ void  WeightPrediction::getWpScaling(const Slice                *pcSlice,
   else
   {
     // UniPred
-    WPScalingParam *const pwporg = (iRefIdx0 >= 0) ? wp0org : wp1org;
-    WPScalingParam *const pwp    = (iRefIdx0 >= 0) ? wp0 : wp1;
+    const WPScalingParam* const pwporg = ( iRefIdx0 >= 0 ) ? wp0org : wp1org;
+          WPScalingParam* const pwp    = ( iRefIdx0 >= 0 ) ? wp0 : wp1;
 
     for (int yuv = 0; yuv < numValidComponent; yuv++)
     {
@@ -166,12 +166,9 @@ void WeightPrediction::addWeightBi(const PelUnitBuf           &pcYuvSrc0,
                                    const ClpRngs              &clpRngs,
                                    const WPScalingParam *const wp0,
                                    const WPScalingParam *const wp1,
-                                         PelUnitBuf           &rpcYuvDst,
-                                   const bool                  bRoundLuma /*= true*/
+                                         PelUnitBuf           &rpcYuvDst
                                   )
 {
-  const bool enableRounding[MAX_NUM_COMPONENT] = { bRoundLuma, true, true };
-
   const uint32_t numValidComponent = (const uint32_t)pcYuvSrc0.bufs.size();
 
   for (int componentIndex = 0; componentIndex < numValidComponent; componentIndex++)
@@ -192,12 +189,12 @@ void WeightPrediction::addWeightBi(const PelUnitBuf           &pcYuvSrc0,
     const int  clipBD   = clpRng.bd;
     const int  shiftNum = std::max<int>(2, (IF_INTERNAL_PREC - clipBD));
     const int  shift    = wp0[compID].shift + shiftNum;
-    const int  round    = (enableRounding[compID] && (shift > 0)) ? (1 << (shift - 1)) : 0;
+    const int  round    = 1 << shift >> 1;
     const int  w1       = wp1[compID].w;
-    const int  applyOffset = round + ( offset * ( 1 << ( shift - 1 ) ) ) + ( w0 + w1 ) * IF_INTERNAL_OFFS;
 
     const int  iHeight  = rpcYuvDst.bufs[compID].height;
     const int  iWidth   = rpcYuvDst.bufs[compID].width;
+    const int  applyOffset = round + ( offset * ( 1 << ( shift - 1 ) ) ) + ( w0 + w1 ) * IF_INTERNAL_OFFS;
 
     if( ( iWidth & 7 ) == 0 )
     {
@@ -378,7 +375,7 @@ void  WeightPrediction::xWeightedPredictionBi(const CodingUnit       &cu,
 
   if (iRefIdx0 >= 0 && iRefIdx1 >= 0)
   {
-    addWeightBi(pcYuvSrc0, pcYuvSrc1, cu.slice->clpRngs(), pwp0, pwp1, rpcYuvDst, true);
+    addWeightBi(pcYuvSrc0, pcYuvSrc1, cu.slice->clpRngs(), pwp0, pwp1, rpcYuvDst);
   }
   else if (iRefIdx0 >= 0 && iRefIdx1 < 0)
   {

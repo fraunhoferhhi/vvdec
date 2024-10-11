@@ -71,7 +71,7 @@ namespace vvdec
 class InputBitstream
 {
 private:
-  std::vector<uint8_t>  m_fifo;   /// FIFO for storage of complete bytes
+  AlignedByteVec        m_fifo;   /// FIFO for storage of complete bytes
   std::vector<uint32_t> m_emulationPreventionByteLocation;
 
   uint32_t m_fifo_idx = 0;   /// Read index into m_fifo
@@ -178,15 +178,16 @@ public:
   void                         setEmulationPreventionByteLocation( const std::vector<uint32_t>& vec ) { m_emulationPreventionByteLocation = vec; }
   void                         clearEmulationPreventionByteLocation()                                 { m_emulationPreventionByteLocation.clear(); }
 
-  const std::vector<uint8_t>& getFifo() const { return m_fifo; }
-        std::vector<uint8_t>& getFifo()       { return m_fifo; }
-  void                        clearFifo()     { m_fifo.clear(); m_zeroByteAdded = false; }
+  const AlignedByteVec& getFifo() const { return m_fifo; }
+        AlignedByteVec& getFifo()       { return m_fifo; }
+  void                  clearFifo()     { m_fifo.clear(); m_zeroByteAdded = false; }
 
 private:
   inline void load_next_bits( int requiredBits )
   {
     uint32_t num_bytes_to_load = 8;
-    if UNLIKELY( m_fifo_idx + num_bytes_to_load > m_fifo.size() )
+    if UNLIKELY( m_fifo_idx + num_bytes_to_load > m_fifo.size()   // end of bitstream
+                 || ( m_fifo_idx & 0x7 ) != 0 )                   // unaligned read position (m_fifo should be aligned)
     {
       const int required_bytes = ( requiredBits + 7 ) >> 3;
       CHECK( m_fifo_idx + required_bytes > m_fifo.size(), "Exceeded FIFO size" );
@@ -196,23 +197,24 @@ private:
       m_held_bits = 0;
       switch( num_bytes_to_load )
       {
-      case 8: m_held_bits =  static_cast<uint64_t>( m_fifo[m_fifo_idx++] ) << ( 7 * 8 );
-      case 7: m_held_bits |= static_cast<uint64_t>( m_fifo[m_fifo_idx++] ) << ( 6 * 8 );
-      case 6: m_held_bits |= static_cast<uint64_t>( m_fifo[m_fifo_idx++] ) << ( 5 * 8 );
-      case 5: m_held_bits |= static_cast<uint64_t>( m_fifo[m_fifo_idx++] ) << ( 4 * 8 );
-      case 4: m_held_bits |= static_cast<uint64_t>( m_fifo[m_fifo_idx++] ) << ( 3 * 8 );
-      case 3: m_held_bits |= static_cast<uint64_t>( m_fifo[m_fifo_idx++] ) << ( 2 * 8 );
-      case 2: m_held_bits |= static_cast<uint64_t>( m_fifo[m_fifo_idx++] ) << ( 1 * 8 );
-      case 1: m_held_bits |= static_cast<uint64_t>( m_fifo[m_fifo_idx++] );
+      default: num_bytes_to_load = 8;   // in the unaligned case num_bytes_to_load could be >8
+      case 8:  m_held_bits =  static_cast<uint64_t>( m_fifo[m_fifo_idx++] ) << ( 7 * 8 );
+      case 7:  m_held_bits |= static_cast<uint64_t>( m_fifo[m_fifo_idx++] ) << ( 6 * 8 );
+      case 6:  m_held_bits |= static_cast<uint64_t>( m_fifo[m_fifo_idx++] ) << ( 5 * 8 );
+      case 5:  m_held_bits |= static_cast<uint64_t>( m_fifo[m_fifo_idx++] ) << ( 4 * 8 );
+      case 4:  m_held_bits |= static_cast<uint64_t>( m_fifo[m_fifo_idx++] ) << ( 3 * 8 );
+      case 3:  m_held_bits |= static_cast<uint64_t>( m_fifo[m_fifo_idx++] ) << ( 2 * 8 );
+      case 2:  m_held_bits |= static_cast<uint64_t>( m_fifo[m_fifo_idx++] ) << ( 1 * 8 );
+      case 1:  m_held_bits |= static_cast<uint64_t>( m_fifo[m_fifo_idx++] );
       }
     }
     else
     {
+      CHECKD( reinterpret_cast<intptr_t>( &m_fifo[m_fifo_idx] ) & 0x7, "bistream read pos unaligned" );
       m_held_bits = simde_bswap64( *reinterpret_cast<uint64_t*>( &m_fifo[m_fifo_idx] ) );
       m_fifo_idx += num_bytes_to_load;
     }
 
-    /* resolve remainder bits */
     m_num_held_bits = num_bytes_to_load * 8;
   }
 };

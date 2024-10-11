@@ -1388,8 +1388,8 @@ void InterPrediction::motionCompensation( CodingUnit &cu, PelUnitBuf &predBuf, c
   const PPS &pps            = *cu.pps;
 
   CHECKD( !cu.affineFlag() && cu.refIdx[0] >= 0 && cu.refIdx[1] >= 0 && ( cu.lwidth() + cu.lheight() == 12 ), "invalid 4x8/8x4 bi-predicted blocks" );
-  WPScalingParam *wp0;
-  WPScalingParam *wp1;
+  const WPScalingParam* wp0 = nullptr;
+  const WPScalingParam* wp1 = nullptr;
   int refIdx0 = cu.refIdx[REF_PIC_LIST_0];
   int refIdx1 = cu.refIdx[REF_PIC_LIST_1];
   cu.slice->getWpScaling( REF_PIC_LIST_0, refIdx0, wp0 );

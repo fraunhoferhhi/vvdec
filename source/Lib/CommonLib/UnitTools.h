@@ -134,7 +134,7 @@ namespace PU
   void                  getInterMMVDMergeCandidates      (const CodingUnit &cu, MergeCtx& mrgCtx, const int& mrgCandIdx = -1);
   int                   getDistScaleFactor               (const int &currPOC, const int &currRefPOC, const int &colPOC, const int &colRefPOC);
   bool                  isDiffMER                        (const Position &pos1, const Position &pos2, const unsigned plevel);
-  bool                  getColocatedMVP                  (const CodingUnit &cu, const RefPicList &eRefPicList, const Position &pos, Mv& rcMv, const int &refIdx);
+  bool                  getColocatedMVP                  (const CodingUnit &cu, const RefPicList &eRefPicList, const Position &pos, Mv& rcMv, const int refIdx, bool sbFlag);
   void                  fillMvpCand                      (      CodingUnit &cu, const RefPicList &eRefPicList, const int &refIdx, AMVPInfo &amvpInfo, MotionHist& hist);
   void                  fillIBCMvpCand                   (      CodingUnit &cu, AMVPInfo &amvpInfo, MotionHist& hist);
   void                  fillAffineMvpCand                (      CodingUnit &cu, const RefPicList &eRefPicList, const int &refIdx, AffineAMVPInfo &affiAMVPInfo);

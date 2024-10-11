@@ -2526,7 +2526,6 @@ private:
   bool                       m_tsResidualCodingDisabledFlag     = false;
   bool                       m_lmcsEnabledFlag                  = false;
   bool                       m_explicitScalingListUsed          = false;
-  int                        m_list1IdxToList0Idx[MAX_NUM_REF]  = { 0 };
   int                        m_aiNumRefIdx[NUM_REF_PIC_LIST_01] = { 0, 0 }; //  for multiple reference of current slice
 
   bool                       m_bCheckLDC                        = false;
@@ -2535,7 +2534,6 @@ private:
   int                        m_symRefIdx[2]                     = { -1, -1 };
 
   //  Data
-  int                        m_iSliceQpDelta                    = 0;
   int                        m_iSliceChromaQpDelta[MAX_NUM_COMPONENT + 1]                = { 0 };
   Picture*                   m_apcRefPicList      [NUM_REF_PIC_LIST_01][MAX_NUM_REF + 1] = { { nullptr } };   // entry 0 in m_apcRefPicList is nullptr!
   int                        m_aiRefPOCList       [NUM_REF_PIC_LIST_01][MAX_NUM_REF + 1] = { { 0 } };         // this is needed to get the POC of the a reference picture, when this slice is used as a collocated reference and the pictures referenced by this one have already been reused. (needed for TMVP)
@@ -2629,7 +2627,6 @@ public:
   bool                        getNoOutputOfPriorPicsFlag() const                     { return m_noOutputOfPriorPicsFlag;                             }
   int                         getPOC() const                                         { return m_iPOC;                                                }
   int                         getSliceQp() const                                     { return m_iSliceQp;                                            }
-  int                         getSliceQpDelta() const                                { return m_iSliceQpDelta;                                       }
   int                         getSliceChromaQpDelta(ComponentID compID) const        { return isLuma(compID) ? 0 : m_iSliceChromaQpDelta[compID];    }
   bool                        getUseChromaQpAdj() const                              { return m_ChromaQpAdjEnabled;                                  }
   bool                        getDeblockingFilterDisable() const                     { return m_deblockingFilterDisable;                             }
@@ -2654,7 +2651,6 @@ public:
     return (j>=0) ? m_bIsUsedAsLongTerm[i][j] : m_bIsUsedAsLongTerm[i][0];                             }
   void                        setIsUsedAsLongTerm(int i, int j, bool value)          { m_bIsUsedAsLongTerm[i][j] = value;                            }
   bool                        getCheckLDC() const                                    { return m_bCheckLDC;                                           }
-  int                         getList1IdxToList0Idx( int list1Idx ) const            { return m_list1IdxToList0Idx[list1Idx];                        }
   void                        setPOC( int i )                                        { m_iPOC              = i;                                      }
   bool                        getPictureHeaderInSliceHeader() const                  { return m_pictureHeaderInSliceHeader;                         }
   void                        setPictureHeaderInSliceHeader( bool e )                { m_pictureHeaderInSliceHeader = e;                            }
@@ -2677,7 +2673,6 @@ public:
   void                        checkRPL( const ReferencePictureList* pRPL0, const ReferencePictureList* pRPL1, const int associatedIRAPDecodingOrderNumber, const PicList& rcListPic );
   void                        setSliceType( SliceType e )                            { m_eSliceType        = e;                                      }
   void                        setSliceQp( int i )                                    { m_iSliceQp          = i;                                      }
-  void                        setSliceQpDelta( int i )                               { m_iSliceQpDelta     = i;                                      }
   void                        setSliceChromaQpDelta( ComponentID compID, int i )     { m_iSliceChromaQpDelta[compID] = isLuma(compID) ? 0 : i;       }
   void                        setUseChromaQpAdj( bool b )                            { m_ChromaQpAdjEnabled = b;                                     }
   void                        setDeblockingFilterDisable( bool b )                   { m_deblockingFilterDisable= b;                                 }
@@ -2749,16 +2744,12 @@ public:
   void                        setIndependentSliceIdx( uint32_t i)                    { m_independentSliceIdx = i;                                    }
   uint32_t                    getIndependentSliceIdx() const                         { return  m_independentSliceIdx;                                }
   void                        copySliceInfo(Slice *pcSliceSrc, bool cpyAlmostAll = true);
-  void                        setWpScaling( WPScalingParam  wp[NUM_REF_PIC_LIST_01][MAX_NUM_REF][MAX_NUM_COMPONENT] )
+  void                        setWpScaling( WPScalingParam wp[NUM_REF_PIC_LIST_01][MAX_NUM_REF][MAX_NUM_COMPONENT] )
   {
-    memcpy(m_weightPredTable, wp, sizeof(WPScalingParam)*NUM_REF_PIC_LIST_01*MAX_NUM_REF*MAX_NUM_COMPONENT);
+    memcpy( m_weightPredTable, wp, sizeof( WPScalingParam ) * NUM_REF_PIC_LIST_01 * MAX_NUM_REF * MAX_NUM_COMPONENT );
   }
-  void                        setWpScaling(WPScalingParam *wp)
-  {
-    memcpy(m_weightPredTable, wp, sizeof(WPScalingParam) * NUM_REF_PIC_LIST_01 * MAX_NUM_REF * MAX_NUM_COMPONENT);
-  }
-  WPScalingParam *            getWpScalingAll()                                      { return (WPScalingParam *) m_weightPredTable;                  }
-  void                        getWpScaling( RefPicList e, int iRefIdx, WPScalingParam *&wp) const;
+  void                        getWpScaling( RefPicList e, int iRefIdx, const WPScalingParam*& wp ) const;
+  void                        getWpScaling( RefPicList e, int iRefIdx,       WPScalingParam*& wp );
 
   void                        resetWpScaling();
   void                        initWpScaling(const SPS *sps);

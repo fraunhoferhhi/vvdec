@@ -202,8 +202,8 @@ void reco_SSE( const int16_t* src0, ptrdiff_t src0Stride, const int16_t* src1, p
           __m256i vdest = _mm256_loadu_si256( (const __m256i*) & src0[col] );
           __m256i vsrc1 = _mm256_loadu_si256( (const __m256i*) & src1[col] );
 
-          vdest = _mm256_add_epi16( vdest, vsrc1 );
-          vdest = _mm256_min_epi16( vbdmax, _mm256_max_epi16( vbdmin, vdest ) );
+          vdest = _mm256_adds_epi16( vdest, vsrc1 );
+          vdest = _mm256_min_epi16 ( vbdmax, _mm256_max_epi16( vbdmin, vdest ) );
 
           _mm256_storeu_si256( (__m256i*) & dst[col], vdest );
         }
@@ -226,8 +226,8 @@ void reco_SSE( const int16_t* src0, ptrdiff_t src0Stride, const int16_t* src1, p
           __m128i vdest = _mm_loadu_si128( ( const __m128i * )&src0[col] );
           __m128i vsrc1 = _mm_loadu_si128( ( const __m128i * )&src1[col] );
 
-          vdest = _mm_add_epi16( vdest, vsrc1 );
-          vdest = _mm_min_epi16( vbdmax, _mm_max_epi16( vbdmin, vdest ) );
+          vdest = _mm_adds_epi16( vdest, vsrc1 );
+          vdest = _mm_min_epi16 ( vbdmax, _mm_max_epi16( vbdmin, vdest ) );
 
           _mm_storeu_si128( ( __m128i * )&dst[col], vdest );
         }
@@ -250,8 +250,8 @@ void reco_SSE( const int16_t* src0, ptrdiff_t src0Stride, const int16_t* src1, p
         __m128i vsrc = _mm_loadu_si64( ( const __m128i * )&src0[col] );
         __m128i vdst = _mm_loadu_si64( ( const __m128i * )&src1[col] );
 
-        vdst = _mm_add_epi16( vdst, vsrc );
-        vdst = _mm_min_epi16( vbdmax, _mm_max_epi16( vbdmin, vdst ) );
+        vdst = _mm_adds_epi16( vdst, vsrc );
+        vdst = _mm_min_epi16 ( vbdmax, _mm_max_epi16( vbdmin, vdst ) );
 
         _mm_storeu_si64( ( __m128i * )&dst[col], vdst );
       }

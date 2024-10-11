@@ -1996,7 +1996,7 @@ void CABACReader::mvp_flag( CodingUnit& cu, RefPicList eRefList )
 void CABACReader::ciip_flag( CodingUnit& cu )
 {
   cu.setCiipFlag( m_BinDecoder.decodeBin( Ctx::CiipFlag() ) );
-  DTRACE( g_trace_ctx, D_SYNTAX, "Ciip_flag() Ciip=%d pos=(%d,%d) size=%dx%d\n", cu.ciipFlag() ? 1 : 0, cu.lumaPos().x, cu.lumaPos().y, cu.lumaSize().width, cu.lumaSize().height );
+  DTRACE( g_trace_ctx, D_SYNTAX, "ciip_flag() Ciip=%d pos=(%d,%d) size=%dx%d\n", cu.ciipFlag() ? 1 : 0, cu.lumaPos().x, cu.lumaPos().y, cu.lumaSize().width, cu.lumaSize().height );
 }
 
 

@@ -435,48 +435,88 @@ static inline void msg( MsgLevel level, const char* fmt, ... )
 #define MEMORY_ALIGN_DEF_SIZE       32  // for use with avx2 (256 bit)
 #define CACHE_MEM_ALIGN_SIZE      1024
 
-#define ALIGNED_MALLOC              1   ///< use 32-bit aligned malloc/free
+#define ALIGNED_MALLOC              1   ///< use 32-byte aligned malloc/free
 
 #if ALIGNED_MALLOC
-#if     ( _WIN32 && ( _MSC_VER > 1300 ) ) || defined (__MINGW64_VERSION_MAJOR)
-#define xMalloc( type, len )        _aligned_malloc( sizeof(type)*(len), MEMORY_ALIGN_DEF_SIZE )
-#define xFree( ptr )                _aligned_free  ( ptr )
-#elif defined (__MINGW32__)
-#define xMalloc( type, len )        __mingw_aligned_malloc( sizeof(type)*(len), MEMORY_ALIGN_DEF_SIZE )
-#define xFree( ptr )                __mingw_aligned_free( ptr )
-#else
-namespace detail {
-template<typename T>
-static inline T* aligned_malloc(size_t len, size_t alignement) {
-  T* p = NULL;
-  if( posix_memalign( (void**)&p, alignement, sizeof(T)*(len) ) )
+
+#  if( _WIN32 && ( _MSC_VER > 1300 ) ) || defined( __MINGW64_VERSION_MAJOR )
+#    define xMalloc( type, len ) (type*) _aligned_malloc( sizeof( type ) * ( len ), MEMORY_ALIGN_DEF_SIZE )
+#    define xFree( ptr )         _aligned_free( ptr )
+#  elif defined( __MINGW32__ )
+#    define xMalloc( type, len ) (type*) __mingw_aligned_malloc( sizeof( type ) * ( len ), MEMORY_ALIGN_DEF_SIZE )
+#    define xFree( ptr )         __mingw_aligned_free( ptr )
+#  else
+#    define xMalloc( type, len ) detail::aligned_malloc<type>( len, MEMORY_ALIGN_DEF_SIZE )
+#    define xFree( ptr )         free( ptr )
+namespace detail
+{
+  template<typename T>
+  static inline T* aligned_malloc( size_t len, size_t alignement )
   {
-    THROW_FATAL( "posix_memalign failed" );
+    T* p = NULL;
+    if( posix_memalign( (void**) &p, alignement, sizeof( T ) * ( len ) ) )
+    {
+      THROW_FATAL( "posix_memalign failed" );
+    }
+    return p;
   }
-  return p;
-}
 }   // namespace detail
-#define xMalloc( type, len )        detail::aligned_malloc<type>( len, MEMORY_ALIGN_DEF_SIZE )
-#define xFree( ptr )                free( ptr )
-#endif
+#  endif
 
-#else
-#define xMalloc( type, len )        malloc   ( sizeof(type)*(len) )
-#define xFree( ptr )                free     ( ptr )
-#endif //#if ALIGNED_MALLOC
+#else   // !ALIGNED_MALLOC
+#  define xMalloc( type, len ) (type*) malloc( sizeof( type ) * ( len ) )
+#  define xFree( ptr )         free( ptr )
+#endif   // !ALIGNED_MALLOC
 
-template<class T> struct AlignedDeleter
+template<class T>
+struct AlignedDeleter
 {
   void operator()( T* p ) const { xFree( p ); };
 };
 
+template<class T>
+struct AlignedAllocator
+{
+  using value_type = T;
+
+  using propagate_on_container_move_assignment = std::true_type;
+  using is_always_equal                        = std::true_type;
+
+  AlignedAllocator()  = default;
+  ~AlignedAllocator() = default;
+  CLASS_COPY_MOVE_DEFAULT( AlignedAllocator )
+
+  template<class U>
+  constexpr AlignedAllocator( const AlignedAllocator<U>& ) noexcept {}
+
+  T* allocate( std::size_t n )
+  {
+    if( n > std::numeric_limits<std::size_t>::max() / sizeof( T ) )
+    {
+      throw std::bad_array_new_length();
+    }
+
+    if( T* p = xMalloc( T, n ) )
+    {
+      return p;
+    }
+
+    throw std::bad_alloc();
+  }
+
+  void deallocate( T* p, std::size_t ) noexcept { xFree( p ); }
+};
+template<typename T1, typename T2>
+static bool operator==( const AlignedAllocator<T1>&, const AlignedAllocator<T2>& ) noexcept { return true; }
+template<typename T1, typename T2>
+static bool operator!=( const AlignedAllocator<T1>&, const AlignedAllocator<T2>& ) noexcept { return false; }
+
+using AlignedByteVec = std::vector<uint8_t, AlignedAllocator<uint8_t>>;
+
 #if defined _MSC_VER
-#define ALIGN_DATA(nBytes,v) __declspec(align(nBytes)) v
+#  define ALIGN_DATA( nBytes, v ) __declspec( align( nBytes ) ) v
 #else
-//#elif defined linux
-#define ALIGN_DATA(nBytes,v) v __attribute__ ((aligned (nBytes)))
-//#else
-//#error unknown platform
+#  define ALIGN_DATA( nBytes, v ) v __attribute__( ( aligned( nBytes ) ) )
 #endif
 
 #if defined(__GNUC__) && !defined(__clang__)

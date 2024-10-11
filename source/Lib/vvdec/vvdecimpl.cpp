@@ -1365,11 +1365,11 @@ int VVDecImpl::xConvertPayloadToRBSP( const uint8_t* payload, size_t payloadLen,
   uint32_t zeroCount = 0;
   bitstream->clearEmulationPreventionByteLocation();
 
-  std::vector<uint8_t>& nalUnitBuf = bitstream->getFifo();
+  AlignedByteVec& nalUnitBuf = bitstream->getFifo();
   nalUnitBuf.resize( payloadLen );
 
-  const uint8_t*                 it_read  = payload;
-  std::vector<uint8_t>::iterator it_write = nalUnitBuf.begin();
+  const uint8_t*           it_read  = payload;
+  AlignedByteVec::iterator it_write = nalUnitBuf.begin();
   for( size_t pos = 0; pos < payloadLen; it_read++, it_write++, pos++ )
   {
     if(zeroCount >= 2 && *it_read < 0x03 )

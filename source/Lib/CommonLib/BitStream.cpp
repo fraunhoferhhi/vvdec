@@ -102,6 +102,7 @@ uint32_t InputBitstream::read (uint32_t uiNumberOfBits)
   m_numBitsRead += uiNumberOfBits;
 #endif
 
+  constexpr static uint64_t ONES = ~static_cast<uint64_t>( 0 );   // need to ensure 64 bits for the mask, because shift by 32 is UB for uin32_t
 
   /* NB, bits are extracted from the MSB of each byte. */
   uint32_t retval = 0;
@@ -111,7 +112,7 @@ uint32_t InputBitstream::read (uint32_t uiNumberOfBits)
      * n=3, len(H)=7:   -VVV HHHH, shift_down=4, mask=0xf8
      */
     retval = static_cast<uint32_t>( m_held_bits >> ( m_num_held_bits - uiNumberOfBits ) );
-    retval &= ~( ~0u << uiNumberOfBits );
+    retval &= ~( ONES << uiNumberOfBits );
     m_num_held_bits -= uiNumberOfBits;
 
     return retval;
@@ -127,7 +128,7 @@ uint32_t InputBitstream::read (uint32_t uiNumberOfBits)
     /* n=5, len(H)=3: ---- -VVV, mask=0x07, shift_up=5-3=2,
      * n=9, len(H)=3: ---- -VVV, mask=0x07, shift_up=9-3=6 */
     uiNumberOfBits -= m_num_held_bits;
-    retval = static_cast<uint32_t>( m_held_bits ) & ~( ~0u << m_num_held_bits );   // we can cast to 32 bits, because the held bits are the rightmost bits
+    retval = static_cast<uint32_t>( m_held_bits ) & ~( ONES << m_num_held_bits );   // we can cast to 32 bits, because the held bits are the rightmost bits
     retval <<= uiNumberOfBits;
   }
 
@@ -170,7 +171,7 @@ std::unique_ptr<InputBitstream> InputBitstream::extractSubstream( uint32_t uiNum
 {
   std::unique_ptr<InputBitstream> substream( new InputBitstream );
 
-  std::vector<uint8_t>& buf = substream->getFifo();
+  AlignedByteVec& buf = substream->getFifo();
   buf.reserve( ( uiNumBits + 7 ) / 8 + 1 );    // +1 because a zero byte might be added later
 
   const uint32_t uiNumBytes = uiNumBits / 8;   // don't round up here, because the remaing bits will be copied later

@@ -120,7 +120,7 @@ static void offsetBlock_SIMD_SAO_TYPE_BO( const int  channelBitDepth,
   int8_t    p_eo_offsets[16] = { 0 };
   for( int i = 0; i < 4; i++ )
   {
-    p_eo_offsets[i] = offset[startIdx + i];
+    p_eo_offsets[i] = offset[( startIdx + i ) % MAX_NUM_SAO_CLASSES];
   }
   for( int y = 0; y < height; y++ )
   {
@@ -130,7 +130,7 @@ static void offsetBlock_SIMD_SAO_TYPE_BO( const int  channelBitDepth,
       // AVX2
       if( width - x >= 16 && vext >= AVX2 )
       {
-        __m256i vbaseoffset = _mm256_set1_epi16( startIdx );
+        __m256i vbaseoffset = _mm256_set1_epi16( startIdx - MAX_NUM_SAO_CLASSES );
         __m256i vminus      = _mm256_set1_epi8( -1 );
         __m256i vzero       = _mm256_set1_epi8( 0 );
 
@@ -140,7 +140,8 @@ static void offsetBlock_SIMD_SAO_TYPE_BO( const int  channelBitDepth,
 
         __m256i vsrc  = _mm256_loadu_si256( (__m256i*)&srcLine[x] );
         __m256i bands = _mm256_srai_epi16( vsrc, shiftBits );
-        bands         = _mm256_sub_epi16( bands, vbaseoffset );
+        bands         = _mm256_sub_epi16 ( bands, vbaseoffset );
+        bands         = _mm256_and_si256 ( bands, _mm256_set1_epi16( MAX_NUM_SAO_CLASSES - 1 ) ); // modulo 32 = modulo NUM_SAO_BO_CLASSES_LOG2
         __m256i mask1 = _mm256_cmpgt_epi16( bands, vminus );
         __m256i mask2 = _mm256_cmpgt_epi16( vfour, bands );
 
@@ -160,7 +161,7 @@ static void offsetBlock_SIMD_SAO_TYPE_BO( const int  channelBitDepth,
       else
 #  endif
       {
-        __m128i vbaseoffset = _mm_set1_epi16( startIdx );
+        __m128i vbaseoffset = _mm_set1_epi16( startIdx - MAX_NUM_SAO_CLASSES );
         __m128i vminus      = _mm_set1_epi8( -1 );
         __m128i vzero       = _mm_set1_epi8( 0 );
 
@@ -170,7 +171,8 @@ static void offsetBlock_SIMD_SAO_TYPE_BO( const int  channelBitDepth,
 
         __m128i vsrc  = _mm_loadu_si128( (__m128i*)&srcLine[x] );
         __m128i bands = _mm_srai_epi16( vsrc, shiftBits );
-        bands         = _mm_sub_epi16( bands, vbaseoffset );
+        bands         = _mm_sub_epi16 ( bands, vbaseoffset );
+        bands         = _mm_and_si128 ( bands, _mm_set1_epi16( MAX_NUM_SAO_CLASSES - 1 ) ); // modulo 32 = modulo NUM_SAO_BO_CLASSES_LOG2
         __m128i mask1 = _mm_cmpgt_epi16( bands, vminus );
         __m128i mask2 = _mm_cmplt_epi16( bands, vfour );
 
@@ -257,11 +259,11 @@ static void offsetBlock_SIMD_SAO_TYPE_EO_0( const int            channelBitDepth
             vsrcar   = _mm256_loadu_si256( (__m256i*)&srcLine[x + 1] );
             virBmask = _mm256_loadu_si256( (__m256i*)&bndmask[x] );
 
-            vsrcal            = _mm256_sub_epi16( vsrca, vsrcal );
-            vsrcar            = _mm256_sub_epi16( vsrca, vsrcar );
+            vsrcal            = _mm256_subs_epi16( vsrca, vsrcal );
+            vsrcar            = _mm256_subs_epi16( vsrca, vsrcar );
             __m256i vsignl    = _mm256_sign_epi16( vplusone, vsrcal );
             __m256i vsignr    = _mm256_sign_epi16( vplusone, vsrcar );
-            __m256i vsign     = _mm256_add_epi16( _mm256_add_epi16( vsignl, vsignr ), vbaseoffset );
+            __m256i vsign     = _mm256_adds_epi16( _mm256_adds_epi16( vsignl, vsignr ), vbaseoffset );
             __m256i veoffsets = _mm256_shuffle_epi8( voffsettbl, vsign );
             veoffsets         = _mm256_slli_epi16( veoffsets, 8 );
             veoffsets         = _mm256_srai_epi16( veoffsets, 8 );
@@ -286,11 +288,11 @@ static void offsetBlock_SIMD_SAO_TYPE_EO_0( const int            channelBitDepth
             vsrca             = _mm256_loadu_si256( (__m256i*)&srcLine[x] );
             vsrcal            = _mm256_loadu_si256( (__m256i*)&srcLine[x - 1] );
             vsrcar            = _mm256_loadu_si256( (__m256i*)&srcLine[x + 1] );
-            vsrcal            = _mm256_sub_epi16( vsrca, vsrcal );
-            vsrcar            = _mm256_sub_epi16( vsrca, vsrcar );
+            vsrcal            = _mm256_subs_epi16( vsrca, vsrcal );
+            vsrcar            = _mm256_subs_epi16( vsrca, vsrcar );
             __m256i vsignl    = _mm256_sign_epi16( vplusone, vsrcal );
             __m256i vsignr    = _mm256_sign_epi16( vplusone, vsrcar );
-            __m256i vsign     = _mm256_add_epi16( _mm256_add_epi16( vsignl, vsignr ), vbaseoffset );
+            __m256i vsign     = _mm256_adds_epi16( _mm256_adds_epi16( vsignl, vsignr ), vbaseoffset );
             __m256i veoffsets = _mm256_shuffle_epi8( voffsettbl, vsign );
             veoffsets         = _mm256_slli_epi16( veoffsets, 8 );
             veoffsets         = _mm256_srai_epi16( veoffsets, 8 );
@@ -324,11 +326,11 @@ static void offsetBlock_SIMD_SAO_TYPE_EO_0( const int            channelBitDepth
             vsrcal            = _mm_loadu_si128( (__m128i*)&srcLine[x - 1] );
             vsrcar            = _mm_loadu_si128( (__m128i*)&srcLine[x + 1] );
             virBmask          = _mm_loadu_si128( (__m128i*)&bndmask[x] );
-            vsrcal            = _mm_sub_epi16( vsrca, vsrcal );
-            vsrcar            = _mm_sub_epi16( vsrca, vsrcar );
+            vsrcal            = _mm_subs_epi16( vsrca, vsrcal );
+            vsrcar            = _mm_subs_epi16( vsrca, vsrcar );
             __m128i vsignl    = _mm_sign_epi16( vplusone, vsrcal );
             __m128i vsignr    = _mm_sign_epi16( vplusone, vsrcar );
-            __m128i vsign     = _mm_add_epi16( _mm_add_epi16( vsignl, vsignr ), vbaseoffset );
+            __m128i vsign     = _mm_adds_epi16( _mm_adds_epi16( vsignl, vsignr ), vbaseoffset );
             __m128i veoffsets = _mm_shuffle_epi8( voffsettbl, vsign );
             veoffsets         = _mm_slli_epi16( veoffsets, 8 );
             veoffsets         = _mm_srai_epi16( veoffsets, 8 );
@@ -353,11 +355,11 @@ static void offsetBlock_SIMD_SAO_TYPE_EO_0( const int            channelBitDepth
             vsrca             = _mm_loadu_si128( (__m128i*)&srcLine[x] );
             vsrcal            = _mm_loadu_si128( (__m128i*)&srcLine[x - 1] );
             vsrcar            = _mm_loadu_si128( (__m128i*)&srcLine[x + 1] );
-            vsrcal            = _mm_sub_epi16( vsrca, vsrcal );
-            vsrcar            = _mm_sub_epi16( vsrca, vsrcar );
+            vsrcal            = _mm_subs_epi16( vsrca, vsrcal );
+            vsrcar            = _mm_subs_epi16( vsrca, vsrcar );
             __m128i vsignl    = _mm_sign_epi16( vplusone, vsrcal );
             __m128i vsignr    = _mm_sign_epi16( vplusone, vsrcar );
-            __m128i vsign     = _mm_add_epi16( _mm_add_epi16( vsignl, vsignr ), vbaseoffset );
+            __m128i vsign     = _mm_adds_epi16( _mm_adds_epi16( vsignl, vsignr ), vbaseoffset );
             __m128i veoffsets = _mm_shuffle_epi8( voffsettbl, vsign );
             veoffsets         = _mm_slli_epi16( veoffsets, 8 );
             veoffsets         = _mm_srai_epi16( veoffsets, 8 );
@@ -477,11 +479,11 @@ static void offsetBlock_SIMD_SAO_TYPE_EO_90( const int            channelBitDept
             vsrca             = _mm256_loadu_si256( (__m256i*)&srcLine[x] );
             vsrcat            = _mm256_loadu_si256( (__m256i*)&srcLineAbove[x] );
             vsrcab            = _mm256_loadu_si256( (__m256i*)&srcLineBelow[x] );
-            vsrcat            = _mm256_sub_epi16( vsrca, vsrcat );
-            vsrcab            = _mm256_sub_epi16( vsrca, vsrcab );
+            vsrcat            = _mm256_subs_epi16( vsrca, vsrcat );
+            vsrcab            = _mm256_subs_epi16( vsrca, vsrcab );
             __m256i vsignt    = _mm256_sign_epi16( vplusone, vsrcat );
             __m256i vsignb    = _mm256_sign_epi16( vplusone, vsrcab );
-            __m256i vsign     = _mm256_add_epi16( _mm256_add_epi16( vsignt, vsignb ), vbaseoffset );
+            __m256i vsign     = _mm256_adds_epi16( _mm256_adds_epi16( vsignt, vsignb ), vbaseoffset );
             __m256i veoffsets = _mm256_shuffle_epi8( voffsettbl, vsign );
             veoffsets         = _mm256_slli_epi16( veoffsets, 8 );
             veoffsets         = _mm256_srai_epi16( veoffsets, 8 );
@@ -507,11 +509,11 @@ static void offsetBlock_SIMD_SAO_TYPE_EO_90( const int            channelBitDept
           vsrca             = _mm256_loadu_si256( (__m256i*)&srcLine[x] );
           vsrcat            = _mm256_loadu_si256( (__m256i*)&srcLineAbove[x] );
           vsrcab            = _mm256_loadu_si256( (__m256i*)&srcLineBelow[x] );
-          vsrcat            = _mm256_sub_epi16( vsrca, vsrcat );
-          vsrcab            = _mm256_sub_epi16( vsrca, vsrcab );
+          vsrcat            = _mm256_subs_epi16( vsrca, vsrcat );
+          vsrcab            = _mm256_subs_epi16( vsrca, vsrcab );
           __m256i vsignt    = _mm256_sign_epi16( vplusone, vsrcat );
           __m256i vsignb    = _mm256_sign_epi16( vplusone, vsrcab );
-          __m256i vsign     = _mm256_add_epi16( _mm256_add_epi16( vsignt, vsignb ), vbaseoffset );
+          __m256i vsign     = _mm256_adds_epi16( _mm256_adds_epi16( vsignt, vsignb ), vbaseoffset );
           __m256i veoffsets = _mm256_shuffle_epi8( voffsettbl, vsign );
           veoffsets         = _mm256_slli_epi16( veoffsets, 8 );
           veoffsets         = _mm256_srai_epi16( veoffsets, 8 );
@@ -549,11 +551,11 @@ static void offsetBlock_SIMD_SAO_TYPE_EO_90( const int            channelBitDept
             vsrca             = _mm_loadu_si128( (__m128i*)&srcLine[x] );
             vsrcat            = _mm_loadu_si128( (__m128i*)&srcLineAbove[x] );
             vsrcab            = _mm_loadu_si128( (__m128i*)&srcLineBelow[x] );
-            vsrcat            = _mm_sub_epi16( vsrca, vsrcat );
-            vsrcab            = _mm_sub_epi16( vsrca, vsrcab );
+            vsrcat            = _mm_subs_epi16( vsrca, vsrcat );
+            vsrcab            = _mm_subs_epi16( vsrca, vsrcab );
             __m128i vsignt    = _mm_sign_epi16( vplusone, vsrcat );
             __m128i vsignb    = _mm_sign_epi16( vplusone, vsrcab );
-            __m128i vsign     = _mm_add_epi16( _mm_add_epi16( vsignt, vsignb ), vbaseoffset );
+            __m128i vsign     = _mm_adds_epi16( _mm_adds_epi16( vsignt, vsignb ), vbaseoffset );
             __m128i veoffsets = _mm_shuffle_epi8( voffsettbl, vsign );
             veoffsets         = _mm_slli_epi16( veoffsets, 8 );
             veoffsets         = _mm_srai_epi16( veoffsets, 8 );
@@ -579,11 +581,11 @@ static void offsetBlock_SIMD_SAO_TYPE_EO_90( const int            channelBitDept
           vsrca             = _mm_loadu_si128( (__m128i*)&srcLine[x] );
           vsrcat            = _mm_loadu_si128( (__m128i*)&srcLineAbove[x] );
           vsrcab            = _mm_loadu_si128( (__m128i*)&srcLineBelow[x] );
-          vsrcat            = _mm_sub_epi16( vsrca, vsrcat );
-          vsrcab            = _mm_sub_epi16( vsrca, vsrcab );
+          vsrcat            = _mm_subs_epi16( vsrca, vsrcat );
+          vsrcab            = _mm_subs_epi16( vsrca, vsrcab );
           __m128i vsignt    = _mm_sign_epi16( vplusone, vsrcat );
           __m128i vsignb    = _mm_sign_epi16( vplusone, vsrcab );
-          __m128i vsign     = _mm_add_epi16( _mm_add_epi16( vsignt, vsignb ), vbaseoffset );
+          __m128i vsign     = _mm_adds_epi16( _mm_adds_epi16( vsignt, vsignb ), vbaseoffset );
           __m128i veoffsets = _mm_shuffle_epi8( voffsettbl, vsign );
           veoffsets         = _mm_slli_epi16( veoffsets, 8 );
           veoffsets         = _mm_srai_epi16( veoffsets, 8 );
@@ -681,11 +683,11 @@ static void offsetBlock_SIMD_SAO_TYPE_EO_135( const int            channelBitDep
             vsrcat            = _mm256_loadu_si256( (__m256i*)&srcLineAbove[x - 1] );
             vsrcab            = _mm256_loadu_si256( (__m256i*)&srcLineBelow[x + 1] );
             virBmask          = _mm256_loadu_si256( (__m256i*)&bndmask[x] );
-            vsrcat            = _mm256_sub_epi16( vsrca, vsrcat );
-            vsrcab            = _mm256_sub_epi16( vsrca, vsrcab );
+            vsrcat            = _mm256_subs_epi16( vsrca, vsrcat );
+            vsrcab            = _mm256_subs_epi16( vsrca, vsrcab );
             __m256i vsignt    = _mm256_sign_epi16( vplusone, vsrcat );
             __m256i vsignb    = _mm256_sign_epi16( vplusone, vsrcab );
-            __m256i vsign     = _mm256_add_epi16( _mm256_add_epi16( vsignt, vsignb ), vbaseoffset );
+            __m256i vsign     = _mm256_adds_epi16( _mm256_adds_epi16( vsignt, vsignb ), vbaseoffset );
             __m256i veoffsets = _mm256_shuffle_epi8( voffsettbl, vsign );
             veoffsets         = _mm256_slli_epi16( veoffsets, 8 );
             veoffsets         = _mm256_srai_epi16( veoffsets, 8 );
@@ -724,11 +726,11 @@ static void offsetBlock_SIMD_SAO_TYPE_EO_135( const int            channelBitDep
             vsrcat            = _mm_loadu_si128( (__m128i*)&srcLineAbove[x - 1] );
             vsrcab            = _mm_loadu_si128( (__m128i*)&srcLineBelow[x + 1] );
             virBmask          = _mm_loadu_si128( (__m128i*)&bndmask[x] );
-            vsrcat            = _mm_sub_epi16( vsrca, vsrcat );
-            vsrcab            = _mm_sub_epi16( vsrca, vsrcab );
+            vsrcat            = _mm_subs_epi16( vsrca, vsrcat );
+            vsrcab            = _mm_subs_epi16( vsrca, vsrcab );
             __m128i vsignt    = _mm_sign_epi16( vplusone, vsrcat );
             __m128i vsignb    = _mm_sign_epi16( vplusone, vsrcab );
-            __m128i vsign     = _mm_add_epi16( _mm_add_epi16( vsignt, vsignb ), vbaseoffset );
+            __m128i vsign     = _mm_adds_epi16( _mm_adds_epi16( vsignt, vsignb ), vbaseoffset );
             __m128i veoffsets = _mm_shuffle_epi8( voffsettbl, vsign );
             veoffsets         = _mm_slli_epi16( veoffsets, 8 );
             veoffsets         = _mm_srai_epi16( veoffsets, 8 );
@@ -971,11 +973,11 @@ static void offsetBlock_SIMD_SAO_TYPE_EO_45( const int            channelBitDept
             vsrcat   = _mm256_loadu_si256( (__m256i*)&srcLineAbove[x + 1] );
             vsrcab   = _mm256_loadu_si256( (__m256i*)&srcLineBelow[x - 1] );
 
-            vsrcat            = _mm256_sub_epi16( vsrca, vsrcat );
-            vsrcab            = _mm256_sub_epi16( vsrca, vsrcab );
+            vsrcat            = _mm256_subs_epi16( vsrca, vsrcat );
+            vsrcab            = _mm256_subs_epi16( vsrca, vsrcab );
             __m256i vsignt    = _mm256_sign_epi16( vplusone, vsrcat );
             __m256i vsignb    = _mm256_sign_epi16( vplusone, vsrcab );
-            __m256i vsign     = _mm256_add_epi16( _mm256_add_epi16( vsignt, vsignb ), vbaseoffset );
+            __m256i vsign     = _mm256_adds_epi16( _mm256_adds_epi16( vsignt, vsignb ), vbaseoffset );
             __m256i veoffsets = _mm256_shuffle_epi8( voffsettbl, vsign );
             veoffsets         = _mm256_slli_epi16( veoffsets, 8 );
             veoffsets         = _mm256_srai_epi16( veoffsets, 8 );
@@ -1015,11 +1017,11 @@ static void offsetBlock_SIMD_SAO_TYPE_EO_45( const int            channelBitDept
             virBmask = _mm_loadu_si128( (__m128i*)&bndmask[x] );
 
             vsrcab            = _mm_loadu_si128( (__m128i*)&srcLineBelow[x - 1] );
-            vsrcat            = _mm_sub_epi16( vsrca, vsrcat );
-            vsrcab            = _mm_sub_epi16( vsrca, vsrcab );
+            vsrcat            = _mm_subs_epi16( vsrca, vsrcat );
+            vsrcab            = _mm_subs_epi16( vsrca, vsrcab );
             __m128i vsignt    = _mm_sign_epi16( vplusone, vsrcat );
             __m128i vsignb    = _mm_sign_epi16( vplusone, vsrcab );
-            __m128i vsign     = _mm_add_epi16( _mm_add_epi16( vsignt, vsignb ), vbaseoffset );
+            __m128i vsign     = _mm_adds_epi16( _mm_adds_epi16( vsignt, vsignb ), vbaseoffset );
             __m128i veoffsets = _mm_shuffle_epi8( voffsettbl, vsign );
             veoffsets         = _mm_slli_epi16( veoffsets, 8 );
             veoffsets         = _mm_srai_epi16( veoffsets, 8 );

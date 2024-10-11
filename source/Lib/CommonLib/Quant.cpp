@@ -130,8 +130,8 @@ static void DeQuantCore( const int              maxX,
                          const int              inputMaximum,
                          const TCoeff           transformMaximum )
 {
-  const int    inputMinimum     = -( inputMaximum + 1 );
-  const TCoeff transformMinimum = -( transformMaximum );
+  const int    inputMinimum     = -( inputMaximum     + 1 );
+  const TCoeff transformMinimum = -( transformMaximum + 1 );
 
   if (rightShift>0)
   {
@@ -313,7 +313,7 @@ void Quant::dequant( const TransformUnit& tu, CoeffBuf& dstCoeff, const Componen
         TCoeff* const    piCoef                = dstCoeff.buf;
   const int              maxLog2TrDynamicRange = sps->getMaxLog2TrDynamicRange( toChannelType( compID ) );
   const TCoeff           transformMinimum      = -( 1 << maxLog2TrDynamicRange );
-  const TCoeff           transformMaximum      = ( 1 << maxLog2TrDynamicRange ) - 1;
+  const TCoeff           transformMaximum      =  ( 1 << maxLog2TrDynamicRange ) - 1;
   const bool             isTransformSkip       = ( tu.mtsIdx( compID ) == MTS_SKIP );
   setUseScalingList( tu.cu->slice->getExplicitScalingListUsed() );
   const bool             disableSMForLFNST     = tu.cu->slice->getExplicitScalingListUsed() ? sps->getDisableScalingMatrixForLfnstBlks() : false;

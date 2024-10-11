@@ -622,25 +622,37 @@ bool DecLibParser::xDecodeSliceHead( InputNALUnit& nalu )
   m_prevLayerID = nalu.m_nuhLayerId;
 
   //detect lost reference picture and insert copy of earlier frame.
-  for( const auto rplIdx: { REF_PIC_LIST_0, REF_PIC_LIST_1 } )
+  if( m_apcSlicePilot->getSliceType() != I_SLICE )
   {
-    const auto* rpl = m_apcSlicePilot->getRPL( rplIdx );
-
-    int missingPoc         = MAX_INT;
-    int missingRefPicIndex = 0;
-    while( !m_apcSlicePilot->checkThatAllRefPicsAreAvailable( m_dpbReferencePics,
-                                                              rpl,
-                                                              m_apcSlicePilot->getNumRefIdx( rplIdx ),
-                                                              &missingPoc,
-                                                              &missingRefPicIndex ) )
+    for( const auto rplIdx: { REF_PIC_LIST_0, REF_PIC_LIST_1 } )
     {
-      if( !pps->getMixedNaluTypesInPicFlag()
-          && ( ( m_apcSlicePilot->isIDR() && ( sps->getIDRRefParamListPresent() || pps->getRplInfoInPhFlag() ) )
-               || ( m_apcSlicePilot->isCRAorGDR() && m_picHeader->getNoOutputBeforeRecoveryFlag() ) ) )
+      const auto* rpl = m_apcSlicePilot->getRPL( rplIdx );
+
+      int missingPoc         = MAX_INT;
+      int missingRefPicIndex = 0;
+      while( !m_apcSlicePilot->checkThatAllRefPicsAreAvailable( m_dpbReferencePics,
+                                                                rpl,
+                                                                m_apcSlicePilot->getNumRefIdx( rplIdx ),
+                                                                &missingPoc,
+                                                                &missingRefPicIndex ) )
       {
-        if( !rpl->isInterLayerRefPic( missingRefPicIndex ) )
+        if( !pps->getMixedNaluTypesInPicFlag()
+            && ( ( m_apcSlicePilot->isIDR() && ( sps->getIDRRefParamListPresent() || pps->getRplInfoInPhFlag() ) )
+                 || ( m_apcSlicePilot->isCRAorGDR() && m_picHeader->getNoOutputBeforeRecoveryFlag() ) ) )
         {
-          prepareUnavailablePicture( false,
+          if( !rpl->isInterLayerRefPic( missingRefPicIndex ) )
+          {
+            prepareUnavailablePicture( false,
+                                       pps,
+                                       missingPoc,
+                                       m_apcSlicePilot->getNalUnitLayerId(),
+                                       rpl->isRefPicLongterm( missingRefPicIndex ),
+                                       m_apcSlicePilot->getTLayer() );
+          }
+        }
+        else
+        {
+          prepareUnavailablePicture( true,
                                      pps,
                                      missingPoc,
                                      m_apcSlicePilot->getNalUnitLayerId(),
@@ -648,18 +660,8 @@ bool DecLibParser::xDecodeSliceHead( InputNALUnit& nalu )
                                      m_apcSlicePilot->getTLayer() );
         }
       }
-      else
-      {
-        prepareUnavailablePicture( true,
-                                   pps,
-                                   missingPoc,
-                                   m_apcSlicePilot->getNalUnitLayerId(),
-                                   rpl->isRefPicLongterm( missingRefPicIndex ),
-                                   m_apcSlicePilot->getTLayer() );
-      }
     }
   }
-
   xActivateParameterSets( nalu.m_nuhLayerId );
 
   // WARNING: don't use m_apcSlicePilot after this point, because it has been reallocated
