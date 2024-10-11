@@ -58,9 +58,9 @@ class ParameterSetMap
 public:
   struct MapData
   {
-    std::vector<uint8_t> cNaluData;   // Can be empty
-    std::shared_ptr<T>   parameterSet;
-    bool                 bChanged = false;
+    AlignedByteVec     cNaluData;   // Can be empty
+    std::shared_ptr<T> parameterSet;
+    bool               bChanged = false;
   };
 
   ~ParameterSetMap()
@@ -69,7 +69,7 @@ public:
     m_lastActiveParameterSet.reset();
   }
 
-  void storePS( int psId, T* ps, std::vector<uint8_t>&& cNaluData )
+  void storePS( int psId, T* ps, AlignedByteVec&& cNaluData )
   {
     CHECK( psId >= MAX_ID, "Invalid PS id" );
     if( m_paramsetMap.find( psId ) != m_paramsetMap.end() )
@@ -177,10 +177,10 @@ public:
 
   //! store sequence parameter set and take ownership of it
   //! store picture parameter set and take ownership of it
-  void                  storeVPS( VPS* vps, std::vector<uint8_t>& naluData ) { m_vpsMap.storePS( vps->getVPSId(),                                             vps, std::move( naluData ) ); }
-  void                  storeSPS( SPS* sps, std::vector<uint8_t>& naluData ) { m_spsMap.storePS( sps->getSPSId(),                                             sps, std::move( naluData ) ); }
-  void                  storePPS( PPS* pps, std::vector<uint8_t>& naluData ) { m_ppsMap.storePS( pps->getPPSId(),                                             pps, std::move( naluData ) ); }
-  void                  storeAPS( APS* aps, std::vector<uint8_t>& naluData ) { m_apsMap.storePS( ( aps->getAPSId() << NUM_APS_TYPE_LEN ) + aps->getAPSType(), aps, std::move( naluData ) ); }
+  void                  storeVPS( VPS* vps, AlignedByteVec& naluData ) { m_vpsMap.storePS( vps->getVPSId(),                                             vps, std::move( naluData ) ); }
+  void                  storeSPS( SPS* sps, AlignedByteVec& naluData ) { m_spsMap.storePS( sps->getSPSId(),                                             sps, std::move( naluData ) ); }
+  void                  storePPS( PPS* pps, AlignedByteVec& naluData ) { m_ppsMap.storePS( pps->getPPSId(),                                             pps, std::move( naluData ) ); }
+  void                  storeAPS( APS* aps, AlignedByteVec& naluData ) { m_apsMap.storePS( ( aps->getAPSId() << NUM_APS_TYPE_LEN ) + aps->getAPSType(), aps, std::move( naluData ) ); }
 
   //! get pointer to existing sequence parameter set
   const VPS*            getVPS        ( int vpsId )              const { if( !vpsId ) return nullptr; return m_vpsMap.getPS( vpsId );              }

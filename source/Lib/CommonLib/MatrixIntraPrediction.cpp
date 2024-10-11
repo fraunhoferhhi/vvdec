@@ -127,7 +127,7 @@ namespace Mip
   {
     const bool needUpsampling = ( m_upsmpFactorHor > 1 ) || ( m_upsmpFactorVer > 1 );
 
-  const uint8_t* matrix = getMatrixData(modeIdx);
+    const uint8_t* matrix = getMatrixData( modeIdx );
 
     Pel bufReducedPred[MIP_MAX_REDUCED_OUTPUT_SAMPLES];
     Pel* const       reducedPred     = needUpsampling ? bufReducedPred : result;
@@ -262,61 +262,61 @@ void PredictorMIP::boundaryDownsampling1D(Pel* reducedDst, const Pel* const full
     }
   }
 
-const uint8_t* PredictorMIP::getMatrixData(const int modeIdx) const
-{
-    switch( m_sizeId )
-    {
-      case 0: return &mipMatrix4x4[modeIdx][0][0];
+  const uint8_t* PredictorMIP::getMatrixData(const int modeIdx) const
+  {
+      switch( m_sizeId )
+      {
+        case 0: return &mipMatrix4x4[modeIdx][0][0];
 
-      case 1: return &mipMatrix8x8[modeIdx][0][0];
+        case 1: return &mipMatrix8x8[modeIdx][0][0];
 
-      case 2: return &mipMatrix16x16[modeIdx][0][0];
+        case 2: return &mipMatrix16x16[modeIdx][0][0];
 
-      default: THROW_FATAL( "Invalid mipSizeId" );
-    }
-}
+        default: THROW_FATAL( "Invalid mipSizeId" );
+      }
+  }
 
-  void PredictorMIP::computeReducedPred( Pel*const result, const Pel* const input,
-                                          const uint8_t* matrix,
-                                          const bool transpose, const int bitDepth )
+  void PredictorMIP::computeReducedPred( Pel* const result, const Pel* const input, const uint8_t* matrix, const bool transpose, const int bitDepth )
   {
     const int inputSize = 2 * m_reducedBdrySize;
 
     // use local buffer for transposed result
-    Pel resBufTransposed[MIP_MAX_REDUCED_OUTPUT_SAMPLES];
-    Pel*const resPtr = (transpose) ? resBufTransposed : result;
+    Pel        resBufTransposed[MIP_MAX_REDUCED_OUTPUT_SAMPLES];
+    Pel* const resPtr = ( transpose ) ? resBufTransposed : result;
 
     int sum = 0;
-    for( int i = 0; i < inputSize; i++ ) { sum += input[i]; }
-  const int offset = (1 << (MIP_SHIFT_MATRIX - 1)) - MIP_OFFSET_MATRIX * sum;
-    CHECK( inputSize != 4 * (inputSize >> 2), "Error, input size not divisible by four" );
+    for( int i = 0; i < inputSize; i++ )
+    {
+      sum += input[i];
+    }
+    const int offset = ( 1 << ( MIP_SHIFT_MATRIX - 1 ) ) - MIP_OFFSET_MATRIX * sum;
+    CHECK( inputSize != 4 * ( inputSize >> 2 ), "Error, input size not divisible by four" );
 
-    const uint8_t *weight = matrix;
-    const int   inputOffset = transpose ? m_inputOffsetTransp : m_inputOffset;
+    const uint8_t* weight      = matrix;
+    const int      inputOffset = transpose ? m_inputOffsetTransp : m_inputOffset;
 
-    const bool redSize = (m_sizeId == 2);
-    int posRes = 0;
+    const bool redSize = ( m_sizeId == 2 );
+    int        posRes  = 0;
     for( int y = 0; y < m_reducedPredSize; y++ )
     {
       for( int x = 0; x < m_reducedPredSize; x++ )
       {
-        if( redSize ) weight -= 1;
-        int tmp0 = redSize ? 0 : (input[0] * weight[0]);
-        int tmp1 = input[1] * weight[1];
-        int tmp2 = input[2] * weight[2];
-        int tmp3 = input[3] * weight[3];
-        for (int i = 4; i < inputSize; i += 4)
+        int tmp0 = redSize ? 0 : ( input[0] * weight[0] );
+        int tmp1 = input[1] * weight[1 - redSize];
+        int tmp2 = input[2] * weight[2 - redSize];
+        int tmp3 = input[3] * weight[3 - redSize];
+        for( int i = 4; i < inputSize; i += 4 )
         {
-          tmp0 += input[i]     * weight[i];
-          tmp1 += input[i + 1] * weight[i + 1];
-          tmp2 += input[i + 2] * weight[i + 2];
-          tmp3 += input[i + 3] * weight[i + 3];
+          tmp0 += input[i    ] * weight[i     - redSize];
+          tmp1 += input[i + 1] * weight[i + 1 - redSize];
+          tmp2 += input[i + 2] * weight[i + 2 - redSize];
+          tmp3 += input[i + 3] * weight[i + 3 - redSize];
         }
-        resPtr[posRes++] = ClipBD<int>(((tmp0 + tmp1 + tmp2 + tmp3 + offset) >> MIP_SHIFT_MATRIX) + inputOffset, bitDepth);
+        resPtr[posRes++] = ClipBD<int>( ( ( tmp0 + tmp1 + tmp2 + tmp3 + offset ) >> MIP_SHIFT_MATRIX ) + inputOffset, bitDepth );
 
-        weight += inputSize;
+        weight += inputSize - redSize;
       }
-}
+    }
 
     if( transpose )
     {
@@ -324,12 +324,12 @@ const uint8_t* PredictorMIP::getMatrixData(const int modeIdx) const
       {
         for( int x = 0; x < m_reducedPredSize; x++ )
         {
-          result[ y * m_reducedPredSize + x ] = resPtr[ x * m_reducedPredSize + y ];
+          result[y * m_reducedPredSize + x] = resPtr[x * m_reducedPredSize + y];
         }
       }
     }
   }
-} // namespace Mip
+}   // namespace Mip
 
 MatrixIntraPrediction::MatrixIntraPrediction()
 {

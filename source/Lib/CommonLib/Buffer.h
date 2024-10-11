@@ -150,7 +150,7 @@ struct AreaBuf : public Size
   void fill                 ( const T &val );
   void memset               ( const int val );
 
-  void copyFrom             ( const AreaBuf<const T> &other ) const;
+  void copyFrom             ( const AreaBuf<const T> &other );
   
   void reconstruct          ( const AreaBuf<const T> &pred, const AreaBuf<const T> &resi, const ClpRng& clpRng);
   
@@ -396,7 +396,7 @@ void AreaBuf<T>::memset( const int val )
 
 #if ENABLE_SIMD_OPT_BUFFER
 template<typename T>
-void AreaBuf<T>::copyFrom( const AreaBuf<const T> &other ) const
+void AreaBuf<T>::copyFrom( const AreaBuf<const T> &other )
 {
 #if !defined(__GNUC__) || __GNUC__ > 5
   static_assert( std::is_trivially_copyable<T>::value, "Type T is not trivially_copyable" );
@@ -406,7 +406,7 @@ void AreaBuf<T>::copyFrom( const AreaBuf<const T> &other ) const
 }
 #else
 template<typename T>
-void AreaBuf<T>::copyFrom( const AreaBuf<const T> &other ) const
+void AreaBuf<T>::copyFrom( const AreaBuf<const T> &other )
 {
 #if !defined(__GNUC__) || __GNUC__ > 5
   static_assert( std::is_trivially_copyable<T>::value, "Type T is not trivially_copyable" );
@@ -711,7 +711,7 @@ struct UnitBuf
   const AreaBuf<T>& Cr() const { return bufs[2]; }
 
   void fill                 ( const T &val );
-  void copyFrom             ( const UnitBuf<const T> &other ) const;
+  void copyFrom             ( const UnitBuf<const T> &other );
   void reconstruct          ( const UnitBuf<const T> &pred, const UnitBuf<const T> &resi, const ClpRngs& clpRngs );
   void subtract             ( const UnitBuf<const T> &other );
   void addWeightedAvg       ( const UnitBuf<      T> &other1, const UnitBuf<      T> &other2, const ClpRngs& clpRngs, const uint8_t bcwIdx = BCW_DEFAULT, const bool chromaOnly = false, const bool lumaOnly = false);
@@ -751,7 +751,7 @@ void UnitBuf<T>::fill( const T &val )
 }
 
 template<typename T>
-void UnitBuf<T>::copyFrom( const UnitBuf<const T> &other ) const
+void UnitBuf<T>::copyFrom( const UnitBuf<const T> &other )
 {
   CHECK( chromaFormat != other.chromaFormat, "Incompatible formats" );
 

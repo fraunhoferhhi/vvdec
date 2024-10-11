@@ -199,7 +199,7 @@ bool AdaptiveLoopFilter::isClipOrCrossedByVirtualBoundaries( const CodingStructu
     const CodingUnit* prevCtu = cs.getCU( prevCtuPos, CHANNEL_TYPE_LUMA );
     if( !CU::isAvailable( *currCtu,
                           *prevCtu,
-                          !loopFilterAcrossTilesEnabledFlag,
+                          !loopFilterAcrossSlicesEnabledFlag,
                           !loopFilterAcrossTilesEnabledFlag,
                           !loopFilterAcrossSubPicEnabledFlag ) )
     {
@@ -214,8 +214,8 @@ bool AdaptiveLoopFilter::isClipOrCrossedByVirtualBoundaries( const CodingStructu
     const CodingUnit* nextCtu = cs.getCU( nextCtuPos, CHANNEL_TYPE_LUMA );
     if( !CU::isAvailable( *currCtu,
                           *nextCtu,
-                          !pps->getLoopFilterAcrossSlicesEnabledFlag(),
-                          !pps->getLoopFilterAcrossTilesEnabledFlag(),
+                          !loopFilterAcrossSlicesEnabledFlag,
+                          !loopFilterAcrossTilesEnabledFlag,
                           !loopFilterAcrossSubPicEnabledFlag ) )
     {
       clipBottom = true;
@@ -229,8 +229,8 @@ bool AdaptiveLoopFilter::isClipOrCrossedByVirtualBoundaries( const CodingStructu
     const CodingUnit* prevCtu = cs.getCU( prevCtuPos, CHANNEL_TYPE_LUMA );
     if( !CU::isAvailable( *currCtu,
                           *prevCtu,
-                          !pps->getLoopFilterAcrossSlicesEnabledFlag(),
-                          !pps->getLoopFilterAcrossTilesEnabledFlag(),
+                          !loopFilterAcrossSlicesEnabledFlag,
+                          !loopFilterAcrossTilesEnabledFlag,
                           !loopFilterAcrossSubPicEnabledFlag ) )
     {
       clipLeft = true;
@@ -245,8 +245,8 @@ bool AdaptiveLoopFilter::isClipOrCrossedByVirtualBoundaries( const CodingStructu
 
     if( !CU::isAvailable( *currCtu,
                           *nextCtu,
-                          !pps->getLoopFilterAcrossSlicesEnabledFlag(),
-                          !pps->getLoopFilterAcrossTilesEnabledFlag(),
+                          !loopFilterAcrossSlicesEnabledFlag,
+                          !loopFilterAcrossTilesEnabledFlag,
                           !loopFilterAcrossSubPicEnabledFlag ) )
     {
       clipRight = true;
@@ -261,21 +261,21 @@ bool AdaptiveLoopFilter::isClipOrCrossedByVirtualBoundaries( const CodingStructu
     {
       const Position prevCtuPos( area.x - ctuSize, area.y - ctuSize );
       const CodingUnit *prevCtu = cs.getCU( prevCtuPos, CHANNEL_TYPE_LUMA );
-      if ( !pps->getLoopFilterAcrossSlicesEnabledFlag() && !CU::isSameSlice( *currCtu, *prevCtu ) )
+      if ( !loopFilterAcrossSlicesEnabledFlag && !CU::isSameSlice( *currCtu, *prevCtu ) )
       {
         rasterSliceAlfPad = 1;
       }
     }
   }
 
-  if ( !clipBottom && !clipRight && restrictSlices )
+  if( !clipBottom && !clipRight && restrictSlices )
   {
     //bottom-right CTU
     if ( area.x + ctuSize < cs.pcv->lumaWidth && area.y + ctuSize < cs.pcv->lumaHeight )
     {
       const Position nextCtuPos( area.x + ctuSize, area.y + ctuSize );
       const CodingUnit *nextCtu = cs.getCU( nextCtuPos, CHANNEL_TYPE_LUMA );
-      if ( !pps->getLoopFilterAcrossSlicesEnabledFlag() && !CU::isSameSlice( *currCtu, *nextCtu ) )
+      if ( !loopFilterAcrossSlicesEnabledFlag && !CU::isSameSlice( *currCtu, *nextCtu ) )
       {
         rasterSliceAlfPad += 2;
       }
@@ -460,16 +460,17 @@ void AdaptiveLoopFilter::prepareCTU( CodingStructure &cs, unsigned col, unsigned
 void AdaptiveLoopFilter::processCTU( CodingStructure & cs, unsigned col, unsigned line, int tid, const ChannelType chType )
 {
   PROFILER_SCOPE_AND_STAGE_EXT( 1, g_timeProfiler, P_ALF, cs, CH_L );
-  PelUnitBuf recYuv = cs.getRecoBuf();
 
   const UnitArea ctuArea( getCtuArea( cs, col, line, true ) );
+  CPelUnitBuf    recYuv = cs.getRecoBuf().subBuf( ctuArea );
+  PelUnitBuf     dstYuv = m_alfBuf.subBuf( ctuArea );
 
   const unsigned ctuIdx  = line * cs.pcv->widthInCtus + col;
   CtuAlfData currAlfData = cs.getCtuData( col, line ).alfParam;
   currAlfData.alfCtuEnableFlag[1] += currAlfData.ccAlfFilterControl[0] > 0 ? 2 : 0;
   currAlfData.alfCtuEnableFlag[2] += currAlfData.ccAlfFilterControl[1] > 0 ? 2 : 0;
 
-  filterCTU( recYuv.subBuf( ctuArea ), m_alfBuf.subBuf( ctuArea ), currAlfData, cs.picture->slices[0]->getClpRngs(), chType, cs, ctuIdx, ctuArea.lumaPos(), tid );
+  filterCTU( recYuv, dstYuv, currAlfData, cs.picture->slices[0]->getClpRngs(), chType, cs, ctuIdx, ctuArea.lumaPos(), tid );
 }
 
 bool AdaptiveLoopFilter::getAlfSkipPic( const CodingStructure & cs )
@@ -489,7 +490,7 @@ bool AdaptiveLoopFilter::getAlfSkipPic( const CodingStructure & cs )
 }
 
 void AdaptiveLoopFilter::filterAreaLuma( const CPelUnitBuf& srcBuf,
-                                         const PelUnitBuf&  dstBuf,
+                                               PelUnitBuf&  dstBuf,
                                          const Area&        blk,
                                          const Slice*       slice,
                                          const APS* const*  aps,
@@ -535,7 +536,7 @@ void AdaptiveLoopFilter::filterAreaLuma( const CPelUnitBuf& srcBuf,
 }
 
 void AdaptiveLoopFilter::filterAreaChroma( const CPelUnitBuf& srcBuf,
-                                           const PelUnitBuf&  dstBuf,
+                                                 PelUnitBuf&  dstBuf,
                                            const Area&        blkChroma,
                                            const ComponentID  compID,
                                            const Slice*       slice,
@@ -575,7 +576,7 @@ void AdaptiveLoopFilter::filterAreaChroma( const CPelUnitBuf& srcBuf,
 }
 
 void AdaptiveLoopFilter::filterAreaChromaCc( const CPelUnitBuf& srcBuf,
-                                             const PelUnitBuf&  dstBuf,
+                                                   PelUnitBuf&  dstBuf,
                                              const Area&        blkLuma,
                                              const Area&        blkChroma,
                                              const ComponentID  compID,
@@ -601,7 +602,7 @@ void AdaptiveLoopFilter::filterAreaChromaCc( const CPelUnitBuf& srcBuf,
 }
 
 void AdaptiveLoopFilter::filterAreaChromaBothCc( const CPelUnitBuf& srcBuf,
-                                                 const PelUnitBuf&  dstBuf,
+                                                       PelUnitBuf&  dstBuf,
                                                  const Area&        blkLuma,
                                                  const Area&        blkChroma,
                                                  const Slice*       slice,
@@ -653,7 +654,7 @@ void AdaptiveLoopFilter::filterAreaChromaBothCc( const CPelUnitBuf& srcBuf,
 }
 
 void AdaptiveLoopFilter::filterCTU( const CPelUnitBuf&     srcBuf,
-                                    const PelUnitBuf&      dstBuf,
+                                           PelUnitBuf&     dstBuf,
                                     const CtuAlfData&      ctuAlfData,
                                     const ClpRngs&         clpRngs,
                                     const ChannelType      chType,

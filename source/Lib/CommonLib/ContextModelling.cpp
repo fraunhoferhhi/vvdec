@@ -372,8 +372,8 @@ void MergeCtx::setMmvdMergeCandiInfo( CodingUnit& cu, int candIdx )
       tempMv[1] = tempMv[0];
 
       const int  scale           = PU::getDistScaleFactor( currPoc, poc0, currPoc, poc1 );
-      const bool isL0RefLongTerm = cu.slice->getRPL( REF_PIC_LIST_1 )->isRefPicLongterm( refList0 );
-      const bool isL1RefLongTerm = cu.slice->getRPL( REF_PIC_LIST_0 )->isRefPicLongterm( refList1 );
+      const bool isL0RefLongTerm = cu.slice->getRPL( REF_PIC_LIST_0 )->isRefPicLongterm( refList0 );
+      const bool isL1RefLongTerm = cu.slice->getRPL( REF_PIC_LIST_1 )->isRefPicLongterm( refList1 );
 
       if( isL0RefLongTerm || isL1RefLongTerm )
       {

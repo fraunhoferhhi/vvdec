@@ -425,7 +425,7 @@ endforeach()
 get_directory_property( ALL_TESTS TESTS )
 set_tests_properties( ${ALL_TESTS} PROPERTIES
                       TIMEOUT 120
-                      FAIL_REGULAR_EXPRESSION "WARNING:" )
+                      FAIL_REGULAR_EXPRESSION "(WARNING:|runtime error)" )
 
 add_custom_target( test-ok  USES_TERMINAL COMMAND ${CMAKE_CTEST_COMMAND} -C $<CONFIG> -R "\"^(Test|MISSING)\"" )
 add_custom_target( test-all USES_TERMINAL COMMAND ${CMAKE_CTEST_COMMAND} -C $<CONFIG> -R "\"^(Test|MISSING|Faulty)\"" )

@@ -963,29 +963,33 @@ void LoopFilter::xSetMaxFilterLengthPQFromTransformSizes( const CodingUnit& cu, 
           {
             LoopFilterParam& lfp = *lfpPtr;
             lfp.setFilterEdge( cu.chType(), bValue );
-            if( ( lfp.bs || bSameCUTUSize ) && bValue )
-            {
-              lfp.bs |= BsSet( 3, MAX_NUM_COMPONENT );
-            }
-            else
-            {
-              lfp.bs |= BsSet( 1, MAX_NUM_COMPONENT );
-            }
 
-            uint8_t maxFLPQ;
-            bool smallBlock = ( sizePSide <= 4 ) || ( sizeQSide <= 4 );
-            if( smallBlock )
+            if( bValue )
             {
-              maxFLPQ = 17;
+              if( lfp.bs || bSameCUTUSize )
+              {
+                lfp.bs |= BsSet( 3, MAX_NUM_COMPONENT );
+              }
+              else
+              {
+                lfp.bs |= BsSet( 1, MAX_NUM_COMPONENT );
+              }
+
+              uint8_t maxFLPQ;
+              bool smallBlock = ( sizePSide <= 4 ) || ( sizeQSide <= 4 );
+              if( smallBlock )
+              {
+                maxFLPQ = 17;
+              }
+              else
+              {
+                maxFLPQ   = ( sizePSide >= 32 ) ? ( cuP->affineFlag() ? 5 : 7 ) : 3;
+                maxFLPQ <<= 4;
+                maxFLPQ  += ( sizeQSide >= 32 ) ? 7 : 3;
+              }
+              maxFLPQ    += 128;
+              lfp.sideMaxFiltLength = maxFLPQ;
             }
-            else
-            {
-              maxFLPQ   = ( sizePSide >= 32 ) ? ( cuP->affineFlag() ? 5 : 7 ) : 3;
-              maxFLPQ <<= 4;
-              maxFLPQ  += ( sizeQSide >= 32 ) ? 7 : 3;
-            }
-            maxFLPQ    += 128;
-            lfp.sideMaxFiltLength = maxFLPQ;
 
             if( distance > inc )
             {
@@ -1007,15 +1011,20 @@ void LoopFilter::xSetMaxFilterLengthPQFromTransformSizes( const CodingUnit& cu, 
               if( ct == start )
               {
                 lfp.setFilterEdge( cu.chType(), bValue );
-                if( ( lfp.bs || bSameCUTUSize ) && bValue )
+
+                if( bValue )
                 {
-                  lfp.bs |= BsSet( 3, MAX_NUM_COMPONENT );
-                }
-                else
-                {
-                  lfp.bs |= BsSet( 1, MAX_NUM_COMPONENT );
+                  if( lfp.bs || bSameCUTUSize )
+                  {
+                    lfp.bs |= BsSet( 3, MAX_NUM_COMPONENT );
+                  }
+                  else
+                  {
+                    lfp.bs |= BsSet( 1, MAX_NUM_COMPONENT );
+                  }
                 }
               }
+
               lfp.setFilterCMFL( ( sizeQSide >= 8 && sizePSide >= 8 ) ? 1 : 0 );
               OFFSET( lfpPtr, lfpStride, edgeDir, ( 1 - edgeDir ) );
             }

@@ -1194,11 +1194,11 @@ void HLSyntaxReader::parseVUI( VUI* pcVUI, unsigned vuiPayloadSize )
 void HLSyntaxReader::parseGeneralHrdParameters( GeneralHrdParams *hrd )
 {
   X_READ_CODE_NO_RANGE( num_units_in_tick, 32 );
-  // CHECK( num_units_in_tick <= 0, "num_units_in_tick shall be greater than 0" );   // this breaks the testset (TEMPSCAL_B_Panasonic_7.bit) although specified in the spec
+  CHECK( num_units_in_tick <= 0, "num_units_in_tick shall be greater than 0" );
   hrd->setNumUnitsInTick( num_units_in_tick );
 
   X_READ_CODE_NO_RANGE( time_scale, 32 );
-  // CHECK( time_scale <= 0, "The value of time_scale shall be greater than 0." );   // this breaks the testset (HRD_A_Fujitsu_3.bit & HRD_B_Fujitsu_2.bit) although specified in the spec
+  CHECK( time_scale <= 0, "The value of time_scale shall be greater than 0." );
   hrd->setTimeScale( time_scale );
 
   X_READ_FLAG( general_nal_hrd_params_present_flag );
@@ -1546,7 +1546,7 @@ void HLSyntaxReader::parseSPS( SPS* sps, const ParameterSetManager* parameterSet
         {
           if( picIdx > 0 && sps_pic_width_max_in_luma_samples > CtbSizeY )
           {
-            X_READ_CODE_NO_RANGE_idx( sps_subpic_ctu_top_left_x, "[i]", ceilLog2tmpWidth );
+            X_READ_CODE_NO_RANGE_idx( sps_subpic_ctu_top_left_x, "[ i ]", ceilLog2tmpWidth );
             sps->setSubPicCtuTopLeftX( picIdx, sps_subpic_ctu_top_left_x );
           }
           else
@@ -1556,7 +1556,7 @@ void HLSyntaxReader::parseSPS( SPS* sps, const ParameterSetManager* parameterSet
 
           if( picIdx > 0 && sps_pic_height_max_in_luma_samples > CtbSizeY )
           {
-            X_READ_CODE_NO_RANGE_idx( sps_subpic_ctu_top_left_y, "[i]", ceilLog2tmpHeight );
+            X_READ_CODE_NO_RANGE_idx( sps_subpic_ctu_top_left_y, "[ i ]", ceilLog2tmpHeight );
             sps->setSubPicCtuTopLeftY( picIdx, sps_subpic_ctu_top_left_y );
           }
           else
@@ -1566,7 +1566,7 @@ void HLSyntaxReader::parseSPS( SPS* sps, const ParameterSetManager* parameterSet
 
           if( picIdx < sps_num_subpics_minus1 && sps_pic_width_max_in_luma_samples > CtbSizeY )
           {
-            X_READ_CODE_NO_RANGE_idx( sps_subpic_width_minus1, "[i]", ceilLog2tmpWidth );
+            X_READ_CODE_NO_RANGE_idx( sps_subpic_width_minus1, "[ i ]", ceilLog2tmpWidth );
             sps->setSubPicWidth( picIdx, sps_subpic_width_minus1 + 1 );
           }
           else
@@ -1578,7 +1578,7 @@ void HLSyntaxReader::parseSPS( SPS* sps, const ParameterSetManager* parameterSet
 
           if( picIdx < sps_num_subpics_minus1 && sps_pic_height_max_in_luma_samples > CtbSizeY )
           {
-            X_READ_CODE_NO_RANGE_idx( sps_subpic_height_minus1, "[i]", ceilLog2tmpHeight );
+            X_READ_CODE_NO_RANGE_idx( sps_subpic_height_minus1, "[ i ]", ceilLog2tmpHeight );
             sps->setSubPicHeight( picIdx, sps_subpic_height_minus1 + 1 );
           }
           else
@@ -1639,10 +1639,10 @@ void HLSyntaxReader::parseSPS( SPS* sps, const ParameterSetManager* parameterSet
 
         if( !sps_independent_subpics_flag )
         {
-          X_READ_FLAG_idx( sps_subpic_treated_as_pic_flag, "[i]" );
+          X_READ_FLAG_idx( sps_subpic_treated_as_pic_flag, "[ i ]" );
           sps->setSubPicTreatedAsPicFlag( picIdx, sps_subpic_treated_as_pic_flag );
 
-          X_READ_FLAG_idx( sps_loop_filter_across_subpic_enabled_flag, "[i]" );
+          X_READ_FLAG_idx( sps_loop_filter_across_subpic_enabled_flag, "[ i ]" );
           sps->setLoopFilterAcrossSubpicEnabledFlag( picIdx, sps_loop_filter_across_subpic_enabled_flag );
         }
         else
@@ -3019,7 +3019,7 @@ void HLSyntaxReader::parsePictureHeader( PicHeader* picHeader, const ParameterSe
         // TODO: When not present, the value of ph_log2_diff_min_qt_min_cb_intra_slice_chroma is inferred to be equal to
         //       sps_log2_diff_min_qt_min_cb_intra_slice_chroma.
 
-        X_READ_UVLC( ph_max_mtt_hierarchy_depth_intra_slice_chroma, 0, std::min( 6u, CtbLog2SizeY ) - MinQtLog2SizeIntraC );
+        X_READ_UVLC( ph_max_mtt_hierarchy_depth_intra_slice_chroma, 0, 2 * ( CtbLog2SizeY - MinCbLog2SizeY ) );
         maxBTD[2]    = ph_max_mtt_hierarchy_depth_intra_slice_chroma;
         // TODO: When not present, the value of ph_max_mtt_hierarchy_depth_intra_slice_chroma is inferred to be equal to
         //       sps_max_mtt_hierarchy_depth_intra_slice_chroma.
@@ -3887,7 +3887,6 @@ void HLSyntaxReader::parseSliceHeader( Slice*                      pcSlice,
   {
     X_READ_FLAG( sh_deblocking_params_present_flag );
     pcSlice->setDeblockingFilterOverrideFlag( sh_deblocking_params_present_flag );
-
   }
   // If pps_deblocking_filter_disabled_flag and sh_deblocking_params_present_flag are both equal to 1, the value of sh_deblocking_filter_disabled_flag is
   // inferred to be equal to 0.
@@ -3913,31 +3912,6 @@ void HLSyntaxReader::parseSliceHeader( Slice*                      pcSlice,
     }
   }
 
-  if( pps->getPPSChromaToolFlag() )
-  {
-    // If pps_chroma_tool_offsets_present_flag is equal to 1, the values of sh_cb_beta_offset_div2 and sh_cb_tc_offset_div2 are inferred to be equal to
-    // ph_cb_beta_offset_div2 and ph_cb_tc_offset_div2, respectively.
-    // If pps_chroma_tool_offsets_present_flag is equal to 1, the values of sh_cr_beta_offset_div2 and sh_cr_tc_offset_div2 are inferred to be equal to
-    // ph_cr_beta_offset_div2 and ph_cr_tc_offset_div2, respectively.
-
-    pcSlice->setDeblockingFilterCbBetaOffsetDiv2( picHeader->getDeblockingFilterCbBetaOffsetDiv2() );
-    pcSlice->setDeblockingFilterCbTcOffsetDiv2( picHeader->getDeblockingFilterCbTcOffsetDiv2() );
-    pcSlice->setDeblockingFilterCrBetaOffsetDiv2( picHeader->getDeblockingFilterCrBetaOffsetDiv2() );
-    pcSlice->setDeblockingFilterCrTcOffsetDiv2( picHeader->getDeblockingFilterCrTcOffsetDiv2() );
-  }
-  else
-  {
-    // Otherwise (pps_chroma_tool_offsets_present_flag is equal to 0), the values of sh_cb_beta_offset_div2 and sh_cb_tc_offset_div2 are inferred to be equal to
-    // sh_luma_beta_offset_div2 and sh_luma_tc_offset_div2, respectively.
-    // Otherwise( pps_chroma_tool_offsets_present_flag is equal to 0 ), the values of sh_cr_beta_offset_div2 and sh_cr_tc_offset_div2 are inferred to be equal
-    // to sh_luma_beta_offset_div2 and sh_luma_tc_offset_div2, respectively.
-
-    pcSlice->setDeblockingFilterCbBetaOffsetDiv2( pcSlice->getDeblockingFilterBetaOffsetDiv2() );
-    pcSlice->setDeblockingFilterCbTcOffsetDiv2( pcSlice->getDeblockingFilterTcOffsetDiv2() );
-    pcSlice->setDeblockingFilterCrBetaOffsetDiv2( pcSlice->getDeblockingFilterBetaOffsetDiv2() );
-    pcSlice->setDeblockingFilterCrTcOffsetDiv2( pcSlice->getDeblockingFilterTcOffsetDiv2() );
-  }
-
   if( pcSlice->getDeblockingFilterOverrideFlag() && !pcSlice->getDeblockingFilterDisable() && pps->getPPSChromaToolFlag() )
   {
     X_READ_SVLC( sh_cb_beta_offset_div2, -12, 12 );
@@ -3951,6 +3925,33 @@ void HLSyntaxReader::parseSliceHeader( Slice*                      pcSlice,
 
     X_READ_SVLC( sh_cr_tc_offset_div2, -12, 12 );
     pcSlice->setDeblockingFilterCrTcOffsetDiv2( sh_cr_tc_offset_div2 );
+  }
+  else
+  {
+    if( pps->getPPSChromaToolFlag() )
+    {
+      // If pps_chroma_tool_offsets_present_flag is equal to 1, the values of sh_cb_beta_offset_div2 and sh_cb_tc_offset_div2 are inferred to be equal to
+      // ph_cb_beta_offset_div2 and ph_cb_tc_offset_div2, respectively.
+      // If pps_chroma_tool_offsets_present_flag is equal to 1, the values of sh_cr_beta_offset_div2 and sh_cr_tc_offset_div2 are inferred to be equal to
+      // ph_cr_beta_offset_div2 and ph_cr_tc_offset_div2, respectively.
+
+      pcSlice->setDeblockingFilterCbBetaOffsetDiv2( picHeader->getDeblockingFilterCbBetaOffsetDiv2() );
+      pcSlice->setDeblockingFilterCbTcOffsetDiv2  ( picHeader->getDeblockingFilterCbTcOffsetDiv2()   );
+      pcSlice->setDeblockingFilterCrBetaOffsetDiv2( picHeader->getDeblockingFilterCrBetaOffsetDiv2() );
+      pcSlice->setDeblockingFilterCrTcOffsetDiv2  ( picHeader->getDeblockingFilterCrTcOffsetDiv2()   );
+    }
+    else
+    {
+      // Otherwise (pps_chroma_tool_offsets_present_flag is equal to 0), the values of sh_cb_beta_offset_div2 and sh_cb_tc_offset_div2 are inferred to be equal to
+      // sh_luma_beta_offset_div2 and sh_luma_tc_offset_div2, respectively.
+      // Otherwise( pps_chroma_tool_offsets_present_flag is equal to 0 ), the values of sh_cr_beta_offset_div2 and sh_cr_tc_offset_div2 are inferred to be equal
+      // to sh_luma_beta_offset_div2 and sh_luma_tc_offset_div2, respectively.
+
+      pcSlice->setDeblockingFilterCbBetaOffsetDiv2( pcSlice->getDeblockingFilterBetaOffsetDiv2() );
+      pcSlice->setDeblockingFilterCbTcOffsetDiv2  ( pcSlice->getDeblockingFilterTcOffsetDiv2()   );
+      pcSlice->setDeblockingFilterCrBetaOffsetDiv2( pcSlice->getDeblockingFilterBetaOffsetDiv2() );
+      pcSlice->setDeblockingFilterCrTcOffsetDiv2  ( pcSlice->getDeblockingFilterTcOffsetDiv2()   );
+    }
   }
 
   // dependent quantization
@@ -3971,7 +3972,7 @@ void HLSyntaxReader::parseSliceHeader( Slice*                      pcSlice,
   if( sps->getTransformSkipEnabledFlag() && !pcSlice->getDepQuantEnabledFlag() && !pcSlice->getSignDataHidingEnabledFlag() )
   {
     X_READ_FLAG( sh_ts_residual_coding_disabled_flag );
-    pcSlice->setTSResidualCodingDisabledFlag( sh_ts_residual_coding_disabled_flag);
+    pcSlice->setTSResidualCodingDisabledFlag( sh_ts_residual_coding_disabled_flag );
   }
 
   if( pps->getSliceHeaderExtensionPresentFlag() )
@@ -4368,6 +4369,14 @@ void HLSyntaxReader::parsePredWeightTable( HeaderT* sh_or_ph, const SPS* sps, co
       {
         X_READ_UVLC( num_l0_weights, 1, std::min<unsigned>( 15, num_ref_entries ) );
         numWeights = num_l0_weights;
+
+        CHECK( ( !std::is_same<HeaderT, PicHeader>::value ),
+               "Implementation error: parsePredWeightTable() should not be called with a Slice, when pps_wp_info_in_ph_flag is true." );
+        if( std::is_same<HeaderT, PicHeader>::value )
+        {
+          // We know HeaderT is a PicHeader, so we use reinterpret_cast here just so it compiles for the HeaderT==Slice case.
+          reinterpret_cast<PicHeader*>( sh_or_ph )->setNumL0Weights( num_l0_weights );
+        }
       }
     }
     else if( l == REF_PIC_LIST_1 )
@@ -4389,6 +4398,14 @@ void HLSyntaxReader::parsePredWeightTable( HeaderT* sh_or_ph, const SPS* sps, co
         {
           X_READ_UVLC( num_l1_weights, 1, std::min<unsigned>( 15, num_ref_entries ) );
           numWeights = num_l1_weights;
+
+          CHECK( ( !std::is_same<HeaderT, PicHeader>::value ),
+                 "Implementation error: parsePredWeightTable() should not be called with a Slice, when pps_wp_info_in_ph_flag is true." );
+          if( std::is_same<HeaderT, PicHeader>::value )
+          {
+            // We know HeaderT is a PicHeader, so we use reinterpret_cast here just so it compiles for the HeaderT==Slice case.
+            reinterpret_cast<PicHeader*>( sh_or_ph )->setNumL1Weights( num_l1_weights );
+          }
         }
       }
     }
@@ -4443,11 +4460,11 @@ void HLSyntaxReader::parsePredWeightTable( HeaderT* sh_or_ph, const SPS* sps, co
         wp[j].iOffset = 0;
         if( wp[j].bPresentFlag /*chroma_weight_l0_flag[i]*/ )
         {
-          X_READ_SVLC_idx( delta_chroma_weight_l0, "[i][j]", -128, 127 );
-          wp[j].iWeight += delta_chroma_weight_l0;
+          X_READ_SVLC_idx( delta_chroma_weight_lX, "[i][j]", -128, 127 );
+          wp[j].iWeight += delta_chroma_weight_lX;
 
-          X_READ_SVLC_idx( delta_chroma_offset_l0, "[i][j]", -4 * 128, 4 * 127 );
-          wp[j].iOffset = Clip3( -128, 127, 128 + delta_chroma_offset_l0 - ( ( 128 * wp[j].iWeight ) >> wp[j].uiLog2WeightDenom ) );
+          X_READ_SVLC_idx( delta_chroma_offset_lX, "[i][j]", -4 * 128, 4 * 127 );
+          wp[j].iOffset = Clip3( -128, 127, 128 + delta_chroma_offset_lX - ( ( 128 * wp[j].iWeight ) >> wp[j].uiLog2WeightDenom ) );
         }
       }
     }
@@ -4464,9 +4481,9 @@ void HLSyntaxReader::parsePredWeightTable( HeaderT* sh_or_ph, const SPS* sps, co
   }
 
   CHECK( sumWeightFlags > 24,
-                     "It is a requirement of bitstream conformance that, when sh_slice_type is equal to P, sumWeightL0Flags shall be less than"
-                     " or equal to 24 and when sh_slice_type is equal to B, the sum of sumWeightL0Flags and sumWeightL1Flags shall be less"
-                     " than or equal to 24." );
+         "It is a requirement of bitstream conformance that, when sh_slice_type is equal to P, sumWeightL0Flags shall be less than"
+         " or equal to 24 and when sh_slice_type is equal to B, the sum of sumWeightL0Flags and sumWeightL1Flags shall be less"
+         " than or equal to 24." );
 }
 
 /** decode quantization matrix

@@ -260,11 +260,6 @@ void VPS::deriveTargetOutputLayerSet( int targetOlsIdx )
 
 Slice::Slice()
 {
-  for ( int idx = 0; idx < MAX_NUM_REF; idx++ )
-  {
-    m_list1IdxToList0Idx[idx] = -1;
-  }
-
   for( uint32_t i = 0; i < NUM_REF_PIC_LIST_01; i++ )
   {
     for(int iNumCount = 0; iNumCount < MAX_NUM_REF; iNumCount++)
@@ -455,23 +450,6 @@ Picture* Slice::xGetLongTermRefPic( const PicList& rcListPic, int poc, bool pocH
   }
 
   return nullptr;
-}
-
-void Slice::setList1IdxToList0Idx()
-{
-  int idxL0, idxL1;
-  for ( idxL1 = 0; idxL1 < getNumRefIdx( REF_PIC_LIST_1 ); idxL1++ )
-  {
-    m_list1IdxToList0Idx[idxL1] = -1;
-    for ( idxL0 = 0; idxL0 < getNumRefIdx( REF_PIC_LIST_0 ); idxL0++ )
-    {
-      if ( m_apcRefPicList[REF_PIC_LIST_0][idxL0 + 1]->getPOC() == m_apcRefPicList[REF_PIC_LIST_1][idxL1 + 1]->getPOC() )
-      {
-        m_list1IdxToList0Idx[idxL1] = idxL0;
-        break;
-      }
-    }
-  }
 }
 
 void Slice::constructRefPicLists( const PicList& rcPicList )
@@ -750,115 +728,43 @@ void Slice::checkRPL(const ReferencePictureList* pRPL0, const ReferencePictureLi
   }
 }
 
-void Slice::copySliceInfo(Slice *pSrc, bool cpyAlmostAll)
+void Slice::copySliceInfo( Slice* pSrc, bool cpyAlmostAll )
 {
-  CHECK_FATAL(!pSrc, "Source is NULL");
+  CHECK_FATAL( !pSrc, "Source is NULL" );
 
-  int i, j;
+  m_iPOC         = pSrc->m_iPOC;
+  m_eNalUnitType = pSrc->m_eNalUnitType;
+  m_eSliceType   = pSrc->m_eSliceType;
+  m_uiTLayer     = pSrc->m_uiTLayer;
 
-  m_iPOC                 = pSrc->m_iPOC;
-  m_eNalUnitType         = pSrc->m_eNalUnitType;
-  m_eSliceType           = pSrc->m_eSliceType;
-  m_iSliceQp             = pSrc->m_iSliceQp;
-  m_ChromaQpAdjEnabled              = pSrc->m_ChromaQpAdjEnabled;
-  m_deblockingFilterDisable         = pSrc->m_deblockingFilterDisable;
-  m_deblockingFilterOverrideFlag    = pSrc->m_deblockingFilterOverrideFlag;
-  m_deblockingFilterBetaOffsetDiv2  = pSrc->m_deblockingFilterBetaOffsetDiv2;
-  m_deblockingFilterTcOffsetDiv2    = pSrc->m_deblockingFilterTcOffsetDiv2;
-  m_deblockingFilterCbBetaOffsetDiv2  = pSrc->m_deblockingFilterCbBetaOffsetDiv2;
-  m_deblockingFilterCbTcOffsetDiv2    = pSrc->m_deblockingFilterCbTcOffsetDiv2;
-  m_deblockingFilterCrBetaOffsetDiv2  = pSrc->m_deblockingFilterCrBetaOffsetDiv2;
-  m_deblockingFilterCrTcOffsetDiv2    = pSrc->m_deblockingFilterCrTcOffsetDiv2;
-  m_depQuantEnabledFlag               = pSrc->m_depQuantEnabledFlag;
-  m_signDataHidingEnabledFlag         = pSrc->m_signDataHidingEnabledFlag;
-  m_tsResidualCodingDisabledFlag      = pSrc->m_tsResidualCodingDisabledFlag;
+  m_clpRngs      = pSrc->m_clpRngs;
+  m_iSliceQp     = pSrc->m_iSliceQp;
 
-  for (i = 0; i < NUM_REF_PIC_LIST_01; i++)
+  m_bCheckLDC    = pSrc->m_bCheckLDC;
+  m_iLastIDR     = pSrc->m_iLastIDR;
+
+  m_pcPicHeader  = pSrc->m_pcPicHeader;
+  if( cpyAlmostAll )
   {
-    m_aiNumRefIdx[i]     = pSrc->m_aiNumRefIdx[i];
+    m_pcPic      = pSrc->m_pcPic;
   }
 
-  for (i = 0; i < MAX_NUM_REF; i++)
-  {
-    m_list1IdxToList0Idx[i] = pSrc->m_list1IdxToList0Idx[i];
-  }
+  // TODO: check remaining fields if it really makes sense to copy (GH)
 
-  m_bCheckLDC            = pSrc->m_bCheckLDC;
-  m_iSliceQpDelta        = pSrc->m_iSliceQpDelta;
+  m_sliceMap     = pSrc->m_sliceMap;
 
-  m_biDirPred = pSrc->m_biDirPred;
+  m_biDirPred    = pSrc->m_biDirPred;
   m_symRefIdx[0] = pSrc->m_symRefIdx[0];
   m_symRefIdx[1] = pSrc->m_symRefIdx[1];
 
-  for (uint32_t component = 0; component < MAX_NUM_COMPONENT; component++)
-  {
-    m_iSliceChromaQpDelta[component] = pSrc->m_iSliceChromaQpDelta[component];
-  }
-  m_iSliceChromaQpDelta[JOINT_CbCr] = pSrc->m_iSliceChromaQpDelta[JOINT_CbCr];
-
-  for (i = 0; i < NUM_REF_PIC_LIST_01; i++)
-  {
-    for (j = 0; j < MAX_NUM_REF; j++)
-    {
-      m_apcRefPicList[i][j]     = pSrc->m_apcRefPicList[i][j];
-      m_aiRefPOCList[i][j]      = pSrc->m_aiRefPOCList[i][j];
-      m_bIsUsedAsLongTerm[i][j] = pSrc->m_bIsUsedAsLongTerm[i][j];
-    }
-
-    m_apcRefPicList[i][MAX_NUM_REF]     = pSrc->m_apcRefPicList[i][MAX_NUM_REF];
-    m_aiRefPOCList[i][MAX_NUM_REF]      = pSrc->m_aiRefPOCList[i][MAX_NUM_REF];
-    m_bIsUsedAsLongTerm[i][MAX_NUM_REF] = pSrc->m_bIsUsedAsLongTerm[i][MAX_NUM_REF];
-  }
-
-  // access channel
+  memcpy( m_apcRefPicList,     pSrc->m_apcRefPicList,     sizeof( m_apcRefPicList ) );
+  memcpy( m_aiRefPOCList,      pSrc->m_aiRefPOCList,      sizeof( m_aiRefPOCList ) );
+  memcpy( m_bIsUsedAsLongTerm, pSrc->m_bIsUsedAsLongTerm, sizeof( m_bIsUsedAsLongTerm ) );
   if( cpyAlmostAll )
   {
-    memcpy( m_RPL, pSrc->m_RPL, sizeof( m_RPL ) );
+    memcpy( m_RPL,             pSrc->m_RPL,               sizeof( m_RPL ) );
   }
-
-  m_iLastIDR             = pSrc->m_iLastIDR;
-
-  if( cpyAlmostAll ) m_pcPic  = pSrc->m_pcPic;
-
-  m_pcPicHeader          = pSrc->m_pcPicHeader;
-
-  m_colFromL0Flag        = pSrc->m_colFromL0Flag;
-  m_colRefIdx            = pSrc->m_colRefIdx;
-
-  m_uiTLayer                      = pSrc->m_uiTLayer;
-  m_bTLayerSwitchingFlag          = pSrc->m_bTLayerSwitchingFlag;
-
-//  m_sliceCurStartCtuTsAddr        = pSrc->m_sliceCurStartCtuTsAddr;
-//  m_sliceCurEndCtuTsAddr          = pSrc->m_sliceCurEndCtuTsAddr;
-  m_sliceMap                      = pSrc->m_sliceMap;
-  m_independentSliceIdx           = pSrc->m_independentSliceIdx;
-  m_clpRngs                       = pSrc->m_clpRngs;
-  m_lmcsEnabledFlag               = pSrc->m_lmcsEnabledFlag;
-
-  for ( uint32_t e=0 ; e<NUM_REF_PIC_LIST_01 ; e++ )
-  {
-    for ( uint32_t n=0 ; n<MAX_NUM_REF ; n++ )
-    {
-      memcpy(m_weightPredTable[e][n], pSrc->m_weightPredTable[e][n], sizeof(WPScalingParam)*MAX_NUM_COMPONENT );
-    }
-  }
-
-  for( uint32_t ch = 0 ; ch < MAX_NUM_CHANNEL_TYPE; ch++)
-  {
-    m_saoEnabledFlag[ch] = pSrc->m_saoEnabledFlag[ch];
-  }
-
-  m_cabacInitFlag                 = pSrc->m_cabacInitFlag;
-  memcpy( m_alfApss,                 pSrc->m_alfApss,                 sizeof( m_alfApss ) );
-  memcpy( m_alfEnabledFlag, pSrc->m_alfEnabledFlag, sizeof(m_alfEnabledFlag));
-  m_numAlfAps               = pSrc-> m_numAlfAps;
-  m_lumaAlfApsId            = pSrc-> m_lumaAlfApsId;
-  m_chromaAlfApsId          = pSrc-> m_chromaAlfApsId;
-
-  m_ccAlfEnabledFlags[0]          = pSrc->m_ccAlfEnabledFlags[0];
-  m_ccAlfEnabledFlags[1]          = pSrc->m_ccAlfEnabledFlags[1];
-  m_ccAlfCbApsId                  = pSrc->m_ccAlfCbApsId;
-  m_ccAlfCrApsId                  = pSrc->m_ccAlfCrApsId;
+  memcpy( m_weightPredTable,   pSrc->m_weightPredTable,   sizeof( m_weightPredTable ) );
 }
 
 void Slice::checkLeadingPictureRestrictions( const PicList & rcListPic ) const
@@ -1101,12 +1007,16 @@ void  Slice::initWpAcDcParam()
 }
 
 //! get tables for weighted prediction
-void Slice::getWpScaling( RefPicList e, int iRefIdx, WPScalingParam*& wp ) const
+void Slice::getWpScaling( RefPicList e, int iRefIdx, const WPScalingParam*& wp ) const
 {
   CHECK( e >= NUM_REF_PIC_LIST_01, "Invalid picture reference list" );
-  // This used to be a c-style cast, which casted away the constness.
-  // TODO: we should fix const-correctness and remve the const_cast.
-  wp = const_cast<WPScalingParam*>( m_weightPredTable[e][iRefIdx >= 0 ? iRefIdx : 0] );   // iRefIdx can be -1
+  wp = m_weightPredTable[e][iRefIdx >= 0 ? iRefIdx : 0];   // iRefIdx can be -1
+}
+
+void Slice::getWpScaling( RefPicList e, int iRefIdx, WPScalingParam*& wp )
+{
+  CHECK( e >= NUM_REF_PIC_LIST_01, "Invalid picture reference list" );
+  wp = m_weightPredTable[e][iRefIdx >= 0 ? iRefIdx : 0];   // iRefIdx can be -1
 }
 
 //! reset Default WP tables settings : no weight.

@@ -77,8 +77,7 @@ public:
                                 const ClpRngs              &clpRngs,
                                 const WPScalingParam *const wp0,
                                 const WPScalingParam *const wp1,
-                                      PelUnitBuf           &rpcYuvDst,
-                                const bool                  bRoundLuma = true
+                                      PelUnitBuf           &rpcYuvDst
                                 );
 
   void  addWeightUni(           const PelUnitBuf           &pcYuvSrc0,
