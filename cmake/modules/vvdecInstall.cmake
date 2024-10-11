@@ -106,7 +106,7 @@ endif()
 install( EXPORT vvdecTargets-release        NAMESPACE vvdec:: FILE vvdecTargets-${CONFIG_POSTFIX}.cmake CONFIGURATIONS Release        DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/vvdec )
 install( EXPORT vvdecTargets-debug          NAMESPACE vvdec:: FILE vvdecTargets-${CONFIG_POSTFIX}.cmake CONFIGURATIONS Debug          DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/vvdec )
 install( EXPORT vvdecTargets-relwithdebinfo NAMESPACE vvdec:: FILE vvdecTargets-${CONFIG_POSTFIX}.cmake CONFIGURATIONS RelWithDebInfo DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/vvdec )
-install( EXPORT vvdecTargets-relwithdebinfo NAMESPACE vvdec:: FILE vvdecTargets-${CONFIG_POSTFIX}.cmake CONFIGURATIONS MinSizeRel     DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/vvdec )
+install( EXPORT vvdecTargets-minsizerel     NAMESPACE vvdec:: FILE vvdecTargets-${CONFIG_POSTFIX}.cmake CONFIGURATIONS MinSizeRel     DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/vvdec )
 
 
 function( resolve_target_interface_libs TGT OUT_VAR )
