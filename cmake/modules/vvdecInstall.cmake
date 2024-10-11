@@ -74,6 +74,7 @@ endif()
 install_targets( "${INSTALL_TARGETS}" Release )
 install_targets( "${INSTALL_TARGETS}" Debug )
 install_targets( "${INSTALL_TARGETS}" RelWithDebInfo )
+install_targets( "${INSTALL_TARGETS}" MinSizeRel )
 
 # install pdb files
 install_lib_pdb( vvdec )
@@ -105,6 +106,8 @@ endif()
 install( EXPORT vvdecTargets-release        NAMESPACE vvdec:: FILE vvdecTargets-${CONFIG_POSTFIX}.cmake CONFIGURATIONS Release        DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/vvdec )
 install( EXPORT vvdecTargets-debug          NAMESPACE vvdec:: FILE vvdecTargets-${CONFIG_POSTFIX}.cmake CONFIGURATIONS Debug          DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/vvdec )
 install( EXPORT vvdecTargets-relwithdebinfo NAMESPACE vvdec:: FILE vvdecTargets-${CONFIG_POSTFIX}.cmake CONFIGURATIONS RelWithDebInfo DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/vvdec )
+install( EXPORT vvdecTargets-relwithdebinfo NAMESPACE vvdec:: FILE vvdecTargets-${CONFIG_POSTFIX}.cmake CONFIGURATIONS MinSizeRel     DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/vvdec )
+
 
 function( resolve_target_interface_libs TGT OUT_VAR )
   get_target_property( interface_libs ${TGT} INTERFACE_LINK_LIBRARIES )
