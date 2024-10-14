@@ -539,6 +539,9 @@ bool Quant::xSetScalingListDec(const ScalingList &scalingList, uint32_t listId, 
 {
   const uint32_t width  = g_vvcScalingListSizeX[sizeId];
   const uint32_t height = g_vvcScalingListSizeX[sizeId];
+#if defined( __SANITIZE_ADDRESS__ )   // work around a bug in GCC address-sanitizer, when building with -fsanitize=address, but without -fsanitize=undefined
+  volatile
+#endif
   const uint32_t ratio  = g_vvcScalingListSizeX[sizeId]/std::min(MAX_MATRIX_SIZE_NUM,(int)g_vvcScalingListSizeX[sizeId]);
 
   const int *coeff = scalingList.getScalingListAddress(scalingListId);
