@@ -58,15 +58,19 @@ target_include_directories( vvdec  SYSTEM INTERFACE $<INSTALL_INTERFACE:${CMAKE_
 install( FILES     ${CMAKE_BINARY_DIR}/vvdec/version.h  DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/vvdec )
 install( DIRECTORY include/vvdec                        DESTINATION ${CMAKE_INSTALL_INCLUDEDIR} )
 
-if( VVDEC_INSTALL_VVDECAPP OR (${CMAKE_SYSTEM_NAME} STREQUAL "Emscripten") )
-    # for Emscripten/WASM builds vvdecapp is always installed, since that is used like a library
-    set( INSTALL_TARGETS "vvdec;vvdecapp" )
-else()
-    set( INSTALL_TARGETS "vvdec" )
+if( VVDEC_INSTALL_VVDECAPP AND VVDEC_LIBRARY_ONLY )
+  message( FATAL_ERROR "VVDEC_INSTALL_VVDECAPP conflicts with VVDEC_LIBRARY_ONLY" )
+endif()
 
-    if ( NOT VVDEC_INSTALL_VVDECAPP )
-      install( CODE "message( NOTICE \"The vvdecapp binary is not installed by default anymore. To also install vvdecapp set '-DVVDEC_INSTALL_VVDECAPP=ON' (with make: 'install-vvdecapp=1')\" )" )
-    endif()
+set( INSTALL_TARGETS vvdec )
+
+if( NOT VVDEC_LIBRARY_ONLY )
+  if( VVDEC_INSTALL_VVDECAPP
+      OR (${CMAKE_SYSTEM_NAME} STREQUAL "Emscripten") ) # for Emscripten/WASM builds vvdecapp is always installed, since that is used like a library
+    list( APPEND INSTALL_TARGETS vvdecapp )
+  else()
+    install( CODE "message( NOTICE \"The vvdecapp binary is not installed by default any more. To also install vvdecapp set '-DVVDEC_INSTALL_VVDECAPP=ON' (with make: 'install-vvdecapp=1')\" )" )
+  endif()
 endif()
 
 

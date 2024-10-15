@@ -123,6 +123,10 @@ set( VVDEC_ENABLE_LOCAL_BITSTREAM_DOWNLOAD  OFF CACHE BOOL   "Enable or disable 
 # also install the test executable vvdecapp instead of the libraries and headers only
 set( VVDEC_INSTALL_VVDECAPP                 OFF CACHE BOOL   "Enable or disable installing the test vvdecapp" )
 
+set( VVDEC_LIBRARY_ONLY                     OFF CACHE BOOL   "Build libvvdec only (no vvdecapp)" )
+
+set( BUILD_SHARED_LIBS                      OFF CACHE BOOL   "Build libvvdec as a shared library" )
+
 # enable postfix
 set( VVDEC_ENABLE_BUILD_TYPE_POSTFIX        OFF CACHE BOOL   "Enable or disable build type postfix for apps and libs" )
 
@@ -368,6 +372,10 @@ endif()
 
 # enable testing with ctest
 enable_testing()
+
+if( VVDEC_LIBRARY_ONLY )
+  message( WARNING "The test suite will not be able to run, when building the vvdec library only (VVDEC_LIBRARY_ONLY=ON)" )
+endif()
 
 function( read_bitstream_yuv_md5 BITSTREAM_FILE OUT_MD5_HASH )
   STRING( REGEX REPLACE "\\.bit$" ".yuv.md5" MD5_FILE ${BITSTREAM_FILE} )
