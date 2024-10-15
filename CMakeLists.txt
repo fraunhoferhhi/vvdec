@@ -373,6 +373,10 @@ endif()
 # enable testing with ctest
 enable_testing()
 
+if( VVDEC_LIBRARY_ONLY )
+  message( WARNING "The test suite will not be able to run, when building the vvdec library only (VVDEC_LIBRARY_ONLY=ON)" )
+endif()
+
 function( read_bitstream_yuv_md5 BITSTREAM_FILE OUT_MD5_HASH )
   STRING( REGEX REPLACE "\\.bit$" ".yuv.md5" MD5_FILE ${BITSTREAM_FILE} )
   file( READ ${MD5_FILE} MD5_HASH LIMIT 32 )
