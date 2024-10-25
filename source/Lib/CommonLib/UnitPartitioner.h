@@ -182,6 +182,6 @@ namespace PartitionerImpl
   int getMaxTuTiling         ( const UnitArea &area, const CodingStructure &cs,                            Partitioning& dst );
   int getTUIntraSubPartitions( const UnitArea &area, const CodingStructure &cs, const bool isDualITree,    const PartSplit splitType, Partitioning &sub, const TreeType treeType );
   int getSbtTuTiling         ( const UnitArea &area, const CodingStructure &cs, const PartSplit splitType, Partitioning& dst );
-};
+}
 
 }

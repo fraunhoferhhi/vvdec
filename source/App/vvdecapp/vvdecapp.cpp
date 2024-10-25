@@ -1046,11 +1046,49 @@ static bool handle_frame( vvdecFrame*                   pcFrame,
     {
       if(logLevel >= VVDEC_INFO )
       {
-        *logStream << "vvdecapp [info]: SizeInfo: " << pcFrame->width << "x" << pcFrame->height << " (" << pcFrame->bitDepth << "b)" << std::endl;
-        if( pcFrame->picAttributes && pcFrame->picAttributes->vui && pcFrame->picAttributes->vui->colourDescriptionPresentFlag )
+        *logStream << "vvdecapp [info]: SizeInfo: " << pcFrame->width << "x" << pcFrame->height << " (" << pcFrame->bitDepth << "b) " << std::endl;
+        if( pcFrame->picAttributes && pcFrame->picAttributes->vui )
         {
-          *logStream << "vvdecapp [info]: VUI ColourDescription: colourPrim: " << pcFrame->picAttributes->vui->colourPrimaries << " transCharacteristics: " << pcFrame->picAttributes->vui->transferCharacteristics
-                     << " matrixCoefficients: " << pcFrame->picAttributes->vui->matrixCoefficients << std::endl;
+          if(logLevel >= VVDEC_VERBOSE )
+          {
+            *logStream << "vvdecapp [verbose]: VUI : progressive_source_flag          : " << pcFrame->picAttributes->vui->progressiveSourceFlag  << std::endl
+                      << "                          interlaced_source_flag           : " << pcFrame->picAttributes->vui->interlacedSourceFlag << std::endl
+                      << "                          non_packed_constraint_flag       : " << pcFrame->picAttributes->vui->nonPackedFlag << std::endl
+                      << "                          non_projected_constraint_flag    : " << pcFrame->picAttributes->vui->nonProjectedFlag << std::endl
+                      << "                          aspect_ratio_info_present_flag   : " << pcFrame->picAttributes->vui->aspectRatioInfoPresentFlag << std::endl;
+            if ( pcFrame->picAttributes->vui->aspectRatioConstantFlag )
+            {
+            *logStream << "              AspectRatio : aspectRatioConstantFlag        : " << pcFrame->picAttributes->vui->aspectRatioConstantFlag  << std::endl
+                      << "                            aspectRatioIdc                 : " << pcFrame->picAttributes->vui->aspectRatioIdc  << std::endl
+                      << "                            sarWidth                       : " << pcFrame->picAttributes->vui->sarWidth  << std::endl
+                      << "                            sarHeight                      : " << pcFrame->picAttributes->vui->sarHeight << std::endl;
+            }
+            *logStream << "                          overscan_info_present_flag       : " << pcFrame->picAttributes->vui->overscanInfoPresentFlag << std::endl;
+            if ( pcFrame->picAttributes->vui->overscanInfoPresentFlag )
+            {
+            *logStream << "             OverscanInfo : overscan_appropriate_flag      : " << pcFrame->picAttributes->vui->overscanAppropriateFlag  << std::endl;
+            }
+            *logStream << "                          colour_description_present_flag  : " << pcFrame->picAttributes->vui->colourDescriptionPresentFlag << std::endl;
+            if ( pcFrame->picAttributes->vui->colourDescriptionPresentFlag )
+            {
+            *logStream << "        ColourDescription : colour_primaries               : " << pcFrame->picAttributes->vui->colourPrimaries  << std::endl
+                      << "                            transfer_characteristics       : " << pcFrame->picAttributes->vui->transferCharacteristics  << std::endl
+                      << "                            matrix_coeffs                  : " << pcFrame->picAttributes->vui->matrixCoefficients << std::endl
+                      << "                            full_range_flag                : " << pcFrame->picAttributes->vui->videoFullRangeFlag << std::endl;
+            }
+            *logStream << "                          chroma_loc_info_present_flag     : " << pcFrame->picAttributes->vui->chromaLocInfoPresentFlag << std::endl;
+            if ( pcFrame->picAttributes->vui->chromaLocInfoPresentFlag )
+            {
+            *logStream << "            chromaLocInfo : chromaSampleLocTypeTopField    : " << pcFrame->picAttributes->vui->chromaSampleLocTypeTopField  << std::endl
+                      << "                            chromaSampleLocTypeBottomField : " << pcFrame->picAttributes->vui->chromaSampleLocTypeBottomField  << std::endl
+                      << "                            chromaSampleLocType            : " << pcFrame->picAttributes->vui->chromaSampleLocType << std::endl;
+            }
+          }
+          else if(  pcFrame->picAttributes->vui->colourDescriptionPresentFlag )
+          {
+            *logStream << "vvdecapp [info]: VUI ColourDescription: colourPrim: " << pcFrame->picAttributes->vui->colourPrimaries << " transCharacteristics: " << pcFrame->picAttributes->vui->transferCharacteristics
+                       << " matrixCoefficients: " << pcFrame->picAttributes->vui->matrixCoefficients << std::endl;
+          }
         }
       }
       prevFrameW = pcFrame->width;

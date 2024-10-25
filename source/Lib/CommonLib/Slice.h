@@ -1938,7 +1938,7 @@ private:
   bool             m_qpDeltaInfoInPhFlag                 = false;
   bool             m_mixedNaluTypesInPicFlag             = false;
 
-  bool             m_scalingListPresentFlag              = false;;
+  bool             m_scalingListPresentFlag              = false;
   ScalingList      m_scalingList;                       //!< ScalingList class
   uint32_t         m_picWidthInLumaSamples               = 0;
   uint32_t         m_picHeightInLumaSamples              = 0;

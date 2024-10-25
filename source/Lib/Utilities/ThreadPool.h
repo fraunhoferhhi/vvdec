@@ -202,7 +202,7 @@ struct BlockingBarrier: public Barrier
     std::unique_lock<std::mutex> l( m_lock );
     if( Barrier::isBlocked() )
     {
-      m_cond.wait( l, [=] { return !Barrier::isBlocked(); } );
+      m_cond.wait( l, [this] { return !Barrier::isBlocked(); } );
     }
   }
 
@@ -260,14 +260,14 @@ struct WaitCounter
   void wait() const
   {
     std::unique_lock<std::mutex> l( m_lock );
-    m_cond.wait( l, [=] { return m_count == 0 || m_done.hasException(); } );
+    m_cond.wait( l, [this] { return m_count == 0 || m_done.hasException(); } );
     m_done.checkAndRethrowException();
   }
 
   void wait_nothrow() const
   {
     std::unique_lock<std::mutex> l( m_lock );
-    m_cond.wait( l, [=] { return m_count == 0; } );
+    m_cond.wait( l, [this] { return m_count == 0; } );
   }
 
   void setException( std::exception_ptr e )
