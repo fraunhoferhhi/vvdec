@@ -885,7 +885,7 @@ VVDEC_DECL void rescalePlane( const vvdecPlane&      srcPlane,
                               int                    bitDepth,
                               const bool             horCollocatedChromaFlag,
                               const bool             verCollocatedChromaFlag );
-};   // namespace vvdec
+}   // namespace vvdec
 
 static void upscaleFrame( const vvdecFrame* srcFrame, vvdecFrame* dstFrame )
 {

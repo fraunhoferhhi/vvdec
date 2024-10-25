@@ -60,6 +60,8 @@ POSSIBILITY OF SUCH DAMAGE.
 namespace vvdec
 {
 
+#if __ARM_ARCH >= 8
+
 static void simdInterpolateN2_2D_neon( const ClpRng& clpRng, const Pel* src, const ptrdiff_t srcStride, Pel* dst, const ptrdiff_t dstStride, int width, int height, TFilterCoeff const *ch, TFilterCoeff const *cv )
 {
   const int shift1st  = IF_FILTER_PREC_BILINEAR - ( IF_INTERNAL_PREC_BILINEAR - clpRng.bd );
@@ -167,7 +169,7 @@ static int16x8x2_t filter16xX_N8_neon( Pel const* src, int16x8_t ch, int32x4_t v
 {
   int16x8_t a = filter8xX_N8_neon( src + 0, ch, voffset1, invshift1st );
   int16x8_t b = filter8xX_N8_neon( src + 8, ch, voffset1, invshift1st );
-  return ( int16x8x2_t ){ a, b };
+  return int16x8x2_t({ a, b });
 }
 
 template<bool isLast>
@@ -510,6 +512,14 @@ void InterpolationFilter::_initInterpolationFilterARM<NEON>()
 
   m_filterN2_2D = simdInterpolateN2_2D_neon;
 }
+
+#else    // !__ARM_ARCH >= 8
+
+template<>
+void InterpolationFilter::_initInterpolationFilterARM<NEON>()
+{}
+
+#endif   // !__ARM_ARCH >= 8
 
 } // namespace vvdec
 #endif

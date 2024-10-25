@@ -652,4 +652,4 @@ void Picture::stopProcessingTimer()
   m_dProcessingTime += std::chrono::duration<double>(endTime - m_processingStartTime).count();
 }
 
-};
+}   // namespace vvdec

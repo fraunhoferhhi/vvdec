@@ -28,19 +28,19 @@ CONFIG_OPTIONS += -G '$(CMAKE_GENERATOR_CUSTOM)'
 endif
 
 ifneq ($(verbose),)
-CONFIG_OPTIONS += -DCMAKE_VERBOSE_MAKEFILE=ON
+CONFIG_OPTIONS += -DCMAKE_VERBOSE_MAKEFILE=$(verbose)
 endif
 
 ifneq ($(enable-bitstream-download),)
-CONFIG_OPTIONS += -DVVDEC_ENABLE_BITSTREAM_DOWNLOAD=ON
+CONFIG_OPTIONS += -DVVDEC_ENABLE_BITSTREAM_DOWNLOAD=$(enable-bitstream-download)
 endif
 
 ifneq ($(enable-local-bitstream-download),)
-CONFIG_OPTIONS += -DVVDEC_ENABLE_LOCAL_BITSTREAM_DOWNLOAD=ON
+CONFIG_OPTIONS += -DVVDEC_ENABLE_LOCAL_BITSTREAM_DOWNLOAD=$(enable-local-bitstream-download)
 endif
 
 ifneq ($(enable-build-type-postfix),)
-CONFIG_OPTIONS += -DVVDEC_ENABLE_BUILD_TYPE_POSTFIX=ON
+CONFIG_OPTIONS += -DVVDEC_ENABLE_BUILD_TYPE_POSTFIX=$(enable-build-type-postfix)
 endif
 
 ifneq ($(install-prefix),)
@@ -51,12 +51,12 @@ ifneq ($(install-vvdecapp),)
 CONFIG_OPTIONS += -DVVDEC_INSTALL_VVDECAPP=$(install-vvdecapp)
 endif
 
-ifneq ($(enable-arch),)
-CONFIG_OPTIONS += -DVVDEC_OPT_TARGET_ARCH=$(enable-arch)
+ifneq ($(opt-target-arch),)
+CONFIG_OPTIONS += -DVVDEC_OPT_TARGET_ARCH=$(opt-target-arch)
 endif
 
-ifneq ($(disable-lto),)
-CONFIG_OPTIONS += -DVVDEC_ENABLE_LINK_TIME_OPT=OFF
+ifneq ($(enable-lto),)
+CONFIG_OPTIONS += -DVVDEC_ENABLE_LINK_TIME_OPT=$(enable-lto)
 endif
 
 ifneq ($(enable-werror),)

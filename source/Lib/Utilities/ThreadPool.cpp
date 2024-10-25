@@ -554,7 +554,7 @@ bool ThreadPool::PoolPause::pauseIfAllOtherThreadsWaiting( Predicate predicate )
   // or if the thread pool is closed or destroyed.
   std::unique_lock<std::mutex> lock( m_allThreadsWaitingMutex );
   m_allThreadsWaiting = true;
-  m_allThreadsWaitingCV.wait( lock, [ = ] { return !m_allThreadsWaiting || predicate(); } );
+  m_allThreadsWaitingCV.wait( lock, [this, &predicate] { return !m_allThreadsWaiting || predicate(); } );
   return true;
 }
 

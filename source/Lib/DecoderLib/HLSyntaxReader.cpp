@@ -1067,6 +1067,26 @@ void HLSyntaxReader::parseScalingListAps( APS* aps )
   parseScalingList( &info, aps->chromaPresentFlag );
 }
 
+static const int SARFixedRatios[][2] =
+{
+    { 1,  1 },
+    { 12, 11 },
+    { 10, 11 },
+    { 16, 11 },
+    { 40, 33 },
+    { 24, 11 },
+    { 20, 11 },
+    { 32, 11 },
+    { 80, 33 },
+    { 18, 11 },
+    { 15, 11 },
+    { 64, 33 },
+    { 160, 99 },
+    { 4, 3 },
+    { 3, 2 },
+    { 2, 1 },
+};
+
 void HLSyntaxReader::parseVUI( VUI* pcVUI, unsigned vuiPayloadSize )
 {
 #if ENABLE_TRACING
@@ -1106,6 +1126,11 @@ void HLSyntaxReader::parseVUI( VUI* pcVUI, unsigned vuiPayloadSize )
 
       X_READ_CODE_NO_RANGE( vui_sar_height, 16 );
       pcVUI->setSarHeight( vui_sar_height );
+    }
+    else if ((size_t)pcVUI->getAspectRatioIdc() <= sizeof(SARFixedRatios) / sizeof(SARFixedRatios[0]))
+    {
+      pcVUI->setSarWidth( SARFixedRatios[pcVUI->getAspectRatioIdc() - 1][0] );
+      pcVUI->setSarHeight( SARFixedRatios[pcVUI->getAspectRatioIdc() - 1][1] );
     }
   }
 

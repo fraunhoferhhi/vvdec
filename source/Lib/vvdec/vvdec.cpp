@@ -437,5 +437,5 @@ VVDEC_DECL int vvdec_set_tracing( const char *file, const char *rule )
 VVDEC_NAMESPACE_END
 
 #ifdef __cplusplus
-};
+}
 #endif
