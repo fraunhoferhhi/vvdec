@@ -9,7 +9,7 @@ cmake_policy( VERSION ${CMAKE_MAJOR_VERSION}.${CMAKE_MINOR_VERSION} )
 # project name
 project( vvdec VERSION 3.0.0 )
 # set alternative version numbering for release candidates
-set( PROJECT_VERSION_RC rc3 )
+#set( PROJECT_VERSION_RC rc3 )
 if( PROJECT_VERSION_RC )
     set( PROJECT_VERSION "${PROJECT_VERSION}-${PROJECT_VERSION_RC}" )
 endif()
