@@ -247,7 +247,7 @@ bool DecLibParser::parse( InputNALUnit& nalu )
       const VPS* vps = m_parameterSetManager.getVPS( sps->getVPSId() );
       m_seiReader.parseSEImessage( &( nalu.getBitstream() ), m_pcParsePic->seiMessageList, nalu.m_nalUnitType, nalu.m_nuhLayerId, nalu.m_temporalId, vps, sps, m_HRD, m_pDecodedSEIOutputStream );
 
-      if( m_parseFrameDelay == 0 )   // else it has to be done in finishPicture()
+      if( m_parseFrameDelay == 0 && !m_pcParsePic->error )   // if m_parseFrameDelay > 0, it has to be done in finishPicture()
       {
         // if parallel parsing is disabled, wait for the picture to finish
         if( m_threadPool->numThreads() == 0 )
