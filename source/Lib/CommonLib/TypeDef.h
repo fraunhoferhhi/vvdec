@@ -743,8 +743,10 @@ public:
   virtual ~Exception() noexcept = default;
   CLASS_COPY_MOVE_DEFAULT( Exception )
 
-  virtual const char* what() const noexcept                 { return m_str.c_str(); }
-  template<typename T> Exception& operator<<( const T& t )  { std::ostringstream oss; oss << t; m_str += oss.str(); return *this; }
+  virtual const char* what() const noexcept  { return m_str.c_str(); }
+  template<typename T>
+  inline Exception& operator<<( const T& t ) { std::ostringstream oss; oss << t; m_str += oss.str(); return *this; }
+
 private:
   std::string m_str;
 };
@@ -755,6 +757,9 @@ public:
   explicit RecoverableException( const std::string& _s ) : Exception( _s ) {}
   virtual ~RecoverableException() noexcept = default;
   CLASS_COPY_MOVE_DEFAULT( RecoverableException )
+
+  template<typename T>
+  inline RecoverableException& operator<<( const T& t ) { static_cast<Exception&>( *this ) << t; return *this; }
 };
 
 class UnsupportedFeatureException : public Exception
@@ -763,6 +768,9 @@ public:
   explicit UnsupportedFeatureException( const std::string& _s ) : Exception( _s ) {}
   virtual ~UnsupportedFeatureException() noexcept = default;
   CLASS_COPY_MOVE_DEFAULT( UnsupportedFeatureException )
+
+  template<typename T>
+  inline UnsupportedFeatureException& operator<<( const T& t ) { static_cast<Exception&>( *this ) << t; return *this; }
 };
 
 #if defined( __MINGW32__ ) && !defined( __MINGW64__ )
