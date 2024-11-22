@@ -57,11 +57,21 @@ if( VVDEC_ENABLE_X86_SIMD )
   # seen any, so it's disabled for now (GH)
   #set_if_compiler_supports_flag( FLAG_openmp_simd -fopenmp-simd )
   #add_compile_options( ${FLAG_openmp_simd} )
+
+  if( VVDEC_TARGET_ARCH STREQUAL "ARM" )
+    set_if_compiler_supports_flag( FLAG_mfpu_neon -mfpu=neon  )
+    set_if_compiler_supports_flag( FLAG_mfloat_abi_hard -mfloat-abi=hard  )
+    add_compile_options( ${FLAG_mfpu_neon} ${FLAG_mfloat_abi_hard} )
+  endif()
 endif()
 
 if( VVDEC_ENABLE_ARM_SIMD )
   message( STATUS "ARM SIMD intrinsics enabled" )
   add_compile_definitions( TARGET_SIMD_ARM )
+
+  set_if_compiler_supports_flag( FLAG_mfpu_neon -mfpu=neon  )
+  set_if_compiler_supports_flag( FLAG_mfloat_abi_hard -mfloat-abi=hard  )
+  add_compile_options( ${FLAG_mfpu_neon} ${FLAG_mfloat_abi_hard} )
 endif()
 
 if( VVDEC_TARGET_ARCH STREQUAL "WASM" )
