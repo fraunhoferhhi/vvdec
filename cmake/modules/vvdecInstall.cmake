@@ -144,6 +144,7 @@ if( VVDEC_PKG_EXTRA_LIBS )
   endif()
 
   list( REMOVE_ITEM VVDEC_PKG_EXTRA_LIBS "-lc" )
+  list( REMOVE_ITEM VVDEC_PKG_EXTRA_LIBS "-lgcc_s" )
 endif()
 
 resolve_target_interface_libs( vvdec VVDEC_PKG_INTERFACE_LIBS )
