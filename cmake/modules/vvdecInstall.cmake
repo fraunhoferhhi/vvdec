@@ -87,7 +87,7 @@ if( VVDEC_INSTALL_VVDECAPP )
 endif()
 
 # install emscripten generated files
-if( ${CMAKE_SYSTEM_NAME} STREQUAL "Emscripten" )
+if( ${CMAKE_SYSTEM_NAME} STREQUAL "Emscripten" AND VVDEC_INSTALL_VVDECAPP)
   install( PROGRAMS $<TARGET_FILE_DIR:vvdecapp>/vvdecapp.wasm DESTINATION ${RUNTIME_DEST} )
   install( PROGRAMS $<TARGET_FILE_DIR:vvdecapp>/vvdecapp.worker.js DESTINATION ${RUNTIME_DEST} )
 endif()
