@@ -62,7 +62,7 @@ namespace vvdec
 // ====================================================================================================================
 // Tables
 // ====================================================================================================================
-const TFilterCoeff InterpolationFilter::m_lumaFilter4x4[LUMA_INTERPOLATION_FILTER_SUB_SAMPLE_POSITIONS][NTAPS_LUMA] =
+alignas(uint64_t) const TFilterCoeff InterpolationFilter::m_lumaFilter4x4[LUMA_INTERPOLATION_FILTER_SUB_SAMPLE_POSITIONS][NTAPS_LUMA] =
 {
   {  0, 0,   0, 64,  0,   0,  0,  0 },
   {  0, 1,  -3, 63,  4,  -2,  1,  0 },
@@ -82,7 +82,7 @@ const TFilterCoeff InterpolationFilter::m_lumaFilter4x4[LUMA_INTERPOLATION_FILTE
   {  0, 1,  -2,  4, 63,  -3,  1,  0 },
 };
 
-const TFilterCoeff InterpolationFilter::m_lumaFilter[LUMA_INTERPOLATION_FILTER_SUB_SAMPLE_POSITIONS][NTAPS_LUMA] =
+alignas(uint64_t) const TFilterCoeff InterpolationFilter::m_lumaFilter[LUMA_INTERPOLATION_FILTER_SUB_SAMPLE_POSITIONS][NTAPS_LUMA] =
 {
   {  0, 0,   0, 64,  0,   0,  0,  0 },
   {  0, 1,  -3, 63,  4,  -2,  1,  0 },
@@ -102,10 +102,10 @@ const TFilterCoeff InterpolationFilter::m_lumaFilter[LUMA_INTERPOLATION_FILTER_S
   {  0, 1,  -2,  4, 63,  -3,  1,  0 },
 };
 
-const TFilterCoeff InterpolationFilter::m_lumaAltHpelIFilter[NTAPS_LUMA] = {  0, 3, 9, 20, 20, 9, 3, 0 };
+alignas(uint64_t) const TFilterCoeff InterpolationFilter::m_lumaAltHpelIFilter[NTAPS_LUMA] = {  0, 3, 9, 20, 20, 9, 3, 0 };
 
 // 1.5x
-const TFilterCoeff InterpolationFilter::m_lumaFilterRPR1[LUMA_INTERPOLATION_FILTER_SUB_SAMPLE_POSITIONS][NTAPS_LUMA] =
+alignas(uint64_t) const TFilterCoeff InterpolationFilter::m_lumaFilterRPR1[LUMA_INTERPOLATION_FILTER_SUB_SAMPLE_POSITIONS][NTAPS_LUMA] =
 {
   { -1, -5, 17, 42, 17, -5, -1,  0 },
   {  0, -5, 15, 41, 19, -5, -1,  0 },
@@ -126,7 +126,7 @@ const TFilterCoeff InterpolationFilter::m_lumaFilterRPR1[LUMA_INTERPOLATION_FILT
 };
 
 // 2x
-const TFilterCoeff InterpolationFilter::m_lumaFilterRPR2[LUMA_INTERPOLATION_FILTER_SUB_SAMPLE_POSITIONS][NTAPS_LUMA] =
+alignas(uint64_t) const TFilterCoeff InterpolationFilter::m_lumaFilterRPR2[LUMA_INTERPOLATION_FILTER_SUB_SAMPLE_POSITIONS][NTAPS_LUMA] =
 {
   { -4,  2, 20, 28, 20,  2, -4,  0 },
   { -4,  0, 19, 29, 21,  5, -4, -2 },
@@ -147,7 +147,7 @@ const TFilterCoeff InterpolationFilter::m_lumaFilterRPR2[LUMA_INTERPOLATION_FILT
 };
 
 // 1.5x
-const TFilterCoeff InterpolationFilter::m_affineLumaFilterRPR1[LUMA_INTERPOLATION_FILTER_SUB_SAMPLE_POSITIONS][NTAPS_LUMA] =
+alignas(uint64_t) const TFilterCoeff InterpolationFilter::m_affineLumaFilterRPR1[LUMA_INTERPOLATION_FILTER_SUB_SAMPLE_POSITIONS][NTAPS_LUMA] =
 {
   {  0, -6, 17, 42, 17, -5, -1,  0 },
   {  0, -5, 15, 41, 19, -5, -1,  0 },
@@ -168,7 +168,7 @@ const TFilterCoeff InterpolationFilter::m_affineLumaFilterRPR1[LUMA_INTERPOLATIO
 };
 
 // 2x
-const TFilterCoeff InterpolationFilter::m_affineLumaFilterRPR2[LUMA_INTERPOLATION_FILTER_SUB_SAMPLE_POSITIONS][NTAPS_LUMA] =
+alignas(uint64_t) const TFilterCoeff InterpolationFilter::m_affineLumaFilterRPR2[LUMA_INTERPOLATION_FILTER_SUB_SAMPLE_POSITIONS][NTAPS_LUMA] =
 {
   {  0, -2, 20, 28, 20,  2, -4,  0 },
   {  0, -4, 19, 29, 21,  5, -6,  0 },
@@ -188,7 +188,7 @@ const TFilterCoeff InterpolationFilter::m_affineLumaFilterRPR2[LUMA_INTERPOLATIO
   {  0, -6,  5, 21, 29, 19, -4,  0 }
 };
 
-const TFilterCoeff InterpolationFilter::m_chromaFilter[CHROMA_INTERPOLATION_FILTER_SUB_SAMPLE_POSITIONS][NTAPS_CHROMA] =
+alignas(uint64_t) const TFilterCoeff InterpolationFilter::m_chromaFilter[CHROMA_INTERPOLATION_FILTER_SUB_SAMPLE_POSITIONS][NTAPS_CHROMA] =
 {
   {  0, 64,  0,  0 },
   { -1, 63,  2,  0 },
@@ -225,7 +225,7 @@ const TFilterCoeff InterpolationFilter::m_chromaFilter[CHROMA_INTERPOLATION_FILT
 };
 
 //1.5x
-const TFilterCoeff InterpolationFilter::m_chromaFilterRPR1[CHROMA_INTERPOLATION_FILTER_SUB_SAMPLE_POSITIONS][NTAPS_CHROMA] =
+alignas(uint64_t) const TFilterCoeff InterpolationFilter::m_chromaFilterRPR1[CHROMA_INTERPOLATION_FILTER_SUB_SAMPLE_POSITIONS][NTAPS_CHROMA] =
 {
   { 12, 40, 12,  0 },
   { 11, 40, 13,  0 },
@@ -262,7 +262,7 @@ const TFilterCoeff InterpolationFilter::m_chromaFilterRPR1[CHROMA_INTERPOLATION_
 };
 
 //2x
-const TFilterCoeff InterpolationFilter::m_chromaFilterRPR2[CHROMA_INTERPOLATION_FILTER_SUB_SAMPLE_POSITIONS][NTAPS_CHROMA] =
+alignas(uint64_t) const TFilterCoeff InterpolationFilter::m_chromaFilterRPR2[CHROMA_INTERPOLATION_FILTER_SUB_SAMPLE_POSITIONS][NTAPS_CHROMA] =
 {
   { 17, 30, 17,  0 },
   { 17, 30, 18, -1 },
@@ -298,7 +298,7 @@ const TFilterCoeff InterpolationFilter::m_chromaFilterRPR2[CHROMA_INTERPOLATION_
   { -1, 18, 30, 17 }
 };
 
-const TFilterCoeff InterpolationFilter::m_bilinearFilter[LUMA_INTERPOLATION_FILTER_SUB_SAMPLE_POSITIONS][NTAPS_BILINEAR] =
+alignas(uint64_t) const TFilterCoeff InterpolationFilter::m_bilinearFilter[LUMA_INTERPOLATION_FILTER_SUB_SAMPLE_POSITIONS][NTAPS_BILINEAR] =
 {
   { 64,  0, },
   { 60,  4, },
@@ -318,7 +318,7 @@ const TFilterCoeff InterpolationFilter::m_bilinearFilter[LUMA_INTERPOLATION_FILT
   {  4, 60, },
 };
 
-const TFilterCoeff InterpolationFilter::m_bilinearFilterPrec4[LUMA_INTERPOLATION_FILTER_SUB_SAMPLE_POSITIONS][NTAPS_BILINEAR] =
+alignas(uint64_t) const TFilterCoeff InterpolationFilter::m_bilinearFilterPrec4[LUMA_INTERPOLATION_FILTER_SUB_SAMPLE_POSITIONS][NTAPS_BILINEAR] =
 {
   { 16,  0, },
   { 15,  1, },
