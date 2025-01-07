@@ -31,9 +31,14 @@ if( VVDEC_TARGET_ARCH STREQUAL "ARM" )
   set( VVDEC_ARM_SIMD_DEFAULT TRUE )
 endif()
 
+if( VVDEC_TARGET_ARCH MATCHES "LOONGARCH64" )
+  set( VVDEC_LOONGARCH64_SIMD_DEFAULT TRUE )
+endif()
+
 # we enable x86 intrinsics for all target architectures, because they are implemented through simd-everywhere on non-x86
 set( VVDEC_ENABLE_X86_SIMD   TRUE                      CACHE BOOL "enable x86 intrinsics" )
 set( VVDEC_ENABLE_ARM_SIMD   ${VVDEC_ARM_SIMD_DEFAULT} CACHE BOOL "enable ARM intrinsics" )
+set( VVDEC_ENABLE_LOONGARCH64_LSX_SIMD  ${VVDEC_LOONGARCH64_SIMD_DEFAULT} CACHE BOOL "enable loongarch64 LSX intrinsics" )
 
 set( VVDEC_ENABLE_TRACING    FALSE                     CACHE BOOL "Compile in tracing functionality" )
 
@@ -62,6 +67,17 @@ if( VVDEC_ENABLE_X86_SIMD )
     set_if_compiler_supports_flag( FLAG_mfpu_neon -mfpu=neon  )
     set_if_compiler_supports_flag( FLAG_mfloat_abi_hard -mfloat-abi=hard  )
     add_compile_options( ${FLAG_mfpu_neon} ${FLAG_mfloat_abi_hard} )
+  endif()
+
+  if( VVDEC_TARGET_ARCH STREQUAL "LOONGARCH64" )
+    if( VVDEC_ENABLE_LOONGARCH64_LSX_SIMD )
+      set_if_compiler_supports_flag( FLAG_mlsx -mlsx )
+      set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${FLAG_mlsx}")
+      set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${FLAG_mlsx}")
+      message( STATUS "LoongArch64 lsx intrinsics enabled" )
+    else()
+      message( STATUS "LoongArch64 lsx intrinsics disabled" )
+    endif()
   endif()
 endif()
 

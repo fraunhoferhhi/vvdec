@@ -400,6 +400,8 @@ public:
             case VVDEC_SIMD_NEON:      cll = "NEON";      break;
 #elif defined (VVDEC_ARCH_WASM)
             case VVDEC_SIMD_WASM:      cll = "WASM-SIMD"; break;
+#elif defined (VVDEC_ARCH_LOONGARCH)
+            case VVDEC_SIMD_LSX:       cll = "LSX";       break;
 #else
             case VVDEC_SIMD_SIMDE_ANY: cll = "SIMDE-ANY"; break;
 #endif
