@@ -64,6 +64,8 @@ VVDEC_NAMESPACE_BEGIN
 # define VVDEC_ARCH_ARM 1
 #elif defined( __wasm__ ) || defined( __wasm32__ )
 # define VVDEC_ARCH_WASM 1
+#elif defined( __loongarch__ )
+# define VVDEC_ARCH_LOONGARCH 1
 #endif
 
 /* vvdecDecoder:
@@ -149,6 +151,9 @@ typedef enum
 #elif defined( VVDEC_ARCH_WASM )
   VVDEC_SIMD_WASM     = 3,
   VVDEC_SIMD_MAX      = VVDEC_SIMD_WASM
+#elif defined( VVDEC_ARCH_LOONGARCH )
+  VVDEC_SIMD_LSX      = 3,
+  VVDEC_SIMD_MAX      = VVDEC_SIMD_LSX
 #else
   VVDEC_SIMD_SIMDE_ANY= 3,
   VVDEC_SIMD_MAX      = VVDEC_SIMD_SIMDE_ANY

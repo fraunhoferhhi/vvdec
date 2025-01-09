@@ -92,7 +92,7 @@ int VVDecImpl::init( const vvdecParams& params, vvdecCreateBufferCallback create
     case VVDEC_SIMD_SSE42 : read_x86_extension_flags( x86_simd::SSE42  ); break;
     case VVDEC_SIMD_AVX   : read_x86_extension_flags( x86_simd::AVX    ); break;
     case VVDEC_SIMD_AVX2  : read_x86_extension_flags( x86_simd::AVX2   ); break;
-#  elif defined( VVDEC_ARCH_ARM ) || defined( VVDEC_ARCH_WASM )
+#  elif defined( VVDEC_ARCH_ARM ) || defined( VVDEC_ARCH_WASM ) || defined( VVDEC_ARCH_LOONGARCH )
     case VVDEC_SIMD_MAX   : read_x86_extension_flags( SIMD_EVERYWHERE_EXTENSION_LEVEL ); break;
 #  endif
     case VVDEC_SIMD_DEFAULT:

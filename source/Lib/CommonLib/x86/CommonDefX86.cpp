@@ -270,6 +270,8 @@ std::string read_x86_extension_name()
     return std::string( "NEON/SIMDE(" ) + vext_names[vext] + ")";
 #  elif defined( REAL_TARGET_WASM )
     return std::string( "WASM/Emscripten(" ) + vext_names[vext] + ")";
+#  elif defined( REAL_TARGET_LOONGARCH )
+    return std::string( "LSX/SIMDE(" ) + vext_names[vext] + ")";
 #  else
     return std::string( "SIMDE(" ) + vext_names[vext] + ")" ;
 #  endif
