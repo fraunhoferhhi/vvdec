@@ -119,6 +119,119 @@ QpParam::QpParam( const TransformUnit& tu, const ComponentID& compID, const bool
 // Quant class member functions
 // ====================================================================================================================
 
+static void DeQuantScalingCore( const int              maxX,
+                         const int              restX,
+                         const int              maxY,
+                         const int              scaleQP,
+                         const int              *piDequantCoef,
+                         const TCoeffSig* const piQCoef,
+                         const size_t           piQCfStride,
+                               TCoeff* const    piCoef,
+                         const int              rightShift,
+                         const int              inputMaximum,
+                         const TCoeff           transformMaximum )
+{
+  const int    inputMinimum     = -( inputMaximum     + 1 );
+  const TCoeff transformMinimum = -( transformMaximum + 1 );
+  int scale;
+
+  if (rightShift>0)
+  {
+    const Intermediate_Int iAdd = (Intermediate_Int) 1 << (rightShift - 1);
+    for( int y = 0, n = 0; y <= maxY; y++)
+    {
+      for( int x = 0; x <= maxX; x++, n++ )
+      {
+        const TCoeff level = piQCoef[x + y * piQCfStride];
+        // new
+        scale = piDequantCoef[n] * scaleQP;
+
+        if( level )
+        {
+          const TCoeff           clipQCoef = TCoeff(Clip3<Intermediate_Int>(inputMinimum, inputMaximum, level));
+          Intermediate_Int iCoeffQ   = (Intermediate_Int(clipQCoef) * scale + iAdd) >> rightShift;
+          piCoef[n] = TCoeff(Clip3<Intermediate_Int>(transformMinimum,transformMaximum,iCoeffQ));
+        }
+      }
+      n += restX;
+    }
+  }
+  else  // rightshift <0
+  {
+    int leftShift = -rightShift;
+    for( int y = 0, n = 0; y <= maxY; y++)
+    {
+      for( int x = 0; x <= maxX; x++, n++ )
+      {
+        const TCoeff level = piQCoef[x + y * piQCfStride];
+        // new
+        scale = piDequantCoef[n] * scaleQP;
+
+        if( level )
+        {
+          const TCoeff           clipQCoef = TCoeff(Clip3<Intermediate_Int>(inputMinimum, inputMaximum, level));
+          const Intermediate_Int iCoeffQ   = (Intermediate_Int(clipQCoef) * scale) *(1<<leftShift);
+          piCoef[n] = TCoeff(Clip3<Intermediate_Int>(transformMinimum,transformMaximum,iCoeffQ));
+        }
+      }
+      n += restX;
+    }
+  }
+}
+static void DeQuantScalingPCMCore(const int     maxX,
+    const int     restX,
+    const int     maxY,
+    const int     scaleQP,
+    const int     *piDequantCoef,
+    TCoeff* const piQCoef,
+    const size_t  piQCfStride,
+    TCoeff* const piCoef,
+    const int     rightShift,
+    const int     inputMaximum,
+    const TCoeff  transformMaximum )
+{
+  const int    inputMinimum     = -( inputMaximum + 1 );
+  const TCoeff transformMinimum = -( transformMaximum + 1 );
+  int scale;
+  if (rightShift > 0)
+  {
+    const Intermediate_Int iAdd = (Intermediate_Int) 1 << (rightShift - 1);
+    for( int y = 0, n = 0; y <= maxY; y++)
+    {
+      for( int x = 0; x <= maxX; x++, n++ )
+      {
+        const TCoeff level = piQCoef[x + y * piQCfStride];
+        if( level )
+        {
+          scale = piDequantCoef[n] * scaleQP;
+          const TCoeff           clipQCoef = TCoeff(Clip3<Intermediate_Int>(inputMinimum, inputMaximum, level));
+          const Intermediate_Int iCoeffQ   = (Intermediate_Int(clipQCoef) * scale + iAdd) >> rightShift;
+          piCoef[n] = TCoeff(Clip3<Intermediate_Int>(transformMinimum,transformMaximum,iCoeffQ));
+        }
+      }
+      n += restX;
+    }
+  }
+  else
+  {
+    int leftShift = -rightShift;
+    for( int y = 0, n = 0; y <= maxY; y++)
+    {
+      for( int x = 0; x <= maxX; x++, n++ )
+      {
+        const TCoeff level = piQCoef[x + y * piQCfStride];
+        if( level )
+        {
+          scale = piDequantCoef[n] * scaleQP;
+          const TCoeff           clipQCoef = TCoeff(Clip3<Intermediate_Int>(inputMinimum, inputMaximum, level));
+          const Intermediate_Int iCoeffQ   = (Intermediate_Int(clipQCoef) * scale) *(1<< leftShift);
+          piCoef[n] = TCoeff(Clip3<Intermediate_Int>(transformMinimum,transformMaximum,iCoeffQ));
+        }
+      }
+      n += restX;
+    }
+  }
+}
 static void DeQuantCore( const int              maxX,
                          const int              restX,
                          const int              maxY,
@@ -136,8 +249,6 @@ static void DeQuantCore( const int              maxX,
   if (rightShift>0)
   {
     const Intermediate_Int iAdd = (Intermediate_Int) 1 << (rightShift - 1);
-
-
     for( int y = 0, n = 0; y <= maxY; y++)
     {
       for( int x = 0; x <= maxX; x++, n++ )
@@ -173,7 +284,6 @@ static void DeQuantCore( const int              maxX,
       }
       n += restX;
     }
-
   }
 }
 
@@ -189,7 +299,7 @@ static void DeQuantPCMCore( const int     maxX,
                             const TCoeff  transformMaximum )
 {
   const int    inputMinimum     = -( inputMaximum + 1 );
-  const TCoeff transformMinimum = -( transformMaximum );
+  const TCoeff transformMinimum = -( transformMaximum + 1 );
 
   if (rightShift > 0)
   {
@@ -203,7 +313,6 @@ static void DeQuantPCMCore( const int     maxX,
         {
           const TCoeff           clipQCoef = TCoeff(Clip3<Intermediate_Int>(inputMinimum, inputMaximum, level));
           const Intermediate_Int iCoeffQ   = (Intermediate_Int(clipQCoef) * scale + iAdd) >> rightShift;
-
           piCoef[n] = TCoeff(Clip3<Intermediate_Int>(transformMinimum,transformMaximum,iCoeffQ));
         }
       }
@@ -237,6 +346,9 @@ Quant::Quant( const Quant* other ) : m_dequantCoefBuf( nullptr ), m_ownDequantCo
 
   DeQuant    = DeQuantCore;
   DeQuantPCM = DeQuantPCMCore;
+  DeQuantScaling    = DeQuantScalingCore;
+  DeQuantScalingPCM = DeQuantScalingPCMCore;
+
 #if ENABLE_SIMD_OPT_QUANT && defined( TARGET_SIMD_X86 )
 
   initQuantX86();
@@ -303,6 +415,7 @@ static inline int getScalingListType( const PredMode predMode, const ComponentID
   return ( predMode == MODE_INTRA ? 0 : MAX_NUM_COMPONENT ) + compID;
 }
 
+
 void Quant::dequant( const TransformUnit& tu, CoeffBuf& dstCoeff, const ComponentID& compID, const QpParam& cQP )
 {
   const SPS*             sps                   = tu.cu->sps;
@@ -312,7 +425,6 @@ void Quant::dequant( const TransformUnit& tu, CoeffBuf& dstCoeff, const Componen
   const size_t           piQCfStride           = coeffBuf.stride;
         TCoeff* const    piCoef                = dstCoeff.buf;
   const int              maxLog2TrDynamicRange = sps->getMaxLog2TrDynamicRange( toChannelType( compID ) );
-  const TCoeff           transformMinimum      = -( 1 << maxLog2TrDynamicRange );
   const TCoeff           transformMaximum      =  ( 1 << maxLog2TrDynamicRange ) - 1;
   const bool             isTransformSkip       = ( tu.mtsIdx( compID ) == MTS_SKIP );
   setUseScalingList( tu.cu->slice->getExplicitScalingListUsed() );
@@ -324,7 +436,6 @@ void Quant::dequant( const TransformUnit& tu, CoeffBuf& dstCoeff, const Componen
   const int              channelBitDepth       = sps->getBitDepth();
 
   int maxX, maxY;
-
 
   if( ( tu.cu->bdpcmMode() && isLuma(compID) ) || ( tu.cu->bdpcmModeChroma() && isChroma(compID) ) )
   {
@@ -362,7 +473,6 @@ void Quant::dequant( const TransformUnit& tu, CoeffBuf& dstCoeff, const Componen
     //iCoeffQ                         = Intermediate_Int((int64_t(clipQCoef) * scale + iAdd) >> rightShift);
     //(sizeof(Intermediate_Int) * 8)  =                    inputBitDepth   + scaleBits      - rightShift
     const uint32_t         targetInputBitDepth = std::min<uint32_t>((maxLog2TrDynamicRange + 1), (((sizeof(Intermediate_Int) * 8) + rightShift) - scaleBits));
-    const Intermediate_Int inputMinimum        = -(1 << (targetInputBitDepth - 1));
     const Intermediate_Int inputMaximum        =  (1 << (targetInputBitDepth - 1)) - 1;
 
     const int restX = area.width - maxX - 1;
@@ -373,114 +483,24 @@ void Quant::dequant( const TransformUnit& tu, CoeffBuf& dstCoeff, const Componen
       {
         TCoeff* dst = &dstCoeff.buf[0];
         DeQuantPCM(maxX,restX,maxY,scale,dst,dstCoeff.stride,piCoef,rightShift,inputMaximum,transformMaximum);
-
       }
       else
       {
         DeQuant(maxX,restX,maxY,scale,piQCoef,piQCfStride,piCoef,rightShift,inputMaximum,transformMaximum);
       }
     }
-    else
+    else // Scaling Lists
     {
       int* piDequantCoef = getDequantCoeff( scalingListType, uiLog2TrWidth, uiLog2TrHeight );
       int  scaleQP       = g_InvQuantScales[needSqrtAdjustment ? 1 : 0][QP_rem];
-
       if( ( tu.cu->bdpcmMode() && isLuma(compID) ) || ( tu.cu->bdpcmModeChroma() && isChroma(compID) ) )
       {
         TCoeff* dst = &dstCoeff.buf[0];
-
-        if (rightShift > 0)
-        {
-          const Intermediate_Int iAdd = (Intermediate_Int) 1 << (rightShift - 1);
-          for( int y = 0, n = 0; y <= maxY; y++)
-          {
-            for( int x = 0; x <= maxX; x++, n++ )
-            {
-              const TCoeff level = dst[x + y * dstCoeff.stride];
-
-              if( level )
-              {
-                scale = piDequantCoef[n] * scaleQP;
-
-                const TCoeff           clipQCoef = TCoeff(Clip3<Intermediate_Int>(inputMinimum, inputMaximum, level));
-                const Intermediate_Int iCoeffQ   = (Intermediate_Int(clipQCoef) * scale + iAdd) >> rightShift;
-
-                piCoef[n] = TCoeff(Clip3<Intermediate_Int>(transformMinimum,transformMaximum,iCoeffQ));
-              }
-            }
-            n += restX;
-          }
-        }
-        else
-        {
-          int leftShift = -rightShift;
-          for( int y = 0, n = 0; y <= maxY; y++)
-          {
-            for( int x = 0; x <= maxX; x++, n++ )
-            {
-              const TCoeff level = dst[x + y * dstCoeff.stride];
-
-              if( level )
-              {
-                scale = piDequantCoef[n] * scaleQP;
-
-                const TCoeff           clipQCoef = TCoeff(Clip3<Intermediate_Int>(inputMinimum, inputMaximum, level));
-                const Intermediate_Int iCoeffQ   = (Intermediate_Int(clipQCoef) * scale) << leftShift;
-
-                piCoef[n] = TCoeff(Clip3<Intermediate_Int>(transformMinimum,transformMaximum,iCoeffQ));
-              }
-            }
-            n += restX;
-          }
-        }
+        DeQuantScalingPCM(maxX,restX,maxY,scaleQP,piDequantCoef,dst,dstCoeff.stride,piCoef,rightShift,inputMaximum,transformMaximum);
       }
       else
       {
-        if (rightShift > 0)
-        {
-          const Intermediate_Int iAdd = (Intermediate_Int) 1 << (rightShift - 1);
-
-          for( int y = 0, n = 0; y <= maxY; y++)
-          {
-            for( int x = 0; x <= maxX; x++, n++ )
-            {
-              const TCoeff level = piQCoef[x + y * piQCfStride];
-
-              if( level )
-              {
-                scale = piDequantCoef[n] * scaleQP;
-
-                const TCoeff           clipQCoef = TCoeff(Clip3<Intermediate_Int>(inputMinimum, inputMaximum, level));
-                Intermediate_Int iCoeffQ   = (Intermediate_Int(clipQCoef) * scale + iAdd) >> rightShift;
-
-                piCoef[n] = TCoeff(Clip3<Intermediate_Int>(transformMinimum,transformMaximum,iCoeffQ));
-              }
-            }
-            n += restX;
-          }
-        }
-        else
-        {
-          int leftShift = -rightShift;
-          for( int y = 0, n = 0; y <= maxY; y++)
-          {
-            for( int x = 0; x <= maxX; x++, n++ )
-            {
-              const TCoeff level = piQCoef[x + y * piQCfStride];
-
-              if( level )
-              {
-                scale = piDequantCoef[n] * scaleQP;
-
-                const TCoeff           clipQCoef = TCoeff(Clip3<Intermediate_Int>(inputMinimum, inputMaximum, level));
-                const Intermediate_Int iCoeffQ   = (Intermediate_Int(clipQCoef) * scale) *(1<< leftShift);
-
-                piCoef[n] = TCoeff(Clip3<Intermediate_Int>(transformMinimum,transformMaximum,iCoeffQ));
-              }
-            }
-            n += restX;
-          }
-        }
+        DeQuantScaling(maxX,restX,maxY,scaleQP,piDequantCoef,piQCoef,piQCfStride,piCoef,rightShift,inputMaximum,transformMaximum);
       }
     }
   }
@@ -696,7 +716,6 @@ void Quant::xInitScalingList( const Quant* other )
   }
 
   size_t numQuants = 0;
-
   for(uint32_t sizeIdX = 0; sizeIdX < SCALING_LIST_SIZE_NUM; sizeIdX++)
   {
     for(uint32_t sizeIdY = 0; sizeIdY < SCALING_LIST_SIZE_NUM; sizeIdY++)

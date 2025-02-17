@@ -280,7 +280,7 @@ public:
             default:            cll = "UNKNOWN"; break;
             // clang-format on
           };
-          fprintf( stdout, "[verbosity] : %d - %s\n", (int) rcParams.logLevel, cll );
+          fprintf( stdout, "[verbosity]  : %d - %s\n", (int) rcParams.logLevel, cll );
         }
       }
       else if( parse_param( { "-h", "--help" }, _dummy ) )
@@ -312,12 +312,12 @@ public:
       if( parse_param( { "-b", "--bitstream" }, rcBitstreamFile ) ) /* In: input-file */
       {
         if( rcParams.logLevel > VVDEC_VERBOSE )
-          fprintf( stdout, "[bitstream] input-file:    %s\n", argv[m_iArg] );
+          fprintf( stdout, "[bitstream]  : %s\n", rcBitstreamFile.c_str() );
       }
       else if( parse_param( { "-o", "--output" }, rcOutputFile ) ) /* Out: bitstream-file */
       {
         if( rcParams.logLevel > VVDEC_VERBOSE )
-          fprintf( stdout, "[output] yuv-file:    %s\n", argv[m_iArg] );
+          fprintf( stdout, "[output]     : %s\n", rcOutputFile.c_str() );
       }
       else if( parse_param( { "-uo", "--upscale" }, upscale_output ) ) /* In: upscale */
       {
@@ -334,7 +334,7 @@ public:
             default                 : scale = "UNKNOWN";   break;
             // clang-format on
           };
-          fprintf( stdout, "[upscale] : %s\n", scale );
+          fprintf( stdout, "[upscale]    : %s\n", scale );
         }
       }
       else if( parse_param( { "-fg", "--filmGrain" }, rcParams.filmGrainSynthesis ) ) {}
@@ -343,12 +343,12 @@ public:
       else if( parse_param( { "-f", "--frames" }, riFrames ) )
       {
         if( rcParams.logLevel > VVDEC_VERBOSE )
-          fprintf( stdout, "[frames] : %d\n", riFrames );
+          fprintf( stdout, "[frames]     : %d\n", riFrames );
       }
       else if( parse_param( { "-t", "--threads" }, rcParams.threads ) )
       {
         if( rcParams.logLevel > VVDEC_VERBOSE )
-          fprintf( stdout, "[threads] : %d\n", rcParams.threads );
+          fprintf( stdout, "[threads]    : %d\n", rcParams.threads );
       }
       else if( parse_param( { "-p", "--parsedelay" }, rcParams.parseDelay ) )
       {
@@ -367,12 +367,12 @@ public:
       else if( parse_param( { "-md5", "--CheckYuvMD5" }, rcExpectYuvMD5 ) )
       {
         if( rcParams.logLevel > VVDEC_VERBOSE )
-          fprintf( stdout, "[CheckYuvMD5] : %s\n", rcExpectYuvMD5.c_str() );
+          fprintf( stdout, "[CheckYuvMD5]: %s\n", rcExpectYuvMD5.c_str() );
       }
       else if( parse_param( { "-L", "--loops" }, riLoops ) )
       {
         if( rcParams.logLevel > VVDEC_VERBOSE )
-          fprintf( stdout, "[loops] : %d\n", riLoops );
+          fprintf( stdout, "[loops]      : %d\n", riLoops );
       }
       else if( parse_param( { "--simd" }, simd_arg ) )
       {
@@ -408,7 +408,7 @@ public:
             default:                   return -1;
             // clang-format on
           };
-          fprintf( stdout, "[simd] : %s\n", cll );
+          fprintf( stdout, "[simd]       : %s\n", cll );
         }
       }
       else if( parse_param( { "-eh", "--errHandling" }, err_handle_flags ) )

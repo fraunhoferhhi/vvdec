@@ -87,6 +87,25 @@ variables:
     - make msvc-arch=${MSVC_ARCH} enable-bitstream-download=1 enable-local-bitstream-download=1 enable-lto=${ENABLE_LTO} all
     - make msvc-arch=${MSVC_ARCH} test
 
+.build_android_template:
+  extends: .build_only_template_full
+  image: $CI_REGISTRY/git/vvdec/android_sdk_ndk:latest
+  needs:
+    - job: rebuild_android_ndk_docker_image
+      optional: true
+  script:
+    - mkdir -p build/android
+    - cmake -B build/android -G Ninja
+            --toolchain=${ANDROID_NDK_ROOT}/build/cmake/android.toolchain.cmake
+            -DANDROID_TOOLCHAIN_NAME=${ANDROID_NDK_TRIPLE}-clang
+            -DANDROID_PLATFORM=${ANDROID_PLATFORM}
+            -DBUILD_SHARED_LIBS=1
+            -DCMAKE_BUILD_TYPE=Release
+    - ninja -C build/android
+  variables:
+    ANDROID_PLATFORM: 29
+    ANDROID_NDK_TRIPLE: "# e.g., arm-linux-androideabi or aarch64-linux-android"
+
 
 build_gcc5_ubuntu1804:
   extends: .build_only_template_full
@@ -260,6 +279,26 @@ build_armv7_gcc_ubuntu2404:
   variables:
     toolchainfile: cmake/toolchains/arm-linux-gnueabihf-gcc-ubuntu.cmake
 
+build_android:aarch64:
+  extends: .build_android_template
+  variables:
+    ANDROID_NDK_TRIPLE: aarch64-linux-android
+
+build_android:armv7:
+  extends: .build_android_template
+  variables:
+    ANDROID_NDK_TRIPLE: arm-linux-androideabi
+
+build_android:x86:
+  extends: .build_android_template
+  variables:
+    ANDROID_NDK_TRIPLE: x86-linux-android
+
+build_android:x86_64:
+  extends: .build_android_template
+  variables:
+    ANDROID_NDK_TRIPLE: x86_64-linux-android
+
 build_ios:
   extends: .build_only_template_full
   variables:
@@ -271,7 +310,6 @@ build_ios:
     - make enable-lto=${ENABLE_LTO} static
   tags:
     - macos-arm
-
 
 test_ubuntu2004:
   extends: .build_test_template
@@ -367,6 +405,15 @@ rebuild_selenium_docker_image:
   rules:
     - if: '$CI_PROJECT_PATH == "git/vvdec" && $FULL_BUILD == "1"'
 
+rebuild_android_ndk_docker_image:
+  extends: .rebuild_docker_image_template
+  variables:
+    DOCKERFILE: ".android_sdk_ndk.dockerfile"
+    DOCKER_IMAGE_TAG: "$CI_REGISTRY_IMAGE/android_sdk_ndk:latest"
+    #IMAGE_BUILD_ARGS: "--build-arg v_ndk=r27c --build-arg v_ndk_n=27.2.12479018"
+  rules:
+    - if: '$CI_PROJECT_PATH == "git/vvdec" && $FULL_BUILD == "1"'
+
 test_wasm:
   extends: .build_test_template_full
   image: $CI_REGISTRY/git/vvdec/selenium-debian:emsdk-$EMSDK_VERSION
@@ -385,3 +432,4 @@ test_wasm:
     name: "vvdec-wasm"
     paths:
       - install/
+
