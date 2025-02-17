@@ -126,6 +126,9 @@ private:
   void ( *DeQuant    ) (const int maxX,const int restX,const int maxY,const int scale,const TCoeffSig*const piQCoef,const size_t piQCfStride,TCoeff   *const piCoef,const int rightShift,const int inputMaximum,const TCoeff transformMaximum);
   void ( *DeQuantPCM ) (const int maxX,const int restX,const int maxY,const int scale,      TCoeff   *const piQCoef,const size_t piQCfStride,TCoeff   *const piCoef,const int rightShift,const int inputMaximum,const TCoeff transformMaximum);
 
+  void ( *DeQuantScaling    ) (const int maxX,const int restX,const int maxY,const int scaleQP,const int *piDequantCoef,const TCoeffSig*const piQCoef,const size_t piQCfStride,TCoeff   *const piCoef,const int rightShift,const int inputMaximum,const TCoeff transformMaximum);
+  void ( *DeQuantScalingPCM   ) (const int maxX,const int restX,const int maxY,const int scaleQP,const int *piDequantCoef,TCoeff   *const piQCoef,const size_t piQCfStride,TCoeff   *const piCoef,const int rightShift,const int inputMaximum,const TCoeff transformMaximum);
+
 #if ENABLE_SIMD_OPT_QUANT && defined( TARGET_SIMD_X86 )
 
   void initQuantX86();

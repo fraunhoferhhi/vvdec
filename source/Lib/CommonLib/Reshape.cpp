@@ -65,6 +65,7 @@ namespace vvdec
 Reshape::Reshape()
 {
   m_invLUT = nullptr;
+  m_lumaBD=0;
   m_chromaScale = 1 << CSCALE_FP_PREC;
   m_vpduX = -1;
   m_vpduY = -1;
@@ -77,6 +78,15 @@ Reshape::~Reshape()
 
 void  Reshape::createDec(int bitDepth)
 {
+  //sanity check
+  if (m_lumaBD != bitDepth)
+  {
+    if (m_invLUT )
+    {
+      xFree( m_invLUT );
+      m_invLUT = nullptr;
+    }
+  }
   m_lumaBD = bitDepth;
   m_reshapeLUTSize = 1 << m_lumaBD;
   m_initCW = m_reshapeLUTSize / PIC_CODE_CW_BINS;

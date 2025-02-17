@@ -503,6 +503,7 @@ void Slice::constructSingleRefPicList( const PicList& rcPicList, RefPicList list
     }
 
     CHECK( pcRefPic->getPOC() != refPOC, "reference picture as wrong POC" );
+    CHECK_FATAL(pcRefPic->chromaFormat != getPic()->chromaFormat,"reference picture has wrong chroma format");
 
     if( ii < numOfActiveRef )
     {
