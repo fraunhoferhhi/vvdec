@@ -155,7 +155,7 @@ Picture* PicListManager::getNewPicBuffer( const SPS& sps, const PPS& pps, const 
   for( PicList::iterator itPic = m_cPicList.begin(); itPic != m_cPicList.end(); ++itPic )
   {
     Picture* pic = *itPic;
-    if( pic->progress < Picture::finished || pic->stillReferenced || pic->dpbReferenceMark || pic->neededForOutput || pic->lockedByApplication )
+    if( pic->progress < Picture::reconstructed || pic->stillReferenced || pic->dpbReferenceMark || pic->neededForOutput || pic->lockedByApplication )
     {
       continue;
     }
@@ -252,7 +252,8 @@ void PicListManager::markUnusedPicturesReusable()
   // remove stillReferenced flag from all others
   for( auto& pic: m_cPicList )
   {
-    if( pic->progress < Picture::finished )   // only unmark pictures up to the first unfinished pic
+    if( pic->progress < Picture::finished                                   // only unmark pictures up to the first unfinished pic
+        && !( pic->progress == Picture::reconstructed && pic->wasLost ) )   // unless that is not a filled-in lost picture
     {
       break;
     }

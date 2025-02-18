@@ -605,6 +605,7 @@ bool DecLibParser::xDecodeSliceHead( InputNALUnit& nalu )
   {
     m_prevSliceSkipped = true;
     m_skippedPOC       = m_apcSlicePilot->getPOC();
+    msg( VERBOSE, "POC %i: RASL not decodable\n", m_skippedPOC );
     return false;
   }
 
