@@ -55,8 +55,8 @@ endmacro( install_exe_pdb )
 target_include_directories( vvdec  SYSTEM INTERFACE $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}> )
 
 # install headers
-install( FILES     ${CMAKE_BINARY_DIR}/vvdec/version.h  DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/vvdec )
-install( DIRECTORY include/vvdec                        DESTINATION ${CMAKE_INSTALL_INCLUDEDIR} )
+install( DIRECTORY ${CMAKE_BINARY_DIR}/vvdec  DESTINATION ${CMAKE_INSTALL_INCLUDEDIR} )
+install( DIRECTORY include/vvdec              DESTINATION ${CMAKE_INSTALL_INCLUDEDIR} PATTERN "*.in" EXCLUDE )
 
 if( VVDEC_INSTALL_VVDECAPP AND VVDEC_LIBRARY_ONLY )
   message( FATAL_ERROR "VVDEC_INSTALL_VVDECAPP conflicts with VVDEC_LIBRARY_ONLY" )

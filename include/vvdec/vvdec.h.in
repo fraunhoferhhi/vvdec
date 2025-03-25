@@ -52,6 +52,8 @@ POSSIBILITY OF SUCH DAMAGE.
 #define VVDEC_NAMESPACE_BEGIN
 #define VVDEC_NAMESPACE_END
 
+#define VVDEC_USE_UNSTABLE_API @VVDEC_USE_UNSTABLE_API@
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -287,6 +289,9 @@ typedef struct vvdecAccessUnit
   bool            ctsValid;            // composition time stamp valid flag (true: valid, false: CTS not set)
   bool            dtsValid;            // decoding time stamp valid flag (true: valid, false: DTS not set)
   bool            rap;                 // random access point flag (true: AU is random access point, false: sequential access)
+#if VVDEC_USE_UNSTABLE_API
+  void*           userData;            // user data to be returned in corresponding output YUV buffer
+#endif
 } vvdecAccessUnit;
 
 /* vvdec_accessUnit_alloc:
@@ -420,8 +425,7 @@ typedef struct vvdecPicAttributes
   vvdecOlsHrd*      olsHrd;            // if available, pointer to OLS HRD (Output Layer Set Hypothetical Reference Decoder)
   vvdecSeqInfo*     seqInfo;           // if available, pointer to some data extracted from the SPS (Sequence Parameter Set)
   vvdecPicHashError picHashError;      // result of the decoded picture hash verification if enabled
-
-  void*             reservedPtr_1;     // reserved space for future use
+  void*             userData;          // user data for private data that is attached on the input vvdecAccessUnit with same cts
   void*             reservedPtr_2;     // ...
   int64_t           reserved_1;        // ...
   int64_t           reserved_2;        // ...
