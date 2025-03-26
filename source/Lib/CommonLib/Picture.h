@@ -221,6 +221,7 @@ public:
   NalUnitType eNalUnitType = NAL_UNIT_INVALID;
   uint32_t    bits         = 0;   // input nal bit count
   bool        rap          = 0;   // random access point flag
+  void       *userData     = nullptr;      ///< opaque user data
   int         decodingOrderNumber = 0;
 
   std::vector<int>        sliceSubpicIdx;

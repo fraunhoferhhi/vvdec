@@ -63,6 +63,10 @@ ifneq ($(enable-werror),)
 CONFIG_OPTIONS += -DVVDEC_ENABLE_WERROR=$(enable-werror)
 endif
 
+ifneq ($(enable-unstable-api),)
+CONFIG_OPTIONS += -DVVDEC_ENABLE_UNSTABLE_API=$(enable-unstable-api)
+endif
+
 ifneq ($(osx-arch),)
 CONFIG_OPTIONS += -DCMAKE_OSX_ARCHITECTURES=$(osx-arch)
 endif

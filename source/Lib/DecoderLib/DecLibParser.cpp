@@ -727,6 +727,7 @@ bool DecLibParser::xDecodeSliceMain( InputNALUnit& nalu )
   m_pcParsePic->cts              = nalu.m_cts;
   m_pcParsePic->dts              = nalu.m_dts;
   m_pcParsePic->rap              = nalu.m_rap;
+  m_pcParsePic->userData         = nalu.m_userData;
   m_pcParsePic->bits            += nalu.m_bits + m_nonVCLbits;
   m_pcParsePic->layerId          = nalu.m_nuhLayerId;
   m_pcParsePic->subLayerNonReferencePictureDueToSTSA = false;

@@ -393,6 +393,9 @@ int VVDecImpl::decode( vvdecAccessUnit& rcAccessUnit, vvdecFrame** ppcFrame )
           if( rcAccessUnit.dtsValid ){  nalu.m_dts = rcAccessUnit.dts; }
           nalu.m_rap = rcAccessUnit.rap;
           nalu.m_bits = ( numNaluBytes + iStartCodeSizeVec[iAU] ) * 8;
+#if VVDEC_USE_UNSTABLE_API
+          nalu.m_userData = rcAccessUnit.userData;
+#endif
 
           pcPic = m_cDecLib->decode( nalu );
 
@@ -1062,6 +1065,9 @@ int VVDecImpl::xAddPicture( Picture* pcPic )
                        : ( pcPic->picCheckedDPH ? VVDEC_DPH_OK                // and then pcPic->picCheckedDPH, because it will only be set when all subpics
                                                 : VVDEC_DPH_NOT_VERIFIED );   // have been checked, but the DPH-SEIs for some subpics could be missing,
 
+#if VVDEC_USE_UNSTABLE_API
+  cFrame.picAttributes->userData = pcPic->userData;
+#endif
   if( pcPic->fieldPic )
   {
     cFrame.frameFormat = pcPic->topField ? VVDEC_FF_TOP_FIELD : VVDEC_FF_BOT_FIELD;

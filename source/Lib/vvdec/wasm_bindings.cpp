@@ -143,6 +143,9 @@ EMSCRIPTEN_BINDINGS( vvdec )
     .property( "ctsValid",        &vvdecAccessUnit::ctsValid        )
     .property( "dtsValid",        &vvdecAccessUnit::dtsValid        )
     .property( "rap",             &vvdecAccessUnit::rap             )
+#if VVDEC_USE_UNSTABLE_API
+    .property( "userData",        &vvdecAccessUnit::userData        )
+#endif
   ;
 
 

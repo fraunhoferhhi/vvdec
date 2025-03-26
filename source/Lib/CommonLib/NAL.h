@@ -62,7 +62,7 @@ struct NALUnit
   uint64_t    m_cts      = 0;            ///< composition time stamp in TicksPerSecond
   uint64_t    m_dts      = 0;            ///< decoding time stamp in TicksPerSecond
   bool        m_rap      = false;        ///< random access point flag
-
+  void       *m_userData = nullptr;      ///< opaque user data
   NALUnit(const NALUnit &src)
     : m_nalUnitType (src.m_nalUnitType)
     , m_temporalId  (src.m_temporalId)

@@ -153,6 +153,7 @@ void Picture::resetForUse( int _layerId )
   eNalUnitType        = NAL_UNIT_INVALID;
   bits                = 0;
   rap                 = 0;
+  userData            = nullptr;
   decodingOrderNumber = 0;
 
   sliceSubpicIdx.clear();
