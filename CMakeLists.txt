@@ -160,7 +160,7 @@ set( VVDEC_ENABLE_LINK_TIME_OPT             ON  CACHE BOOL   "Enable link time o
 
 set( VVDEC_ENABLE_WERROR                    ON  CACHE BOOL   "Treat warnings as errors (-Werror or /WX)" )
 
-set( VVDEC_ENABLE_UNSTABLE_API              OFF CACHE BOOL   "Enable unstable API" )
+set( VVDEC_ENABLE_UNSTABLE_API              OFF CACHE BOOL   "Enable unstable API (include 3.0.0 API and ABI incompatible interface extensions)" )
 
 if( CMAKE_CXX_COMPILER_ID STREQUAL "GNU" OR
     CMAKE_CXX_COMPILER_ID STREQUAL "Clang" )

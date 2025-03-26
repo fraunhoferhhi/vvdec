@@ -291,6 +291,9 @@ typedef struct vvdecAccessUnit
   bool            rap;                 // random access point flag (true: AU is random access point, false: sequential access)
 #if VVDEC_USE_UNSTABLE_API
   void*           userData;            // user data to be returned in corresponding output YUV buffer
+  void*           reservedPtr_1;       // ...
+  int64_t         reserved_1;          // ...
+  int64_t         reserved_2;          // ...
 #endif
 } vvdecAccessUnit;
 
