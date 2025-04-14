@@ -40,7 +40,15 @@ set( VVDEC_ENABLE_X86_SIMD   TRUE                      CACHE BOOL "enable x86 in
 set( VVDEC_ENABLE_ARM_SIMD   ${VVDEC_ARM_SIMD_DEFAULT} CACHE BOOL "enable ARM intrinsics" )
 set( VVDEC_ENABLE_LOONGARCH64_LSX_SIMD  ${VVDEC_LOONGARCH64_SIMD_DEFAULT} CACHE BOOL "enable loongarch64 LSX intrinsics" )
 
-set( VVDEC_ENABLE_TRACING    FALSE                     CACHE BOOL "Compile in tracing functionality" )
+set( VVDEC_ENABLE_TRACING      FALSE                   CACHE BOOL "Compile in tracing functionality" )
+
+set( VVDEC_ENABLE_UNSTABLE_API OFF                     CACHE BOOL "Enable unstable API (include 3.0.0 API and ABI incompatible interface extensions)" )
+
+set( VVDEC_USE_UNSTABLE_API 0 )
+if( VVDEC_ENABLE_UNSTABLE_API )
+  set( VVDEC_USE_UNSTABLE_API 1 )
+endif()
+configure_file( include/vvdec/vvdec.h.in ${CMAKE_BINARY_DIR}/vvdec/vvdec.h @ONLY )
 
 # enable sse4.1 build for all source files for gcc and clang
 if( VVDEC_ENABLE_X86_SIMD )
@@ -159,8 +167,6 @@ set( VVDEC_ENABLE_BUILD_TYPE_POSTFIX        OFF CACHE BOOL   "Enable or disable 
 set( VVDEC_ENABLE_LINK_TIME_OPT             ON  CACHE BOOL   "Enable link time optimization for release and profile builds" )
 
 set( VVDEC_ENABLE_WERROR                    ON  CACHE BOOL   "Treat warnings as errors (-Werror or /WX)" )
-
-set( VVDEC_ENABLE_UNSTABLE_API              OFF CACHE BOOL   "Enable unstable API (include 3.0.0 API and ABI incompatible interface extensions)" )
 
 if( CMAKE_CXX_COMPILER_ID STREQUAL "GNU" OR
     CMAKE_CXX_COMPILER_ID STREQUAL "Clang" )
@@ -288,13 +294,6 @@ if( VVDEC_ENABLE_WERROR )
     add_compile_options( "$<$<OR:$<CXX_COMPILER_ID:GNU>,$<CXX_COMPILER_ID:Clang>,$<CXX_COMPILER_ID:AppleClang>>:-Werror>" )
     add_compile_options( "$<$<CXX_COMPILER_ID:MSVC>:/WX>" )
 endif()
-
-set( VVDEC_USE_UNSTABLE_API 0 )
-if( VVDEC_ENABLE_UNSTABLE_API )
-  set( VVDEC_USE_UNSTABLE_API 1 )
-endif()
-
-configure_file( include/vvdec/vvdec.h.in ${CMAKE_BINARY_DIR}/vvdec/vvdec.h @ONLY )
 
 if( VVDEC_ENABLE_X86_SIMD )
   if( ( UNIX OR MINGW ) AND VVDEC_OPT_TARGET_ARCH )
