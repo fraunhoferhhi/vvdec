@@ -65,7 +65,6 @@ POSSIBILITY OF SUCH DAMAGE.
 #include "vvdec/sei.h"
 #include "vvdec/vvdec.h"
 
-#define USE_SIMD
 
 namespace vvdec
 {

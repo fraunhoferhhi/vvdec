@@ -55,7 +55,7 @@ POSSIBILITY OF SUCH DAMAGE.
 
 #include "../Unit.h"
 
-#ifdef TARGET_SIMD_X86
+#if defined(TARGET_SIMD_X86)  && ENABLE_SIMD_OPT_MCIF
 
 namespace vvdec
 {

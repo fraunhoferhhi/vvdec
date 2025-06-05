@@ -51,7 +51,7 @@ POSSIBILITY OF SUCH DAMAGE.
 #include <memory>
 #include "CommonDef.h"
 
-#ifdef TARGET_SIMD_X86
+#if defined(TARGET_SIMD_X86) && SIMD_ENABLE
 #  include "CommonDefX86.h"   // needed for simde_bswap64, but don't just include simde-common.h, because it breaks other files
 #else
 #  include "simde/simde-common.h"

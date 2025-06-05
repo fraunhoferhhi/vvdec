@@ -47,9 +47,10 @@ POSSIBILITY OF SUCH DAMAGE.
 
 #include <memory>
 
+#if defined(TARGET_SIMD_X86)  && ENABLE_SIMD_OPT
+
 namespace vvdec
 {
-
 template<X86_VEXT VEXT>
 class FilmGrainImplX86 : public FilmGrainImpl
 {
@@ -100,3 +101,4 @@ inline std::unique_ptr<FilmGrainImpl> FilmGrainImplX86<UNDEFINED>::makeFilmGrain
 }
 
 }   // namespace vvdec
+#endif

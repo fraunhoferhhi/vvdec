@@ -162,7 +162,7 @@ protected:
   Reshape* m_pcReshape;
 
 
-#ifdef TARGET_SIMD_X86
+#if defined(TARGET_SIMD_X86)  && ENABLE_SIMD_OPT_SAO
   void initSampleAdaptiveOffsetX86();
   template <X86_VEXT vext>
   void _initSampleAdaptiveOffsetX86();

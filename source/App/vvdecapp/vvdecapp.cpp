@@ -80,8 +80,8 @@ struct LateFrames
 #endif   // DEC_AT_FPS
 
 /*! Prototypes */
-int writeYUVToFile( std::ostream *f, vvdecFrame *frame, bool y4mFormat = false );
-int writeYUVToFileInterlaced( std::ostream *f, vvdecFrame *topField, vvdecFrame *botField = nullptr, bool y4mFormat = false );
+int writeYUVToFile( std::ostream *f, vvdecFrame *frame, bool y4mFormat = false, bool pyuvOutput = false );
+int writeYUVToFileInterlaced( std::ostream *f, vvdecFrame *topField, vvdecFrame *botField = nullptr, bool y4mFormat = false, bool pyuvOutput = false );
 
 static bool handle_frame( vvdecFrame*                   pcFrame,
                           vvdecFrame*&                  pcPrevField,
@@ -97,7 +97,7 @@ static bool handle_frame( vvdecFrame*                   pcFrame,
                           std::ostream*                 logStream,
                           std::ostream*                 outStream,
                           std::ostream*                 md5Stream,
-                          vvdecoderapp::AppOutputParams y4mOutput
+                          vvdecoderapp::AppOutputParams appOutputParams
 #if DEC_AT_FPS
                           ,
                           hi_res_time_point& first_frame_time,
@@ -552,9 +552,19 @@ int main( int argc, char* argv[] )
     }
     else
     {
-      if( cOutputFile.substr( 4, cOutputFile.length() - 5 ) == ".y4m" )
+      if(cOutputFile.substr(cOutputFile.find_last_of(".") + 1) == "y4m")
       {
         appOutputParams.y4mOutput = true;
+      }
+      else if(cOutputFile.substr(cOutputFile.find_last_of(".") + 1) == "pyuv")
+      {
+        appOutputParams.pyuvOutput = true;
+      }
+
+      if( appOutputParams.y4mOutput && appOutputParams.pyuvOutput )
+      {
+        std::cerr << "vvdecapp [error]: cannot combine pyuv and y4m output - no support for packed yuv output in y4m." << std::endl;
+        return -1;
       }
 
       cRecFile.open( cOutputFile.c_str(), std::fstream::binary | std::fstream::out );
@@ -1158,7 +1168,13 @@ static bool handle_frame( vvdecFrame*                   pcFrame,
       }
       if( outStream )
       {
-        if( 0 != writeYUVToFile( outStream, outputFrame, outputParams.y4mOutput ) )
+        if( outputParams.pyuvOutput && (outputFrame->planes[0].width % 8)  != 0 )
+        {
+          *logStream << "vvdecapp [error]: cannot write pyuv for picture seq. " <<  outputFrame->sequenceNumber << " width must be divisible by 8." << std::endl;
+          return false;;
+        }
+
+        if( 0 != writeYUVToFile( outStream, outputFrame, outputParams.y4mOutput, outputParams.pyuvOutput ) )
         {
           *logStream << "vvdecapp [error]: write of rec. yuv failed for picture seq. " <<  outputFrame->sequenceNumber << std::endl;
           return false;
@@ -1188,7 +1204,13 @@ static bool handle_frame( vvdecFrame*                   pcFrame,
         }
         if( outStream )
         {
-          if( 0 != writeYUVToFileInterlaced( outStream, pcPrevField, pcFrame, outputParams.y4mOutput ) )
+          if( outputParams.pyuvOutput && (pcFrame->planes[0].width % 8)  != 0 )
+          {
+            *logStream << "vvdecapp [error]: cannot write pyuv for picture seq. " <<  pcFrame->sequenceNumber << " width must be divisible by 8." << std::endl;
+            return false;;
+          }
+
+          if( 0 != writeYUVToFileInterlaced( outStream, pcPrevField, pcFrame, outputParams.y4mOutput, outputParams.pyuvOutput ) )
           {
             *logStream << "vvdecapp [error]: write of rec. yuv failed for picture seq. " <<  pcFrame->sequenceNumber << std::endl;
             return false;

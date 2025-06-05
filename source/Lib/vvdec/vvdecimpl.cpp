@@ -83,7 +83,7 @@ int VVDecImpl::init( const vvdecParams& params, vvdecCreateBufferCallback create
 
   try
   {
-#ifdef TARGET_SIMD_X86
+#if defined(TARGET_SIMD_X86) && ENABLE_SIMD_OPT
     switch( params.simd )
     {
     case VVDEC_SIMD_SCALAR: read_x86_extension_flags( x86_simd::SCALAR ); break;
@@ -100,7 +100,7 @@ int VVDecImpl::init( const vvdecParams& params, vvdecCreateBufferCallback create
     }
 #endif   // TARGET_SIMD_X86
 
-#ifdef TARGET_SIMD_ARM
+#if defined(TARGET_SIMD_ARM) && ENABLE_SIMD_OPT
     switch( params.simd )
     {
     case VVDEC_SIMD_SCALAR : read_arm_extension_flags( arm_simd::SCALAR );    break;

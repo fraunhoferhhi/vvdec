@@ -50,11 +50,12 @@ POSSIBILITY OF SUCH DAMAGE.
 #include "CommonDefX86.h"
 #include "../RdCost.h"
 
+#if defined(TARGET_SIMD_X86)  && ENABLE_SIMD_OPT_DIST
+
 namespace vvdec
 {
-using namespace x86_simd;
 
-#ifdef TARGET_SIMD_X86
+using namespace x86_simd;
 
 template<X86_VEXT vext, bool isWdt16>
 Distortion xGetSAD_MxN_SIMD( const DistParam &rcDtParam )
@@ -620,6 +621,5 @@ void RdCost::_initRdCostX86()
 
 template void RdCost::_initRdCostX86<SIMDX86>();
 
-#endif //#if TARGET_SIMD_X86
-
 }
+#endif //#if TARGET_SIMD_X86

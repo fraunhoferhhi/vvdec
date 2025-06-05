@@ -142,7 +142,7 @@ namespace vvdec
 // ====================================================================================================================
 
 // SIMD optimizations
-#define SIMD_ENABLE                                       1
+#define SIMD_ENABLE                                      1
 #define ENABLE_SIMD_OPT                                 ( SIMD_ENABLE )                                     ///< SIMD optimizations
 #define ENABLE_SIMD_OPT_MCIF                            ( 1 && ENABLE_SIMD_OPT )                            ///< SIMD optimization for the interpolation filter
 #define ENABLE_SIMD_OPT_BUFFER                          ( 1 && ENABLE_SIMD_OPT )                            ///< SIMD optimization for the buffer operations

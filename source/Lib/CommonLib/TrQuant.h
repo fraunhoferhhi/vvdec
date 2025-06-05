@@ -52,7 +52,9 @@ POSSIBILITY OF SUCH DAMAGE.
 
 namespace vvdec
 {
+#if defined(TARGET_SIMD_X86) &&  ENABLE_SIMD_TCOEFF_OPS
 using namespace x86_simd;
+#endif
 
 typedef void InvTrans(const TCoeff*, TCoeff*, int, int, int, int, bool, const TCoeff, const TCoeff);
 
@@ -124,7 +126,7 @@ private:
                  const ComponentID   &component);
 
 
-#ifdef TARGET_SIMD_X86
+#if defined(TARGET_SIMD_X86) &&  ENABLE_SIMD_TCOEFF_OPS
   template<X86_VEXT vext>
   void _initTrQuantX86();
   void initTrQuantX86();

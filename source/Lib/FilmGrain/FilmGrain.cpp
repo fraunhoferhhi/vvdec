@@ -62,7 +62,7 @@ POSSIBILITY OF SUCH DAMAGE.
 
 #include "CommonDef.h"
 
-#if defined( TARGET_SIMD_X86 ) && defined( USE_SIMD )
+#if defined( TARGET_SIMD_X86 ) && ENABLE_SIMD_OPT
 #  include "FilmGrainImplX86.h"
 #endif
 
@@ -720,7 +720,7 @@ void FilmGrain::init_sei()
 
 FilmGrain::FilmGrain()
 {
-#if defined( TARGET_SIMD_X86 ) && defined( USE_SIMD )
+#if defined( TARGET_SIMD_X86 ) && ENABLE_SIMD_OPT
   m_impl = FilmGrainImplX86<UNDEFINED>::makeFilmGrainImpl();
 #else
   m_impl = std::make_unique<FilmGrainImpl>();

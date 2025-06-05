@@ -56,7 +56,10 @@ POSSIBILITY OF SUCH DAMAGE.
 
 namespace vvdec
 {
-
+#if defined(TARGET_SIMD_X86)  && ENABLE_SIMD_DBLF
+using namespace x86_simd;
+#endif
+  
 // ====================================================================================================================
 // Class definition
 // ====================================================================================================================
@@ -100,7 +103,7 @@ private:
   void( *xPelFilterLuma  )( Pel* piSrc, const ptrdiff_t step, const ptrdiff_t offset, const int tc, const bool sw, const int iThrCut, const bool bFilterSecondP, const bool bFilterSecondQ, const ClpRng& clpRng );
   void( *xFilteringPandQ )( Pel* src, ptrdiff_t step, const ptrdiff_t offset, int numberPSide, int numberQSide, int tc );
 
-#ifdef TARGET_SIMD_X86
+#if defined(TARGET_SIMD_X86)  && ENABLE_SIMD_DBLF
   void initLoopFilterX86();
   template <X86_VEXT vext>
   void _initLoopFilterX86();
