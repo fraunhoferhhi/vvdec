@@ -45,6 +45,7 @@ POSSIBILITY OF SUCH DAMAGE.
 
 #include "CommonDefARM.h"
 
+#if defined(TARGET_SIMD_ARM) && ENABLE_SIMD_OPT
 namespace vvdec
 {
 using namespace arm_simd;
@@ -62,3 +63,4 @@ ARM_VEXT read_arm_extension_flags( ARM_VEXT request )
 };
 
 }   // namespace vvdec
+#endif

@@ -60,7 +60,9 @@ POSSIBILITY OF SUCH DAMAGE.
 
 namespace vvdec
 {
+#if  ENABLE_SIMD_OPT_PICTURE && defined( TARGET_SIMD_X86 )
 using namespace x86_simd;
+#endif
 
 struct Picture;
 

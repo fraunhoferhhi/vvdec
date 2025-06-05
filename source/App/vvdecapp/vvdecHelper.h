@@ -60,7 +60,7 @@ POSSIBILITY OF SUCH DAMAGE.
 
 #define MAX_CODED_PICTURE_SIZE  800000
 
-static int _writeComponentToFile( std::ostream *f, vvdecPlane *plane, vvdecPlane *planeField2, uint32_t uiBytesPerSample )
+static int _writeComponentToFile( std::ostream *f, vvdecPlane *plane, vvdecPlane *planeField2, uint32_t uiBytesPerSample, bool writePYUV )
 {
   uint32_t uiWidth  = plane->width;
   uint32_t uiHeight = plane->height;
@@ -100,6 +100,47 @@ static int _writeComponentToFile( std::ostream *f, vvdecPlane *plane, vvdecPlane
            }
            f->write( (char*)&tmp2[0], sizeof(std::vector<unsigned char>::value_type)*tmp2.size());
            p2 += planeField2->stride;
+         }
+       }
+     }
+     else if( writePYUV)
+     {
+       unsigned short* p  = reinterpret_cast<unsigned short*>( plane->ptr );
+       unsigned short* p2 = reinterpret_cast<unsigned short*>( planeField2 ? planeField2->ptr : nullptr );
+       const uint32_t widthWrite = ( plane->width & 4) ?  plane->width + 4 :  plane->width;
+
+       std::vector<unsigned char> bufVec(5);
+       unsigned char *buf=&(bufVec[0]);
+       int64_t iTemp = 0;
+
+       for( uint32_t y = 0; y < uiHeight; y++ )
+       {
+         for (uint32_t x = 0; x < widthWrite; x+=4)
+         {
+           // write 4 values(8 bytes) into 5 bytes
+           iTemp = (((int64_t)p[x+0])<<0) + (((int64_t)p[x+1])<<10) + (((int64_t)p[x+2])<<20) + (((int64_t)p[x+3])<<30);
+           buf[0] = (iTemp >> 0  ) & 0xff;
+           buf[1] = (iTemp >> 8  ) & 0xff;
+           buf[2] = (iTemp >> 16 ) & 0xff;
+           buf[3] = (iTemp >> 24 ) & 0xff;
+           buf[4] = (iTemp >> 32 ) & 0xff;
+           f->write( (char*)buf, 5 );
+         }
+         p += (plane->stride >> 1);
+
+         if( p2 )
+         {
+           for (uint32_t x = 0; x < widthWrite; x+=4)
+           {
+            iTemp = (((int64_t)p[x+0])<<0) + (((int64_t)p[x+1])<<10) + (((int64_t)p[x+2])<<20) + (((int64_t)p[x+3])<<30);
+            buf[0] = (iTemp >> 0  ) & 0xff;
+            buf[1] = (iTemp >> 8  ) & 0xff;
+            buf[2] = (iTemp >> 16 ) & 0xff;
+            buf[3] = (iTemp >> 24 ) & 0xff;
+            buf[4] = (iTemp >> 32 ) & 0xff;
+            f->write( (char*)buf, 5 );
+           }
+           p2 += (planeField2->stride >> 1);
          }
        }
      }
@@ -155,6 +196,55 @@ static int _writeComponentToFile( std::ostream *f, vvdecPlane *plane, vvdecPlane
          }
          f->write( (char*)&tmp2[0], sizeof(std::vector<short>::value_type)*tmp2.size());
          p2 += planeField2->stride;
+       }
+     }
+   }
+   else if( writePYUV)
+   {
+     // 8bit > 10bit packed conversion
+     unsigned char* p  = plane->ptr ;
+     unsigned char* p2 = planeField2 ? planeField2->ptr : nullptr;
+     const uint32_t widthWrite = ( plane->width & 4) ?  plane->width + 4 :  plane->width;
+     std::vector<unsigned char> bufVec(5);
+     unsigned char *buf=&(bufVec[0]);
+     int64_t iTemp = 0;
+
+     for( uint32_t y = 0; y < uiHeight; y++ )
+     {
+       for (uint32_t x = 0; x < widthWrite; x+=4)
+       {
+         // write 4 values(4 bytes) into 5 bytes
+         const unsigned short src0 = (unsigned short)(p[x+0]<<2);
+         const unsigned short src1 = (unsigned short)(p[x+1]<<2);
+         const unsigned short src2 = (unsigned short)(p[x+2]<<2);
+         const unsigned short src3 = (unsigned short)(p[x+3]<<2);
+         iTemp = (((int64_t)src0)<<0) + (((int64_t)src1)<<10) + (((int64_t)src2)<<20) + (((int64_t)src3)<<30);
+         buf[0] = (iTemp >> 0  ) & 0xff;
+         buf[1] = (iTemp >> 8  ) & 0xff;
+         buf[2] = (iTemp >> 16 ) & 0xff;
+         buf[3] = (iTemp >> 24 ) & 0xff;
+         buf[4] = (iTemp >> 32 ) & 0xff;
+         f->write( (char*)buf, 5 );
+       }
+       p += plane->stride;
+
+       if( p2 )
+       {
+         for (uint32_t x = 0; x < widthWrite; x+=4)
+         {
+           const unsigned short src0 = (unsigned short)(p2[x+0]<<2);
+           const unsigned short src1 = (unsigned short)(p2[x+1]<<2);
+           const unsigned short src2 = (unsigned short)(p2[x+2]<<2);
+           const unsigned short src3 = (unsigned short)(p2[x+3]<<2);
+           iTemp = (((int64_t)src0)<<0) + (((int64_t)src1)<<10) + (((int64_t)src2)<<20) + (((int64_t)src3)<<30);
+           buf[0] = (iTemp >> 0  ) & 0xff;
+           buf[1] = (iTemp >> 8  ) & 0xff;
+           buf[2] = (iTemp >> 16 ) & 0xff;
+           buf[3] = (iTemp >> 24 ) & 0xff;
+           buf[4] = (iTemp >> 32 ) & 0xff;
+           f->write( (char*)buf, 5 );
+         }
+         p2 += plane->stride;
        }
      }
    }
@@ -396,7 +486,7 @@ static int writeY4MHeader( std::ostream *f, vvdecFrame *frame )
   \retval     int  if non-zero an error occurred (see ErrorCodes), otherwise the return value indicates success VVC_DEC_OK
   \pre        The decoder must not be initialized.
 */
-static int writeYUVToFile( std::ostream *f, vvdecFrame *frame, bool y4mFormat )
+static int writeYUVToFile( std::ostream *f, vvdecFrame *frame, bool y4mFormat, bool pyuvOutput )
 {
   uint32_t c = 0;
 
@@ -417,7 +507,7 @@ static int writeYUVToFile( std::ostream *f, vvdecFrame *frame, bool y4mFormat )
   for( c = 0; c < frame->numPlanes; c++ )
   {
     int ret;
-    if( ( ret = _writeComponentToFile( f, &frame->planes[c], nullptr, uiBytesPerSample ) ) != 0 )
+    if( ( ret = _writeComponentToFile( f, &frame->planes[c], nullptr, uiBytesPerSample, pyuvOutput ) ) != 0 )
     {
       return ret;
     }
@@ -434,7 +524,7 @@ static int writeYUVToFile( std::ostream *f, vvdecFrame *frame, bool y4mFormat )
    \retval     int  if non-zero an error occurred (see ErrorCodes), otherwise the return value indicates success VVC_DEC_OK
    \pre        The decoder must not be initialized.
  */
-static int writeYUVToFileInterlaced( std::ostream *f, vvdecFrame *topField, vvdecFrame *botField, bool y4mFormat )
+static int writeYUVToFileInterlaced( std::ostream *f, vvdecFrame *topField, vvdecFrame *botField, bool y4mFormat, bool pyuvOutput )
 {
   int ret;
   uint32_t c = 0;
@@ -458,7 +548,7 @@ static int writeYUVToFileInterlaced( std::ostream *f, vvdecFrame *topField, vvde
 
   for( c = 0; c < topField->numPlanes; c++ )
   {
-    if( ( ret = _writeComponentToFile( f, &topField->planes[c], &botField->planes[c], uiBytesPerSample ) ) != 0 )
+    if( ( ret = _writeComponentToFile( f, &topField->planes[c], &botField->planes[c], uiBytesPerSample, pyuvOutput ) ) != 0 )
     {
       return ret;
     }

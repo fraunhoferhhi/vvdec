@@ -55,7 +55,10 @@ POSSIBILITY OF SUCH DAMAGE.
 
 namespace vvdec
 {
-
+#if defined(TARGET_SIMD_X86)  && ENABLE_SIMD_OPT_ALF
+using namespace x86_simd;
+#endif
+  
 class APS;
 struct CtuAlfData;
 class PicHeader;
@@ -137,7 +140,7 @@ protected:
   void ( *m_filter5x5Blk )           ( const AlfClassifier *classifier, const PelUnitBuf &recDst, const CPelUnitBuf& recSrc, const Area& blk, const ComponentID compId, const short* filterSet, const short* fClipSet, const ClpRng& clpRng, int vbCTUHeight, int vbPos );
   void ( *m_filter7x7Blk )           ( const AlfClassifier *classifier, const PelUnitBuf &recDst, const CPelUnitBuf& recSrc, const Area& blk, const ComponentID compId, const short* filterSet, const short* fClipSet, const ClpRng& clpRng, int vbCTUHeight, int vbPos );
 
-#ifdef TARGET_SIMD_X86
+#if defined(TARGET_SIMD_X86)  && ENABLE_SIMD_OPT_ALF
   void initAdaptiveLoopFilterX86();
   template <X86_VEXT vext>
   void _initAdaptiveLoopFilterX86();

@@ -44,8 +44,8 @@ POSSIBILITY OF SUCH DAMAGE.
 
 #include <CommonDef.h>
 
-#ifdef TARGET_SIMD_X86
-#  include <CommonDefX86.h>
+#if defined(TARGET_SIMD_X86) && ENABLE_SIMD_OPT 
+#include <CommonDefX86.h>
 
 namespace vvdec
 {

@@ -66,6 +66,7 @@ struct AppOutputParams
 {
   RPRUpscaling upscaleOutput = UPSCALING_OFF;
   bool         y4mOutput     = false;
+  bool         pyuvOutput    = false;
 };
 
 class CmdLineParser
@@ -184,6 +185,7 @@ public:
       std::cout << "\t\t [--filmGrain,-fg <int>     ] : set film grain synthesis using Film Grain Charactersitics SEI (default: 1, off: 0, on: 1)" << std::endl;
     }
     std::cout <<   "\t\t [--y4m                     ] : force y4m output (for pipe output; auto enable for .y4m output file extension)" << std::endl;
+    std::cout <<   "\t\t [--pyuv                    ] : packed yuv output ( auto enabled by .pyuv output file extension); pyuv will pack 4 samples into 5 bytes." << std::endl;
     std::cout <<   std::endl;
     std::cout <<   "\t Decoder Options" << std::endl;
     std::cout <<   std::endl;
@@ -339,6 +341,8 @@ public:
       }
       else if( parse_param( { "-fg", "--filmGrain" }, rcParams.filmGrainSynthesis ) ) {}
       else if( parse_param( { "--y4m" }, appParams.y4mOutput ) ) {}
+      else if( parse_param( { "--pyuv" }, appParams.pyuvOutput ) ) {}
+      else if( parse_param( { "--PYUV" }, appParams.pyuvOutput ) ) {}
       else if( parse_param( { "--extern" }, useExternAllocator ) ) {}
       else if( parse_param( { "-f", "--frames" }, riFrames ) )
       {

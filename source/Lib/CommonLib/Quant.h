@@ -55,7 +55,9 @@ namespace vvdec
 struct Picture;
 class ScalingList;
 
+#if ENABLE_SIMD_OPT_QUANT && defined( TARGET_SIMD_X86 )
 using namespace x86_simd;
+#endif
 
 // ====================================================================================================================
 // Constants
@@ -130,7 +132,6 @@ private:
   void ( *DeQuantScalingPCM   ) (const int maxX,const int restX,const int maxY,const int scaleQP,const int *piDequantCoef,TCoeff   *const piQCoef,const size_t piQCfStride,TCoeff   *const piCoef,const int rightShift,const int inputMaximum,const TCoeff transformMaximum);
 
 #if ENABLE_SIMD_OPT_QUANT && defined( TARGET_SIMD_X86 )
-
   void initQuantX86();
   template <X86_VEXT vext>
   void _initQuantX86();

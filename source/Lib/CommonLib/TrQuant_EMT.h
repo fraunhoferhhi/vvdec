@@ -50,17 +50,18 @@ POSSIBILITY OF SUCH DAMAGE.
 
 namespace vvdec
 {
+#if defined(TARGET_SIMD_X86) && ENABLE_SIMD_TCOEFF_OPS
 using namespace x86_simd;
+#endif
 
 struct TCoeffOps
 {
   TCoeffOps();
 
-#if defined( TARGET_SIMD_X86 )
+#if defined(TARGET_SIMD_X86) && ENABLE_SIMD_TCOEFF_OPS
   void initTCoeffOpsX86();
   template<X86_VEXT vext>
   void _initTCoeffOpsX86();
-
 #endif
   void( *cpyResiClip[7] ) ( const TCoeff*      src,        Pel*    dst, ptrdiff_t stride, unsigned width, unsigned height, const TCoeff outputMin, const TCoeff outputMax, const TCoeff round, const TCoeff shift );
   void( *fastInvCore[5] ) ( const TMatrixCoeff* it,  const TCoeff* src, TCoeff* dst, unsigned lines, unsigned reducedLines, unsigned rows );

@@ -46,10 +46,10 @@ POSSIBILITY OF SUCH DAMAGE.
 #include "CommonDefX86.h"
 #include "../SampleAdaptiveOffset.h"
 
+#if defined(TARGET_SIMD_X86)  && ENABLE_SIMD_OPT_SAO
+
 namespace vvdec
 {
-
-#ifdef TARGET_SIMD_X86
 
 #  define SAO_NUM_OFFSETS 4                             /* number of SAO offset values */
 #  define SAO_EO_NUM_CATEGORIES ( SAO_NUM_OFFSETS + 1 ) /* number of different eo categories */
@@ -1353,6 +1353,6 @@ void SampleAdaptiveOffset::_initSampleAdaptiveOffsetX86()
 }
 
 template void SampleAdaptiveOffset::_initSampleAdaptiveOffsetX86<SIMDX86>();
-#endif   //#ifdef TARGET_SIMD_X86
 
 }
+#endif   //#ifdef TARGET_SIMD_X86

@@ -54,7 +54,7 @@ POSSIBILITY OF SUCH DAMAGE.
 namespace vvdec
 {
 
-#ifdef TARGET_SIMD_ARM
+#if defined(TARGET_SIMD_ARM) && ENABLE_SIMD_OPT_DIST
 #  if __ARM_ARCH >= 8
 
 template<ARM_VEXT vext, bool isWdt16>
