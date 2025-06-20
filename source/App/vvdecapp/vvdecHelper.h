@@ -107,7 +107,6 @@ static int _writeComponentToFile( std::ostream *f, vvdecPlane *plane, vvdecPlane
      {
        unsigned short* p  = reinterpret_cast<unsigned short*>( plane->ptr );
        unsigned short* p2 = reinterpret_cast<unsigned short*>( planeField2 ? planeField2->ptr : nullptr );
-       const uint32_t widthWrite = ( plane->width & 4) ?  plane->width + 4 :  plane->width;
 
        std::vector<unsigned char> bufVec(5);
        unsigned char *buf=&(bufVec[0]);
@@ -115,7 +114,7 @@ static int _writeComponentToFile( std::ostream *f, vvdecPlane *plane, vvdecPlane
 
        for( uint32_t y = 0; y < uiHeight; y++ )
        {
-         for (uint32_t x = 0; x < widthWrite; x+=4)
+         for (uint32_t x = 0; x < uiWidth; x+=4)
          {
            // write 4 values(8 bytes) into 5 bytes
            iTemp = (((int64_t)p[x+0])<<0) + (((int64_t)p[x+1])<<10) + (((int64_t)p[x+2])<<20) + (((int64_t)p[x+3])<<30);
@@ -130,7 +129,7 @@ static int _writeComponentToFile( std::ostream *f, vvdecPlane *plane, vvdecPlane
 
          if( p2 )
          {
-           for (uint32_t x = 0; x < widthWrite; x+=4)
+           for (uint32_t x = 0; x < uiWidth; x+=4)
            {
             iTemp = (((int64_t)p[x+0])<<0) + (((int64_t)p[x+1])<<10) + (((int64_t)p[x+2])<<20) + (((int64_t)p[x+3])<<30);
             buf[0] = (iTemp >> 0  ) & 0xff;
@@ -204,14 +203,13 @@ static int _writeComponentToFile( std::ostream *f, vvdecPlane *plane, vvdecPlane
      // 8bit > 10bit packed conversion
      unsigned char* p  = plane->ptr ;
      unsigned char* p2 = planeField2 ? planeField2->ptr : nullptr;
-     const uint32_t widthWrite = ( plane->width & 4) ?  plane->width + 4 :  plane->width;
      std::vector<unsigned char> bufVec(5);
      unsigned char *buf=&(bufVec[0]);
      int64_t iTemp = 0;
 
      for( uint32_t y = 0; y < uiHeight; y++ )
      {
-       for (uint32_t x = 0; x < widthWrite; x+=4)
+       for (uint32_t x = 0; x < uiWidth; x+=4)
        {
          // write 4 values(4 bytes) into 5 bytes
          const unsigned short src0 = (unsigned short)(p[x+0]<<2);
@@ -230,7 +228,7 @@ static int _writeComponentToFile( std::ostream *f, vvdecPlane *plane, vvdecPlane
 
        if( p2 )
        {
-         for (uint32_t x = 0; x < widthWrite; x+=4)
+         for (uint32_t x = 0; x < uiWidth; x+=4)
          {
            const unsigned short src0 = (unsigned short)(p2[x+0]<<2);
            const unsigned short src1 = (unsigned short)(p2[x+1]<<2);
