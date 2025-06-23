@@ -133,7 +133,7 @@ jobs:
       CCACHE_MAXSIZE: 100M
     steps:
       - uses: actions/checkout@v4
-      - run: git fetch --prune --unshallow
+#      - run: git fetch --prune --unshallow # is this really needed?
 
       - uses: awalsh128/cache-apt-pkgs-action@latest
         if: ${{ matrix.install_packages || startsWith(matrix.os, 'ubuntu') }}
@@ -158,5 +158,3 @@ jobs:
         with:
           path: .ccache
           key: ccache-${{ matrix.os }}-${{ matrix.compiler[0] }}
-
-
