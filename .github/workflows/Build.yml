@@ -52,7 +52,7 @@ jobs:
 
 
   build_unix:
-    name: "${{ matrix.name }} ${{ matrix.compiler[1] }}"
+    name: "${{ matrix.name || matrix.os }} ${{ matrix.compiler[1] }}"
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -125,6 +125,11 @@ jobs:
             os: ubuntu-24.04
             compiler: [aarch64-linux-gnu-gcc, aarch64-linux-gnu-g++]
             install_packages: g++-aarch64-linux-gnu
+
+          - name: "Ubuntu 24.04"
+            os: ubuntu-24.04
+            compiler: [arm-linux-gnueabihf-gcc, arm-linux-gnueabihf-g++]
+            install_packages: g++-arm-linux-gnueabihf
     env:
       CMAKE_GENERATOR: "${{ matrix.generator || 'Ninja' }}"
       CC: ${{ matrix.compiler[0] }}
