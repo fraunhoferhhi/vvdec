@@ -120,11 +120,20 @@ jobs:
 #          - name: "Ubuntu 24.04"
 #            os: ubuntu-24.04
 #            compiler: [clang-19, clang++-19]
+
+          - name: "Ubuntu 24.04"
+            os: ubuntu-24.04
+            compiler: [aarch64-linux-gnu-gcc, aarch64-linux-gnu-g++]
+            install_packages: g++-aarch64-linux-gnu
     env:
       CMAKE_GENERATOR: "${{ matrix.generator || 'Ninja' }}"
       CC: ${{ matrix.compiler[0] }}
       CXX: ${{ matrix.compiler[1] }}
     steps:
+      - uses: awalsh128/cache-apt-pkgs-action@latest
+        if: ${{ matrix.install_packages }}
+        with:
+          packages: ${{ matrix.install_packages }}
       - uses: actions/checkout@v4
       - run: git fetch --prune --unshallow
       - name: Static build
