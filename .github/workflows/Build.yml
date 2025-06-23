@@ -122,7 +122,7 @@ jobs:
             osx_arch: arm64
 
     env:
-      CMAKE_GENERATOR: ${{ matrix.generator }}
+      CMAKE_GENERATOR: "${{ matrix.generator || 'Ninja' }}"
       CC: ${{ matrix.compiler[0] }}
       CXX: ${{ matrix.compiler[1] }}
     steps:
