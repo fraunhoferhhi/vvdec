@@ -38,7 +38,6 @@ jobs:
           - toolset: v143
             os: windows-latest
             msvc_arch: arm64
-
     steps:
       - uses: actions/checkout@v4
       - run: git fetch --prune --unshallow
@@ -51,6 +50,7 @@ jobs:
           cmake -S . -B build/shared  -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=1 -A "${{ matrix.msvc_arch }}" -T "${{ matrix.toolset }}"
           cmake --build build/shared --config Release
 
+
   build_unix:
     name: "${{ matrix.name }} ${{ matrix.compiler[1] }}"
     runs-on: ${{ matrix.os }}
@@ -58,6 +58,20 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          - name: "Windows MinGW"
+            os: windows-latest
+            generator: "MinGW Makefiles"
+
+
+          - name: "Mac OS Latest x86_64"
+            os: macos-latest
+            osx_arch: x86_64
+
+          - name: "Mac OS Latest arm64"
+            os: macos-latest
+            osx_arch: arm64
+
+
           - name: "Ubuntu 22.04"
             os: ubuntu-22.04
             compiler: [gcc-11, g++-11]
@@ -106,21 +120,6 @@ jobs:
 #          - name: "Ubuntu 24.04"
 #            os: ubuntu-24.04
 #            compiler: [clang-19, clang++-19]
-
-
-          - name: "Windows MinGW"
-            os: windows-latest
-            generator: "MinGW Makefiles"
-
-
-          - name: "Mac OS Latest x86_64"
-            os: macos-latest
-            osx_arch: x86_64
-
-          - name: "Mac OS Latest arm64"
-            os: macos-latest
-            osx_arch: arm64
-
     env:
       CMAKE_GENERATOR: "${{ matrix.generator || 'Ninja' }}"
       CC: ${{ matrix.compiler[0] }}
