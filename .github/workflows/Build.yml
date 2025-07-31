@@ -77,9 +77,11 @@ jobs:
 
     - name: MSVC build
       if: contains( matrix.config.generators, 'Visual Studio' )
+      shell: pwsh
       run: |
+        $ErrorActionPreference = 'stop'
+        $PSNativeCommandUseErrorActionPreference = $true
         mkdir build
         cd build
         cmake ..  -DCMAKE_BUILD_TYPE=Release -A "${{ matrix.config.msvc_arch }}"
         cmake --build . --config Release
-      shell: cmd
