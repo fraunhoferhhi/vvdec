@@ -376,6 +376,9 @@ void InterPrediction::init( RdCost* pcRdCost, ChromaFormat chromaFormatIDC, cons
 #if ENABLE_SIMD_OPT_INTER && defined( TARGET_SIMD_X86 )
       initInterPredictionX86();
 #endif
+#if ENABLE_SIMD_OPT_INTER && defined( TARGET_SIMD_ARM )
+      initInterPredictionARM();
+#endif
     }
   }
 
