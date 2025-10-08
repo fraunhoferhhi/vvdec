@@ -59,7 +59,7 @@ namespace vvdec
 
 constexpr int AdaptiveLoopFilter::AlfNumClippingValues[];
 
-AdaptiveLoopFilter::AdaptiveLoopFilter()
+AdaptiveLoopFilter::AdaptiveLoopFilter( bool enableOpt )
 {
   m_deriveClassificationBlk = deriveClassificationBlk;
   m_filterCcAlf             = filterBlkCcAlf;
@@ -67,11 +67,14 @@ AdaptiveLoopFilter::AdaptiveLoopFilter()
   m_filter5x5Blk            = filterBlk<ALF_FILTER_5>;
   m_filter7x7Blk            = filterBlk<ALF_FILTER_7>;
 
+  if( enableOpt )
+  {
 #if ENABLE_SIMD_OPT_ALF
 # ifdef TARGET_SIMD_X86
-  initAdaptiveLoopFilterX86();
+    initAdaptiveLoopFilterX86();
 # endif
 #endif
+  }
 
   for( int filterSetIndex = 0; filterSetIndex < NUM_FIXED_FILTER_SETS; filterSetIndex++ )
   {
