@@ -152,6 +152,12 @@ protected:
   void _initAdaptiveLoopFilterX86();
 #endif
 
+#if defined( TARGET_SIMD_ARM ) && ENABLE_SIMD_OPT_ALF
+  void initAdaptiveLoopFilterARM();
+  template<ARM_VEXT vext>
+  void _initAdaptiveLoopFilterARM();
+#endif
+
 protected:
   bool isClipOrCrossedByVirtualBoundaries( const CodingStructure& cs,
                                            const Area& pos,
