@@ -26,15 +26,17 @@ endif()
 
 target_include_directories( ${EXE_NAME}
   PRIVATE
-    ${VVDEC_LIB_DIR}
-    ${VVDEC_LIB_DIR}/CommonLib
+    "${VVDEC_LIB_DIR}"
+    "${VVDEC_LIB_DIR}/CommonLib"
+    "${VVDEC_LIB_DIR}/CommonLib/x86"
+    "${CMAKE_CURRENT_SOURCE_DIR}/../../thirdparty/"
 )
 
 target_link_libraries( ${EXE_NAME} Threads::Threads vvdec )
 
 target_compile_options( ${EXE_NAME} PRIVATE $<$<OR:$<CXX_COMPILER_ID:Clang>,$<CXX_COMPILER_ID:AppleClang>>:-Wall>
                                             $<$<CXX_COMPILER_ID:GNU>:-Wall -fdiagnostics-show-option -Wno-ignored-attributes -Wno-sign-compare>
-                                            $<$<CXX_COMPILER_ID:MSVC>:/W4 /WX /wd4244 /wd4251 /wd4996>)
+                                            $<$<CXX_COMPILER_ID:MSVC>:/W4 /WX /wd4244 /wd4251 /wd4996 /wd4189>)
 
 # example: place header files in different folders
 source_group( "Header Files"   FILES ${INC_FILES} )

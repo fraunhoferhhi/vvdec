@@ -43,8 +43,9 @@ POSSIBILITY OF SUCH DAMAGE.
 #include <iostream>
 #include <limits.h>
 
-#include "CommonLib/CommonDef.h"
 #include "CommonLib/AdaptiveLoopFilter.h"
+#include "CommonLib/CommonDef.h"
+#include "CommonLib/InterPrediction.h"
 #include "CommonLib/InterpolationFilter.h"
 
 using namespace vvdec;
@@ -596,6 +597,119 @@ static bool test_PelBufferOps()
 }
 #endif // ENABLE_SIMD_OPT_BUFFER
 
+#if ENABLE_SIMD_OPT_INTER
+template<typename G>
+static bool check_one_gradFilter( InterPrediction* ref, InterPrediction* opt, int width, int height, int srcStride,
+                                  int gradStride, G input_generator, bool padding )
+{
+  std::ostringstream sstm;
+  sstm << "gradFilter width=" << width << " height=" << height << " padding=" << padding;
+
+  int srcSize;
+  int gradSize;
+
+  if( padding )
+  {
+    srcSize = height * srcStride;
+    gradSize = height * gradStride;
+  }
+  else
+  {
+    srcSize = ( height + 2 ) * srcStride;
+    gradSize = height * gradStride;
+  }
+
+  std::vector<Pel> src_1( srcSize );
+  std::vector<Pel> src_2( srcSize );
+
+  std::vector<Pel> gradX_ref( gradSize );
+  std::vector<Pel> gradY_ref( gradSize );
+  std::vector<Pel> gradX_opt( gradSize );
+  std::vector<Pel> gradY_opt( gradSize );
+
+  std::generate( src_1.begin(), src_1.end(), input_generator );
+  src_2 = src_1;
+
+  Pel* srcPtr_1 = padding ? src_1.data() : src_1.data() + srcStride + 1;
+  Pel* srcPtr_2 = padding ? src_2.data() : src_2.data() + srcStride + 1;
+
+  const int bitDepth = 10; // Unused in gradFilter.
+
+  if( padding )
+  {
+    ref->BioGradFilter( srcPtr_1, srcStride, width, height, gradStride, gradX_ref.data(), gradY_ref.data(), bitDepth );
+    opt->BioGradFilter( srcPtr_2, srcStride, width, height, gradStride, gradX_opt.data(), gradY_opt.data(), bitDepth );
+  }
+  else
+  {
+    ref->profGradFilter( srcPtr_1, srcStride, width, height, gradStride, gradX_ref.data(), gradY_ref.data(), bitDepth );
+    opt->profGradFilter( srcPtr_2, srcStride, width, height, gradStride, gradX_opt.data(), gradY_opt.data(), bitDepth );
+  }
+
+  bool res_gradX =
+      compare_values_1d( "Incorrect gradX buffer in " + sstm.str(), gradX_ref.data(), gradX_opt.data(), gradSize );
+  bool res_gradY =
+      compare_values_1d( "Incorrect gradY buffer in " + sstm.str(), gradY_ref.data(), gradY_opt.data(), gradSize );
+  bool res_src = compare_values_1d( "Incorrect src buffer in " + sstm.str(), src_1.data(), src_2.data(), srcSize );
+
+  return res_gradX && res_gradY && res_src;
+}
+
+struct GradFilterParameter
+{
+  int width, height, srcStride, gradStride;
+  bool padding;
+};
+
+static constexpr GradFilterParameter gradFilter_parameters[] = {
+    { 10, 18, 16, 16, true },
+    { 18, 10, 24, 24, true },
+    { 18, 18, 24, 24, true },
+    { 4, 4, 6, 4, false },
+};
+
+static bool check_gradFilter( InterPrediction* ref, InterPrediction* opt, unsigned num_cases )
+{
+  InputGenerator<Pel> g{ 14 }; // Signed 14 bit.
+
+  bool passed = true;
+
+  for( const auto& test : gradFilter_parameters )
+  {
+    printf( "Testing InterPred::gradFilter w=%d h=%d padding=%d\n", test.width, test.height, test.padding );
+    for( unsigned i = 0; i < num_cases; ++i )
+    {
+      passed =
+          check_one_gradFilter( ref, opt, test.width, test.height, test.srcStride, test.gradStride, g, test.padding ) &&
+          passed;
+    }
+  }
+
+  return passed;
+}
+
+static bool test_InterPrediction()
+{
+  RdCost pcRdCost;
+  unsigned num_cases = NUM_CASES;
+  bool passed = true;
+
+  // The value of these do not affect gradFilter,
+  // it is only needed for initialization.
+  ChromaFormat chromaFormatIDC = CHROMA_444;
+  const int ctuSize = 1;
+
+  InterPrediction ref;
+  InterPrediction opt;
+  ref.init( &pcRdCost, chromaFormatIDC, ctuSize, /*enableOpt=*/false );
+  opt.init( &pcRdCost, chromaFormatIDC, ctuSize, /*enableOpt=*/true );
+
+  passed = check_gradFilter( &ref, &opt, num_cases ) && passed;
+
+  return passed;
+}
+#endif // ENABLE_SIMD_OPT_INTER
+
 struct UnitTestEntry
 {
   std::string name;
@@ -608,6 +722,9 @@ static const UnitTestEntry test_suites[] = {
 #endif
 #if ENABLE_SIMD_OPT_MCIF
     { "InterpolationFilter", test_InterpolationFilter },
+#endif
+#if ENABLE_SIMD_OPT_INTER
+    { "InterPrediction", test_InterPrediction },
 #endif
 #if ENABLE_SIMD_OPT_BUFFER
     { "PelBufferOps", test_PelBufferOps },
