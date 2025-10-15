@@ -135,7 +135,7 @@ static void simdInterpolateN2_2D_neon( const ClpRng& clpRng, const Pel* src, con
   }
 }
 
-static int16x4_t filter4xX_N8_neon( Pel const* src, int16x8_t ch, int32x4_t voffset1, int32x4_t invshift1st )
+static int16x4_t filter4x4_N8_neon( Pel const* src, int16x8_t ch, int32x4_t voffset1, int32x4_t invshift1st )
 {
   int16x8_t vsrca0 = vld1q_s16( src + 0 );
   int16x8_t vsrca1 = vld1q_s16( src + 1 );
@@ -158,22 +158,22 @@ static int16x4_t filter4xX_N8_neon( Pel const* src, int16x8_t ch, int32x4_t voff
   return vqmovn_s32( vsuma );
 }
 
-static int16x8_t filter8xX_N8_neon( Pel const* src, int16x8_t ch, int32x4_t voffset1, int32x4_t invshift1st )
+static int16x8_t filter8xH_N8_neon( Pel const* src, int16x8_t ch, int32x4_t voffset1, int32x4_t invshift1st )
 {
-  int16x4_t lo = filter4xX_N8_neon( src + 0, ch, voffset1, invshift1st );
-  int16x4_t hi = filter4xX_N8_neon( src + 4, ch, voffset1, invshift1st );
+  int16x4_t lo = filter4x4_N8_neon( src + 0, ch, voffset1, invshift1st );
+  int16x4_t hi = filter4x4_N8_neon( src + 4, ch, voffset1, invshift1st );
   return vcombine_s16( lo, hi );
 }
 
-static int16x8x2_t filter16xX_N8_neon( Pel const* src, int16x8_t ch, int32x4_t voffset1, int32x4_t invshift1st )
+static int16x8x2_t filter16xH_N8_neon( Pel const* src, int16x8_t ch, int32x4_t voffset1, int32x4_t invshift1st )
 {
-  int16x8_t a = filter8xX_N8_neon( src + 0, ch, voffset1, invshift1st );
-  int16x8_t b = filter8xX_N8_neon( src + 8, ch, voffset1, invshift1st );
+  int16x8_t a = filter8xH_N8_neon( src + 0, ch, voffset1, invshift1st );
+  int16x8_t b = filter8xH_N8_neon( src + 8, ch, voffset1, invshift1st );
   return int16x8x2_t({ a, b });
 }
 
 template<bool isLast>
-static void simdFilter4xX_N8_neon( const ClpRng& clpRng, Pel const* src, const ptrdiff_t srcStride, Pel* dst, const ptrdiff_t dstStride,
+static void simdFilter4x4_N8_neon( const ClpRng& clpRng, Pel const* src, const ptrdiff_t srcStride, Pel* dst, const ptrdiff_t dstStride,
                                    int width, int height, TFilterCoeff const* coeffH, TFilterCoeff const* coeffV )
 {
   OFFSET( src, srcStride, -3, -3 );
@@ -205,24 +205,24 @@ static void simdFilter4xX_N8_neon( const ClpRng& clpRng, Pel const* src, const p
   int32x4_t invshift1st = vdupq_n_s32( -shift1st );
   int32x4_t invshift2nd = vdupq_n_s32( -shift2nd );
 
-  int16x4_t vsrcv0 = filter4xX_N8_neon( src, ch, voffset1, invshift1st );
+  int16x4_t vsrcv0 = filter4x4_N8_neon( src, ch, voffset1, invshift1st );
   src += srcStride;
-  int16x4_t vsrcv1 = filter4xX_N8_neon( src, ch, voffset1, invshift1st );
+  int16x4_t vsrcv1 = filter4x4_N8_neon( src, ch, voffset1, invshift1st );
   src += srcStride;
-  int16x4_t vsrcv2 = filter4xX_N8_neon( src, ch, voffset1, invshift1st );
+  int16x4_t vsrcv2 = filter4x4_N8_neon( src, ch, voffset1, invshift1st );
   src += srcStride;
-  int16x4_t vsrcv3 = filter4xX_N8_neon( src, ch, voffset1, invshift1st );
+  int16x4_t vsrcv3 = filter4x4_N8_neon( src, ch, voffset1, invshift1st );
   src += srcStride;
-  int16x4_t vsrcv4 = filter4xX_N8_neon( src, ch, voffset1, invshift1st );
+  int16x4_t vsrcv4 = filter4x4_N8_neon( src, ch, voffset1, invshift1st );
   src += srcStride;
-  int16x4_t vsrcv5 = filter4xX_N8_neon( src, ch, voffset1, invshift1st );
+  int16x4_t vsrcv5 = filter4x4_N8_neon( src, ch, voffset1, invshift1st );
   src += srcStride;
-  int16x4_t vsrcv6 = filter4xX_N8_neon( src, ch, voffset1, invshift1st );
+  int16x4_t vsrcv6 = filter4x4_N8_neon( src, ch, voffset1, invshift1st );
   src += srcStride;
 
   do
   {
-    int16x4_t vsrcv7 = filter4xX_N8_neon( src, ch, voffset1, invshift1st );
+    int16x4_t vsrcv7 = filter4x4_N8_neon( src, ch, voffset1, invshift1st );
     src += srcStride;
 
     int32x4_t vsum0 = vdupq_n_s32( offset2nd );
@@ -260,7 +260,7 @@ static void simdFilter4xX_N8_neon( const ClpRng& clpRng, Pel const* src, const p
 }
 
 template<bool isLast>
-static void simdFilter8xX_N8_neon( const ClpRng& clpRng, Pel const* src, const ptrdiff_t srcStride, Pel* dst, const ptrdiff_t dstStride,
+static void simdFilter8xH_N8_neon( const ClpRng& clpRng, Pel const* src, const ptrdiff_t srcStride, Pel* dst, const ptrdiff_t dstStride,
                                    int width, int height, TFilterCoeff const* coeffH, TFilterCoeff const* coeffV )
 {
   OFFSET( src, srcStride, -3, -3 );
@@ -292,24 +292,24 @@ static void simdFilter8xX_N8_neon( const ClpRng& clpRng, Pel const* src, const p
   int32x4_t invshift1st = vdupq_n_s32( -shift1st );
   int32x4_t invshift2nd = vdupq_n_s32( -shift2nd );
 
-  int16x8_t vsrcv0 = filter8xX_N8_neon( src, ch, voffset1, invshift1st );
+  int16x8_t vsrcv0 = filter8xH_N8_neon( src, ch, voffset1, invshift1st );
   src += srcStride;
-  int16x8_t vsrcv1 = filter8xX_N8_neon( src, ch, voffset1, invshift1st );
+  int16x8_t vsrcv1 = filter8xH_N8_neon( src, ch, voffset1, invshift1st );
   src += srcStride;
-  int16x8_t vsrcv2 = filter8xX_N8_neon( src, ch, voffset1, invshift1st );
+  int16x8_t vsrcv2 = filter8xH_N8_neon( src, ch, voffset1, invshift1st );
   src += srcStride;
-  int16x8_t vsrcv3 = filter8xX_N8_neon( src, ch, voffset1, invshift1st );
+  int16x8_t vsrcv3 = filter8xH_N8_neon( src, ch, voffset1, invshift1st );
   src += srcStride;
-  int16x8_t vsrcv4 = filter8xX_N8_neon( src, ch, voffset1, invshift1st );
+  int16x8_t vsrcv4 = filter8xH_N8_neon( src, ch, voffset1, invshift1st );
   src += srcStride;
-  int16x8_t vsrcv5 = filter8xX_N8_neon( src, ch, voffset1, invshift1st );
+  int16x8_t vsrcv5 = filter8xH_N8_neon( src, ch, voffset1, invshift1st );
   src += srcStride;
-  int16x8_t vsrcv6 = filter8xX_N8_neon( src, ch, voffset1, invshift1st );
+  int16x8_t vsrcv6 = filter8xH_N8_neon( src, ch, voffset1, invshift1st );
   src += srcStride;
 
   do
   {
-    int16x8_t vsrcv7 = filter8xX_N8_neon( src, ch, voffset1, invshift1st );
+    int16x8_t vsrcv7 = filter8xH_N8_neon( src, ch, voffset1, invshift1st );
     src += srcStride;
 
     int32x4_t vsum0 = vdupq_n_s32( offset2nd );
@@ -367,7 +367,7 @@ static void simdFilter8xX_N8_neon( const ClpRng& clpRng, Pel const* src, const p
 }
 
 template<bool isLast>
-static void simdFilter16xX_N8_neon( const ClpRng& clpRng, Pel const* src, const ptrdiff_t srcStride, Pel* dst, const ptrdiff_t dstStride,
+static void simdFilter16xH_N8_neon( const ClpRng& clpRng, Pel const* src, const ptrdiff_t srcStride, Pel* dst, const ptrdiff_t dstStride,
                                     int width, int height, TFilterCoeff const* coeffH, TFilterCoeff const* coeffV )
 {
   OFFSET( src, srcStride, -3, -3 );
@@ -399,24 +399,24 @@ static void simdFilter16xX_N8_neon( const ClpRng& clpRng, Pel const* src, const 
   int32x4_t invshift1st = vdupq_n_s32( -shift1st );
   int32x4_t invshift2nd = vdupq_n_s32( -shift2nd );
 
-  int16x8x2_t vsrcv0 = filter16xX_N8_neon( src, ch, voffset1, invshift1st );
+  int16x8x2_t vsrcv0 = filter16xH_N8_neon( src, ch, voffset1, invshift1st );
   src += srcStride;
-  int16x8x2_t vsrcv1 = filter16xX_N8_neon( src, ch, voffset1, invshift1st );
+  int16x8x2_t vsrcv1 = filter16xH_N8_neon( src, ch, voffset1, invshift1st );
   src += srcStride;
-  int16x8x2_t vsrcv2 = filter16xX_N8_neon( src, ch, voffset1, invshift1st );
+  int16x8x2_t vsrcv2 = filter16xH_N8_neon( src, ch, voffset1, invshift1st );
   src += srcStride;
-  int16x8x2_t vsrcv3 = filter16xX_N8_neon( src, ch, voffset1, invshift1st );
+  int16x8x2_t vsrcv3 = filter16xH_N8_neon( src, ch, voffset1, invshift1st );
   src += srcStride;
-  int16x8x2_t vsrcv4 = filter16xX_N8_neon( src, ch, voffset1, invshift1st );
+  int16x8x2_t vsrcv4 = filter16xH_N8_neon( src, ch, voffset1, invshift1st );
   src += srcStride;
-  int16x8x2_t vsrcv5 = filter16xX_N8_neon( src, ch, voffset1, invshift1st );
+  int16x8x2_t vsrcv5 = filter16xH_N8_neon( src, ch, voffset1, invshift1st );
   src += srcStride;
-  int16x8x2_t vsrcv6 = filter16xX_N8_neon( src, ch, voffset1, invshift1st );
+  int16x8x2_t vsrcv6 = filter16xH_N8_neon( src, ch, voffset1, invshift1st );
   src += srcStride;
 
   do
   {
-    int16x8x2_t vsrcv7 = filter16xX_N8_neon( src, ch, voffset1, invshift1st );
+    int16x8x2_t vsrcv7 = filter16xH_N8_neon( src, ch, voffset1, invshift1st );
     src += srcStride;
 
     int32x4_t vsum0 = vdupq_n_s32( offset2nd );
@@ -501,14 +501,14 @@ static void simdFilter16xX_N8_neon( const ClpRng& clpRng, Pel const* src, const 
 template<>
 void InterpolationFilter::_initInterpolationFilterARM<NEON>()
 {
-  m_filter4x4[ 0 ][ 0 ] = simdFilter4xX_N8_neon<false>;
-  m_filter4x4[ 0 ][ 1 ] = simdFilter4xX_N8_neon<true>;
+  m_filter4x4[0][0]  = simdFilter4x4_N8_neon<false>;
+  m_filter4x4[0][1]  = simdFilter4x4_N8_neon<true>;
 
-  m_filter8x8[ 0 ][ 0 ] = simdFilter8xX_N8_neon<false>;
-  m_filter8x8[ 0 ][ 1 ] = simdFilter8xX_N8_neon<true>;
+  m_filter8xH[0][0]  = simdFilter8xH_N8_neon<false>;
+  m_filter8xH[0][1]  = simdFilter8xH_N8_neon<true>;
 
-  m_filter16x16[ 0 ][ 0 ] = simdFilter16xX_N8_neon<false>;
-  m_filter16x16[ 0 ][ 1 ] = simdFilter16xX_N8_neon<true>;
+  m_filter16xH[0][0] = simdFilter16xH_N8_neon<false>;
+  m_filter16xH[0][1] = simdFilter16xH_N8_neon<true>;
 
   m_filterN2_2D = simdInterpolateN2_2D_neon;
 }

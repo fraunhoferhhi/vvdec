@@ -830,11 +830,11 @@ void InterPrediction::xPredInterBlk( const ComponentID&    compID,
   }
   else if( width == 16 )
   {
-    m_if.filter16x16( compID, refPtr, refStride, dstBuf, dstStride, 16, height, xFrac, yFrac, rndRes, chFmt, clpRng, useAltHpelIf );
+    m_if.filter16xH( compID, refPtr, refStride, dstBuf, dstStride, 16, height, xFrac, yFrac, rndRes, chFmt, clpRng, useAltHpelIf );
   }
   else if( width == 8 )
   {
-    m_if.filter8x8( compID, refPtr, refStride, dstBuf, dstStride, 8, height, xFrac, yFrac, rndRes, chFmt, clpRng, useAltHpelIf );
+    m_if.filter8xH( compID, refPtr, refStride, dstBuf, dstStride, 8, height, xFrac, yFrac, rndRes, chFmt, clpRng, useAltHpelIf );
   }
   else
   {
