@@ -342,7 +342,7 @@ void AreaBuf<T>::fill(const T &val)
   {
     if( width == stride )
     {
-      ::memset( buf, 0, width * height * sizeof( T ) );
+      ::memset( ( void* )buf, 0, width * height * sizeof( T ) );
     }
     else
     {
@@ -351,7 +351,7 @@ void AreaBuf<T>::fill(const T &val)
 
       for( unsigned y = 0; y < height; y++ )
       {
-        ::memset( dest, 0, line );
+        ::memset( ( void* )dest, 0, line );
 
         dest += stride;
       }
@@ -378,10 +378,9 @@ void AreaBuf<T>::fill(const T &val)
 template<typename T>
 void AreaBuf<T>::memset( const int val )
 {
-  GCC_WARNING_DISABLE_class_memaccess
   if( width == stride )
   {
-    ::memset( buf, val, width * height * sizeof( T ) );
+    ::memset( ( void* )buf, val, width * height * sizeof( T ) );
   }
   else
   {
@@ -390,12 +389,11 @@ void AreaBuf<T>::memset( const int val )
 
     for( int y = 0; y < height; y++ )
     {
-      ::memset( dest, val, line );
+      ::memset( ( void* )dest, val, line );
 
       dest += stride;
     }
   }
-  GCC_WARNING_RESET
 }
 
 #if ENABLE_SIMD_OPT_BUFFER

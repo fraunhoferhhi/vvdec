@@ -107,10 +107,8 @@ POSSIBILITY OF SUCH DAMAGE.
 
 #if __GNUC__ >= 8 && !defined __clang__
 # define GCC_WARNING_DISABLE_maybe_uninitialized _Pragma("GCC diagnostic push"); _Pragma("GCC diagnostic ignored \"-Wmaybe-uninitialized\"");
-# define GCC_WARNING_DISABLE_class_memaccess     _Pragma("GCC diagnostic push"); _Pragma("GCC diagnostic ignored \"-Wclass-memaccess\"");
 #else
 # define GCC_WARNING_DISABLE_maybe_uninitialized
-# define GCC_WARNING_DISABLE_class_memaccess
 #endif
 
 #define CLASS_COPY_MOVE_DEFAULT( Class )      \

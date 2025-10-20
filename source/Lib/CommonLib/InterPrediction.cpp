@@ -1005,9 +1005,7 @@ void InterPrediction::xPredAffineBlk( const ComponentID&        compID,
 
   if( isLuma( compID ) )
   {
-    GCC_WARNING_DISABLE_class_memaccess
-    memset( m_storedMv, 0, MVBUFFER_SIZE * ( g_miScaling.scaleVer( height ) >> chromaScaleY ) * sizeof( Mv ) );
-    GCC_WARNING_RESET
+    memset( ( void* )m_storedMv, 0, MVBUFFER_SIZE * ( g_miScaling.scaleVer( height ) >> chromaScaleY ) * sizeof( Mv ) );
   }
 
   bool enablePROF = ( sps.getUsePROF() ) && ( compID == COMPONENT_Y );

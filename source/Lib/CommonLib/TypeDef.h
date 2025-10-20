@@ -1001,9 +1001,7 @@ struct AlfSliceParam
     static_assert( offsetof( AlfSliceParam, recostructMutex ) + sizeof( recostructMutex ) == sizeof( AlfSliceParam ), "recostructMutex must be last member" );
     static_assert( std::is_standard_layout<AlfSliceParam>::value, "AlfSliceParam must be standard layout type for offsetof to work" );
 
-    GCC_WARNING_DISABLE_class_memaccess
-      memset( this, 0, offsetof( AlfSliceParam, recostructMutex ) );
-    GCC_WARNING_RESET
+    std::memset( ( void* )this, 0, offsetof( AlfSliceParam, recostructMutex ) );
 
     numLumaFilters = 1;
     numAlternativesChroma = 1;
@@ -1011,9 +1009,7 @@ struct AlfSliceParam
 
   const AlfSliceParam& operator=( const AlfSliceParam& src )
   {
-    GCC_WARNING_DISABLE_class_memaccess
-      std::memcpy( this, &src, offsetof( AlfSliceParam, recostructMutex ) );
-    GCC_WARNING_RESET
+    std::memcpy( ( void* )this, &src, offsetof( AlfSliceParam, recostructMutex ) );
 
     return *this;
   }
@@ -1034,14 +1030,14 @@ struct CcAlfFilterParam
 
   void reset()
   {
-    std::memset( this, 0, sizeof( *this ) );
+    std::memset( ( void* )this, 0, sizeof( *this ) );
 
     ccAlfFilterCount[0] = ccAlfFilterCount[1] = MAX_NUM_CC_ALF_FILTERS;
   }
 
   const CcAlfFilterParam& operator=( const CcAlfFilterParam& src )
   {
-    std::memcpy( this, &src, sizeof( CcAlfFilterParam ) );
+    std::memcpy( ( void* )this, &src, sizeof( CcAlfFilterParam ) );
     return *this;
   }
 };

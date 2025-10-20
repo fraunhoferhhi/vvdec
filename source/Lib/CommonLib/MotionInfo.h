@@ -182,9 +182,7 @@ struct ColocatedMotionInfo
                    offsetof( MotionInfo, miRefIdx ) == offsetof( ColocatedMotionInfo, coRefIdx ),
                    "MotionInfo and ColocatedMotionInfo require the same memory layout" );
 
-    GCC_WARNING_DISABLE_class_memaccess
-    memcpy( this, &rhs, sizeof( MotionInfo ) );
-    GCC_WARNING_RESET
+    memcpy( ( void* )this, &rhs, sizeof( MotionInfo ) );
 
     return *this;
   }

@@ -770,9 +770,7 @@ bool DecLibRecon::ctuTask( int tid, CtuTaskParam* param )
         }
         else
         {
-          GCC_WARNING_DISABLE_class_memaccess
-          memset( ctuData.motion, MI_NOT_VALID, sizeof( MotionInfo ) * cs.pcv->num4x4CtuBlks );
-          GCC_WARNING_RESET
+          memset( ( void* )ctuData.motion, MI_NOT_VALID, sizeof( MotionInfo ) * cs.pcv->num4x4CtuBlks );
         }
 
         thisCtuState = MIDER_cont;
