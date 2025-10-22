@@ -378,8 +378,14 @@ if( BUILD_SHARED_LIBS AND NOT WIN32 )
   message( STATUS "VVDEC_INSTALL_RPATH=${VVDEC_INSTALL_RPATH}" )
 endif()
 
+set( VVDEC_LIB_DIR "${CMAKE_CURRENT_SOURCE_DIR}/source/Lib" )
+
 add_subdirectory( "source/Lib/vvdec" )
 add_subdirectory( "source/App/vvdecapp" )
+
+if( NOT BUILD_SHARED_LIBS )
+  add_subdirectory( "tests/vvdec_unit_test" )
+endif()
 
 # create a list of all test bitstreams in variable BITSTREAM_FILES
 # also defines BITSTREAM_URL_BASE
