@@ -37,6 +37,8 @@ if( VVDEC_ENABLE_ARM_SIMD )
   file( GLOB ARM_INC_FILES CONFIGURE_DEPENDS      "../CommonLib/arm/*.h"        )
 
   file( GLOB ARM_NEON_SRC_FILES CONFIGURE_DEPENDS "../CommonLib/arm/neon/*.cpp" )
+  file( GLOB ARM_SVE_SRC_FILES  CONFIGURE_DEPENDS "../CommonLib/arm/sve/*.cpp"  )
+  file( GLOB ARM_SVE2_SRC_FILES CONFIGURE_DEPENDS "../CommonLib/arm/sve2/*.cpp" )
 endif()
 
 # get libmd5 source files
@@ -135,10 +137,33 @@ if( VVDEC_ENABLE_X86_SIMD )
 endif()
 
 if( VVDEC_ENABLE_ARM_SIMD )
-  # set needed compile definitions
+  # Set needed compile definitions.
   set_property( SOURCE ${ARM_NEON_SRC_FILES} APPEND PROPERTY COMPILE_DEFINITIONS USE_NEON )
 
-  add_library( ${LIB_NAME}_arm_simd OBJECT ${ARM_NEON_SRC_FILES} )
+  if( VVDEC_TARGET_ARCH STREQUAL "AARCH64" )
+    # Neon is mandatory in AArch64, so no additional Neon compile flags needed here.
+    list( APPEND ARM_SIMD_SRC_FILES ${ARM_NEON_SRC_FILES} )
+
+    if( VVDEC_ENABLE_ARM_SIMD_SVE )
+      set_property( SOURCE ${ARM_SVE_SRC_FILES} APPEND PROPERTY COMPILE_DEFINITIONS USE_NEON USE_SVE )
+      set_property( SOURCE ${ARM_SVE_SRC_FILES} APPEND PROPERTY COMPILE_FLAGS ${FLAG_sve} )
+      list( APPEND ARM_SIMD_SRC_FILES ${ARM_SVE_SRC_FILES} )
+
+      if( VVDEC_ENABLE_ARM_SIMD_SVE2 )
+        set_property( SOURCE ${ARM_SVE2_SRC_FILES} APPEND PROPERTY COMPILE_DEFINITIONS USE_NEON USE_SVE USE_SVE2 )
+        set_property( SOURCE ${ARM_SVE2_SRC_FILES} APPEND PROPERTY COMPILE_FLAGS ${FLAG_sve2} )
+        list( APPEND ARM_SIMD_SRC_FILES ${ARM_SVE2_SRC_FILES} )
+      endif()
+    endif()
+  else()
+    # Enable Neon compile flag in 32-bit Arm.
+    set_if_compiler_supports_flag( FLAG_mfpu_neon "-mfpu=neon" )
+    set_property( SOURCE ${ARM_NEON_SRC_FILES} APPEND PROPERTY COMPILE_FLAGS "${FLAG_mfpu_neon}" )
+    list( APPEND ARM_SIMD_SRC_FILES ${ARM_NEON_SRC_FILES} )
+  endif()
+
+  add_library( ${LIB_NAME}_arm_simd OBJECT ${ARM_SIMD_SRC_FILES} )
+
   # NEON is enabled by default for all files, so don't need to disable LTO
   # set_target_properties( ${LIB_NAME}_arm_simd PROPERTIES
   #                                             INTERPROCEDURAL_OPTIMIZATION                OFF

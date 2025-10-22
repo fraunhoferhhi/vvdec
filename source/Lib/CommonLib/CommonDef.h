@@ -590,6 +590,8 @@ namespace arm_simd
     UNDEFINED = -1,
     SCALAR    = 0,
     NEON,
+    SVE,
+    SVE2,
   } ARM_VEXT;
 #  endif   // TARGET_SIMD_ARM
 }   // namespace arm_simd
