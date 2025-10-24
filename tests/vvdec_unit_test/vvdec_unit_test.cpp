@@ -44,8 +44,11 @@ POSSIBILITY OF SUCH DAMAGE.
 #include <limits.h>
 
 #include "CommonLib/CommonDef.h"
+#include "CommonLib/InterpolationFilter.h"
 
 using namespace vvdec;
+
+#define NUM_CASES 100
 
 template<typename T>
 static inline bool compare_value( const std::string& context, const T ref, const T opt )
@@ -183,12 +186,120 @@ public:
   }
 };
 
-static bool test_empty()
+#if ENABLE_SIMD_OPT_MCIF
+template<bool isLast, unsigned width>
+static bool check_filterWxH_N8( InterpolationFilter* ref, InterpolationFilter* opt, unsigned height,
+                                unsigned num_cases )
 {
+  static_assert( width == 4 || width == 8 || width == 16, "Width must be either 4, 8, or 16" );
+
+  static constexpr unsigned bd = 10; // default bit-depth
+  ClpRng clpRng{ ( int )bd };
+  DimensionGenerator dim;
+  InputGenerator<Pel> inp_gen{ bd, /*is_signed=*/false };
+
+  // Max buffer size for src is ( height + 7 ) * srcStride.
+  std::vector<Pel> src( ( MAX_CU_SIZE + 7 ) * ( MAX_CU_SIZE + 7 ) );
+  std::vector<Pel> dst_ref( MAX_CU_SIZE * MAX_CU_SIZE );
+  std::vector<Pel> dst_opt( MAX_CU_SIZE * MAX_CU_SIZE );
+
   bool passed = true;
+
+  std::ostringstream sstm_test;
+  sstm_test << "InterpolationFilter::filter" << width << "x" << height << "[0][" << isLast << "]";
+  std::cout << "Testing " << sstm_test.str() << std::endl;
+
+  for( unsigned n = 0; n < num_cases; n++ )
+  {
+    unsigned srcStride = dim.get( width, MAX_CU_SIZE ) + 7; // srcStride >= width + 7
+    unsigned dstStride = dim.get( width, MAX_CU_SIZE );
+
+    const TFilterCoeff *pCoeffH, *pCoeffV;
+    if( width == 4 )
+    {
+      unsigned hCoeff_idx = dim.get( 0, LUMA_INTERPOLATION_FILTER_SUB_SAMPLE_POSITIONS - 1 );
+      unsigned vCoeff_idx = dim.get( 0, LUMA_INTERPOLATION_FILTER_SUB_SAMPLE_POSITIONS - 1 );
+      pCoeffH = InterpolationFilter::m_lumaFilter4x4[hCoeff_idx];
+      pCoeffV = InterpolationFilter::m_lumaFilter4x4[vCoeff_idx];
+    }
+    else // Include lumaAltHpelIFilter for other widths.
+    {
+      unsigned hCoeff_idx = dim.get( 0, LUMA_INTERPOLATION_FILTER_SUB_SAMPLE_POSITIONS );
+      unsigned vCoeff_idx = dim.get( 0, LUMA_INTERPOLATION_FILTER_SUB_SAMPLE_POSITIONS );
+      pCoeffH = hCoeff_idx == LUMA_INTERPOLATION_FILTER_SUB_SAMPLE_POSITIONS
+                    ? InterpolationFilter::m_lumaAltHpelIFilter
+                    : InterpolationFilter::m_lumaFilter[hCoeff_idx];
+      pCoeffV = vCoeff_idx == LUMA_INTERPOLATION_FILTER_SUB_SAMPLE_POSITIONS
+                    ? InterpolationFilter::m_lumaAltHpelIFilter
+                    : InterpolationFilter::m_lumaFilter[vCoeff_idx];
+    }
+
+    // Fill input buffers with unsigned data.
+    std::generate( src.begin(), src.end(), inp_gen );
+
+    // Clear output blocks.
+    std::fill( dst_ref.begin(), dst_ref.end(), 0 );
+    std::fill( dst_opt.begin(), dst_opt.end(), 0 );
+
+    ptrdiff_t src_offset = 3 * ( 1 + srcStride );
+
+    if( width == 4 )
+    {
+      ref->m_filter4x4[0][isLast]( clpRng, src.data() + src_offset, ( ptrdiff_t )srcStride, dst_ref.data(),
+                                   ( ptrdiff_t )dstStride, ( int )width, ( int )height, pCoeffH, pCoeffV );
+      opt->m_filter4x4[0][isLast]( clpRng, src.data() + src_offset, ( ptrdiff_t )srcStride, dst_opt.data(),
+                                   ( ptrdiff_t )dstStride, ( int )width, ( int )height, pCoeffH, pCoeffV );
+    }
+    else if( width == 8 )
+    {
+      ref->m_filter8xH[0][isLast]( clpRng, src.data() + src_offset, ( ptrdiff_t )srcStride, dst_ref.data(),
+                                   ( ptrdiff_t )dstStride, ( int )width, ( int )height, pCoeffH, pCoeffV );
+      opt->m_filter8xH[0][isLast]( clpRng, src.data() + src_offset, ( ptrdiff_t )srcStride, dst_opt.data(),
+                                   ( ptrdiff_t )dstStride, ( int )width, ( int )height, pCoeffH, pCoeffV );
+    }
+    else // width == 16
+    {
+      ref->m_filter16xH[0][isLast]( clpRng, src.data() + src_offset, ( ptrdiff_t )srcStride, dst_ref.data(),
+                                    ( ptrdiff_t )dstStride, ( int )width, ( int )height, pCoeffH, pCoeffV );
+      opt->m_filter16xH[0][isLast]( clpRng, src.data() + src_offset, ( ptrdiff_t )srcStride, dst_opt.data(),
+                                    ( ptrdiff_t )dstStride, ( int )width, ( int )height, pCoeffH, pCoeffV );
+    }
+
+    std::ostringstream sstm_subtest;
+    sstm_subtest << sstm_test.str() << " srcStride=" << srcStride << " dstStride=" << dstStride;
+
+    passed =
+        compare_values_2d( sstm_subtest.str(), dst_ref.data(), dst_opt.data(), height, width, dstStride ) && passed;
+  }
 
   return passed;
 }
+
+static bool test_InterpolationFilter()
+{
+  InterpolationFilter ref;
+  InterpolationFilter opt;
+
+  ref.initInterpolationFilter( /*enable=*/false );
+  opt.initInterpolationFilter( /*enable=*/true );
+
+  unsigned num_cases = NUM_CASES;
+  bool passed = true;
+
+  // The width = 4 case is only called with height = 4.
+  passed = check_filterWxH_N8<false, 4>( &ref, &opt, 4, num_cases ) && passed;
+  passed = check_filterWxH_N8<true, 4>( &ref, &opt, 4, num_cases ) && passed;
+  for( unsigned height : { 4, 8, 16, 32, 64, 128 } )
+  {
+    passed = check_filterWxH_N8<false, 8>( &ref, &opt, height, num_cases ) && passed;
+    passed = check_filterWxH_N8<true, 8>( &ref, &opt, height, num_cases ) && passed;
+    passed = check_filterWxH_N8<false, 16>( &ref, &opt, height, num_cases ) && passed;
+    passed = check_filterWxH_N8<true, 16>( &ref, &opt, height, num_cases ) && passed;
+  }
+
+  return passed;
+}
+#endif // ENABLE_SIMD_OPT_MCIF
 
 struct UnitTestEntry
 {
@@ -197,7 +308,9 @@ struct UnitTestEntry
 };
 
 static const UnitTestEntry test_suites[] = {
-    { "Empty", test_empty },
+#if ENABLE_SIMD_OPT_MCIF
+    { "InterpolationFilter", test_InterpolationFilter },
+#endif
 };
 
 int main( int argc, char* argv[] )
