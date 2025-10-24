@@ -188,7 +188,7 @@ public:
 };
 
 #if ENABLE_SIMD_OPT_ALF
-template<typename G>
+template<AlfFilterType filtType, typename G>
 static bool check_one_filterBlk( AdaptiveLoopFilter* ref, AdaptiveLoopFilter* opt, ptrdiff_t srcStride,
                                  ptrdiff_t dstStride, unsigned int w, unsigned int h, int bitDepth, G input_generator )
 {
@@ -208,10 +208,6 @@ static bool check_one_filterBlk( AdaptiveLoopFilter* ref, AdaptiveLoopFilter* op
   std::vector<Pel> dst_opt( h * dstStride );
   std::generate( src.begin(), src.end(), input_generator );
 
-  // For chroma, only ALF_FILTER_5 is supported.
-  ComponentID compId = COMPONENT_Y;
-  ChromaFormat chromaFormat = CHROMA_400;
-
   const Area blk{ 0, 0, w, h };
 
   Size sz{ w, h };
@@ -219,62 +215,115 @@ static bool check_one_filterBlk( AdaptiveLoopFilter* ref, AdaptiveLoopFilter* op
   AreaBuf<Pel> areaBufDst_opt{ dst_opt.data(), dstStride, sz };
   AreaBuf<const Pel> areaBufSrc{ src.data() + pad * srcStride, srcStride, sz };
 
-  // Give all three planes same buffer, as only one of them is active in filterBlk.
-  PelUnitBuf dstUnitBuf_ref{
-      chromaFormat,
-      areaBufDst_ref, // COMPONENT_Y
-      areaBufDst_ref, // COMPONENT_Cb
-      areaBufDst_ref  // COMPONENT_Cr
-  };
-  PelUnitBuf dstUnitBuf_opt{ chromaFormat, areaBufDst_opt, areaBufDst_opt, areaBufDst_opt };
-  CPelUnitBuf srcUnitBuf{ chromaFormat, areaBufSrc, areaBufSrc, areaBufSrc };
-
-  // The below settings are tailored for Luma.
   DimensionGenerator rng;
 
-  const size_t numBlocks = AdaptiveLoopFilter::m_CLASSIFICATION_ARR_SIZE * ( ( h + 3 ) / 4 );
-  std::vector<AlfClassifier> classifier;
-  for( unsigned i = 0; i < numBlocks; ++i )
+  if( filtType == ALF_FILTER_7 )
   {
-    const uint8_t classIdx = rng.get( 0, MAX_NUM_ALF_CLASSES - 1 );
-    const uint8_t transposeIdx = rng.get( 0, MAX_NUM_ALF_TRANSPOSE_ID - 1 );
-    classifier.emplace_back( classIdx, transposeIdx );
-  }
+    ComponentID compId = COMPONENT_Y;
+    ChromaFormat chromaFormat = CHROMA_400;
 
-  const int vbCTUHeight = rng.getOneOf<int>( { 32, 64, 128 } );
-  const int vbPos = vbCTUHeight - ALF_VB_POS_ABOVE_CTUROW_LUMA;
+    // Give all three planes same buffer, as only one of them is active in filterBlk.
+    PelUnitBuf dstUnitBuf_ref{
+        chromaFormat,
+        areaBufDst_ref, // COMPONENT_Y
+        areaBufDst_ref, // COMPONENT_Cb
+        areaBufDst_ref  // COMPONENT_Cr
+    };
+    PelUnitBuf dstUnitBuf_opt{ chromaFormat, areaBufDst_opt, areaBufDst_opt, areaBufDst_opt };
+    CPelUnitBuf srcUnitBuf{ chromaFormat, areaBufSrc, areaBufSrc, areaBufSrc };
 
-  // Build full coefficient and clip arrays for all classes and transpose variants.
-  constexpr size_t LumaSz = MAX_NUM_ALF_TRANSPOSE_ID * MAX_NUM_ALF_CLASSES * MAX_NUM_ALF_LUMA_COEFF;
-  std::vector<short> coeffLuma( LumaSz );
-  std::vector<short> clipLuma( LumaSz );
-
-  for( unsigned t = 0; t < MAX_NUM_ALF_TRANSPOSE_ID; ++t )
-  {
-    for( unsigned c = 0; c < MAX_NUM_ALF_CLASSES; ++c )
+    const size_t numBlocks = AdaptiveLoopFilter::m_CLASSIFICATION_ARR_SIZE * ( ( h + 3 ) / 4 );
+    std::vector<AlfClassifier> classifier;
+    for( unsigned i = 0; i < numBlocks; ++i )
     {
-      int offset = ( t * MAX_NUM_ALF_CLASSES + c ) * MAX_NUM_ALF_LUMA_COEFF;
-      auto coeff_idx = rng.get( 0, ALF_FIXED_FILTER_NUM - 1 );
-      for( unsigned i = 0; i < MAX_NUM_ALF_LUMA_COEFF; ++i )
+      const uint8_t classIdx = rng.get( 0, MAX_NUM_ALF_CLASSES - 1 );
+      const uint8_t transposeIdx = rng.get( 0, MAX_NUM_ALF_TRANSPOSE_ID - 1 );
+      classifier.emplace_back( classIdx, transposeIdx );
+    }
+
+    const int vbCTUHeight = rng.getOneOf<int>( { 32, 64, 128 } );
+    const int vbPos = vbCTUHeight - ALF_VB_POS_ABOVE_CTUROW_LUMA;
+
+    // Build full coefficient and clip arrays for all classes and transpose variants.
+    constexpr size_t LumaSz = MAX_NUM_ALF_TRANSPOSE_ID * MAX_NUM_ALF_CLASSES * MAX_NUM_ALF_LUMA_COEFF;
+    std::vector<short> coeffLuma( LumaSz );
+    std::vector<short> clipLuma( LumaSz );
+
+    for( unsigned t = 0; t < MAX_NUM_ALF_TRANSPOSE_ID; ++t )
+    {
+      for( unsigned c = 0; c < MAX_NUM_ALF_CLASSES; ++c )
       {
-        coeffLuma[offset + i] = static_cast<short>( AdaptiveLoopFilter::m_fixedFilterSetCoeff[coeff_idx][i] );
-        auto clip_idx = rng.get( 0, AdaptiveLoopFilter::MaxAlfNumClippingValues - 1 );
-        clipLuma[offset + i] = AdaptiveLoopFilter::m_alfClippVls[bitDepth - 8][clip_idx];
+        int offset = ( t * MAX_NUM_ALF_CLASSES + c ) * MAX_NUM_ALF_LUMA_COEFF;
+        auto coeff_idx = rng.get( 0, ALF_FIXED_FILTER_NUM - 1 );
+        for( unsigned i = 0; i < MAX_NUM_ALF_LUMA_COEFF; ++i )
+        {
+          coeffLuma[offset + i] = static_cast<short>( AdaptiveLoopFilter::m_fixedFilterSetCoeff[coeff_idx][i] );
+          auto clip_idx = rng.get( 0, AdaptiveLoopFilter::MaxAlfNumClippingValues - 1 );
+          clipLuma[offset + i] = AdaptiveLoopFilter::m_alfClippVls[bitDepth - 8][clip_idx];
+        }
       }
     }
-  }
 
-  ref->m_filter7x7Blk( classifier.data(), dstUnitBuf_ref, srcUnitBuf, blk, compId, coeffLuma.data(), clipLuma.data(),
-                       clpRng, vbCTUHeight, vbPos );
-  opt->m_filter7x7Blk( classifier.data(), dstUnitBuf_opt, srcUnitBuf, blk, compId, coeffLuma.data(), clipLuma.data(),
-                       clpRng, vbCTUHeight, vbPos );
+    ref->m_filter7x7Blk( classifier.data(), dstUnitBuf_ref, srcUnitBuf, blk, compId, coeffLuma.data(), clipLuma.data(),
+                         clpRng, vbCTUHeight, vbPos );
+    opt->m_filter7x7Blk( classifier.data(), dstUnitBuf_opt, srcUnitBuf, blk, compId, coeffLuma.data(), clipLuma.data(),
+                         clpRng, vbCTUHeight, vbPos );
+  }
+  else
+  {
+    ComponentID compId = COMPONENT_Cb;
+    ChromaFormat chromaFormat = CHROMA_444;
+
+    // Give all three planes same buffer, as only one of them is active in filterBlk.
+    PelUnitBuf dstUnitBuf_ref{
+        chromaFormat,
+        areaBufDst_ref, // COMPONENT_Y
+        areaBufDst_ref, // COMPONENT_Cb
+        areaBufDst_ref  // COMPONENT_Cr
+    };
+    PelUnitBuf dstUnitBuf_opt{ chromaFormat, areaBufDst_opt, areaBufDst_opt, areaBufDst_opt };
+    CPelUnitBuf srcUnitBuf{ chromaFormat, areaBufSrc, areaBufSrc, areaBufSrc };
+
+    constexpr size_t numSampleChromaCoeff = 25;
+    // Values taken from real codec runs.
+    short chromaCoeffs[numSampleChromaCoeff][MAX_NUM_ALF_CHROMA_COEFF] = {
+        { -11, 2, 20, 3, -9, 23 },   { -10, 11, 14, 15, 10, 18 }, { -5, 0, 11, 5, -2, -4 },
+        { -3, 8, 9, 9, 0, -23 },     { -10, 2, 13, 0, 13, 24 },   { -8, -2, 10, 4, -8, 18 },
+        { 2, 2, -14, 3, 5, -14 },    { 2, 2, -7, 2, 3, -5 },      { 3, 2, -11, 5, 6, -14 },
+        { -3, 1, 12, -2, 5, -4 },    { -2, -6, 33, -9, -8, 30 },  { -1, -5, 10, -5, 16, 8 },
+        { -5, 11, 7, 6, -9, 20 },    { -11, 3, 12, 7, -8, 15 },   { -7, 2, 23, -3, -4, 37 },
+        { -5, 6, 11, 14, -13, 17 },  { -8, 28, 21, 30, -10, 19 }, { -11, 2, 20, 3, -9, 23 },
+        { -10, 11, 14, 15, 10, 18 }, { -6, 6, 16, 8, 15, 14 },    { -5, 13, 8, 11, -5, 7 },
+        { -8, 34, 13, 11, -7, 11 },  { 15, -4, 4, -4, 10, -3 },   { -5, 16, 10, -2, -5, 8 },
+        { 3, -5, -3, -3, 3, -1 } };
+
+    short* chromaCoeff = chromaCoeffs[rng.get( 0, numSampleChromaCoeff - 1 )];
+
+    std::vector<short> chrmClip( MAX_NUM_ALF_CHROMA_COEFF );
+    for( unsigned i = 0; i < MAX_NUM_ALF_CHROMA_COEFF; ++i )
+    {
+      auto clip_idx = rng.get( 0, AdaptiveLoopFilter::MaxAlfNumClippingValues - 1 );
+      chrmClip[i] = AdaptiveLoopFilter::m_alfClippVls[bitDepth - 8][clip_idx];
+    }
+
+    const int vbCTUHeight = rng.getOneOf<int>( { 16, 32 } );
+    const int vbPos = vbCTUHeight - ALF_VB_POS_ABOVE_CTUROW_CHMA;
+
+    // The classifier is unused for 5x5 chroma filtering, so pass nullptr.
+    ref->m_filter5x5Blk( nullptr, dstUnitBuf_ref, srcUnitBuf, blk, compId, chromaCoeff, chrmClip.data(), clpRng,
+                         vbCTUHeight, vbPos );
+    opt->m_filter5x5Blk( nullptr, dstUnitBuf_opt, srcUnitBuf, blk, compId, chromaCoeff, chrmClip.data(), clpRng,
+                         vbCTUHeight, vbPos );
+  }
 
   return compare_values_2d( sstm.str(), dst_ref.data(), dst_opt.data(), h, w, dstStride );
 }
 
+template<AlfFilterType filtType>
 static bool check_filterBlk( AdaptiveLoopFilter* ref, AdaptiveLoopFilter* opt, unsigned num_cases, int w, int h )
 {
-  printf( "Testing AdaptiveLoopFilter::filterBlk w=%d h=%d\n", w, h );
+  printf( "Testing AdaptiveLoopFilter::filterBlk filterType=%s w=%d h=%d\n",
+          filtType == ALF_FILTER_7 ? "ALF_FILTER_7" : "ALF_FILTER_5", w, h );
 
   DimensionGenerator rng;
 
@@ -286,7 +335,7 @@ static bool check_filterBlk( AdaptiveLoopFilter* ref, AdaptiveLoopFilter* opt, u
       unsigned srcStride = rng.get( w, MAX_CU_SIZE );
       unsigned dstStride = rng.get( w, MAX_CU_SIZE );
 
-      if( !check_one_filterBlk( ref, opt, srcStride, dstStride, w, h, bitDepth, g ) )
+      if( !check_one_filterBlk<filtType>( ref, opt, srcStride, dstStride, w, h, bitDepth, g ) )
       {
         return false;
       }
@@ -307,7 +356,15 @@ static bool test_AdaptiveLoopFilter()
   {
     for( unsigned h : { 4, 8, 16, 24, 32 } )
     {
-      passed = check_filterBlk( &ref, &opt, num_cases, w, h ) && passed;
+      passed = check_filterBlk<ALF_FILTER_7>( &ref, &opt, num_cases, w, h ) && passed;
+    }
+  }
+
+  for( unsigned w = 4; w <= 64; w += 4 )
+  {
+    for( unsigned h : { 4, 8, 16, 24, 32, 40, 48, 56, 64 } )
+    {
+      passed = check_filterBlk<ALF_FILTER_5>( &ref, &opt, num_cases, w, h ) && passed;
     }
   }
 
