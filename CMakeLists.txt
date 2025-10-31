@@ -29,6 +29,12 @@ include( vvdecCompilerSupport )
 detect_target_architecture( VVDEC_TARGET_ARCH )
 if( VVDEC_TARGET_ARCH STREQUAL "ARM" )
   set( VVDEC_ARM_SIMD_DEFAULT TRUE )
+
+  # Avoid non-portable type casting in Arm vector kernels.
+  if( CMAKE_CXX_COMPILER_ID STREQUAL "Clang" )
+    set( CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fno-lax-vector-conversions" )
+    set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-lax-vector-conversions" )
+  endif()
 endif()
 
 if( VVDEC_TARGET_ARCH MATCHES "LOONGARCH64" )
