@@ -2,10 +2,10 @@
 set( EXE_NAME vvdec_unit_test )
 
 # get source files
-file( GLOB SRC_FILES "*.cpp" )
+file( GLOB SRC_FILES CONFIGURE_DEPENDS "*.cpp" )
 
 # get include files
-file( GLOB INC_FILES "*.h" )
+file( GLOB INC_FILES CONFIGURE_DEPENDS "*.h" )
 
 if( VVDEC_ENABLE_TRACING )
   add_compile_definitions( ENABLE_TRACING )
