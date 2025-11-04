@@ -47,7 +47,7 @@ endif()
 # we enable x86 intrinsics for all target architectures, because they are implemented through simd-everywhere on non-x86
 set( VVDEC_ENABLE_X86_SIMD TRUE                      CACHE BOOL "Enable x86 intrinsics" )
 set( VVDEC_ENABLE_ARM_SIMD ${VVDEC_ARM_SIMD_DEFAULT} CACHE BOOL "Enable Arm intrinsics" )
-set( VVDEC_ENABLE_ARM_SIMD_SVE FALSE                 CACHE BOOL "Enable Arm SVE intrinsics" )
+set( VVDEC_ENABLE_ARM_SIMD_SVE ${FLAG_sve}           CACHE BOOL "Enable Arm SVE intrinsics" )
 set( VVDEC_ENABLE_ARM_SIMD_SVE2 FALSE                CACHE BOOL "Enable Arm SVE2 intrinsics" )
 set( VVDEC_ENABLE_LOONGARCH64_LSX_SIMD  ${VVDEC_LOONGARCH64_SIMD_DEFAULT} CACHE BOOL "Enable loongarch64 LSX intrinsics" )
 
