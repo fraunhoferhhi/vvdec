@@ -12,10 +12,10 @@ else()
 endif()
 
 # get source files
-file( GLOB BASE_SRC_FILES "*.cpp"  "../CommonLib/*.cpp"  "../Utilities/*.cpp" "../DecoderLib/*.cpp")
+file( GLOB BASE_SRC_FILES CONFIGURE_DEPENDS "*.cpp"  "../CommonLib/*.cpp"  "../Utilities/*.cpp" "../DecoderLib/*.cpp")
 
 # get include files
-file( GLOB BASE_INC_FILES "*.h" "../CommonLib/*.h"  "../Utilities/*.h" "../DecoderLib/*.h" )
+file( GLOB BASE_INC_FILES CONFIGURE_DEPENDS "*.h" "../CommonLib/*.h"  "../Utilities/*.h" "../DecoderLib/*.h" )
 
 
 if( NOT DEFINED VVDEC_ENABLE_X86_SIMD )
@@ -23,37 +23,37 @@ if( NOT DEFINED VVDEC_ENABLE_X86_SIMD )
 endif()
 
 if( VVDEC_ENABLE_X86_SIMD )
-  file( GLOB X86_SRC_FILES       "../CommonLib/x86/*.cpp"       )
-  file( GLOB X86_INC_FILES       "../CommonLib/x86/*.h"         )
+  file( GLOB X86_SRC_FILES       CONFIGURE_DEPENDS "../CommonLib/x86/*.cpp"       )
+  file( GLOB X86_INC_FILES       CONFIGURE_DEPENDS "../CommonLib/x86/*.h"         )
 
-  file( GLOB X86_SSE41_SRC_FILES "../CommonLib/x86/sse41/*.cpp" )
-  #file( GLOB X86_SSE42_SRC_FILES "../CommonLib/x86/sse42/*.cpp" )
-  #file( GLOB X86_AVX_SRC_FILES   "../CommonLib/x86/avx/*.cpp"   )
-  file( GLOB X86_AVX2_SRC_FILES "../CommonLib/x86/avx2/*.cpp" )
+  file( GLOB X86_SSE41_SRC_FILES CONFIGURE_DEPENDS "../CommonLib/x86/sse41/*.cpp" )
+  #file( GLOB X86_SSE42_SRC_FILES CONFIGURE_DEPENDS "../CommonLib/x86/sse42/*.cpp" )
+  #file( GLOB X86_AVX_SRC_FILES   CONFIGURE_DEPENDS "../CommonLib/x86/avx/*.cpp"   )
+  file( GLOB X86_AVX2_SRC_FILES CONFIGURE_DEPENDS  "../CommonLib/x86/avx2/*.cpp"  )
 endif()
 
 if( VVDEC_ENABLE_ARM_SIMD )
-  file( GLOB ARM_SRC_FILES      "../CommonLib/arm/*.cpp"      )
-  file( GLOB ARM_INC_FILES      "../CommonLib/arm/*.h"        )
+  file( GLOB ARM_SRC_FILES CONFIGURE_DEPENDS      "../CommonLib/arm/*.cpp"      )
+  file( GLOB ARM_INC_FILES CONFIGURE_DEPENDS      "../CommonLib/arm/*.h"        )
 
-  file( GLOB ARM_NEON_SRC_FILES "../CommonLib/arm/neon/*.cpp" )
+  file( GLOB ARM_NEON_SRC_FILES CONFIGURE_DEPENDS "../CommonLib/arm/neon/*.cpp" )
 endif()
 
 # get libmd5 source files
-file( GLOB MD5_SRC_FILES "../libmd5/*.cpp" )
-file( GLOB MD5_INC_FILES "../libmd5/*.h" )
+file( GLOB MD5_SRC_FILES CONFIGURE_DEPENDS "../libmd5/*.cpp" )
+file( GLOB MD5_INC_FILES CONFIGURE_DEPENDS "../libmd5/*.h" )
 
 # begin film-grain source files
-file( GLOB FGS_SRC_FILES "../FilmGrain/FilmGrain.cpp" "../FilmGrain/FilmGrainImpl.cpp" )
-file( GLOB FGS_INC_FILES "../FilmGrain/FilmGrain.h"   "../FilmGrain/FilmGrainImpl.h"   )
+file( GLOB FGS_SRC_FILES CONFIGURE_DEPENDS "../FilmGrain/FilmGrain.cpp" "../FilmGrain/FilmGrainImpl.cpp" )
+file( GLOB FGS_INC_FILES CONFIGURE_DEPENDS "../FilmGrain/FilmGrain.h"   "../FilmGrain/FilmGrainImpl.h"   )
 
-file( GLOB FGS_X86_SSE41_SRC_FILES "../FilmGrain/*_sse41.cpp" )
-file( GLOB FGS_X86_AVX2_SRC_FILES  "../FilmGrain/*_avx2.cpp"  )
+file( GLOB FGS_X86_SSE41_SRC_FILES CONFIGURE_DEPENDS "../FilmGrain/*_sse41.cpp" )
+file( GLOB FGS_X86_AVX2_SRC_FILES  CONFIGURE_DEPENDS "../FilmGrain/*_avx2.cpp"  )
 list( APPEND X86_SSE41_SRC_FILES ${FGS_X86_SSE41_SRC_FILES} )
 list( APPEND X86_AVX2_SRC_FILES  ${FGS_X86_AVX2_SRC_FILES}  )
 
 # get public/extern include files
-file( GLOB PUBLIC_INC_FILES  "../../../include/${LIB_NAME}/*.h" )
+file( GLOB PUBLIC_INC_FILES  CONFIGURE_DEPENDS "../../../include/${LIB_NAME}/*.h" )
 
 # get all private include files
 set( PRIVATE_INC_FILES ${BASE_INC_FILES} ${X86_INC_FILES} ${ARM_INC_FILES} ${MD5_INC_FILES} ${FGS_INC_FILES} )
@@ -64,7 +64,7 @@ set( INC_FILES ${PRIVATE_INC_FILES} ${PUBLIC_INC_FILES} )
 
 # NATVIS files for Visual Studio
 if( MSVC )
-  file( GLOB NATVIS_FILES "../../VisualStudio/*.natvis" )
+  file( GLOB NATVIS_FILES CONFIGURE_DEPENDS "../../VisualStudio/*.natvis" )
 
   # example: place header files in different folders
   source_group( "Natvis Files" FILES ${NATVIS_FILES} )
