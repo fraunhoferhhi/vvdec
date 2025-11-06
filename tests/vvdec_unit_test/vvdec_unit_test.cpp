@@ -44,6 +44,7 @@ POSSIBILITY OF SUCH DAMAGE.
 #include <limits.h>
 
 #include "CommonLib/CommonDef.h"
+#include "CommonLib/AdaptiveLoopFilter.h"
 #include "CommonLib/InterpolationFilter.h"
 
 using namespace vvdec;
@@ -186,6 +187,134 @@ public:
   }
 };
 
+#if ENABLE_SIMD_OPT_ALF
+template<typename G>
+static bool check_one_filterBlk( AdaptiveLoopFilter* ref, AdaptiveLoopFilter* opt, ptrdiff_t srcStride,
+                                 ptrdiff_t dstStride, unsigned int w, unsigned int h, int bitDepth, G input_generator )
+{
+  CHECK( srcStride < w, "OrgStride must be greater than or equal to width" );
+  CHECK( dstStride < w, "BufStride must be greater than or equal to width" );
+
+  std::ostringstream sstm;
+  sstm << "filterBlk srcStride=" << srcStride << " dstStride=" << dstStride << " w=" << w << " h=" << h
+       << " bd=" << bitDepth;
+
+  ClpRng clpRng{ bitDepth };
+
+  // Padding to src memory so that filterBlk can safely index [-3,+3] rows.
+  constexpr int pad = 3;
+  std::vector<Pel> src( ( h + 2 * pad ) * srcStride );
+  std::vector<Pel> dst_ref( h * dstStride );
+  std::vector<Pel> dst_opt( h * dstStride );
+  std::generate( src.begin(), src.end(), input_generator );
+
+  // For chroma, only ALF_FILTER_5 is supported.
+  ComponentID compId = COMPONENT_Y;
+  ChromaFormat chromaFormat = CHROMA_400;
+
+  const Area blk{ 0, 0, w, h };
+
+  Size sz{ w, h };
+  AreaBuf<Pel> areaBufDst_ref{ dst_ref.data(), dstStride, sz };
+  AreaBuf<Pel> areaBufDst_opt{ dst_opt.data(), dstStride, sz };
+  AreaBuf<const Pel> areaBufSrc{ src.data() + pad * srcStride, srcStride, sz };
+
+  // Give all three planes same buffer, as only one of them is active in filterBlk.
+  PelUnitBuf dstUnitBuf_ref{
+      chromaFormat,
+      areaBufDst_ref, // COMPONENT_Y
+      areaBufDst_ref, // COMPONENT_Cb
+      areaBufDst_ref  // COMPONENT_Cr
+  };
+  PelUnitBuf dstUnitBuf_opt{ chromaFormat, areaBufDst_opt, areaBufDst_opt, areaBufDst_opt };
+  CPelUnitBuf srcUnitBuf{ chromaFormat, areaBufSrc, areaBufSrc, areaBufSrc };
+
+  // The below settings are tailored for Luma.
+  DimensionGenerator rng;
+
+  const size_t numBlocks = AdaptiveLoopFilter::m_CLASSIFICATION_ARR_SIZE * ( ( h + 3 ) / 4 );
+  std::vector<AlfClassifier> classifier;
+  for( unsigned i = 0; i < numBlocks; ++i )
+  {
+    const uint8_t classIdx = rng.get( 0, MAX_NUM_ALF_CLASSES - 1 );
+    const uint8_t transposeIdx = rng.get( 0, MAX_NUM_ALF_TRANSPOSE_ID - 1 );
+    classifier.emplace_back( classIdx, transposeIdx );
+  }
+
+  const int vbCTUHeight = rng.getOneOf<int>( { 32, 64, 128 } );
+  const int vbPos = vbCTUHeight - ALF_VB_POS_ABOVE_CTUROW_LUMA;
+
+  // Build full coefficient and clip arrays for all classes and transpose variants.
+  constexpr size_t LumaSz = MAX_NUM_ALF_TRANSPOSE_ID * MAX_NUM_ALF_CLASSES * MAX_NUM_ALF_LUMA_COEFF;
+  std::vector<short> coeffLuma( LumaSz );
+  std::vector<short> clipLuma( LumaSz );
+
+  for( unsigned t = 0; t < MAX_NUM_ALF_TRANSPOSE_ID; ++t )
+  {
+    for( unsigned c = 0; c < MAX_NUM_ALF_CLASSES; ++c )
+    {
+      int offset = ( t * MAX_NUM_ALF_CLASSES + c ) * MAX_NUM_ALF_LUMA_COEFF;
+      auto coeff_idx = rng.get( 0, ALF_FIXED_FILTER_NUM - 1 );
+      for( unsigned i = 0; i < MAX_NUM_ALF_LUMA_COEFF; ++i )
+      {
+        coeffLuma[offset + i] = static_cast<short>( AdaptiveLoopFilter::m_fixedFilterSetCoeff[coeff_idx][i] );
+        auto clip_idx = rng.get( 0, AdaptiveLoopFilter::MaxAlfNumClippingValues - 1 );
+        clipLuma[offset + i] = AdaptiveLoopFilter::m_alfClippVls[bitDepth - 8][clip_idx];
+      }
+    }
+  }
+
+  ref->m_filter7x7Blk( classifier.data(), dstUnitBuf_ref, srcUnitBuf, blk, compId, coeffLuma.data(), clipLuma.data(),
+                       clpRng, vbCTUHeight, vbPos );
+  opt->m_filter7x7Blk( classifier.data(), dstUnitBuf_opt, srcUnitBuf, blk, compId, coeffLuma.data(), clipLuma.data(),
+                       clpRng, vbCTUHeight, vbPos );
+
+  return compare_values_2d( sstm.str(), dst_ref.data(), dst_opt.data(), h, w, dstStride );
+}
+
+static bool check_filterBlk( AdaptiveLoopFilter* ref, AdaptiveLoopFilter* opt, unsigned num_cases, int w, int h )
+{
+  printf( "Testing AdaptiveLoopFilter::filterBlk w=%d h=%d\n", w, h );
+
+  DimensionGenerator rng;
+
+  for( unsigned int bitDepth : { 8, 10 } )
+  {
+    InputGenerator<TCoeff> g{ bitDepth, /*is_signed=*/false };
+    for( unsigned i = 0; i < num_cases; ++i )
+    {
+      unsigned srcStride = rng.get( w, MAX_CU_SIZE );
+      unsigned dstStride = rng.get( w, MAX_CU_SIZE );
+
+      if( !check_one_filterBlk( ref, opt, srcStride, dstStride, w, h, bitDepth, g ) )
+      {
+        return false;
+      }
+    }
+  }
+  return true;
+}
+
+static bool test_AdaptiveLoopFilter()
+{
+  AdaptiveLoopFilter ref{ /*enableOpt=*/false };
+  AdaptiveLoopFilter opt{ /*enableOpt=*/true };
+
+  unsigned num_cases = NUM_CASES;
+  bool passed = true;
+
+  for( unsigned w : { 8, 16, 32 } )
+  {
+    for( unsigned h : { 4, 8, 16, 24, 32 } )
+    {
+      passed = check_filterBlk( &ref, &opt, num_cases, w, h ) && passed;
+    }
+  }
+
+  return passed;
+}
+#endif // ENABLE_SIMD_OPT_ALF
+
 #if ENABLE_SIMD_OPT_MCIF
 template<bool isLast, unsigned width>
 static bool check_filterWxH_N8( InterpolationFilter* ref, InterpolationFilter* opt, unsigned height,
@@ -308,6 +437,9 @@ struct UnitTestEntry
 };
 
 static const UnitTestEntry test_suites[] = {
+#if ENABLE_SIMD_OPT_ALF
+    { "ALF", test_AdaptiveLoopFilter },
+#endif
 #if ENABLE_SIMD_OPT_MCIF
     { "InterpolationFilter", test_InterpolationFilter },
 #endif
