@@ -249,10 +249,6 @@ list( APPEND BITSTREAM_FILES
   WRAP_D_InterDigital_4.zip
 )
 
-# put bitstreams from the conformance set that should be decodable but aren't
-list( APPEND BITSTREAM_FAULTY_FILES
-)
-
 # put bitstreams from the conformance set that are not supported (wrong profile/level etc)
 list( APPEND BITSTREAM_NOT_MAIN10_FILES
   10b422_A_Sony_5.zip                               # MAIN_10_444 and MAIN_10_444_STILL_PICTURE is still experimental.

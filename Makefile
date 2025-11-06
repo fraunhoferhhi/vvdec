@@ -294,12 +294,10 @@ install-ps: install-relwithdebinfo-shared
 
 # test target
 test: release
-	cmake $(BUILD_OPTIONS-release) --target test-ok $(BUILD_TOOL_OPTIONS)
+	cmake $(BUILD_OPTIONS-release) --target run_tests $(BUILD_TOOL_OPTIONS)
 test-relwithdebinfo: relwithdebinfo
-	cmake $(BUILD_OPTIONS-relwithdebinfo) --target test-ok $(BUILD_TOOL_OPTIONS)
+	cmake $(BUILD_OPTIONS-relwithdebinfo) --target run_tests $(BUILD_TOOL_OPTIONS)
 
-test-all: release
-	cmake $(BUILD_OPTIONS-release) --target test-all $(BUILD_TOOL_OPTIONS)
 
 #
 # project specific targets
