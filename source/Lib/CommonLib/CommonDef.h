@@ -107,11 +107,12 @@ POSSIBILITY OF SUCH DAMAGE.
 
 #if __GNUC__ >= 8 && !defined __clang__
 # define GCC_WARNING_DISABLE_maybe_uninitialized _Pragma("GCC diagnostic push"); _Pragma("GCC diagnostic ignored \"-Wmaybe-uninitialized\"");
-# define GCC_WARNING_DISABLE_class_memaccess     _Pragma("GCC diagnostic push"); _Pragma("GCC diagnostic ignored \"-Wclass-memaccess\"");
 #else
 # define GCC_WARNING_DISABLE_maybe_uninitialized
-# define GCC_WARNING_DISABLE_class_memaccess
 #endif
+
+// disable warning, when calling memset on a class by casting to void*
+#define NO_WARNING_class_memaccess( ptr ) ( (void*)ptr )
 
 #define CLASS_COPY_MOVE_DEFAULT( Class )      \
   Class( const Class& )            = default; \

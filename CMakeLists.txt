@@ -174,11 +174,12 @@ set( VVDEC_ENABLE_LINK_TIME_OPT             ON  CACHE BOOL   "Enable link time o
 
 set( VVDEC_ENABLE_WERROR                    ON  CACHE BOOL   "Treat warnings as errors (-Werror or /WX)" )
 
+set( VVDEC_USE_ADDRESS_SANITIZER            OFF CACHE BOOL   "Enable or disable address sanitizer" )
+
 if( CMAKE_CXX_COMPILER_ID STREQUAL "GNU" OR
     CMAKE_CXX_COMPILER_ID STREQUAL "Clang" )
 
-  # enable address sanitizer
-  set( VVDEC_USE_ADDRESS_SANITIZER          OFF CACHE BOOL   "Enable or disable address sanitizer" )
+  # enable thread sanitizer
   set( VVDEC_USE_THREAD_SANITIZER           OFF CACHE BOOL   "Enable or disable thread sanitizer" )
 
   # add -march=native
@@ -278,15 +279,22 @@ endif()
 
 # set address sanitizer compiler arguments
 if( VVDEC_USE_ADDRESS_SANITIZER )
-  # add compile options
-  add_compile_options( "-fsanitize=address" )
-  add_compile_options( "-fsanitize=undefined" )
-  add_compile_options( "-fsanitize=leak" )
-  add_compile_options( "-fno-omit-frame-pointer" )
-  add_link_options( "-fsanitize=address" )
-  add_link_options( "-fsanitize=undefined" )
-  add_link_options( "-fsanitize=leak" )
-  add_link_options( "-fno-omit-frame-pointer" )
+  if( CMAKE_CXX_COMPILER_ID STREQUAL "GNU" OR
+    CMAKE_CXX_COMPILER_ID STREQUAL "Clang" )
+    message( STATUS "enabled GNU/Clang address sanitizer" )
+    # add compile options
+    add_compile_options( "-fsanitize=address" )
+    add_compile_options( "-fsanitize=undefined" )
+    add_compile_options( "-fsanitize=leak" )
+    add_compile_options( "-fno-omit-frame-pointer" )
+    add_link_options( "-fsanitize=address" )
+    add_link_options( "-fsanitize=undefined" )
+    add_link_options( "-fsanitize=leak" )
+    add_link_options( "-fno-omit-frame-pointer" )
+  elseif(MSVC)  
+    message( STATUS "enabled MSVC address sanitizer" )
+    add_compile_options( "/fsanitize=address" )
+   endif()  
 endif()
 
 # set thread sanitizer compiler arguments
@@ -405,7 +413,7 @@ if( VVDEC_ENABLE_BITSTREAM_DOWNLOAD )
 
   # download and uncompress
   set( COUNTER 1 )
-  foreach( BITSTREAM_ZIP IN LISTS BITSTREAM_FILES BITSTREAM_FAULTY_FILES )
+  foreach( BITSTREAM_ZIP IN LISTS BITSTREAM_FILES )
     string( REGEX REPLACE ".*/(.*)\\..*" "\\1" SUB_DIR "${BITSTREAM_URL_BASE}/${BITSTREAM_ZIP}" )
     set( BITSTREAM_INSTALL_DIR "${BITSTREAM_INSTALL_DIR_BASE}/${SUB_DIR}" )
     string( REGEX REPLACE "(.*).zip" "\\1" BITSTREAM_SHORT "${BITSTREAM_ZIP}" )
@@ -432,7 +440,7 @@ function( read_bitstream_yuv_md5 BITSTREAM_FILE OUT_MD5_HASH )
   set( ${OUT_MD5_HASH} ${MD5_HASH} PARENT_SCOPE )
 endfunction()
 
-if( UNIX AND NOT VVDEC_USE_ADDRESS_SANITIZER AND
+if( UNIX AND NOT VVDEC_USE_ADDRESS_SANITIZER AND NOT VVDEC_USE_THREAD_SANITIZER AND
     ( CMAKE_BUILD_TYPE STREQUAL "Debug" OR CMAKE_BUILD_TYPE STREQUAL "RelWithDebInfo" ) )
     # run Debug and RelWithDebInfo test suite in GDB and collect backtrace on crashes
     set( VVDEC_TESTS_DEBUGGER_COMMAND gdb --batch --return-child-result --nx
@@ -448,6 +456,8 @@ else()
     set( VVDEC_TESTS_DEBUGGER_COMMAND "" CACHE STRING "provide a command wrapper (e.g. debugger) to run the tests." )
 endif()
 
+set( VVDEC_TESTS_EXTRA_ARGS           "" CACHE STRING "provide extra arguments to vvdecapp (e.g. --simd=0) when running the test suite." )
+
 # add tests for bitstreams
 foreach( BITSTREAM IN LISTS BITSTREAM_FILES )
   string( REGEX REPLACE "(.*).zip" "\\1" BITSTREAM_SHORT "${BITSTREAM}" )
@@ -455,23 +465,9 @@ foreach( BITSTREAM IN LISTS BITSTREAM_FILES )
 
   if( EXISTS ${BITSTREAM_FILE} )
     read_bitstream_yuv_md5( ${BITSTREAM_FILE} RX_MD5_HASH )
-    add_test( NAME Test:${BITSTREAM_SHORT}.bit COMMAND ${VVDEC_TESTS_DEBUGGER_COMMAND} $<TARGET_FILE:vvdecapp> -b ${BITSTREAM_FILE} -md5 ${RX_MD5_HASH} )
+    add_test( NAME Test:${BITSTREAM_SHORT}.bit COMMAND ${VVDEC_TESTS_DEBUGGER_COMMAND} $<TARGET_FILE:vvdecapp> ${VVDEC_TESTS_EXTRA_ARGS} -b ${BITSTREAM_FILE} -md5 ${RX_MD5_HASH} )
   else()
-    add_test( NAME MISSING:${BITSTREAM_SHORT}.bit COMMAND ${VVDEC_TESTS_DEBUGGER_COMMAND} $<TARGET_FILE:vvdecapp> -b ${BITSTREAM_FILE} -dph )
-
-    set( MISSING_BITSTREAM_FILES TRUE )
-  endif()
-endforeach()
-
-foreach( BITSTREAM IN LISTS BITSTREAM_FAULTY_FILES )
-  string( REGEX REPLACE "(.*).zip" "\\1" BITSTREAM_SHORT "${BITSTREAM}" )
-  set( BITSTREAM_FILE "${BITSTREAM_INSTALL_DIR_BASE}/${BITSTREAM_SHORT}/${BITSTREAM_SHORT}.bit" )
-
-  if( EXISTS ${BITSTREAM_FILE} )
-    read_bitstream_yuv_md5( ${BITSTREAM_FILE} RX_MD5_HASH )
-    add_test( NAME Faulty:${BITSTREAM_SHORT}.bit COMMAND ${VVDEC_TESTS_DEBUGGER_COMMAND} $<TARGET_FILE:vvdecapp> -b ${BITSTREAM_FILE} -dph -md5 ${RX_MD5_HASH} )
-  else()
-    add_test( NAME MISSING:${BITSTREAM_SHORT}.bit COMMAND ${VVDEC_TESTS_DEBUGGER_COMMAND} $<TARGET_FILE:vvdecapp> -b ${BITSTREAM_FILE} -dph )
+    add_test( NAME MISSING:${BITSTREAM_SHORT}.bit COMMAND ${VVDEC_TESTS_DEBUGGER_COMMAND} $<TARGET_FILE:vvdecapp> ${VVDEC_TESTS_EXTRA_ARGS} -b ${BITSTREAM_FILE} -dph )
 
     set( MISSING_BITSTREAM_FILES TRUE )
   endif()
@@ -482,8 +478,7 @@ set_tests_properties( ${ALL_TESTS} PROPERTIES
                       TIMEOUT 120
                       FAIL_REGULAR_EXPRESSION "(WARNING:|runtime error)" )
 
-add_custom_target( test-ok  USES_TERMINAL COMMAND ${CMAKE_CTEST_COMMAND} -C $<CONFIG> -R "\"^(Test|MISSING)\"" )
-add_custom_target( test-all USES_TERMINAL COMMAND ${CMAKE_CTEST_COMMAND} -C $<CONFIG> -R "\"^(Test|MISSING|Faulty)\"" )
+add_custom_target( run_tests USES_TERMINAL COMMAND ${CMAKE_CTEST_COMMAND} -C $<CONFIG> )
 
 if( MISSING_BITSTREAM_FILES )
   message( STATUS "Some bitstream files are missing." )

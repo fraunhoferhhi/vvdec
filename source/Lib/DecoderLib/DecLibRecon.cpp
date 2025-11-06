@@ -770,9 +770,7 @@ bool DecLibRecon::ctuTask( int tid, CtuTaskParam* param )
         }
         else
         {
-          GCC_WARNING_DISABLE_class_memaccess
-          memset( ctuData.motion, MI_NOT_VALID, sizeof( MotionInfo ) * cs.pcv->num4x4CtuBlks );
-          GCC_WARNING_RESET
+          memset( NO_WARNING_class_memaccess( ctuData.motion ), MI_NOT_VALID, sizeof( MotionInfo ) * cs.pcv->num4x4CtuBlks );
         }
 
         thisCtuState = MIDER_cont;
@@ -929,7 +927,7 @@ bool DecLibRecon::ctuTask( int tid, CtuTaskParam* param )
 
       for( int ctu = ctuStart; ctu < ctuEnd; ctu++ )
       {
-        decLib.m_cLoopFilter.loopFilterCTU( cs, MAX_NUM_CHANNEL_TYPE, ctu, line, 0, EDGE_VER );
+        decLib.m_cLoopFilter.loopFilterCTU( cs, MAX_NUM_CHANNEL_TYPE, ctu, line, EDGE_VER );
 
         thisCtuState = LF_V_cont;
       }
@@ -957,7 +955,7 @@ bool DecLibRecon::ctuTask( int tid, CtuTaskParam* param )
 
       for( int ctu = ctuStart; ctu < ctuEnd; ctu++ )
       {
-        decLib.m_cLoopFilter.loopFilterCTU( cs, MAX_NUM_CHANNEL_TYPE, ctu, line, 0, EDGE_HOR );
+        decLib.m_cLoopFilter.loopFilterCTU( cs, MAX_NUM_CHANNEL_TYPE, ctu, line, EDGE_HOR );
       }
 
       thisCtuState = PRESAO;

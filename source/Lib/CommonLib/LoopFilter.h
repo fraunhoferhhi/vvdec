@@ -116,7 +116,7 @@ public:
   ~LoopFilter();
 
   /// picture-level deblocking filter
-  void loopFilterCTU              ( CodingStructure& cs, const ChannelType chType, const int ctuCol, const int ctuLine, const int offset = 0, DeblockEdgeDir edgeDir = NUM_EDGE_DIR ) const;
+  void loopFilterCTU              ( CodingStructure& cs, const ChannelType chType, const int ctuCol, const int ctuLine, DeblockEdgeDir edgeDir = NUM_EDGE_DIR ) const;
   void calcFilterStrengthsCTU     ( CodingStructure& cs, const int ctuRsAddr );
 };
 
