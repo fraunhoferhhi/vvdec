@@ -110,20 +110,20 @@ void RdCost::initRdCostARM()
 }
 #  endif
 
-//#  if ENABLE_SIMD_OPT_ALF
-//void AdaptiveLoopFilter::initAdaptiveLoopFilterARM()
-//{
-//  auto vext = read_arm_extension_flags();
-//  switch( vext )
-//  {
-//  case NEON:
-//    _initAdaptiveLoopFilterARM<NEON>();
-//    break;
-//  default:
-//    break;
-//  }
-//}
-//#  endif
+#if ENABLE_SIMD_OPT_ALF
+void AdaptiveLoopFilter::initAdaptiveLoopFilterARM()
+{
+  auto vext = read_arm_extension_flags();
+  switch( vext )
+  {
+  case NEON:
+    _initAdaptiveLoopFilterARM<NEON>();
+    break;
+  default:
+    break;
+  }
+}
+#endif
 
 //#  if ENABLE_SIMD_DBLF
 //void LoopFilter::initLoopFilterARM()
