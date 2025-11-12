@@ -487,6 +487,115 @@ static bool test_InterpolationFilter()
 }
 #endif // ENABLE_SIMD_OPT_MCIF
 
+#ifdef ENABLE_SIMD_OPT_BUFFER
+static bool check_addAvg( PelBufferOps* ref, PelBufferOps* opt, unsigned num_cases )
+{
+  static constexpr unsigned bd = 10;
+  ClpRng clpRng{ bd };
+  DimensionGenerator dim;
+  InputGenerator<Pel> inp_gen{ 16, false };
+  const unsigned shiftNum = std::max<int>( 2, IF_INTERNAL_PREC - bd ) + 1;
+  const int offset = ( 1 << ( shiftNum - 1 ) ) + 2 * IF_INTERNAL_OFFS;
+
+  static constexpr size_t buf_size = MAX_CU_SIZE * MAX_CU_SIZE;
+
+  // Use xMalloc to create aligned buffers.
+  Pel* src0 = ( Pel* )xMalloc( Pel, buf_size );
+  Pel* src1 = ( Pel* )xMalloc( Pel, buf_size );
+  Pel* dest_ref = ( Pel* )xMalloc( Pel, buf_size );
+  Pel* dest_opt = ( Pel* )xMalloc( Pel, buf_size );
+
+  bool passed = true;
+
+  // Test addAvg with strides.
+  for( int height : { 4, 8, 16, 24, 32, 64 } )
+  {
+    for( int width : { 4, 8, 12, 16, 20, 24, 32, 40, 48, 64 } )
+    {
+      std::ostringstream sstm_test;
+      sstm_test << "PelBufferOps::addAvg(strided)"
+                << " w=" << width << " h=" << height;
+      std::cout << "Testing " << sstm_test.str() << std::endl;
+
+      for( unsigned n = 0; n < num_cases; n++ )
+      {
+        // Set random strides >= width.
+        const int src0Stride = dim.get( width, MAX_CU_SIZE );
+        const int src1Stride = dim.get( width, MAX_CU_SIZE );
+        const int destStride = dim.get( width, MAX_CU_SIZE );
+
+        // Fill input buffers with unsigned 16-bit data from generator.
+        std::generate( src0, src0 + buf_size, inp_gen );
+        std::generate( src1, src1 + buf_size, inp_gen );
+
+        // Clear output blocks.
+        memset( dest_ref, 0, buf_size * sizeof( Pel ) );
+        memset( dest_opt, 0, buf_size * sizeof( Pel ) );
+
+        if( ( width & 15 ) == 0 )
+        {
+          ref->addAvg16( src0, src0Stride, src1, src1Stride, dest_ref, destStride, width, height, shiftNum, offset,
+                         clpRng );
+          opt->addAvg16( src0, src0Stride, src1, src1Stride, dest_opt, destStride, width, height, shiftNum, offset,
+                         clpRng );
+        }
+        else if( ( width & 7 ) == 0 )
+        {
+          ref->addAvg8( src0, src0Stride, src1, src1Stride, dest_ref, destStride, width, height, shiftNum, offset,
+                        clpRng );
+          opt->addAvg8( src0, src0Stride, src1, src1Stride, dest_opt, destStride, width, height, shiftNum, offset,
+                        clpRng );
+        }
+        else if( ( width & 3 ) == 0 )
+        {
+          ref->addAvg4( src0, src0Stride, src1, src1Stride, dest_ref, destStride, width, height, shiftNum, offset,
+                        clpRng );
+          opt->addAvg4( src0, src0Stride, src1, src1Stride, dest_opt, destStride, width, height, shiftNum, offset,
+                        clpRng );
+        }
+        else // Shouldn't come here.
+        {
+          THROW_FATAL( "Unsupported size" );
+        }
+
+        std::ostringstream sstm_subtest;
+        sstm_subtest << sstm_test.str() << " src0Stride=" << src0Stride << " src1Stride=" << src1Stride
+                     << " destStride=" << destStride;
+
+        passed = compare_values_2d( sstm_subtest.str(), dest_ref, dest_opt, height, width, destStride ) && passed;
+      }
+    }
+  }
+
+  xFree( src0 );
+  xFree( src1 );
+  xFree( dest_ref );
+  xFree( dest_opt );
+
+  return passed;
+}
+
+static bool test_PelBufferOps()
+{
+  PelBufferOps ref;
+  PelBufferOps opt;
+
+#if defined( TARGET_SIMD_X86 )
+  opt.initPelBufOpsX86();
+#endif
+#if defined( TARGET_SIMD_ARM )
+  opt.initPelBufOpsARM();
+#endif
+
+  unsigned num_cases = NUM_CASES;
+  bool passed = true;
+
+  passed = check_addAvg( &ref, &opt, num_cases ) && passed;
+
+  return passed;
+}
+#endif // ENABLE_SIMD_OPT_BUFFER
+
 struct UnitTestEntry
 {
   std::string name;
@@ -499,6 +608,9 @@ static const UnitTestEntry test_suites[] = {
 #endif
 #if ENABLE_SIMD_OPT_MCIF
     { "InterpolationFilter", test_InterpolationFilter },
+#endif
+#if ENABLE_SIMD_OPT_BUFFER
+    { "PelBufferOps", test_PelBufferOps },
 #endif
 };
 
