@@ -571,7 +571,7 @@ static bool test_InterpolationFilter()
 }
 #endif // ENABLE_SIMD_OPT_MCIF
 
-#ifdef ENABLE_SIMD_OPT_BUFFER
+#if ENABLE_SIMD_OPT_BUFFER
 static bool check_addAvg( PelBufferOps* ref, PelBufferOps* opt, unsigned num_cases )
 {
   static constexpr unsigned bd = 10;
@@ -659,6 +659,74 @@ static bool check_addAvg( PelBufferOps* ref, PelBufferOps* opt, unsigned num_cas
   return passed;
 }
 
+static bool check_one_rspFwdCore( PelBufferOps* ref, PelBufferOps* opt, unsigned num_cases, unsigned width,
+                                  unsigned height, unsigned bd )
+{
+  DimensionGenerator dim;
+  InputGenerator<Pel> inp_gen{ bd, /*is_signed=*/false };
+
+  const unsigned reshapeLUTSize = 1 << bd;
+  const Pel initCW = reshapeLUTSize / PIC_CODE_CW_BINS; // bd=8:16, bd=10:64
+
+  static constexpr size_t size = MAX_CU_SIZE * MAX_CU_SIZE;
+
+  std::vector<Pel> src_ref( size );
+  std::vector<Pel> src_opt( size );
+
+  std::vector<Pel> LmcsPivot( PIC_CODE_CW_BINS + 1 );
+  std::vector<Pel> ScaleCoeff( PIC_CODE_CW_BINS );
+  std::vector<Pel> InputPivot( PIC_CODE_CW_BINS + 1 );
+
+  bool passed = true;
+
+  std::ostringstream sstm_test;
+  sstm_test << "rspFwdCore w=" << width << " h=" << height << " bd=" << bd;
+  std::cout << "Testing " << sstm_test.str() << std::endl;
+
+  for( unsigned n = 0; n < num_cases; n++ )
+  {
+    std::generate( src_ref.begin(), src_ref.end(), inp_gen );
+    src_opt = src_ref;
+
+    std::generate( LmcsPivot.begin(), LmcsPivot.end(), inp_gen );
+    std::generate( ScaleCoeff.begin(), ScaleCoeff.end(), inp_gen );
+    std::generate( InputPivot.begin(), InputPivot.end(), inp_gen );
+
+    // Set random strides >= width.
+    const unsigned stride = dim.get( width, MAX_CU_SIZE );
+
+    opt->rspFwd( src_ref.data(), ( ptrdiff_t )stride, ( int )width, ( int )height, ( int )bd, initCW, LmcsPivot.data(),
+                 ScaleCoeff.data(), InputPivot.data() );
+    ref->rspFwd( src_opt.data(), ( ptrdiff_t )stride, ( int )width, ( int )height, ( int )bd, initCW, LmcsPivot.data(),
+                 ScaleCoeff.data(), InputPivot.data() );
+
+    std::ostringstream sstm_subtest;
+    sstm_subtest << sstm_test.str() << " stride=" << stride;
+
+    passed = compare_values_2d( sstm_subtest.str(), src_ref.data(), src_opt.data(), height, width, stride ) && passed;
+  }
+
+  return passed;
+}
+
+bool check_rspFwdCore( PelBufferOps* ref, PelBufferOps* opt, unsigned num_cases )
+{
+  bool passed = true;
+
+  for( unsigned height : { 4, 8, 16, 32, 64, 128 } )
+  {
+    for( unsigned width : { 4, 8, 16, 32, 64, 128 } )
+    {
+      for( unsigned bd : { 8, 10 } )
+      {
+        passed = check_one_rspFwdCore( ref, opt, num_cases, width, height, bd ) && passed;
+      }
+    }
+  }
+
+  return passed;
+}
+
 static bool test_PelBufferOps()
 {
   PelBufferOps ref;
@@ -675,6 +743,7 @@ static bool test_PelBufferOps()
   bool passed = true;
 
   passed = check_addAvg( &ref, &opt, num_cases ) && passed;
+  passed = check_rspFwdCore( &ref, &opt, num_cases ) && passed;
 
   return passed;
 }
