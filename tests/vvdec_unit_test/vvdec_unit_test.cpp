@@ -316,7 +316,7 @@ static bool check_one_filterBlk( AdaptiveLoopFilter* ref, AdaptiveLoopFilter* op
                          vbCTUHeight, vbPos );
   }
 
-  return compare_values_2d( sstm.str(), dst_ref.data(), dst_opt.data(), h, w, dstStride );
+  return compare_values_2d( sstm.str(), dst_ref.data(), dst_opt.data(), h, w, (unsigned)dstStride );
 }
 
 template<AlfFilterType filtType>
@@ -455,7 +455,7 @@ static bool check_filterWxH_N8( InterpolationFilter* ref, InterpolationFilter* o
     sstm_subtest << sstm_test.str() << " srcStride=" << srcStride << " dstStride=" << dstStride;
 
     passed =
-        compare_values_2d( sstm_subtest.str(), dst_ref.data(), dst_opt.data(), height, width, dstStride ) && passed;
+        compare_values_2d( sstm_subtest.str(), dst_ref.data(), dst_opt.data(), height, width, (unsigned)dstStride ) && passed;
   }
 
   return passed;
