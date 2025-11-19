@@ -286,7 +286,7 @@ static bool check_one_filterBlk( AdaptiveLoopFilter* ref, AdaptiveLoopFilter* op
 
     constexpr size_t numSampleChromaCoeff = 25;
     // Values taken from real codec runs.
-    short chromaCoeffs[numSampleChromaCoeff][MAX_NUM_ALF_CHROMA_COEFF] = {
+    short chromaCoeffs[numSampleChromaCoeff][MAX_NUM_ALF_CHROMA_COEFF + 1] = {
         { -11, 2, 20, 3, -9, 23 },   { -10, 11, 14, 15, 10, 18 }, { -5, 0, 11, 5, -2, -4 },
         { -3, 8, 9, 9, 0, -23 },     { -10, 2, 13, 0, 13, 24 },   { -8, -2, 10, 4, -8, 18 },
         { 2, 2, -14, 3, 5, -14 },    { 2, 2, -7, 2, 3, -5 },      { 3, 2, -11, 5, 6, -14 },
@@ -299,7 +299,7 @@ static bool check_one_filterBlk( AdaptiveLoopFilter* ref, AdaptiveLoopFilter* op
 
     short* chromaCoeff = chromaCoeffs[rng.get( 0, numSampleChromaCoeff - 1 )];
 
-    std::vector<short> chrmClip( MAX_NUM_ALF_CHROMA_COEFF );
+    std::vector<short> chrmClip( MAX_NUM_ALF_CHROMA_COEFF + 1, 0 );
     for( unsigned i = 0; i < MAX_NUM_ALF_CHROMA_COEFF; ++i )
     {
       auto clip_idx = rng.get( 0, AdaptiveLoopFilter::MaxAlfNumClippingValues - 1 );
