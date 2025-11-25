@@ -26,8 +26,10 @@ endif()
 
 target_include_directories( ${EXE_NAME}
   PRIVATE
-    ${VVDEC_LIB_DIR}
-    ${VVDEC_LIB_DIR}/CommonLib
+    "${VVDEC_LIB_DIR}"
+    "${VVDEC_LIB_DIR}/CommonLib"
+    "${VVDEC_LIB_DIR}/CommonLib/x86"
+    "${CMAKE_CURRENT_SOURCE_DIR}/../../thirdparty/"
 )
 
 target_link_libraries( ${EXE_NAME} Threads::Threads vvdec )

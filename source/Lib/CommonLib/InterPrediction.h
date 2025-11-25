@@ -73,6 +73,10 @@ class Mv;
 class InterPrediction : public WeightPrediction
 {
   friend class TrQuant; // for the access to the shared buffers m_acYuvPRed
+public:
+  void ( *BioGradFilter )  ( Pel* pSrc, ptrdiff_t srcStride, int width, int height, ptrdiff_t gradStride, Pel* gradX, Pel* gradY, const int bitDepth ) = nullptr;
+  void ( *profGradFilter ) ( Pel* pSrc, ptrdiff_t srcStride, int width, int height, ptrdiff_t gradStride, Pel* gradX, Pel* gradY, const int bitDepth );
+
 protected:
   InterpolationFilter  m_if;
 
@@ -138,14 +142,11 @@ protected:
                                   bool                  bilinearMC   = false,
                                   Pel*                  srcPadBuf    = NULL,
                                   ptrdiff_t             srcPadStride = 0 );
-
-  void (*BiOptFlow)             ( const Pel* srcY0,const Pel* srcY1,const Pel* gradX0,const Pel* gradX1,const Pel* gradY0,const Pel* gradY1,const int width,const int height,Pel* dstY,const ptrdiff_t dstStride,const int shiftNum,const int  offset,const int  limit, const ClpRng& clpRng, const int bitDepth ) = nullptr;
-  void (*BioGradFilter)         (       Pel* pSrc, ptrdiff_t srcStride,  int width, int height, ptrdiff_t gradStride, Pel* gradX, Pel* gradY, const int bitDepth ) = nullptr;
-
+  void ( *BiOptFlow )           ( const Pel* srcY0, const Pel* srcY1, const Pel* gradX0, const Pel* gradX1, const Pel* gradY0, const Pel* gradY1, const int width, const int height, Pel* dstY, const ptrdiff_t dstStride, const int shiftNum, const int offset, const int limit, const ClpRng& clpRng, const int bitDepth ) = nullptr;
+  
   void( *PaddBIO )              ( const Pel* refPel, Pel* dstPel, unsigned width, const int shift );
 
   void xWeightedAverage         ( const CodingUnit& cu, const PelUnitBuf& pcYuvSrc0, const PelUnitBuf& pcYuvSrc1, PelUnitBuf& pcYuvDst, const BitDepths& clipBitDepths, const ClpRngs& clpRngs, const bool& bioApplied );
-  void( *profGradFilter )       ( Pel* pSrc, ptrdiff_t srcStride, int width, int height, ptrdiff_t gradStride, Pel* gradX, Pel* gradY, const int bitDepth );
   void( *applyPROF[2] )         ( Pel* dst, ptrdiff_t dstStride, const Pel* src, const Pel* gradX, const Pel* gradY, const int* dMvX, const int* dMvY, int shiftNum, Pel offset, const ClpRng& clpRng );
   void( *roundIntVector )       ( int* v, int size, unsigned int nShift, const int dmvLimit );
   void( *clipMv )               ( Mv& rcMv, const Position& pos, const struct Size& size, const SPS& sps, const PPS& pps );
@@ -163,7 +164,7 @@ public:
   InterPrediction();
   virtual ~InterPrediction();
 
-  void    init                (RdCost* pcRdCost, ChromaFormat chromaFormatIDC, const int ctuSize);
+  void init                     ( RdCost* pcRdCost, ChromaFormat chromaFormatIDC, const int ctuSize, bool enableOpt = true );
 
   // inter
   void    motionCompensation  (CodingUnit &cu, PelUnitBuf& predBuf, const bool luma = true, const bool chroma = true);
