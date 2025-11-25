@@ -641,45 +641,6 @@ void rspFwdCore_SIMD( Pel*       ptr,
 }
 
 #    endif   // __ARM_ARCH >= 8
-
-template<ARM_VEXT vext>
-void PelBufferOps::_initPelBufOpsARM()
-{
-  //  addAvg16 = addAvg_SSE<vext, 16>;
-  //  addAvg8  = addAvg_SSE<vext,  8>;
-  //  addAvg4  = addAvg_SSE<vext,  4>;
-  //
-  //  reco8 = reco_SSE<vext, 8>;
-  //  reco4 = reco_SSE<vext, 4>;
-  //
-  //  linTf8 = linTf_SSE_entry<vext, 8>;
-  //  linTf4 = linTf_SSE_entry<vext, 4>;
-  // #if ENABLE_SIMD_OPT_GBI
-  //
-  //  wghtAvg4 = addWghtAvg_SSE<vext, 4>;
-  //  wghtAvg8 = addWghtAvg_SSE<vext, 8>;
-  // #endif
-  //
-  //  copyBuffer = copyBuffer_SSE<vext>;
-  //
-  //  transpose4x4 = transposePel_SSE<vext, 4>;
-  //  transpose8x8 = transposePel_SSE<vext, 8>;
-
-  applyLut = applyLut_SIMD<vext>;
-#    if __ARM_ARCH >= 8
-  rspFwd   = rspFwdCore_SIMD<vext>;
-  //  rspBcw   = rspBcwCore_SIMD<vext>;     // disabled, because applyLut is faster
-#    endif   // __ARM_ARCH >= 8
-
-  // #if INTPTR_MAX == INT64_MAX || INTPTR_MAX == INT32_MAX
-  //   fillN_CU = fillN_CU_SIMD<vext>;
-  // #endif
-  //
-  //   sampleRateConv = sampleRateConvSIMD<vext>;
-}
-
-template void PelBufferOps::_initPelBufOpsARM<SIMDARM>();
-
 }   // namespace vvdec
 
 #  endif   // TARGET_SIMD_ARM
