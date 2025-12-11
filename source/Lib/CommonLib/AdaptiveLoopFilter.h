@@ -128,10 +128,10 @@ public:
   void ( *m_filter7x7Blk )( const AlfClassifier* classifier, const PelUnitBuf& recDst, const CPelUnitBuf& recSrc,
                             const Area& blk, const ComponentID compId, const short* filterSet, const short* fClipSet,
                             const ClpRng& clpRng, int vbCTUHeight, int vbPos );
+  void ( *m_deriveClassificationBlk )( AlfClassifier *classifier, const CPelBuf& srcLuma, const Area& blk, const int shift, int vbCTUHeight, int vbPos );
 protected:
 
   static void deriveClassificationBlk( AlfClassifier *classifier, const CPelBuf& srcLuma, const Area& blk, const int shift, int vbCTUHeight, int vbPos );
-  void ( *m_deriveClassificationBlk )( AlfClassifier *classifier, const CPelBuf& srcLuma, const Area& blk, const int shift, int vbCTUHeight, int vbPos );
 
   void filterCTU                     ( const CPelUnitBuf& srcBuf, PelUnitBuf& dstBuf, const CtuAlfData& ctuAlfData, const ClpRngs& clpRngs, const ChannelType chType, const CodingStructure& cs, int ctuIdx, Position ctuPos, int tid );
   void filterAreaLuma                ( const CPelUnitBuf& srcBuf, PelUnitBuf& dstBuf, const Area& blk, const Slice* slice, const APS* const* aps, const short filterSetIndex, const ClpRngs& clpRngs, const int tId );

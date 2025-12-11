@@ -58,7 +58,7 @@ static inline bool compare_value( const std::string& context, const T ref, const
   if( opt != ref )
   {
     std::cerr << "failed: " << context << "\n"
-              << "  mismatch:  ref=" << ref << "  opt=" << opt << "\n";
+              << "  mismatch:  ref=" << +ref << "  opt=" << +opt << "\n";
   }
   return opt == ref;
 }
@@ -71,7 +71,7 @@ static inline bool compare_values_1d( const std::string& context, const T* ref, 
     if( ref[idx] != opt[idx] )
     {
       std::cout << "failed: " << context << "\n"
-                << "  mismatch:  ref[" << idx << "]=" << ref[idx] << "  opt[" << idx << "]=" << opt[idx] << "\n";
+                << "  mismatch:  ref[" << idx << "]=" << +ref[idx] << "  opt[" << idx << "]=" << +opt[idx] << "\n";
       return false;
     }
   }
@@ -94,8 +94,8 @@ static inline bool compare_values_2d( const std::string& context, const T* ref, 
       if( abs_diff( ref[idx], opt[idx] ) > tolerance )
       {
         std::cout << "failed: " << context << "\n"
-                  << "  mismatch:  ref[" << row << "*" << stride << "+" << col << "]=" << ref[idx] << "  opt[" << row
-                  << "*" << stride << "+" << col << "]=" << opt[idx] << "\n";
+                  << "  mismatch:  ref[" << row << "*" << stride << "+" << col << "]=" << +ref[idx] << "  opt[" << row
+                  << "*" << stride << "+" << col << "]=" << +opt[idx] << "\n";
         return false;
       }
     }
@@ -189,6 +189,58 @@ public:
 };
 
 #if ENABLE_SIMD_OPT_ALF
+template<typename G>
+static bool check_one_deriveClassificationBlk( AdaptiveLoopFilter* ref, AdaptiveLoopFilter* opt, ptrdiff_t srcStride,
+                                               ptrdiff_t dstStride, unsigned int w, unsigned int h, G input_generator )
+{
+  CHECK( srcStride < w, "OrgStride must be greater than or equal to width" );
+  CHECK( dstStride < w, "BufStride must be greater than or equal to width" );
+
+  std::ostringstream sstm;
+  sstm << "deriveClassificationBlk srcStride=" << srcStride << " dstStride=" << dstStride << " w=" << w << " h=" << h;
+
+  DimensionGenerator rng;
+
+  const int x = rng.get( 0, 128, 8 );
+  const int y = rng.get( 0, 128, 8 );
+  const Area blk{ x, y, w, h };
+
+  // Padding to src memory so that filterBlk can safely index [-3,+3] rows.
+  constexpr int pad = 3;
+  std::vector<Pel> src( ( y + h + 2 * pad ) * srcStride + x + 2 * pad );
+  std::generate( src.begin(), src.end(), input_generator );
+
+  Size sz{ w, h };
+  CPelBuf areaBufSrc{ src.data() + pad * srcStride, srcStride, sz };
+
+  std::array<AlfClassifier, AdaptiveLoopFilter::m_CLASSIFICATION_ARR_SIZE> classifier_ref;
+  std::array<AlfClassifier, AdaptiveLoopFilter::m_CLASSIFICATION_ARR_SIZE> classifier_opt;
+
+  const int vbCTUHeight = rng.getOneOf<int>( { 32, 64, 128 } );
+  const int vbPos = vbCTUHeight - ALF_VB_POS_ABOVE_CTUROW_LUMA;
+
+  const int shift = rng.getOneOf<int>( { 8, 10 } ) + 4;
+  ref->m_deriveClassificationBlk( classifier_ref.data(), areaBufSrc, blk, shift, vbCTUHeight, vbPos );
+  opt->m_deriveClassificationBlk( classifier_opt.data(), areaBufSrc, blk, shift, vbCTUHeight, vbPos );
+
+  bool rc = true;
+  // Optimized version writes extra data in the struct, so compare only the used part.
+  for( int i = 0; i < blk.height / 4; ++i )
+  {
+    for( int j = 0; j < blk.width / 4; ++j )
+    {
+      int index = i * ( AdaptiveLoopFilter::m_CLASSIFICATION_BLK_SIZE / 4 ) + j;
+      const AlfClassifier& refCl = classifier_ref[index];
+      const AlfClassifier& optCl = classifier_opt[index];
+
+      rc &= compare_value( sstm.str(), refCl.classIdx, optCl.classIdx );
+      rc &= compare_value( sstm.str(), refCl.transposeIdx, optCl.transposeIdx );
+    }
+  }
+
+  return rc;
+}
+
 template<AlfFilterType filtType, typename G>
 static bool check_one_filterBlk( AdaptiveLoopFilter* ref, AdaptiveLoopFilter* opt, ptrdiff_t srcStride,
                                  ptrdiff_t dstStride, unsigned int w, unsigned int h, int bitDepth, G input_generator )
@@ -320,6 +372,27 @@ static bool check_one_filterBlk( AdaptiveLoopFilter* ref, AdaptiveLoopFilter* op
   return compare_values_2d( sstm.str(), dst_ref.data(), dst_opt.data(), h, w, (unsigned)dstStride );
 }
 
+static bool check_deriveClassificationBlk( AdaptiveLoopFilter* ref, AdaptiveLoopFilter* opt, unsigned num_cases, int w,
+                                           int h )
+{
+  printf( "Testing AdaptiveLoopFilter::check_deriveClassificationBlk w=%d h=%d\n", w, h );
+
+  DimensionGenerator rng;
+  InputGenerator<TCoeff> g{ 10, /*is_signed=*/false };
+  for( unsigned i = 0; i < num_cases; ++i )
+  {
+    unsigned srcStride = rng.get( w, MAX_CU_SIZE );
+    unsigned dstStride = rng.get( w, MAX_CU_SIZE );
+
+    if( !check_one_deriveClassificationBlk( ref, opt, srcStride, dstStride, w, h, g ) )
+    {
+      return false;
+    }
+  }
+
+  return true;
+}
+
 template<AlfFilterType filtType>
 static bool check_filterBlk( AdaptiveLoopFilter* ref, AdaptiveLoopFilter* opt, unsigned num_cases, int w, int h )
 {
@@ -352,6 +425,14 @@ static bool test_AdaptiveLoopFilter()
 
   unsigned num_cases = NUM_CASES;
   bool passed = true;
+
+  for( unsigned w : { 8, 16, 32 } )
+  {
+    for( unsigned h : { 4, 8, 16, 24, 32 } )
+    {
+      passed = check_deriveClassificationBlk( &ref, &opt, num_cases, w, h ) && passed;
+    }
+  }
 
   for( unsigned w : { 8, 16, 32 } )
   {
