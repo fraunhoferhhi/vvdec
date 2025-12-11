@@ -120,6 +120,24 @@ static inline int8x16_t vvdec_vqtbl2q_s8( int8x16x2_t table, uint8x16_t index )
 #endif // REAL_TARGET_AARCH64
 }
 
+static inline uint8x16_t vvdec_vqtbl2q_u8( uint8x16x2_t table, uint8x16_t index )
+{
+#if REAL_TARGET_AARCH64
+  return vqtbl2q_u8( table, index );
+#else
+  uint8x8x4_t t;
+  t.val[0] = vget_low_u8( table.val[0] );
+  t.val[1] = vget_high_u8( table.val[0] );
+  t.val[2] = vget_low_u8( table.val[1] );
+  t.val[3] = vget_high_u8( table.val[1] );
+
+  uint8x8_t lo = vtbl4_u8( t, vget_low_u8( index ) );
+  uint8x8_t hi = vtbl4_u8( t, vget_high_u8( index ) );
+
+  return vcombine_u8( lo, hi );
+#endif // REAL_TARGET_AARCH64
+}
+
 } // namespace vvdec
 
 #endif

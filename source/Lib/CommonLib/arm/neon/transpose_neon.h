@@ -40,8 +40,8 @@ POSSIBILITY OF SUCH DAMAGE.
 
 ------------------------------------------------------------------------------------------- */
 
-/** \file     sum_neon.h
-    \brief    Helper functions for adding across vectors
+/** \file     transpose_neon.h
+    \brief    Helper functions for transposing blocks of pixels using Neon intrinsics
 */
 
 #pragma once
@@ -55,42 +55,19 @@ POSSIBILITY OF SUCH DAMAGE.
 namespace vvdec
 {
 
-static inline int horizontal_add_s32x4( const int32x4_t a )
+static inline void transpose_4x4_u32( const uint32x4_t aIn, const uint32x4_t bIn, const uint32x4_t cIn,
+                                      const uint32x4_t dIn, uint32x4_t& aOut, uint32x4_t& bOut, uint32x4_t& cOut,
+                                      uint32x4_t& dOut )
 {
-#if REAL_TARGET_AARCH64
-  return vaddvq_s32( a );
-#else
-  const int64x2_t b = vpaddlq_s32( a );
-  const int32x2_t c = vadd_s32( vreinterpret_s32_s64( vget_low_s64( b ) ), vreinterpret_s32_s64( vget_high_s64( b ) ) );
-  return vget_lane_s32( c, 0 );
-#endif
-}
+  uint32x4x2_t z0 = vzipq_u32( aIn, cIn );
+  uint32x4x2_t z1 = vzipq_u32( bIn, dIn );
+  uint32x4x2_t z2 = vzipq_u32( z0.val[0], z1.val[0] );
+  uint32x4x2_t z3 = vzipq_u32( z0.val[1], z1.val[1] );
 
-static inline int32x4_t horizontal_add_4d_s32x4( const int32x4_t v0, const int32x4_t v1, const int32x4_t v2,
-                                                 const int32x4_t v3 )
-{
-#if REAL_TARGET_AARCH64
-  int32x4_t v01 = vpaddq_s32( v0, v1 );
-  int32x4_t v23 = vpaddq_s32( v2, v3 );
-  return vpaddq_s32( v01, v23 );
-#else
-  int32x4_t res = vdupq_n_s32( 0 );
-  res = vsetq_lane_s32( horizontal_add_s32x4( v0 ), res, 0 );
-  res = vsetq_lane_s32( horizontal_add_s32x4( v1 ), res, 1 );
-  res = vsetq_lane_s32( horizontal_add_s32x4( v2 ), res, 2 );
-  res = vsetq_lane_s32( horizontal_add_s32x4( v3 ), res, 3 );
-  return res;
-#endif
-}
-
-static inline uint16x8_t vvdec_vpaddq_u16( uint16x8_t a, uint16x8_t b )
-{
-#if REAL_TARGET_AARCH64
-  return vpaddq_u16( a, b );
-#else
-  return vcombine_u16( vpadd_u16( vget_low_u16( a ), vget_high_u16( a ) ),
-                       vpadd_u16( vget_low_u16( b ), vget_high_u16( b ) ) );
-#endif
+  aOut = z2.val[0];
+  bOut = z2.val[1];
+  cOut = z3.val[0];
+  dOut = z3.val[1];
 }
 
 } // namespace vvdec

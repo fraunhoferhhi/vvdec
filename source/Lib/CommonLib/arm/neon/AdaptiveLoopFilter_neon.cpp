@@ -44,6 +44,10 @@ POSSIBILITY OF SUCH DAMAGE.
 #include "../AdaptiveLoopFilter.h"
 #include "CommonDefARM.h"
 #include "CommonLib/CommonDef.h"
+#include "mem_neon.h"
+#include "sum_neon.h"
+#include "tbl_neon.h"
+#include "transpose_neon.h"
 
 //! \ingroup CommonLib
 //! \{
@@ -570,9 +574,332 @@ void Filter5x5Blk_neon( const AlfClassifier*, const PelUnitBuf& recDst, const CP
   }
 }
 
+void DeriveClassificationBlk_neon( AlfClassifier* classifier, const CPelBuf& srcLuma, const Area& blk, const int shift,
+                                   int vbCTUHeight, int vbPos )
+{
+  static_assert( sizeof( AlfClassifier ) == 2, "ALFClassifier type must be 16 bits wide!" );
+  CHECKD( blk.width % 8, "Width must be multiple of 8!" );
+  CHECKD( blk.height % 4, "Height must be multiple of 4!" );
+
+  const ptrdiff_t stride = srcLuma.stride;
+  static constexpr int maxActivity = 15;
+
+  const int heightExtended = ( blk.height + 4 ) >> 1;
+  const int widthExtended = blk.width + 4;
+
+  static constexpr uint16_t mask[] = { 0xFFFFu, 0, 0xFFFFu, 0, 0xFFFFu, 0, 0xFFFFu, 0 };
+  const uint16x8_t even_odd_mask = vld1q_u16( mask );
+
+  // widthExtended is multiple of 4, when unrolling by 8,
+  // laplace buffer is long enough to hold widthExtended+4 pixels.
+  uint16_t laplacian[( AdaptiveLoopFilter::m_CLASSIFICATION_BLK_SIZE + 4 ) >> 1]
+                    [AdaptiveLoopFilter::m_CLASSIFICATION_BLK_SIZE + 8];
+
+  int pos = blk.pos().y - 2;
+
+  const Pel* src = srcLuma.buf + ( blk.y - 3 ) * stride + blk.x - 3;
+
+  // First pass - compute the laplacian values for each direction and store in laplacian[][].
+  int i = 0;
+  do
+  {
+    const Pel* src0 = src + 0 * stride; // row - 1
+    const Pel* src1 = src + 1 * stride; // row + 0
+    const Pel* src2 = src + 2 * stride; // row + 1
+    const Pel* src3 = src + 3 * stride; // row + 2
+    uint16_t* dst = &laplacian[i][0];
+
+    // When close to a vertical boundary between CTUs, must not read across that boundary.
+    // Instead, clamps the reference rows.
+    if( pos > 0 )
+    {
+      int posInCTU = pos & ( vbCTUHeight - 1 );
+      int distance = vbPos - posInCTU;
+
+      src0 = distance == 0 ? src1 : src0;
+      src3 = distance == 2 ? src2 : src3;
+    }
+    uint16x8_t prev = vdupq_n_u16( 0 );
+
+    int j = 0;
+    do
+    {
+      int16x8_t x0 = vld1q_s16( src0 ); // [ y0p0, y0p1, y0p2, y0p3, y0p4, y0p5, y0p6, y0p7 ]
+      int16x8_t x1 = vld1q_s16( src1 ); // [ y1p0, y1p1, y1p2, y1p3, y1p4, y1p5, y1p6, y1p7 ]
+      int16x8_t x2 = vld1q_s16( src2 ); // [ y2p0, y2p1, y2p2, y2p3, y2p4, y2p5, y2p6, y2p7 ]
+      int16x8_t x3 = vld1q_s16( src3 ); // [ y3p0, y3p1, y3p2, y3p3, y3p4, y3p5, y3p6, y3p7 ]
+
+      int16x8_t evenR0_oddR1 = vbslq_s16( even_odd_mask, x0, x1 ); // [ y0p0, y1p1, y0p2, y1p3, y0p4, y1p5, y0p6, y1p7 ]
+      int16x8_t evenR1_oddR2 = vbslq_s16( even_odd_mask, x1, x2 ); // [ y1p0, y2p1, y1p2, y2p3, y1p4, y2p5, y1p6, y2p7 ]
+      int16x8_t evenR2_oddR3 = vbslq_s16( even_odd_mask, x2, x3 ); // [ y2p0, y3p1, y2p2, y3p3, y2p4, y3p5, y2p6, y3p7 ]
+
+      int16x8_t x4 = vld1q_s16( src0 + 2 ); // [ y0p2, y0p3, y0p4, y0p5, y0p6, y0p7, y0p8, y0p9 ]
+      int16x8_t x5 = vld1q_s16( src1 + 2 ); // [ y1p2, y1p3, y1p4, y1p5, y1p6, y1p7, y1p8, y1p9 ]
+      int16x8_t x6 = vld1q_s16( src2 + 2 ); // [ y2p2, y2p3, y2p4, y2p5, y2p6, y2p7, y2p8, y2p9 ]
+      int16x8_t x7 = vld1q_s16( src3 + 2 ); // [ y3p2, y3p3, y3p4, y3p5, y3p6, y3p7, y3p8, y3p9 ]
+
+      int16x8_t evenR4_oddR5 = vbslq_s16( even_odd_mask, x4, x5 ); // [ y0p2, y1p3, y0p4, y1p5, y0p6, y1p7, y0p8, y1p9 ]
+      int16x8_t evenR5_oddR6 = vbslq_s16( even_odd_mask, x5, x6 ); // [ y1p2, y2p3, y1p4, y2p5, y1p6, y2p7, y1p8, y2p9 ]
+      int16x8_t evenR6_oddR7 = vbslq_s16( even_odd_mask, x6, x7 ); // [ y2p2, y3p3, y2p4, y3p5, y2p6, y3p7, y2p8, y3p9 ]
+      int16x8_t evenR5_oddR0 = vbslq_s16( even_odd_mask, x5, x0 ); // [ y1p2, y0p1, y1p4, y0p3, y1p6, y0p5, y1p8, y0p7 ]
+      int16x8_t evenR7_oddR2 = vbslq_s16( even_odd_mask, x7, x2 ); // [ y3p2, y2p1, y3p4, y2p3, y3p6, y2p5, y3p8, y2p7 ]
+      int16x8_t center = vbslq_s16( even_odd_mask, x6, x1 );       // [ y2p2, y1p1, y2p4, y1p3, y2p6, y1p5, y2p8, y1p7 ]
+
+      int16x8_t c = vshlq_n_s16( center, 1 );
+      int16x8_t d = vrev32q_s16( c );
+
+      int16x8_t r5r0_r7r2 = vaddq_s16( evenR5_oddR0, evenR7_oddR2 );
+      int16x8_t r1r2_r5r6 = vaddq_s16( evenR1_oddR2, evenR5_oddR6 );
+      int16x8_t r0r1_r6r7 = vaddq_s16( evenR0_oddR1, evenR6_oddR7 );
+      int16x8_t r4r5_r2r3 = vaddq_s16( evenR4_oddR5, evenR2_oddR3 );
+
+      // Calculate |2 * center − neighbor1 − neighbor2| (for two locations) summed.
+      // Vertical   : |2*center - (up + down)|
+      // Horizontal : |2*center - (left + right)|
+      // Diag0      : |2*center - (up-left + down-right)|
+      // Diag1      : |2*center - (up-right + down-left)|
+
+      // ver = [ abs(2*y2p2 - (y1p2 + y3p2)), abs(2*y1p1 - (y0p1 + y2p1)), => Lane 0+1 corresponds to vert at j=0
+      //         abs(2*y2p4 - (y1p4 + y3p4)), abs(2*y2p4 - (y1p4 + y3p4)), => Lane 2+3 corresponds to vert at j=2
+      //         abs(2*y2p6 - (y1p6 + y3p6)), abs(2*y1p5 - (y0p5 + y2p5)), => Lane 4+5 corresponds to vert at j=4
+      //         abs(2*y2p8 - (y1p8 + y3p8)), abs(2*y1p7 - (y0p7 + y2p7)) ]=> Lane 6+7 corresponds to vert at j=6
+      uint16x8_t ver = vreinterpretq_u16_s16( vabdq_s16( c, r5r0_r7r2 ) );
+
+      // hor = [ abs(2*y1p1 - (y1p0 + y1p2)), abs( 2*y2p2 - (y2p1 + y2p3)),  => Lane 0+1 corresponds to horiz at j=0
+      //         abs(2*y1p3 - (y1p2 + y1p4)), abs( 2*y2p4 - (y2p3 + y2p5)),  => Lane 2+3 corresponds to horiz at j=2
+      //         abs(2*y1p5 - (y1p4 + y1p6)), abs( 2*y2p6 - (y2p5 + y2p7)),  => Lane 4+5 corresponds to horiz at j=4
+      //         abs(2*y1p7 - (y1p6 + y1p8)), abs( 2*y2p8 - (y2p7 + y2p9)) ] => Lane 6+7 corresponds to horiz at j=6
+      uint16x8_t horiz = vreinterpretq_u16_s16( vabdq_s16( d, r1r2_r5r6 ) );
+
+      // diag0 = [ abs(2*y1p1 - (y0p0 + y2p2)), abs(2*y2p2 - (y1p1 + y3p3)),  => Lane 0+1 corresponds to diag0 at j=0
+      //           abs(2*y1p3 - (y0p2 + y2p4)), abs(2*y2p4 - (y1p3 + y3p5)),  => Lane 2+3 corresponds to diag0 at j=2
+      //           abs(2*y1p5 - (y0p4 + y2p6)), abs(2*y2p6 - (y1p5 + y3p7)),  => Lane 4+5 corresponds to diag0 at j=4
+      //           abs(2*y1p7 - (y0p6 + y2p8)), abs(2*y2p8 - (y1p7 + y3p9)) ] => Lane 6+7 corresponds to diag0 at j=6
+      uint16x8_t dig0 = vreinterpretq_u16_s16( vabdq_s16( d, r0r1_r6r7 ) );
+
+      // diag1 = [ abs(2*y1p1 - (y0p2 + y2p0)), abs(2*y2p2 - (y1p3 + y3p1)),  => Lane 0+1 corresponds to diag1 at j=0
+      //           abs(2*y1p3 - (y0p4 + y2p2)), abs(2*y2p4 - (y1p5 + y3p3)),  => Lane 2+3 corresponds to diag1 at j=2
+      //           abs(2*y1p5 - (y0p6 + y2p4)), abs(2*y2p6 - (y1p7 + y3p5)),  => Lane 4+5 corresponds to diag1 at j=4
+      //           abs(2*y1p7 - (y0p8 + y2p6)), abs(2*y2p8 - (y1p9 + y3p7)) ] => Lane 6+7 corresponds to diag1 at j=6
+      uint16x8_t dig1 = vreinterpretq_u16_s16( vabdq_s16( d, r4r5_r2r3 ) );
+
+      uint16x8_t hv = vvdec_vpaddq_u16( ver, horiz );
+      uint16x8_t d01 = vvdec_vpaddq_u16( dig0, dig1 );
+
+      // Sum 4 neighboring cells and store the result in the leftmost one.
+      // [ (V0+V1), (V2+V3), (H0+H1), (H2+H3), (D00+D01), (D02+D03), (D10+D11), (D12+D13) ]
+      uint16x8_t all = vvdec_vpaddq_u16( hv, d01 );
+
+      uint16x8_t t = vbslq_u16( even_odd_mask, all, prev ); //[ all0, prev1, all2, prev3, all4, prev5, all6, prev7 ]
+
+      // [ (V0+V1)+(old V2+V3), (H0+H1)+(old H2+H3), (D00+D01)+(old D02+D03), (D10+D11)+(old D12+D13),
+      //   (V0+V1+V2+V3), (H0+H1+H2+H3), (D00+D01+D02+D03), (D10+D11+D12+D13)
+      uint16x8_t out = vvdec_vpaddq_u16( t, all ); // for j == 0, out[0..3] are unused.
+
+      // laplacian[i][j] corresponds to [VER, HOR, DIAG0, DIAG1, VER, HOR, DIAG0, DIAG1]
+      vst1q_u16( dst, out );
+
+      prev = all;
+
+      src0 += 8;
+      src1 += 8;
+      src2 += 8;
+      src3 += 8;
+      dst += 8;
+      j += 8;
+    } while( j < widthExtended );
+
+    pos += 2;
+    src += stride * 2;
+  } while( ++i != heightExtended );
+
+  // Second pass.
+  static constexpr uint8_t th[16] = { 0, 1, 2, 2, 2, 2, 2, 3, 3, 3, 3, 3, 3, 3, 3, 4 };
+  const uint8x16_t tbl = vld1q_u8( th );
+
+  static constexpr uint8_t idx_arr[16] = { 0, 16, 4, 20, 8, 24, 12, 28, 0, 0, 0, 0, 0, 0, 0, 0 };
+  const uint8x16_t idx = vld1q_u8( idx_arr );
+
+  static constexpr int clsSizeY = 8;
+  static constexpr int clsSizeX = 8;
+
+  uint16_t* row0 = laplacian[0] + 4;
+  uint16_t* row1 = laplacian[1] + 4;
+  uint16_t* row2 = laplacian[2] + 4;
+  uint16_t* row3 = laplacian[3] + 4;
+  uint16_t* row4 = laplacian[4] + 4;
+  uint16_t* row5 = laplacian[5] + 4;
+
+  static constexpr int lapRowAdvance = ( clsSizeY >> 1 ) * ( AdaptiveLoopFilter::m_CLASSIFICATION_BLK_SIZE + 8 );
+
+  i = 0;
+  do
+  {
+    int yVbPos0 = ( i + blk.y ) & ( vbCTUHeight - 1 ); // Row’s position inside its CTU.
+    int distance0 = vbPos - yVbPos0;
+
+    int yVbPos1 = ( i + 4 + blk.y ) & ( vbCTUHeight - 1 );
+    int distance1 = vbPos - yVbPos1;
+
+    bool near0_vbPos = distance0 == 0;
+    bool near0_vbPosM4 = distance0 == 4;
+    bool near1_vbPos = distance1 == 0;
+    bool near1_vbPosM4 = distance1 == 4;
+
+    const uint16x8_t mask_x0 = near0_vbPos ? vdupq_n_u16( 0xFFFFu ) : vdupq_n_u16( 0 );
+    const uint16x8_t mask_x3 = near0_vbPosM4 ? vdupq_n_u16( 0xFFFFu ) : vdupq_n_u16( 0 );
+    const uint16x8_t mask_x4 = near1_vbPos ? vdupq_n_u16( 0xFFFFu ) : vdupq_n_u16( 0 );
+    const uint16x8_t mask_x7 = near1_vbPosM4 ? vdupq_n_u16( 0xFFFFu ) : vdupq_n_u16( 0 );
+
+    uint32_t scale0 = near0_vbPos || near0_vbPosM4 ? 96 : 64;
+    uint32_t scale1 = near1_vbPos || near1_vbPosM4 ? 96 : 64;
+    uint32_t scale[4] = { scale0, scale0, scale1, scale1 };
+    const uint32x4_t vScale = vld1q_u32( scale );
+
+    AlfClassifier* clPtr1 = &classifier[( i + 0 ) / 4 * ( AdaptiveLoopFilter::m_CLASSIFICATION_BLK_SIZE / 4 )];
+    AlfClassifier* clPtr2 = &classifier[( i + 4 ) / 4 * ( AdaptiveLoopFilter::m_CLASSIFICATION_BLK_SIZE / 4 )];
+
+    int j = 0;
+    do
+    {
+      uint16x8_t x0 = vld1q_u16( &row0[j] ); // [VER0, HOR0, DIAG00, DIAG10, VER1, HOR1, DIAG01, DIAG11]
+      uint16x8_t x1 = vld1q_u16( &row1[j] );
+      uint16x8_t x2 = vld1q_u16( &row2[j] );
+      uint16x8_t x3 = vld1q_u16( &row3[j] );
+      uint16x8_t x4 = x2; // [VER2, HOR2, DIAG02, DIAG12, VER3, HOR3, DIAG03, DIAG13] for second row.
+      uint16x8_t x5 = x3;
+      uint16x8_t x6 = vld1q_u16( &row4[j] );
+      uint16x8_t x7 = vld1q_u16( &row5[j] );
+
+      // Deal with vertical boundary crossing within the classification block.
+      // If the block is just above VB, use 3 rows above the boundary.
+      // If the block is just below VB, use 3 rows below the boundary.
+      // Otherwise, use all 4 rows.
+      x0 = vbicq_u16( x0, mask_x0 );
+      x3 = vbicq_u16( x3, mask_x3 );
+      x4 = vbicq_u16( x4, mask_x4 );
+      x7 = vbicq_u16( x7, mask_x7 );
+
+      uint32x4_t sum01_lo = vaddl_u16( vget_low_u16( x0 ), vget_low_u16( x1 ) );
+      uint32x4_t sum01_hi = vaddl_u16( vget_high_u16( x0 ), vget_high_u16( x1 ) );
+      uint32x4_t sum23_lo = vaddl_u16( vget_low_u16( x2 ), vget_low_u16( x3 ) );
+      uint32x4_t sum23_hi = vaddl_u16( vget_high_u16( x2 ), vget_high_u16( x3 ) );
+      uint32x4_t sum45_lo = vaddl_u16( vget_low_u16( x4 ), vget_low_u16( x5 ) );
+      uint32x4_t sum45_hi = vaddl_u16( vget_high_u16( x4 ), vget_high_u16( x5 ) );
+      uint32x4_t sum67_lo = vaddl_u16( vget_low_u16( x6 ), vget_low_u16( x7 ) );
+      uint32x4_t sum67_hi = vaddl_u16( vget_high_u16( x6 ), vget_high_u16( x7 ) );
+
+      uint32x4_t sum0123_lo = vaddq_u32( sum01_lo, sum23_lo ); // [VER0, HOR0, DIAG00, DIAG10]
+      uint32x4_t sum0123_hi = vaddq_u32( sum01_hi, sum23_hi ); // [VER1, HOR1, DIAG01, DIAG11]
+      uint32x4_t sum4567_lo = vaddq_u32( sum45_lo, sum67_lo ); // [VER2, HOR2, DIAG02, DIAG12]
+      uint32x4_t sum4567_hi = vaddq_u32( sum45_hi, sum67_hi ); // [VER3, HOR3, DIAG03, DIAG13]
+
+      uint32x4_t sumV, sumH, sumD0, sumD1;
+      transpose_4x4_u32( sum0123_lo, sum0123_hi, sum4567_lo, sum4567_hi, sumV, sumH, sumD0, sumD1 );
+
+      // After transpose, we have:
+      // sumV = [VER0, VER1, VER2, VER3]
+      // sumH = [HOR0, HOR1, HOR2, HOR3]
+      // sumD0 = [DIAG00, DIAG01, DIAG02, DIAG03]
+      // sumD1 = [DIAG10, DIAG11, DIAG12, DIAG13]
+
+      // Compare vertical vs horizontal, pick the stronger HV direction.
+      uint32x4_t hv1 = vmaxq_u32( sumV, sumH ); // Stronger of V/H.
+      uint32x4_t hv0 = vminq_u32( sumV, sumH ); // Weaker of V/H.
+
+      // Compare diagonal0 vs diagonal1, pick stronger diagonal direction.
+      uint32x4_t d1 = vmaxq_u32( sumD0, sumD1 ); // Stronger of D0/D1.
+      uint32x4_t d0 = vminq_u32( sumD0, sumD1 ); // Weaker of D0/D1.
+
+      // Check the mainDirection be the HV direction or the diagonal direction.
+      uint32x4_t hv0_d1 = vmulq_u32( hv0, d1 );
+      uint32x4_t hv1_d0 = vmulq_u32( hv1, d0 );
+      // d1 * hv0 > hv1 * d0
+      uint32x4_t mainDirection =
+          vcgeq_u32( hv1_d0, hv0_d1 ); // If H/V are more directional, mainDirection=0xFFFFFFFF, else 0x0.
+
+      uint32x4_t hvd1 = vbslq_u32( mainDirection, hv1, d1 );
+      uint32x4_t hvd0 = vbslq_u32( mainDirection, hv0, d0 );
+
+      uint32x4_t hvd1_n2 = vshlq_n_u32( hvd1, 1 );                                  // hvd1 * 2
+      uint32x4_t hvd0_n2 = vshlq_n_u32( hvd0, 1 );                                  // hvd0 * 2
+      uint32x4_t hvd0_n9 = vmulq_n_u32( hvd0, 9 );                                  // hvd0 * 9
+      int32x4_t strength1 = vreinterpretq_s32_u32( vcgtq_u32( hvd1, hvd0_n2 ) );    // hvd1 > 2 * hvd0
+      int32x4_t strength2 = vreinterpretq_s32_u32( vcgtq_u32( hvd1_n2, hvd0_n9 ) ); // hvd1 * 2 > 9 * hvd0
+      int32x4_t strengthSum = vaddq_s32( strength1, strength2 );
+
+      // If mainDirection is diagonal,
+      //    strength1 : add 5 to classIdx.
+      //    strength2 : add 10 to classIdx.
+      // If mainDirection is horizontal/vertical,
+      //    strength1 : add 15 to classIdx.
+      //    strength2 : add 20 to classIdx.
+      // Rewrite the logic as below (if strength2 is true, then strength1 is also true):
+      //    if( strength1 ) classIdx += 5.
+      //    if( strength2 ) classIdx += 5.
+      //    if( mainDirection == HV && strength1 ) classIdx += 10.
+
+      // mainDirection true means HV choosen.
+      int32x4_t cond3 = vandq_s32( vreinterpretq_s32_u32( mainDirection ), strength1 );
+
+      uint32x4_t activity = vaddq_u32( sumV, sumH );
+      activity = vmulq_u32( activity, vScale );
+      activity = vshlq_u32( activity, vdupq_n_s32( -shift ) );
+      activity = vminq_u32( activity, vdupq_n_u32( maxActivity ) ); // Range: [0..15]
+      uint8x16_t idx8 = vreinterpretq_u8_u32( activity );
+      // Upper 3 lanes are zeros, retrieves zero from tbl for those lanes, doesn't matter since they won't be used.
+      int32x4_t classIdx = vreinterpretq_s32_u8( vvdec_vqtbl1q_u8( tbl, idx8 ) ); // Range: [0..4]
+
+      classIdx = vmlsq_n_s32( classIdx, strengthSum, 5 );
+      classIdx = vmlsq_n_s32( classIdx, cond3, 10 );
+
+      // Calculate transposeIdx from mainDirection and secondaryDirection.
+      // For a pair of mainDirection and secondaryDirection, transposeIdx is unique.
+      // | mainDirection | secondaryDirection | transposeIdx |
+      // | ------------- | ------------------ | -----------  |
+      // | DIAG0 (0)     | V (1)              |  0           |
+      // | DIAG0 (0)     | H (3)              |  1           |
+      // | V (1)         | DIAG0 (0)          |  0           |
+      // | V (1)         | DIAG1 (2)          |  2           |
+      // | DIAG1 (2)     | V (1)              |  2           |
+      // | DIAG1 (2)     | H (3)              |  3           |
+      // | H (3)         | DIAG0 (0)          |  1           |
+      // | H (3)         | DIAG1 (2)          |  3           |
+
+      // If V stronger, hvMask = -1; if H stronger, hvMask = 0.
+      // If DIAG0 stronger, dMask = -1; if DIAG1 stronger, dMask = 0.
+      int32x4_t hvMask = vreinterpretq_s32_u32( vcgtq_u32( sumV, sumH ) );
+      int32x4_t dMask = vreinterpretq_s32_u32( vcgtq_u32( sumD0, sumD1 ) );
+
+      // transposeIdx = 3 + hvMask + 2 * dMask
+      int32x4_t transposeIdx = vaddq_s32( vaddq_s32( vdupq_n_s32( 3 ), hvMask ), vshlq_n_s32( dMask, 1 ) );
+
+      const uint8x16x2_t ct = { vreinterpretq_u8_s32( classIdx ), vreinterpretq_u8_s32( transposeIdx ) };
+      uint32x4_t classifier = vreinterpretq_u32_u8( vvdec_vqtbl2q_u8( ct, idx ) ); // [c0,t0,c1,t1,c2,t2,c3,t3]
+
+      // Lanes 2, 3 are unused.
+      store_unaligned_u32_4x1<0>( ( void* )clPtr1, classifier );
+      store_unaligned_u32_4x1<1>( ( void* )clPtr2, classifier );
+
+      clPtr1 += 2;
+      clPtr2 += 2;
+      j += clsSizeX;
+    } while( j < blk.width );
+
+    row0 += lapRowAdvance;
+    row1 += lapRowAdvance;
+    row2 += lapRowAdvance;
+    row3 += lapRowAdvance;
+    row4 += lapRowAdvance;
+    row5 += lapRowAdvance;
+    i += clsSizeY;
+  } while( i < blk.height );
+}
+
 template<>
 void AdaptiveLoopFilter::_initAdaptiveLoopFilterARM<NEON>()
 {
+  m_deriveClassificationBlk = DeriveClassificationBlk_neon;
   m_filter7x7Blk = Filter7x7Blk_neon;
   m_filter5x5Blk = Filter5x5Blk_neon;
 }
