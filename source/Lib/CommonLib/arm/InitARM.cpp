@@ -69,13 +69,9 @@ namespace vvdec
 void InterpolationFilter::initInterpolationFilterARM( /*int iBitDepthY, int iBitDepthC*/ )
 {
   auto vext = read_arm_extension_flags();
-  switch( vext )
+  if( vext >= NEON )
   {
-  case NEON:
     _initInterpolationFilterARM<NEON>( /*iBitDepthY, iBitDepthC*/ );
-    break;
-  default:
-    break;
   }
 }
 #  endif
@@ -84,13 +80,9 @@ void InterpolationFilter::initInterpolationFilterARM( /*int iBitDepthY, int iBit
 void PelBufferOps::initPelBufOpsARM()
 {
   auto vext = read_arm_extension_flags();
-  switch( vext )
+  if( vext >= NEON )
   {
-  case NEON:
     _initPelBufOpsARM<NEON>();
-    break;
-  default:
-    break;
   }
 }
 #  endif
@@ -99,13 +91,9 @@ void PelBufferOps::initPelBufOpsARM()
 void RdCost::initRdCostARM()
 {
   auto vext = read_arm_extension_flags();
-  switch( vext )
+  if( vext >= NEON )
   {
-  case NEON:
     _initRdCostARM<NEON>();
-    break;
-  default:
-    break;
   }
 }
 #  endif
@@ -114,13 +102,9 @@ void RdCost::initRdCostARM()
 void AdaptiveLoopFilter::initAdaptiveLoopFilterARM()
 {
   auto vext = read_arm_extension_flags();
-  switch( vext )
+  if( vext >= NEON )
   {
-  case NEON:
     _initAdaptiveLoopFilterARM<NEON>();
-    break;
-  default:
-    break;
   }
 }
 #endif
@@ -129,13 +113,9 @@ void AdaptiveLoopFilter::initAdaptiveLoopFilterARM()
 //void LoopFilter::initLoopFilterARM()
 //{
 //  auto vext = read_arm_extension_flags();
-//  switch( vext )
+//  if( vext >= NEON )
 //  {
-//  case NEON:
 //    _initLoopFilterARM<NEON>();
-//    break;
-//  default:
-//    break;
 //  }
 //}
 //#  endif
@@ -144,28 +124,18 @@ void AdaptiveLoopFilter::initAdaptiveLoopFilterARM()
 //void TCoeffOps::initTCoeffOpsARM()
 //{
 //  auto vext = read_arm_extension_flags();
-
-//  switch( vext )
+//  if( vext >= NEON )
 //  {
-//  case NEON:
 //    _initTCoeffOpsARM<NEON>();
-//    break;
-//  default:
-//    break;
 //  }
 //}
 
 //void TrQuant::initTrQuantARM()
 //{
 //  auto vext = read_arm_extension_flags();
-
-//  switch( vext )
+//  if( vext >= NEON )
 //  {
-//  case NEON:
 //    _initTrQuantARM<NEON>();
-//    break;
-//  default:
-//    break;
 //  }
 //}
 //#  endif
@@ -174,75 +144,50 @@ void AdaptiveLoopFilter::initAdaptiveLoopFilterARM()
 //void IntraPrediction::initIntraPredictionARM()
 //{
 //  auto vext = read_arm_extension_flags();
-//  switch( vext )
+//  if( vext >= NEON )
 //  {
-//  case NEON:
 //    _initIntraPredictionARM<NEON>();
-//    break;
-//  default:
-//    break;
 //  }
-//}
 //#  endif
 
 //#  if ENABLE_SIMD_OPT_SAO
 //void SampleAdaptiveOffset::initSampleAdaptiveOffsetARM()
 //{
 //  auto vext = read_arm_extension_flags();
-//  switch( vext )
+//  if( vext >= NEON )
 //  {
-//  case NEON:
 //    _initSampleAdaptiveOffsetARM<NEON>();
-//    break;
-//  default:
-//    break;
 //  }
-//}
 //#  endif
 
 //#  if ENABLE_SIMD_OPT_INTER
 //void InterPrediction::initInterPredictionARM()
 //{
 //  auto vext = read_arm_extension_flags();
-//  switch( vext )
+//  if( vext >= NEON )
 //  {
-//  case NEON:
 //    _initInterPredictionARM<NEON>();
-//    break;
-//  default:
-//    break;
 //  }
-//}
 //#  endif
 
 //#  if ENABLE_SIMD_OPT_PICTURE
 //void Picture::initPictureARM()
 //{
 //  auto vext = read_arm_extension_flags();
-//  switch( vext )
+//  if( vext >= NEON )
 //  {
-//  case NEON:
 //    _initPictureARM<NEON>();
-//    break;
-//  default:
-//    break;
 //  }
-//}
 //#  endif
 
 //#  if ENABLE_SIMD_OPT_QUANT
 //void Quant::initQuantARM()
 //{
 //  auto vext = read_arm_extension_flags();
-//  switch( vext )
+//  if( vext >= NEON )
 //  {
-//  case NEON:
 //    _initQuantARM<NEON>();
-//    break;
-//  default:
-//    break;
 //  }
-//}
 //#  endif
 
 #endif   // TARGET_SIMD_ARM
