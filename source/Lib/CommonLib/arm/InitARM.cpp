@@ -71,8 +71,14 @@ void InterpolationFilter::initInterpolationFilterARM( /*int iBitDepthY, int iBit
   auto vext = read_arm_extension_flags();
   if( vext >= NEON )
   {
-    _initInterpolationFilterARM<NEON>( /*iBitDepthY, iBitDepthC*/ );
+    _initInterpolationFilterARM<NEON>();
   }
+#if TARGET_SIMD_ARM_SVE
+  if( vext >= SVE )
+  {
+    _initInterpolationFilterARM<SVE>();
+  }
+#endif
 }
 #  endif
 
