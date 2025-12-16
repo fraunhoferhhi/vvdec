@@ -320,9 +320,9 @@ void prefetchPadCore( const Pel* src, const ptrdiff_t srcStride, Pel* dst, const
 
 
 InterPrediction::InterPrediction()
-  : BiOptFlow     ( BiOptFlowCore )
-  , BioGradFilter ( gradFilterCore )
+  : BioGradFilter ( gradFilterCore )
   , profGradFilter( gradFilterCore<false> )
+  , BiOptFlow     ( BiOptFlowCore )
   , roundIntVector( nullptr )
 {
   clipMv = clipMvInPic;
@@ -340,7 +340,7 @@ void InterPrediction::destroy()
   m_IBCBuffer.destroy();
 }
 
-void InterPrediction::init( RdCost* pcRdCost, ChromaFormat chromaFormatIDC, const int ctuSize )
+void InterPrediction::init( RdCost* pcRdCost, ChromaFormat chromaFormatIDC, const int ctuSize, bool enableOpt )
 {
   m_pcRdCost = pcRdCost;
 
@@ -371,9 +371,12 @@ void InterPrediction::init( RdCost* pcRdCost, ChromaFormat chromaFormatIDC, cons
     prefetchPad[0] = prefetchPadCore<2>; // luma
     prefetchPad[1] = prefetchPadCore<2>; // chroma for 444 and 422
     prefetchPad[2] = prefetchPadCore<1>; // chroma for 420
+    if( enableOpt )
+    {
 #if ENABLE_SIMD_OPT_INTER && defined( TARGET_SIMD_X86 )
-    initInterPredictionX86();
+      initInterPredictionX86();
 #endif
+    }
   }
 
   if( m_IBCBuffer.bufs.empty() )
