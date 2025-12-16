@@ -13,3 +13,4 @@
 * Philippe de Lagrange, @delagrangep, InterDigital
 * David Maseda Neira, ,
 * Athulya Raj Raji Mohini, @athulya-arm, Arm
+* Elias Balint, @balintelias, Arm
