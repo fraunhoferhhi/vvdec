@@ -48,6 +48,7 @@ POSSIBILITY OF SUCH DAMAGE.
 
 #include "CommonDefARM.h"
 #include "CommonLib/CommonDef.h"
+#include "CommonLib/InterPrediction.h"
 #include "CommonLib/InterpolationFilter.h"
 #include "CommonLib/TrQuant.h"
 #include "CommonLib/RdCost.h"
@@ -166,15 +167,16 @@ void AdaptiveLoopFilter::initAdaptiveLoopFilterARM()
 //  }
 //#  endif
 
-//#  if ENABLE_SIMD_OPT_INTER
-//void InterPrediction::initInterPredictionARM()
-//{
-//  auto vext = read_arm_extension_flags();
-//  if( vext >= NEON )
-//  {
-//    _initInterPredictionARM<NEON>();
-//  }
-//#  endif
+#if ENABLE_SIMD_OPT_INTER
+void InterPrediction::initInterPredictionARM()
+{
+  auto vext = read_arm_extension_flags();
+  if( vext >= NEON )
+  {
+    _initInterPredictionARM<NEON>();
+  }
+}
+#endif
 
 //#  if ENABLE_SIMD_OPT_PICTURE
 //void Picture::initPictureARM()
