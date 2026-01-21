@@ -46,6 +46,7 @@ POSSIBILITY OF SUCH DAMAGE.
 
 #include <stdint.h>
 #include <stdbool.h>
+#include <stdarg.h>
 
 #include "vvdec/sei.h"
 
