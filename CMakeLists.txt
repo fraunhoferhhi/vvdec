@@ -144,6 +144,15 @@ if( VVDEC_ENABLE_X86_SIMD )
   endif()
 endif()
 
+if( VVDEC_ENABLE_ARM_SIMD_SVE )
+  include (CheckSymbolExists)
+
+  check_symbol_exists(elf_aux_info "sys/auxv.h" HAVE_AUXV_ELF_AUX_INFO)
+  if( HAVE_AUXV_ELF_AUX_INFO )
+    add_compile_definitions( HAVE_ELF_AUX_INFO=1 )
+  endif()
+endif()
+
 if( VVDEC_TARGET_ARCH STREQUAL "WASM" )
   add_compile_options( -pthread )
   add_link_options(
