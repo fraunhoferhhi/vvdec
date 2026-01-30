@@ -1475,7 +1475,7 @@ NO_THREAD_SANITIZE void IntraPrediction::xGetLumaRecPixels(const CodingUnit &cu,
   {
     case CHROMA_422: //overwrite filter coefficient values for 422
       c0_3tap = 2, c1_3tap = 1, c2_3tap = 1,                                        offset_3tap = 2, shift_3tap = 2; //sum = 4
-      c0_5tap = 0, c1_5tap = 1, c2_5tap = 0, c3_5tap = 0, c4_5tap = 0,              offset_5tap = 0, shift_5tap = 0; //sum = 1
+      c0_5tap = 0, c1_5tap = 2, c2_5tap = 1, c3_5tap = 1, c4_5tap = 0,              offset_5tap = 2, shift_5tap = 2; //sum = 4
       c0_6tap = 2, c1_6tap = 1, c2_6tap = 1, c3_6tap = 0, c4_6tap = 0, c5_6tap = 0, offset_6tap = 2, shift_6tap = 2; //sum = 4
       break;
 
