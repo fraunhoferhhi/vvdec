@@ -52,6 +52,7 @@ POSSIBILITY OF SUCH DAMAGE.
 #include "../BufferARM.h"
 #include "CommonDefARM.h"
 #include "CommonLib/CommonDef.h"
+#include "tbl_neon.h"
 
 //! \ingroup CommonLib
 //! \{
@@ -188,6 +189,84 @@ void addAvg16_neon( const Pel* src0, ptrdiff_t src0Stride, const Pel* src1, ptrd
   } while( --height != 0 );
 }
 
+void rspFwdCore_neon( Pel* ptr, ptrdiff_t ptrStride, int width, int height, const int bd, const Pel OrgCW,
+                      const Pel* LmcsPivot, const Pel* ScaleCoeff, const Pel* InputPivot )
+{
+  int shift = getLog2( OrgCW );
+
+  if( ( width & 7 ) == 0 )
+  {
+    int8x16x2_t mLmcsPivot = vld2q_s8( ( const int8_t* )LmcsPivot );
+    int8x16x2_t mInputPivot = vld2q_s8( ( const int8_t* )InputPivot );
+    int8x16x2_t mScaleCoeff = vld2q_s8( ( const int8_t* )ScaleCoeff );
+
+    const int16x8_t mMin = vdupq_n_s16( 0 );
+    const int16x8_t mMax = vdupq_n_s16( ( 1 << bd ) - 1 );
+
+    const uint8_t idx4idx_array[16] = { 0, 2, 4, 6, 8, 10, 12, 14, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
+    const uint8x16_t idx4idx = vld1q_u8( idx4idx_array );
+
+    do
+    {
+      int w = 0;
+      do
+      {
+        const int16x8_t xsrc = vld1q_s16( &ptr[w] );
+
+        // ( idxY = ptr[w] >> shift ) range is [0, 15]. Convert idxY to 8-bit so we can use the 8-bit vqtbl1q lookup.
+        const uint8x16_t idxY =
+            vvdec_vqtbl1q_u8( vreinterpretq_u8_s16( vshlq_s16( xsrc, vdupq_n_s16( -shift ) ) ), idx4idx );
+
+        const int8x16_t xlmc_s8 =
+            vzipq_s8( vvdec_vqtbl1q_s8( mLmcsPivot.val[0], idxY ), vvdec_vqtbl1q_s8( mLmcsPivot.val[1], idxY ) ).val[0];
+        const int16x8_t xlmc = vreinterpretq_s16_s8( xlmc_s8 );
+
+        const int8x16_t xinp_s8 =
+            vzipq_s8( vvdec_vqtbl1q_s8( mInputPivot.val[0], idxY ), vvdec_vqtbl1q_s8( mInputPivot.val[1], idxY ) ).val[0];
+        const int16x8_t xinp = vreinterpretq_s16_s8( xinp_s8 );
+
+        const int8x16_t xscl_s8 =
+            vzipq_s8( vvdec_vqtbl1q_s8( mScaleCoeff.val[0], idxY ), vvdec_vqtbl1q_s8( mScaleCoeff.val[1], idxY ) ).val[0];
+        const int16x8_t xscl = vreinterpretq_s16_s8( xscl_s8 );
+
+        int16x8_t diff = vqsubq_s16( xsrc, xinp );
+
+        int32x4_t mul_lo = vmull_s16( vget_low_s16( diff ), vget_low_s16( xscl ) );
+        int32x4_t mul_hi = vmull_s16( vget_high_s16( diff ), vget_high_s16( xscl ) );
+
+        int16x8_t xtmp1 = vcombine_s16( vrshrn_n_s32( mul_lo, 11 ), vrshrn_n_s32( mul_hi, 11 ) );
+
+        xtmp1 = vaddq_s16( xlmc, xtmp1 );
+
+        xtmp1 = vminq_s16( xtmp1, mMax );
+        xtmp1 = vmaxq_s16( xtmp1, mMin );
+
+        vst1q_s16( &ptr[w], xtmp1 );
+
+        w += 8;
+      } while( w < width );
+      ptr += ptrStride;
+    } while( --height != 0 );
+  }
+  else
+  {
+    int idxY;
+
+#define RSP_FWD_OP( ADDR )                                                                                             \
+  {                                                                                                                    \
+    idxY = ptr[ADDR] >> shift;                                                                                         \
+    ptr[ADDR] = static_cast<Pel>( ClipBD<int>(                                                                         \
+        LmcsPivot[idxY] + ( ( ScaleCoeff[idxY] * ( ptr[ADDR] - InputPivot[idxY] ) + ( 1 << 10 ) ) >> 11 ), bd ) );     \
+  }
+#define RSP_FWD_INC ptr += ptrStride;
+
+    SIZE_AWARE_PER_EL_OP( RSP_FWD_OP, RSP_FWD_INC )
+
+#undef RSP_FWD_OP
+#undef RSP_FWD_INC
+  }
+}
+
 template<>
 void PelBufferOps::_initPelBufOpsARM<NEON>()
 {
@@ -195,9 +274,7 @@ void PelBufferOps::_initPelBufOpsARM<NEON>()
   addAvg8 = addAvg8_neon;
   addAvg16 = addAvg16_neon;
   applyLut = applyLut_SIMD<NEON>;
-#if __ARM_ARCH >= 8
-  rspFwd = rspFwdCore_SIMD<NEON>;
-#endif // __ARM_ARCH >= 8
+  rspFwd = rspFwdCore_neon;
 }
 
 } // namespace vvdec
