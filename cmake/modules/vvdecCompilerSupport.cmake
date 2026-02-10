@@ -121,14 +121,19 @@ int main() { return 0; }")
   endif()
 endfunction()
 
-# Check if the compiler supports the AArch64 SVE and SVE2 extensions, and set
+# Check if the compiler supports the AArch64 RDM, SVE, and SVE2 extensions, and set
 # variables for flags used to enable them to avoid duplication.
-function( set_if_compiler_supports_arm_extensions output_flag_sve output_flag_sve2 )
+function( set_if_compiler_supports_arm_extensions output_flag_rdm output_flag_sve output_flag_sve2 )
   if( NOT(( ${CMAKE_SYSTEM_PROCESSOR} MATCHES "arm64" ) OR
           ( ${CMAKE_SYSTEM_PROCESSOR} MATCHES "aarch64" )))
     return()
   endif()
   if( UNIX OR MINGW )
+    # Neon RDM is mandatory from Armv8.1-A.
+    set( _flag_rdm "-march=armv8.1-a" )
+    set_if_compiler_supports_flag( _rdm_supported "${_flag_rdm}" )
+    set( ${output_flag_rdm} "${_rdm_supported}" PARENT_SCOPE )
+
     # SVE is an optional feature from Armv8.2-A.
     set( _flag_sve "-march=armv8.2-a+sve" )
     _set_if_compiler_supports_sve_flag( _sve_supported "${_flag_sve}" )

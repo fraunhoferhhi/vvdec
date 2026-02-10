@@ -150,8 +150,9 @@ typedef enum
   VVDEC_SIMD_MAX      = VVDEC_SIMD_AVX2
 #elif defined( VVDEC_ARCH_ARM )
   VVDEC_SIMD_NEON     = 2,
-  VVDEC_SIMD_SVE      = 3,
-  VVDEC_SIMD_SVE2     = 4,
+  VVDEC_SIMD_NEON_RDM = 3,
+  VVDEC_SIMD_SVE      = 4,
+  VVDEC_SIMD_SVE2     = 5,
   VVDEC_SIMD_MAX      = VVDEC_SIMD_SVE2
 #elif defined( VVDEC_ARCH_WASM )
   VVDEC_SIMD_WASM     = 2,

@@ -196,7 +196,7 @@ public:
 #if defined( VVDEC_ARCH_X86 )
       std::cout << "\t\t [--simd <int>              ] : used simd extension (-1: auto, 0: scalar, 1: sse41, 2: sse42, 3: avx, 4: avx2) (default: -1)" << std::endl;
 #elif defined( VVDEC_ARCH_ARM )
-      std::cout << "\t\t [--simd <int>              ] : used simd extension (-1: auto, 0: scalar, 1: neon, 2: sve, 3: sve2) (default: -1)" << std::endl;
+      std::cout << "\t\t [--simd <int>              ] : used simd extension (-1: auto, 0: scalar, 1: neon, 2: neon_rdm, 3: sve, 4: sve2) (default: -1)" << std::endl;
 #elif defined( VVDEC_ARCH_WASM )
       std::cout << "\t\t [--simd <int>              ] : used simd extension (-1: auto, 0: scalar, 1: wasm-simd) (default: -1)" << std::endl;
 #endif
@@ -402,6 +402,7 @@ public:
             case VVDEC_SIMD_AVX2:      cll = "AVX2";      break;
 #elif defined (VVDEC_ARCH_ARM)
             case VVDEC_SIMD_NEON:      cll = "NEON";      break;
+            case VVDEC_SIMD_NEON_RDM:  cll = "NEON_RDM";  break;
             case VVDEC_SIMD_SVE:       cll = "SVE";       break;
             case VVDEC_SIMD_SVE2:      cll = "SVE2";      break;
 #elif defined (VVDEC_ARCH_WASM)

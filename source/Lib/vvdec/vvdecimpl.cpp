@@ -105,6 +105,7 @@ int VVDecImpl::init( const vvdecParams& params, vvdecCreateBufferCallback create
     {
     case VVDEC_SIMD_SCALAR:   read_arm_extension_flags( arm_simd::SCALAR );    break;
     case VVDEC_SIMD_NEON:     read_arm_extension_flags( arm_simd::NEON );      break;
+    case VVDEC_SIMD_NEON_RDM: read_arm_extension_flags( arm_simd::NEON_RDM );  break;
     case VVDEC_SIMD_SVE:      read_arm_extension_flags( arm_simd::SVE );       break;
     case VVDEC_SIMD_SVE2:     read_arm_extension_flags( arm_simd::SVE2 );      break;
     case VVDEC_SIMD_DEFAULT:
