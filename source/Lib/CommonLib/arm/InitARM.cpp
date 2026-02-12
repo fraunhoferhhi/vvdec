@@ -103,6 +103,12 @@ void PelBufferOps::initPelBufOpsARM()
     _initPelBufOpsARM<SVE>();
   }
 #endif
+#if TARGET_SIMD_ARM_SVE2
+  if( vext >= SVE2 )
+  {
+    _initPelBufOpsARM<SVE2>();
+  }
+#endif
 }
 #  endif
 
