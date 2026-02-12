@@ -43,7 +43,7 @@ POSSIBILITY OF SUCH DAMAGE.
 
 /**
  * \file Buffer_neon.cpp
- * \brief NEON buffer operations.
+ * \brief Neon buffer operations.
  */
 //  ====================================================================================================================
 //  Includes
@@ -57,7 +57,7 @@ POSSIBILITY OF SUCH DAMAGE.
 //! \ingroup CommonLib
 //! \{
 
-#if defined( TARGET_SIMD_ARM ) && ENABLE_SIMD_OPT_MCIF
+#if defined( TARGET_SIMD_ARM ) && ENABLE_SIMD_OPT_BUFFER
 
 namespace vvdec
 {
@@ -194,18 +194,18 @@ void rspFwdCore_neon( Pel* ptr, ptrdiff_t ptrStride, int width, int height, cons
 {
   int shift = getLog2( OrgCW );
 
+  const int8_t* lmcsPivotBytes = ( const int8_t* )LmcsPivot;
+  const int8_t* inputPivotBytes = ( const int8_t* )InputPivot;
+  const int8_t* scaleCoeffBytes = ( const int8_t* )ScaleCoeff;
+  const int8x16x2_t mLmcsPivot = vld1q_s8_x2( lmcsPivotBytes );
+  const int8x16x2_t mInputPivot = vld1q_s8_x2( inputPivotBytes );
+  const int8x16x2_t mScaleCoeff = vld1q_s8_x2( scaleCoeffBytes );
+
+  const int16x8_t mMin = vdupq_n_s16( 0 );
+  const int16x8_t mMax = vdupq_n_s16( ( 1 << bd ) - 1 );
+
   if( ( width & 7 ) == 0 )
   {
-    int8x16x2_t mLmcsPivot = vld2q_s8( ( const int8_t* )LmcsPivot );
-    int8x16x2_t mInputPivot = vld2q_s8( ( const int8_t* )InputPivot );
-    int8x16x2_t mScaleCoeff = vld2q_s8( ( const int8_t* )ScaleCoeff );
-
-    const int16x8_t mMin = vdupq_n_s16( 0 );
-    const int16x8_t mMax = vdupq_n_s16( ( 1 << bd ) - 1 );
-
-    const uint8_t idx4idx_array[16] = { 0, 2, 4, 6, 8, 10, 12, 14, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
-    const uint8x16_t idx4idx = vld1q_u8( idx4idx_array );
-
     do
     {
       int w = 0;
@@ -213,28 +213,27 @@ void rspFwdCore_neon( Pel* ptr, ptrdiff_t ptrStride, int width, int height, cons
       {
         const int16x8_t xsrc = vld1q_s16( &ptr[w] );
 
-        // ( idxY = ptr[w] >> shift ) range is [0, 15]. Convert idxY to 8-bit so we can use the 8-bit vqtbl1q lookup.
-        const uint8x16_t idxY =
-            vvdec_vqtbl1q_u8( vreinterpretq_u8_s16( vshlq_s16( xsrc, vdupq_n_s16( -shift ) ) ), idx4idx );
+        // ( idxY = ptr[w] >> shift ) range is [0, 15].
+        // Multiply by 2 so we can use vqtbl2q lookup with 32-byte (16 * 2) tables.
+        uint8x16_t idxY = vreinterpretq_u8_s16( vshlq_s16( xsrc, vdupq_n_s16( -shift ) ) );
+        idxY = vshlq_n_u8( idxY, 1 );
+        idxY = vtrnq_u8( idxY, vaddq_u8( idxY, vdupq_n_u8( 1 ) ) ).val[0]; // Add 1 for odd positions.
 
-        const int8x16_t xlmc_s8 =
-            vzipq_s8( vvdec_vqtbl1q_s8( mLmcsPivot.val[0], idxY ), vvdec_vqtbl1q_s8( mLmcsPivot.val[1], idxY ) ).val[0];
+        const int8x16_t xlmc_s8 = vvdec_vqtbl2q_s8( mLmcsPivot, idxY );
         const int16x8_t xlmc = vreinterpretq_s16_s8( xlmc_s8 );
 
-        const int8x16_t xinp_s8 =
-            vzipq_s8( vvdec_vqtbl1q_s8( mInputPivot.val[0], idxY ), vvdec_vqtbl1q_s8( mInputPivot.val[1], idxY ) ).val[0];
+        const int8x16_t xinp_s8 = vvdec_vqtbl2q_s8( mInputPivot, idxY );
         const int16x8_t xinp = vreinterpretq_s16_s8( xinp_s8 );
 
-        const int8x16_t xscl_s8 =
-            vzipq_s8( vvdec_vqtbl1q_s8( mScaleCoeff.val[0], idxY ), vvdec_vqtbl1q_s8( mScaleCoeff.val[1], idxY ) ).val[0];
+        const int8x16_t xscl_s8 = vvdec_vqtbl2q_s8( mScaleCoeff, idxY );
         const int16x8_t xscl = vreinterpretq_s16_s8( xscl_s8 );
 
         int16x8_t diff = vqsubq_s16( xsrc, xinp );
 
-        int32x4_t mul_lo = vmull_s16( vget_low_s16( diff ), vget_low_s16( xscl ) );
-        int32x4_t mul_hi = vmull_s16( vget_high_s16( diff ), vget_high_s16( xscl ) );
-
-        int16x8_t xtmp1 = vcombine_s16( vrshrn_n_s32( mul_lo, 11 ), vrshrn_n_s32( mul_hi, 11 ) );
+        // vqrdmulhq uses Q15 rounding: (a * b) >> 15. We need (diff * xscl) >> 11,
+        // so pre-scale diff by 2^4 to make (diff << 4) * xscl >> 15 == diff * xscl >> 11.
+        int16x8_t diff_shift4 = vshlq_n_s16( diff, 4 );
+        int16x8_t xtmp1 = vqrdmulhq_s16( diff_shift4, xscl );
 
         xtmp1 = vaddq_s16( xlmc, xtmp1 );
 
@@ -248,22 +247,45 @@ void rspFwdCore_neon( Pel* ptr, ptrdiff_t ptrStride, int width, int height, cons
       ptr += ptrStride;
     } while( --height != 0 );
   }
-  else
+  else // width == 4
   {
-    int idxY;
+    CHECKD( width != 4, "rspFwdCore_neon else path expects width == 4" );
 
-#define RSP_FWD_OP( ADDR )                                                                                             \
-  {                                                                                                                    \
-    idxY = ptr[ADDR] >> shift;                                                                                         \
-    ptr[ADDR] = static_cast<Pel>( ClipBD<int>(                                                                         \
-        LmcsPivot[idxY] + ( ( ScaleCoeff[idxY] * ( ptr[ADDR] - InputPivot[idxY] ) + ( 1 << 10 ) ) >> 11 ), bd ) );     \
-  }
-#define RSP_FWD_INC ptr += ptrStride;
+    do
+    {
+      const int16x4_t xsrc = vld1_s16( ptr );
 
-    SIZE_AWARE_PER_EL_OP( RSP_FWD_OP, RSP_FWD_INC )
+      // ( idxY = ptr[w] >> shift ) range is [0, 15].
+      // Multiply by 2 so we can use vqtbl2 lookup with 32-byte (16 * 2) tables.
+      uint8x8_t idxY = vreinterpret_u8_s16( vshl_s16( xsrc, vdup_n_s16( -shift ) ) );
+      idxY = vshl_n_u8( idxY, 1 );
+      idxY = vtrn_u8( idxY, vadd_u8( idxY, vdup_n_u8( 1 ) ) ).val[0]; // Add 1 for odd positions.
 
-#undef RSP_FWD_OP
-#undef RSP_FWD_INC
+      const int8x8_t xlmc_s8 = vvdec_vqtbl2_s8( mLmcsPivot, idxY );
+      const int16x4_t xlmc = vreinterpret_s16_s8( xlmc_s8 );
+
+      const int8x8_t xinp_s8 = vvdec_vqtbl2_s8( mInputPivot, idxY );
+      const int16x4_t xinp = vreinterpret_s16_s8( xinp_s8 );
+
+      const int8x8_t xscl_s8 = vvdec_vqtbl2_s8( mScaleCoeff, idxY );
+      const int16x4_t xscl = vreinterpret_s16_s8( xscl_s8 );
+
+      int16x4_t diff = vqsub_s16( xsrc, xinp );
+
+      // vqrdmulh uses Q15 rounding: (a * b) >> 15. We need (diff * xscl) >> 11,
+      // so pre-scale diff by 2^4 to make (diff << 4) * xscl >> 15 == diff * xscl >> 11.
+      int16x4_t diff_shift4 = vshl_n_s16( diff, 4 );
+      int16x4_t xtmp1 = vqrdmulh_s16( diff_shift4, xscl );
+
+      xtmp1 = vadd_s16( xlmc, xtmp1 );
+
+      xtmp1 = vmin_s16( xtmp1, vget_low_s16( mMax ) );
+      xtmp1 = vmax_s16( xtmp1, vget_low_s16( mMin ) );
+
+      vst1_s16( ptr, xtmp1 );
+
+      ptr += ptrStride;
+    } while( --height != 0 );
   }
 }
 
@@ -278,5 +300,5 @@ void PelBufferOps::_initPelBufOpsARM<NEON>()
 }
 
 } // namespace vvdec
-#endif // defined( TARGET_SIMD_ARM ) && ENABLE_SIMD_OPT_MCIF
+#endif // defined( TARGET_SIMD_ARM ) && ENABLE_SIMD_OPT_BUFFER
 //! \}

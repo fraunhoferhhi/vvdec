@@ -87,6 +87,39 @@ static inline int8x16_t vvdec_vqtbl1q_s8( int8x16_t table, uint8x16_t index )
 #endif // REAL_TARGET_AARCH64
 }
 
+static inline int8x8_t vvdec_vqtbl2_s8( int8x16x2_t table, uint8x8_t index )
+{
+#if REAL_TARGET_AARCH64
+  return vqtbl2_s8( table, index );
+#else
+  int8x8x4_t t;
+  t.val[0] = vget_low_s8( table.val[0] );
+  t.val[1] = vget_high_s8( table.val[0] );
+  t.val[2] = vget_low_s8( table.val[1] );
+  t.val[3] = vget_high_s8( table.val[1] );
+
+  return vtbl4_s8( t, vreinterpret_s8_u8( index ) );
+#endif // REAL_TARGET_AARCH64
+}
+
+static inline int8x16_t vvdec_vqtbl2q_s8( int8x16x2_t table, uint8x16_t index )
+{
+#if REAL_TARGET_AARCH64
+  return vqtbl2q_s8( table, index );
+#else
+  int8x8x4_t t;
+  t.val[0] = vget_low_s8( table.val[0] );
+  t.val[1] = vget_high_s8( table.val[0] );
+  t.val[2] = vget_low_s8( table.val[1] );
+  t.val[3] = vget_high_s8( table.val[1] );
+
+  int8x8_t lo = vtbl4_s8( t, vreinterpret_s8_u8( vget_low_u8( index ) ) );
+  int8x8_t hi = vtbl4_s8( t, vreinterpret_s8_u8( vget_high_u8( index ) ) );
+
+  return vcombine_s8( lo, hi );
+#endif // REAL_TARGET_AARCH64
+}
+
 } // namespace vvdec
 
 #endif
