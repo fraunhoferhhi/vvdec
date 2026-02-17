@@ -97,6 +97,12 @@ void PelBufferOps::initPelBufOpsARM()
     _initPelBufOpsARM<NEON_RDM>();
   }
 #endif
+#if TARGET_SIMD_ARM_SVE
+  if( vext >= SVE )
+  {
+    _initPelBufOpsARM<SVE>();
+  }
+#endif
 }
 #  endif
 
