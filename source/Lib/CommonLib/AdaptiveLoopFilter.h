@@ -58,6 +58,9 @@ namespace vvdec
 #if defined(TARGET_SIMD_X86)  && ENABLE_SIMD_OPT_ALF
 using namespace x86_simd;
 #endif
+#if defined(TARGET_SIMD_ARM)  && ENABLE_SIMD_OPT_ALF
+using namespace arm_simd;
+#endif
   
 class APS;
 struct CtuAlfData;

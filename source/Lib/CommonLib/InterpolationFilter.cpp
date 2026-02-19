@@ -981,7 +981,6 @@ void InterpolationFilter::filterWxH_N8( const ClpRng& clpRng, const Pel* src, co
 template<int N>
 void InterpolationFilter::filterHor(const ClpRng& clpRng, const Pel* src, const ptrdiff_t srcStride, Pel* dst, const ptrdiff_t dstStride, int width, int height, bool isLast, TFilterCoeff const *coeff)
 {
-//#if ENABLE_SIMD_OPT_MCIF
   if( N == 8 )
   {
     m_filterHor[0][1][isLast]( clpRng, src, srcStride, dst, dstStride, width, height, coeff );
@@ -1018,7 +1017,6 @@ void InterpolationFilter::filterHor(const ClpRng& clpRng, const Pel* src, const 
 template<int N>
 void InterpolationFilter::filterVer( const ClpRng& clpRng, const Pel* src, const ptrdiff_t srcStride, Pel* dst, const ptrdiff_t dstStride, int width, int height, bool isFirst, bool isLast, TFilterCoeff const *coeff )
 {
-//#if ENABLE_SIMD_OPT_MCIF
   if( N == 8 )
   {
     m_filterVer[0][isFirst][isLast]( clpRng, src, srcStride, dst, dstStride, width, height, coeff );
