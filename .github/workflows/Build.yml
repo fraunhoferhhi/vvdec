@@ -42,7 +42,7 @@ jobs:
             run_unit_test: true
 
           - toolset: v145
-            os: windows-2025-vs2026
+            os: windows-11-arm
             msvc_arch: arm64
     steps:
       - uses: actions/checkout@v4
@@ -129,10 +129,12 @@ jobs:
           - os: ubuntu-24.04-arm
             compiler: [aarch64-linux-gnu-gcc, aarch64-linux-gnu-g++]
             install_packages: g++-aarch64-linux-gnu
+            run_unit_test: true
 
           - os: ubuntu-24.04-arm
             compiler: [arm-linux-gnueabihf-gcc, arm-linux-gnueabihf-g++]
             install_packages: g++-arm-linux-gnueabihf
+            run_unit_test: true
     env:
       CMAKE_GENERATOR: "${{ matrix.generator || 'Ninja' }}"
       CC: ${{ matrix.compiler[0] }}
