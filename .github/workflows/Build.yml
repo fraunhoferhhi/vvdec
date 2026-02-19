@@ -31,6 +31,11 @@ jobs:
             os: windows-latest
             msvc_arch: x64
 
+          - toolset: v143
+            os: windows-11-arm
+            msvc_arch: arm64
+            run_unit_test: true
+
           - toolset: v145
             os: windows-2025-vs2026
             msvc_arch: x64
@@ -41,8 +46,8 @@ jobs:
             msvc_arch: Win32
             run_unit_test: true
 
-          - toolset: v143
-            os: windows-11-arm
+          - toolset: v145
+            os: windows-2025-vs2026
             msvc_arch: arm64
     steps:
       - uses: actions/checkout@v4
