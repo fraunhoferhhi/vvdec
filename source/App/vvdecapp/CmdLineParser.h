@@ -195,9 +195,9 @@ public:
       std::cout << "\t\t [--parsedelay,-p  <int>    ] : maximal number of frames to read before decoding (default: <= 0 auto detection )" << std::endl;
 #if defined( VVDEC_ARCH_X86 )
       std::cout << "\t\t [--simd <int>              ] : used simd extension (-1: auto, 0: scalar, 1: sse41, 2: sse42, 3: avx, 4: avx2) (default: -1)" << std::endl;
-#elif defined( VVDEC_ARCH_ARM)
-      std::cout << "\t\t [--simd <int>              ] : used simd extension (-1: auto, 0: scalar, 1: neon) (default: -1)" << std::endl;
-#elif defined(VVDEC_ARCH_WASM)
+#elif defined( VVDEC_ARCH_ARM )
+      std::cout << "\t\t [--simd <int>              ] : used simd extension (-1: auto, 0: scalar, 1: neon, 2: sve, 3: sve2) (default: -1)" << std::endl;
+#elif defined( VVDEC_ARCH_WASM )
       std::cout << "\t\t [--simd <int>              ] : used simd extension (-1: auto, 0: scalar, 1: wasm-simd) (default: -1)" << std::endl;
 #endif
       std::cout << "\t\t [--errHandling,-eh <int>   ] : error handling flags ( 0: off, 1: try continue ) (default: " << rcParams.errHandlingFlags << ")" << std::endl;
@@ -402,6 +402,8 @@ public:
             case VVDEC_SIMD_AVX2:      cll = "AVX2";      break;
 #elif defined (VVDEC_ARCH_ARM)
             case VVDEC_SIMD_NEON:      cll = "NEON";      break;
+            case VVDEC_SIMD_SVE:       cll = "SVE";       break;
+            case VVDEC_SIMD_SVE2:      cll = "SVE2";      break;
 #elif defined (VVDEC_ARCH_WASM)
             case VVDEC_SIMD_WASM:      cll = "WASM-SIMD"; break;
 #elif defined (VVDEC_ARCH_LOONGARCH)
