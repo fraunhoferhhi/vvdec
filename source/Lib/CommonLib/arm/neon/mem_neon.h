@@ -40,8 +40,8 @@ POSSIBILITY OF SUCH DAMAGE.
 
 ------------------------------------------------------------------------------------------- */
 
-/** \file     sum_neon.h
-    \brief    Helper functions for adding across vectors
+/** \file     mem_neon.h
+    \brief    Helper functions for loading and storing vectors
 */
 
 #pragma once
@@ -54,43 +54,12 @@ POSSIBILITY OF SUCH DAMAGE.
 
 namespace vvdec
 {
-
-static inline int horizontal_add_s32x4( const int32x4_t a )
+template<int Lane>
+inline void store_unaligned_u32_4x1( void* dst, uint32x4_t src )
 {
-#if REAL_TARGET_AARCH64
-  return vaddvq_s32( a );
-#else
-  const int64x2_t b = vpaddlq_s32( a );
-  const int32x2_t c = vadd_s32( vreinterpret_s32_s64( vget_low_s64( b ) ), vreinterpret_s32_s64( vget_high_s64( b ) ) );
-  return vget_lane_s32( c, 0 );
-#endif
-}
-
-static inline int32x4_t horizontal_add_4d_s32x4( const int32x4_t v0, const int32x4_t v1, const int32x4_t v2,
-                                                 const int32x4_t v3 )
-{
-#if REAL_TARGET_AARCH64
-  int32x4_t v01 = vpaddq_s32( v0, v1 );
-  int32x4_t v23 = vpaddq_s32( v2, v3 );
-  return vpaddq_s32( v01, v23 );
-#else
-  int32x4_t res = vdupq_n_s32( 0 );
-  res = vsetq_lane_s32( horizontal_add_s32x4( v0 ), res, 0 );
-  res = vsetq_lane_s32( horizontal_add_s32x4( v1 ), res, 1 );
-  res = vsetq_lane_s32( horizontal_add_s32x4( v2 ), res, 2 );
-  res = vsetq_lane_s32( horizontal_add_s32x4( v3 ), res, 3 );
-  return res;
-#endif
-}
-
-static inline uint16x8_t vvdec_vpaddq_u16( uint16x8_t a, uint16x8_t b )
-{
-#if REAL_TARGET_AARCH64
-  return vpaddq_u16( a, b );
-#else
-  return vcombine_u16( vpadd_u16( vget_low_u16( a ), vget_high_u16( a ) ),
-                       vpadd_u16( vget_low_u16( b ), vget_high_u16( b ) ) );
-#endif
+  static_assert( Lane >= 0 && Lane < 4, "Lane must be in [0,3]" );
+  uint32_t a = vgetq_lane_u32( src, Lane );
+  ::memcpy( dst, &a, sizeof( uint32_t ) );
 }
 
 } // namespace vvdec
