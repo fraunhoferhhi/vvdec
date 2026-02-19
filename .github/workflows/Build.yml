@@ -9,7 +9,7 @@ on:
 
 jobs:
   build_msvc:
-    name: "Windows MSVC: ${{ matrix.toolset }} ${{ matrix.msvc_arch }}"
+    name: "Windows MSVC: ${{ matrix.toolset }} ${{ matrix.msvc_arch }} ${{ matrix.run_unit_test && '+Test' }}"
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -68,7 +68,7 @@ jobs:
           ctest --test-dir build/static --build-config Release --output-on-failure -R unit_test
 
   build_unix:
-    name: "${{ matrix.name || matrix.os }} ${{ matrix.compiler[1] || matrix.osx_arch }}"
+    name: "${{ matrix.name || matrix.os }} ${{ matrix.compiler[1] || matrix.osx_arch }} ${{ matrix.run_unit_test && '+Test' }}"
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
