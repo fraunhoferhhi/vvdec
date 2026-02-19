@@ -29,7 +29,10 @@ target_include_directories( ${EXE_NAME}
     "${VVDEC_LIB_DIR}"
     "${VVDEC_LIB_DIR}/CommonLib"
     "${VVDEC_LIB_DIR}/CommonLib/x86"
-    "${CMAKE_CURRENT_SOURCE_DIR}/../../thirdparty/"
+)
+target_include_directories( ${EXE_NAME}
+   SYSTEM PRIVATE
+    "../../thirdparty/"
 )
 
 target_link_libraries( ${EXE_NAME} Threads::Threads vvdec )
@@ -44,3 +47,6 @@ source_group( "Resource Files" FILES ${RESOURCE_FILE} )
 
 # set the folder where to place the projects
 set_target_properties( ${EXE_NAME} PROPERTIES FOLDER tests )
+
+add_test( NAME vvdec_unit_test COMMAND ${VVDEC_TESTS_DEBUGGER_COMMAND} $<TARGET_FILE:${EXE_NAME}> )
+set_tests_properties( vvdec_unit_test PROPERTIES TIMEOUT 120 )

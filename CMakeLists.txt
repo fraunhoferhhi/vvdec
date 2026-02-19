@@ -116,6 +116,14 @@ if( VVDEC_TARGET_ARCH STREQUAL "AARCH64" )
   else()
     message( STATUS "AArch64 SVE2 intrinsics disabled" )
   endif()
+
+
+  if( MSVC AND MSVC_VERSION GREATER_EQUAL 1950 )
+    message(WARNING "This version (>= 19.50) of the Microsoft ARM compiler produces incorrect SIMD"
+            " code. The functions observed to be problematic are disabled in the code, but if you"
+            " experience further problems with incorrectly decoded bitstreams on ARM64, try using"
+            " an older toolset (<= v143)." )
+   endif()
 endif()
 
 if( VVDEC_TARGET_ARCH STREQUAL "ARM" )
@@ -448,6 +456,9 @@ set( VVDEC_LIB_DIR "${CMAKE_CURRENT_SOURCE_DIR}/source/Lib" )
 add_subdirectory( "source/Lib/vvdec" )
 add_subdirectory( "source/App/vvdecapp" )
 
+# enable testing with ctest
+enable_testing()
+
 if( NOT BUILD_SHARED_LIBS )
   add_subdirectory( "tests/vvdec_unit_test" )
 endif()
@@ -475,9 +486,6 @@ if( VVDEC_ENABLE_BITSTREAM_DOWNLOAD )
     math( EXPR COUNTER "${COUNTER}+1" )
   endforeach()
 endif()
-
-# enable testing with ctest
-enable_testing()
 
 if( VVDEC_LIBRARY_ONLY )
   message( WARNING "The test suite will not be able to run, when building the vvdec library only (VVDEC_LIBRARY_ONLY=ON)" )
@@ -517,8 +525,10 @@ foreach( BITSTREAM IN LISTS BITSTREAM_FILES )
   if( EXISTS ${BITSTREAM_FILE} )
     read_bitstream_yuv_md5( ${BITSTREAM_FILE} RX_MD5_HASH )
     add_test( NAME Test:${BITSTREAM_SHORT}.bit COMMAND ${VVDEC_TESTS_DEBUGGER_COMMAND} $<TARGET_FILE:vvdecapp> ${VVDEC_TESTS_EXTRA_ARGS} -b ${BITSTREAM_FILE} -md5 ${RX_MD5_HASH} )
+    set_property( TEST Test:${BITSTREAM_SHORT}.bit PROPERTY REQUIRED_FILES ${BITSTREAM_FILE} )
   else()
     add_test( NAME MISSING:${BITSTREAM_SHORT}.bit COMMAND ${VVDEC_TESTS_DEBUGGER_COMMAND} $<TARGET_FILE:vvdecapp> ${VVDEC_TESTS_EXTRA_ARGS} -b ${BITSTREAM_FILE} -dph )
+    set_property( TEST MISSING:${BITSTREAM_SHORT}.bit PROPERTY REQUIRED_FILES ${BITSTREAM_FILE} )
 
     set( MISSING_BITSTREAM_FILES TRUE )
   endif()
