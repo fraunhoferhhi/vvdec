@@ -31,12 +31,16 @@ jobs:
             os: windows-latest
             msvc_arch: x64
 
-          - toolset: v143
-            os: windows-latest
+          - toolset: v145
+            os: windows-2025-vs2026
+            msvc_arch: x64
+
+          - toolset: v145
+            os: windows-2025-vs2026
             msvc_arch: Win32
 
-          - toolset: v143
-            os: windows-latest
+          - toolset: v145
+            os: windows-2025-vs2026
             msvc_arch: arm64
     steps:
       - uses: actions/checkout@v4
