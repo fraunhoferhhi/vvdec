@@ -126,11 +126,11 @@ jobs:
 #          - os: ubuntu-24.04
 #            compiler: [clang-19, clang++-19]
 
-          - os: ubuntu-24.04
+          - os: ubuntu-24.04-arm
             compiler: [aarch64-linux-gnu-gcc, aarch64-linux-gnu-g++]
             install_packages: g++-aarch64-linux-gnu
 
-          - os: ubuntu-24.04
+          - os: ubuntu-24.04-arm
             compiler: [arm-linux-gnueabihf-gcc, arm-linux-gnueabihf-g++]
             install_packages: g++-arm-linux-gnueabihf
     env:
