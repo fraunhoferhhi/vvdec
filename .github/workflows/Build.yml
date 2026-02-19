@@ -73,9 +73,11 @@ jobs:
 
           - os: macos-latest
             osx_arch: x86_64
+            run_unit_test: true
 
           - os: macos-latest
             osx_arch: arm64
+            run_unit_test: true
 
 
           - os: ubuntu-22.04
@@ -89,6 +91,7 @@ jobs:
 
           - os: ubuntu-24.04
             compiler: [gcc-14, g++-14]
+            run_unit_test: true
 
 
           - os: ubuntu-22.04
@@ -150,6 +153,11 @@ jobs:
         run: |
           cmake -S . -B build/shared -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=1 "-DCMAKE_OSX_ARCHITECTURES=${{ matrix.osx_arch }}"
           cmake --build build/shared
+
+      - name: Run Unit Tests
+        if: ${{ matrix.run_unit_test }}
+        run: |
+          ctest --test-dir build/static -R unit_test
 
       - uses: actions/cache/save@v4
         with:
