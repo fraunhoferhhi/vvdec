@@ -41,7 +41,7 @@ jobs:
             msvc_arch: Win32
             run_unit_test: true
 
-          - toolset: v145
+          - toolset: v143
             os: windows-11-arm
             msvc_arch: arm64
     steps:
@@ -131,10 +131,9 @@ jobs:
             install_packages: g++-aarch64-linux-gnu
             run_unit_test: true
 
-          - os: ubuntu-24.04-arm
+          - os: ubuntu-24.04
             compiler: [arm-linux-gnueabihf-gcc, arm-linux-gnueabihf-g++]
             install_packages: g++-arm-linux-gnueabihf
-            run_unit_test: true
     env:
       CMAKE_GENERATOR: "${{ matrix.generator || 'Ninja' }}"
       CC: ${{ matrix.compiler[0] }}
