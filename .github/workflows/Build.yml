@@ -154,10 +154,10 @@ jobs:
         with:
           packages: ccache ${{ matrix.install_packages }}
 
-      - uses: actions/cache/restore@v4
+      - uses: actions/cache/restore@v5
         with:
           path: .ccache
-          key: ccache-${{ matrix.os }}-${{ matrix.compiler[0] }}
+          key: ccache-{{ matrix.name || matrix.os }}-${{ matrix.compiler[1] || matrix.osx_arch }}
 
       - name: Static build
         run: |
@@ -173,7 +173,7 @@ jobs:
         run: |
           ctest --test-dir build/static --output-on-failure -R unit_test
 
-      - uses: actions/cache/save@v4
+      - uses: actions/cache/save@v5
         with:
           path: .ccache
-          key: ccache-${{ matrix.os }}-${{ matrix.compiler[0] }}
+          key: ccache-{{ matrix.name || matrix.os }}-${{ matrix.compiler[1] || matrix.osx_arch }}
