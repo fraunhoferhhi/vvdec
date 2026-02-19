@@ -6,7 +6,7 @@ the Software are granted under this license.
 
 The Clear BSD License
 
-Copyright (c) 2018-2024, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. & The VVdeC Authors.
+Copyright (c) 2018-2026, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. & The VVdeC Authors.
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without modification,
@@ -122,9 +122,7 @@ CodingUnit& CodingStructure::addCU( const UnitArea &unit, const ChannelType chTy
 {
   CodingUnit *cu = m_cuCache.get();
 
-  GCC_WARNING_DISABLE_class_memaccess
-  memset( cu, 0, sizeof( CodingUnit ) );
-  GCC_WARNING_RESET
+  memset( NO_WARNING_class_memaccess( cu ), 0, sizeof( CodingUnit ) );
 
   cu->minInit    ( unit );
   cu->cs         = this;
@@ -210,9 +208,7 @@ TransformUnit& CodingStructure::addTU( const UnitArea &unit, const ChannelType c
   {
     tu = m_tuCache.get();
 
-    GCC_WARNING_DISABLE_class_memaccess
-    memset( tu, 0, sizeof( TransformUnit ) );
-    GCC_WARNING_RESET
+    memset( NO_WARNING_class_memaccess( tu ), 0, sizeof( TransformUnit ) );
 
     cu.lastTU->next = tu;
     cu.lastTU       = tu;
@@ -334,11 +330,9 @@ void CodingStructure::initStructData()
   m_ctuWidthLog2[0] = pcv->maxCUWidthLog2 - unitScale[CH_L].posx;
   m_ctuWidthLog2[1] = m_ctuWidthLog2[0]; // same for luma and chroma, because of the 2x2 blocks
 
-  GCC_WARNING_DISABLE_class_memaccess
-  memset( m_ctuData,             0, sizeof( CtuData             ) * m_ctuDataSize );
-  memset( m_cuMap,               0, sizeof( CodingUnit*         ) * m_cuMapSize );
-  memset( m_colMiMap, CO_NOT_VALID, sizeof( ColocatedMotionInfo ) * m_colMiMapSize );
-  GCC_WARNING_RESET
+  memset( NO_WARNING_class_memaccess( m_ctuData ),             0, sizeof( CtuData             ) * m_ctuDataSize );
+  memset( NO_WARNING_class_memaccess( m_cuMap ),               0, sizeof( CodingUnit*         ) * m_cuMapSize );
+  memset( NO_WARNING_class_memaccess( m_colMiMap ), CO_NOT_VALID, sizeof( ColocatedMotionInfo ) * m_colMiMapSize );
 
   const ptrdiff_t ctuSampleSizeL  = pcv->maxCUHeight * pcv->maxCUWidth;
   const ptrdiff_t ctuSampleSizeC  = isChromaEnabled( pcv->chrFormat ) ? ( ctuSampleSizeL >> ( getChannelTypeScaleX( CH_C, pcv->chrFormat) + getChannelTypeScaleY( CH_C, pcv->chrFormat ) ) ) : 0;

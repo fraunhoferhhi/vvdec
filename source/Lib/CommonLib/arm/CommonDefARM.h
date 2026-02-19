@@ -6,7 +6,7 @@ the Software are granted under this license.
 
 The Clear BSD License
 
-Copyright (c) 2018-2024, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. & The VVdeC Authors.
+Copyright (c) 2018-2026, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. & The VVdeC Authors.
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without modification,
@@ -45,6 +45,8 @@ POSSIBILITY OF SUCH DAMAGE.
 
 #pragma once
 
+#include <string>
+
 #include "CommonDef.h"
 
 #if defined(TARGET_SIMD_ARM) && ENABLE_SIMD_OPT
@@ -57,8 +59,11 @@ namespace vvdec
 {
 using namespace arm_simd;
 
-ARM_VEXT read_arm_extension_flags( ARM_VEXT request = arm_simd::UNDEFINED );
-// std::string read_arm_extension_name();
+const std::string& arm_vext_to_string( ARM_VEXT vext );
+ARM_VEXT           string_to_arm_vext( const std::string& ext_name );
+
+ARM_VEXT           read_arm_extension_flags( ARM_VEXT request = arm_simd::UNDEFINED );
+const std::string& read_arm_extension_name();
 
 }   // namespace vvdec
 

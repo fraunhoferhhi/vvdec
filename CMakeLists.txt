@@ -7,9 +7,9 @@ cmake_minimum_required( VERSION 3.12.0 FATAL_ERROR )
 cmake_policy( VERSION ${CMAKE_MAJOR_VERSION}.${CMAKE_MINOR_VERSION} )
 
 # project name
-project( vvdec VERSION 3.0.0 )
+project( vvdec VERSION 3.2.0 )
 # set alternative version numbering for release candidates
-#set( PROJECT_VERSION_RC rc3 )
+set( PROJECT_VERSION_RC dev )
 if( PROJECT_VERSION_RC )
     set( PROJECT_VERSION "${PROJECT_VERSION}-${PROJECT_VERSION_RC}" )
 endif()
@@ -27,8 +27,17 @@ message( STATUS "CMAKE_MODULE_PATH: updating module path to: ${CMAKE_MODULE_PATH
 include( vvdecCompilerSupport )
 
 detect_target_architecture( VVDEC_TARGET_ARCH )
-if( VVDEC_TARGET_ARCH STREQUAL "ARM" )
+if( VVDEC_TARGET_ARCH MATCHES "ARM\|AARCH64" )
   set( VVDEC_ARM_SIMD_DEFAULT TRUE )
+
+  # Avoid non-portable type casting in Arm vector kernels.
+  if( CMAKE_CXX_COMPILER_ID STREQUAL "Clang" )
+    set( CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fno-lax-vector-conversions" )
+    set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-lax-vector-conversions" )
+  endif()
+
+  # Check if SVE/SVE2 flags are supported by the compiler.
+  set_if_compiler_supports_arm_extensions( FLAG_sve FLAG_sve2 )
 endif()
 
 if( VVDEC_TARGET_ARCH MATCHES "LOONGARCH64" )
@@ -36,9 +45,11 @@ if( VVDEC_TARGET_ARCH MATCHES "LOONGARCH64" )
 endif()
 
 # we enable x86 intrinsics for all target architectures, because they are implemented through simd-everywhere on non-x86
-set( VVDEC_ENABLE_X86_SIMD   TRUE                      CACHE BOOL "enable x86 intrinsics" )
-set( VVDEC_ENABLE_ARM_SIMD   ${VVDEC_ARM_SIMD_DEFAULT} CACHE BOOL "enable ARM intrinsics" )
-set( VVDEC_ENABLE_LOONGARCH64_LSX_SIMD  ${VVDEC_LOONGARCH64_SIMD_DEFAULT} CACHE BOOL "enable loongarch64 LSX intrinsics" )
+set( VVDEC_ENABLE_X86_SIMD TRUE                      CACHE BOOL "Enable x86 intrinsics" )
+set( VVDEC_ENABLE_ARM_SIMD ${VVDEC_ARM_SIMD_DEFAULT} CACHE BOOL "Enable Arm intrinsics" )
+set( VVDEC_ENABLE_ARM_SIMD_SVE ${FLAG_sve}           CACHE BOOL "Enable Arm SVE intrinsics" )
+set( VVDEC_ENABLE_ARM_SIMD_SVE2 FALSE                CACHE BOOL "Enable Arm SVE2 intrinsics" )
+set( VVDEC_ENABLE_LOONGARCH64_LSX_SIMD  ${VVDEC_LOONGARCH64_SIMD_DEFAULT} CACHE BOOL "Enable loongarch64 LSX intrinsics" )
 
 set( VVDEC_ENABLE_TRACING      FALSE                   CACHE BOOL "Compile in tracing functionality" )
 
@@ -64,38 +75,90 @@ if( VVDEC_ENABLE_X86_SIMD )
   endif()
 
   message( STATUS "x86 SIMD intrinsics enabled (using SIMDE for non-x86 targets)" )
-  add_compile_definitions( TARGET_SIMD_X86 )
+  add_compile_definitions( TARGET_SIMD_X86=1 )
 
   # This potentially brings performance improvements for simd-everywhere, but I haven't
   # seen any, so it's disabled for now (GH)
   #set_if_compiler_supports_flag( FLAG_openmp_simd -fopenmp-simd )
   #add_compile_options( ${FLAG_openmp_simd} )
+endif()
 
-  if( VVDEC_TARGET_ARCH STREQUAL "ARM" )
-    set_if_compiler_supports_flag( FLAG_mfpu_neon -mfpu=neon  )
-    set_if_compiler_supports_flag( FLAG_mfloat_abi_hard -mfloat-abi=hard  )
-    add_compile_options( ${FLAG_mfpu_neon} ${FLAG_mfloat_abi_hard} )
+if( VVDEC_TARGET_ARCH STREQUAL "AARCH64" )
+  if( VVDEC_ENABLE_ARM_SIMD )
+    message( STATUS "AArch64 Neon intrinsics enabled" )
+    add_compile_definitions( TARGET_SIMD_ARM=1 )
+  else()
+    message( STATUS "AArch64 Neon intrinsics disabled" )
   endif()
 
+  if( VVDEC_ENABLE_ARM_SIMD_SVE )
+    # If Neon is disabled or SVE is not supported, make sure that SVE is disabled.
+    if ( NOT VVDEC_ENABLE_ARM_SIMD OR NOT FLAG_sve )
+      message( STATUS "Disabling AArch64 SVE intrinsics" )
+      set( VVDEC_ENABLE_ARM_SIMD_SVE FALSE )
+    else()
+      message( STATUS "AArch64 SVE intrinsics enabled" )
+      add_compile_definitions( TARGET_SIMD_ARM_SVE=1 )
+    endif()
+  else()
+    message( STATUS "AArch64 SVE intrinsics disabled" )
+  endif()
+
+  if( VVDEC_ENABLE_ARM_SIMD_SVE2 )
+    # If SVE is disabled or SVE2 is not supported, make sure that SVE2 is disabled.
+    if ( NOT VVDEC_ENABLE_ARM_SIMD_SVE OR NOT FLAG_sve2 )
+      message( STATUS "Disabling AArch64 SVE2 intrinsics" )
+      set( VVDEC_ENABLE_ARM_SIMD_SVE2 FALSE )
+    else()
+      message( STATUS "AArch64 SVE2 intrinsics enabled" )
+      add_compile_definitions( TARGET_SIMD_ARM_SVE2=1 )
+    endif()
+  else()
+    message( STATUS "AArch64 SVE2 intrinsics disabled" )
+  endif()
+
+
+  if( MSVC AND MSVC_VERSION GREATER_EQUAL 1950 )
+    message(WARNING "This version (>= 19.50) of the Microsoft ARM compiler produces incorrect SIMD"
+            " code. The functions observed to be problematic are disabled in the code, but if you"
+            " experience further problems with incorrectly decoded bitstreams on ARM64, try using"
+            " an older toolset (<= v143)." )
+   endif()
+endif()
+
+if( VVDEC_TARGET_ARCH STREQUAL "ARM" )
+  if( VVDEC_ENABLE_ARM_SIMD )
+    message( STATUS "Arm Neon intrinsics enabled" )
+    add_compile_definitions( TARGET_SIMD_ARM=1 )
+
+    # When building for 32-bit Arm platforms with SIMD, unconditionally enable Neon.
+    set_if_compiler_supports_flag( FLAG_mfpu_neon -mfpu=neon )
+    add_compile_options( ${FLAG_mfpu_neon} )
+  else()
+    message( STATUS "Arm Neon intrinsics disabled" )
+  endif()
+endif()
+
+if( VVDEC_ENABLE_X86_SIMD )
   if( VVDEC_TARGET_ARCH STREQUAL "LOONGARCH64" )
     if( VVDEC_ENABLE_LOONGARCH64_LSX_SIMD )
       set_if_compiler_supports_flag( FLAG_mlsx -mlsx )
-      set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${FLAG_mlsx}")
-      set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${FLAG_mlsx}")
-      message( STATUS "LoongArch64 lsx intrinsics enabled" )
+      set( CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${FLAG_mlsx}" )
+      set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${FLAG_mlsx}" )
+      message( STATUS "LoongArch64 LSX intrinsics enabled" )
     else()
-      message( STATUS "LoongArch64 lsx intrinsics disabled" )
+      message( STATUS "LoongArch64 LSX intrinsics disabled" )
     endif()
   endif()
 endif()
 
-if( VVDEC_ENABLE_ARM_SIMD )
-  message( STATUS "ARM SIMD intrinsics enabled" )
-  add_compile_definitions( TARGET_SIMD_ARM )
+if( VVDEC_ENABLE_ARM_SIMD_SVE )
+  include (CheckSymbolExists)
 
-  set_if_compiler_supports_flag( FLAG_mfpu_neon -mfpu=neon  )
-  set_if_compiler_supports_flag( FLAG_mfloat_abi_hard -mfloat-abi=hard  )
-  add_compile_options( ${FLAG_mfpu_neon} ${FLAG_mfloat_abi_hard} )
+  check_symbol_exists(elf_aux_info "sys/auxv.h" HAVE_AUXV_ELF_AUX_INFO)
+  if( HAVE_AUXV_ELF_AUX_INFO )
+    add_compile_definitions( HAVE_ELF_AUX_INFO=1 )
+  endif()
 endif()
 
 if( VVDEC_TARGET_ARCH STREQUAL "WASM" )
@@ -129,6 +192,8 @@ add_compile_options( "$<$<OR:$<CXX_COMPILER_ID:Clang>,$<CXX_COMPILER_ID:AppleCla
 add_compile_options( "$<$<CXX_COMPILER_ID:GNU>:-Wall;-Wno-unused-function;-Wno-sign-compare;-fdiagnostics-show-option;-Wno-ignored-attributes;-pedantic;-Wno-error=pedantic>" )
 add_compile_options( "$<$<CXX_COMPILER_ID:MSVC>:/W4;/wd4100;/wd4127;/wd4244;/wd4245;/wd4389;/wd4456;/wd4457;/wd4458;/wd4459;/wd4505;/wd4701;/wd4702;/wd4703>" )
 
+# enable warnings for clang, that xcode enables by default
+add_compile_options( "$<$<CXX_COMPILER_ID:Clang>:-Wshorten-64-to-32>" )
 
 if( NOT CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR )
   # set exception handling
@@ -168,11 +233,12 @@ set( VVDEC_ENABLE_LINK_TIME_OPT             ON  CACHE BOOL   "Enable link time o
 
 set( VVDEC_ENABLE_WERROR                    ON  CACHE BOOL   "Treat warnings as errors (-Werror or /WX)" )
 
+set( VVDEC_USE_ADDRESS_SANITIZER            OFF CACHE BOOL   "Enable or disable address sanitizer" )
+
 if( CMAKE_CXX_COMPILER_ID STREQUAL "GNU" OR
     CMAKE_CXX_COMPILER_ID STREQUAL "Clang" )
 
-  # enable address sanitizer
-  set( VVDEC_USE_ADDRESS_SANITIZER          OFF CACHE BOOL   "Enable or disable address sanitizer" )
+  # enable thread sanitizer
   set( VVDEC_USE_THREAD_SANITIZER           OFF CACHE BOOL   "Enable or disable thread sanitizer" )
 
   # add -march=native
@@ -272,15 +338,22 @@ endif()
 
 # set address sanitizer compiler arguments
 if( VVDEC_USE_ADDRESS_SANITIZER )
-  # add compile options
-  add_compile_options( "-fsanitize=address" )
-  add_compile_options( "-fsanitize=undefined" )
-  add_compile_options( "-fsanitize=leak" )
-  add_compile_options( "-fno-omit-frame-pointer" )
-  add_link_options( "-fsanitize=address" )
-  add_link_options( "-fsanitize=undefined" )
-  add_link_options( "-fsanitize=leak" )
-  add_link_options( "-fno-omit-frame-pointer" )
+  if( CMAKE_CXX_COMPILER_ID STREQUAL "GNU" OR
+    CMAKE_CXX_COMPILER_ID STREQUAL "Clang" )
+    message( STATUS "enabled GNU/Clang address sanitizer" )
+    # add compile options
+    add_compile_options( "-fsanitize=address" )
+    add_compile_options( "-fsanitize=undefined" )
+    add_compile_options( "-fsanitize=leak" )
+    add_compile_options( "-fno-omit-frame-pointer" )
+    add_link_options( "-fsanitize=address" )
+    add_link_options( "-fsanitize=undefined" )
+    add_link_options( "-fsanitize=leak" )
+    add_link_options( "-fno-omit-frame-pointer" )
+  elseif(MSVC)  
+    message( STATUS "enabled MSVC address sanitizer" )
+    add_compile_options( "/fsanitize=address" )
+   endif()  
 endif()
 
 # set thread sanitizer compiler arguments
@@ -378,8 +451,17 @@ if( BUILD_SHARED_LIBS AND NOT WIN32 )
   message( STATUS "VVDEC_INSTALL_RPATH=${VVDEC_INSTALL_RPATH}" )
 endif()
 
+set( VVDEC_LIB_DIR "${CMAKE_CURRENT_SOURCE_DIR}/source/Lib" )
+
 add_subdirectory( "source/Lib/vvdec" )
 add_subdirectory( "source/App/vvdecapp" )
+
+# enable testing with ctest
+enable_testing()
+
+if( NOT BUILD_SHARED_LIBS )
+  add_subdirectory( "tests/vvdec_unit_test" )
+endif()
 
 # create a list of all test bitstreams in variable BITSTREAM_FILES
 # also defines BITSTREAM_URL_BASE
@@ -393,7 +475,7 @@ if( VVDEC_ENABLE_BITSTREAM_DOWNLOAD )
 
   # download and uncompress
   set( COUNTER 1 )
-  foreach( BITSTREAM_ZIP IN LISTS BITSTREAM_FILES BITSTREAM_FAULTY_FILES )
+  foreach( BITSTREAM_ZIP IN LISTS BITSTREAM_FILES )
     string( REGEX REPLACE ".*/(.*)\\..*" "\\1" SUB_DIR "${BITSTREAM_URL_BASE}/${BITSTREAM_ZIP}" )
     set( BITSTREAM_INSTALL_DIR "${BITSTREAM_INSTALL_DIR_BASE}/${SUB_DIR}" )
     string( REGEX REPLACE "(.*).zip" "\\1" BITSTREAM_SHORT "${BITSTREAM_ZIP}" )
@@ -404,9 +486,6 @@ if( VVDEC_ENABLE_BITSTREAM_DOWNLOAD )
     math( EXPR COUNTER "${COUNTER}+1" )
   endforeach()
 endif()
-
-# enable testing with ctest
-enable_testing()
 
 if( VVDEC_LIBRARY_ONLY )
   message( WARNING "The test suite will not be able to run, when building the vvdec library only (VVDEC_LIBRARY_ONLY=ON)" )
@@ -420,7 +499,7 @@ function( read_bitstream_yuv_md5 BITSTREAM_FILE OUT_MD5_HASH )
   set( ${OUT_MD5_HASH} ${MD5_HASH} PARENT_SCOPE )
 endfunction()
 
-if( UNIX AND NOT VVDEC_USE_ADDRESS_SANITIZER AND
+if( UNIX AND NOT VVDEC_USE_ADDRESS_SANITIZER AND NOT VVDEC_USE_THREAD_SANITIZER AND
     ( CMAKE_BUILD_TYPE STREQUAL "Debug" OR CMAKE_BUILD_TYPE STREQUAL "RelWithDebInfo" ) )
     # run Debug and RelWithDebInfo test suite in GDB and collect backtrace on crashes
     set( VVDEC_TESTS_DEBUGGER_COMMAND gdb --batch --return-child-result --nx
@@ -436,6 +515,8 @@ else()
     set( VVDEC_TESTS_DEBUGGER_COMMAND "" CACHE STRING "provide a command wrapper (e.g. debugger) to run the tests." )
 endif()
 
+set( VVDEC_TESTS_EXTRA_ARGS           "" CACHE STRING "provide extra arguments to vvdecapp (e.g. --simd=0) when running the test suite." )
+
 # add tests for bitstreams
 foreach( BITSTREAM IN LISTS BITSTREAM_FILES )
   string( REGEX REPLACE "(.*).zip" "\\1" BITSTREAM_SHORT "${BITSTREAM}" )
@@ -443,23 +524,11 @@ foreach( BITSTREAM IN LISTS BITSTREAM_FILES )
 
   if( EXISTS ${BITSTREAM_FILE} )
     read_bitstream_yuv_md5( ${BITSTREAM_FILE} RX_MD5_HASH )
-    add_test( NAME Test:${BITSTREAM_SHORT}.bit COMMAND ${VVDEC_TESTS_DEBUGGER_COMMAND} $<TARGET_FILE:vvdecapp> -b ${BITSTREAM_FILE} -md5 ${RX_MD5_HASH} )
+    add_test( NAME Test:${BITSTREAM_SHORT}.bit COMMAND ${VVDEC_TESTS_DEBUGGER_COMMAND} $<TARGET_FILE:vvdecapp> ${VVDEC_TESTS_EXTRA_ARGS} -b ${BITSTREAM_FILE} -md5 ${RX_MD5_HASH} )
+    set_property( TEST Test:${BITSTREAM_SHORT}.bit PROPERTY REQUIRED_FILES ${BITSTREAM_FILE} )
   else()
-    add_test( NAME MISSING:${BITSTREAM_SHORT}.bit COMMAND ${VVDEC_TESTS_DEBUGGER_COMMAND} $<TARGET_FILE:vvdecapp> -b ${BITSTREAM_FILE} -dph )
-
-    set( MISSING_BITSTREAM_FILES TRUE )
-  endif()
-endforeach()
-
-foreach( BITSTREAM IN LISTS BITSTREAM_FAULTY_FILES )
-  string( REGEX REPLACE "(.*).zip" "\\1" BITSTREAM_SHORT "${BITSTREAM}" )
-  set( BITSTREAM_FILE "${BITSTREAM_INSTALL_DIR_BASE}/${BITSTREAM_SHORT}/${BITSTREAM_SHORT}.bit" )
-
-  if( EXISTS ${BITSTREAM_FILE} )
-    read_bitstream_yuv_md5( ${BITSTREAM_FILE} RX_MD5_HASH )
-    add_test( NAME Faulty:${BITSTREAM_SHORT}.bit COMMAND ${VVDEC_TESTS_DEBUGGER_COMMAND} $<TARGET_FILE:vvdecapp> -b ${BITSTREAM_FILE} -dph -md5 ${RX_MD5_HASH} )
-  else()
-    add_test( NAME MISSING:${BITSTREAM_SHORT}.bit COMMAND ${VVDEC_TESTS_DEBUGGER_COMMAND} $<TARGET_FILE:vvdecapp> -b ${BITSTREAM_FILE} -dph )
+    add_test( NAME MISSING:${BITSTREAM_SHORT}.bit COMMAND ${VVDEC_TESTS_DEBUGGER_COMMAND} $<TARGET_FILE:vvdecapp> ${VVDEC_TESTS_EXTRA_ARGS} -b ${BITSTREAM_FILE} -dph )
+    set_property( TEST MISSING:${BITSTREAM_SHORT}.bit PROPERTY REQUIRED_FILES ${BITSTREAM_FILE} )
 
     set( MISSING_BITSTREAM_FILES TRUE )
   endif()
@@ -470,8 +539,7 @@ set_tests_properties( ${ALL_TESTS} PROPERTIES
                       TIMEOUT 120
                       FAIL_REGULAR_EXPRESSION "(WARNING:|runtime error)" )
 
-add_custom_target( test-ok  USES_TERMINAL COMMAND ${CMAKE_CTEST_COMMAND} -C $<CONFIG> -R "\"^(Test|MISSING)\"" )
-add_custom_target( test-all USES_TERMINAL COMMAND ${CMAKE_CTEST_COMMAND} -C $<CONFIG> -R "\"^(Test|MISSING|Faulty)\"" )
+add_custom_target( run_tests USES_TERMINAL COMMAND ${CMAKE_CTEST_COMMAND} -C $<CONFIG> )
 
 if( MISSING_BITSTREAM_FILES )
   message( STATUS "Some bitstream files are missing." )

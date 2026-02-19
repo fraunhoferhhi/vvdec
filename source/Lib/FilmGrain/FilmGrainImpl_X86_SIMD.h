@@ -6,7 +6,7 @@ the Software are granted under this license.
 
 The Clear BSD License
 
-Copyright (c) 2018-2024, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. & The VVdeC Authors.
+Copyright (c) 2018-2026, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. & The VVdeC Authors.
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without modification,
@@ -217,7 +217,7 @@ void FilmGrainImplX86<CURR_X86_VEXT>::make_grain_pattern( const void* I,
       }
       vindex=_mm256_cvtepi16_epi32 (vintensity);
 #endif
-      vP = _mm_loadl_epi64( (__m128i*) &pattern[1][0][oy][ox] );
+      vP = _mm_loadu_si64( (__m128i*) &pattern[1][0][oy][ox] );
 
       if( s == -1 )
       {
@@ -231,7 +231,7 @@ void FilmGrainImplX86<CURR_X86_VEXT>::make_grain_pattern( const void* I,
         // p*oc1
         vPlo = _mm_mullo_epi16( vPlo, voc1 );   // max 16 Bit
         // pattern * s_up
-        __m128i vP2 = _mm_loadl_epi64( (__m128i*) &pattern[c ? 1 : 0][0][oy_up][ox_up] );
+        __m128i vP2 = _mm_loadu_si64( (__m128i*) &pattern[c ? 1 : 0][0][oy_up][ox_up] );
         if( s_up == -1 )
         {
           vP2 = _mm_sub_epi8( _mm_set1_epi8( 0 ), vP2 );
@@ -409,11 +409,11 @@ void FilmGrainImplX86<CURR_X86_VEXT>::scale_and_output( void* I, int c, int x, i
         __m128i vfac = _mm_set_epi16( 0, 0, 0, 1, 1, 3, 1, 1 );
         if( c == 0 )
         {
-          vgrain = _mm_loadl_epi64( (__m128i*) &grain[0][16 - 2] );   // r1 r0 l0 l1
+          vgrain = _mm_loadu_si64( (__m128i*) &grain[0][16 - 2] );   // r1 r0 l0 l1
         }
         else
         {
-          vgrain = _mm_loadl_epi64( (__m128i*) &grain[c][8 - 2] );   // r1 r0 l0 l1
+          vgrain = _mm_loadu_si64( (__m128i*) &grain[c][8 - 2] );   // r1 r0 l0 l1
         }
         __m128i vgrainh = _mm_mullo_epi16( vgrain, vfac );           // r1 3*r0  l0 l1
         vgrainh         = _mm_srli_si128( vgrainh, 2 );              //     r1 3+r0 l0
@@ -591,7 +591,7 @@ void FilmGrainImplX86<CURR_X86_VEXT>::scale_and_output( void* I, int c, int x, i
       else
       {
         __m128i vgrain = _mm_lddqu_si128( (__m128i*) &grain[c][8] );
-        __m128i vscale = _mm_loadl_epi64( (__m128i*) &scale[c][8] );
+        __m128i vscale = _mm_loadu_si64( (__m128i*) &scale[c][8] );
         _mm_storeu_si128( (__m128i*) &grain[c][0], vgrain );
         _mm_storel_epi64( (__m128i*) &scale[c][0], vscale );
       }

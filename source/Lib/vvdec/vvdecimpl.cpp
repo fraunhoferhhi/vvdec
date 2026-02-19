@@ -6,7 +6,7 @@ the Software are granted under this license.
 
 The Clear BSD License
 
-Copyright (c) 2018-2024, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. & The VVdeC Authors.
+Copyright (c) 2018-2026, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. & The VVdeC Authors.
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without modification,
@@ -1060,6 +1060,16 @@ int VVDecImpl::xAddPicture( Picture* pcPic )
 
   cFrame.picAttributes->seqInfo->maxWidth  = pcPic->cs->sps->getMaxPicWidthInLumaSamples();
   cFrame.picAttributes->seqInfo->maxHeight = pcPic->cs->sps->getMaxPicHeightInLumaSamples();
+  int32_t maxReorderPics = 0;
+  uint32_t maxLatencyIncreasePlus1 = 0;
+  for(uint32_t i = 0; i < sps->getMaxTLayers(); i++) {
+    maxReorderPics = std::max(maxReorderPics, sps->getNumReorderPics(i));
+    maxLatencyIncreasePlus1 = std::max(maxLatencyIncreasePlus1, sps->getMaxLatencyIncreasePlus1(i));
+  }
+
+  cFrame.picAttributes->seqInfo->maxNumReorderPics = maxReorderPics;
+  cFrame.picAttributes->seqInfo->maxLatencyIncreasePlus1 = maxLatencyIncreasePlus1;
+
   cFrame.picAttributes->picHashError =
     pcPic->dphMismatch ? VVDEC_DPH_MISMATCH                                   // first check pcPic->dphMismatch,
                        : ( pcPic->picCheckedDPH ? VVDEC_DPH_OK                // and then pcPic->picCheckedDPH, because it will only be set when all subpics

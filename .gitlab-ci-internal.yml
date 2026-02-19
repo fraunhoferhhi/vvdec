@@ -261,6 +261,20 @@ build_clang18_ubuntu2404:
     CC: clang-18
     CXX: clang++-18
 
+build_clang19_ubuntu2404:
+  extends: .build_only_template_full
+  image: $CI_REGISTRY/pub/dockerimages/ubuntu_2404_full:latest
+  variables:
+    CC: clang-19
+    CXX: clang++-19
+
+build_clang20_ubuntu2404:
+  extends: .build_only_template_full
+  image: $CI_REGISTRY/pub/dockerimages/ubuntu_2404_full:latest
+  variables:
+    CC: clang-20
+    CXX: clang++-20
+
 build_mingw_ubuntu2404:
   extends: .build_only_template_full
   image: $CI_REGISTRY/pub/dockerimages/ubuntu_2404_full:latest
@@ -323,40 +337,59 @@ test_ubuntu2404:
   extends: .build_test_template
   image: $CI_REGISTRY/pub/dockerimages/ubuntu_2404_dev:latest
 
-test_vc191x:
+test_vs2017:
   extends: .build_test_msvc_template
   variables:
     MSVC_ARCH: x64
+    # use VS 2017 compilers:
+    CONFIG_OPTIONS: -T v141
   tags:
-    - vc191x
+    - vs-latest
 
-test_vc192x:
+test_vs2019:
   extends: .build_test_msvc_template
   variables:
     MSVC_ARCH: x64
+    # use VS 2019 compilers:
+    CONFIG_OPTIONS: -T v142
   tags:
-    - vc192x
+    - vs-latest
 
-test_vc193x:
+test_vs2022:
   extends: .build_test_msvc_template
   variables:
     MSVC_ARCH: x64
+    # use VS 2022 compilers:
+    CONFIG_OPTIONS: -T v143
   tags:
-    - vc193x
+    - vs-latest
 
-test_vc193x_Win32:
+test_vs2026:
+  extends: .build_test_msvc_template
+  variables:
+    MSVC_ARCH: x64
+    # use VS 2026 compilers:
+    CONFIG_OPTIONS: -T v145
+  tags:
+    - vs-latest
+
+test_vs2026_Win32:
   extends: .build_test_msvc_template
   variables:
     MSVC_ARCH: Win32
+    # use VS 2026 compilers:
+    CONFIG_OPTIONS: -T v145
   tags:
-    - vc193x
+    - vs-latest
 
-test_vc193x_arm64:
+test_vs2026_arm64:
   extends: .build_test_msvc_template
   variables:
     MSVC_ARCH: arm64
+    # use VS 2026 compilers:
+    CONFIG_OPTIONS: -T v145
   tags:
-    - vc193x-arm
+    - vs-arm-latest
 
 test_macos_arm64:
   extends: .build_test_macos_template
@@ -385,6 +418,7 @@ test_macos_x86_64:
                    --build-arg BUILDKIT_INLINE_CACHE=1
                    --pull
                    --cache-from $DOCKER_IMAGE_TAG
+                   --load
                    $NO_CACHE_ARG
                    $IMAGE_BUILD_ARGS
                    empty_context

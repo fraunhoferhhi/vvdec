@@ -6,7 +6,7 @@ the Software are granted under this license.
 
 The Clear BSD License
 
-Copyright (c) 2018-2024, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. & The VVdeC Authors.
+Copyright (c) 2018-2026, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. & The VVdeC Authors.
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without modification,
@@ -378,10 +378,9 @@ void AreaBuf<T>::fill(const T &val)
 template<typename T>
 void AreaBuf<T>::memset( const int val )
 {
-  GCC_WARNING_DISABLE_class_memaccess
   if( width == stride )
   {
-    ::memset( buf, val, width * height * sizeof( T ) );
+    ::memset( NO_WARNING_class_memaccess( buf ), val, width * height * sizeof( T ) );
   }
   else
   {
@@ -390,12 +389,11 @@ void AreaBuf<T>::memset( const int val )
 
     for( int y = 0; y < height; y++ )
     {
-      ::memset( dest, val, line );
+      ::memset( NO_WARNING_class_memaccess( dest ), val, line );
 
       dest += stride;
     }
   }
-  GCC_WARNING_RESET
 }
 
 #if ENABLE_SIMD_OPT_BUFFER

@@ -6,7 +6,7 @@ the Software are granted under this license.
 
 The Clear BSD License
 
-Copyright (c) 2018-2024, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. & The VVdeC Authors.
+Copyright (c) 2018-2026, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. & The VVdeC Authors.
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without modification,
@@ -320,9 +320,9 @@ void prefetchPadCore( const Pel* src, const ptrdiff_t srcStride, Pel* dst, const
 
 
 InterPrediction::InterPrediction()
-  : BiOptFlow     ( BiOptFlowCore )
-  , BioGradFilter ( gradFilterCore )
+  : BioGradFilter ( gradFilterCore )
   , profGradFilter( gradFilterCore<false> )
+  , BiOptFlow     ( BiOptFlowCore )
   , roundIntVector( nullptr )
 {
   clipMv = clipMvInPic;
@@ -340,7 +340,7 @@ void InterPrediction::destroy()
   m_IBCBuffer.destroy();
 }
 
-void InterPrediction::init( RdCost* pcRdCost, ChromaFormat chromaFormatIDC, const int ctuSize )
+void InterPrediction::init( RdCost* pcRdCost, ChromaFormat chromaFormatIDC, const int ctuSize, bool enableOpt )
 {
   m_pcRdCost = pcRdCost;
 
@@ -371,9 +371,15 @@ void InterPrediction::init( RdCost* pcRdCost, ChromaFormat chromaFormatIDC, cons
     prefetchPad[0] = prefetchPadCore<2>; // luma
     prefetchPad[1] = prefetchPadCore<2>; // chroma for 444 and 422
     prefetchPad[2] = prefetchPadCore<1>; // chroma for 420
+    if( enableOpt )
+    {
 #if ENABLE_SIMD_OPT_INTER && defined( TARGET_SIMD_X86 )
-    initInterPredictionX86();
+      initInterPredictionX86();
 #endif
+#if ENABLE_SIMD_OPT_INTER && defined( TARGET_SIMD_ARM )
+      initInterPredictionARM();
+#endif
+    }
   }
 
   if( m_IBCBuffer.bufs.empty() )
@@ -830,11 +836,11 @@ void InterPrediction::xPredInterBlk( const ComponentID&    compID,
   }
   else if( width == 16 )
   {
-    m_if.filter16x16( compID, refPtr, refStride, dstBuf, dstStride, 16, height, xFrac, yFrac, rndRes, chFmt, clpRng, useAltHpelIf );
+    m_if.filter16xH( compID, refPtr, refStride, dstBuf, dstStride, 16, height, xFrac, yFrac, rndRes, chFmt, clpRng, useAltHpelIf );
   }
   else if( width == 8 )
   {
-    m_if.filter8x8( compID, refPtr, refStride, dstBuf, dstStride, 8, height, xFrac, yFrac, rndRes, chFmt, clpRng, useAltHpelIf );
+    m_if.filter8xH( compID, refPtr, refStride, dstBuf, dstStride, 8, height, xFrac, yFrac, rndRes, chFmt, clpRng, useAltHpelIf );
   }
   else
   {
@@ -1005,9 +1011,7 @@ void InterPrediction::xPredAffineBlk( const ComponentID&        compID,
 
   if( isLuma( compID ) )
   {
-    GCC_WARNING_DISABLE_class_memaccess
-    memset( m_storedMv, 0, MVBUFFER_SIZE * ( g_miScaling.scaleVer( height ) >> chromaScaleY ) * sizeof( Mv ) );
-    GCC_WARNING_RESET
+    memset( NO_WARNING_class_memaccess( m_storedMv ), 0, MVBUFFER_SIZE * ( g_miScaling.scaleVer( height ) >> chromaScaleY ) * sizeof( Mv ) );
   }
 
   bool enablePROF = ( sps.getUsePROF() ) && ( compID == COMPONENT_Y );

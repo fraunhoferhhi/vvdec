@@ -6,7 +6,7 @@ the Software are granted under this license.
 
 The Clear BSD License
 
-Copyright (c) 2018-2024, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. & The VVdeC Authors.
+Copyright (c) 2018-2026, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. & The VVdeC Authors.
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without modification,
@@ -145,19 +145,8 @@ void xFilteringPandQCore( Pel* src, ptrdiff_t step, const ptrdiff_t offset, int 
     int refQ = 0;
     int refMiddle = 0;
 
-    switch( numberPSide )
-    {
-    case 7: refP = ( srcP[-6 * offset] + srcP[-7 * offset] + 1 ) >> 1; break;
-    case 3: refP = ( srcP[-2 * offset] + srcP[-3 * offset] + 1 ) >> 1; break;
-    case 5: refP = ( srcP[-4 * offset] + srcP[-5 * offset] + 1 ) >> 1; break;
-    }
-
-    switch( numberQSide )
-    {
-    case 7: refQ = ( srcQ[6 * offset] + srcQ[7 * offset] + 1 ) >> 1; break;
-    case 3: refQ = ( srcQ[2 * offset] + srcQ[3 * offset] + 1 ) >> 1; break;
-    case 5: refQ = ( srcQ[4 * offset] + srcQ[5 * offset] + 1 ) >> 1; break;
-    }
+    refP = ( srcP[-( numberPSide - 1 ) * offset] + srcP[-numberPSide * offset] + 1 ) >> 1;
+    refQ = ( srcQ[ ( numberQSide - 1 ) * offset] + srcQ[ numberQSide * offset] + 1 ) >> 1;
 
     if( numberPSide == numberQSide )
     {
@@ -223,19 +212,20 @@ void xFilteringPandQCore( Pel* src, ptrdiff_t step, const ptrdiff_t offset, int 
 */
 void xPelFilterLumaCorePel( Pel* piSrc, const ptrdiff_t iOffset, const int tc, const bool sw, const int iThrCut, const bool bFilterSecondP, const bool bFilterSecondQ, const ClpRng& clpRng )
 {
-  const Pel m0  = piSrc[-4 * iOffset];
   const Pel m1  = piSrc[-3 * iOffset];
   const Pel m2  = piSrc[-2 * iOffset];
   const Pel m3  = piSrc[-1 * iOffset];
   const Pel m4  = piSrc[ 0          ];
   const Pel m5  = piSrc[ 1 * iOffset];
   const Pel m6  = piSrc[ 2 * iOffset];
-  const Pel m7  = piSrc[ 3 * iOffset];
-
-  const char tc3[3] = { 3, 2, 1 };
 
   if( sw )
   {
+    constexpr static char tc3[3] = { 3, 2, 1 };
+
+    const Pel m0  = piSrc[-4 * iOffset];
+    const Pel m7  = piSrc[ 3 * iOffset];
+
     piSrc[-3 * iOffset ] = Clip3( m1 - tc3[2] * tc, m1 + tc3[2] * tc, ( 2*m0 + 3*m1 +   m2 +   m3 +   m4                      + 4 ) >> 3 );
     piSrc[-2 * iOffset ] = Clip3( m2 - tc3[1] * tc, m2 + tc3[1] * tc, (          m1 +   m2 +   m3 +   m4                      + 2 ) >> 2 );
     piSrc[-1 * iOffset ] = Clip3( m3 - tc3[0] * tc, m3 + tc3[0] * tc, (          m1 + 2*m2 + 2*m3 + 2*m4 +   m5               + 4 ) >> 3 );
@@ -290,19 +280,16 @@ inline void xPelFilterLumaCore( Pel* piSrc, const ptrdiff_t step, const ptrdiff_
 */
 static inline void xPelFilterChroma( Pel* piSrc, const ptrdiff_t iOffset, const int tc, const bool sw, const ClpRng& clpRng, const bool largeBoundary, const bool isChromaHorCTBBoundary )
 {
-  int delta;
-
-  const Pel m0 = piSrc[-iOffset * 4];
-  const Pel m1 = piSrc[-iOffset * 3];
   const Pel m2 = piSrc[-iOffset * 2];
   const Pel m3 = piSrc[-iOffset * 1];
   const Pel m4 = piSrc[           0];
   const Pel m5 = piSrc[ iOffset * 1];
-  const Pel m6 = piSrc[ iOffset * 2];
-  const Pel m7 = piSrc[ iOffset * 3];
 
   if( sw )
   {
+    const Pel m6 = piSrc[ iOffset * 2];
+    const Pel m7 = piSrc[ iOffset * 3];
+
     if( isChromaHorCTBBoundary )
     {
       piSrc[-iOffset * 1] = Clip3( m3 - tc, m3 + tc, ( ( 3 * m2 + 2 * m3 +     m4 +     m5 +     m6          + 4 ) >> 3 ) ); // p0
@@ -312,6 +299,9 @@ static inline void xPelFilterChroma( Pel* piSrc, const ptrdiff_t iOffset, const 
     }
     else
     {
+      const Pel m0 = piSrc[-iOffset * 4];
+      const Pel m1 = piSrc[-iOffset * 3];
+
       //Pel val = m0 + ( ( m0 + m1 ) << 1 ) + m2 + m3 + m4 + 4;
       //piSrc[-iOffset * 3] = Clip3( m1 - tc, m1 + tc, val >> 3 ); // p2
       //val -= m0 + m1 - m2 - m5;
@@ -334,7 +324,7 @@ static inline void xPelFilterChroma( Pel* piSrc, const ptrdiff_t iOffset, const 
   }
   else
   {
-    delta           = Clip3( -tc, tc, ( ( ( ( m4 - m3 ) *4 ) + m2 - m5 + 4 ) >> 3 ) );
+    const int delta = Clip3( -tc, tc, ( ( ( ( m4 - m3 ) *4 ) + m2 - m5 + 4 ) >> 3 ) );
 
     piSrc[-iOffset] = ClipPel( m3 + delta, clpRng );
     piSrc[       0] = ClipPel( m4 - delta, clpRng );
@@ -376,15 +366,13 @@ void LoopFilter::calcFilterStrengthsCTU( CodingStructure& cs, const int ctuRsAdd
   }
 }
 
-void LoopFilter::loopFilterCTU( CodingStructure &cs, const ChannelType chType, const int ctuCol, const int ctuLine, const int offset, const DeblockEdgeDir edgeDir ) const
+void LoopFilter::loopFilterCTU( CodingStructure &cs, const ChannelType chType, const int ctuCol, const int ctuLine, const DeblockEdgeDir edgeDir ) const
 {
   PROFILER_SCOPE_AND_STAGE( 1, g_timeProfiler, P_DBFILTER );
   const PreCalcValues &pcv = *cs.pcv;
 
-  const bool frstLine = ctuLine == 0;
-
-  const int ly = frstLine ? 0 : ( ctuLine * pcv.maxCUHeight + ( offset ) );
-  const int lh = frstLine ? pcv.maxCUHeight + ( offset ) : pcv.maxCUHeight;
+  const unsigned int ly = ctuLine * pcv.maxCUHeight;
+  const unsigned int lh = pcv.maxCUHeight;
 
   if( ly >= pcv.lumaHeight )
   {
@@ -424,16 +412,15 @@ void LoopFilter::loopFilterCTU( CodingStructure &cs, const ChannelType chType, c
 template<DeblockEdgeDir edgeDir>
 void LoopFilter::xDeblockCtuArea( CodingStructure& cs, const UnitArea& area, const ChannelType chType ) const
 {
-  if( cs.getCtuData( cs.ctuRsAddr( area.lumaPos(), CH_L ) ).cuPtr[0][0]->slice->getDeblockingFilterDisable() )
+  const CtuData& ctuData = cs.getCtuData( cs.ctuRsAddr( area.lumaPos(), CH_L ) );
+  const Slice&   slice   = *ctuData.slice;
+  if( slice.getDeblockingFilterDisable() )
   {
     return;
   }
 
   const PreCalcValues& pcv = *cs.pcv;
 
-  const CtuData& ctuData       = cs.getCtuData( cs.ctuRsAddr( area.lumaPos(), CH_L ) );
-  const Slice& slice           = *ctuData.slice;
-  
   bool doLuma   =   chType == MAX_NUM_CHANNEL_TYPE || isLuma  ( chType );
   bool doChroma = ( chType == MAX_NUM_CHANNEL_TYPE || isChroma( chType ) ) && pcv.chrFormat != CHROMA_400 && area.blocks[COMPONENT_Cb].valid();
   static constexpr int incx = 4;

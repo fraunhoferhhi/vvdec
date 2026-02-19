@@ -6,7 +6,7 @@ the Software are granted under this license.
 
 The Clear BSD License
 
-Copyright (c) 2018-2024, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. & The VVdeC Authors.
+Copyright (c) 2018-2026, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. & The VVdeC Authors.
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without modification,
@@ -2947,9 +2947,7 @@ bool PU::getInterMergeSubPuMvpCand(const CodingUnit &cu, AffineMergeCtx& mrgCtx,
       for( int x = puPos.x; x < puPos.x + puSize.width; x += puWidth, miLinePtr += g_miScaling.scaleHor( puWidth ) )
       {
         mi.miRefIdx[0] = mi.miRefIdx[1] = MI_NOT_VALID;
-        GCC_WARNING_DISABLE_class_memaccess
-        memset( mi.mv, 0, sizeof( mi.mv ) );
-        GCC_WARNING_RESET
+        memset( NO_WARNING_class_memaccess( mi.mv ), 0, sizeof( mi.mv ) );
 
         Position colPos{ x + xOff, y + yOff };
 

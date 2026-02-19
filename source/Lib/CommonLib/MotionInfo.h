@@ -6,7 +6,7 @@ the Software are granted under this license.
 
 The Clear BSD License
 
-Copyright (c) 2018-2024, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. & The VVdeC Authors.
+Copyright (c) 2018-2026, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. & The VVdeC Authors.
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without modification,
@@ -182,9 +182,7 @@ struct ColocatedMotionInfo
                    offsetof( MotionInfo, miRefIdx ) == offsetof( ColocatedMotionInfo, coRefIdx ),
                    "MotionInfo and ColocatedMotionInfo require the same memory layout" );
 
-    GCC_WARNING_DISABLE_class_memaccess
-    memcpy( this, &rhs, sizeof( MotionInfo ) );
-    GCC_WARNING_RESET
+    memcpy( NO_WARNING_class_memaccess( this ), &rhs, sizeof( MotionInfo ) );
 
     return *this;
   }

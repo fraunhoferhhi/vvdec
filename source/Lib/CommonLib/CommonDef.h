@@ -6,7 +6,7 @@ the Software are granted under this license.
 
 The Clear BSD License
 
-Copyright (c) 2018-2024, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. & The VVdeC Authors.
+Copyright (c) 2018-2026, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. & The VVdeC Authors.
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without modification,
@@ -58,6 +58,9 @@ POSSIBILITY OF SUCH DAMAGE.
 #if defined( __x86_64__ ) || defined( _M_X64 ) || defined( __i386__ ) || defined( __i386 ) || defined( _M_IX86 )
 # define REAL_TARGET_X86 1
 #elif defined( __aarch64__ ) || defined( _M_ARM64 ) || defined( __arm__ ) || defined( _M_ARM )
+# if defined( __aarch64__ ) || defined( _M_ARM64 )
+#  define REAL_TARGET_AARCH64 1
+# endif
 # define REAL_TARGET_ARM 1
 #elif defined( __wasm__ ) || defined( __wasm32__ )
 # define REAL_TARGET_WASM 1
@@ -107,11 +110,12 @@ POSSIBILITY OF SUCH DAMAGE.
 
 #if __GNUC__ >= 8 && !defined __clang__
 # define GCC_WARNING_DISABLE_maybe_uninitialized _Pragma("GCC diagnostic push"); _Pragma("GCC diagnostic ignored \"-Wmaybe-uninitialized\"");
-# define GCC_WARNING_DISABLE_class_memaccess     _Pragma("GCC diagnostic push"); _Pragma("GCC diagnostic ignored \"-Wclass-memaccess\"");
 #else
 # define GCC_WARNING_DISABLE_maybe_uninitialized
-# define GCC_WARNING_DISABLE_class_memaccess
 #endif
+
+// disable warning, when calling memset on a class by casting to void*
+#define NO_WARNING_class_memaccess( ptr ) ( (void*)ptr )
 
 #define CLASS_COPY_MOVE_DEFAULT( Class )      \
   Class( const Class& )            = default; \
@@ -586,6 +590,8 @@ namespace arm_simd
     UNDEFINED = -1,
     SCALAR    = 0,
     NEON,
+    SVE,
+    SVE2,
   } ARM_VEXT;
 #  endif   // TARGET_SIMD_ARM
 }   // namespace arm_simd

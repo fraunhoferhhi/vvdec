@@ -6,7 +6,7 @@ the Software are granted under this license.
 
 The Clear BSD License
 
-Copyright (c) 2018-2024, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. & The VVdeC Authors.
+Copyright (c) 2018-2026, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. & The VVdeC Authors.
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without modification,
@@ -58,6 +58,9 @@ namespace vvdec
 #if defined(TARGET_SIMD_X86)  && ENABLE_SIMD_OPT_ALF
 using namespace x86_simd;
 #endif
+#if defined(TARGET_SIMD_ARM)  && ENABLE_SIMD_OPT_ALF
+using namespace arm_simd;
+#endif
   
 class APS;
 struct CtuAlfData;
@@ -101,7 +104,10 @@ public:
   static constexpr int m_ALF_UNUSED_CLASSIDX     = 255;
   static constexpr int m_ALF_UNUSED_TRANSPOSIDX  = 255;
 
-  AdaptiveLoopFilter();
+  static const Pel m_alfClippVls[3][MaxAlfNumClippingValues];
+  static const int m_fixedFilterSetCoeff[ALF_FIXED_FILTER_NUM][MAX_NUM_ALF_LUMA_COEFF];
+
+  AdaptiveLoopFilter( bool enableOpt = true );
   ~AdaptiveLoopFilter() {}
   void create( const PicHeader* picHeader, const SPS* sps, const PPS* pps, int numThreads, PelUnitBuf& unitBuf );
   void destroy();
@@ -119,10 +125,16 @@ public:
   static void reconstructCoeffAPSs( Slice& slice );
   static void reconstructCoeff    ( AlfSliceParam& alfSliceParam, ChannelType channel, const int inputBitDepth );
 
+  void ( *m_filter5x5Blk )( const AlfClassifier* classifier, const PelUnitBuf& recDst, const CPelUnitBuf& recSrc,
+                            const Area& blk, const ComponentID compId, const short* filterSet, const short* fClipSet,
+                            const ClpRng& clpRng, int vbCTUHeight, int vbPos );
+  void ( *m_filter7x7Blk )( const AlfClassifier* classifier, const PelUnitBuf& recDst, const CPelUnitBuf& recSrc,
+                            const Area& blk, const ComponentID compId, const short* filterSet, const short* fClipSet,
+                            const ClpRng& clpRng, int vbCTUHeight, int vbPos );
+  void ( *m_deriveClassificationBlk )( AlfClassifier *classifier, const CPelBuf& srcLuma, const Area& blk, const int shift, int vbCTUHeight, int vbPos );
 protected:
 
   static void deriveClassificationBlk( AlfClassifier *classifier, const CPelBuf& srcLuma, const Area& blk, const int shift, int vbCTUHeight, int vbPos );
-  void ( *m_deriveClassificationBlk )( AlfClassifier *classifier, const CPelBuf& srcLuma, const Area& blk, const int shift, int vbCTUHeight, int vbPos );
 
   void filterCTU                     ( const CPelUnitBuf& srcBuf, PelUnitBuf& dstBuf, const CtuAlfData& ctuAlfData, const ClpRngs& clpRngs, const ChannelType chType, const CodingStructure& cs, int ctuIdx, Position ctuPos, int tid );
   void filterAreaLuma                ( const CPelUnitBuf& srcBuf, PelUnitBuf& dstBuf, const Area& blk, const Slice* slice, const APS* const* aps, const short filterSetIndex, const ClpRngs& clpRngs, const int tId );
@@ -137,13 +149,16 @@ protected:
                                       const Area &blkSrc, const int16_t* filterCoeffCb, const int16_t* filterCoeffCr,
                                       const ClpRngs &clpRngs, int vbCTUHeight, int vbPos );
 
-  void ( *m_filter5x5Blk )           ( const AlfClassifier *classifier, const PelUnitBuf &recDst, const CPelUnitBuf& recSrc, const Area& blk, const ComponentID compId, const short* filterSet, const short* fClipSet, const ClpRng& clpRng, int vbCTUHeight, int vbPos );
-  void ( *m_filter7x7Blk )           ( const AlfClassifier *classifier, const PelUnitBuf &recDst, const CPelUnitBuf& recSrc, const Area& blk, const ComponentID compId, const short* filterSet, const short* fClipSet, const ClpRng& clpRng, int vbCTUHeight, int vbPos );
-
 #if defined(TARGET_SIMD_X86)  && ENABLE_SIMD_OPT_ALF
   void initAdaptiveLoopFilterX86();
   template <X86_VEXT vext>
   void _initAdaptiveLoopFilterX86();
+#endif
+
+#if defined( TARGET_SIMD_ARM ) && ENABLE_SIMD_OPT_ALF
+  void initAdaptiveLoopFilterARM();
+  template<ARM_VEXT vext>
+  void _initAdaptiveLoopFilterARM();
 #endif
 
 protected:
@@ -160,11 +175,9 @@ protected:
                                            int&        rasterSliceAlfPad
                                            );
 
-  static const int        m_fixedFilterSetCoeff   [ALF_FIXED_FILTER_NUM][MAX_NUM_ALF_LUMA_COEFF];
   static const int        m_classToFilterMapping  [NUM_FIXED_FILTER_SETS][MAX_NUM_ALF_CLASSES];
   short                   m_fixedFilterSetCoeffDec[NUM_FIXED_FILTER_SETS][MAX_NUM_ALF_TRANSPOSE_ID * MAX_NUM_ALF_CLASSES * MAX_NUM_ALF_LUMA_COEFF];
   short                   m_clipDefault                                  [MAX_NUM_ALF_TRANSPOSE_ID * MAX_NUM_ALF_CLASSES * MAX_NUM_ALF_LUMA_COEFF];
-  static const Pel        m_alfClippVls[3][MaxAlfNumClippingValues];
   std::vector<PelStorage> m_tempBuf;
   PelUnitBuf              m_alfBuf;
   int                     m_inputBitDepth      = 0;

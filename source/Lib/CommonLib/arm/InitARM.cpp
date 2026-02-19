@@ -6,7 +6,7 @@ the Software are granted under this license.
 
 The Clear BSD License
 
-Copyright (c) 2018-2024, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. & The VVdeC Authors.
+Copyright (c) 2018-2026, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. & The VVdeC Authors.
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without modification,
@@ -48,6 +48,7 @@ POSSIBILITY OF SUCH DAMAGE.
 
 #include "CommonDefARM.h"
 #include "CommonLib/CommonDef.h"
+#include "CommonLib/InterPrediction.h"
 #include "CommonLib/InterpolationFilter.h"
 #include "CommonLib/TrQuant.h"
 #include "CommonLib/RdCost.h"
@@ -69,14 +70,16 @@ namespace vvdec
 void InterpolationFilter::initInterpolationFilterARM( /*int iBitDepthY, int iBitDepthC*/ )
 {
   auto vext = read_arm_extension_flags();
-  switch( vext )
+  if( vext >= NEON )
   {
-  case NEON:
-    _initInterpolationFilterARM<NEON>( /*iBitDepthY, iBitDepthC*/ );
-    break;
-  default:
-    break;
+    _initInterpolationFilterARM<NEON>();
   }
+#if TARGET_SIMD_ARM_SVE
+  if( vext >= SVE )
+  {
+    _initInterpolationFilterARM<SVE>();
+  }
+#endif
 }
 #  endif
 
@@ -84,13 +87,9 @@ void InterpolationFilter::initInterpolationFilterARM( /*int iBitDepthY, int iBit
 void PelBufferOps::initPelBufOpsARM()
 {
   auto vext = read_arm_extension_flags();
-  switch( vext )
+  if( vext >= NEON )
   {
-  case NEON:
     _initPelBufOpsARM<NEON>();
-    break;
-  default:
-    break;
   }
 }
 #  endif
@@ -99,43 +98,31 @@ void PelBufferOps::initPelBufOpsARM()
 void RdCost::initRdCostARM()
 {
   auto vext = read_arm_extension_flags();
-  switch( vext )
+  if( vext >= NEON )
   {
-  case NEON:
     _initRdCostARM<NEON>();
-    break;
-  default:
-    break;
   }
 }
 #  endif
 
-//#  if ENABLE_SIMD_OPT_ALF
-//void AdaptiveLoopFilter::initAdaptiveLoopFilterARM()
-//{
-//  auto vext = read_arm_extension_flags();
-//  switch( vext )
-//  {
-//  case NEON:
-//    _initAdaptiveLoopFilterARM<NEON>();
-//    break;
-//  default:
-//    break;
-//  }
-//}
-//#  endif
+#if ENABLE_SIMD_OPT_ALF
+void AdaptiveLoopFilter::initAdaptiveLoopFilterARM()
+{
+  auto vext = read_arm_extension_flags();
+  if( vext >= NEON )
+  {
+    _initAdaptiveLoopFilterARM<NEON>();
+  }
+}
+#endif
 
 //#  if ENABLE_SIMD_DBLF
 //void LoopFilter::initLoopFilterARM()
 //{
 //  auto vext = read_arm_extension_flags();
-//  switch( vext )
+//  if( vext >= NEON )
 //  {
-//  case NEON:
 //    _initLoopFilterARM<NEON>();
-//    break;
-//  default:
-//    break;
 //  }
 //}
 //#  endif
@@ -144,28 +131,18 @@ void RdCost::initRdCostARM()
 //void TCoeffOps::initTCoeffOpsARM()
 //{
 //  auto vext = read_arm_extension_flags();
-
-//  switch( vext )
+//  if( vext >= NEON )
 //  {
-//  case NEON:
 //    _initTCoeffOpsARM<NEON>();
-//    break;
-//  default:
-//    break;
 //  }
 //}
 
 //void TrQuant::initTrQuantARM()
 //{
 //  auto vext = read_arm_extension_flags();
-
-//  switch( vext )
+//  if( vext >= NEON )
 //  {
-//  case NEON:
 //    _initTrQuantARM<NEON>();
-//    break;
-//  default:
-//    break;
 //  }
 //}
 //#  endif
@@ -174,75 +151,51 @@ void RdCost::initRdCostARM()
 //void IntraPrediction::initIntraPredictionARM()
 //{
 //  auto vext = read_arm_extension_flags();
-//  switch( vext )
+//  if( vext >= NEON )
 //  {
-//  case NEON:
 //    _initIntraPredictionARM<NEON>();
-//    break;
-//  default:
-//    break;
 //  }
-//}
 //#  endif
 
 //#  if ENABLE_SIMD_OPT_SAO
 //void SampleAdaptiveOffset::initSampleAdaptiveOffsetARM()
 //{
 //  auto vext = read_arm_extension_flags();
-//  switch( vext )
+//  if( vext >= NEON )
 //  {
-//  case NEON:
 //    _initSampleAdaptiveOffsetARM<NEON>();
-//    break;
-//  default:
-//    break;
 //  }
-//}
 //#  endif
 
-//#  if ENABLE_SIMD_OPT_INTER
-//void InterPrediction::initInterPredictionARM()
-//{
-//  auto vext = read_arm_extension_flags();
-//  switch( vext )
-//  {
-//  case NEON:
-//    _initInterPredictionARM<NEON>();
-//    break;
-//  default:
-//    break;
-//  }
-//}
-//#  endif
+#if ENABLE_SIMD_OPT_INTER
+void InterPrediction::initInterPredictionARM()
+{
+  auto vext = read_arm_extension_flags();
+  if( vext >= NEON )
+  {
+    _initInterPredictionARM<NEON>();
+  }
+}
+#endif
 
 //#  if ENABLE_SIMD_OPT_PICTURE
 //void Picture::initPictureARM()
 //{
 //  auto vext = read_arm_extension_flags();
-//  switch( vext )
+//  if( vext >= NEON )
 //  {
-//  case NEON:
 //    _initPictureARM<NEON>();
-//    break;
-//  default:
-//    break;
 //  }
-//}
 //#  endif
 
 //#  if ENABLE_SIMD_OPT_QUANT
 //void Quant::initQuantARM()
 //{
 //  auto vext = read_arm_extension_flags();
-//  switch( vext )
+//  if( vext >= NEON )
 //  {
-//  case NEON:
 //    _initQuantARM<NEON>();
-//    break;
-//  default:
-//    break;
 //  }
-//}
 //#  endif
 
 #endif   // TARGET_SIMD_ARM

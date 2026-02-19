@@ -6,7 +6,7 @@ the Software are granted under this license.
 
 The Clear BSD License
 
-Copyright (c) 2018-2024, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. & The VVdeC Authors.
+Copyright (c) 2018-2026, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. & The VVdeC Authors.
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without modification,
@@ -49,12 +49,11 @@ POSSIBILITY OF SUCH DAMAGE.
 
 #define DONT_UNDEF_SIZE_AWARE_PER_EL_OP 1
 
-
 #include "CommonDefARM.h"
-#include "CommonLib/CommonDef.h"
-#include "CommonLib/Unit.h"
 #include "CommonLib/Buffer.h"
+#include "CommonLib/CommonDef.h"
 #include "CommonLib/InterpolationFilter.h"
+#include "CommonLib/Unit.h"
 
 #if ENABLE_SIMD_OPT_BUFFER
 #  ifdef TARGET_SIMD_ARM
@@ -560,125 +559,7 @@ void rspBcwCore_SIMD( Pel*       ptr,
   }
 }
 
-template<ARM_VEXT vext>
-void rspFwdCore_SIMD( Pel*       ptr,
-                      ptrdiff_t  ptrStride,
-                      int        width,
-                      int        height,
-                      const int  bd,
-                      const Pel  OrgCW,
-                      const Pel* LmcsPivot,
-                      const Pel* ScaleCoeff,
-                      const Pel* InputPivot )
-{
-  int shift = getLog2( OrgCW );
-
-  if( ( width & 7 ) == 0 )
-  {
-    int16x8_t xtmp1;
-
-    int8x16x2_t mLmcsPivot  = vld2q_s8( (const signed char*) &LmcsPivot[ 0 ] );
-    int8x16x2_t mInputPivot = vld2q_s8( (const signed char*) &InputPivot[ 0 ] );
-    int8x16x2_t mScaleCoeff = vld2q_s8( (const signed char*) &ScaleCoeff[ 0 ] );
-
-    const int16x8_t mMin = vdupq_n_s16( 0 );
-    const int16x8_t mMax = vdupq_n_s16( ( 1 << bd ) - 1 );
-
-#if defined(_MSC_VER) && !defined(__clang__) && !defined(__INTEL_COMPILER)
-    const uint8_t idx4idx_array[16] = { 0, 2, 4, 6, 8, 10, 12, 14, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
-    const uint8x16_t idx4idx = vld1q_u8(idx4idx_array);
-#else
-    const uint8x16_t idx4idx = { 0, 2, 4, 6, 8, 10, 12, 14, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
-#endif
-
-    while( height-- )
-    {
-      for( int x = 0; x < width; x += 8 )
-      {
-        const int16x8_t xsrc = vld1q_s16( &ptr[ x ] );
-        const uint8x16_t xidx = vqtbl1q_u8( (uint8x16_t) vshlq_s16( xsrc, vdupq_n_s16( -shift ) ), idx4idx );
-
-        const int16x8_t xlmc = (int16x8_t) vzip1q_s8( vqtbl1q_s8( mLmcsPivot.val[ 0 ], xidx ), vqtbl1q_s8( mLmcsPivot.val[ 1 ], xidx ) );
-        const int16x8_t xinp = (int16x8_t) vzip1q_s8( vqtbl1q_s8( mInputPivot.val[ 0 ], xidx ), vqtbl1q_s8( mInputPivot.val[ 1 ], xidx ) );
-        const int16x8_t xscl = (int16x8_t) vzip1q_s8( vqtbl1q_s8( mScaleCoeff.val[ 0 ], xidx ), vqtbl1q_s8( mScaleCoeff.val[ 1 ], xidx ) );
-
-        xtmp1 = vcombine_s16( vrshrn_n_s32( vmull_s16( vget_low_s16( vqsubq_s16( xsrc, xinp ) ), vget_low_s16( xscl ) ), 11 ),
-                              vrshrn_n_s32( vmull_s16( vget_high_s16( vqsubq_s16( xsrc, xinp ) ), vget_high_s16( xscl ) ), 11 ) );
-
-        xtmp1 = vaddq_s16( xlmc, xtmp1 );
-
-        xtmp1 = vminq_s16( xtmp1, mMax );
-        xtmp1 = vmaxq_s16( xtmp1, mMin );
-
-        vst1q_s16( &ptr[ x ], xtmp1 );
-      }
-      ptr += ptrStride;
-    }
-  }
-  else
-  {
-    int idxY;
-
-    //    const auto rsp_sgnl_op  = [=, &dst]( int ADDR ){ idxY = ( dst[ADDR] >> shift ); dst[ADDR] = static_cast<Pel>( ClipBD<int>( LmcsPivot[idxY] + ( (
-    //    ScaleCoeff[idxY] * ( dst[ADDR] - InputPivot[idxY] ) + ( 1 << 10 ) ) >> 11 ), bd ) ); }; const auto rsp_sgnl_inc = [=, &dst]            { dst +=
-    //    stride; };
-
-    //    size_aware_pel_op( rsp_sgnl_op, rsp_sgnl_inc, width, height );
-
-#  define RSP_FWD_OP( ADDR )                                                                                                                              \
-    {                                                                                                                                                     \
-      idxY = ( ptr[ ADDR ] >> shift );                                                                                                                    \
-      ptr[ ADDR ] =                                                                                                                                       \
-        static_cast<Pel>( ClipBD<int>( LmcsPivot[ idxY ] + ( ( ScaleCoeff[ idxY ] * ( ptr[ ADDR ] - InputPivot[ idxY ] ) + ( 1 << 10 ) ) >> 11 ), bd ) ); \
-    }
-#  define RSP_FWD_INC ptr += ptrStride;
-
-    SIZE_AWARE_PER_EL_OP( RSP_FWD_OP, RSP_FWD_INC )
-
-#  undef RSP_FWD_OP
-#  undef RSP_FWD_INC
-  }
-}
-
-#    endif   // __ARM_ARCH >= 8
-
-template<ARM_VEXT vext>
-void PelBufferOps::_initPelBufOpsARM()
-{
-  //  addAvg16 = addAvg_SSE<vext, 16>;
-  //  addAvg8  = addAvg_SSE<vext,  8>;
-  //  addAvg4  = addAvg_SSE<vext,  4>;
-  //
-  //  reco8 = reco_SSE<vext, 8>;
-  //  reco4 = reco_SSE<vext, 4>;
-  //
-  //  linTf8 = linTf_SSE_entry<vext, 8>;
-  //  linTf4 = linTf_SSE_entry<vext, 4>;
-  // #if ENABLE_SIMD_OPT_GBI
-  //
-  //  wghtAvg4 = addWghtAvg_SSE<vext, 4>;
-  //  wghtAvg8 = addWghtAvg_SSE<vext, 8>;
-  // #endif
-  //
-  //  copyBuffer = copyBuffer_SSE<vext>;
-  //
-  //  transpose4x4 = transposePel_SSE<vext, 4>;
-  //  transpose8x8 = transposePel_SSE<vext, 8>;
-
-  applyLut = applyLut_SIMD<vext>;
-#    if __ARM_ARCH >= 8
-  rspFwd   = rspFwdCore_SIMD<vext>;
-  //  rspBcw   = rspBcwCore_SIMD<vext>;     // disabled, because applyLut is faster
-#    endif   // __ARM_ARCH >= 8
-
-  // #if INTPTR_MAX == INT64_MAX || INTPTR_MAX == INT32_MAX
-  //   fillN_CU = fillN_CU_SIMD<vext>;
-  // #endif
-  //
-  //   sampleRateConv = sampleRateConvSIMD<vext>;
-}
-
-template void PelBufferOps::_initPelBufOpsARM<SIMDARM>();
+#endif // __ARM_ARCH >= 8
 
 }   // namespace vvdec
 

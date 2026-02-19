@@ -6,7 +6,7 @@ the Software are granted under this license.
 
 The Clear BSD License
 
-Copyright (c) 2018-2024, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. & The VVdeC Authors.
+Copyright (c) 2018-2026, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. & The VVdeC Authors.
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without modification,
@@ -72,8 +72,8 @@ using namespace arm_simd;
  */
 class InterpolationFilter
 {
-  static const TFilterCoeff m_lumaFilter4x4       [LUMA_INTERPOLATION_FILTER_SUB_SAMPLE_POSITIONS]  [NTAPS_LUMA];
 public:
+  static const TFilterCoeff m_lumaFilter4x4       [LUMA_INTERPOLATION_FILTER_SUB_SAMPLE_POSITIONS]  [NTAPS_LUMA];
   static const TFilterCoeff m_lumaFilter          [LUMA_INTERPOLATION_FILTER_SUB_SAMPLE_POSITIONS]  [NTAPS_LUMA]; ///< Luma filter taps
   static const TFilterCoeff m_chromaFilter        [CHROMA_INTERPOLATION_FILTER_SUB_SAMPLE_POSITIONS][NTAPS_CHROMA]; ///< Chroma filter taps
   static const TFilterCoeff m_lumaFilterRPR1      [LUMA_INTERPOLATION_FILTER_SUB_SAMPLE_POSITIONS]  [NTAPS_LUMA]; ///< Luma filter taps 1.5x
@@ -82,8 +82,8 @@ public:
   static const TFilterCoeff m_chromaFilterRPR2    [CHROMA_INTERPOLATION_FILTER_SUB_SAMPLE_POSITIONS][NTAPS_CHROMA]; ///< Chroma filter taps 2x
   static const TFilterCoeff m_affineLumaFilterRPR1[LUMA_INTERPOLATION_FILTER_SUB_SAMPLE_POSITIONS]  [NTAPS_LUMA]; ///< Luma filter taps 1.5x
   static const TFilterCoeff m_affineLumaFilterRPR2[LUMA_INTERPOLATION_FILTER_SUB_SAMPLE_POSITIONS]  [NTAPS_LUMA]; ///< Luma filter taps 2x
-private:
   static const TFilterCoeff m_lumaAltHpelIFilter                                                    [NTAPS_LUMA]; ///< Luma filter taps
+private:
   static const TFilterCoeff m_bilinearFilter      [LUMA_INTERPOLATION_FILTER_SUB_SAMPLE_POSITIONS]  [NTAPS_BILINEAR]; ///< bilinear filter taps
   static const TFilterCoeff m_bilinearFilterPrec4 [LUMA_INTERPOLATION_FILTER_SUB_SAMPLE_POSITIONS]  [NTAPS_BILINEAR]; ///< bilinear filter taps
 public:
@@ -97,11 +97,11 @@ public:
   void filterVer        (const ClpRng& clpRng, const Pel* src, const ptrdiff_t srcStride, Pel* dst, const ptrdiff_t dstStride, int width, int height, bool isFirst, bool isLast, TFilterCoeff const *coeff);
 
   template<bool isLast, int w>
-  static void filterXxY_N2     (const ClpRng& clpRng, const Pel* src, const ptrdiff_t srcStride, Pel* dst, const ptrdiff_t dstStride, int width, int height, TFilterCoeff const *coeffH, TFilterCoeff const *coeffV);
+  static void filterWxH_N2     (const ClpRng& clpRng, const Pel* src, const ptrdiff_t srcStride, Pel* dst, const ptrdiff_t dstStride, int width, int height, TFilterCoeff const *coeffH, TFilterCoeff const *coeffV);
   template<bool isLast, int w>
-  static void filterXxY_N4     (const ClpRng& clpRng, const Pel* src, const ptrdiff_t srcStride, Pel* dst, const ptrdiff_t dstStride, int width, int height, TFilterCoeff const *coeffH, TFilterCoeff const *coeffV);
+  static void filterWxH_N4     (const ClpRng& clpRng, const Pel* src, const ptrdiff_t srcStride, Pel* dst, const ptrdiff_t dstStride, int width, int height, TFilterCoeff const *coeffH, TFilterCoeff const *coeffV);
   template<bool isLast, int w>
-  static void filterXxY_N8     (const ClpRng& clpRng, const Pel* src, const ptrdiff_t srcStride, Pel* dst, const ptrdiff_t dstStride, int width, int height, TFilterCoeff const *coeffH, TFilterCoeff const *coeffV);
+  static void filterWxH_N8     (const ClpRng& clpRng, const Pel* src, const ptrdiff_t srcStride, Pel* dst, const ptrdiff_t dstStride, int width, int height, TFilterCoeff const *coeffH, TFilterCoeff const *coeffV);
 
   static void scalarFilterN2_2D(const ClpRng& clpRng, const Pel* src, const ptrdiff_t srcStride, Pel* dst, const ptrdiff_t dstStride, int width, int height, TFilterCoeff const *ch,     TFilterCoeff const *cv);
 
@@ -116,11 +116,11 @@ public:
   void( *m_filterN2_2D        )( const ClpRng& clpRng, const Pel* src, const ptrdiff_t srcStride, Pel* dst, const ptrdiff_t dstStride, int width, int height, TFilterCoeff const *ch, TFilterCoeff const *cv );
   void( *m_filterHor[3][2][2] )( const ClpRng& clpRng, const Pel* src, const ptrdiff_t srcStride, Pel* dst, const ptrdiff_t dstStride, int width, int height, TFilterCoeff const *coeff );
   void( *m_filterVer[3][2][2] )( const ClpRng& clpRng, const Pel* src, const ptrdiff_t srcStride, Pel* dst, const ptrdiff_t dstStride, int width, int height, TFilterCoeff const *coeff );
-  void( *m_filterCopy[2][2] )  ( const ClpRng& clpRng, const Pel* src, const ptrdiff_t srcStride, Pel* dst, const ptrdiff_t dstStride, int width, int height, bool biMCForDMVR );
-  void( *m_filter4x4  [2][2] ) ( const ClpRng& clpRng, const Pel* src, const ptrdiff_t srcStride, Pel* dst, const ptrdiff_t dstStride, int width, int height, TFilterCoeff const *coeffH, TFilterCoeff const *coeffV );
-  void( *m_filter8x8  [2][2] ) ( const ClpRng& clpRng, const Pel* src, const ptrdiff_t srcStride, Pel* dst, const ptrdiff_t dstStride, int width, int height, TFilterCoeff const *coeffH, TFilterCoeff const *coeffV );
-  void( *m_filter16x16[2][2] ) ( const ClpRng& clpRng, const Pel* src, const ptrdiff_t srcStride, Pel* dst, const ptrdiff_t dstStride, int width, int height, TFilterCoeff const *coeffH, TFilterCoeff const *coeffV );
-  void( *m_weightedGeoBlk )(const CodingUnit &cu, const uint32_t width, const uint32_t height, const ComponentID compIdx, const uint8_t splitDir, PelUnitBuf& predDst, PelUnitBuf& predSrc0, PelUnitBuf& predSrc1, const ClpRng& clpRng);
+  void( *m_filterCopy[2][2]   )( const ClpRng& clpRng, const Pel* src, const ptrdiff_t srcStride, Pel* dst, const ptrdiff_t dstStride, int width, int height, bool biMCForDMVR );
+  void( *m_filter4x4 [2][2]   )( const ClpRng& clpRng, const Pel* src, const ptrdiff_t srcStride, Pel* dst, const ptrdiff_t dstStride, int width, int height, TFilterCoeff const *coeffH, TFilterCoeff const *coeffV );
+  void( *m_filter8xH [2][2]   )( const ClpRng& clpRng, const Pel* src, const ptrdiff_t srcStride, Pel* dst, const ptrdiff_t dstStride, int width, int height, TFilterCoeff const *coeffH, TFilterCoeff const *coeffV );
+  void( *m_filter16xH[2][2]   )( const ClpRng& clpRng, const Pel* src, const ptrdiff_t srcStride, Pel* dst, const ptrdiff_t dstStride, int width, int height, TFilterCoeff const *coeffH, TFilterCoeff const *coeffV );
+  void( *m_weightedGeoBlk     )(const CodingUnit &cu, const uint32_t width, const uint32_t height, const ComponentID compIdx, const uint8_t splitDir, PelUnitBuf& predDst, PelUnitBuf& predSrc0, PelUnitBuf& predSrc1, const ClpRng& clpRng);
 
   void initInterpolationFilter( bool enable );
 
@@ -138,8 +138,8 @@ public:
 
   void filterN2_2D(const ComponentID compID, const Pel* src, const ptrdiff_t srcStride, Pel* dst, const ptrdiff_t dstStride, int width, int height, int fracX, int fracY, const ChromaFormat fmt, const ClpRng& clpRng);
   void filter4x4  (const ComponentID compID, const Pel* src, const ptrdiff_t srcStride, Pel* dst, const ptrdiff_t dstStride, int width, int height, int fracX, int fracY, bool isLast, const ChromaFormat fmt, const ClpRng& clpRng);
-  void filter8x8  (const ComponentID compID, const Pel* src, const ptrdiff_t srcStride, Pel* dst, const ptrdiff_t dstStride, int width, int height, int fracX, int fracY, bool isLast, const ChromaFormat fmt, const ClpRng& clpRng, bool useAltHpelIf = false);
-  void filter16x16(const ComponentID compID, const Pel* src, const ptrdiff_t srcStride, Pel* dst, const ptrdiff_t dstStride, int width, int height, int fracX, int fracY, bool isLast, const ChromaFormat fmt, const ClpRng& clpRng, bool useAltHpelIf = false);
+  void filter8xH  (const ComponentID compID, const Pel* src, const ptrdiff_t srcStride, Pel* dst, const ptrdiff_t dstStride, int width, int height, int fracX, int fracY, bool isLast, const ChromaFormat fmt, const ClpRng& clpRng, bool useAltHpelIf = false);
+  void filter16xH (const ComponentID compID, const Pel* src, const ptrdiff_t srcStride, Pel* dst, const ptrdiff_t dstStride, int width, int height, int fracX, int fracY, bool isLast, const ChromaFormat fmt, const ClpRng& clpRng, bool useAltHpelIf = false);
   void filterHor  (const ComponentID compID, const Pel* src, const ptrdiff_t srcStride, Pel* dst, const ptrdiff_t dstStride, int width, int height, int frac,               bool isLast, const ChromaFormat fmt, const ClpRng& clpRng, int nFilterIdx = 0, bool useAltHpelIf = false );
   void filterVer  (const ComponentID compID, const Pel* src, const ptrdiff_t srcStride, Pel* dst, const ptrdiff_t dstStride, int width, int height, int frac, bool isFirst, bool isLast, const ChromaFormat fmt, const ClpRng& clpRng, int nFilterIdx = 0, bool useAltHpelIf = false );
   static TFilterCoeff const * getChromaFilterTable(const int deltaFract) { return m_chromaFilter[deltaFract]; };

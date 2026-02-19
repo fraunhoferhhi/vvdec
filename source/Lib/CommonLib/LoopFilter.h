@@ -6,7 +6,7 @@ the Software are granted under this license.
 
 The Clear BSD License
 
-Copyright (c) 2018-2024, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. & The VVdeC Authors.
+Copyright (c) 2018-2026, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. & The VVdeC Authors.
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without modification,
@@ -116,7 +116,7 @@ public:
   ~LoopFilter();
 
   /// picture-level deblocking filter
-  void loopFilterCTU              ( CodingStructure& cs, const ChannelType chType, const int ctuCol, const int ctuLine, const int offset = 0, DeblockEdgeDir edgeDir = NUM_EDGE_DIR ) const;
+  void loopFilterCTU              ( CodingStructure& cs, const ChannelType chType, const int ctuCol, const int ctuLine, DeblockEdgeDir edgeDir = NUM_EDGE_DIR ) const;
   void calcFilterStrengthsCTU     ( CodingStructure& cs, const int ctuRsAddr );
 };
 

@@ -6,7 +6,7 @@ the Software are granted under this license.
 
 The Clear BSD License
 
-Copyright (c) 2018-2024, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. & The VVdeC Authors.
+Copyright (c) 2018-2026, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. & The VVdeC Authors.
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without modification,
@@ -192,19 +192,19 @@ public:
     LongTerm
   };
 
-  bool    subPicExtStarted        = false;
-  bool    borderExtStarted        = false;
-  RefMark dpbReferenceMark        = unreferenced;   // only used during parsing, manage the DPB and to build the reference picture lists
-  bool    neededForOutput         = false;
-  bool    stillReferenced         = false;   // set as long as there is a picture in progress, that references this one. ('referenced' might be unset during parsing)
-  bool    isReferencePic          = false;   // mainly for setting vvdecPicAttributes::isRefPic for the library output frame
-  bool    wasLost                 = false;
-  bool    error                   = false;
-  bool    exceptionThrownOut      = false;
-  bool    topField                = false;
-  bool    fieldPic                = false;
-  bool    nonReferencePictureFlag = false;
-  int     skippedDecCount         = 0;
+  bool             subPicExtStarted        = false;
+  bool             borderExtStarted        = false;
+  RefMark          dpbReferenceMark        = unreferenced;   // only used during parsing, manage the DPB and to build the reference picture lists
+  bool             neededForOutput         = false;
+  std::atomic_bool stillReferenced         { false };        // set as long as there is a picture in progress, that references this one. ('referenced' might be unset during parsing)
+  bool             isReferencePic          = false;          // mainly for setting vvdecPicAttributes::isRefPic for the library output frame
+  bool             wasLost                 = false;
+  bool             error                   = false;
+  bool             exceptionThrownOut      = false;
+  bool             topField                = false;
+  bool             fieldPic                = false;
+  bool             nonReferencePictureFlag = false;
+  int              skippedDecCount         = 0;
 
   bool              picCheckedDPH = false;
   std::vector<bool> subpicsCheckedDPH;

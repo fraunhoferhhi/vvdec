@@ -1,0 +1,143 @@
+/* -----------------------------------------------------------------------------
+The copyright in this software is being made available under the Clear BSD
+License, included below. No patent rights, trademark rights and/or
+other Intellectual Property Rights other than the copyrights concerning
+the Software are granted under this license.
+
+The Clear BSD License
+
+Copyright (c) 2019-2026, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. & The VVDeC Authors.
+All rights reserved.
+
+Redistribution and use in source and binary forms, with or without modification,
+are permitted (subject to the limitations in the disclaimer below) provided that
+the following conditions are met:
+
+     * Redistributions of source code must retain the above copyright notice,
+     this list of conditions and the following disclaimer.
+
+     * Redistributions in binary form must reproduce the above copyright
+     notice, this list of conditions and the following disclaimer in the
+     documentation and/or other materials provided with the distribution.
+
+     * Neither the name of the copyright holder nor the names of its
+     contributors may be used to endorse or promote products derived from this
+     software without specific prior written permission.
+
+NO EXPRESS OR IMPLIED LICENSES TO ANY PARTY'S PATENT RIGHTS ARE GRANTED BY
+THIS LICENSE. THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND
+CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR
+CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
+BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER
+IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+POSSIBILITY OF SUCH DAMAGE.
+
+
+------------------------------------------------------------------------------------------- */
+
+/** \file     tbl_neon.h
+    \brief    Intrinsic helper functions for Arm 32 bit compatibility
+*/
+
+#pragma once
+
+#include "CommonDef.h"
+
+#if defined( TARGET_SIMD_ARM )
+
+#include <arm_neon.h>
+
+namespace vvdec
+{
+
+static inline uint8x16_t vvdec_vqtbl1q_u8( uint8x16_t table, uint8x16_t index )
+{
+#if REAL_TARGET_AARCH64
+  return vqtbl1q_u8( table, index );
+#else
+  uint8x8x2_t t;
+  t.val[0] = vget_low_u8( table );
+  t.val[1] = vget_high_u8( table );
+
+  uint8x8_t lo = vtbl2_u8( t, vget_low_u8( index ) );
+  uint8x8_t hi = vtbl2_u8( t, vget_high_u8( index ) );
+
+  return vcombine_u8( lo, hi );
+#endif // REAL_TARGET_AARCH64
+}
+
+static inline int8x16_t vvdec_vqtbl1q_s8( int8x16_t table, uint8x16_t index )
+{
+#if REAL_TARGET_AARCH64
+  return vqtbl1q_s8( table, index );
+#else
+  int8x8x2_t t;
+  t.val[0] = vget_low_s8( table );
+  t.val[1] = vget_high_s8( table );
+
+  int8x8_t lo = vtbl2_s8( t, vreinterpret_s8_u8( vget_low_u8( index ) ) );
+  int8x8_t hi = vtbl2_s8( t, vreinterpret_s8_u8( vget_high_u8( index ) ) );
+
+  return vcombine_s8( lo, hi );
+#endif // REAL_TARGET_AARCH64
+}
+
+static inline int8x8_t vvdec_vqtbl2_s8( int8x16x2_t table, uint8x8_t index )
+{
+#if REAL_TARGET_AARCH64
+  return vqtbl2_s8( table, index );
+#else
+  int8x8x4_t t;
+  t.val[0] = vget_low_s8( table.val[0] );
+  t.val[1] = vget_high_s8( table.val[0] );
+  t.val[2] = vget_low_s8( table.val[1] );
+  t.val[3] = vget_high_s8( table.val[1] );
+
+  return vtbl4_s8( t, vreinterpret_s8_u8( index ) );
+#endif // REAL_TARGET_AARCH64
+}
+
+static inline int8x16_t vvdec_vqtbl2q_s8( int8x16x2_t table, uint8x16_t index )
+{
+#if REAL_TARGET_AARCH64
+  return vqtbl2q_s8( table, index );
+#else
+  int8x8x4_t t;
+  t.val[0] = vget_low_s8( table.val[0] );
+  t.val[1] = vget_high_s8( table.val[0] );
+  t.val[2] = vget_low_s8( table.val[1] );
+  t.val[3] = vget_high_s8( table.val[1] );
+
+  int8x8_t lo = vtbl4_s8( t, vreinterpret_s8_u8( vget_low_u8( index ) ) );
+  int8x8_t hi = vtbl4_s8( t, vreinterpret_s8_u8( vget_high_u8( index ) ) );
+
+  return vcombine_s8( lo, hi );
+#endif // REAL_TARGET_AARCH64
+}
+
+static inline uint8x16_t vvdec_vqtbl2q_u8( uint8x16x2_t table, uint8x16_t index )
+{
+#if REAL_TARGET_AARCH64
+  return vqtbl2q_u8( table, index );
+#else
+  uint8x8x4_t t;
+  t.val[0] = vget_low_u8( table.val[0] );
+  t.val[1] = vget_high_u8( table.val[0] );
+  t.val[2] = vget_low_u8( table.val[1] );
+  t.val[3] = vget_high_u8( table.val[1] );
+
+  uint8x8_t lo = vtbl4_u8( t, vget_low_u8( index ) );
+  uint8x8_t hi = vtbl4_u8( t, vget_high_u8( index ) );
+
+  return vcombine_u8( lo, hi );
+#endif // REAL_TARGET_AARCH64
+}
+
+} // namespace vvdec
+
+#endif

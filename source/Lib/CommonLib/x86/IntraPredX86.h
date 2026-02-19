@@ -6,7 +6,7 @@ the Software are granted under this license.
 
 The Clear BSD License
 
-Copyright (c) 2018-2024, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. & The VVdeC Authors.
+Copyright (c) 2018-2026, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. & The VVdeC Authors.
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without modification,
@@ -636,11 +636,21 @@ void  IntraPredSampleFilter_SIMD(Pel *ptrSrc,const ptrdiff_t srcStride,PelBuf &p
         {
           for (int x = 0; x < iWidth; x+=8)
           {
+            __m128i x8top = _mm_loadu_si128( (__m128i*) ( ptrSrc + x + 1 ) );   // load top
+            __m128i x8dst = _mm_setzero_si128();
+            if( iWidth >= 8 )
+              x8dst = _mm_loadu_si128( (const __m128i*) ( pDst + y * dstStride + x ) );   // load dst
+            else if( iWidth == 4 )
+              x8dst = _mm_loadu_si64( (const __m128i*) ( pDst + y * dstStride + x ) );    // load dst
+            else if( iWidth == 2 )
+              x8dst = _mm_loadu_si32( (const __m128i*) ( pDst + y * dstStride + x ) );    // load dst
+            else
+            {
+              CHECKD( true, "wrong iWidth in IntraPredSampleFilter_SIMD, only implemented for >=8, ==4, ==2" );
+            }
+
             if (x>8)
             {
-              __m128i x8top =  _mm_loadu_si128((__m128i *) (ptrSrc+x+1)); // load top
-              __m128i x8dst =  _mm_loadu_si128((const __m128i *) (pDst+y*dstStride+x)); // load dst
-
               tmplo8 = _mm_mullo_epi16(x8top,wt8);    // wT*top
               tmphi8 = _mm_mulhi_epi16(x8top,wt8);    // wT*top
               __m128i toplo8 = _mm_unpacklo_epi16(tmplo8,tmphi8);
@@ -666,9 +676,7 @@ void  IntraPredSampleFilter_SIMD(Pel *ptrSrc,const ptrdiff_t srcStride,PelBuf &p
               dstlo8 =  _mm_min_epi32(vbdmax8,dstlo8);
               dsthi8 =  _mm_min_epi32(vbdmax8,dsthi8);
 
-              dstlo8 =  _mm_packs_epi32(dstlo8,dsthi8);
-
-              _mm_storeu_si128(( __m128i * )(pDst+y*dstStride+x), (dstlo8) );
+              x8dst = _mm_packs_epi32(dstlo8,dsthi8);
             }
             else // x<=8
             {
@@ -676,9 +684,6 @@ void  IntraPredSampleFilter_SIMD(Pel *ptrSrc,const ptrdiff_t srcStride,PelBuf &p
                 wl8=wl8start;
               else if (x==8)
                 wl8=wl8start2;
-
-              __m128i x8top =  _mm_loadu_si128((__m128i *) (ptrSrc+x+1)); // load top
-              __m128i x8dst =  _mm_loadu_si128((const __m128i *) (pDst+y*dstStride+x)); // load dst
 
               tmplo8 = _mm_mullo_epi16(x8left,wl8);  //wL * left
               tmphi8 = _mm_mulhi_epi16(x8left,wl8);  //wL * left
@@ -712,15 +717,15 @@ void  IntraPredSampleFilter_SIMD(Pel *ptrSrc,const ptrdiff_t srcStride,PelBuf &p
               dstlo8 =  _mm_min_epi32(vbdmax8,dstlo8);
               dsthi8 =  _mm_min_epi32(vbdmax8,dsthi8);
 
-              dstlo8 =  _mm_packs_epi32(dstlo8,dsthi8);
-
-              if (iWidth>=8)
-                _mm_storeu_si128(( __m128i * )(pDst+y*dstStride+x), (dstlo8) );
-              else if (iWidth==4)
-                _mm_storeu_si64(( __m128i * )(pDst+y*dstStride+x), (dstlo8) );
-              else if (iWidth==2)
-                _mm_storeu_si32(( __m128i * )(pDst+y*dstStride+x),(dstlo8) );
+              x8dst = _mm_packs_epi32(dstlo8,dsthi8);
             }
+
+            if( iWidth >= 8 )
+              _mm_storeu_si128( (__m128i*) ( pDst + y * dstStride + x ), x8dst );
+            else if( iWidth == 4 )
+              _mm_storeu_si64( (__m128i*) ( pDst + y * dstStride + x ), x8dst );
+            else if( iWidth == 2 )
+              _mm_storeu_si32( (__m128i*) ( pDst + y * dstStride + x ), x8dst );
           }
         }
         else //wT =0

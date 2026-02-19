@@ -6,7 +6,7 @@ the Software are granted under this license.
 
 The Clear BSD License
 
-Copyright (c) 2018-2024, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. & The VVdeC Authors.
+Copyright (c) 2018-2026, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. & The VVdeC Authors.
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without modification,
@@ -59,7 +59,7 @@ namespace vvdec
 
 constexpr int AdaptiveLoopFilter::AlfNumClippingValues[];
 
-AdaptiveLoopFilter::AdaptiveLoopFilter()
+AdaptiveLoopFilter::AdaptiveLoopFilter( bool enableOpt )
 {
   m_deriveClassificationBlk = deriveClassificationBlk;
   m_filterCcAlf             = filterBlkCcAlf;
@@ -67,11 +67,17 @@ AdaptiveLoopFilter::AdaptiveLoopFilter()
   m_filter5x5Blk            = filterBlk<ALF_FILTER_5>;
   m_filter7x7Blk            = filterBlk<ALF_FILTER_7>;
 
+  if( enableOpt )
+  {
 #if ENABLE_SIMD_OPT_ALF
 # ifdef TARGET_SIMD_X86
-  initAdaptiveLoopFilterX86();
+    initAdaptiveLoopFilterX86();
 # endif
+# ifdef TARGET_SIMD_ARM
+    initAdaptiveLoopFilterARM();
 #endif
+#endif
+  }
 
   for( int filterSetIndex = 0; filterSetIndex < NUM_FIXED_FILTER_SETS; filterSetIndex++ )
   {

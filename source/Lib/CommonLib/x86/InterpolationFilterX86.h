@@ -6,7 +6,7 @@ the Software are granted under this license.
 
 The Clear BSD License
 
-Copyright (c) 2018-2024, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. & The VVdeC Authors.
+Copyright (c) 2018-2026, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. & The VVdeC Authors.
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without modification,
@@ -2285,7 +2285,7 @@ skip_last_line_4x4_simd_N4:
 }
 
 template<X86_VEXT vext, bool isLast>
-void simdFilter16xX_N8( const ClpRng& clpRng, const Pel* src, const ptrdiff_t srcStride, Pel* dst, const ptrdiff_t dstStride, int width, int height, TFilterCoeff const *coeffH, TFilterCoeff const *coeffV )
+void simdFilter16xH_N8( const ClpRng& clpRng, const Pel* src, const ptrdiff_t srcStride, Pel* dst, const ptrdiff_t dstStride, int width, int height, TFilterCoeff const *coeffH, TFilterCoeff const *coeffV )
 {
   OFFSET( src, srcStride, -3, -3 );
 
@@ -2559,7 +2559,7 @@ void simdFilter16xX_N8( const ClpRng& clpRng, const Pel* src, const ptrdiff_t sr
 }
 
 template<X86_VEXT vext, bool isLast>
-void simdFilter16xX_N4( const ClpRng& clpRng, const Pel* src, const ptrdiff_t srcStride, Pel* dst, const ptrdiff_t dstStride, int width, int height, TFilterCoeff const *coeffH, TFilterCoeff const *coeffV )
+void simdFilter16xH_N4( const ClpRng& clpRng, const Pel* src, const ptrdiff_t srcStride, Pel* dst, const ptrdiff_t dstStride, int width, int height, TFilterCoeff const *coeffH, TFilterCoeff const *coeffV )
 {
   OFFSET( src, srcStride, -1, -1 );
 
@@ -2605,7 +2605,7 @@ void simdFilter16xX_N4( const ClpRng& clpRng, const Pel* src, const ptrdiff_t sr
 }
 
 template<X86_VEXT vext, bool isLast>
-void simdFilter8xX_N8( const ClpRng& clpRng, const Pel* src, const ptrdiff_t srcStride, Pel* dst, const ptrdiff_t dstStride, int width, int height, TFilterCoeff const *coeffH, TFilterCoeff const *coeffV )
+void simdFilter8xH_N8( const ClpRng& clpRng, const Pel* src, const ptrdiff_t srcStride, Pel* dst, const ptrdiff_t dstStride, int width, int height, TFilterCoeff const *coeffH, TFilterCoeff const *coeffV )
 {
   OFFSET( src, srcStride, -3, -3 );
 
@@ -2841,7 +2841,7 @@ void simdFilter8xX_N8( const ClpRng& clpRng, const Pel* src, const ptrdiff_t src
 }
 
 template<X86_VEXT vext, bool isLast>
-void simdFilter8xX_N4( const ClpRng& clpRng, const Pel* src, const ptrdiff_t srcStride, Pel* dst, const ptrdiff_t dstStride, int width, int height, TFilterCoeff const *coeffH, TFilterCoeff const *coeffV )
+void simdFilter8xH_N4( const ClpRng& clpRng, const Pel* src, const ptrdiff_t srcStride, Pel* dst, const ptrdiff_t dstStride, int width, int height, TFilterCoeff const *coeffH, TFilterCoeff const *coeffV )
 {
   OFFSET( src, srcStride, -1, -1 );
 
@@ -3356,7 +3356,11 @@ void InterpolationFilter::_initInterpolationFilterX86()
   m_filterVer[2][1][1] = simdFilter<vext, 2, true, true, true>;
 
   m_filterCopy[0][0]   = simdFilterCopy<vext, false, false>;
+#if _MSC_VER >= 1950 && _M_ARM64
+  // simdFilterCopy<vext, false, true>() disabled on ARM64 VS2026 due to buggy compiler producing incorrect code
+#else
   m_filterCopy[0][1]   = simdFilterCopy<vext, false, true>;
+#endif
   m_filterCopy[1][0]   = simdFilterCopy<vext, true, false>;
   m_filterCopy[1][1]   = simdFilterCopy<vext, true, true>;
 
@@ -3366,17 +3370,17 @@ void InterpolationFilter::_initInterpolationFilterX86()
   m_filter4x4[1][0]    = simdFilter4x4_N4<vext, false>;
   m_filter4x4[1][1]    = simdFilter4x4_N4<vext, true>;
 
-  m_filter8x8[0][0]    = simdFilter8xX_N8<vext, false>;
-  m_filter8x8[0][1]    = simdFilter8xX_N8<vext, true>;
+  m_filter8xH[0][0]    = simdFilter8xH_N8<vext, false>;
+  m_filter8xH[0][1]    = simdFilter8xH_N8<vext, true>;
 
-  m_filter8x8[1][0]    = simdFilter8xX_N4<vext, false>;
-  m_filter8x8[1][1]    = simdFilter8xX_N4<vext, true>;
+  m_filter8xH[1][0]    = simdFilter8xH_N4<vext, false>;
+  m_filter8xH[1][1]    = simdFilter8xH_N4<vext, true>;
 
-  m_filter16x16[0][0]    = simdFilter16xX_N8<vext, false>;
-  m_filter16x16[0][1]    = simdFilter16xX_N8<vext, true>;
+  m_filter16xH[0][0]   = simdFilter16xH_N8<vext, false>;
+  m_filter16xH[0][1]   = simdFilter16xH_N8<vext, true>;
 
-  m_filter16x16[1][0]    = simdFilter16xX_N4<vext, false>;
-  m_filter16x16[1][1]    = simdFilter16xX_N4<vext, true>;
+  m_filter16xH[1][0]   = simdFilter16xH_N4<vext, false>;
+  m_filter16xH[1][1]   = simdFilter16xH_N4<vext, true>;
 
   m_filterN2_2D = simdInterpolateN2_2D<vext>;
 

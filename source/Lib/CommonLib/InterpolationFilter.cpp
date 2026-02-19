@@ -6,7 +6,7 @@ the Software are granted under this license.
 
 The Clear BSD License
 
-Copyright (c) 2018-2024, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. & The VVdeC Authors.
+Copyright (c) 2018-2026, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. & The VVdeC Authors.
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without modification,
@@ -378,20 +378,20 @@ InterpolationFilter::InterpolationFilter()
   m_filterCopy[1][0]   = filterCopy<true, false>;
   m_filterCopy[1][1]   = filterCopy<true, true>;
 
-  m_filter4x4[0][0] = filterXxY_N8<false, 4>;
-  m_filter4x4[0][1] = filterXxY_N8<true , 4>;
-  m_filter4x4[1][0] = filterXxY_N4<false, 4>;
-  m_filter4x4[1][1] = filterXxY_N4<true , 4>;
+  m_filter4x4[0][0]    = filterWxH_N8<false, 4>;
+  m_filter4x4[0][1]    = filterWxH_N8<true , 4>;
+  m_filter4x4[1][0]    = filterWxH_N4<false, 4>;
+  m_filter4x4[1][1]    = filterWxH_N4<true , 4>;
 
-  m_filter8x8[0][0] = filterXxY_N8<false, 8>;
-  m_filter8x8[0][1] = filterXxY_N8<true , 8>;
-  m_filter8x8[1][0] = filterXxY_N4<false, 8>;
-  m_filter8x8[1][1] = filterXxY_N4<true , 8>;
+  m_filter8xH[0][0]    = filterWxH_N8<false, 8>;
+  m_filter8xH[0][1]    = filterWxH_N8<true , 8>;
+  m_filter8xH[1][0]    = filterWxH_N4<false, 8>;
+  m_filter8xH[1][1]    = filterWxH_N4<true , 8>;
 
-  m_filter16x16[0][0] = filterXxY_N8<false, 16>;
-  m_filter16x16[0][1] = filterXxY_N8<true , 16>;
-  m_filter16x16[1][0] = filterXxY_N4<false, 16>;
-  m_filter16x16[1][1] = filterXxY_N4<true , 16>;
+  m_filter16xH[0][0]   = filterWxH_N8<false, 16>;
+  m_filter16xH[0][1]   = filterWxH_N8<true , 16>;
+  m_filter16xH[1][0]   = filterWxH_N4<false, 16>;
+  m_filter16xH[1][1]   = filterWxH_N4<true , 16>;
 
   m_filterN2_2D = scalarFilterN2_2D;
 
@@ -686,7 +686,7 @@ void InterpolationFilter::filter4x4( const ComponentID compID, const Pel* src, c
   }
 }
 
-void InterpolationFilter::filter8x8( const ComponentID compID, const Pel* src, const ptrdiff_t srcStride, Pel* dst, const ptrdiff_t dstStride, int width, int height, int fracX, int fracY, bool isLast, const ChromaFormat fmt, const ClpRng& clpRng, bool useAltHpelIf )
+void InterpolationFilter::filter8xH( const ComponentID compID, const Pel* src, const ptrdiff_t srcStride, Pel* dst, const ptrdiff_t dstStride, int width, int height, int fracX, int fracY, bool isLast, const ChromaFormat fmt, const ClpRng& clpRng, bool useAltHpelIf )
 {
   const int vFilterSize = isLuma( compID ) ? NTAPS_LUMA : NTAPS_CHROMA;
 
@@ -696,7 +696,7 @@ void InterpolationFilter::filter8x8( const ComponentID compID, const Pel* src, c
     const TFilterCoeff* vc = ( fracX == 8 && useAltHpelIf ) ? m_lumaAltHpelIFilter : m_lumaFilter[fracX];
     const TFilterCoeff* hc = ( fracY == 8 && useAltHpelIf ) ? m_lumaAltHpelIFilter : m_lumaFilter[fracY];
 
-    m_filter8x8[0][isLast]( clpRng, src, srcStride, dst, dstStride, 8, height, vc, hc );
+    m_filter8xH[0][isLast]( clpRng, src, srcStride, dst, dstStride, 8, height, vc, hc );
   }
   else if( vFilterSize == 4 )
   {
@@ -705,11 +705,11 @@ void InterpolationFilter::filter8x8( const ComponentID compID, const Pel* src, c
     const int csx = getComponentScaleX( compID, fmt );
     const int csy = getComponentScaleY( compID, fmt );
 
-    m_filter8x8[1][isLast]( clpRng, src, srcStride, dst, dstStride, 8, height, m_chromaFilter[fracX << ( 1 - csx )], m_chromaFilter[fracY << ( 1 - csy )] );
+    m_filter8xH[1][isLast]( clpRng, src, srcStride, dst, dstStride, 8, height, m_chromaFilter[fracX << ( 1 - csx )], m_chromaFilter[fracY << ( 1 - csy )] );
   }
 }
 
-void InterpolationFilter::filter16x16( const ComponentID compID, const Pel* src, const ptrdiff_t srcStride, Pel* dst, const ptrdiff_t dstStride, int width, int height, int fracX, int fracY, bool isLast, const ChromaFormat fmt, const ClpRng& clpRng, bool useAltHpelIf )
+void InterpolationFilter::filter16xH( const ComponentID compID, const Pel* src, const ptrdiff_t srcStride, Pel* dst, const ptrdiff_t dstStride, int width, int height, int fracX, int fracY, bool isLast, const ChromaFormat fmt, const ClpRng& clpRng, bool useAltHpelIf )
 {
   const int vFilterSize = isLuma( compID ) ? NTAPS_LUMA : NTAPS_CHROMA;
 
@@ -719,7 +719,7 @@ void InterpolationFilter::filter16x16( const ComponentID compID, const Pel* src,
     const TFilterCoeff* vc = ( fracX == 8 && useAltHpelIf ) ? m_lumaAltHpelIFilter : m_lumaFilter[fracX];
     const TFilterCoeff* hc = ( fracY == 8 && useAltHpelIf ) ? m_lumaAltHpelIFilter : m_lumaFilter[fracY];
 
-    m_filter16x16[0][isLast]( clpRng, src, srcStride, dst, dstStride, 16, height, vc, hc );
+    m_filter16xH[0][isLast]( clpRng, src, srcStride, dst, dstStride, 16, height, vc, hc );
   }
   else if( vFilterSize == 4 )
   {
@@ -728,13 +728,13 @@ void InterpolationFilter::filter16x16( const ComponentID compID, const Pel* src,
     const int csx = getComponentScaleX( compID, fmt );
     const int csy = getComponentScaleY( compID, fmt );
 
-    m_filter16x16[1][isLast]( clpRng, src, srcStride, dst, dstStride, 16, height, m_chromaFilter[fracX << ( 1 - csx )], m_chromaFilter[fracY << ( 1 - csy )] );
+    m_filter16xH[1][isLast]( clpRng, src, srcStride, dst, dstStride, 16, height, m_chromaFilter[fracX << ( 1 - csx )], m_chromaFilter[fracY << ( 1 - csy )] );
   }
 }
 
 
 template<bool isLast, int w>
-void InterpolationFilter::filterXxY_N2( const ClpRng& clpRng, const Pel* src, const ptrdiff_t srcStride, Pel* _dst, const ptrdiff_t dstStride, int width, int h, TFilterCoeff const *coeffH, TFilterCoeff const *coeffV )
+void InterpolationFilter::filterWxH_N2( const ClpRng& clpRng, const Pel* src, const ptrdiff_t srcStride, Pel* _dst, const ptrdiff_t dstStride, int width, int h, TFilterCoeff const *coeffH, TFilterCoeff const *coeffV )
 {
   int row, col;
 
@@ -802,7 +802,7 @@ void InterpolationFilter::filterXxY_N2( const ClpRng& clpRng, const Pel* src, co
 
 
 template<bool isLast, int w>
-void InterpolationFilter::filterXxY_N4( const ClpRng& clpRng, const Pel* src, const ptrdiff_t srcStride, Pel* _dst, const ptrdiff_t dstStride, int width, int height, TFilterCoeff const *coeffH, TFilterCoeff const *coeffV )
+void InterpolationFilter::filterWxH_N4( const ClpRng& clpRng, const Pel* src, const ptrdiff_t srcStride, Pel* _dst, const ptrdiff_t dstStride, int width, int height, TFilterCoeff const *coeffH, TFilterCoeff const *coeffV )
 {
   int row, col;
 
@@ -878,7 +878,7 @@ void InterpolationFilter::filterXxY_N4( const ClpRng& clpRng, const Pel* src, co
 
 
 template<bool isLast, int w>
-void InterpolationFilter::filterXxY_N8( const ClpRng& clpRng, const Pel* src, const ptrdiff_t srcStride, Pel* _dst, const ptrdiff_t dstStride, int width, int h, TFilterCoeff const *coeffH, TFilterCoeff const *coeffV )
+void InterpolationFilter::filterWxH_N8( const ClpRng& clpRng, const Pel* src, const ptrdiff_t srcStride, Pel* _dst, const ptrdiff_t dstStride, int width, int h, TFilterCoeff const *coeffH, TFilterCoeff const *coeffV )
 {
   int row, col;
 
@@ -981,7 +981,6 @@ void InterpolationFilter::filterXxY_N8( const ClpRng& clpRng, const Pel* src, co
 template<int N>
 void InterpolationFilter::filterHor(const ClpRng& clpRng, const Pel* src, const ptrdiff_t srcStride, Pel* dst, const ptrdiff_t dstStride, int width, int height, bool isLast, TFilterCoeff const *coeff)
 {
-//#if ENABLE_SIMD_OPT_MCIF
   if( N == 8 )
   {
     m_filterHor[0][1][isLast]( clpRng, src, srcStride, dst, dstStride, width, height, coeff );
@@ -1018,7 +1017,6 @@ void InterpolationFilter::filterHor(const ClpRng& clpRng, const Pel* src, const 
 template<int N>
 void InterpolationFilter::filterVer( const ClpRng& clpRng, const Pel* src, const ptrdiff_t srcStride, Pel* dst, const ptrdiff_t dstStride, int width, int height, bool isFirst, bool isLast, TFilterCoeff const *coeff )
 {
-//#if ENABLE_SIMD_OPT_MCIF
   if( N == 8 )
   {
     m_filterVer[0][isFirst][isLast]( clpRng, src, srcStride, dst, dstStride, width, height, coeff );
