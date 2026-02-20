@@ -590,6 +590,7 @@ namespace arm_simd
     UNDEFINED = -1,
     SCALAR    = 0,
     NEON,
+    NEON_RDM,
     SVE,
     SVE2,
   } ARM_VEXT;

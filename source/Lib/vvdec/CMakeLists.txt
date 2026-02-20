@@ -33,12 +33,13 @@ if( VVDEC_ENABLE_X86_SIMD )
 endif()
 
 if( VVDEC_ENABLE_ARM_SIMD )
-  file( GLOB ARM_SRC_FILES CONFIGURE_DEPENDS      "../CommonLib/arm/*.cpp"      )
-  file( GLOB ARM_INC_FILES CONFIGURE_DEPENDS      "../CommonLib/arm/*.h"        )
+  file( GLOB ARM_SRC_FILES          CONFIGURE_DEPENDS "../CommonLib/arm/*.cpp"          )
+  file( GLOB ARM_INC_FILES          CONFIGURE_DEPENDS "../CommonLib/arm/*.h"            )
 
-  file( GLOB ARM_NEON_SRC_FILES CONFIGURE_DEPENDS "../CommonLib/arm/neon/*.cpp" )
-  file( GLOB ARM_SVE_SRC_FILES  CONFIGURE_DEPENDS "../CommonLib/arm/sve/*.cpp"  )
-  file( GLOB ARM_SVE2_SRC_FILES CONFIGURE_DEPENDS "../CommonLib/arm/sve2/*.cpp" )
+  file( GLOB ARM_NEON_SRC_FILES     CONFIGURE_DEPENDS "../CommonLib/arm/neon/*.cpp"     )
+  file( GLOB ARM_NEON_RDM_SRC_FILES CONFIGURE_DEPENDS "../CommonLib/arm/neon_rdm/*.cpp" )
+  file( GLOB ARM_SVE_SRC_FILES      CONFIGURE_DEPENDS "../CommonLib/arm/sve/*.cpp"      )
+  file( GLOB ARM_SVE2_SRC_FILES     CONFIGURE_DEPENDS "../CommonLib/arm/sve2/*.cpp"     )
 endif()
 
 # get libmd5 source files
@@ -143,6 +144,12 @@ if( VVDEC_ENABLE_ARM_SIMD )
   if( VVDEC_TARGET_ARCH STREQUAL "AARCH64" )
     # Neon is mandatory in AArch64, so no additional Neon compile flags needed here.
     list( APPEND ARM_SIMD_SRC_FILES ${ARM_NEON_SRC_FILES} )
+
+    if( VVDEC_ENABLE_ARM_SIMD_RDM )
+      set_property( SOURCE ${ARM_NEON_RDM_SRC_FILES} APPEND PROPERTY COMPILE_DEFINITIONS USE_NEON )
+      set_property( SOURCE ${ARM_NEON_RDM_SRC_FILES} APPEND PROPERTY COMPILE_FLAGS ${FLAG_rdm} )
+      list( APPEND ARM_SIMD_SRC_FILES ${ARM_NEON_RDM_SRC_FILES} )
+    endif()
 
     if( VVDEC_ENABLE_ARM_SIMD_SVE )
       set_property( SOURCE ${ARM_SVE_SRC_FILES} APPEND PROPERTY COMPILE_DEFINITIONS USE_NEON USE_SVE )

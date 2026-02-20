@@ -36,8 +36,8 @@ if( VVDEC_TARGET_ARCH MATCHES "ARM\|AARCH64" )
     set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-lax-vector-conversions" )
   endif()
 
-  # Check if SVE/SVE2 flags are supported by the compiler.
-  set_if_compiler_supports_arm_extensions( FLAG_sve FLAG_sve2 )
+  # Check if Neon RDM, SVE, SVE2 flags are supported by the compiler.
+  set_if_compiler_supports_arm_extensions( FLAG_rdm FLAG_sve FLAG_sve2 )
 endif()
 
 if( VVDEC_TARGET_ARCH MATCHES "LOONGARCH64" )
@@ -47,6 +47,7 @@ endif()
 # we enable x86 intrinsics for all target architectures, because they are implemented through simd-everywhere on non-x86
 set( VVDEC_ENABLE_X86_SIMD TRUE                      CACHE BOOL "Enable x86 intrinsics" )
 set( VVDEC_ENABLE_ARM_SIMD ${VVDEC_ARM_SIMD_DEFAULT} CACHE BOOL "Enable Arm intrinsics" )
+set( VVDEC_ENABLE_ARM_SIMD_RDM ${FLAG_rdm}           CACHE BOOL "Enable Arm RDM intrinsics" )
 set( VVDEC_ENABLE_ARM_SIMD_SVE ${FLAG_sve}           CACHE BOOL "Enable Arm SVE intrinsics" )
 set( VVDEC_ENABLE_ARM_SIMD_SVE2 FALSE                CACHE BOOL "Enable Arm SVE2 intrinsics" )
 set( VVDEC_ENABLE_LOONGARCH64_LSX_SIMD  ${VVDEC_LOONGARCH64_SIMD_DEFAULT} CACHE BOOL "Enable loongarch64 LSX intrinsics" )
@@ -91,9 +92,22 @@ if( VVDEC_TARGET_ARCH STREQUAL "AARCH64" )
     message( STATUS "AArch64 Neon intrinsics disabled" )
   endif()
 
+  if( VVDEC_ENABLE_ARM_SIMD_RDM )
+    # If Neon is disabled or RDM is not supported, make sure that RDM is disabled.
+    if ( NOT VVDEC_ENABLE_ARM_SIMD OR NOT FLAG_rdm )
+      message( STATUS "Disabling AArch64 RDM intrinsics" )
+      set( VVDEC_ENABLE_ARM_SIMD_RDM FALSE )
+    else()
+      message( STATUS "AArch64 RDM intrinsics enabled" )
+      add_compile_definitions( TARGET_SIMD_ARM_RDM=1 )
+    endif()
+  else()
+    message( STATUS "AArch64 RDM intrinsics disabled" )
+  endif()
+
   if( VVDEC_ENABLE_ARM_SIMD_SVE )
-    # If Neon is disabled or SVE is not supported, make sure that SVE is disabled.
-    if ( NOT VVDEC_ENABLE_ARM_SIMD OR NOT FLAG_sve )
+    # If Neon RDM is disabled or SVE is not supported, make sure that SVE is disabled.
+    if ( NOT VVDEC_ENABLE_ARM_SIMD_RDM OR NOT FLAG_sve )
       message( STATUS "Disabling AArch64 SVE intrinsics" )
       set( VVDEC_ENABLE_ARM_SIMD_SVE FALSE )
     else()
@@ -152,7 +166,7 @@ if( VVDEC_ENABLE_X86_SIMD )
   endif()
 endif()
 
-if( VVDEC_ENABLE_ARM_SIMD_SVE )
+if( VVDEC_ENABLE_ARM_SIMD )
   include (CheckSymbolExists)
 
   check_symbol_exists(elf_aux_info "sys/auxv.h" HAVE_AUXV_ELF_AUX_INFO)
