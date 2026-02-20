@@ -52,6 +52,7 @@ POSSIBILITY OF SUCH DAMAGE.
 #include "../BufferARM.h"
 #include "CommonDefARM.h"
 #include "CommonLib/CommonDef.h"
+#include "mem_neon.h"
 #include "tbl_neon.h"
 
 //! \ingroup CommonLib
@@ -197,9 +198,9 @@ void rspFwdCore_neon( Pel* ptr, ptrdiff_t ptrStride, int width, int height, cons
   const int8_t* lmcsPivotBytes = ( const int8_t* )LmcsPivot;
   const int8_t* inputPivotBytes = ( const int8_t* )InputPivot;
   const int8_t* scaleCoeffBytes = ( const int8_t* )ScaleCoeff;
-  const int8x16x2_t mLmcsPivot = vld1q_s8_x2( lmcsPivotBytes );
-  const int8x16x2_t mInputPivot = vld1q_s8_x2( inputPivotBytes );
-  const int8x16x2_t mScaleCoeff = vld1q_s8_x2( scaleCoeffBytes );
+  const int8x16x2_t mLmcsPivot = load_s8x16_x2( lmcsPivotBytes );
+  const int8x16x2_t mInputPivot = load_s8x16_x2( inputPivotBytes );
+  const int8x16x2_t mScaleCoeff = load_s8x16_x2( scaleCoeffBytes );
 
   const int16x8_t mMin = vdupq_n_s16( 0 );
   const int16x8_t mMax = vdupq_n_s16( ( 1 << bd ) - 1 );

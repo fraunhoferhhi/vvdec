@@ -54,6 +54,14 @@ POSSIBILITY OF SUCH DAMAGE.
 
 namespace vvdec
 {
+static inline int8x16x2_t load_s8x16_x2( const int8_t* x )
+{
+  int8x16x2_t ret;
+  ret.val[0] = vld1q_s8( x );
+  ret.val[1] = vld1q_s8( x + 16 );
+  return ret;
+}
+
 template<int Lane>
 inline void store_unaligned_u32_4x1( void* dst, uint32x4_t src )
 {
