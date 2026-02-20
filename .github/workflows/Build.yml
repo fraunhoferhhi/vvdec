@@ -2,6 +2,7 @@ name: CI build
 
 on:
   push:
+    branches: [master, release, gh_actions*]
   pull_request:
   release:
     types:
@@ -49,8 +50,9 @@ jobs:
           - toolset: v145
             os: windows-2025-vs2026
             msvc_arch: arm64
+
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 #      - run: git fetch --prune --unshallow # is this really needed?
 
       - name: Static build
@@ -73,7 +75,7 @@ jobs:
           ctest --test-dir build/static --build-config Release --output-on-failure -R unit_test
 
   build_unix:
-    name: "${{ matrix.name || matrix.os }} ${{ matrix.compiler[1] || matrix.osx_arch }} ${{ matrix.run_unit_test && '+Test' }}"
+    name: "${{ matrix.name || matrix.os }}: ${{ matrix.compiler[1] || matrix.osx_arch }} ${{ matrix.run_unit_test && '+Test' }}"
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -139,6 +141,7 @@ jobs:
           - os: ubuntu-24.04
             compiler: [arm-linux-gnueabihf-gcc, arm-linux-gnueabihf-g++]
             install_packages: g++-arm-linux-gnueabihf
+
     env:
       CMAKE_GENERATOR: "${{ matrix.generator || 'Ninja' }}"
       CC: ${{ matrix.compiler[0] }}
@@ -146,7 +149,7 @@ jobs:
       CCACHE_DIR: ${{ github.workspace }}/.ccache
       CCACHE_MAXSIZE: 100M
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 #      - run: git fetch --prune --unshallow # is this really needed?
 
       - uses: awalsh128/cache-apt-pkgs-action@latest
