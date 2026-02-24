@@ -96,15 +96,15 @@ class RdCost
 private:
   // for distortion
 
-  static FpDistFunc m_afpDistortFunc[DF_TOTAL_FUNCTIONS]; // [eDFunc]
-  static FpDistFuncX5 m_afpDistortFuncX5[DF_TOTAL_FUNCTIONS]; // [eDFunc]
+  FpDistFunc m_afpDistortFunc[DF_TOTAL_FUNCTIONS]; // [eDFunc]
+  FpDistFuncX5 m_afpDistortFuncX5[DF_TOTAL_FUNCTIONS]; // [eDFunc]
 
 public:
 
-  RdCost();
+  RdCost( bool enableOpt = true );
   ~RdCost();
 
-  static void setDistParam( DistParam &rcDP, const Pel* pOrg, const Pel* piRefY, ptrdiff_t iOrgStride, ptrdiff_t iRefStride, int bitDepth, int width, int height, int subShiftMode = 0 );
+  void setDistParam( DistParam &rcDP, const Pel* pOrg, const Pel* piRefY, ptrdiff_t iOrgStride, ptrdiff_t iRefStride, int bitDepth, int width, int height, int subShiftMode = 0 );
 
 
   static Distortion xGetSAD8          ( const DistParam& pcDtParam );

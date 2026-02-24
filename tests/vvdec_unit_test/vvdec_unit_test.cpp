@@ -985,6 +985,118 @@ static bool test_InterPrediction()
 }
 #endif // ENABLE_SIMD_OPT_INTER
 
+#if ENABLE_SIMD_OPT_DIST
+
+static bool check_SAD( RdCost* ref, RdCost* opt, unsigned num_cases, int width, int height )
+{
+  std::ostringstream sstm;
+  sstm << "RdCost::xGetSAD" << width << " w=" << width << " h=" << height;
+  printf( "Testing %s\n", sstm.str().c_str() );
+
+  DimensionGenerator rng;
+  InputGenerator<Pel> inp_gen{ 10, /*is_signed=*/false };
+
+  bool passed = true;
+  for( unsigned i = 0; i < num_cases; i++ )
+  {
+    int stride = rng.get( width, 1024 );
+
+    // subShift is always 1 in real decodings (set in InterPrediction::xProcessDMVR).
+    constexpr int subShift = 1;
+
+    std::vector<Pel> orgBuf( stride * height );
+    std::vector<Pel> curBuf( stride * height );
+
+    std::generate( orgBuf.begin(), orgBuf.end(), inp_gen );
+    std::generate( curBuf.begin(), curBuf.end(), inp_gen );
+
+    DistParam dtRef, dtOpt;
+    ref->setDistParam( dtRef, orgBuf.data(), curBuf.data(), stride, stride, /*bitDepth=*/10, width, height, subShift );
+    opt->setDistParam( dtOpt, orgBuf.data(), curBuf.data(), stride, stride, /*bitDepth=*/10, width, height, subShift );
+
+    Distortion sum_ref = dtRef.distFunc( dtRef );
+    Distortion sum_opt = dtOpt.distFunc( dtOpt );
+
+    passed = compare_value( sstm.str(), sum_ref, sum_opt ) && passed;
+  }
+  return passed;
+}
+
+static bool check_SADX5( RdCost* ref, RdCost* opt, unsigned num_cases, int width, int height, bool isCalCentrePos )
+{
+  std::ostringstream sstm;
+  sstm << "RdCost::xGetSAD" << width << "X5"
+       << " w=" << width << " h=" << height << " isCalCentrePos=" << std::boolalpha << isCalCentrePos;
+  printf( "Testing %s\n", sstm.str().c_str() );
+
+  DimensionGenerator rng;
+  InputGenerator<Pel> inp_gen{ 10, /*is_signed=*/false };
+
+  constexpr int kMargin = 4; // per-row horizontal margin (X5 kernel moves the ptr +/-4).
+
+  bool passed = true;
+  for( unsigned i = 0; i < num_cases; i++ )
+  {
+    // subShift is always 1 in real decodings (set in InterPrediction::xProcessDMVR).
+    constexpr int subShift = 1;
+    const int minStride = width + 2 * kMargin;
+    const int stride = rng.get( minStride, 1024 );
+
+    std::vector<Pel> orgBuf( stride * height );
+    std::vector<Pel> curBuf( stride * height );
+
+    std::generate( orgBuf.begin(), orgBuf.end(), inp_gen );
+    std::generate( curBuf.begin(), curBuf.end(), inp_gen );
+
+    const Pel* orgPtr = orgBuf.data() + kMargin;
+    const Pel* curPtr = curBuf.data() + kMargin;
+
+    DistParam dtRef;
+    DistParam dtOpt;
+    ref->setDistParam( dtRef, orgPtr, curPtr, stride, stride, /*bitDepth=*/10, width, height, subShift );
+    opt->setDistParam( dtOpt, orgPtr, curPtr, stride, stride, /*bitDepth=*/10, width, height, subShift );
+
+    std::array<Distortion, 5> costRef;
+    std::array<Distortion, 5> costOpt;
+
+    dtRef.distFuncX5( dtRef, costRef.data(), isCalCentrePos );
+    dtOpt.distFuncX5( dtOpt, costOpt.data(), isCalCentrePos );
+
+    for( int k = 0; k < 5; k++ )
+    {
+      if( !isCalCentrePos && k == 2 )
+      {
+        continue;
+      }
+      passed = compare_value( sstm.str(), costRef[k], costOpt[k] ) && passed;
+    }
+  }
+  return passed;
+}
+
+static bool test_RdCost()
+{
+  RdCost ref{ /*enableOpt=*/false };
+  RdCost opt{ /*enableOpt=*/true };
+
+  unsigned num_cases = NUM_CASES;
+  bool passed = true;
+  std::array<int, 2> dims = { 8, 16 };
+
+  for( int h : dims )
+  {
+    for( int w : dims )
+    {
+      passed = check_SAD( &ref, &opt, num_cases, w, h ) && passed;
+
+      passed = check_SADX5( &ref, &opt, num_cases, w, h, /*isCalCentrePos=*/true ) && passed;
+      passed = check_SADX5( &ref, &opt, num_cases, w, h, /*isCalCentrePos=*/false ) && passed;
+    }
+  }
+  return passed;
+}
+#endif // ENABLE_SIMD_OPT_DIST
+
 struct UnitTestEntry
 {
   std::string name;
@@ -1003,6 +1115,9 @@ static const UnitTestEntry test_suites[] = {
 #endif
 #if ENABLE_SIMD_OPT_BUFFER
     { "PelBufferOps", test_PelBufferOps },
+#endif
+#if ENABLE_SIMD_OPT_DIST
+    { "RdCost", test_RdCost },
 #endif
 };
 
