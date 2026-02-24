@@ -44,109 +44,80 @@ POSSIBILITY OF SUCH DAMAGE.
     \brief    RD cost computation class, Neon version
 */
 
-#include "../RdCost.h"
 #include "CommonDefARM.h"
 #include "CommonLib/CommonDef.h"
+#include "CommonLib/RdCost.h"
+#include "sum_neon.h"
 
 namespace vvdec
 {
 
 #if defined( TARGET_SIMD_ARM ) && ENABLE_SIMD_OPT_DIST
-#if __ARM_ARCH >= 8
 
-template<ARM_VEXT vext, bool isWdt16>
-Distortion xGetSAD_MxN_SIMD( const DistParam& rcDtParam )
+template<int iCols>
+Distortion xGetSAD_MxN_neon( const DistParam& rcDtParam )
 {
-  if( rcDtParam.bitDepth > 10 )
-    return isWdt16 ? RdCost::xGetSAD16( rcDtParam ) : RdCost::xGetSAD8( rcDtParam );
+  const Pel* piOrg = rcDtParam.org.buf;
+  const Pel* piCur = rcDtParam.cur.buf;
+  int iRows = rcDtParam.org.height;
+  constexpr int iSubShift = 1;
+  constexpr int iSubStep = 1 << iSubShift;
+  const int iStrideCur = rcDtParam.cur.stride * iSubStep;
+  const int iStrideOrg = rcDtParam.org.stride * iSubStep;
 
-  //  assert( rcDtParam.iCols == iWidth);
-  const short* pSrc1 = ( const short* )rcDtParam.org.buf;
-  const short* pSrc2 = ( const short* )rcDtParam.cur.buf;
-  const int iRows = rcDtParam.org.height;
-  const int iSubShift = rcDtParam.subShift;
-  const ptrdiff_t iStrideSrc1 = rcDtParam.org.stride << iSubShift;
-  const ptrdiff_t iStrideSrc2 = rcDtParam.cur.stride << iSubShift;
+  CHECKD( rcDtParam.subShift != 1, "Only SubShift = 1 is supported!" );
+  CHECKD( rcDtParam.bitDepth > 10, "Only bit-depths of up to 10 bits supported!" );
+  CHECKD( iRows != 8 && iRows != 16, "Only iRows == 8 or iRows == 16 supported!" );
 
-  uint32_t uiSum = 0;
-
-  int16x8_t vsum16 = vdupq_n_s16( 0 );
-
-  for( int i = 0; i < ( iRows >> 3 ); i++ )
+  Distortion uiSum = 0;
+  if( iCols == 16 )
   {
-    // 0
-    int16x8_t vsrc1 = vld1q_s16( pSrc1 );
-    int16x8_t vsrc2 = vld1q_s16( pSrc2 );
+    uint16x8_t sum_u16_lo = vdupq_n_u16( 0 );
+    uint16x8_t sum_u16_hi = vdupq_n_u16( 0 );
 
-    vsum16 = vabaq_s16( vsum16, vsrc1, vsrc2 );
-
-    if( isWdt16 )
+    do
     {
-      vsrc1 = vld1q_s16( pSrc1 + 8 );
-      vsrc2 = vld1q_s16( pSrc2 + 8 );
+      const int16x8_t org_lo = vld1q_s16( piOrg + 0 );
+      const int16x8_t org_hi = vld1q_s16( piOrg + 8 );
+      const int16x8_t cur_lo = vld1q_s16( piCur + 0 );
+      const int16x8_t cur_hi = vld1q_s16( piCur + 8 );
 
-      vsum16 = vabaq_s16( vsum16, vsrc1, vsrc2 );
-    }
+      sum_u16_lo = vvdec_vabaq_s16( sum_u16_lo, org_lo, cur_lo );
+      sum_u16_hi = vvdec_vabaq_s16( sum_u16_hi, org_hi, cur_hi );
 
-    pSrc1 += iStrideSrc1;
-    pSrc2 += iStrideSrc2;
+      piOrg += iStrideOrg;
+      piCur += iStrideCur;
+      iRows -= iSubStep;
+    } while( iRows != 0 );
 
-    // 1
-    vsrc1 = vld1q_s16( pSrc1 );
-    vsrc2 = vld1q_s16( pSrc2 );
-
-    vsum16 = vabaq_s16( vsum16, vsrc1, vsrc2 );
-
-    if( isWdt16 )
+    uiSum = horizontal_add_long_u16x8( vaddq_u16( sum_u16_lo, sum_u16_hi ) );
+  }
+  else // iCols == 8
+  {
+    uint16x8_t sum_u16[2] = { vdupq_n_u16( 0 ), vdupq_n_u16( 0 ) };
+    do
     {
-      vsrc1 = vld1q_s16( pSrc1 + 8 );
-      vsrc2 = vld1q_s16( pSrc2 + 8 );
+      const int16x8_t org0 = vld1q_s16( piOrg );
+      const int16x8_t cur0 = vld1q_s16( piCur );
+      const int16x8_t org1 = vld1q_s16( piOrg + iStrideOrg );
+      const int16x8_t cur1 = vld1q_s16( piCur + iStrideOrg );
 
-      vsum16 = vabaq_s16( vsum16, vsrc1, vsrc2 );
-    }
+      sum_u16[0] = vvdec_vabaq_s16( sum_u16[0], org0, cur0 );
+      sum_u16[1] = vvdec_vabaq_s16( sum_u16[1], org1, cur1 );
 
-    pSrc1 += iStrideSrc1;
-    pSrc2 += iStrideSrc2;
+      piOrg += 2 * iStrideOrg;
+      piCur += 2 * iStrideCur;
+      iRows -= 2 * iSubStep;
+    } while( iRows != 0 );
 
-    // 2
-    vsrc1 = vld1q_s16( pSrc1 );
-    vsrc2 = vld1q_s16( pSrc2 );
-
-    vsum16 = vabaq_s16( vsum16, vsrc1, vsrc2 );
-
-    if( isWdt16 )
-    {
-      vsrc1 = vld1q_s16( pSrc1 + 8 );
-      vsrc2 = vld1q_s16( pSrc2 + 8 );
-
-      vsum16 = vabaq_s16( vsum16, vsrc1, vsrc2 );
-    }
-
-    pSrc1 += iStrideSrc1;
-    pSrc2 += iStrideSrc2;
-
-    // 3
-    vsrc1 = vld1q_s16( pSrc1 );
-    vsrc2 = vld1q_s16( pSrc2 );
-
-    vsum16 = vabaq_s16( vsum16, vsrc1, vsrc2 );
-
-    if( isWdt16 )
-    {
-      vsrc1 = vld1q_s16( pSrc1 + 8 );
-      vsrc2 = vld1q_s16( pSrc2 + 8 );
-
-      vsum16 = vabaq_s16( vsum16, vsrc1, vsrc2 );
-    }
-
-    pSrc1 += iStrideSrc1;
-    pSrc2 += iStrideSrc2;
+    uiSum = horizontal_add_long_u16x8( vaddq_u16( sum_u16[0], sum_u16[1] ) );
   }
 
-  uiSum = vaddlvq_s16( vsum16 );
   uiSum <<= iSubShift;
   return uiSum;
 }
+
+#if __ARM_ARCH >= 8
 
 template<ARM_VEXT vext, bool isCalCentrePos>
 void xGetSADX5_16xN_SIMDImp( const DistParam& rcDtParam, Distortion* cost )
@@ -245,23 +216,19 @@ void xGetSADX5_16xN_SIMD( const DistParam& rcDtParam, Distortion* cost, bool isC
     xGetSADX5_16xN_SIMDImp<vext, false>( rcDtParam, cost );
 }
 
-template<>
-void RdCost::_initRdCostARM<NEON>()
-{
-  m_afpDistortFunc[DF_SAD8] = xGetSAD_MxN_SIMD<NEON, false>;
-  m_afpDistortFunc[DF_SAD16] = xGetSAD_MxN_SIMD<NEON, true>;
-
-  m_afpDistortFuncX5[DF_SAD16] = xGetSADX5_16xN_SIMD<NEON>;
-}
-
-#else // !__ARM_ARCH >= 8
-
-template<>
-void RdCost::_initRdCostARM<NEON>()
-{
-}
-
 #endif // !__ARM_ARCH >= 8
+
+template<>
+void RdCost::_initRdCostARM<NEON>()
+{
+  m_afpDistortFunc[DF_SAD8] = xGetSAD_MxN_neon<8>;
+  m_afpDistortFunc[DF_SAD16] = xGetSAD_MxN_neon<16>;
+
+#if __ARM_ARCH >= 8
+  m_afpDistortFuncX5[DF_SAD16] = xGetSADX5_16xN_SIMD<NEON>;
+#endif
+}
+
 #endif // TARGET_SIMD_ARM
 
 } // namespace vvdec

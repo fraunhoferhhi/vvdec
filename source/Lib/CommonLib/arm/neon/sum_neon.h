@@ -55,6 +55,11 @@ POSSIBILITY OF SUCH DAMAGE.
 namespace vvdec
 {
 
+static inline uint16x8_t vvdec_vabaq_s16( uint16x8_t acc, int16x8_t x, int16x8_t y )
+{
+  return vreinterpretq_u16_s16( vabaq_s16( vreinterpretq_s16_u16( acc ), x, y ) );
+}
+
 static inline int horizontal_add_s32x4( const int32x4_t a )
 {
 #if REAL_TARGET_AARCH64
@@ -63,6 +68,18 @@ static inline int horizontal_add_s32x4( const int32x4_t a )
   const int64x2_t b = vpaddlq_s32( a );
   const int32x2_t c = vadd_s32( vreinterpret_s32_s64( vget_low_s64( b ) ), vreinterpret_s32_s64( vget_high_s64( b ) ) );
   return vget_lane_s32( c, 0 );
+#endif
+}
+
+static inline uint32_t horizontal_add_u32x4( const uint32x4_t a )
+{
+#if REAL_TARGET_AARCH64
+  return vaddvq_u32( a );
+#else
+  const uint64x2_t b = vpaddlq_u32( a );
+  const uint32x2_t c =
+      vadd_u32( vreinterpret_u32_u64( vget_low_u64( b ) ), vreinterpret_u32_u64( vget_high_u64( b ) ) );
+  return vget_lane_u32( c, 0 );
 #endif
 }
 
@@ -80,6 +97,15 @@ static inline int32x4_t horizontal_add_4d_s32x4( const int32x4_t v0, const int32
   res = vsetq_lane_s32( horizontal_add_s32x4( v2 ), res, 2 );
   res = vsetq_lane_s32( horizontal_add_s32x4( v3 ), res, 3 );
   return res;
+#endif
+}
+
+static inline uint32_t horizontal_add_long_u16x8( const uint16x8_t a )
+{
+#if REAL_TARGET_AARCH64
+  return vaddlvq_u16( a );
+#else
+  return horizontal_add_u32x4( vpaddlq_u16( a ) );
 #endif
 }
 
