@@ -47,6 +47,7 @@ POSSIBILITY OF SUCH DAMAGE.
 #pragma once
 
 #include "CommonDef.h"
+#include <string.h>
 
 #if defined( TARGET_SIMD_ARM )
 
@@ -54,6 +55,7 @@ POSSIBILITY OF SUCH DAMAGE.
 
 namespace vvdec
 {
+// Load helpers
 static inline int8x16x2_t load_s8x16_x2( const int8_t* x )
 {
   int8x16x2_t ret;
@@ -70,12 +72,45 @@ static inline int16x8x2_t load_s16x8_x2( const int16_t* x )
   return ret;
 }
 
+static inline int16x4_t load_s16x2( const int16_t* src )
+{
+  uint32_t tmp;
+  memcpy( &tmp, src, sizeof( uint32_t ) );
+  return vreinterpret_s16_u32( vset_lane_u32( tmp, vdup_n_u32( 0 ), 0 ) );
+}
+
+static inline int16x4_t load_s16x2x2( const int16_t* src, ptrdiff_t stride )
+{
+  uint32x2_t ret = vdup_n_u32( 0 );
+  uint32_t tmp0, tmp1;
+  memcpy( &tmp0, src + 0 * stride, sizeof( uint32_t ) );
+  memcpy( &tmp1, src + 1 * stride, sizeof( uint32_t ) );
+  ret = vset_lane_u32( tmp0, ret, 0 );
+  ret = vset_lane_u32( tmp1, ret, 1 );
+  return vreinterpret_s16_u32( ret );
+}
+
+// Store helpers
+static inline void store_s16x2( int16_t* dst, int16x4_t src )
+{
+  uint32_t tmp = vget_lane_u32( vreinterpret_u32_s16( src ), 0 );
+  memcpy( dst, &tmp, sizeof( uint32_t ) );
+}
+
+static inline void store_s16x2x2( int16_t* dst, int16x4_t src, ptrdiff_t stride )
+{
+  uint32_t tmp0 = vget_lane_u32( vreinterpret_u32_s16( src ), 0 );
+  uint32_t tmp1 = vget_lane_u32( vreinterpret_u32_s16( src ), 1 );
+  memcpy( dst + 0 * stride, &tmp0, sizeof( uint32_t ) );
+  memcpy( dst + 1 * stride, &tmp1, sizeof( uint32_t ) );
+}
+
 template<int Lane>
-inline void store_unaligned_u32_4x1( void* dst, uint32x4_t src )
+static inline void store_unaligned_u32_4x1( void* dst, uint32x4_t src )
 {
   static_assert( Lane >= 0 && Lane < 4, "Lane must be in [0,3]" );
   uint32_t a = vgetq_lane_u32( src, Lane );
-  ::memcpy( dst, &a, sizeof( uint32_t ) );
+  memcpy( dst, &a, sizeof( uint32_t ) );
 }
 
 } // namespace vvdec

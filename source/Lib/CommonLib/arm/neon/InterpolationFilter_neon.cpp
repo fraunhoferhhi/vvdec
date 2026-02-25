@@ -49,15 +49,15 @@ POSSIBILITY OF SUCH DAMAGE.
 //  ====================================================================================================================
 
 #include "CommonLib/CommonDef.h"
-#include "../InterpolationFilter.h"
+#include "CommonLib/InterpolationFilter.h"
 
 //! \ingroup CommonLib
 //! \{
 
 #if defined( TARGET_SIMD_ARM ) && ENABLE_SIMD_OPT_MCIF
 
-#include "CommonDefARM.h"
 #include "../InterpolationFilter_neon.h"
+#include "mem_neon.h"
 #include "sum_neon.h"
 
 namespace vvdec
@@ -844,6 +844,827 @@ void simdFilter16xH_N4_neon( const ClpRng& clpRng, Pel const* src, ptrdiff_t src
   }
 }
 
+template<bool isLast>
+void simdInterpolateHor_N8_neon( const int16_t* src, const ptrdiff_t srcStride, int16_t* dst, const ptrdiff_t dstStride,
+                                 int width, int height, int shift, int offset, const ClpRng& clpRng,
+                                 int16_t const* coeff )
+{
+  CHECKD( height < 1, "Height must be >= 1" );
+  CHECKD( width < 4, "Width must be >= 4" );
+  CHECKD( width % 4 != 0, "Width must be a multiple of 4!" );
+
+  const int16x8_t vibdimax = vdupq_n_s16( clpRng.max() );
+  const int32x4_t invshift = vdupq_n_s32( -shift );
+
+  const int16x8_t vcoeff = vld1q_s16( coeff );
+
+  do
+  {
+    int col = 0;
+    for( ; col + 8 <= width; col += 8 )
+    {
+      int16x8_t vsrc0 = vld1q_s16( &src[col + 0] );
+      int16x8_t vsrc1 = vld1q_s16( &src[col + 1] );
+      int16x8_t vsrc2 = vld1q_s16( &src[col + 2] );
+      int16x8_t vsrc3 = vld1q_s16( &src[col + 3] );
+      int16x8_t vsrc4 = vld1q_s16( &src[col + 4] );
+      int16x8_t vsrc5 = vld1q_s16( &src[col + 5] );
+      int16x8_t vsrc6 = vld1q_s16( &src[col + 6] );
+      int16x8_t vsrc7 = vld1q_s16( &src[col + 7] );
+
+      int32x4_t vsuma = vdupq_n_s32( offset );
+      vsuma = vmlal_lane_s16( vsuma, vget_low_s16( vsrc0 ), vget_low_s16( vcoeff ), 0 );
+      vsuma = vmlal_lane_s16( vsuma, vget_low_s16( vsrc1 ), vget_low_s16( vcoeff ), 1 );
+      vsuma = vmlal_lane_s16( vsuma, vget_low_s16( vsrc2 ), vget_low_s16( vcoeff ), 2 );
+      vsuma = vmlal_lane_s16( vsuma, vget_low_s16( vsrc3 ), vget_low_s16( vcoeff ), 3 );
+      vsuma = vmlal_lane_s16( vsuma, vget_low_s16( vsrc4 ), vget_high_s16( vcoeff ), 0 );
+      vsuma = vmlal_lane_s16( vsuma, vget_low_s16( vsrc5 ), vget_high_s16( vcoeff ), 1 );
+      vsuma = vmlal_lane_s16( vsuma, vget_low_s16( vsrc6 ), vget_high_s16( vcoeff ), 2 );
+      vsuma = vmlal_lane_s16( vsuma, vget_low_s16( vsrc7 ), vget_high_s16( vcoeff ), 3 );
+
+      int32x4_t vsumb = vdupq_n_s32( offset );
+      vsumb = vmlal_lane_s16( vsumb, vget_high_s16( vsrc0 ), vget_low_s16( vcoeff ), 0 );
+      vsumb = vmlal_lane_s16( vsumb, vget_high_s16( vsrc1 ), vget_low_s16( vcoeff ), 1 );
+      vsumb = vmlal_lane_s16( vsumb, vget_high_s16( vsrc2 ), vget_low_s16( vcoeff ), 2 );
+      vsumb = vmlal_lane_s16( vsumb, vget_high_s16( vsrc3 ), vget_low_s16( vcoeff ), 3 );
+      vsumb = vmlal_lane_s16( vsumb, vget_high_s16( vsrc4 ), vget_high_s16( vcoeff ), 0 );
+      vsumb = vmlal_lane_s16( vsumb, vget_high_s16( vsrc5 ), vget_high_s16( vcoeff ), 1 );
+      vsumb = vmlal_lane_s16( vsumb, vget_high_s16( vsrc6 ), vget_high_s16( vcoeff ), 2 );
+      vsumb = vmlal_lane_s16( vsumb, vget_high_s16( vsrc7 ), vget_high_s16( vcoeff ), 3 );
+
+      vsuma = vshlq_s32( vsuma, invshift );
+      vsumb = vshlq_s32( vsumb, invshift );
+
+      int16x8_t vsum = pack_sum_s32_to_s16x8<isLast>( vsuma, vsumb, vibdimax );
+
+      vst1q_s16( &dst[col], vsum );
+    }
+    if( col != width ) // Last four samples.
+    {
+      int16x4_t vsrc0 = vld1_s16( &src[col + 0] );
+      int16x4_t vsrc1 = vld1_s16( &src[col + 1] );
+      int16x4_t vsrc2 = vld1_s16( &src[col + 2] );
+      int16x4_t vsrc3 = vld1_s16( &src[col + 3] );
+      int16x4_t vsrc4 = vld1_s16( &src[col + 4] );
+      int16x4_t vsrc5 = vld1_s16( &src[col + 5] );
+      int16x4_t vsrc6 = vld1_s16( &src[col + 6] );
+      int16x4_t vsrc7 = vld1_s16( &src[col + 7] );
+
+      int32x4_t vsuma = vdupq_n_s32( offset );
+      vsuma = vmlal_lane_s16( vsuma, vsrc0, vget_low_s16( vcoeff ), 0 );
+      vsuma = vmlal_lane_s16( vsuma, vsrc1, vget_low_s16( vcoeff ), 1 );
+      vsuma = vmlal_lane_s16( vsuma, vsrc2, vget_low_s16( vcoeff ), 2 );
+      vsuma = vmlal_lane_s16( vsuma, vsrc3, vget_low_s16( vcoeff ), 3 );
+      vsuma = vmlal_lane_s16( vsuma, vsrc4, vget_high_s16( vcoeff ), 0 );
+      vsuma = vmlal_lane_s16( vsuma, vsrc5, vget_high_s16( vcoeff ), 1 );
+      vsuma = vmlal_lane_s16( vsuma, vsrc6, vget_high_s16( vcoeff ), 2 );
+      vsuma = vmlal_lane_s16( vsuma, vsrc7, vget_high_s16( vcoeff ), 3 );
+
+      vsuma = vshlq_s32( vsuma, invshift );
+
+      int16x4_t vsum = pack_sum_s32_to_s16x4<isLast>( vsuma, vget_low_s16( vibdimax ) );
+
+      vst1_s16( &dst[col], vsum );
+    }
+
+    src += srcStride;
+    dst += dstStride;
+  } while( --height != 0 );
+}
+
+template<bool isLast>
+void simdInterpolateHor_N6_neon( const int16_t* src, const ptrdiff_t srcStride, int16_t* dst, const ptrdiff_t dstStride,
+                                 int width, int height, int shift, int offset, const ClpRng& clpRng,
+                                 int16_t const* coeff )
+{
+  CHECKD( height < 1, "Height must be >= 1" );
+  CHECKD( width < 4, "Width must be >= 4" );
+  CHECKD( width % 4 != 0, "Width must be a multiple of 4!" );
+
+  const int16x8_t vibdimax = vdupq_n_s16( clpRng.max() );
+  const int32x4_t invshift = vdupq_n_s32( -shift );
+
+  const int16x8_t vcoeff = vld1q_s16( coeff );
+
+  do
+  {
+    int col = 0;
+    for( ; col + 8 <= width; col += 8 )
+    {
+      // For 6-tap, src[0] and src[7] are multiplied by 0 so ignore them.
+      int16x8_t vsrc1 = vld1q_s16( &src[col + 1] );
+      int16x8_t vsrc2 = vld1q_s16( &src[col + 2] );
+      int16x8_t vsrc3 = vld1q_s16( &src[col + 3] );
+      int16x8_t vsrc4 = vld1q_s16( &src[col + 4] );
+      int16x8_t vsrc5 = vld1q_s16( &src[col + 5] );
+      int16x8_t vsrc6 = vld1q_s16( &src[col + 6] );
+
+      int32x4_t vsuma = vdupq_n_s32( offset );
+      vsuma = vmlal_lane_s16( vsuma, vget_low_s16( vsrc1 ), vget_low_s16( vcoeff ), 1 );
+      vsuma = vmlal_lane_s16( vsuma, vget_low_s16( vsrc2 ), vget_low_s16( vcoeff ), 2 );
+      vsuma = vmlal_lane_s16( vsuma, vget_low_s16( vsrc3 ), vget_low_s16( vcoeff ), 3 );
+      vsuma = vmlal_lane_s16( vsuma, vget_low_s16( vsrc4 ), vget_high_s16( vcoeff ), 0 );
+      vsuma = vmlal_lane_s16( vsuma, vget_low_s16( vsrc5 ), vget_high_s16( vcoeff ), 1 );
+      vsuma = vmlal_lane_s16( vsuma, vget_low_s16( vsrc6 ), vget_high_s16( vcoeff ), 2 );
+
+      int32x4_t vsumb = vdupq_n_s32( offset );
+      vsumb = vmlal_lane_s16( vsumb, vget_high_s16( vsrc1 ), vget_low_s16( vcoeff ), 1 );
+      vsumb = vmlal_lane_s16( vsumb, vget_high_s16( vsrc2 ), vget_low_s16( vcoeff ), 2 );
+      vsumb = vmlal_lane_s16( vsumb, vget_high_s16( vsrc3 ), vget_low_s16( vcoeff ), 3 );
+      vsumb = vmlal_lane_s16( vsumb, vget_high_s16( vsrc4 ), vget_high_s16( vcoeff ), 0 );
+      vsumb = vmlal_lane_s16( vsumb, vget_high_s16( vsrc5 ), vget_high_s16( vcoeff ), 1 );
+      vsumb = vmlal_lane_s16( vsumb, vget_high_s16( vsrc6 ), vget_high_s16( vcoeff ), 2 );
+
+      vsuma = vshlq_s32( vsuma, invshift );
+      vsumb = vshlq_s32( vsumb, invshift );
+
+      int16x8_t vsum = pack_sum_s32_to_s16x8<isLast>( vsuma, vsumb, vibdimax );
+
+      vst1q_s16( &dst[col], vsum );
+    }
+    if( col != width ) // Last four samples.
+    {
+      // For 6-tap, src[0] and src[7] are multiplied by 0 so ignore them.
+      int16x4_t vsrc1 = vld1_s16( &src[col + 1] );
+      int16x4_t vsrc2 = vld1_s16( &src[col + 2] );
+      int16x4_t vsrc3 = vld1_s16( &src[col + 3] );
+      int16x4_t vsrc4 = vld1_s16( &src[col + 4] );
+      int16x4_t vsrc5 = vld1_s16( &src[col + 5] );
+      int16x4_t vsrc6 = vld1_s16( &src[col + 6] );
+
+      int32x4_t vsuma = vdupq_n_s32( offset );
+      vsuma = vmlal_lane_s16( vsuma, vsrc1, vget_low_s16( vcoeff ), 1 );
+      vsuma = vmlal_lane_s16( vsuma, vsrc2, vget_low_s16( vcoeff ), 2 );
+      vsuma = vmlal_lane_s16( vsuma, vsrc3, vget_low_s16( vcoeff ), 3 );
+      vsuma = vmlal_lane_s16( vsuma, vsrc4, vget_high_s16( vcoeff ), 0 );
+      vsuma = vmlal_lane_s16( vsuma, vsrc5, vget_high_s16( vcoeff ), 1 );
+      vsuma = vmlal_lane_s16( vsuma, vsrc6, vget_high_s16( vcoeff ), 2 );
+
+      vsuma = vshlq_s32( vsuma, invshift );
+
+      int16x4_t vsum = pack_sum_s32_to_s16x4<isLast>( vsuma, vget_low_s16( vibdimax ) );
+
+      vst1_s16( &dst[col], vsum );
+    }
+
+    src += srcStride;
+    dst += dstStride;
+  } while( --height != 0 );
+}
+
+template<bool isLast>
+void simdInterpolateHor_N4_neon( const int16_t* src, const ptrdiff_t srcStride, int16_t* dst, const ptrdiff_t dstStride,
+                                 int width, int height, int shift, int offset, const ClpRng& clpRng,
+                                 int16_t const* coeff )
+{
+  CHECKD( height < 1, "Height must be >= 1" );
+  CHECKD( width < 4, "Width must be >= 4" );
+  CHECKD( width % 4 != 0, "Width must be a multiple of 4!" );
+
+  const int16x8_t vibdimax = vdupq_n_s16( clpRng.max() );
+  const int32x4_t invshift = vdupq_n_s32( -shift );
+
+  const int16x4_t vcoeff = vld1_s16( coeff );
+
+  do
+  {
+    int col = 0;
+    for( ; col + 8 <= width; col += 8 )
+    {
+      int16x8_t vsrc0 = vld1q_s16( &src[col + 0] );
+      int16x8_t vsrc1 = vld1q_s16( &src[col + 1] );
+      int16x8_t vsrc2 = vld1q_s16( &src[col + 2] );
+      int16x8_t vsrc3 = vld1q_s16( &src[col + 3] );
+
+      int32x4_t vsuma = vdupq_n_s32( offset );
+      vsuma = vmlal_lane_s16( vsuma, vget_low_s16( vsrc0 ), vcoeff, 0 );
+      vsuma = vmlal_lane_s16( vsuma, vget_low_s16( vsrc1 ), vcoeff, 1 );
+      vsuma = vmlal_lane_s16( vsuma, vget_low_s16( vsrc2 ), vcoeff, 2 );
+      vsuma = vmlal_lane_s16( vsuma, vget_low_s16( vsrc3 ), vcoeff, 3 );
+
+      int32x4_t vsumb = vdupq_n_s32( offset );
+      vsumb = vmlal_lane_s16( vsumb, vget_high_s16( vsrc0 ), vcoeff, 0 );
+      vsumb = vmlal_lane_s16( vsumb, vget_high_s16( vsrc1 ), vcoeff, 1 );
+      vsumb = vmlal_lane_s16( vsumb, vget_high_s16( vsrc2 ), vcoeff, 2 );
+      vsumb = vmlal_lane_s16( vsumb, vget_high_s16( vsrc3 ), vcoeff, 3 );
+
+      vsuma = vshlq_s32( vsuma, invshift );
+      vsumb = vshlq_s32( vsumb, invshift );
+
+      int16x8_t vsum = pack_sum_s32_to_s16x8<isLast>( vsuma, vsumb, vibdimax );
+
+      vst1q_s16( &dst[col], vsum );
+    }
+    if( col != width ) // Last four samples.
+    {
+      int16x4_t vsrc0 = vld1_s16( &src[col + 0] );
+      int16x4_t vsrc1 = vld1_s16( &src[col + 1] );
+      int16x4_t vsrc2 = vld1_s16( &src[col + 2] );
+      int16x4_t vsrc3 = vld1_s16( &src[col + 3] );
+
+      int32x4_t vsuma = vdupq_n_s32( offset );
+      vsuma = vmlal_lane_s16( vsuma, vsrc0, vcoeff, 0 );
+      vsuma = vmlal_lane_s16( vsuma, vsrc1, vcoeff, 1 );
+      vsuma = vmlal_lane_s16( vsuma, vsrc2, vcoeff, 2 );
+      vsuma = vmlal_lane_s16( vsuma, vsrc3, vcoeff, 3 );
+
+      vsuma = vshlq_s32( vsuma, invshift );
+
+      int16x4_t vsum = pack_sum_s32_to_s16x4<isLast>( vsuma, vget_low_s16( vibdimax ) );
+
+      vst1_s16( &dst[col], vsum );
+    }
+
+    src += srcStride;
+    dst += dstStride;
+  } while( --height != 0 );
+}
+
+template<bool isLast>
+void simdInterpolateHorM2_N4_neon( const int16_t* src, const ptrdiff_t srcStride, int16_t* dst,
+                                   const ptrdiff_t dstStride, int width, int height, int shift, int offset,
+                                   const ClpRng& clpRng, int16_t const* coeff )
+{
+  CHECKD( height < 1, "Height must be >= 1" );
+  CHECKD( width != 2, "Width must be two!" );
+
+  const int16x4_t vibdimax = vdup_n_s16( clpRng.max() );
+  const int32x4_t invshift = vdupq_n_s32( -shift );
+
+  const int16x4_t vcoeff = vld1_s16( coeff );
+
+  int row = 0;
+  for( ; row + 2 <= height; row += 2 )
+  {
+    int16x4_t vsrc0 = load_s16x2x2( &src[0], srcStride );
+    int16x4_t vsrc1 = load_s16x2x2( &src[1], srcStride );
+    int16x4_t vsrc2 = load_s16x2x2( &src[2], srcStride );
+    int16x4_t vsrc3 = load_s16x2x2( &src[3], srcStride );
+
+    int32x4_t vsuma = vdupq_n_s32( offset );
+    vsuma = vmlal_lane_s16( vsuma, vsrc0, vcoeff, 0 );
+    vsuma = vmlal_lane_s16( vsuma, vsrc1, vcoeff, 1 );
+    vsuma = vmlal_lane_s16( vsuma, vsrc2, vcoeff, 2 );
+    vsuma = vmlal_lane_s16( vsuma, vsrc3, vcoeff, 3 );
+
+    vsuma = vshlq_s32( vsuma, invshift );
+
+    int16x4_t vsum = pack_sum_s32_to_s16x4<isLast>( vsuma, vibdimax );
+
+    store_s16x2x2( &dst[0], vsum, dstStride );
+
+    src += 2 * srcStride;
+    dst += 2 * dstStride;
+  }
+  if( row != height )
+  {
+    int16x4_t vsrc0 = load_s16x2( &src[0] );
+    int16x4_t vsrc1 = load_s16x2( &src[1] );
+    int16x4_t vsrc2 = load_s16x2( &src[2] );
+    int16x4_t vsrc3 = load_s16x2( &src[3] );
+
+    int32x4_t vsuma = vdupq_n_s32( offset );
+    vsuma = vmlal_lane_s16( vsuma, vsrc0, vcoeff, 0 );
+    vsuma = vmlal_lane_s16( vsuma, vsrc1, vcoeff, 1 );
+    vsuma = vmlal_lane_s16( vsuma, vsrc2, vcoeff, 2 );
+    vsuma = vmlal_lane_s16( vsuma, vsrc3, vcoeff, 3 );
+
+    vsuma = vshlq_s32( vsuma, invshift );
+
+    int16x4_t vsum = pack_sum_s32_to_s16x4<isLast>( vsuma, vibdimax );
+
+    store_s16x2( &dst[0], vsum );
+  }
+}
+
+template<bool isLast>
+void simdInterpolateVer_N8_neon( const int16_t* src, const ptrdiff_t srcStride, int16_t* dst, const ptrdiff_t dstStride,
+                                 int width, int height, int shift, int offset, const ClpRng& clpRng,
+                                 int16_t const* coeff )
+{
+  CHECKD( height < 1, "Height must be >= 1" );
+  CHECKD( width < 4, "Width must be >= 4" );
+  CHECKD( width % 4 != 0, "Width must be a multiple of 4!" );
+
+  const int16x8_t vibdimax = vdupq_n_s16( clpRng.max() );
+  const int32x4_t invshift = vdupq_n_s32( -shift );
+
+  const int16x8_t vcoeff = vld1q_s16( coeff );
+
+  do
+  {
+    int col = 0;
+    for( ; col + 8 <= width; col += 8 )
+    {
+      int16x8_t vsrc0 = vld1q_s16( &src[col + 0 * srcStride] );
+      int16x8_t vsrc1 = vld1q_s16( &src[col + 1 * srcStride] );
+      int16x8_t vsrc2 = vld1q_s16( &src[col + 2 * srcStride] );
+      int16x8_t vsrc3 = vld1q_s16( &src[col + 3 * srcStride] );
+      int16x8_t vsrc4 = vld1q_s16( &src[col + 4 * srcStride] );
+      int16x8_t vsrc5 = vld1q_s16( &src[col + 5 * srcStride] );
+      int16x8_t vsrc6 = vld1q_s16( &src[col + 6 * srcStride] );
+      int16x8_t vsrc7 = vld1q_s16( &src[col + 7 * srcStride] );
+
+      int32x4_t vsuma = vdupq_n_s32( offset );
+      vsuma = vmlal_lane_s16( vsuma, vget_low_s16( vsrc0 ), vget_low_s16( vcoeff ), 0 );
+      vsuma = vmlal_lane_s16( vsuma, vget_low_s16( vsrc1 ), vget_low_s16( vcoeff ), 1 );
+      vsuma = vmlal_lane_s16( vsuma, vget_low_s16( vsrc2 ), vget_low_s16( vcoeff ), 2 );
+      vsuma = vmlal_lane_s16( vsuma, vget_low_s16( vsrc3 ), vget_low_s16( vcoeff ), 3 );
+      vsuma = vmlal_lane_s16( vsuma, vget_low_s16( vsrc4 ), vget_high_s16( vcoeff ), 0 );
+      vsuma = vmlal_lane_s16( vsuma, vget_low_s16( vsrc5 ), vget_high_s16( vcoeff ), 1 );
+      vsuma = vmlal_lane_s16( vsuma, vget_low_s16( vsrc6 ), vget_high_s16( vcoeff ), 2 );
+      vsuma = vmlal_lane_s16( vsuma, vget_low_s16( vsrc7 ), vget_high_s16( vcoeff ), 3 );
+
+      int32x4_t vsumb = vdupq_n_s32( offset );
+      vsumb = vmlal_lane_s16( vsumb, vget_high_s16( vsrc0 ), vget_low_s16( vcoeff ), 0 );
+      vsumb = vmlal_lane_s16( vsumb, vget_high_s16( vsrc1 ), vget_low_s16( vcoeff ), 1 );
+      vsumb = vmlal_lane_s16( vsumb, vget_high_s16( vsrc2 ), vget_low_s16( vcoeff ), 2 );
+      vsumb = vmlal_lane_s16( vsumb, vget_high_s16( vsrc3 ), vget_low_s16( vcoeff ), 3 );
+      vsumb = vmlal_lane_s16( vsumb, vget_high_s16( vsrc4 ), vget_high_s16( vcoeff ), 0 );
+      vsumb = vmlal_lane_s16( vsumb, vget_high_s16( vsrc5 ), vget_high_s16( vcoeff ), 1 );
+      vsumb = vmlal_lane_s16( vsumb, vget_high_s16( vsrc6 ), vget_high_s16( vcoeff ), 2 );
+      vsumb = vmlal_lane_s16( vsumb, vget_high_s16( vsrc7 ), vget_high_s16( vcoeff ), 3 );
+
+      vsuma = vshlq_s32( vsuma, invshift );
+      vsumb = vshlq_s32( vsumb, invshift );
+
+      int16x8_t vsum = pack_sum_s32_to_s16x8<isLast>( vsuma, vsumb, vibdimax );
+
+      vst1q_s16( &dst[col], vsum );
+    }
+    if( col != width ) // Last four samples.
+    {
+      int16x4_t vsrc0 = vld1_s16( &src[col + 0 * srcStride] );
+      int16x4_t vsrc1 = vld1_s16( &src[col + 1 * srcStride] );
+      int16x4_t vsrc2 = vld1_s16( &src[col + 2 * srcStride] );
+      int16x4_t vsrc3 = vld1_s16( &src[col + 3 * srcStride] );
+      int16x4_t vsrc4 = vld1_s16( &src[col + 4 * srcStride] );
+      int16x4_t vsrc5 = vld1_s16( &src[col + 5 * srcStride] );
+      int16x4_t vsrc6 = vld1_s16( &src[col + 6 * srcStride] );
+      int16x4_t vsrc7 = vld1_s16( &src[col + 7 * srcStride] );
+
+      int32x4_t vsuma = vdupq_n_s32( offset );
+      vsuma = vmlal_lane_s16( vsuma, vsrc0, vget_low_s16( vcoeff ), 0 );
+      vsuma = vmlal_lane_s16( vsuma, vsrc1, vget_low_s16( vcoeff ), 1 );
+      vsuma = vmlal_lane_s16( vsuma, vsrc2, vget_low_s16( vcoeff ), 2 );
+      vsuma = vmlal_lane_s16( vsuma, vsrc3, vget_low_s16( vcoeff ), 3 );
+      vsuma = vmlal_lane_s16( vsuma, vsrc4, vget_high_s16( vcoeff ), 0 );
+      vsuma = vmlal_lane_s16( vsuma, vsrc5, vget_high_s16( vcoeff ), 1 );
+      vsuma = vmlal_lane_s16( vsuma, vsrc6, vget_high_s16( vcoeff ), 2 );
+      vsuma = vmlal_lane_s16( vsuma, vsrc7, vget_high_s16( vcoeff ), 3 );
+
+      vsuma = vshlq_s32( vsuma, invshift );
+
+      int16x4_t vsum = pack_sum_s32_to_s16x4<isLast>( vsuma, vget_low_s16( vibdimax ) );
+
+      vst1_s16( &dst[col], vsum );
+    }
+
+    src += srcStride;
+    dst += dstStride;
+  } while( --height != 0 );
+}
+
+template<bool isLast>
+void simdInterpolateVer_N6_neon( const int16_t* src, const ptrdiff_t srcStride, int16_t* dst, const ptrdiff_t dstStride,
+                                 int width, int height, int shift, int offset, const ClpRng& clpRng,
+                                 int16_t const* coeff )
+{
+  CHECKD( height < 1, "Height must be >= 1" );
+  CHECKD( width < 4, "Width must be >= 4" );
+  CHECKD( width % 4 != 0, "Width must be a multiple of 4!" );
+
+  const int16x8_t vibdimax = vdupq_n_s16( clpRng.max() );
+  const int32x4_t invshift = vdupq_n_s32( -shift );
+
+  const int16x8_t vcoeff = vld1q_s16( coeff );
+
+  do
+  {
+    int col = 0;
+    for( ; col + 8 <= width; col += 8 )
+    {
+      // For 6-tap, src[0] and src[7] are multiplied by 0 so ignore them.
+      int16x8_t vsrc1 = vld1q_s16( &src[col + 1 * srcStride] );
+      int16x8_t vsrc2 = vld1q_s16( &src[col + 2 * srcStride] );
+      int16x8_t vsrc3 = vld1q_s16( &src[col + 3 * srcStride] );
+      int16x8_t vsrc4 = vld1q_s16( &src[col + 4 * srcStride] );
+      int16x8_t vsrc5 = vld1q_s16( &src[col + 5 * srcStride] );
+      int16x8_t vsrc6 = vld1q_s16( &src[col + 6 * srcStride] );
+
+      int32x4_t vsuma = vdupq_n_s32( offset );
+      vsuma = vmlal_lane_s16( vsuma, vget_low_s16( vsrc1 ), vget_low_s16( vcoeff ), 1 );
+      vsuma = vmlal_lane_s16( vsuma, vget_low_s16( vsrc2 ), vget_low_s16( vcoeff ), 2 );
+      vsuma = vmlal_lane_s16( vsuma, vget_low_s16( vsrc3 ), vget_low_s16( vcoeff ), 3 );
+      vsuma = vmlal_lane_s16( vsuma, vget_low_s16( vsrc4 ), vget_high_s16( vcoeff ), 0 );
+      vsuma = vmlal_lane_s16( vsuma, vget_low_s16( vsrc5 ), vget_high_s16( vcoeff ), 1 );
+      vsuma = vmlal_lane_s16( vsuma, vget_low_s16( vsrc6 ), vget_high_s16( vcoeff ), 2 );
+
+      int32x4_t vsumb = vdupq_n_s32( offset );
+      vsumb = vmlal_lane_s16( vsumb, vget_high_s16( vsrc1 ), vget_low_s16( vcoeff ), 1 );
+      vsumb = vmlal_lane_s16( vsumb, vget_high_s16( vsrc2 ), vget_low_s16( vcoeff ), 2 );
+      vsumb = vmlal_lane_s16( vsumb, vget_high_s16( vsrc3 ), vget_low_s16( vcoeff ), 3 );
+      vsumb = vmlal_lane_s16( vsumb, vget_high_s16( vsrc4 ), vget_high_s16( vcoeff ), 0 );
+      vsumb = vmlal_lane_s16( vsumb, vget_high_s16( vsrc5 ), vget_high_s16( vcoeff ), 1 );
+      vsumb = vmlal_lane_s16( vsumb, vget_high_s16( vsrc6 ), vget_high_s16( vcoeff ), 2 );
+
+      vsuma = vshlq_s32( vsuma, invshift );
+      vsumb = vshlq_s32( vsumb, invshift );
+
+      int16x8_t vsum = pack_sum_s32_to_s16x8<isLast>( vsuma, vsumb, vibdimax );
+
+      vst1q_s16( &dst[col], vsum );
+    }
+    if( col != width ) // Last four samples.
+    {
+      // For 6-tap, src[0] and src[7] are multiplied by 0 so ignore them.
+      int16x4_t vsrc1 = vld1_s16( &src[col + 1 * srcStride] );
+      int16x4_t vsrc2 = vld1_s16( &src[col + 2 * srcStride] );
+      int16x4_t vsrc3 = vld1_s16( &src[col + 3 * srcStride] );
+      int16x4_t vsrc4 = vld1_s16( &src[col + 4 * srcStride] );
+      int16x4_t vsrc5 = vld1_s16( &src[col + 5 * srcStride] );
+      int16x4_t vsrc6 = vld1_s16( &src[col + 6 * srcStride] );
+
+      int32x4_t vsuma = vdupq_n_s32( offset );
+      vsuma = vmlal_lane_s16( vsuma, vsrc1, vget_low_s16( vcoeff ), 1 );
+      vsuma = vmlal_lane_s16( vsuma, vsrc2, vget_low_s16( vcoeff ), 2 );
+      vsuma = vmlal_lane_s16( vsuma, vsrc3, vget_low_s16( vcoeff ), 3 );
+      vsuma = vmlal_lane_s16( vsuma, vsrc4, vget_high_s16( vcoeff ), 0 );
+      vsuma = vmlal_lane_s16( vsuma, vsrc5, vget_high_s16( vcoeff ), 1 );
+      vsuma = vmlal_lane_s16( vsuma, vsrc6, vget_high_s16( vcoeff ), 2 );
+
+      vsuma = vshlq_s32( vsuma, invshift );
+
+      int16x4_t vsum = pack_sum_s32_to_s16x4<isLast>( vsuma, vget_low_s16( vibdimax ) );
+
+      vst1_s16( &dst[col], vsum );
+    }
+
+    src += srcStride;
+    dst += dstStride;
+  } while( --height != 0 );
+}
+
+template<bool isLast>
+void simdInterpolateVer_N4_neon( const int16_t* src, const ptrdiff_t srcStride, int16_t* dst, const ptrdiff_t dstStride,
+                                 int width, int height, int shift, int offset, const ClpRng& clpRng,
+                                 int16_t const* coeff )
+{
+  CHECKD( height < 1, "Height must be >= 1" );
+  CHECKD( width < 4, "Width must be >= 4" );
+  CHECKD( width % 4 != 0, "Width must be a multiple of 4!" );
+
+  const int16x8_t vibdimax = vdupq_n_s16( clpRng.max() );
+  const int32x4_t invshift = vdupq_n_s32( -shift );
+
+  const int16x4_t vcoeff = vld1_s16( coeff );
+
+  do
+  {
+    int col = 0;
+    for( ; col + 8 <= width; col += 8 )
+    {
+      int16x8_t vsrc0 = vld1q_s16( &src[col + 0 * srcStride] );
+      int16x8_t vsrc1 = vld1q_s16( &src[col + 1 * srcStride] );
+      int16x8_t vsrc2 = vld1q_s16( &src[col + 2 * srcStride] );
+      int16x8_t vsrc3 = vld1q_s16( &src[col + 3 * srcStride] );
+
+      int32x4_t vsuma = vdupq_n_s32( offset );
+      vsuma = vmlal_lane_s16( vsuma, vget_low_s16( vsrc0 ), vcoeff, 0 );
+      vsuma = vmlal_lane_s16( vsuma, vget_low_s16( vsrc1 ), vcoeff, 1 );
+      vsuma = vmlal_lane_s16( vsuma, vget_low_s16( vsrc2 ), vcoeff, 2 );
+      vsuma = vmlal_lane_s16( vsuma, vget_low_s16( vsrc3 ), vcoeff, 3 );
+
+      int32x4_t vsumb = vdupq_n_s32( offset );
+      vsumb = vmlal_lane_s16( vsumb, vget_high_s16( vsrc0 ), vcoeff, 0 );
+      vsumb = vmlal_lane_s16( vsumb, vget_high_s16( vsrc1 ), vcoeff, 1 );
+      vsumb = vmlal_lane_s16( vsumb, vget_high_s16( vsrc2 ), vcoeff, 2 );
+      vsumb = vmlal_lane_s16( vsumb, vget_high_s16( vsrc3 ), vcoeff, 3 );
+
+      vsuma = vshlq_s32( vsuma, invshift );
+      vsumb = vshlq_s32( vsumb, invshift );
+
+      int16x8_t vsum = pack_sum_s32_to_s16x8<isLast>( vsuma, vsumb, vibdimax );
+
+      vst1q_s16( &dst[col], vsum );
+    }
+    if( col != width ) // Last four samples.
+    {
+      int16x4_t vsrc0 = vld1_s16( &src[col + 0 * srcStride] );
+      int16x4_t vsrc1 = vld1_s16( &src[col + 1 * srcStride] );
+      int16x4_t vsrc2 = vld1_s16( &src[col + 2 * srcStride] );
+      int16x4_t vsrc3 = vld1_s16( &src[col + 3 * srcStride] );
+
+      int32x4_t vsuma = vdupq_n_s32( offset );
+      vsuma = vmlal_lane_s16( vsuma, vsrc0, vcoeff, 0 );
+      vsuma = vmlal_lane_s16( vsuma, vsrc1, vcoeff, 1 );
+      vsuma = vmlal_lane_s16( vsuma, vsrc2, vcoeff, 2 );
+      vsuma = vmlal_lane_s16( vsuma, vsrc3, vcoeff, 3 );
+
+      vsuma = vshlq_s32( vsuma, invshift );
+
+      int16x4_t vsum = pack_sum_s32_to_s16x4<isLast>( vsuma, vget_low_s16( vibdimax ) );
+
+      vst1_s16( &dst[col], vsum );
+    }
+
+    src += srcStride;
+    dst += dstStride;
+  } while( --height != 0 );
+}
+
+template<bool isLast>
+void simdInterpolateVerM2_N4_neon( const int16_t* src, const ptrdiff_t srcStride, int16_t* dst,
+                                   const ptrdiff_t dstStride, int width, int height, int shift, int offset,
+                                   const ClpRng& clpRng, int16_t const* coeff )
+{
+  CHECKD( height < 1, "Height must be >= 1" );
+  CHECKD( width != 2, "Width must be two!" );
+
+  const int16x4_t vibdimax = vdup_n_s16( clpRng.max() );
+  const int32x4_t invshift = vdupq_n_s32( -shift );
+
+  const int16x4_t vcoeff = vld1_s16( coeff );
+
+  int16x4_t vsrc0 = load_s16x2x2( &src[0 * srcStride], srcStride );
+  int16x4_t vsrc1 = load_s16x2x2( &src[1 * srcStride], srcStride );
+
+  int row = 0;
+  for( ; row + 2 <= height; row += 2 )
+  {
+    int16x4_t vsrc2 = load_s16x2x2( &src[2 * srcStride], srcStride );
+    int16x4_t vsrc3 = load_s16x2x2( &src[3 * srcStride], srcStride );
+
+    int32x4_t vsuma = vdupq_n_s32( offset );
+    vsuma = vmlal_lane_s16( vsuma, vsrc0, vcoeff, 0 );
+    vsuma = vmlal_lane_s16( vsuma, vsrc1, vcoeff, 1 );
+    vsuma = vmlal_lane_s16( vsuma, vsrc2, vcoeff, 2 );
+    vsuma = vmlal_lane_s16( vsuma, vsrc3, vcoeff, 3 );
+
+    vsuma = vshlq_s32( vsuma, invshift );
+
+    int16x4_t vsum = pack_sum_s32_to_s16x4<isLast>( vsuma, vibdimax );
+
+    store_s16x2x2( &dst[0], vsum, dstStride );
+
+    vsrc0 = vsrc2;
+    vsrc1 = vsrc3;
+
+    src += 2 * srcStride;
+    dst += 2 * dstStride;
+  }
+  if( row != height )
+  {
+    int16x4_t vsrc2 = load_s16x2( &src[2 * srcStride] );
+    int16x4_t vsrc3 = load_s16x2( &src[3 * srcStride] );
+
+    int32x4_t vsuma = vdupq_n_s32( offset );
+    vsuma = vmlal_lane_s16( vsuma, vsrc0, vcoeff, 0 );
+    vsuma = vmlal_lane_s16( vsuma, vsrc1, vcoeff, 1 );
+    vsuma = vmlal_lane_s16( vsuma, vsrc2, vcoeff, 2 );
+    vsuma = vmlal_lane_s16( vsuma, vsrc3, vcoeff, 3 );
+
+    vsuma = vshlq_s32( vsuma, invshift );
+
+    int16x4_t vsum = pack_sum_s32_to_s16x4<isLast>( vsuma, vibdimax );
+
+    store_s16x2( &dst[0], vsum );
+  }
+}
+
+template<bool isVertical>
+void simdInterpolate_N2_neon( const int16_t* src, const ptrdiff_t srcStride, int16_t* dst, const ptrdiff_t dstStride,
+                              int width, int height, int shift, int offset, const ClpRng& clpRng, int16_t const* coeff )
+{
+  CHECKD( height < 1, "Height must be >= 1" );
+  CHECKD( width < 4, "Width must be >= 4" );
+  CHECKD( width % 8 != 4, "Width must be a multiple of 4 but not 8!" );
+  CHECKD( clpRng.bd > 10, "VVdeC does not support bitdepths larger than 10!" );
+  CHECKD( std::max( coeff[0], coeff[1] ) > 16, "Bilinear coeff should not be greater than 16" );
+  CHECKD( offset != 1 << ( shift - 1 ), "Offset must be equal to 1 << ( shift - 1 )" );
+
+  const int16x8_t invshift = vdupq_n_s16( -shift );
+  const int16x4_t vcoeff = load_s16x2( coeff );
+
+  const ptrdiff_t cStride = isVertical ? srcStride : 1;
+
+  do
+  {
+    int col = 0;
+    for( ; col + 8 <= width; col += 8 )
+    {
+      int16x8_t vsrc0 = vld1q_s16( &src[col + 0 * cStride] );
+      int16x8_t vsrc1 = vld1q_s16( &src[col + 1 * cStride] );
+
+      int16x8_t vsuma = vmulq_lane_s16( vsrc0, vcoeff, 0 );
+      vsuma = vmlaq_lane_s16( vsuma, vsrc1, vcoeff, 1 );
+
+      // Use rounding shift since offset == 1 << ( shift - 1 ).
+      vsuma = vrshlq_s16( vsuma, invshift );
+
+      vst1q_s16( &dst[col], vsuma );
+    }
+
+    // Last four samples.
+    int16x4_t vsrc0 = vld1_s16( &src[col + 0 * cStride] );
+    int16x4_t vsrc1 = vld1_s16( &src[col + 1 * cStride] );
+
+    int16x4_t vsuma = vmul_lane_s16( vsrc0, vcoeff, 0 );
+    vsuma = vmla_lane_s16( vsuma, vsrc1, vcoeff, 1 );
+
+    // Use rounding shift since offset == 1 << ( shift - 1 ).
+    vsuma = vrshl_s16( vsuma, vget_low_s16( invshift ) );
+
+    vst1_s16( &dst[col], vsuma );
+
+    src += srcStride;
+    dst += dstStride;
+  } while( --height != 0 );
+}
+
+template<int N, bool isVertical, bool isFirst, bool isLast>
+void simdFilter_neon( const ClpRng& clpRng, const Pel* src, const ptrdiff_t srcStride, Pel* dst,
+                      const ptrdiff_t dstStride, int width, int height, TFilterCoeff const* coeff )
+{
+  static_assert( N == 2 || N == 4 || N == 8, "Supported taps: 2/4/8" );
+  CHECKD( height < 1, "Height must be >= 1!" );
+  CHECKD( width < 1, "Width must be >= 1!" );
+  CHECKD( clpRng.bd > 10, "VVdeC does not support bitdepths larger than 10!" );
+  CHECKD( IF_INTERNAL_PREC - clpRng.bd < 2, "Bit depth headroom must be at least 2" );
+
+  const int16_t* c = coeff;
+
+  const ptrdiff_t cStride = isVertical ? srcStride : 1;
+  src -= ( N / 2 - 1 ) * cStride;
+
+  int offset;
+  int headRoom = IF_INTERNAL_PREC - clpRng.bd;
+  int shift = IF_FILTER_PREC;
+
+  bool is_N6 = false;
+  if( N == 8 )
+  {
+    is_N6 = coeff[0] == 0 && coeff[7] == 0;
+  }
+
+  if( N != 2 )
+  {
+    if( isLast )
+    {
+      shift += isFirst ? 0 : headRoom;
+      offset = 1 << ( shift - 1 );
+      offset += isFirst ? 0 : IF_INTERNAL_OFFS << IF_FILTER_PREC;
+    }
+    else
+    {
+      shift -= isFirst ? headRoom : 0;
+      offset = isFirst ? -IF_INTERNAL_OFFS * ( 1 << shift ) : 0;
+    }
+  }
+  else // N == 2
+  {
+    if( isFirst )
+    {
+      shift = IF_FILTER_PREC_BILINEAR - ( IF_INTERNAL_PREC_BILINEAR - clpRng.bd );
+      offset = 1 << ( shift - 1 );
+    }
+    else
+    {
+      shift = 4;
+      offset = 1 << ( shift - 1 );
+    }
+  }
+
+  if( N == 8 )
+  {
+    CHECKD( width % 4 != 0 && width != 1, "N8 width must be 1 or multiple of 4! width=" << width );
+
+    if( width % 4 == 0 )
+    {
+      if( is_N6 ) // 6-tap
+      {
+        if( !isVertical )
+        {
+          simdInterpolateHor_N6_neon<isLast>( src, srcStride, dst, dstStride, width, height, shift, offset, clpRng, c );
+        }
+        else
+        {
+          simdInterpolateVer_N6_neon<isLast>( src, srcStride, dst, dstStride, width, height, shift, offset, clpRng, c );
+        }
+      }
+      else // 8-tap
+      {
+        if( !isVertical )
+        {
+          simdInterpolateHor_N8_neon<isLast>( src, srcStride, dst, dstStride, width, height, shift, offset, clpRng, c );
+        }
+        else
+        {
+          simdInterpolateVer_N8_neon<isLast>( src, srcStride, dst, dstStride, width, height, shift, offset, clpRng, c );
+        }
+      }
+
+      return;
+    }
+  }
+
+  if( N == 4 )
+  {
+    CHECKD( width % 4 != 0 && width != 2 && width != 1, "N4 width must be 1 or 2 or multiple of 4! width=" << width );
+
+    if( width % 4 == 0 )
+    {
+      if( !isVertical )
+      {
+        simdInterpolateHor_N4_neon<isLast>( src, srcStride, dst, dstStride, width, height, shift, offset, clpRng, c );
+      }
+      else
+      {
+        simdInterpolateVer_N4_neon<isLast>( src, srcStride, dst, dstStride, width, height, shift, offset, clpRng, c );
+      }
+
+      return;
+    }
+    else if( width == 2 )
+    {
+      if( !isVertical )
+      {
+        simdInterpolateHorM2_N4_neon<isLast>( src, srcStride, dst, dstStride, width, height, shift, offset, clpRng, c );
+      }
+      else
+      {
+        simdInterpolateVerM2_N4_neon<isLast>( src, srcStride, dst, dstStride, width, height, shift, offset, clpRng, c );
+      }
+
+      return;
+    }
+  }
+
+  if( N == 2 )
+  {
+    CHECKD( isLast, "isLast is not supported for 2-tap" );
+    CHECKD( width % 8 != 4, "N2 width must be multiple of 4 but not 8! width=" << width );
+
+    simdInterpolate_N2_neon<isVertical>( src, srcStride, dst, dstStride, width, height, shift, offset, clpRng, c );
+
+    return;
+  }
+
+  // Fallback to scalar code for width == 1.
+  CHECKD( width != 1, "Width must be 1!" );
+
+  if( !is_N6 ) // 4-tap or 8-tap
+  {
+    do
+    {
+      int sum = src[0 * cStride] * c[0];
+      sum    += src[1 * cStride] * c[1];
+      sum    += src[2 * cStride] * c[2];
+      sum    += src[3 * cStride] * c[3];
+      if( N == 8 )
+      {
+        sum += src[4 * cStride] * c[4];
+        sum += src[5 * cStride] * c[5];
+        sum += src[6 * cStride] * c[6];
+        sum += src[7 * cStride] * c[7];
+      }
+
+      Pel val = ( sum + offset ) >> shift;
+      if( isLast )
+      {
+        val = ClipPel( val, clpRng );
+      }
+      dst[0] = val;
+
+      src += srcStride;
+      dst += dstStride;
+    } while( --height != 0 );
+  }
+  else // 6-tap
+  {
+    do
+    {
+      // For 6-tap, src[0] and src[7] are multiplied by 0 so ignore them.
+      int sum = src[1 * cStride] * c[1];
+      sum    += src[2 * cStride] * c[2];
+      sum    += src[3 * cStride] * c[3];
+      sum    += src[4 * cStride] * c[4];
+      sum    += src[5 * cStride] * c[5];
+      sum    += src[6 * cStride] * c[6];
+
+      Pel val = ( sum + offset ) >> shift;
+      if( isLast )
+      {
+        val = ClipPel( val, clpRng );
+      }
+      dst[0] = val;
+
+      src += srcStride;
+      dst += dstStride;
+    } while( --height != 0 );
+  }
+}
+
 template<>
 void InterpolationFilter::_initInterpolationFilterARM<NEON>()
 {
@@ -863,6 +1684,36 @@ void InterpolationFilter::_initInterpolationFilterARM<NEON>()
   m_filter16xH[1][1] = simdFilter16xH_N4_neon<true>;
 
   m_filterN2_2D = simdInterpolateN2_2D_neon;
+
+  m_filterHor[0][0][0] = simdFilter_neon<8, false, false, false>;
+  m_filterHor[0][0][1] = simdFilter_neon<8, false, false, true>;
+  m_filterHor[0][1][0] = simdFilter_neon<8, false, true, false>;
+  m_filterHor[0][1][1] = simdFilter_neon<8, false, true, true>;
+
+  m_filterHor[1][0][0] = simdFilter_neon<4, false, false, false>;
+  m_filterHor[1][0][1] = simdFilter_neon<4, false, false, true>;
+  m_filterHor[1][1][0] = simdFilter_neon<4, false, true, false>;
+  m_filterHor[1][1][1] = simdFilter_neon<4, false, true, true>;
+
+  m_filterHor[2][0][0] = simdFilter_neon<2, false, false, false>;
+  m_filterHor[2][0][1] = simdFilter_neon<2, false, false, true>;
+  m_filterHor[2][1][0] = simdFilter_neon<2, false, true, false>;
+  m_filterHor[2][1][1] = simdFilter_neon<2, false, true, true>;
+
+  m_filterVer[0][0][0] = simdFilter_neon<8, true, false, false>;
+  m_filterVer[0][0][1] = simdFilter_neon<8, true, false, true>;
+  m_filterVer[0][1][0] = simdFilter_neon<8, true, true, false>;
+  m_filterVer[0][1][1] = simdFilter_neon<8, true, true, true>;
+
+  m_filterVer[1][0][0] = simdFilter_neon<4, true, false, false>;
+  m_filterVer[1][0][1] = simdFilter_neon<4, true, false, true>;
+  m_filterVer[1][1][0] = simdFilter_neon<4, true, true, false>;
+  m_filterVer[1][1][1] = simdFilter_neon<4, true, true, true>;
+
+  m_filterVer[2][0][0] = simdFilter_neon<2, true, false, false>;
+  m_filterVer[2][0][1] = simdFilter_neon<2, true, false, true>;
+  m_filterVer[2][1][0] = simdFilter_neon<2, true, true, false>;
+  m_filterVer[2][1][1] = simdFilter_neon<2, true, true, true>;
 }
 
 } // namespace vvdec
