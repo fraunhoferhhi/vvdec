@@ -45,7 +45,7 @@ POSSIBILITY OF SUCH DAMAGE.
 
 #include "CommonDefARM.h"
 
-#if TARGET_SIMD_ARM_SVE
+#if TARGET_SIMD_ARM
 #if defined( __linux__ ) || HAVE_ELF_AUX_INFO
 #include <sys/auxv.h>  // getauxval / elf_aux_info
 #endif
@@ -58,14 +58,17 @@ namespace vvdec
 using namespace arm_simd;
 
 const static std::vector<std::pair<ARM_VEXT, std::string>> vext_names{
-  { UNDEFINED, ""       },
-  { SCALAR,    "SCALAR" },
-  { NEON,      "NEON"   },
+  { UNDEFINED, ""         },
+  { SCALAR,    "SCALAR"   },
+  { NEON,      "NEON"     },
+#if TARGET_SIMD_ARM_RDM
+  { NEON_RDM,  "NEON_RDM" },
+#endif
 #if TARGET_SIMD_ARM_SVE
-  { SVE,       "SVE"    },
+  { SVE,       "SVE"      },
 #endif
 #if TARGET_SIMD_ARM_SVE2
-  { SVE2,      "SVE2"   },
+  { SVE2,      "SVE2"     },
 #endif
 };
 
@@ -103,43 +106,51 @@ ARM_VEXT string_to_arm_vext( const std::string& ext_name )
 
 // Define hwcap values ourselves: building with an old auxv header where these
 // hwcap values are not defined should not prevent features from being enabled.
-#define AARCH64_HWCAP_SVE ( 1 << 22 )
-#define AARCH64_HWCAP2_SVE2 ( 1 << 1 )
+#define AARCH64_HWCAP_ASIMDRDM  ( 1 << 12 )
+#define AARCH64_HWCAP_SVE       ( 1 << 22 )
+#define AARCH64_HWCAP2_SVE2     ( 1 << 1 )
 
 static ARM_VEXT _get_arm_extensions()
 {
   // We assume Neon is always supported for relevant Arm processors.
   ARM_VEXT ext = NEON;
 
-#if TARGET_SIMD_ARM_SVE
+#if TARGET_SIMD_ARM_RDM
 #if HAVE_ELF_AUX_INFO
   unsigned long hwcap = 0;
   elf_aux_info( AT_HWCAP, &hwcap, sizeof(hwcap) );
 #else
   unsigned long hwcap = getauxval( AT_HWCAP );
-#endif
-#endif
+#endif // HAVE_ELF_AUX_INFO
+
 #if TARGET_SIMD_ARM_SVE2
 #if HAVE_ELF_AUX_INFO
   unsigned long hwcap2 = 0;
   elf_aux_info( AT_HWCAP2, &hwcap2, sizeof(hwcap2) );
 #else
   unsigned long hwcap2 = getauxval( AT_HWCAP2 );
-#endif
-#endif
+#endif // HAVE_ELF_AUX_INFO
+#endif // TARGET_SIMD_ARM_SVE2
+#endif // TARGET_SIMD_ARM_RDM
 
-#if TARGET_SIMD_ARM_SVE
-  if( hwcap & AARCH64_HWCAP_SVE )
+#if TARGET_SIMD_ARM_RDM
+  if( hwcap & AARCH64_HWCAP_ASIMDRDM )
   {
-    ext = SVE;
-#if TARGET_SIMD_ARM_SVE2
-    if( hwcap2 & AARCH64_HWCAP2_SVE2 )
+    ext = NEON_RDM;
+#if TARGET_SIMD_ARM_SVE
+    if( hwcap & AARCH64_HWCAP_SVE )
     {
-      ext = SVE2;
+      ext = SVE;
+#if TARGET_SIMD_ARM_SVE2
+      if( hwcap2 & AARCH64_HWCAP2_SVE2 )
+      {
+        ext = SVE2;
+      }
+#endif // TARGET_SIMD_ARM_SVE2
     }
-#endif
+#endif // TARGET_SIMD_ARM_SVE
   }
-#endif
+#endif // TARGET_SIMD_ARM_RDM
 
   return ext;
 }
@@ -153,7 +164,7 @@ static ARM_VEXT _get_arm_extensions()
   return NEON;
 }
 
-#endif // defined( __linux__ )
+#endif // defined( __linux__ ) || HAVE_ELF_AUX_INFO
 
 ARM_VEXT read_arm_extension_flags( ARM_VEXT request )
 {

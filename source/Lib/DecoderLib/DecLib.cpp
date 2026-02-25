@@ -50,6 +50,7 @@ POSSIBILITY OF SUCH DAMAGE.
 #include "CommonLib/dtrace_buffer.h"
 #include "CommonLib/TimeProfiler.h"
 
+#include "CommonLib/arm/CommonDefARM.h"
 #include "CommonLib/x86/CommonDefX86.h"
 
 #include "NALread.h"
@@ -145,7 +146,9 @@ void DecLib::create( int numDecThreads, int parserFrameDelay, const UserAllocato
   cssCap << "THREADS="     << numDecThreads << "; "
          << "PARSE_DELAY=" << parserFrameDelay << "; ";
 #if ENABLE_SIMD_OPT
-#  if defined( TARGET_SIMD_X86 )
+#  if defined( TARGET_SIMD_ARM )
+  cssCap << "SIMD=" << read_arm_extension_name();
+#  elif defined( TARGET_SIMD_X86 )
   cssCap << "SIMD=" << read_x86_extension_name();
 #  else
   cssCap << "SIMD=SCALAR";
