@@ -83,10 +83,9 @@ public:
   static const TFilterCoeff m_affineLumaFilterRPR1[LUMA_INTERPOLATION_FILTER_SUB_SAMPLE_POSITIONS]  [NTAPS_LUMA]; ///< Luma filter taps 1.5x
   static const TFilterCoeff m_affineLumaFilterRPR2[LUMA_INTERPOLATION_FILTER_SUB_SAMPLE_POSITIONS]  [NTAPS_LUMA]; ///< Luma filter taps 2x
   static const TFilterCoeff m_lumaAltHpelIFilter                                                    [NTAPS_LUMA]; ///< Luma filter taps
-private:
   static const TFilterCoeff m_bilinearFilter      [LUMA_INTERPOLATION_FILTER_SUB_SAMPLE_POSITIONS]  [NTAPS_BILINEAR]; ///< bilinear filter taps
   static const TFilterCoeff m_bilinearFilterPrec4 [LUMA_INTERPOLATION_FILTER_SUB_SAMPLE_POSITIONS]  [NTAPS_BILINEAR]; ///< bilinear filter taps
-public:
+
   template<bool isFirst, bool isLast>
   static void filterCopy(const ClpRng& clpRng, const Pel* src, const ptrdiff_t srcStride, Pel* dst, const ptrdiff_t dstStride, int width, int height, bool biMCForDMVR );
   template<int N, bool isVertical, bool isFirst, bool isLast>
@@ -107,11 +106,9 @@ public:
 
   static void xWeightedGeoBlk( const CodingUnit &cu, const uint32_t width, const uint32_t height, const ComponentID compIdx, const uint8_t splitDir, PelUnitBuf& predDst, PelUnitBuf& predSrc0, PelUnitBuf& predSrc1, const ClpRng& clipRng );
   void        weightedGeoBlk ( const CodingUnit &cu, const uint32_t width, const uint32_t height, const ComponentID compIdx, const uint8_t splitDir, PelUnitBuf& predDst, PelUnitBuf& predSrc0, PelUnitBuf& predSrc1, const ClpRng& clipRng );
-protected:
-public:
+
   InterpolationFilter();
   ~InterpolationFilter() {}
-
 
   void( *m_filterN2_2D        )( const ClpRng& clpRng, const Pel* src, const ptrdiff_t srcStride, Pel* dst, const ptrdiff_t dstStride, int width, int height, TFilterCoeff const *ch, TFilterCoeff const *cv );
   void( *m_filterHor[3][2][2] )( const ClpRng& clpRng, const Pel* src, const ptrdiff_t srcStride, Pel* dst, const ptrdiff_t dstStride, int width, int height, TFilterCoeff const *coeff );
