@@ -874,7 +874,6 @@ static void simdInterpolateVerM1( const int16_t* src, ptrdiff_t srcStride, int16
   _mm_prefetch( ( const char* ) &src[3 * srcStride], _MM_HINT_T0 );
   _mm_prefetch( ( const char* ) &src[4 * srcStride], _MM_HINT_T0 );
 
-  const __m128i vcoeffv  = _mm_set1_epi64x( *( int64_t const* ) coeff );
   const __m128i vzero    = _mm_setzero_si128();
   const __m128i voffset  = _mm_set1_epi32( offset );
   const __m128i vibdimin = _mm_set1_epi16( clpRng.min() );
@@ -882,6 +881,7 @@ static void simdInterpolateVerM1( const int16_t* src, ptrdiff_t srcStride, int16
 
   if( N == 4 )
   {
+    const __m128i vcoeffv  = _mm_set1_epi64x( *( int64_t const* ) coeff );
     const __m128i vshufsrc = _mm_setr_epi8( 10, 11, 12, 13, 14, 15, -1, -1, 12, 13, 14, 15, -1, -1, -1, -1 );
 
     __m128i vsrc, vnl, vsum;
@@ -927,6 +927,7 @@ static void simdInterpolateVerM1( const int16_t* src, ptrdiff_t srcStride, int16
     _mm_prefetch( ( const char* ) &src[6 * srcStride], _MM_HINT_T0 );
     _mm_prefetch( ( const char* ) &src[7 * srcStride], _MM_HINT_T0 );
 
+    const __m128i vcoeffv  = _mm_loadu_si128( ( __m128i const* ) coeff );
     const __m128i vshufsrc = _mm_setr_epi8( 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, -1, -1 );
 
     __m128i vsrc, vnl, vsum;
