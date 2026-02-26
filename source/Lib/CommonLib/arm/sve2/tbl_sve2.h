@@ -6,7 +6,7 @@ the Software are granted under this license.
 
 The Clear BSD License
 
-Copyright (c) 2019-2026, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. & The VVDeC Authors.
+Copyright (c) 2018-2026, Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V. & The VVdeC Authors.
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without modification,
@@ -40,44 +40,28 @@ POSSIBILITY OF SUCH DAMAGE.
 
 ------------------------------------------------------------------------------------------- */
 
-/** \file     mem_neon.h
-    \brief    Helper functions for loading and storing vectors
+/** \file     tbl_sve2.h
+    \brief    SVE2 table lookup helpers
 */
 
 #pragma once
 
-#include "CommonDef.h"
+#if defined( TARGET_SIMD_ARM_SVE2 )
 
-#if defined( TARGET_SIMD_ARM )
-
-#include <arm_neon.h>
+#include <arm_neon_sve_bridge.h>
 
 namespace vvdec
 {
-static inline int8x16x2_t load_s8x16_x2( const int8_t* x )
-{
-  int8x16x2_t ret;
-  ret.val[0] = vld1q_s8( x );
-  ret.val[1] = vld1q_s8( x + 16 );
-  return ret;
-}
 
-static inline int16x8x2_t load_s16x8_x2( const int16_t* x )
+static inline int16x8_t vvdec_svtbl2_s16( int16x8x2_t data, uint16x8_t indices )
 {
-  int16x8x2_t ret;
-  ret.val[0] = vld1q_s16( x );
-  ret.val[1] = vld1q_s16( x + 8 );
-  return ret;
-}
+  svint16x2_t tbl = svcreate2_s16( svset_neonq_s16( svundef_s16(), data.val[0] ),
+                                   svset_neonq_s16( svundef_s16(), data.val[1] ) );
+  svuint16_t idx = svset_neonq_u16( svundef_u16(), indices );
 
-template<int Lane>
-inline void store_unaligned_u32_4x1( void* dst, uint32x4_t src )
-{
-  static_assert( Lane >= 0 && Lane < 4, "Lane must be in [0,3]" );
-  uint32_t a = vgetq_lane_u32( src, Lane );
-  ::memcpy( dst, &a, sizeof( uint32_t ) );
+  return svget_neonq_s16( svtbl2_s16( tbl, idx ) );
 }
 
 } // namespace vvdec
 
-#endif
+#endif // defined( TARGET_SIMD_ARM_SVE2 )
