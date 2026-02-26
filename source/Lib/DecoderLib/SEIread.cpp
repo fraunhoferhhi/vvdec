@@ -200,180 +200,195 @@ void SEIReader::xReadSEImessage( seiMessages& seiList, const NalUnitType nalUnit
   vvdecSEI *s = NULL;
   vvdecSEIPayloadType type = (vvdecSEIPayloadType)payloadType;
 
-  if(nalUnitType == NAL_UNIT_PREFIX_SEI)
+  try
   {
-    switch (payloadType)
+    if(nalUnitType == NAL_UNIT_PREFIX_SEI)
     {
-    case VVDEC_USER_DATA_REGISTERED_ITU_T_T35:
-          s = SEI_internal::allocSEI( type ) ;
-          xParseSEIUserDataRegistered( s, payloadSize, pDecodedMessageOutputStream);
-          break;
-    case VVDEC_USER_DATA_UNREGISTERED:
-          s = SEI_internal::allocSEI( type ) ;
-          xParseSEIuserDataUnregistered(s, payloadSize, pDecodedMessageOutputStream);
-      break;
-    case VVDEC_DECODING_UNIT_INFO:
-      bp = hrd.getBufferingPeriodSEI();
-      if (!bp)
+      switch (payloadType)
       {
-        msg( WARNING, "Warning: Found Decoding unit information SEI message, but no active buffering period is available. Ignoring.");
-      }
-      else
-      {
-        s = SEI_internal::allocSEI( type ) ;
-        xParseSEIDecodingUnitInfo( s, payloadSize, *bp, temporalId, pDecodedMessageOutputStream);
-      }
-      break;
-    case VVDEC_BUFFERING_PERIOD:
-        s = SEI_internal::allocSEI( type ) ;
-        xParseSEIBufferingPeriod(s, payloadSize, pDecodedMessageOutputStream);
-        if( s )
-        {
-          vvdecSEIBufferingPeriod* bufferingPeriod = reinterpret_cast<vvdecSEIBufferingPeriod *>(s->payload);
-          hrd.setBufferingPeriodSEI(bufferingPeriod);
-        }
-      break;
-    case VVDEC_PICTURE_TIMING:
-      {
+      case VVDEC_USER_DATA_REGISTERED_ITU_T_T35:
+            s = SEI_internal::allocSEI( type ) ;
+            xParseSEIUserDataRegistered( s, payloadSize, pDecodedMessageOutputStream);
+            break;
+      case VVDEC_USER_DATA_UNREGISTERED:
+            s = SEI_internal::allocSEI( type ) ;
+            xParseSEIuserDataUnregistered(s, payloadSize, pDecodedMessageOutputStream);
+        break;
+      case VVDEC_DECODING_UNIT_INFO:
         bp = hrd.getBufferingPeriodSEI();
         if (!bp)
         {
-          msg( WARNING, "Warning: Found Picture timing SEI message, but no active buffering period is available. Ignoring.");
+          msg( WARNING, "Warning: Found Decoding unit information SEI message, but no active buffering period is available. Ignoring.");
         }
         else
         {
           s = SEI_internal::allocSEI( type ) ;
-          xParseSEIPictureTiming(s, payloadSize, temporalId, *bp, pDecodedMessageOutputStream);
+          xParseSEIDecodingUnitInfo( s, payloadSize, *bp, temporalId, pDecodedMessageOutputStream);
+        }
+        break;
+      case VVDEC_BUFFERING_PERIOD:
+          s = SEI_internal::allocSEI( type ) ;
+          xParseSEIBufferingPeriod(s, payloadSize, pDecodedMessageOutputStream);
           if( s )
           {
-            vvdecSEIPictureTiming* picTiming= reinterpret_cast<vvdecSEIPictureTiming *>(s->payload);
-            hrd.setPictureTimingSEI( picTiming );
+            vvdecSEIBufferingPeriod* bufferingPeriod = reinterpret_cast<vvdecSEIBufferingPeriod *>(s->payload);
+            hrd.setBufferingPeriodSEI(bufferingPeriod);
+          }
+        break;
+      case VVDEC_PICTURE_TIMING:
+        {
+          bp = hrd.getBufferingPeriodSEI();
+          if (!bp)
+          {
+            msg( WARNING, "Warning: Found Picture timing SEI message, but no active buffering period is available. Ignoring.");
+          }
+          else
+          {
+            s = SEI_internal::allocSEI( type ) ;
+            xParseSEIPictureTiming(s, payloadSize, temporalId, *bp, pDecodedMessageOutputStream);
+            if( s )
+            {
+              vvdecSEIPictureTiming* picTiming= reinterpret_cast<vvdecSEIPictureTiming *>(s->payload);
+              hrd.setPictureTimingSEI( picTiming );
+            }
           }
         }
-      }
-      break;
-    case VVDEC_SCALABLE_NESTING:
-        s = SEI_internal::allocSEI( type ) ;
-        xParseSEIScalableNesting(s, nalUnitType, nuh_layer_id, payloadSize, vps, sps, pDecodedMessageOutputStream);
-      break;
-    case VVDEC_FRAME_FIELD_INFO:
-        s = SEI_internal::allocSEI( type ) ;
-        xParseSEIFrameFieldinfo( s, payloadSize, pDecodedMessageOutputStream);
-      break;
-    case VVDEC_DEPENDENT_RAP_INDICATION:
-        s = SEI_internal::allocSEI( type ) ;
-        xParseSEIDependentRAPIndication( s, payloadSize, pDecodedMessageOutputStream);
-      break;
-    case VVDEC_FRAME_PACKING:
-        s = SEI_internal::allocSEI( type ) ;
-        xParseSEIFramePacking( s, payloadSize, pDecodedMessageOutputStream);
-      break;
-    case VVDEC_PARAMETER_SETS_INCLUSION_INDICATION:
-        s = SEI_internal::allocSEI( type ) ;
-        xParseSEIParameterSetsInclusionIndication( s, payloadSize, pDecodedMessageOutputStream);
-      break;
-    case VVDEC_MASTERING_DISPLAY_COLOUR_VOLUME:
-        s = SEI_internal::allocSEI( type ) ;
-        xParseSEIMasteringDisplayColourVolume( s, payloadSize, pDecodedMessageOutputStream);
-      break;
-#if U0033_ALTERNATIVE_TRANSFER_CHARACTERISTICS_SEI
-    case VVDEC_ALTERNATIVE_TRANSFER_CHARACTERISTICS:
-        s = SEI_internal::allocSEI( type ) ;
-        xParseSEIAlternativeTransferCharacteristics( s, payloadSize, pDecodedMessageOutputStream);
-      break;
-#endif
-    case VVDEC_EQUIRECTANGULAR_PROJECTION:
-        s = SEI_internal::allocSEI( type ) ;
-        xParseSEIEquirectangularProjection( s, payloadSize, pDecodedMessageOutputStream);
-      break;
-    case VVDEC_SPHERE_ROTATION:
-        s = SEI_internal::allocSEI( type ) ;
-        xParseSEISphereRotation( s, payloadSize, pDecodedMessageOutputStream);
-      break;
-    case VVDEC_OMNI_VIEWPORT:
-        s = SEI_internal::allocSEI( type ) ;
-        xParseSEIOmniViewport( s, payloadSize, pDecodedMessageOutputStream);
-      break;
-    case VVDEC_REGION_WISE_PACKING:
-        s = SEI_internal::allocSEI( type ) ;
-        xParseSEIRegionWisePacking( s, payloadSize, pDecodedMessageOutputStream);
-      break;
-    case VVDEC_GENERALIZED_CUBEMAP_PROJECTION:
-        s = SEI_internal::allocSEI( type ) ;
-        xParseSEIGeneralizedCubemapProjection( s, payloadSize, pDecodedMessageOutputStream);
-      break;
-    case VVDEC_SUBPICTURE_LEVEL_INFO:
-        s = SEI_internal::allocSEI( type ) ;
-        xParseSEISubpictureLevelInfo(s, payloadSize, pDecodedMessageOutputStream);
-      break;
-    case VVDEC_SAMPLE_ASPECT_RATIO_INFO:
-        s = SEI_internal::allocSEI( type ) ;
-        xParseSEISampleAspectRatioInfo( s, payloadSize, pDecodedMessageOutputStream);
-      break;
-    case VVDEC_FILM_GRAIN_CHARACTERISTICS:
-        s = SEI_internal::allocSEI( type ) ;
-        xParseSEIFilmGrainCharacteristics(s, payloadSize, pDecodedMessageOutputStream);
-      break;
-    case VVDEC_CONTENT_LIGHT_LEVEL_INFO:
-        s = SEI_internal::allocSEI( type ) ;
-        xParseSEIContentLightLevelInfo( s, payloadSize, pDecodedMessageOutputStream);
-      break;
-    case VVDEC_AMBIENT_VIEWING_ENVIRONMENT:
-        s = SEI_internal::allocSEI( type ) ;
-        xParseSEIAmbientViewingEnvironment( s, payloadSize, pDecodedMessageOutputStream);
-      break;
-    case VVDEC_CONTENT_COLOUR_VOLUME:
-        s = SEI_internal::allocSEI( type ) ;
-        xParseSEIContentColourVolume( s, payloadSize, pDecodedMessageOutputStream);
-      break;
-    default:
-      for (uint32_t i = 0; i < payloadSize; i++)
-      {
-        uint32_t seiByte;
-        sei_read_code (NULL, 8, seiByte, "unknown prefix SEI payload byte");
-      }
-      msg( WARNING, "Unknown prefix SEI message (payloadType = %d) was found!\n", payloadType);
-      if (pDecodedMessageOutputStream)
-      {
-        (*pDecodedMessageOutputStream) << "Unknown prefix SEI message (payloadType = " << payloadType << ") was found!\n";
-      }
-      break;
-    }
-  }
-  else
-  {
-    switch (payloadType)
-    {
-      case VVDEC_USER_DATA_UNREGISTERED:
-        s = SEI_internal::allocSEI( type ) ;
-        xParseSEIuserDataUnregistered(s, payloadSize, pDecodedMessageOutputStream);
-        break;
-      case  VVDEC_DECODED_PICTURE_HASH:
-        s = SEI_internal::allocSEI( type ) ;
-        xParseSEIDecodedPictureHash(s, payloadSize, pDecodedMessageOutputStream);
         break;
       case VVDEC_SCALABLE_NESTING:
-        s = SEI_internal::allocSEI( type ) ;
-        xParseSEIScalableNesting(s, nalUnitType, nuh_layer_id, payloadSize, vps, sps, pDecodedMessageOutputStream);
+          s = SEI_internal::allocSEI( type ) ;
+          xParseSEIScalableNesting(s, nalUnitType, nuh_layer_id, payloadSize, vps, sps, pDecodedMessageOutputStream);
+        break;
+      case VVDEC_FRAME_FIELD_INFO:
+          s = SEI_internal::allocSEI( type ) ;
+          xParseSEIFrameFieldinfo( s, payloadSize, pDecodedMessageOutputStream);
+        break;
+      case VVDEC_DEPENDENT_RAP_INDICATION:
+          s = SEI_internal::allocSEI( type ) ;
+          xParseSEIDependentRAPIndication( s, payloadSize, pDecodedMessageOutputStream);
+        break;
+      case VVDEC_FRAME_PACKING:
+          s = SEI_internal::allocSEI( type ) ;
+          xParseSEIFramePacking( s, payloadSize, pDecodedMessageOutputStream);
+        break;
+      case VVDEC_PARAMETER_SETS_INCLUSION_INDICATION:
+          s = SEI_internal::allocSEI( type ) ;
+          xParseSEIParameterSetsInclusionIndication( s, payloadSize, pDecodedMessageOutputStream);
+        break;
+      case VVDEC_MASTERING_DISPLAY_COLOUR_VOLUME:
+          s = SEI_internal::allocSEI( type ) ;
+          xParseSEIMasteringDisplayColourVolume( s, payloadSize, pDecodedMessageOutputStream);
+        break;
+  #if U0033_ALTERNATIVE_TRANSFER_CHARACTERISTICS_SEI
+      case VVDEC_ALTERNATIVE_TRANSFER_CHARACTERISTICS:
+          s = SEI_internal::allocSEI( type ) ;
+          xParseSEIAlternativeTransferCharacteristics( s, payloadSize, pDecodedMessageOutputStream);
+        break;
+  #endif
+      case VVDEC_EQUIRECTANGULAR_PROJECTION:
+          s = SEI_internal::allocSEI( type ) ;
+          xParseSEIEquirectangularProjection( s, payloadSize, pDecodedMessageOutputStream);
+        break;
+      case VVDEC_SPHERE_ROTATION:
+          s = SEI_internal::allocSEI( type ) ;
+          xParseSEISphereRotation( s, payloadSize, pDecodedMessageOutputStream);
+        break;
+      case VVDEC_OMNI_VIEWPORT:
+          s = SEI_internal::allocSEI( type ) ;
+          xParseSEIOmniViewport( s, payloadSize, pDecodedMessageOutputStream);
+        break;
+      case VVDEC_REGION_WISE_PACKING:
+          s = SEI_internal::allocSEI( type ) ;
+          xParseSEIRegionWisePacking( s, payloadSize, pDecodedMessageOutputStream);
+        break;
+      case VVDEC_GENERALIZED_CUBEMAP_PROJECTION:
+          s = SEI_internal::allocSEI( type ) ;
+          xParseSEIGeneralizedCubemapProjection( s, payloadSize, pDecodedMessageOutputStream);
+        break;
+      case VVDEC_SUBPICTURE_LEVEL_INFO:
+          s = SEI_internal::allocSEI( type ) ;
+          xParseSEISubpictureLevelInfo(s, payloadSize, pDecodedMessageOutputStream);
+        break;
+      case VVDEC_SAMPLE_ASPECT_RATIO_INFO:
+          s = SEI_internal::allocSEI( type ) ;
+          xParseSEISampleAspectRatioInfo( s, payloadSize, pDecodedMessageOutputStream);
+        break;
+      case VVDEC_FILM_GRAIN_CHARACTERISTICS:
+          s = SEI_internal::allocSEI( type ) ;
+          xParseSEIFilmGrainCharacteristics(s, payloadSize, pDecodedMessageOutputStream);
+        break;
+      case VVDEC_CONTENT_LIGHT_LEVEL_INFO:
+          s = SEI_internal::allocSEI( type ) ;
+          xParseSEIContentLightLevelInfo( s, payloadSize, pDecodedMessageOutputStream);
+        break;
+      case VVDEC_AMBIENT_VIEWING_ENVIRONMENT:
+          s = SEI_internal::allocSEI( type ) ;
+          xParseSEIAmbientViewingEnvironment( s, payloadSize, pDecodedMessageOutputStream);
+        break;
+      case VVDEC_CONTENT_COLOUR_VOLUME:
+          s = SEI_internal::allocSEI( type ) ;
+          xParseSEIContentColourVolume( s, payloadSize, pDecodedMessageOutputStream);
         break;
       default:
         for (uint32_t i = 0; i < payloadSize; i++)
         {
           uint32_t seiByte;
-          sei_read_code( NULL, 8, seiByte, "unknown suffix SEI payload byte");
+          sei_read_code (NULL, 8, seiByte, "unknown prefix SEI payload byte");
         }
-        msg( WARNING, "Unknown suffix SEI message (payloadType = %d) was found!\n", payloadType);
+        msg( WARNING, "Unknown prefix SEI message (payloadType = %d) was found!\n", payloadType);
         if (pDecodedMessageOutputStream)
         {
-          (*pDecodedMessageOutputStream) << "Unknown suffix SEI message (payloadType = " << payloadType << ") was found!\n";
+          (*pDecodedMessageOutputStream) << "Unknown prefix SEI message (payloadType = " << payloadType << ") was found!\n";
         }
         break;
+      }
+    }
+    else
+    {
+      switch (payloadType)
+      {
+        case VVDEC_USER_DATA_UNREGISTERED:
+          s = SEI_internal::allocSEI( type ) ;
+          xParseSEIuserDataUnregistered(s, payloadSize, pDecodedMessageOutputStream);
+          break;
+        case  VVDEC_DECODED_PICTURE_HASH:
+          s = SEI_internal::allocSEI( type ) ;
+          xParseSEIDecodedPictureHash(s, payloadSize, pDecodedMessageOutputStream);
+          break;
+        case VVDEC_SCALABLE_NESTING:
+          s = SEI_internal::allocSEI( type ) ;
+          xParseSEIScalableNesting(s, nalUnitType, nuh_layer_id, payloadSize, vps, sps, pDecodedMessageOutputStream);
+          break;
+        default:
+          for (uint32_t i = 0; i < payloadSize; i++)
+          {
+            uint32_t seiByte;
+            sei_read_code( NULL, 8, seiByte, "unknown suffix SEI payload byte");
+          }
+          msg( WARNING, "Unknown suffix SEI message (payloadType = %d) was found!\n", payloadType);
+          if (pDecodedMessageOutputStream)
+          {
+            (*pDecodedMessageOutputStream) << "Unknown suffix SEI message (payloadType = " << payloadType << ") was found!\n";
+          }
+          break;
+      }
+    }
+
+    if( s )
+    {
+      seiList.push_back(s);
     }
   }
-
-  if( s )
+  catch( const RecoverableException& )
   {
-    seiList.push_back(s);
+    if (s)
+    {
+      if (s->payload)
+      {
+        free(s->payload);
+      }
+      delete s;
+    }
+    throw;
   }
 
   /* By definition the underlying bitstream terminates in a byte-aligned manner.
