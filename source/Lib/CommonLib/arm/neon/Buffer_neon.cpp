@@ -290,13 +290,86 @@ void rspFwdCore_neon( Pel* ptr, ptrdiff_t ptrStride, int width, int height, cons
   }
 }
 
+void applyLut_neon( Pel* ptr, ptrdiff_t ptrStride, int width, int height, const Pel* lut )
+{
+  CHECKD( width % 8, "Width must be multiple of 8!" );
+  CHECKD( height % 4, "Height must be multiple of 4!" );
+
+  do
+  {
+    Pel* ptr0 = &ptr[0 * ptrStride];
+    Pel* ptr1 = &ptr[1 * ptrStride];
+    Pel* ptr2 = &ptr[2 * ptrStride];
+    Pel* ptr3 = &ptr[3 * ptrStride];
+
+    int x = 0;
+    do
+    {
+      int16x8_t xtmp1 = vdupq_n_s16( 0 );
+      int16x8_t xtmp2 = vdupq_n_s16( 0 );
+      int16x8_t xtmp3 = vdupq_n_s16( 0 );
+      int16x8_t xtmp4 = vdupq_n_s16( 0 );
+
+      xtmp1 = vsetq_lane_s16( lut[ptr0[0]], xtmp1, 0 );
+      xtmp1 = vsetq_lane_s16( lut[ptr0[1]], xtmp1, 1 );
+      xtmp1 = vsetq_lane_s16( lut[ptr0[2]], xtmp1, 2 );
+      xtmp1 = vsetq_lane_s16( lut[ptr0[3]], xtmp1, 3 );
+      xtmp1 = vsetq_lane_s16( lut[ptr0[4]], xtmp1, 4 );
+      xtmp1 = vsetq_lane_s16( lut[ptr0[5]], xtmp1, 5 );
+      xtmp1 = vsetq_lane_s16( lut[ptr0[6]], xtmp1, 6 );
+      xtmp1 = vsetq_lane_s16( lut[ptr0[7]], xtmp1, 7 );
+
+      xtmp2 = vsetq_lane_s16( lut[ptr1[0]], xtmp2, 0 );
+      xtmp2 = vsetq_lane_s16( lut[ptr1[1]], xtmp2, 1 );
+      xtmp2 = vsetq_lane_s16( lut[ptr1[2]], xtmp2, 2 );
+      xtmp2 = vsetq_lane_s16( lut[ptr1[3]], xtmp2, 3 );
+      xtmp2 = vsetq_lane_s16( lut[ptr1[4]], xtmp2, 4 );
+      xtmp2 = vsetq_lane_s16( lut[ptr1[5]], xtmp2, 5 );
+      xtmp2 = vsetq_lane_s16( lut[ptr1[6]], xtmp2, 6 );
+      xtmp2 = vsetq_lane_s16( lut[ptr1[7]], xtmp2, 7 );
+
+      xtmp3 = vsetq_lane_s16( lut[ptr2[0]], xtmp3, 0 );
+      xtmp3 = vsetq_lane_s16( lut[ptr2[1]], xtmp3, 1 );
+      xtmp3 = vsetq_lane_s16( lut[ptr2[2]], xtmp3, 2 );
+      xtmp3 = vsetq_lane_s16( lut[ptr2[3]], xtmp3, 3 );
+      xtmp3 = vsetq_lane_s16( lut[ptr2[4]], xtmp3, 4 );
+      xtmp3 = vsetq_lane_s16( lut[ptr2[5]], xtmp3, 5 );
+      xtmp3 = vsetq_lane_s16( lut[ptr2[6]], xtmp3, 6 );
+      xtmp3 = vsetq_lane_s16( lut[ptr2[7]], xtmp3, 7 );
+
+      xtmp4 = vsetq_lane_s16( lut[ptr3[0]], xtmp4, 0 );
+      xtmp4 = vsetq_lane_s16( lut[ptr3[1]], xtmp4, 1 );
+      xtmp4 = vsetq_lane_s16( lut[ptr3[2]], xtmp4, 2 );
+      xtmp4 = vsetq_lane_s16( lut[ptr3[3]], xtmp4, 3 );
+      xtmp4 = vsetq_lane_s16( lut[ptr3[4]], xtmp4, 4 );
+      xtmp4 = vsetq_lane_s16( lut[ptr3[5]], xtmp4, 5 );
+      xtmp4 = vsetq_lane_s16( lut[ptr3[6]], xtmp4, 6 );
+      xtmp4 = vsetq_lane_s16( lut[ptr3[7]], xtmp4, 7 );
+
+      vst1q_s16( ptr0, xtmp1 );
+      vst1q_s16( ptr1, xtmp2 );
+      vst1q_s16( ptr2, xtmp3 );
+      vst1q_s16( ptr3, xtmp4 );
+
+      ptr0 += 8;
+      ptr1 += 8;
+      ptr2 += 8;
+      ptr3 += 8;
+      x += 8;
+    } while( x != width );
+
+    ptr += ptrStride << 2;
+    height -= 4;
+  } while( height != 0 );
+}
+
 template<>
 void PelBufferOps::_initPelBufOpsARM<NEON>()
 {
   addAvg4 = addAvg4_neon;
   addAvg8 = addAvg8_neon;
   addAvg16 = addAvg16_neon;
-  applyLut = applyLut_SIMD<NEON>;
+  applyLut = applyLut_neon;
   rspFwd = rspFwdCore_neon;
 }
 
