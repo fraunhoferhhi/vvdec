@@ -740,6 +740,47 @@ static bool check_addAvg( PelBufferOps* ref, PelBufferOps* opt, unsigned num_cas
   return passed;
 }
 
+static bool check_applyLut( PelBufferOps* ref, PelBufferOps* opt, unsigned num_cases )
+{
+  DimensionGenerator rng;
+  InputGenerator<TCoeff> g{ 14, /*is_signed=*/false };
+  bool passed = true;
+
+  static constexpr size_t buf_size = MAX_CU_SIZE * MAX_CU_SIZE;
+  Pel* src_ref = ( Pel* )xMalloc( Pel, buf_size );
+  Pel* src_opt = ( Pel* )xMalloc( Pel, buf_size );
+  Pel* lut = ( Pel* )xMalloc( Pel, UINT16_MAX );
+
+  for( unsigned w : { 8, 16, 32, 64, 128 } )
+  {
+    for( unsigned h : { 8, 16, 32, 64, 80, 96, 112, 128 } )
+    {
+      printf( "Testing PelBufferOps::applyLut=%d h=%d\n", w, h );
+      for( unsigned i = 0; i < num_cases; ++i )
+      {
+        unsigned stride = rng.get( w, MAX_CU_SIZE, w );
+
+        std::ostringstream sstm;
+        sstm << "applyLut stride=" << stride << " w=" << w << " h=" << h;
+
+        std::generate( src_ref, src_ref + buf_size, g );
+        std::memcpy( src_opt, src_ref, sizeof( Pel ) * buf_size );
+        std::generate( lut, lut + UINT16_MAX, g );
+
+        ref->applyLut( src_ref, stride, w, h, lut );
+        opt->applyLut( src_opt, stride, w, h, lut );
+
+        passed = compare_values_2d( sstm.str(), src_ref, src_opt, h, w, stride ) && passed;
+      }
+    }
+  }
+
+  xFree( src_ref );
+  xFree( src_opt );
+  xFree( lut );
+  return passed;
+}
+
 static bool check_one_rspFwdCore( PelBufferOps* ref, PelBufferOps* opt, unsigned num_cases, unsigned width,
                                   unsigned height, unsigned bd )
 {
@@ -825,6 +866,7 @@ static bool test_PelBufferOps()
 
   passed = check_addAvg( &ref, &opt, num_cases ) && passed;
   passed = check_rspFwdCore( &ref, &opt, num_cases ) && passed;
+  passed = check_applyLut( &ref, &opt, num_cases ) && passed;
 
   return passed;
 }
