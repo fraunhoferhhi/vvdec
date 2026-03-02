@@ -603,7 +603,9 @@ static void simdInterpolateHorM8( const int16_t* src, ptrdiff_t srcStride, int16
   }
   else
   {
-    vcoeffh = _mm_set1_epi64x( *(int64_t const*) coeff );
+    int64_t c;
+    memcpy( &c, coeff, sizeof( int64_t ) );
+    vcoeffh = _mm_set1_epi64x( c );
     vshufc0 = _mm_set_epi8( 0x9, 0x8, 0x7, 0x6, 0x5, 0x4, 0x3, 0x2, 0x7, 0x6, 0x5, 0x4, 0x3, 0x2, 0x1, 0x0 );
     vshufc1 = _mm_set_epi8( 0xd, 0xc, 0xb, 0xa, 0x9, 0x8, 0x7, 0x6, 0xb, 0xa, 0x9, 0x8, 0x7, 0x6, 0x5, 0x4 );
   }
@@ -3261,8 +3263,8 @@ void xWeightedGeoBlk_SSE(const CodingUnit &cu, const uint32_t width, const uint3
     {
       for (int x = 0; x < width; x += 8)
       {
-        __m128i s0 = _mm_lddqu_si128((__m128i *) (src0 + x));
-        __m128i s1 = _mm_lddqu_si128((__m128i *) (src1 + x));
+        __m128i s0 = _mm_loadu_si128((__m128i *) (src0 + x));
+        __m128i s1 = _mm_loadu_si128((__m128i *) (src1 + x));
         __m128i w0;
         if (compIdx != COMPONENT_Y && cu.chromaFormat != CHROMA_444)
         {
@@ -3270,16 +3272,16 @@ void xWeightedGeoBlk_SSE(const CodingUnit &cu, const uint32_t width, const uint3
           __m128i w0p0, w0p1;
           if (g_angle2mirror[angle] == 1)
           {
-            w0p0 = _mm_lddqu_si128((__m128i *) (weight - (x << 1) - (8 - 1))); // first sub-sample the required weights.
-            w0p1 = _mm_lddqu_si128((__m128i *) (weight - (x << 1) - 8 - (8 - 1)));
+            w0p0 = _mm_loadu_si128((__m128i *) (weight - (x << 1) - (8 - 1))); // first sub-sample the required weights.
+            w0p1 = _mm_loadu_si128((__m128i *) (weight - (x << 1) - 8 - (8 - 1)));
             const __m128i shuffle_mask = _mm_set_epi8(1, 0, 3, 2, 5, 4, 7, 6, 9, 8, 11, 10, 13, 12, 15, 14);
             w0p0 = _mm_shuffle_epi8(w0p0, shuffle_mask);
             w0p1 = _mm_shuffle_epi8(w0p1, shuffle_mask);
           }
           else
           {
-            w0p0 = _mm_lddqu_si128((__m128i *) (weight + (x << 1))); // first sub-sample the required weights.
-            w0p1 = _mm_lddqu_si128((__m128i *) (weight + (x << 1) + 8));
+            w0p0 = _mm_loadu_si128((__m128i *) (weight + (x << 1))); // first sub-sample the required weights.
+            w0p1 = _mm_loadu_si128((__m128i *) (weight + (x << 1) + 8));
           }
           w0p0 = _mm_mullo_epi16(w0p0, mask);
           w0p1 = _mm_mullo_epi16(w0p1, mask);
@@ -3289,13 +3291,13 @@ void xWeightedGeoBlk_SSE(const CodingUnit &cu, const uint32_t width, const uint3
         {
           if (g_angle2mirror[angle] == 1)
           {
-            w0 = _mm_lddqu_si128((__m128i *) (weight - x - (8 - 1)));
+            w0 = _mm_loadu_si128((__m128i *) (weight - x - (8 - 1)));
             const __m128i shuffle_mask = _mm_set_epi8(1, 0, 3, 2, 5, 4, 7, 6, 9, 8, 11, 10, 13, 12, 15, 14);
             w0 = _mm_shuffle_epi8(w0, shuffle_mask);
           }
           else
           {
-            w0 = _mm_lddqu_si128((__m128i *) (weight + x));
+            w0 = _mm_loadu_si128((__m128i *) (weight + x));
           }
         }
         __m128i w1 = _mm_sub_epi16(mmEight, w0);

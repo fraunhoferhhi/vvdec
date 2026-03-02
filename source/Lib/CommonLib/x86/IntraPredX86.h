@@ -134,8 +134,8 @@ void IntraPredAngleChroma_SIMD(int16_t* pDst,const ptrdiff_t dstStride,int16_t* 
         // Do linear filtering
         for (int l=0; l<width; l+=8) {
           refMainIndex        = l+ deltaInt+1;
-          __m128i vpred0 = _mm_lddqu_si128((__m128i*)&pBorder[refMainIndex]);
-          __m128i vpred1 = _mm_lddqu_si128((__m128i*)&pBorder[refMainIndex+1]);
+          __m128i vpred0 = _mm_loadu_si128((__m128i*)&pBorder[refMainIndex]);
+          __m128i vpred1 = _mm_loadu_si128((__m128i*)&pBorder[refMainIndex+1]);
           vpred0 = _mm_mullo_epi16(v32minfract, vpred0);
           vpred1 = _mm_mullo_epi16(vfract, vpred1);
           __m128i vpred = _mm_srli_epi16(_mm_add_epi16(_mm_add_epi16(vpred0, vpred1), voffset), 5);
@@ -158,8 +158,8 @@ void IntraPredAngleChroma_SIMD(int16_t* pDst,const ptrdiff_t dstStride,int16_t* 
       __m128i v32minfract = _mm_set1_epi16(32-deltaFract);
       // Do linear filtering
       refMainIndex        = deltaInt+1;
-      __m128i vpred0 = _mm_lddqu_si128((__m128i*)&pBorder[refMainIndex]);
-      __m128i vpred1 = _mm_lddqu_si128((__m128i*)&pBorder[refMainIndex+1]);
+      __m128i vpred0 = _mm_loadu_si128((__m128i*)&pBorder[refMainIndex]);
+      __m128i vpred1 = _mm_loadu_si128((__m128i*)&pBorder[refMainIndex+1]);
       vpred0 = _mm_mullo_epi16(v32minfract, vpred0);
       vpred1 = _mm_mullo_epi16(vfract, vpred1);
       __m128i vpred = _mm_srli_epi16(_mm_add_epi16(_mm_add_epi16(vpred0, vpred1), voffset), 5);
@@ -326,7 +326,7 @@ void IntraPredAngleCore_SIMD(int16_t* pDstBuf,const ptrdiff_t dstStride,int16_t*
         coeff = _mm_shuffle_epi32(coeff,0x44);
         for( int x = 0; x < width; x+=8)
         {
-          __m128i src0 = _mm_lddqu_si128( ( __m128i const * )&refMain[refMainIndex - 1] );   //load 8 16 bit reference Pels   -1 0 1 2 3 4 5 6
+          __m128i src0 = _mm_loadu_si128( ( __m128i const * )&refMain[refMainIndex - 1] );   //load 8 16 bit reference Pels   -1 0 1 2 3 4 5 6
           __m128i src1 = _mm_shuffle_epi8(src0,shflmask1);									// -1 0 1 2  0 1 2 3
           __m128i src2 = _mm_shuffle_epi8(src0,shflmask2);									// 1 2 3 4  2 3 4 5
           src0 = _mm_madd_epi16( coeff,src1 );
@@ -336,7 +336,7 @@ void IntraPredAngleCore_SIMD(int16_t* pDstBuf,const ptrdiff_t dstStride,int16_t*
           sum = _mm_srai_epi32( sum, 6 );
 
           refMainIndex+=4;
-          src0 = _mm_lddqu_si128( ( __m128i const * )&refMain[refMainIndex - 1] );   //load 8 16 bit reference Pels   -1 0 1 2 3 4 5 6
+          src0 = _mm_loadu_si128( ( __m128i const * )&refMain[refMainIndex - 1] );   //load 8 16 bit reference Pels   -1 0 1 2 3 4 5 6
           src1 = _mm_shuffle_epi8(src0,shflmask1);						                    // -1 0 1 2  0 1 2 3
           src2 = _mm_shuffle_epi8(src0,shflmask2);
 
@@ -385,7 +385,7 @@ void IntraPredAngleCore_SIMD(int16_t* pDstBuf,const ptrdiff_t dstStride,int16_t*
       __m128i coeff = _mm_loadu_si64( ( __m128i const * )&ff[deltaFract<<2] );   //load 4 16 bit filter coeffs
       coeff = _mm_shuffle_epi32(coeff,0x44);
       {
-        __m128i src0 = _mm_lddqu_si128( ( __m128i const * )&refMain[refMainIndex - 1] );   //load 8 16 bit reference Pels   -1 0 1 2 3 4 5 6
+        __m128i src0 = _mm_loadu_si128( ( __m128i const * )&refMain[refMainIndex - 1] );   //load 8 16 bit reference Pels   -1 0 1 2 3 4 5 6
         __m128i src1 = _mm_shuffle_epi8(src0,shflmask1);									// -1 0 1 2  0 1 2 3
         __m128i src2 = _mm_shuffle_epi8(src0,shflmask2);									// 1 2 3 4  2 3 4 5
         src0 = _mm_madd_epi16( coeff,src1 );
