@@ -261,12 +261,31 @@ Picture* DecLib::decode( InputNALUnit& nalu )
 Picture* DecLib::flushPic()
 {
   Picture* outPic = getNextOutputPic( false );
-  // at end of file, fill the decompression queue and decode pictures until the next output-picture is finished
-  while( Picture* pcParsedPic = m_decLibParser.getNextDecodablePicture() )
+  try
   {
-    // reconPicture() blocks and finishes one picture on each call
-    reconPicture( pcParsedPic );
+    // at end of file, fill the decompression queue and decode pictures until the next output-picture is finished
+    while( Picture* pcParsedPic = m_decLibParser.getNextDecodablePicture() )
+    {
+      // reconPicture() blocks and finishes one picture on each call
+      reconPicture( pcParsedPic );
 
+      if( !outPic )
+      {
+        outPic = getNextOutputPic( false );
+      }
+      if( outPic && outPic->progress == Picture::finished )
+      {
+        return outPic;
+      }
+    }
+
+    if( outPic && outPic->progress == Picture::finished )
+    {
+      return outPic;
+    }
+
+    // if all pictures have been parsed, but not finished, iteratively wait for and finish next pictures
+    blockAndFinishPictures( outPic );
     if( !outPic )
     {
       outPic = getNextOutputPic( false );
@@ -275,32 +294,21 @@ Picture* DecLib::flushPic()
     {
       return outPic;
     }
-  }
 
-  if( outPic && outPic->progress == Picture::finished )
-  {
-    return outPic;
+    CHECK( outPic, "we shouldn't be holding an output picture here" );
+    // flush remaining pictures without considering num reorder pics
+    outPic = getNextOutputPic( true );
+    if( outPic )
+    {
+      CHECK( outPic->progress != Picture::finished, "all pictures should have been finished by now" );
+      // outPic->referenced = false;
+      return outPic;
+    }
   }
-
-  // if all pictures have been parsed, but not finished, iteratively wait for and finish next pictures
-  blockAndFinishPictures( outPic );
-  if( !outPic )
+  catch( ... )
   {
-    outPic = getNextOutputPic( false );
-  }
-  if( outPic && outPic->progress == Picture::finished )
-  {
-    return outPic;
-  }
-
-  CHECK( outPic, "we shouldn't be holding an output picture here" );
-  // flush remaining pictures without considering num reorder pics
-  outPic = getNextOutputPic( true );
-  if( outPic )
-  {
-    CHECK( outPic->progress != Picture::finished, "all pictures should have been finished by now" );
-    // outPic->referenced = false;
-    return outPic;
+    m_picListManager.releasePicture(outPic);
+    throw;
   }
 
   // At the very end reset parser state
