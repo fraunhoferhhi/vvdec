@@ -100,7 +100,7 @@ jobs:
             compiler: [gcc-14, g++-14]
             run_unit_test: true
 
-          - name: "ubuntu-24.04 ASAN"
+          - name: "ubuntu-24.04 with ASAN"
             os: ubuntu-24.04
             compiler: [gcc-14, g++-14]
             run_unit_test: true
@@ -133,6 +133,13 @@ jobs:
           - os: ubuntu-24.04-arm
             compiler: [aarch64-linux-gnu-gcc, aarch64-linux-gnu-g++]
             install_packages: g++-aarch64-linux-gnu
+            run_unit_test: true
+
+          - name: "ubuntu-24.04-arm with ASAN"
+            os: ubuntu-24.04-arm
+            compiler: [aarch64-linux-gnu-gcc, aarch64-linux-gnu-g++]
+            install_packages: g++-aarch64-linux-gnu
+            cxx_flags: "-fsanitize=address"
             run_unit_test: true
 
           - os: ubuntu-24.04
