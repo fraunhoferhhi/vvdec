@@ -171,4 +171,4 @@ jobs:
       - uses: actions/cache/save@v5
         with:
           path: .ccache
-          key: ccache-{{ matrix.name || matrix.os }}-${{ matrix.compiler[1] || matrix.osx_arch }}
+          key: ccache-${{ matrix.name || matrix.os }}-${{ matrix.compiler[1] || matrix.osx_arch }}
