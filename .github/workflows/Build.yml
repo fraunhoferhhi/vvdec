@@ -100,6 +100,11 @@ jobs:
             compiler: [gcc-14, g++-14]
             run_unit_test: true
 
+          - name: "ubuntu-24.04 ASAN"
+            os: ubuntu-24.04
+            compiler: [gcc-14, g++-14]
+            run_unit_test: true
+            cxx_flags: "-fsanitize=address"
 
           - os: ubuntu-22.04
             compiler: [clang-13, clang++-13]
@@ -138,6 +143,8 @@ jobs:
       CMAKE_GENERATOR: "${{ matrix.generator || 'Ninja' }}"
       CC: ${{ matrix.compiler[0] }}
       CXX: ${{ matrix.compiler[1] }}
+      CFLAGS: ${{ matrix.cxx_flags }}
+      CXXFLAGS: ${{ matrix.cxx_flags }}
       CCACHE_DIR: ${{ github.workspace }}/.ccache
       CCACHE_MAXSIZE: 100M
     steps:
