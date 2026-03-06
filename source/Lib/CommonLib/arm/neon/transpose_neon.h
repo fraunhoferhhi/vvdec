@@ -70,6 +70,35 @@ static inline void transpose_4x4_u32( const uint32x4_t aIn, const uint32x4_t bIn
   dOut = z3.val[1];
 }
 
+static inline void transpose_concat_8x4_s16( int16x8_t a0, int16x8_t a1, int16x8_t a2, int16x8_t a3,
+                                             int16x8_t& b0, int16x8_t& b1, int16x8_t& b2, int16x8_t& b3 )
+{
+  // Transpose 16-bit 8x4 and concatenate result as follows:
+  // a0: 00 01 02 03 04 05 06 07
+  // a1: 10 11 12 13 14 15 16 17
+  // a2: 20 21 22 23 24 25 26 27
+  // a3: 30 31 32 33 34 35 36 37
+
+  // 00 20 01 21 02 22 03 23
+  // 04 24 05 25 06 26 07 27
+  int16x8x2_t a02 = vzipq_s16( a0, a2 );
+  // 10 30 11 31 12 32 13 33
+  // 14 34 15 35 16 36 17 37
+  int16x8x2_t a13 = vzipq_s16( a1, a3 );
+
+  // b0: 00 10 20 30 01 11 21 31
+  // b1: 02 12 22 32 03 13 23 33
+  // b2: 04 14 24 34 05 15 25 35
+  // b3: 06 16 26 36 07 17 27 37
+  int16x8x2_t b01 = vzipq_s16( a02.val[0], a13.val[0] );
+  int16x8x2_t b23 = vzipq_s16( a02.val[1], a13.val[1] );
+
+  b0 = b01.val[0];
+  b1 = b01.val[1];
+  b2 = b23.val[0];
+  b3 = b23.val[1];
+}
+
 } // namespace vvdec
 
 #endif
