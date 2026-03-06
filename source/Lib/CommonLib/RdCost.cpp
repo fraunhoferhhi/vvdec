@@ -51,10 +51,7 @@ POSSIBILITY OF SUCH DAMAGE.
 namespace vvdec
 {
 
-FpDistFunc RdCost::m_afpDistortFunc[DF_TOTAL_FUNCTIONS] = { nullptr, };
-FpDistFuncX5 RdCost::m_afpDistortFuncX5[DF_TOTAL_FUNCTIONS] = { nullptr, };
-
-RdCost::RdCost()
+RdCost::RdCost( bool enableOpt )
 {
   m_afpDistortFunc[DF_SAD8   ] = RdCost::xGetSAD8;
   m_afpDistortFunc[DF_SAD16  ] = RdCost::xGetSAD16;
@@ -62,14 +59,17 @@ RdCost::RdCost()
   m_afpDistortFuncX5[DF_SAD8   ] = RdCost::xGetSAD8X5;
   m_afpDistortFuncX5[DF_SAD16  ] = RdCost::xGetSAD16X5;
 
+  if( enableOpt )
+  {
 #if ENABLE_SIMD_OPT_DIST
-#  ifdef TARGET_SIMD_X86
-  initRdCostX86();
-#  endif
-#  ifdef TARGET_SIMD_ARM
-  initRdCostARM();
-#  endif
+#ifdef TARGET_SIMD_X86
+    initRdCostX86();
 #endif
+#ifdef TARGET_SIMD_ARM
+    initRdCostARM();
+#endif
+#endif
+  }
 }
 
 RdCost::~RdCost()
