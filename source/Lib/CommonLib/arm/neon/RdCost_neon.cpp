@@ -62,8 +62,8 @@ Distortion xGetSAD_MxN_neon( const DistParam& rcDtParam )
   int iRows = rcDtParam.org.height;
   constexpr int iSubShift = 1;
   constexpr int iSubStep = 1 << iSubShift;
-  const int iStrideCur = rcDtParam.cur.stride * iSubStep;
-  const int iStrideOrg = rcDtParam.org.stride * iSubStep;
+  const ptrdiff_t iStrideCur = rcDtParam.cur.stride * iSubStep;
+  const ptrdiff_t iStrideOrg = rcDtParam.org.stride * iSubStep;
 
   CHECKD( rcDtParam.subShift != 1, "Only SubShift = 1 is supported!" );
   CHECKD( rcDtParam.bitDepth > 10, "Only bit-depths of up to 10 bits supported!" );
