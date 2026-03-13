@@ -460,6 +460,8 @@ static bool check_filter( InterpolationFilter* ref, InterpolationFilter* opt, un
 {
   static_assert( N == 2 || N == 4 || N == 6 || N == 8, "Supported taps: 2/4/6/8" );
 
+  const unsigned padN = N == 6 ? 8 : N;
+
   std::string str_VerHor = isVertical ? "Ver" : "Hor";
 
   static constexpr unsigned bd = 10; // default bit-depth
@@ -478,14 +480,15 @@ static bool check_filter( InterpolationFilter* ref, InterpolationFilter* opt, un
             << " width=" << width << " height=" << height;
   std::cout << "Testing " << sstm_test.str() << std::endl;
 
-  const unsigned srcStride = dim.get( width, MAX_CU_SIZE + 8 );
+  const unsigned minSrcStride = isVertical ? width : width + padN - 1;
+  const unsigned srcStride = dim.get( minSrcStride, MAX_CU_SIZE + 8 );
   const unsigned dstStride = dim.get( width, MAX_CU_SIZE + 8 );
 
   // Fill input buffers with unsigned data.
   std::generate( src.begin(), src.end(), inp_gen );
 
   const ptrdiff_t cStride = isVertical ? srcStride : 1;
-  const ptrdiff_t src_offset = ( N / 2 - 1 ) * cStride;
+  const ptrdiff_t src_offset = ( padN / 2 - 1 ) * cStride;
 
   unsigned frac, tapIdx;
   const TFilterCoeff* pCoeff;
