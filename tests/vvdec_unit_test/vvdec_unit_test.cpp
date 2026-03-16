@@ -1185,6 +1185,81 @@ static bool check_one_gradFilter( InterPrediction* ref, InterPrediction* opt, in
   return res_gradX && res_gradY && res_src;
 }
 
+template<typename G>
+static bool check_one_biOptFlow( InterPrediction* ref, InterPrediction* opt, int width, int height, ptrdiff_t dstStride,
+                                 int shiftNum, int offset, int limit, const ClpRng& clpRng, unsigned bitDepth,
+                                 G input_generator )
+{
+  CHECK( width % 8, "Width must be a multiple of eight" );
+  CHECK( height % 8, "Height must be a multiple of eight" );
+
+  std::ostringstream sstm;
+  sstm << "BiOptFlow width=" << width << " height=" << height << " shift=" << shiftNum << " offset=" << offset
+       << " limit=" << limit;
+
+  int stridePredMC = width + BIO_ALIGN_SIZE;
+
+  // Copied from m_bdofBlock definition in InterPrediction.h.
+  constexpr int BDOF_BLOCK_SIZE = ( MAX_BDOF_APPLICATION_REGION + ( 2 * BIO_ALIGN_SIZE + BIO_ALIGN_SIZE ) + 16 ) *
+                                  ( MAX_BDOF_APPLICATION_REGION + ( 2 * BIO_EXTEND_SIZE + 2 ) + 2 );
+
+  std::vector<Pel> srcY0( BDOF_BLOCK_SIZE );
+  std::vector<Pel> srcY1( BDOF_BLOCK_SIZE );
+  std::vector<Pel> gradX0( BIO_TEMP_BUFFER_SIZE );
+  std::vector<Pel> gradX1( BIO_TEMP_BUFFER_SIZE );
+  std::vector<Pel> gradY0( BIO_TEMP_BUFFER_SIZE );
+  std::vector<Pel> gradY1( BIO_TEMP_BUFFER_SIZE );
+  std::vector<Pel> dstYref( dstStride * height );
+  std::vector<Pel> dstYopt( dstStride * height );
+
+  std::generate( srcY0.begin(), srcY0.end(), input_generator );
+  std::generate( srcY1.begin(), srcY1.end(), input_generator );
+  std::generate( gradX0.begin(), gradX0.end(), input_generator );
+  std::generate( gradX1.begin(), gradX1.end(), input_generator );
+  std::generate( gradY0.begin(), gradY0.end(), input_generator );
+  std::generate( gradY1.begin(), gradY1.end(), input_generator );
+
+  const Pel* src0 = srcY0.data() + stridePredMC;
+  const Pel* src1 = srcY1.data() + stridePredMC;
+
+  ref->BiOptFlow( src0, src1, gradX0.data(), gradX1.data(), gradY0.data(), gradX1.data(), width, height, dstYref.data(),
+                  dstStride, shiftNum, offset, limit, clpRng, bitDepth );
+
+  opt->BiOptFlow( src0, src1, gradX0.data(), gradX1.data(), gradY0.data(), gradX1.data(), width, height, dstYopt.data(),
+                  dstStride, shiftNum, offset, limit, clpRng, bitDepth );
+
+  return compare_values_2d( sstm.str(), dstYref.data(), dstYopt.data(), height, ( unsigned )dstStride );
+}
+
+static bool check_biOptFlow( InterPrediction* ref, InterPrediction* opt, unsigned num_cases, int width, int height )
+{
+  printf( "Testing InterPrediction::BiOptFlow w=%d h=%d\n", width, height );
+  DimensionGenerator rng;
+
+  for( unsigned i = 0; i < num_cases; ++i )
+  {
+    // Width is either 8 or 16.
+    // DstStride is a multiple of eight in the range width to 128 inclusive.
+    unsigned dstStride = rng.get( width, 128, 8 );
+
+    for( int bitDepth : { 8, 10 } )
+    {
+      InputGenerator<Pel> g{ ( unsigned )bitDepth };
+      const int shiftNum = IF_INTERNAL_PREC + 1 - bitDepth;
+      const int offset = ( 1 << ( shiftNum - 1 ) ) + 2 * IF_INTERNAL_OFFS;
+      const int limit = ( 1 << 4 ) - 1;
+      ClpRng clpRng{ bitDepth };
+
+      if( !check_one_biOptFlow( ref, opt, width, height, dstStride, shiftNum, offset, limit, clpRng, bitDepth, g ) )
+      {
+        return false;
+      }
+    }
+  }
+
+  return true;
+}
+
 struct GradFilterParameter
 {
   int width, height, srcStride, gradStride;
@@ -1233,6 +1308,10 @@ static bool test_InterPrediction()
   InterPrediction opt;
   ref.init( &pcRdCost, chromaFormatIDC, ctuSize, /*enableOpt=*/false );
   opt.init( &pcRdCost, chromaFormatIDC, ctuSize, /*enableOpt=*/true );
+
+  passed = check_biOptFlow( &ref, &opt, num_cases, 8, 16 ) && passed;
+  passed = check_biOptFlow( &ref, &opt, num_cases, 16, 8 ) && passed;
+  passed = check_biOptFlow( &ref, &opt, num_cases, 16, 16 ) && passed;
 
   passed = check_gradFilter( &ref, &opt, num_cases ) && passed;
 
