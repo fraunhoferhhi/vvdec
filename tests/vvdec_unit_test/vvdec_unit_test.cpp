@@ -191,14 +191,12 @@ public:
 #if ENABLE_SIMD_OPT_ALF
 template<typename G>
 static bool check_one_deriveClassificationBlk( AdaptiveLoopFilter* ref, AdaptiveLoopFilter* opt, ptrdiff_t srcStride,
-                                               ptrdiff_t dstStride, unsigned int w, unsigned int h, int x, int y,
-                                               G input_generator )
+                                               unsigned int w, unsigned int h, int x, int y, G input_generator )
 {
   CHECK( srcStride < w, "OrgStride must be greater than or equal to width" );
-  CHECK( dstStride < w, "BufStride must be greater than or equal to width" );
 
   std::ostringstream sstm;
-  sstm << "deriveClassificationBlk srcStride=" << srcStride << " dstStride=" << dstStride << " w=" << w << " h=" << h;
+  sstm << "deriveClassificationBlk srcStride=" << srcStride << " w=" << w << " h=" << h;
 
   DimensionGenerator rng;
 
@@ -389,9 +387,8 @@ static bool check_deriveClassificationBlk( AdaptiveLoopFilter* ref, AdaptiveLoop
 
     // Ensure each row is wide enough for the block position (x), block width (w), and left/right padding.
     unsigned srcStride = std::max<unsigned>( rng.get( w, MAX_CU_SIZE ), x + w + padL + padR );
-    unsigned dstStride = rng.get( w, MAX_CU_SIZE );
 
-    if( !check_one_deriveClassificationBlk( ref, opt, srcStride, dstStride, w, h, x, y, g ) )
+    if( !check_one_deriveClassificationBlk( ref, opt, srcStride, w, h, x, y, g ) )
     {
       return false;
     }
