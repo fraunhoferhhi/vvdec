@@ -191,7 +191,8 @@ public:
 #if ENABLE_SIMD_OPT_ALF
 template<typename G>
 static bool check_one_deriveClassificationBlk( AdaptiveLoopFilter* ref, AdaptiveLoopFilter* opt, ptrdiff_t srcStride,
-                                               ptrdiff_t dstStride, unsigned int w, unsigned int h, G input_generator )
+                                               ptrdiff_t dstStride, unsigned int w, unsigned int h, int x, int y,
+                                               G input_generator )
 {
   CHECK( srcStride < w, "OrgStride must be greater than or equal to width" );
   CHECK( dstStride < w, "BufStride must be greater than or equal to width" );
@@ -201,17 +202,16 @@ static bool check_one_deriveClassificationBlk( AdaptiveLoopFilter* ref, Adaptive
 
   DimensionGenerator rng;
 
-  const int x = rng.get( 0, 128, 8 );
-  const int y = rng.get( 0, 128, 8 );
   const Area blk{ x, y, w, h };
 
-  // Padding to src memory so that filterBlk can safely index [-3,+3] rows.
+  // Padding to src memory so that deriveClassificationBlk can safely index [-3,+3] rows.
   constexpr int pad = 3;
-  std::vector<Pel> src( ( y + h + 2 * pad ) * srcStride + x + 2 * pad );
+
+  std::vector<Pel> src( ( y + h + 2 * pad ) * srcStride );
   std::generate( src.begin(), src.end(), input_generator );
 
   Size sz{ w, h };
-  CPelBuf areaBufSrc{ src.data() + pad * srcStride, srcStride, sz };
+  CPelBuf areaBufSrc{ src.data() + pad * srcStride + pad, srcStride, sz };
 
   std::array<AlfClassifier, AdaptiveLoopFilter::m_CLASSIFICATION_ARR_SIZE> classifier_ref;
   std::array<AlfClassifier, AdaptiveLoopFilter::m_CLASSIFICATION_ARR_SIZE> classifier_opt;
@@ -223,7 +223,7 @@ static bool check_one_deriveClassificationBlk( AdaptiveLoopFilter* ref, Adaptive
   ref->m_deriveClassificationBlk( classifier_ref.data(), areaBufSrc, blk, shift, vbCTUHeight, vbPos );
   opt->m_deriveClassificationBlk( classifier_opt.data(), areaBufSrc, blk, shift, vbCTUHeight, vbPos );
 
-  bool rc = true;
+  bool passed = true;
   // Optimized version writes extra data in the struct, so compare only the used part.
   for( int i = 0; i < blk.height / 4; ++i )
   {
@@ -233,12 +233,12 @@ static bool check_one_deriveClassificationBlk( AdaptiveLoopFilter* ref, Adaptive
       const AlfClassifier& refCl = classifier_ref[index];
       const AlfClassifier& optCl = classifier_opt[index];
 
-      rc &= compare_value( sstm.str(), refCl.classIdx, optCl.classIdx );
-      rc &= compare_value( sstm.str(), refCl.transposeIdx, optCl.transposeIdx );
+      passed = compare_value( sstm.str(), refCl.classIdx, optCl.classIdx ) && passed;
+      passed = compare_value( sstm.str(), refCl.transposeIdx, optCl.transposeIdx ) && passed;
     }
   }
 
-  return rc;
+  return passed;
 }
 
 template<AlfFilterType filtType, typename G>
@@ -381,10 +381,17 @@ static bool check_deriveClassificationBlk( AdaptiveLoopFilter* ref, AdaptiveLoop
   InputGenerator<TCoeff> g{ 10, /*is_signed=*/false };
   for( unsigned i = 0; i < num_cases; ++i )
   {
-    unsigned srcStride = rng.get( w, MAX_CU_SIZE );
+    unsigned x = rng.get( 0, MAX_CU_SIZE, 8 );
+    unsigned y = rng.get( 0, MAX_CU_SIZE, 8 );
+
+    constexpr int padL = 3;
+    constexpr int padR = 7; // Allow extra right-side samples for 8-lane SIMD loads.
+
+    // Ensure each row is wide enough for the block position (x), block width (w), and left/right padding.
+    unsigned srcStride = std::max<unsigned>( rng.get( w, MAX_CU_SIZE ), x + w + padL + padR );
     unsigned dstStride = rng.get( w, MAX_CU_SIZE );
 
-    if( !check_one_deriveClassificationBlk( ref, opt, srcStride, dstStride, w, h, g ) )
+    if( !check_one_deriveClassificationBlk( ref, opt, srcStride, dstStride, w, h, x, y, g ) )
     {
       return false;
     }
