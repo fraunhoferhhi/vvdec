@@ -385,7 +385,7 @@ static bool check_deriveClassificationBlk( AdaptiveLoopFilter* ref, AdaptiveLoop
     unsigned y = rng.get( 0, MAX_CU_SIZE, 8 );
 
     constexpr int padL = 3;
-    constexpr int padR = 7; // Allow extra right-side samples for 8-lane SIMD loads.
+    constexpr int padR = 15; // Allow extra right-side samples for 8-lane SIMD loads.
 
     // Ensure each row is wide enough for the block position (x), block width (w), and left/right padding.
     unsigned srcStride = std::max<unsigned>( rng.get( w, MAX_CU_SIZE ), x + w + padL + padR );
@@ -413,7 +413,7 @@ static bool check_filterBlk( AdaptiveLoopFilter* ref, AdaptiveLoopFilter* opt, u
     InputGenerator<TCoeff> g{ bitDepth, /*is_signed=*/false };
     for( unsigned i = 0; i < num_cases; ++i )
     {
-      unsigned srcStride = rng.get( w, MAX_CU_SIZE );
+      unsigned srcStride = rng.get( w + 4, MAX_CU_SIZE );  // +4 to prevent overreads in x86 simd implemenation
       unsigned dstStride = rng.get( w, MAX_CU_SIZE );
 
       if( !check_one_filterBlk<filtType>( ref, opt, srcStride, dstStride, w, h, bitDepth, g ) )
