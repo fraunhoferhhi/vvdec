@@ -707,6 +707,61 @@ static bool check_filterWxH_N4( InterpolationFilter* ref, InterpolationFilter* o
   return passed;
 }
 
+template<bool isFirst, bool isLast>
+static bool check_filterCopy( InterpolationFilter* ref, InterpolationFilter* opt, unsigned num_cases, bool biMCForDMVR )
+{
+  DimensionGenerator dim;
+
+  static constexpr size_t buf_size = MAX_CU_SIZE * MAX_CU_SIZE;
+
+  std::vector<Pel> src( buf_size );
+  std::vector<Pel> dst_ref( buf_size );
+  std::vector<Pel> dst_opt( buf_size );
+
+  bool passed = true;
+
+  // Test unsigned 8-bit and 10-bit.
+  for( unsigned bd : { 8, 10 } )
+  {
+    ClpRng clpRng{ ( int )bd };
+    InputGenerator<Pel> inp_gen{ bd, /*is_signed=*/false };
+
+    std::ostringstream sstm_test;
+    sstm_test << "InterpolationFilter::filterCopy[" << isFirst << "][" << isLast << "]"
+              << " biMCForDMVR=" << std::boolalpha << biMCForDMVR << " bitDepth=" << bd;
+    std::cout << "Testing " << sstm_test.str() << std::endl;
+
+    for( unsigned n = 0; n < num_cases; n++ )
+    {
+      const unsigned height    = dim.get( 1, MAX_CU_SIZE );
+      const unsigned width     = dim.get( 1, MAX_CU_SIZE );
+      const unsigned srcStride = dim.get( width, MAX_CU_SIZE );
+      const unsigned dstStride = dim.get( width, MAX_CU_SIZE );
+
+      // Fill input buffers with unsigned data.
+      std::generate( src.begin(), src.end(), inp_gen );
+
+      // Clear output blocks.
+      std::fill( dst_ref.begin(), dst_ref.end(), 0 );
+      std::fill( dst_opt.begin(), dst_opt.end(), 0 );
+
+      ref->m_filterCopy[isFirst][isLast]( clpRng, src.data(), ( ptrdiff_t )srcStride, dst_ref.data(),
+                                          ( ptrdiff_t )dstStride, ( int )width, ( int )height, biMCForDMVR );
+      opt->m_filterCopy[isFirst][isLast]( clpRng, src.data(), ( ptrdiff_t )srcStride, dst_opt.data(),
+                                          ( ptrdiff_t )dstStride, ( int )width, ( int )height, biMCForDMVR );
+
+      std::ostringstream sstm_subtest;
+      sstm_subtest << sstm_test.str() << " srcStride=" << srcStride << " dstStride=" << dstStride << " w=" << width
+                   << " h=" << height;
+
+      passed =
+          compare_values_2d( sstm_subtest.str(), dst_ref.data(), dst_opt.data(), height, width, dstStride ) && passed;
+    }
+  }
+
+  return passed;
+}
+
 static bool test_InterpolationFilter()
 {
   InterpolationFilter ref;
@@ -786,6 +841,13 @@ static bool test_InterpolationFilter()
     passed = check_filterWxH_N4<false, 16>( &ref, &opt, height, num_cases ) && passed;
     passed = check_filterWxH_N4<true, 16>( &ref, &opt, height, num_cases ) && passed;
   }
+
+  passed = check_filterCopy<false, false>( &ref, &opt, num_cases, false ) && passed;
+  passed = check_filterCopy<false, true>( &ref, &opt, num_cases, false ) && passed;
+  passed = check_filterCopy<true, false>( &ref, &opt, num_cases, false ) && passed;
+  passed = check_filterCopy<true, true>( &ref, &opt, num_cases, false ) && passed;
+  // The biMCForDMVR case for filterCopy only uses isFirst=true, isLast=false configuration.
+  passed = check_filterCopy<true, false>( &ref, &opt, num_cases, true ) && passed;
 
   return passed;
 }
