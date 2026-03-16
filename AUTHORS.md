@@ -15,3 +15,4 @@
 * Athulya Raj Raji Mohini, @athulya-arm, Arm
 * Elias Balint, @balintelias, Arm
 * Micro Daryl Robles, @micro-arm, Arm
+* Li Zhang, @lizhang-arm, Arm
