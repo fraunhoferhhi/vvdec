@@ -96,9 +96,10 @@ jobs:
           - os: ubuntu-24.04
             compiler: [gcc-13, g++-13]
 
-          - os: ubuntu-24.04
-            compiler: [gcc-14, g++-14]
-            run_unit_test: true
+# disabled, because we also run it with ASAN
+#          - os: ubuntu-24.04
+#            compiler: [gcc-14, g++-14]
+#            run_unit_test: true
 
           - name: "ubuntu-24.04 with ASAN"
             os: ubuntu-24.04
@@ -130,10 +131,11 @@ jobs:
 #          - os: ubuntu-24.04
 #            compiler: [clang-19, clang++-19]
 
-          - os: ubuntu-24.04-arm
-            compiler: [aarch64-linux-gnu-gcc, aarch64-linux-gnu-g++]
-            install_packages: g++-aarch64-linux-gnu
-            run_unit_test: true
+# disabled, because we also run it with ASAN
+#          - os: ubuntu-24.04-arm
+#            compiler: [aarch64-linux-gnu-gcc, aarch64-linux-gnu-g++]
+#            install_packages: g++-aarch64-linux-gnu
+#            run_unit_test: true
 
           - name: "ubuntu-24.04-arm with ASAN"
             os: ubuntu-24.04-arm
