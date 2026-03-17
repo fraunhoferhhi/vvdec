@@ -1665,6 +1665,204 @@ void simdFilter_neon( const ClpRng& clpRng, const Pel* src, const ptrdiff_t srcS
   }
 }
 
+void simdFilterCopy_DMVR_neon( const ClpRng& clpRng, const Pel* src, const ptrdiff_t srcStride, Pel* dst,
+                               const ptrdiff_t dstStride, int width, int height )
+{
+  // Special case of FilterCopy<true, false> where biMCForDMVR = true, clpRng.bd < 10.
+
+  CHECKD( height < 1, "Height must be >= 1" );
+  CHECKD( width < 4 || width % 4 != 0, "Width must be >= 4 and a multiple of 4" );
+  CHECKD( clpRng.bd - IF_INTERNAL_PREC_BILINEAR > 0, "VVdeC doesn't support bitdepth over '10'!" );
+
+  const int16_t shift = IF_INTERNAL_PREC_BILINEAR - clpRng.bd;
+
+  do
+  {
+    int w;
+    for( w = 0; w <= width - 16; w += 16 )
+    {
+      int16x8_t s_lo = vld1q_s16( src + w + 0 );
+      int16x8_t s_hi = vld1q_s16( src + w + 8 );
+      s_lo = vshlq_s16( s_lo, vdupq_n_s16( shift ) );
+      s_hi = vshlq_s16( s_hi, vdupq_n_s16( shift ) );
+      vst1q_s16( dst + w + 0, s_lo );
+      vst1q_s16( dst + w + 8, s_hi );
+    }
+    if( width & 8 )
+    {
+      int16x8_t s = vld1q_s16( src + w );
+      s = vshlq_s16( s, vdupq_n_s16( shift ) );
+      vst1q_s16( dst + w, s );
+
+      w += 8;
+    }
+    if( width & 4 )
+    {
+      int16x4_t s = vld1_s16( src + w );
+      s = vshl_s16( s, vdup_n_s16( shift ) );
+      vst1_s16( dst + w, s );
+    }
+
+    src += srcStride;
+    dst += dstStride;
+  } while( --height != 0 );
+}
+
+template<bool isFirst, bool isLast>
+void simdFilterCopy_noDMVR_neon( const ClpRng& clpRng, const Pel* src, const ptrdiff_t srcStride, Pel* dst,
+                                 const ptrdiff_t dstStride, int width, int height )
+{
+  CHECKD( height < 1, "Height must be >= 1" );
+  CHECKD( width < 4 || width % 4 != 0, "Width must be >= 4 and a multiple of 4" );
+
+  if( isFirst == isLast )
+  {
+    do
+    {
+      int w;
+      for( w = 0; w <= width - 16; w += 16 )
+      {
+        int16x8_t s_lo = vld1q_s16( src + w + 0 );
+        int16x8_t s_hi = vld1q_s16( src + w + 8 );
+        vst1q_s16( dst + w + 0, s_lo );
+        vst1q_s16( dst + w + 8, s_hi );
+      }
+      if( width & 8 )
+      {
+        int16x8_t s = vld1q_s16( src + w );
+        vst1q_s16( dst + w, s );
+
+        w += 8;
+      }
+      if( width & 4 )
+      {
+        int16x4_t s = vld1_s16( src + w );
+        vst1_s16( dst + w, s );
+      }
+
+      src += srcStride;
+      dst += dstStride;
+    } while( --height != 0 );
+  }
+  else if( isFirst )
+  {
+    CHECKD( IF_INTERNAL_PREC - clpRng.bd < 2, "Bit depth headroom must be at least 2" );
+
+    const int16_t shift = IF_INTERNAL_PREC - clpRng.bd;
+
+    do
+    {
+      int w;
+      for( w = 0; w <= width - 16; w += 16 )
+      {
+        int16x8_t s_lo = vld1q_s16( src + w + 0 );
+        int16x8_t s_hi = vld1q_s16( src + w + 8 );
+        s_lo = vshlq_s16( s_lo, vdupq_n_s16( shift ) );
+        s_hi = vshlq_s16( s_hi, vdupq_n_s16( shift ) );
+        s_lo = vsubq_s16( s_lo, vdupq_n_s16( IF_INTERNAL_OFFS ) );
+        s_hi = vsubq_s16( s_hi, vdupq_n_s16( IF_INTERNAL_OFFS ) );
+        vst1q_s16( dst + w + 0, s_lo );
+        vst1q_s16( dst + w + 8, s_hi );
+      }
+      if( width & 8 )
+      {
+        int16x8_t s = vld1q_s16( src + w );
+        s = vshlq_s16( s, vdupq_n_s16( shift ) );
+        s = vsubq_s16( s, vdupq_n_s16( IF_INTERNAL_OFFS ) );
+        vst1q_s16( dst + w, s );
+
+        w += 8;
+      }
+      if( width & 4 )
+      {
+        int16x4_t s = vld1_s16( src + w );
+        s = vshl_s16( s, vdup_n_s16( shift ) );
+        s = vsub_s16( s, vdup_n_s16( IF_INTERNAL_OFFS ) );
+        vst1_s16( dst + w, s );
+      }
+
+      src += srcStride;
+      dst += dstStride;
+    } while( --height != 0 );
+  }
+  else
+  {
+    CHECKD( IF_INTERNAL_PREC - clpRng.bd < 2, "Bit depth headroom must be at least 2" );
+
+    const int16_t shift = IF_INTERNAL_PREC - clpRng.bd;
+    const int16_t offset = ( 1 << ( shift - 1 ) ) + IF_INTERNAL_OFFS;
+
+    do
+    {
+      int w;
+      for( w = 0; w <= width - 16; w += 16 )
+      {
+        int16x8_t s_lo = vld1q_s16( src + w + 0 );
+        int16x8_t s_hi = vld1q_s16( src + w + 8 );
+        s_lo = vaddq_s16( s_lo, vdupq_n_s16( offset ) );
+        s_hi = vaddq_s16( s_hi, vdupq_n_s16( offset ) );
+        s_lo = vshlq_s16( s_lo, vdupq_n_s16( -shift ) );
+        s_hi = vshlq_s16( s_hi, vdupq_n_s16( -shift ) );
+        s_lo = vminq_s16( s_lo, vdupq_n_s16( clpRng.max() ) );
+        s_hi = vminq_s16( s_hi, vdupq_n_s16( clpRng.max() ) );
+        vst1q_s16( dst + w + 0, s_lo );
+        vst1q_s16( dst + w + 8, s_hi );
+      }
+      if( width & 8 )
+      {
+        int16x8_t s = vld1q_s16( src + w );
+        s = vaddq_s16( s, vdupq_n_s16( offset ) );
+        s = vshlq_s16( s, vdupq_n_s16( -shift ) );
+        s = vminq_s16( s, vdupq_n_s16( clpRng.max() ) );
+        vst1q_s16( dst + w, s );
+
+        w += 8;
+      }
+      if( width & 4 )
+      {
+        int16x4_t s = vld1_s16( src + w );
+        s = vadd_s16( s, vdup_n_s16( offset ) );
+        s = vshl_s16( s, vdup_n_s16( -shift ) );
+        s = vmin_s16( s, vdup_n_s16( clpRng.max() ) );
+        vst1_s16( dst + w, s );
+      }
+
+      src += srcStride;
+      dst += dstStride;
+    } while( --height != 0 );
+  }
+}
+
+template<bool isFirst, bool isLast>
+void simdFilterCopy_neon( const ClpRng& clpRng, const Pel* src, const ptrdiff_t srcStride, Pel* dst,
+                          const ptrdiff_t dstStride, int width, int height, bool biMCForDMVR )
+{
+  if( width % 4 != 0 )
+  {
+    // Fall back to scalar code.
+    InterpolationFilter::filterCopy<isFirst, isLast>( clpRng, src, srcStride, dst, dstStride, width, height,
+                                                      biMCForDMVR );
+    return;
+  }
+
+  // Use Neon paths only when width % 4 == 0.
+  if( isFirst && !isLast && biMCForDMVR )
+  {
+    if( clpRng.bd != 10 )
+    {
+      simdFilterCopy_DMVR_neon( clpRng, src, srcStride, dst, dstStride, width, height );
+    }
+    else // DMVR with 10-bit input reduces into a normal buffer copy.
+    {
+      simdFilterCopy_noDMVR_neon<true, true>( clpRng, src, srcStride, dst, dstStride, width, height );
+    }
+  }
+  else
+  {
+    simdFilterCopy_noDMVR_neon<isFirst, isLast>( clpRng, src, srcStride, dst, dstStride, width, height );
+  }
+}
+
 template<>
 void InterpolationFilter::_initInterpolationFilterARM<NEON>()
 {
@@ -1714,6 +1912,11 @@ void InterpolationFilter::_initInterpolationFilterARM<NEON>()
   m_filterVer[2][0][1] = simdFilter_neon<2, true, false, true>;
   m_filterVer[2][1][0] = simdFilter_neon<2, true, true, false>;
   m_filterVer[2][1][1] = simdFilter_neon<2, true, true, true>;
+
+  m_filterCopy[0][0] = simdFilterCopy_neon<false, false>;
+  m_filterCopy[0][1] = simdFilterCopy_neon<false, true>;
+  m_filterCopy[1][0] = simdFilterCopy_neon<true, false>;
+  m_filterCopy[1][1] = simdFilterCopy_neon<true, true>;
 }
 
 } // namespace vvdec
