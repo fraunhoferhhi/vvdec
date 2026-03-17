@@ -109,6 +109,21 @@ static inline uint32_t horizontal_add_long_u16x8( const uint16x8_t a )
 #endif
 }
 
+static inline int horizontal_add_long_s16x8( const int16x8_t a )
+{
+#if REAL_TARGET_AARCH64
+  return vaddlvq_s16( a );
+#else
+  return horizontal_add_s32x4( vpaddlq_s16( a ) );
+#endif
+}
+
+static inline int32x4_t horizontal_add_long_4d_s16x8( const int16x8_t v0, const int16x8_t v1, const int16x8_t v2,
+                                                      const int16x8_t v3 )
+{
+  return horizontal_add_4d_s32x4( vpaddlq_s16( v0 ), vpaddlq_s16( v1 ), vpaddlq_s16( v2 ), vpaddlq_s16( v3 ) );
+}
+
 static inline uint16x8_t vvdec_vpaddq_u16( uint16x8_t a, uint16x8_t b )
 {
 #if REAL_TARGET_AARCH64
