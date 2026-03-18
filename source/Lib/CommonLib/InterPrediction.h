@@ -76,6 +76,7 @@ class InterPrediction : public WeightPrediction
 public:
   void ( *BioGradFilter )  ( Pel* pSrc, ptrdiff_t srcStride, int width, int height, ptrdiff_t gradStride, Pel* gradX, Pel* gradY, const int bitDepth ) = nullptr;
   void ( *profGradFilter ) ( Pel* pSrc, ptrdiff_t srcStride, int width, int height, ptrdiff_t gradStride, Pel* gradX, Pel* gradY, const int bitDepth );
+  void ( *BiOptFlow )      ( const Pel* srcY0, const Pel* srcY1, const Pel* gradX0, const Pel* gradX1, const Pel* gradY0, const Pel* gradY1, const int width, const int height, Pel* dstY, const ptrdiff_t dstStride, const int shiftNum, const int offset, const int limit, const ClpRng& clpRng, const int bitDepth ) = nullptr;
 
 protected:
   InterpolationFilter  m_if;
@@ -142,7 +143,6 @@ protected:
                                   bool                  bilinearMC   = false,
                                   Pel*                  srcPadBuf    = NULL,
                                   ptrdiff_t             srcPadStride = 0 );
-  void ( *BiOptFlow )           ( const Pel* srcY0, const Pel* srcY1, const Pel* gradX0, const Pel* gradX1, const Pel* gradY0, const Pel* gradY1, const int width, const int height, Pel* dstY, const ptrdiff_t dstStride, const int shiftNum, const int offset, const int limit, const ClpRng& clpRng, const int bitDepth ) = nullptr;
   
   void( *PaddBIO )              ( const Pel* refPel, Pel* dstPel, unsigned width, const int shift );
 
