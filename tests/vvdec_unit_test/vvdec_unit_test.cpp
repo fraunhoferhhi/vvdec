@@ -1293,6 +1293,52 @@ static bool check_gradFilter( InterPrediction* ref, InterPrediction* opt, unsign
   return passed;
 }
 
+static bool check_one_prefetchPad( const InterPrediction* ref, const InterPrediction* opt, int width, int height,
+                                   ptrdiff_t srcStride, ptrdiff_t dstStride, int prefetchPadIdx, int padSize )
+{
+  std::ostringstream sstm;
+  sstm << "xPrefetchPad width=" << width << " height=" << height << " padSize=" << padSize;
+
+  InputGenerator<Pel> g{ 14 };
+  std::vector<Pel> src( srcStride * height );
+
+  int dstHeight = height + 2 * padSize;
+  std::vector<Pel> dst_ref( dstStride * dstHeight );
+  std::vector<Pel> dst_opt( dstStride * dstHeight );
+
+  std::generate( src.begin(), src.end(), g );
+
+  // Calculate pointer to actual image area in destination.
+  Pel* dst_ref_img = dst_ref.data() + padSize * dstStride + padSize;
+  Pel* dst_opt_img = dst_opt.data() + padSize * dstStride + padSize;
+
+  ref->prefetchPad[prefetchPadIdx]( src.data(), srcStride, dst_ref_img, dstStride, width, height );
+  opt->prefetchPad[prefetchPadIdx]( src.data(), srcStride, dst_opt_img, dstStride, width, height );
+
+  const int checkWidth = width + 2 * padSize;
+  return compare_values_2d( sstm.str(), dst_ref.data(), dst_opt.data(), dstHeight, checkWidth, ( unsigned )dstStride );
+}
+
+static bool check_prefetchPad( const InterPrediction* ref, const InterPrediction* opt, unsigned num_cases, int width,
+                               int height, int prefetchPadIdx, int padSize )
+{
+  printf( "Testing InterPrediction::xPrefetchPad w=%d h=%d padSize=%d\n", width, height, padSize );
+  DimensionGenerator rng;
+
+  for( unsigned i = 0; i < num_cases; ++i )
+  {
+    ptrdiff_t srcStride = rng.get( width + 8, 128 );
+    ptrdiff_t dstStride = rng.get( width + 2 * padSize + 8, 128 );
+
+    if( !check_one_prefetchPad( ref, opt, width, height, srcStride, dstStride, prefetchPadIdx, padSize ) )
+    {
+      return false;
+    }
+  }
+
+  return true;
+}
+
 static bool test_InterPrediction()
 {
   RdCost pcRdCost;
@@ -1314,6 +1360,24 @@ static bool test_InterPrediction()
   passed = check_biOptFlow( &ref, &opt, num_cases, 16, 16 ) && passed;
 
   passed = check_gradFilter( &ref, &opt, num_cases ) && passed;
+
+  // Test prefetchPad[2] where padSize=1.
+  for( unsigned width : { 7, 11 } )
+  {
+    for( unsigned height : { 7, 11 } )
+    {
+      passed = check_prefetchPad( &ref, &opt, num_cases, width, height, 2, 1 ) && passed;
+    }
+  }
+
+  // Test prefetchPad[0] where padSize=2.
+  for( unsigned width : { 15, 23 } )
+  {
+    for( unsigned height : { 15, 23 } )
+    {
+      passed = check_prefetchPad( &ref, &opt, num_cases, width, height, 0, 2 ) && passed;
+    }
+  }
 
   return passed;
 }
