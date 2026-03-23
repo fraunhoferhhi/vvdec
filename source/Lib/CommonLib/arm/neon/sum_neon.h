@@ -60,6 +60,18 @@ static inline uint16x8_t vvdec_vabaq_s16( uint16x8_t acc, int16x8_t x, int16x8_t
   return vreinterpretq_u16_s16( vabaq_s16( vreinterpretq_s16_u16( acc ), x, y ) );
 }
 
+static inline int16_t horizontal_add_s16x8( const int16x8_t a )
+{
+#if REAL_TARGET_AARCH64
+  return vaddvq_s16( a );
+#else
+  const int16x4_t b = vpadd_s16( vget_low_s16( a ), vget_high_s16( a ) );
+  const int16x4_t c = vpadd_s16( b, b );
+  const int16x4_t d = vpadd_s16( c, c );
+  return vget_lane_s16( d, 0 );
+#endif
+}
+
 static inline int horizontal_add_s32x4( const int32x4_t a )
 {
 #if REAL_TARGET_AARCH64
