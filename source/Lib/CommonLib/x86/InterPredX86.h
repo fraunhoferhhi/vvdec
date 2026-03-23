@@ -70,14 +70,14 @@ inline void PaddBIO_SIMD( const Pel* refPel, Pel* dstPel, unsigned width, const 
     for( w = 0; w < width; w += 8 )
     {
 
-      __m128i ref = _mm_lddqu_si128( ( __m128i const * )&refPel[w] );
+      __m128i ref = _mm_loadu_si128( ( __m128i const * )&refPel[w] );
       ref = _mm_sll_epi16( ref, vshift );
       ref = _mm_sub_epi16( ref, off );
       _mm_storeu_si128( ( __m128i * )&dstPel[w], ref );
 
     }
     //2 * BIO_EXTEND_SIZE
-    __m128i ref = _mm_lddqu_si128( ( __m128i const * )&refPel[w] );
+    __m128i ref = _mm_loadu_si128( ( __m128i const * )&refPel[w] );
     ref = _mm_sll_epi16( ref, vshift );
     ref = _mm_sub_epi16( ref, off );
     _mm_storeu_si32( ( __m128i * )&dstPel[w], ref );
@@ -85,7 +85,7 @@ inline void PaddBIO_SIMD( const Pel* refPel, Pel* dstPel, unsigned width, const 
   }
   else
   {
-    __m128i ref = _mm_lddqu_si128( ( __m128i const * )&refPel[0] );
+    __m128i ref = _mm_loadu_si128( ( __m128i const * )&refPel[0] );
     ref = _mm_sll_epi16( ref, vshift );
     ref = _mm_sub_epi16( ref, off );
     _mm_storeu_si64( ( __m128i * )&dstPel[0], ref );
