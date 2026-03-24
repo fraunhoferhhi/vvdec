@@ -77,6 +77,7 @@ public:
   void ( *BioGradFilter )  ( Pel* pSrc, ptrdiff_t srcStride, int width, int height, ptrdiff_t gradStride, Pel* gradX, Pel* gradY, const int bitDepth ) = nullptr;
   void ( *profGradFilter ) ( Pel* pSrc, ptrdiff_t srcStride, int width, int height, ptrdiff_t gradStride, Pel* gradX, Pel* gradY, const int bitDepth );
   void ( *BiOptFlow )      ( const Pel* srcY0, const Pel* srcY1, const Pel* gradX0, const Pel* gradX1, const Pel* gradY0, const Pel* gradY1, const int width, const int height, Pel* dstY, const ptrdiff_t dstStride, const int shiftNum, const int offset, const int limit, const ClpRng& clpRng, const int bitDepth ) = nullptr;
+  void ( *prefetchPad[3] )  ( const Pel* src, const ptrdiff_t srcStride, Pel* dst, const ptrdiff_t dstStride, int width, int height );
 
 protected:
   InterpolationFilter  m_if;
@@ -150,7 +151,6 @@ protected:
   void( *applyPROF[2] )         ( Pel* dst, ptrdiff_t dstStride, const Pel* src, const Pel* gradX, const Pel* gradY, const int* dMvX, const int* dMvY, int shiftNum, Pel offset, const ClpRng& clpRng );
   void( *roundIntVector )       ( int* v, int size, unsigned int nShift, const int dmvLimit );
   void( *clipMv )               ( Mv& rcMv, const Position& pos, const struct Size& size, const SPS& sps, const PPS& pps );
-  void( *prefetchPad[3] )       ( const Pel* src, const ptrdiff_t srcStride, Pel* dst, const ptrdiff_t dstStride, int width, int height );
 
   void xPredAffineBlk           ( const ComponentID& compID, const CodingUnit& cu, const Picture* refPic, const RefPicList refPicList, PelUnitBuf& dstPic, bool bi, const ClpRng& clpRng, const std::pair<int, int> scalingRatio = SCALE_1X );
   static bool xCheckIdenticalMotion
