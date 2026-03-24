@@ -52,6 +52,7 @@ POSSIBILITY OF SUCH DAMAGE.
 #include "CommonLib/InterPrediction.h"
 
 #include "neon/sum_neon.h"
+#include "neon/tbl_neon.h"
 
 namespace vvdec
 {
@@ -366,12 +367,207 @@ void gradFilter_neon( Pel* src, ptrdiff_t _srcStride, int width, int height, ptr
   }
 }
 
+// Duplicate the right element once: 0, 1, 2, 3, 4, 5, 6, 6
+static const uint8_t kPad1RightTbl[] = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 12, 13 };
+// Duplicate the left element once: 0, 0, 1, 2, 3, 4, 5, 6
+static const uint8_t kPad1LeftTbl[] = { 0, 1, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13 };
+// Duplicate the right element twice: 0, 1, 2, 3, 4, 5, 5, 5
+static const uint8_t kPad2RightTbl[] = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 10, 11, 10, 11 };
+// Duplicate the left element twice: 0, 0, 0, 1, 2, 3, 4, 5
+static const uint8_t kPad2LeftTbl[] = { 0, 1, 0, 1, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11 };
+
+static inline void prefetchPad_1_7( const Pel* src, const ptrdiff_t srcStride, Pel* dst, const ptrdiff_t dstStride,
+                                    int height )
+{
+  uint8x16_t idx = vld1q_u8( kPad1RightTbl );
+
+  int16x8_t s = vld1q_s16( src );
+  int16x8_t r = vreinterpretq_s16_s8( vvdec_vqtbl1q_s8( vreinterpretq_s8_s16( s ), idx ) );
+  dst[-dstStride - 1] = vgetq_lane_s16( s, 0 );
+  vst1q_s16( dst - dstStride, r );
+  dst[-1] = vgetq_lane_s16( s, 0 );
+  vst1q_s16( dst, r );
+
+  do
+  {
+    src += srcStride;
+    dst += dstStride;
+
+    s = vld1q_s16( src );
+    r = vreinterpretq_s16_s8( vvdec_vqtbl1q_s8( vreinterpretq_s8_s16( s ), idx ) );
+    dst[-1] = vgetq_lane_s16( s, 0 );
+    vst1q_s16( dst, r );
+  } while( --height != 1 );
+
+  dst[dstStride - 1] = vgetq_lane_s16( s, 0 );
+  vst1q_s16( dst + dstStride, r );
+}
+
+static inline void prefetchPad_1_11( const Pel* src, const ptrdiff_t srcStride, Pel* dst, const ptrdiff_t dstStride,
+                                     int height )
+{
+  uint8x16_t idx0 = vld1q_u8( kPad1LeftTbl );
+  uint8x16_t idx1 = vld1q_u8( kPad1RightTbl );
+
+  int16x8_t s0 = vld1q_s16( src + 0 );
+  int16x8_t s1 = vld1q_s16( src + 4 );
+  int16x8_t r0 = vreinterpretq_s16_s8( vvdec_vqtbl1q_s8( vreinterpretq_s8_s16( s0 ), idx0 ) );
+  int16x8_t r1 = vreinterpretq_s16_s8( vvdec_vqtbl1q_s8( vreinterpretq_s8_s16( s1 ), idx1 ) );
+  vst1q_s16( dst - dstStride - 1, r0 );
+  vst1q_s16( dst - dstStride + 4, r1 );
+  vst1q_s16( dst - 1, r0 );
+  vst1q_s16( dst + 4, r1 );
+
+  do
+  {
+    src += srcStride;
+    dst += dstStride;
+
+    s0 = vld1q_s16( src + 0 );
+    s1 = vld1q_s16( src + 4 );
+    r0 = vreinterpretq_s16_s8( vvdec_vqtbl1q_s8( vreinterpretq_s8_s16( s0 ), idx0 ) );
+    r1 = vreinterpretq_s16_s8( vvdec_vqtbl1q_s8( vreinterpretq_s8_s16( s1 ), idx1 ) );
+    vst1q_s16( dst - 1, r0 );
+    vst1q_s16( dst + 4, r1 );
+  } while( --height != 1 );
+
+  vst1q_s16( dst + dstStride - 1, r0 );
+  vst1q_s16( dst + dstStride + 4, r1 );
+}
+
+static inline void prefetchPad_2_15( const Pel* src, const ptrdiff_t srcStride, Pel* dst, const ptrdiff_t dstStride,
+                                     int height )
+{
+  uint8x16_t idx0 = vld1q_u8( kPad2LeftTbl );
+
+  int16x8_t s0 = vld1q_s16( src + 0 );
+  int16x8_t s1 = vld1q_s16( src + 6 );
+  int16x4_t s2 = vdup_n_s16( *( src + 14 ) );
+  int16x8_t r0 = vreinterpretq_s16_s8( vvdec_vqtbl1q_s8( vreinterpretq_s8_s16( s0 ), idx0 ) );
+  vst1q_s16( dst - 2 * dstStride - 2, r0 );
+  vst1q_s16( dst - 2 * dstStride + 6, s1 );
+  vst1_s16( dst - 2 * dstStride + 14, s2 );
+  vst1q_s16( dst - 1 * dstStride - 2, r0 );
+  vst1q_s16( dst - 1 * dstStride + 6, s1 );
+  vst1_s16( dst - 1 * dstStride + 14, s2 );
+  vst1q_s16( dst - 0 * dstStride - 2, r0 );
+  vst1q_s16( dst - 0 * dstStride + 6, s1 );
+  vst1_s16( dst - 0 * dstStride + 14, s2 );
+
+  do
+  {
+    src += srcStride;
+    dst += dstStride;
+
+    s0 = vld1q_s16( src + 0 );
+    s1 = vld1q_s16( src + 6 );
+    s2 = vdup_n_s16( *( src + 14 ) );
+
+    r0 = vreinterpretq_s16_s8( vvdec_vqtbl1q_s8( vreinterpretq_s8_s16( s0 ), idx0 ) );
+    vst1q_s16( dst - 2, r0 );
+    vst1q_s16( dst + 6, s1 );
+    vst1_s16( dst + 14, s2 );
+  } while( --height != 1 );
+
+  vst1q_s16( dst + 1 * dstStride - 2, r0 );
+  vst1q_s16( dst + 1 * dstStride + 6, s1 );
+  vst1_s16( dst + 1 * dstStride + 14, s2 );
+  vst1q_s16( dst + 2 * dstStride - 2, r0 );
+  vst1q_s16( dst + 2 * dstStride + 6, s1 );
+  vst1_s16( dst + 2 * dstStride + 14, s2 );
+}
+
+static inline void prefetchPad_2_23( const Pel* src, const ptrdiff_t srcStride, Pel* dst, const ptrdiff_t dstStride,
+                                     int height )
+{
+  uint8x16_t idx0 = vld1q_u8( kPad2LeftTbl );
+  uint8x16_t idx1 = vld1q_u8( kPad2RightTbl );
+
+  int16x8_t s0 = vld1q_s16( src + 0 );
+  int16x8_t s1 = vld1q_s16( src + 6 );
+  int16x8_t s2 = vld1q_s16( src + 14 );
+  int16x8_t s3 = vld1q_s16( src + 17 );
+  int16x8_t r0 = vreinterpretq_s16_s8( vvdec_vqtbl1q_s8( vreinterpretq_s8_s16( s0 ), idx0 ) );
+  int16x8_t r1 = vreinterpretq_s16_s8( vvdec_vqtbl1q_s8( vreinterpretq_s8_s16( s3 ), idx1 ) );
+  vst1q_s16( dst - 2 * dstStride - 2, r0 );
+  vst1q_s16( dst - 2 * dstStride + 6, s1 );
+  vst1q_s16( dst - 2 * dstStride + 14, s2 );
+  vst1q_s16( dst - 2 * dstStride + 17, r1 );
+  vst1q_s16( dst - 1 * dstStride - 2, r0 );
+  vst1q_s16( dst - 1 * dstStride + 6, s1 );
+  vst1q_s16( dst - 1 * dstStride + 14, s2 );
+  vst1q_s16( dst - 1 * dstStride + 17, r1 );
+  vst1q_s16( dst - 0 * dstStride - 2, r0 );
+  vst1q_s16( dst - 0 * dstStride + 6, s1 );
+  vst1q_s16( dst - 0 * dstStride + 14, s2 );
+  vst1q_s16( dst - 0 * dstStride + 17, r1 );
+
+  do
+  {
+    src += srcStride;
+    dst += dstStride;
+
+    s0 = vld1q_s16( src + 0 );
+    s1 = vld1q_s16( src + 6 );
+    s2 = vld1q_s16( src + 14 );
+    s3 = vld1q_s16( src + 17 );
+
+    r0 = vreinterpretq_s16_s8( vvdec_vqtbl1q_s8( vreinterpretq_s8_s16( s0 ), idx0 ) );
+    r1 = vreinterpretq_s16_s8( vvdec_vqtbl1q_s8( vreinterpretq_s8_s16( s3 ), idx1 ) );
+    vst1q_s16( dst - 2, r0 );
+    vst1q_s16( dst + 6, s1 );
+    vst1q_s16( dst + 14, s2 );
+    vst1q_s16( dst + 17, r1 );
+  } while( --height != 1 );
+
+  vst1q_s16( dst + 1 * dstStride - 2, r0 );
+  vst1q_s16( dst + 1 * dstStride + 6, s1 );
+  vst1q_s16( dst + 1 * dstStride + 14, s2 );
+  vst1q_s16( dst + 1 * dstStride + 17, r1 );
+  vst1q_s16( dst + 2 * dstStride - 2, r0 );
+  vst1q_s16( dst + 2 * dstStride + 6, s1 );
+  vst1q_s16( dst + 2 * dstStride + 14, s2 );
+  vst1q_s16( dst + 2 * dstStride + 17, r1 );
+}
+
+void prefetchPadL_neon( const Pel* src, const ptrdiff_t srcStride, Pel* dst, const ptrdiff_t dstStride, int width,
+                        int height )
+{
+  CHECKD( width != 15 && width != 23, "Unsupported width" );
+
+  if( width == 15 )
+  {
+    prefetchPad_2_15( src, srcStride, dst, dstStride, height );
+  }
+  else // width == 23
+  {
+    prefetchPad_2_23( src, srcStride, dst, dstStride, height );
+  }
+}
+
+void prefetchPadC_neon( const Pel* src, const ptrdiff_t srcStride, Pel* dst, const ptrdiff_t dstStride, int width,
+                        int height )
+{
+  CHECKD( width != 7 && width != 11, "Unsupported width" );
+
+  if( width == 7 )
+  {
+    prefetchPad_1_7( src, srcStride, dst, dstStride, height );
+  }
+  else // width == 11
+  {
+    prefetchPad_1_11( src, srcStride, dst, dstStride, height );
+  }
+}
+
 template<>
 void InterPrediction::_initInterPredictionARM<NEON>()
 {
   BiOptFlow = BiOptFlow_neon;
   BioGradFilter = gradFilter_neon<true>;
   profGradFilter = gradFilter_neon<false>;
+  prefetchPad[0] = prefetchPadL_neon;
+  prefetchPad[2] = prefetchPadC_neon;
 }
 
 #endif // ENABLE_SIMD_OPT_INTER && defined(TARGET_SIMD_ARM)
