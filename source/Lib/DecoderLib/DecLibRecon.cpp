@@ -124,6 +124,9 @@ DecLibRecon::DecLibRecon()
 #if ENABLE_SIMD_TCOEFF_OPS && defined( TARGET_SIMD_X86 )
   g_tCoeffOps.initTCoeffOpsX86();
 #endif
+#if ENABLE_SIMD_TCOEFF_OPS && defined( TARGET_SIMD_ARM )
+  g_tCoeffOps.initTCoeffOpsARM();
+#endif
 }
 
 void DecLibRecon::create( ThreadPool* threadPool, unsigned instanceId, bool upscaleOutputEnabled )

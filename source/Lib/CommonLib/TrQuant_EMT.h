@@ -63,6 +63,11 @@ struct TCoeffOps
   template<X86_VEXT vext>
   void _initTCoeffOpsX86();
 #endif
+#if defined( TARGET_SIMD_ARM ) && ENABLE_SIMD_TCOEFF_OPS
+  void initTCoeffOpsARM();
+  template<arm_simd::ARM_VEXT vext>
+  void _initTCoeffOpsARM();
+#endif
   void( *cpyResiClip[7] ) ( const TCoeff*      src,        Pel*    dst, ptrdiff_t stride, unsigned width, unsigned height, const TCoeff outputMin, const TCoeff outputMax, const TCoeff round, const TCoeff shift );
   void( *fastInvCore[5] ) ( const TMatrixCoeff* it,  const TCoeff* src, TCoeff* dst, unsigned lines, unsigned reducedLines, unsigned rows );
   void( *roundClip4 )     (                                             TCoeff *dst, unsigned width, unsigned height, unsigned stride, const TCoeff outputMin, const TCoeff outputMax, const TCoeff round, const TCoeff shift );
