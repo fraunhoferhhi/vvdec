@@ -70,6 +70,35 @@ static inline void transpose_4x4_u32( const uint32x4_t aIn, const uint32x4_t bIn
   dOut = z3.val[1];
 }
 
+static inline void transpose_4x4_s16( const int16x4_t a0, const int16x4_t a1, const int16x4_t a2, const int16x4_t a3,
+                                      int16x4_t& b0, int16x4_t& b1, int16x4_t& b2, int16x4_t& b3 )
+{
+  // Transpose 16-bit 4x4 as follows:
+  // a0: 00 01 02 03
+  // a1: 10 11 12 13
+  // a2: 20 21 22 23
+  // a3: 30 31 32 33
+
+  // 00 20 01 21
+  // 02 22 03 23
+  const int16x4x2_t a02 = vzip_s16( a0, a2 );
+  // 10 30 11 31
+  // 12 32 13 33
+  const int16x4x2_t a13 = vzip_s16( a1, a3 );
+
+  // b0: 00 10 20 30
+  // b1: 01 11 21 31
+  // b2: 02 12 22 32
+  // b3: 03 13 23 33
+  const int16x4x2_t b01 = vzip_s16( a02.val[0], a13.val[0] );
+  const int16x4x2_t b23 = vzip_s16( a02.val[1], a13.val[1] );
+
+  b0 = b01.val[0];
+  b1 = b01.val[1];
+  b2 = b23.val[0];
+  b3 = b23.val[1];
+}
+
 static inline void transpose_concat_8x4_s16( int16x8_t a0, int16x8_t a1, int16x8_t a2, int16x8_t a3,
                                              int16x8_t& b0, int16x8_t& b1, int16x8_t& b2, int16x8_t& b3 )
 {
