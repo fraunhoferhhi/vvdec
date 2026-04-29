@@ -707,6 +707,10 @@ void PelStorage::create( const ChromaFormat _chromaFormat, const Size& _size, co
     else
     {
       m_origin[i] = ( Pel* ) xMalloc( Pel, area );
+      if( m_origin[i] )
+      {
+        memset(m_origin[i], 0, area * sizeof(**m_origin));
+      }
     }
     Pel* topLeft = m_origin[i] + totalWidth * ymargin + xmargin;
     bufs.push_back( PelBuf( topLeft, totalWidth, _size.width >> scaleX, _size.height >> scaleY ) );
