@@ -175,15 +175,16 @@ void TCoeffOps::initTCoeffOpsARM()
 //  }
 //#  endif
 
-//#  if ENABLE_SIMD_OPT_SAO
-//void SampleAdaptiveOffset::initSampleAdaptiveOffsetARM()
-//{
-//  auto vext = read_arm_extension_flags();
-//  if( vext >= NEON )
-//  {
-//    _initSampleAdaptiveOffsetARM<NEON>();
-//  }
-//#  endif
+#if ENABLE_SIMD_OPT_SAO
+void SampleAdaptiveOffset::initSampleAdaptiveOffsetARM()
+{
+  auto vext = read_arm_extension_flags();
+  if( vext >= NEON )
+  {
+    _initSampleAdaptiveOffsetARM<NEON>();
+  }
+}
+#endif
 
 #if ENABLE_SIMD_OPT_INTER
 void InterPrediction::initInterPredictionARM()

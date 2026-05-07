@@ -87,6 +87,19 @@ static inline int8x16_t vvdec_vqtbl1q_s8( int8x16_t table, uint8x16_t index )
 #endif // REAL_TARGET_AARCH64
 }
 
+static inline int8x8_t vvdec_vqtbl1_s8( int8x16_t table, uint8x8_t index )
+{
+#if REAL_TARGET_AARCH64
+  return vqtbl1_s8( table, index );
+#else
+  int8x8x2_t t;
+  t.val[0] = vget_low_s8( table );
+  t.val[1] = vget_high_s8( table );
+
+  return vtbl2_s8( t, vreinterpret_s8_u8( index ) );
+#endif // REAL_TARGET_AARCH64
+}
+
 static inline int8x8_t vvdec_vqtbl2_s8( int8x16x2_t table, uint8x8_t index )
 {
 #if REAL_TARGET_AARCH64
