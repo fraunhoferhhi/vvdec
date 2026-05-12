@@ -59,6 +59,9 @@ namespace vvdec
 #if defined(TARGET_SIMD_X86)  && ENABLE_SIMD_DBLF
 using namespace x86_simd;
 #endif
+#if defined(TARGET_SIMD_ARM)  && ENABLE_SIMD_DBLF
+using namespace arm_simd;
+#endif
   
 // ====================================================================================================================
 // Class definition
@@ -106,6 +109,11 @@ private:
   void initLoopFilterX86();
   template <X86_VEXT vext>
   void _initLoopFilterX86();
+#endif
+#if defined(TARGET_SIMD_ARM)  && ENABLE_SIMD_DBLF
+  void initLoopFilterARM();
+  template<ARM_VEXT vext>
+  void _initLoopFilterARM();
 #endif
   inline void xDeriveEdgefilterParam( const Position pos, const int numVerVirBndry, const int numHorVirBndry, const int verVirBndryPos[], const int horVirBndryPos[], bool& verEdgeFilter, bool& horEdgeFilter ) const;
 

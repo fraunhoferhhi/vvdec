@@ -79,6 +79,15 @@ static inline int16x4_t load_s16x2( const int16_t* src )
   return vreinterpret_s16_u32( vset_lane_u32( tmp, vdup_n_u32( 0 ), 0 ) );
 }
 
+static inline int16x8_t load_s16x6( const int16_t* src )
+{
+  int16x8_t ret = vcombine_s16( vld1_s16( src ), vdup_n_s16( 0 ) );
+  uint32_t tmp;
+  memcpy( &tmp, src + 4, sizeof( uint32_t ) );
+  ret = vreinterpretq_s16_u32( vsetq_lane_u32( tmp, vreinterpretq_u32_s16( ret ), 2 ) );
+  return ret;
+}
+
 static inline int16x4_t load_s16x2x2( const int16_t* src, ptrdiff_t stride )
 {
   uint32x2_t ret = vdup_n_u32( 0 );

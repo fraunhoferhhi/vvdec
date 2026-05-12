@@ -66,7 +66,7 @@ namespace vvdec
 
 #ifdef TARGET_SIMD_ARM
 
-#  if ENABLE_SIMD_OPT_MCIF
+#if ENABLE_SIMD_OPT_MCIF
 void InterpolationFilter::initInterpolationFilterARM( /*int iBitDepthY, int iBitDepthC*/ )
 {
   auto vext = read_arm_extension_flags();
@@ -81,9 +81,9 @@ void InterpolationFilter::initInterpolationFilterARM( /*int iBitDepthY, int iBit
   }
 #endif
 }
-#  endif
+#endif
 
-#  if ENABLE_SIMD_OPT_BUFFER
+#if ENABLE_SIMD_OPT_BUFFER
 void PelBufferOps::initPelBufOpsARM()
 {
   auto vext = read_arm_extension_flags();
@@ -110,9 +110,9 @@ void PelBufferOps::initPelBufOpsARM()
   }
 #endif
 }
-#  endif
+#endif
 
-#  if ENABLE_SIMD_OPT_DIST
+#if ENABLE_SIMD_OPT_DIST
 void RdCost::initRdCostARM()
 {
   auto vext = read_arm_extension_flags();
@@ -121,7 +121,7 @@ void RdCost::initRdCostARM()
     _initRdCostARM<NEON>();
   }
 }
-#  endif
+#endif
 
 #if ENABLE_SIMD_OPT_ALF
 void AdaptiveLoopFilter::initAdaptiveLoopFilterARM()
@@ -134,16 +134,16 @@ void AdaptiveLoopFilter::initAdaptiveLoopFilterARM()
 }
 #endif
 
-//#  if ENABLE_SIMD_DBLF
-//void LoopFilter::initLoopFilterARM()
-//{
-//  auto vext = read_arm_extension_flags();
-//  if( vext >= NEON )
-//  {
-//    _initLoopFilterARM<NEON>();
-//  }
-//}
-//#  endif
+#if ENABLE_SIMD_DBLF
+void LoopFilter::initLoopFilterARM()
+{
+  auto vext = read_arm_extension_flags();
+  if( vext >= NEON )
+  {
+    _initLoopFilterARM<NEON>();
+  }
+}
+#endif
 
 //#  if ENABLE_SIMD_TCOEFF_OPS
 //void TCoeffOps::initTCoeffOpsARM()
