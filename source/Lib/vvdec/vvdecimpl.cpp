@@ -1437,10 +1437,16 @@ int VVDecImpl::xConvertPayloadToRBSP( const uint8_t* payload, size_t payloadLen,
     // Remove cabac_zero_word from payload if present
     int n = 0;
 
-    while (it_write[-1] == 0x00)
+    while (it_write != nalUnitBuf.begin() && it_write[-1] == 0x00)
     {
       it_write--;
       n++;
+    }
+
+    if (it_write == nalUnitBuf.begin())
+    {
+      msg( ERROR, "VCL NAL unit RBSP is entirely zero\n");
+      return -1;
     }
 
     if (n > 0)
