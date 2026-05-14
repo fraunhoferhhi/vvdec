@@ -66,7 +66,6 @@ typedef struct ALFGroupParam
 {
   int16x8_t clipA, negClipA;
   int16x8_t clipB, negClipB;
-  int16x4_t coeff;
 } ALFGroupParam;
 
 static inline int16x8_t clip3_neon( const int16x8_t val, const int16x8_t minVal, const int16x8_t maxVal )
@@ -98,11 +97,24 @@ static inline void processALF_CoeffPair_neon( const Pel* ptr0, const Pel* ptr1, 
   accB = vaddq_s16( diff2, diff3 );
 }
 
-static inline void prepareALF7x7Params_neon( const short* filterCoeff0, const short* filterCoeff1,
-                                             const short* filterClip0, const short* filterClip1,
-                                             ALFGroupParam param[MAX_NUM_ALF_LUMA_COEFF / 2] )
+static inline void processALF_CoeffPairNoClip_neon( const Pel* ptr0, const Pel* ptr1, const Pel* ptr2, const Pel* ptr3,
+                                                    const int16x8_t currx2, int16x8_t& accA, int16x8_t& accB )
 {
-  // Copy all 12 coeffs and clips.
+  const int16x8_t v0 = vld1q_s16( ptr0 );
+  const int16x8_t v1 = vld1q_s16( ptr1 );
+  const int16x8_t v2 = vld1q_s16( ptr2 );
+  const int16x8_t v3 = vld1q_s16( ptr3 );
+
+  const int16x8_t v0v1 = vaddq_s16( v0, v1 );
+  const int16x8_t v2v3 = vaddq_s16( v2, v3 );
+  accA = vsubq_s16( v0v1, currx2 );
+  accB = vsubq_s16( v2v3, currx2 );
+}
+
+static inline void prepareALF7x7ClipParams_neon( const short* filterClip0, const short* filterClip1,
+                                                 ALFGroupParam param[MAX_NUM_ALF_LUMA_COEFF / 2] )
+{
+  // Copy all 12 clips.
   const int16x8_t cl0_04 = vld1q_s16( filterClip0 + 0 );
   const int16x8_t cl1_04 = vld1q_s16( filterClip1 + 0 );
   const int16x4_t cl0_8 = vld1_s16( filterClip0 + 8 );
@@ -138,23 +150,154 @@ static inline void prepareALF7x7Params_neon( const short* filterCoeff0, const sh
   param[4].negClipB = vnegq_s16( param[4].clipB );
   param[5].negClipA = vnegq_s16( param[5].clipA );
   param[5].negClipB = vnegq_s16( param[5].clipB );
-
-  const int16x8_t c0_04 = vld1q_s16( filterCoeff0 + 0 );
-  const int16x8_t c1_04 = vld1q_s16( filterCoeff1 + 0 );
-  param[0].coeff = vget_low_s16( c0_04 );
-  param[2].coeff = vget_high_s16( c0_04 );
-  param[1].coeff = vget_low_s16( c1_04 );
-  param[3].coeff = vget_high_s16( c1_04 );
-  param[4].coeff = vld1_s16( filterCoeff0 + 8 );
-  param[5].coeff = vld1_s16( filterCoeff1 + 8 );
 }
 
-template<bool isFoldingRequired>
-static inline void processALF7x7Row_neon( const Pel* pImg0, Pel* pDst, const int distance, const ptrdiff_t srcStride,
-                                          const ALFGroupParam param[6], const int clpRngMax )
+static inline void prepareALF7x7CoeffParams_neon( const short* filterCoeff0, const short* filterCoeff1,
+                                                  int16x4_t coeff[MAX_NUM_ALF_LUMA_COEFF / 2] )
 {
-  constexpr int SHIFT = AdaptiveLoopFilter::m_NUM_BITS - 1;
+  // Copy all 12 coeffs.
+  const int16x8_t c0_04 = vld1q_s16( filterCoeff0 + 0 );
+  const int16x8_t c1_04 = vld1q_s16( filterCoeff1 + 0 );
+  coeff[0] = vget_low_s16( c0_04 );
+  coeff[2] = vget_high_s16( c0_04 );
+  coeff[1] = vget_low_s16( c1_04 );
+  coeff[3] = vget_high_s16( c1_04 );
+  coeff[4] = vld1_s16( filterCoeff0 + 8 );
+  coeff[5] = vld1_s16( filterCoeff1 + 8 );
+}
 
+template<bool IsFoldingRequired>
+static inline int16x8_t roundAndClipALF7x7Row_neon( const int16x8_t curr, const int32x4_t accLo, const int32x4_t accHi,
+                                                    const int distance, const int clpRngMax )
+{
+  constexpr int shift = AdaptiveLoopFilter::m_NUM_BITS - 1;
+
+  int16x8_t acc;
+  if( IsFoldingRequired && distance >= 0 && distance <= 1 )
+  {
+    // Weaker filter, closer to VB.
+    acc = vcombine_s16( vrshrn_n_s32( accLo, shift + 3 ), vrshrn_n_s32( accHi, shift + 3 ) );
+  }
+  else
+  {
+    // Regular filter strength.
+    acc = vcombine_s16( vrshrn_n_s32( accLo, shift ), vrshrn_n_s32( accHi, shift ) );
+  }
+
+  uint16x8_t dst = vvdec_vsqaddq_u16( vreinterpretq_u16_s16( curr ), acc );
+  dst = vminq_u16( dst, vdupq_n_u16( clpRngMax ) );
+  return vreinterpretq_s16_u16( dst );
+}
+
+template<bool IsFoldingRequired>
+static inline int16x8_t processALF7x7Row_Clip_neon( const Pel* pImg0, const Pel* pImg1, const Pel* pImg2,
+                                                    const Pel* pImg3, const Pel* pImg4, const Pel* pImg5,
+                                                    const Pel* pImg6, const ALFGroupParam* param,
+                                                    const int16x4_t coeff[6], const int distance, const int clpRngMax )
+{
+  const int16x8_t curr = vld1q_s16( pImg0 );
+  int16x8_t a, b;
+
+  processALF_CoeffPair_neon( pImg5 + 0, pImg6 + 0, pImg3 + 1, pImg4 - 1, curr, param[0].clipA, param[0].clipB,
+                             param[0].negClipA, param[0].negClipB, a, b );
+  int32x4_t accLo = vmull_lane_s16( vget_low_s16( a ), coeff[0], 0 );
+  int32x4_t accHi = vmull_lane_s16( vget_high_s16( a ), coeff[1], 0 );
+  accLo = vmlal_lane_s16( accLo, vget_low_s16( b ), coeff[0], 1 );
+  accHi = vmlal_lane_s16( accHi, vget_high_s16( b ), coeff[1], 1 );
+
+  processALF_CoeffPair_neon( pImg3 + 0, pImg4 + 0, pImg3 - 1, pImg4 + 1, curr, param[1].clipA, param[1].clipB,
+                             param[1].negClipA, param[1].negClipB, a, b );
+  accLo = vmlal_lane_s16( accLo, vget_low_s16( a ), coeff[0], 2 );
+  accHi = vmlal_lane_s16( accHi, vget_high_s16( a ), coeff[1], 2 );
+  accLo = vmlal_lane_s16( accLo, vget_low_s16( b ), coeff[0], 3 );
+  accHi = vmlal_lane_s16( accHi, vget_high_s16( b ), coeff[1], 3 );
+
+  processALF_CoeffPair_neon( pImg1 + 2, pImg2 - 2, pImg1 + 1, pImg2 - 1, curr, param[2].clipA, param[2].clipB,
+                             param[2].negClipA, param[2].negClipB, a, b );
+  accLo = vmlal_lane_s16( accLo, vget_low_s16( a ), coeff[2], 0 );
+  accHi = vmlal_lane_s16( accHi, vget_high_s16( a ), coeff[3], 0 );
+  accLo = vmlal_lane_s16( accLo, vget_low_s16( b ), coeff[2], 1 );
+  accHi = vmlal_lane_s16( accHi, vget_high_s16( b ), coeff[3], 1 );
+
+  processALF_CoeffPair_neon( pImg1 + 0, pImg2 + 0, pImg1 - 1, pImg2 + 1, curr, param[3].clipA, param[3].clipB,
+                             param[3].negClipA, param[3].negClipB, a, b );
+  accLo = vmlal_lane_s16( accLo, vget_low_s16( a ), coeff[2], 2 );
+  accHi = vmlal_lane_s16( accHi, vget_high_s16( a ), coeff[3], 2 );
+  accLo = vmlal_lane_s16( accLo, vget_low_s16( b ), coeff[2], 3 );
+  accHi = vmlal_lane_s16( accHi, vget_high_s16( b ), coeff[3], 3 );
+
+  processALF_CoeffPair_neon( pImg1 - 2, pImg2 + 2, pImg0 + 3, pImg0 - 3, curr, param[4].clipA, param[4].clipB,
+                             param[4].negClipA, param[4].negClipB, a, b );
+  accLo = vmlal_lane_s16( accLo, vget_low_s16( a ), coeff[4], 0 );
+  accHi = vmlal_lane_s16( accHi, vget_high_s16( a ), coeff[5], 0 );
+  accLo = vmlal_lane_s16( accLo, vget_low_s16( b ), coeff[4], 1 );
+  accHi = vmlal_lane_s16( accHi, vget_high_s16( b ), coeff[5], 1 );
+
+  processALF_CoeffPair_neon( pImg0 + 2, pImg0 - 2, pImg0 + 1, pImg0 - 1, curr, param[5].clipA, param[5].clipB,
+                             param[5].negClipA, param[5].negClipB, a, b );
+  accLo = vmlal_lane_s16( accLo, vget_low_s16( a ), coeff[4], 2 );
+  accHi = vmlal_lane_s16( accHi, vget_high_s16( a ), coeff[5], 2 );
+  accLo = vmlal_lane_s16( accLo, vget_low_s16( b ), coeff[4], 3 );
+  accHi = vmlal_lane_s16( accHi, vget_high_s16( b ), coeff[5], 3 );
+
+  return roundAndClipALF7x7Row_neon<IsFoldingRequired>( curr, accLo, accHi, distance, clpRngMax );
+}
+
+template<bool IsFoldingRequired>
+static inline int16x8_t processALF7x7Row_noClip_neon( const Pel* pImg0, const Pel* pImg1, const Pel* pImg2,
+                                                      const Pel* pImg3, const Pel* pImg4, const Pel* pImg5,
+                                                      const Pel* pImg6, const int16x4_t coeff[6], const int distance,
+                                                      const int clpRngMax )
+{
+  const int16x8_t curr = vld1q_s16( pImg0 );
+  int16x8_t currx2 = vshlq_n_s16( curr, 1 );
+
+  int16x8_t a, b;
+
+  processALF_CoeffPairNoClip_neon( pImg5 + 0, pImg6 + 0, pImg3 + 1, pImg4 - 1, currx2, a, b );
+  int32x4_t accLo = vmull_lane_s16( vget_low_s16( a ), coeff[0], 0 );
+  int32x4_t accHi = vmull_lane_s16( vget_high_s16( a ), coeff[1], 0 );
+  accLo = vmlal_lane_s16( accLo, vget_low_s16( b ), coeff[0], 1 );
+  accHi = vmlal_lane_s16( accHi, vget_high_s16( b ), coeff[1], 1 );
+
+  processALF_CoeffPairNoClip_neon( pImg3 + 0, pImg4 + 0, pImg3 - 1, pImg4 + 1, currx2, a, b );
+  accLo = vmlal_lane_s16( accLo, vget_low_s16( a ), coeff[0], 2 );
+  accHi = vmlal_lane_s16( accHi, vget_high_s16( a ), coeff[1], 2 );
+  accLo = vmlal_lane_s16( accLo, vget_low_s16( b ), coeff[0], 3 );
+  accHi = vmlal_lane_s16( accHi, vget_high_s16( b ), coeff[1], 3 );
+
+  processALF_CoeffPairNoClip_neon( pImg1 + 2, pImg2 - 2, pImg1 + 1, pImg2 - 1, currx2, a, b );
+  accLo = vmlal_lane_s16( accLo, vget_low_s16( a ), coeff[2], 0 );
+  accHi = vmlal_lane_s16( accHi, vget_high_s16( a ), coeff[3], 0 );
+  accLo = vmlal_lane_s16( accLo, vget_low_s16( b ), coeff[2], 1 );
+  accHi = vmlal_lane_s16( accHi, vget_high_s16( b ), coeff[3], 1 );
+
+  processALF_CoeffPairNoClip_neon( pImg1 + 0, pImg2 + 0, pImg1 - 1, pImg2 + 1, currx2, a, b );
+  accLo = vmlal_lane_s16( accLo, vget_low_s16( a ), coeff[2], 2 );
+  accHi = vmlal_lane_s16( accHi, vget_high_s16( a ), coeff[3], 2 );
+  accLo = vmlal_lane_s16( accLo, vget_low_s16( b ), coeff[2], 3 );
+  accHi = vmlal_lane_s16( accHi, vget_high_s16( b ), coeff[3], 3 );
+
+  processALF_CoeffPairNoClip_neon( pImg1 - 2, pImg2 + 2, pImg0 + 3, pImg0 - 3, currx2, a, b );
+  accLo = vmlal_lane_s16( accLo, vget_low_s16( a ), coeff[4], 0 );
+  accHi = vmlal_lane_s16( accHi, vget_high_s16( a ), coeff[5], 0 );
+  accLo = vmlal_lane_s16( accLo, vget_low_s16( b ), coeff[4], 1 );
+  accHi = vmlal_lane_s16( accHi, vget_high_s16( b ), coeff[5], 1 );
+
+  processALF_CoeffPairNoClip_neon( pImg0 + 2, pImg0 - 2, pImg0 + 1, pImg0 - 1, currx2, a, b );
+  accLo = vmlal_lane_s16( accLo, vget_low_s16( a ), coeff[4], 2 );
+  accHi = vmlal_lane_s16( accHi, vget_high_s16( a ), coeff[5], 2 );
+  accLo = vmlal_lane_s16( accLo, vget_low_s16( b ), coeff[4], 3 );
+  accHi = vmlal_lane_s16( accHi, vget_high_s16( b ), coeff[5], 3 );
+
+  return roundAndClipALF7x7Row_neon<IsFoldingRequired>( curr, accLo, accHi, distance, clpRngMax );
+}
+
+template<bool IsFoldingRequired, bool IsFixedFilterSet>
+static inline int16x8_t processALF7x7Row_neon( const Pel* pImg0, const ptrdiff_t srcStride, const int16x4_t coeff[6],
+                                               const int clpRngMax, const int distance,
+                                               const ALFGroupParam* param = nullptr )
+{
   const Pel* pImg1 = pImg0 + srcStride; // y+1
   const Pel* pImg2 = pImg0 - srcStride; // y-1
   const Pel* pImg3 = pImg1 + srcStride; // y+2
@@ -162,7 +305,7 @@ static inline void processALF7x7Row_neon( const Pel* pImg0, Pel* pDst, const int
   const Pel* pImg5 = pImg3 + srcStride; // y+3
   const Pel* pImg6 = pImg4 - srcStride; // y-3
 
-  if( isFoldingRequired )
+  if( IsFoldingRequired )
   {
     // When the current line is near the VB (vbPos), some of rows access could point across the CTU boundary.
     // Distance = 0 or 1, reuse current row (pImg0).
@@ -190,72 +333,66 @@ static inline void processALF7x7Row_neon( const Pel* pImg0, Pel* pDst, const int
     }
   }
 
-  const int16x8_t curr = vld1q_s16( pImg0 );
-
-  int16x8_t a, b;
-  processALF_CoeffPair_neon( pImg5 + 0, pImg6 + 0, pImg3 + 1, pImg4 - 1, curr, param[0].clipA, param[0].clipB,
-                             param[0].negClipA, param[0].negClipB, a, b );
-  int32x4_t accLo = vmull_lane_s16( vget_low_s16( a ), param[0].coeff, 0 );
-  int32x4_t accHi = vmull_lane_s16( vget_high_s16( a ), param[1].coeff, 0 );
-  accLo = vmlal_lane_s16( accLo, vget_low_s16( b ), param[0].coeff, 1 );
-  accHi = vmlal_lane_s16( accHi, vget_high_s16( b ), param[1].coeff, 1 );
-
-  processALF_CoeffPair_neon( pImg3 + 0, pImg4 + 0, pImg3 - 1, pImg4 + 1, curr, param[1].clipA, param[1].clipB,
-                             param[1].negClipA, param[1].negClipB, a, b );
-  accLo = vmlal_lane_s16( accLo, vget_low_s16( a ), param[0].coeff, 2 );
-  accHi = vmlal_lane_s16( accHi, vget_high_s16( a ), param[1].coeff, 2 );
-  accLo = vmlal_lane_s16( accLo, vget_low_s16( b ), param[0].coeff, 3 );
-  accHi = vmlal_lane_s16( accHi, vget_high_s16( b ), param[1].coeff, 3 );
-
-  processALF_CoeffPair_neon( pImg1 + 2, pImg2 - 2, pImg1 + 1, pImg2 - 1, curr, param[2].clipA, param[2].clipB,
-                             param[2].negClipA, param[2].negClipB, a, b );
-  accLo = vmlal_lane_s16( accLo, vget_low_s16( a ), param[2].coeff, 0 );
-  accHi = vmlal_lane_s16( accHi, vget_high_s16( a ), param[3].coeff, 0 );
-  accLo = vmlal_lane_s16( accLo, vget_low_s16( b ), param[2].coeff, 1 );
-  accHi = vmlal_lane_s16( accHi, vget_high_s16( b ), param[3].coeff, 1 );
-
-  processALF_CoeffPair_neon( pImg1 + 0, pImg2 + 0, pImg1 - 1, pImg2 + 1, curr, param[3].clipA, param[3].clipB,
-                             param[3].negClipA, param[3].negClipB, a, b );
-  accLo = vmlal_lane_s16( accLo, vget_low_s16( a ), param[2].coeff, 2 );
-  accHi = vmlal_lane_s16( accHi, vget_high_s16( a ), param[3].coeff, 2 );
-  accLo = vmlal_lane_s16( accLo, vget_low_s16( b ), param[2].coeff, 3 );
-  accHi = vmlal_lane_s16( accHi, vget_high_s16( b ), param[3].coeff, 3 );
-
-  processALF_CoeffPair_neon( pImg1 - 2, pImg2 + 2, pImg0 + 3, pImg0 - 3, curr, param[4].clipA, param[4].clipB,
-                             param[4].negClipA, param[4].negClipB, a, b );
-  accLo = vmlal_lane_s16( accLo, vget_low_s16( a ), param[4].coeff, 0 );
-  accHi = vmlal_lane_s16( accHi, vget_high_s16( a ), param[5].coeff, 0 );
-  accLo = vmlal_lane_s16( accLo, vget_low_s16( b ), param[4].coeff, 1 );
-  accHi = vmlal_lane_s16( accHi, vget_high_s16( b ), param[5].coeff, 1 );
-
-  processALF_CoeffPair_neon( pImg0 + 2, pImg0 - 2, pImg0 + 1, pImg0 - 1, curr, param[5].clipA, param[5].clipB,
-                             param[5].negClipA, param[5].negClipB, a, b );
-  accLo = vmlal_lane_s16( accLo, vget_low_s16( a ), param[4].coeff, 2 );
-  accHi = vmlal_lane_s16( accHi, vget_high_s16( a ), param[5].coeff, 2 );
-  accLo = vmlal_lane_s16( accLo, vget_low_s16( b ), param[4].coeff, 3 );
-  accHi = vmlal_lane_s16( accHi, vget_high_s16( b ), param[5].coeff, 3 );
-
-  int16x8_t acc;
-  if( isFoldingRequired && distance >= 0 && distance <= 1 )
+  if( IsFixedFilterSet )
   {
-    // Weaker filter, closer to VB.
-    acc = vcombine_s16( vrshrn_n_s32( accLo, SHIFT + 3 ), vrshrn_n_s32( accHi, SHIFT + 3 ) );
+    return processALF7x7Row_noClip_neon<IsFoldingRequired>( pImg0, pImg1, pImg2, pImg3, pImg4, pImg5, pImg6, coeff,
+                                                            distance, clpRngMax );
   }
   else
   {
-    // Regular filter strength.
-    acc = vcombine_s16( vrshrn_n_s32( accLo, SHIFT ), vrshrn_n_s32( accHi, SHIFT ) );
+    return processALF7x7Row_Clip_neon<IsFoldingRequired>( pImg0, pImg1, pImg2, pImg3, pImg4, pImg5, pImg6, param, coeff,
+                                                          distance, clpRngMax );
   }
-
-  uint16x8_t dst = vvdec_vsqaddq_u16( vreinterpretq_u16_s16( curr ), acc );
-  dst = vminq_u16( dst, vdupq_n_u16( clpRngMax ) );
-
-  vst1q_s16( pDst, vreinterpretq_s16_u16( dst ) );
 }
 
-void Filter7x7Blk_neon( const AlfClassifier* classifier, const PelUnitBuf& recDst, const CPelUnitBuf& recSrc,
-                        const Area& blk, const ComponentID compId, const short* filterSet, const short* fClipSet,
-                        const ClpRng& clpRng, int vbCTUHeight, int vbPos )
+template<bool IsFoldingRequired, bool IsFixedFilterSet>
+static inline void
+filterALF7x7Block4Rows_neon( const AlfClassifier* classifier, int cl_index, const int width, const Pel* pImg0,
+                             Pel* pDst, const ptrdiff_t srcStride, const ptrdiff_t dstStride, const short* filterSet,
+                             const short* fClipSet, const int clpRngMax, const int VbDistance[4] = nullptr )
+{
+  CHECKD( width % 8, "Width must be multiple of 8!" );
+
+  int j = width;
+  do
+  {
+    const AlfClassifier& cl0 = classifier[cl_index];
+    const AlfClassifier& cl1 = classifier[cl_index + 1];
+    const int index0 =
+        cl0.classIdx * MAX_NUM_ALF_LUMA_COEFF + cl0.transposeIdx * MAX_NUM_ALF_LUMA_COEFF * MAX_NUM_ALF_CLASSES;
+    const int index1 =
+        cl1.classIdx * MAX_NUM_ALF_LUMA_COEFF + cl1.transposeIdx * MAX_NUM_ALF_LUMA_COEFF * MAX_NUM_ALF_CLASSES;
+
+    // For 7x7, 6 pairs of coeffs. Each pair has 4 coeffs (2 for each filter).
+    int16x4_t coeff[MAX_NUM_ALF_LUMA_COEFF / 2];
+    prepareALF7x7CoeffParams_neon( filterSet + index0, filterSet + index1, coeff );
+
+    ALFGroupParam param[MAX_NUM_ALF_LUMA_COEFF / 2];
+    if( !IsFixedFilterSet )
+    {
+      prepareALF7x7ClipParams_neon( fClipSet + index0, fClipSet + index1, param );
+    }
+
+    for( int k = 0; k < 4; k++ )
+    {
+      const int distance = IsFoldingRequired ? VbDistance[k] : 0;
+      const int16x8_t dst = processALF7x7Row_neon<IsFoldingRequired, IsFixedFilterSet>(
+          pImg0 + k * srcStride, srcStride, coeff, clpRngMax, distance, param );
+      vst1q_s16( pDst + k * dstStride, dst );
+    }
+
+    cl_index += 2;
+    pImg0 += 8;
+    pDst += 8;
+    j -= 8;
+  } while( j != 0 );
+}
+
+template<bool IsFixedFilterSet>
+static inline void calculate_Filter7x7Blk_neon( const AlfClassifier* classifier, const PelUnitBuf& recDst,
+                                                const CPelUnitBuf& recSrc, const Area& blk, const ComponentID compId,
+                                                const ClpRng& clpRng, int vbCTUHeight, int vbPos,
+                                                const short* filterSet, const short* fClipSet = nullptr )
 {
   const CPelBuf srcLuma = recSrc.get( compId );
   PelBuf dstLuma = recDst.get( compId );
@@ -270,16 +407,12 @@ void Filter7x7Blk_neon( const AlfClassifier* classifier, const PelUnitBuf& recDs
   const Pel* src = srcLuma.buf + blk.y * srcStride + blk.x;
   Pel* dst = dstLuma.buf + blk.y * dstStride + blk.x;
 
-  constexpr size_t STEP_X = 8;
-  constexpr size_t STEP_Y = 4;
-
-  CHECKD( startHeight % STEP_Y, "Wrong startHeight in filtering!" );
-  CHECKD( width % STEP_X, "Width must be multiple of 8!" );
-  CHECKD( height % STEP_Y, "Height must be multiple of 4!" );
+  CHECKD( startHeight % 4, "Wrong startHeight in filtering!" );
+  CHECKD( height % 4, "Height must be multiple of 4!" );
 
   const int clpRngMax = clpRng.max();
 
-  for( int i = 0; i < height; i += STEP_Y )
+  for( int i = 0; i < height; i += 4 )
   {
     const int yVbPos = ( startHeight + i ) & ( vbCTUHeight - 1 ); // Row’s position inside its CTU.
     const int firstDistance = vbPos - yVbPos;
@@ -294,63 +427,40 @@ void Filter7x7Blk_neon( const AlfClassifier* classifier, const PelUnitBuf& recDs
 
     if( foldingRequired )
     {
-      // startHeight and i are STEP_Y-aligned, so any CTU wrap can only occur after these four row distances.
-      const int VbDistance[STEP_Y] = { firstDistance, firstDistance - 1, firstDistance - 2, firstDistance - 3 };
+      // startHeight and i are 4-aligned, so any CTU wrap can only occur after these four row distances.
+      const int VbDistance[] = { firstDistance, firstDistance - 1, firstDistance - 2, firstDistance - 3 };
 
-      int j = width;
-      do
-      {
-        const AlfClassifier& cl0 = classifier[cl_index];
-        const int index0 =
-            cl0.classIdx * MAX_NUM_ALF_LUMA_COEFF + cl0.transposeIdx * MAX_NUM_ALF_LUMA_COEFF * MAX_NUM_ALF_CLASSES;
-        const AlfClassifier& cl1 = classifier[cl_index + 1];
-        const int index1 =
-            cl1.classIdx * MAX_NUM_ALF_LUMA_COEFF + cl1.transposeIdx * MAX_NUM_ALF_LUMA_COEFF * MAX_NUM_ALF_CLASSES;
-
-        ALFGroupParam param[MAX_NUM_ALF_LUMA_COEFF / 2];
-        prepareALF7x7Params_neon( filterSet + index0, filterSet + index1, fClipSet + index0, fClipSet + index1, param );
-
-        for( int k = 0; k < STEP_Y; k++ )
-        {
-          processALF7x7Row_neon<true>( pImg0 + k * srcStride, pDst + k * dstStride, VbDistance[k], srcStride, param,
-                                       clpRngMax );
-        }
-
-        j -= STEP_X;
-        cl_index += 2;
-        pImg0 += STEP_X;
-        pDst += STEP_X;
-      } while( j != 0 );
+      filterALF7x7Block4Rows_neon</* IsFoldingRequired = */ true, IsFixedFilterSet>(
+          classifier, cl_index, width, pImg0, pDst, srcStride, dstStride, filterSet, fClipSet, clpRngMax, VbDistance );
     }
     else
     {
-      int j = width;
-      do
-      {
-        const AlfClassifier& cl0 = classifier[cl_index];
-        const int index0 =
-            cl0.classIdx * MAX_NUM_ALF_LUMA_COEFF + cl0.transposeIdx * MAX_NUM_ALF_LUMA_COEFF * MAX_NUM_ALF_CLASSES;
-        const AlfClassifier& cl1 = classifier[cl_index + 1];
-        const int index1 =
-            cl1.classIdx * MAX_NUM_ALF_LUMA_COEFF + cl1.transposeIdx * MAX_NUM_ALF_LUMA_COEFF * MAX_NUM_ALF_CLASSES;
-
-        ALFGroupParam param[MAX_NUM_ALF_LUMA_COEFF / 2];
-        prepareALF7x7Params_neon( filterSet + index0, filterSet + index1, fClipSet + index0, fClipSet + index1, param );
-
-        for( int k = 0; k < STEP_Y; k++ )
-        {
-          processALF7x7Row_neon<false>( pImg0 + k * srcStride, pDst + k * dstStride, 0, srcStride, param, clpRngMax );
-        }
-
-        j -= STEP_X;
-        cl_index += 2;
-        pImg0 += STEP_X;
-        pDst += STEP_X;
-      } while( j != 0 );
+      filterALF7x7Block4Rows_neon</* IsFoldingRequired = */ false, IsFixedFilterSet>(
+          classifier, cl_index, width, pImg0, pDst, srcStride, dstStride, filterSet, fClipSet, clpRngMax );
     }
 
-    src += srcStride * STEP_Y;
-    dst += dstStride * STEP_Y;
+    src += srcStride * 4;
+    dst += dstStride * 4;
+  }
+}
+
+void Filter7x7Blk_neon( const AlfClassifier* classifier, const PelUnitBuf& recDst, const CPelUnitBuf& recSrc,
+                        const Area& blk, const ComponentID compId, const short* filterSet, const short* fClipSet,
+                        const ClpRng& clpRng, int vbCTUHeight, int vbPos, const bool isFixedFilterSet )
+{
+
+  if( isFixedFilterSet )
+  {
+    for( int i = 0; i < MAX_NUM_ALF_LUMA_COEFF - 1; i++ )
+    {
+      CHECKD( fClipSet[i] != clpRng.max() + 1, "Wrong clipset for fixed filter set!" );
+    }
+    calculate_Filter7x7Blk_neon<true>( classifier, recDst, recSrc, blk, compId, clpRng, vbCTUHeight, vbPos, filterSet );
+  }
+  else
+  {
+    calculate_Filter7x7Blk_neon<false>( classifier, recDst, recSrc, blk, compId, clpRng, vbCTUHeight, vbPos, filterSet,
+                                        fClipSet );
   }
 }
 
@@ -461,8 +571,9 @@ static inline int16x8_t processALF5x5Row_neon( const Pel* pImg0, const int dista
 
 void Filter5x5Blk_neon( const AlfClassifier*, const PelUnitBuf& recDst, const CPelUnitBuf& recSrc, const Area& blk,
                         const ComponentID compId, const short* filterSet, const short* fClipSet, const ClpRng& clpRng,
-                        int vbCTUHeight, int vbPos )
+                        int vbCTUHeight, int vbPos, const bool isFixedFilterSet )
 {
+  ( void ) isFixedFilterSet;
   const CPelBuf srcLuma = recSrc.get( compId );
   PelBuf dstLuma = recDst.get( compId );
 
