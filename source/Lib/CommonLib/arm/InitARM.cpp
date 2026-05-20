@@ -145,15 +145,15 @@ void LoopFilter::initLoopFilterARM()
 }
 #endif
 
-//#  if ENABLE_SIMD_TCOEFF_OPS
-//void TCoeffOps::initTCoeffOpsARM()
-//{
-//  auto vext = read_arm_extension_flags();
-//  if( vext >= NEON )
-//  {
-//    _initTCoeffOpsARM<NEON>();
-//  }
-//}
+#if ENABLE_SIMD_TCOEFF_OPS
+void TCoeffOps::initTCoeffOpsARM()
+{
+  auto vext = read_arm_extension_flags();
+  if( vext >= NEON )
+  {
+    _initTCoeffOpsARM<NEON>();
+  }
+}
 
 //void TrQuant::initTrQuantARM()
 //{
@@ -163,7 +163,7 @@ void LoopFilter::initLoopFilterARM()
 //    _initTrQuantARM<NEON>();
 //  }
 //}
-//#  endif
+#endif
 
 //#  if ENABLE_SIMD_OPT_INTRAPRED
 //void IntraPrediction::initIntraPredictionARM()

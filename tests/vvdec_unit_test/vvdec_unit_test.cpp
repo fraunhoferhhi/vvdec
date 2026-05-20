@@ -282,6 +282,9 @@ static bool test_TCoeffOps()
 #if defined( TARGET_SIMD_X86 )
   opt.initTCoeffOpsX86();
 #endif
+#if defined( TARGET_SIMD_ARM )
+  opt.initTCoeffOpsARM();
+#endif
 
   unsigned num_cases = NUM_CASES;
   bool passed = true;
