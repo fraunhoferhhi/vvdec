@@ -32,6 +32,15 @@ message( STATUS "CMAKE_MODULE_PATH: updating module path to: ${CMAKE_MODULE_PATH
 include( vvdecCompilerSupport )
 
 detect_target_architecture( VVDEC_TARGET_ARCH )
+
+set( VVDEC_X86_SIMD_DEFAULT TRUE )
+if( MSVC AND MSVC_VERSION GREATER_EQUAL 1951 AND VVDEC_TARGET_ARCH STREQUAL "AARCH64" )
+  message( WARNING "Setting default SIMD-Everywhere X86 to ARM translation to off when using"
+          " Microsoft ARM compiler (>=19.51) due to compiler bugs."
+          " (VVDEC_ENABLE_X86_SIMD=FALSE)" )
+  set( VVDEC_X86_SIMD_DEFAULT FALSE )
+endif()
+
 if( VVDEC_TARGET_ARCH MATCHES "ARM\|AARCH64" )
   set( VVDEC_ARM_SIMD_DEFAULT TRUE )
 
@@ -50,7 +59,7 @@ if( VVDEC_TARGET_ARCH MATCHES "LOONGARCH64" )
 endif()
 
 # we enable x86 intrinsics for all target architectures, because they are implemented through simd-everywhere on non-x86
-set( VVDEC_ENABLE_X86_SIMD TRUE                      CACHE BOOL "Enable x86 intrinsics" )
+set( VVDEC_ENABLE_X86_SIMD ${VVDEC_X86_SIMD_DEFAULT} CACHE BOOL "Enable x86 intrinsics" )
 set( VVDEC_ENABLE_ARM_SIMD ${VVDEC_ARM_SIMD_DEFAULT} CACHE BOOL "Enable Arm intrinsics" )
 set( VVDEC_ENABLE_ARM_SIMD_RDM ${FLAG_rdm}           CACHE BOOL "Enable Arm RDM intrinsics" )
 set( VVDEC_ENABLE_ARM_SIMD_SVE ${FLAG_sve}           CACHE BOOL "Enable Arm SVE intrinsics" )
