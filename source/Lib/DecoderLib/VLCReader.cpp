@@ -80,10 +80,11 @@ void VLCReader::xReadUvlc( uint32_t& ruiVal )
       uiCode = m_pcBitstream->read( 1 );
       uiLength++;
     }
+    CHECK( uiLength > 31, "UVLC length overflow" );
 
     uiVal = m_pcBitstream->read( uiLength );
 
-    uiVal += ( 1 << uiLength ) - 1;
+    uiVal += ( 1u << uiLength ) - 1;
   }
 
   ruiVal = uiVal;
@@ -101,10 +102,11 @@ void VLCReader::xReadSvlc( int32_t& riVal )
       uiBits = m_pcBitstream->read( 1 );
       uiLength++;
     }
+    CHECK( uiLength > 30, "SVLC length overflow" );
 
     uiBits = m_pcBitstream->read( uiLength );
 
-    uiBits += ( 1 << uiLength );
+    uiBits += ( 1u << uiLength );
     riVal = ( uiBits & 1 ) ? -(int32_t)( uiBits>>1 ) : (int32_t)( uiBits>>1 );
   }
   else
@@ -196,10 +198,11 @@ uint32_t VLCReader::xReadUvlc()
       uiCode = m_pcBitstream->read( 1 );
       uiLength++;
     }
+    CHECK( uiLength > 31, "UVLC length overflow" );
 
     uiVal = m_pcBitstream->read( uiLength );
 
-    uiVal += ( 1 << uiLength ) - 1;
+    uiVal += ( 1u << uiLength ) - 1;
   }
 
   return uiVal;
@@ -217,10 +220,11 @@ int32_t VLCReader::xReadSvlc()
       uiBits = m_pcBitstream->read( 1 );
       uiLength++;
     }
+    CHECK( uiLength > 30, "SVLC length overflow" );
 
     uiBits = m_pcBitstream->read( uiLength );
 
-    uiBits += ( 1 << uiLength );
+    uiBits += ( 1u << uiLength );
     return ( uiBits & 1 ) ? -(int32_t)( uiBits>>1 ) : (int32_t)( uiBits>>1 );
   }
   else
