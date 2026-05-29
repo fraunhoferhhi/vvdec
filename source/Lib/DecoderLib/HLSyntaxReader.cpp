@@ -1935,7 +1935,7 @@ void HLSyntaxReader::parseSPS( SPS* sps, const ParameterSetManager* parameterSet
       X_READ_SVLC( sps_qp_table_start_minus26, -26 - QpBdOffset, 36 );
       chromaQpMappingTableParams.setQpTableStartMinus26( i, sps_qp_table_start_minus26 );
 
-      X_READ_UVLC( sps_num_points_in_qp_table_minus1, 0, 36u - sps_qp_table_start_minus26 );
+      X_READ_UVLC( sps_num_points_in_qp_table_minus1, 0, (unsigned) ( 36 - sps_qp_table_start_minus26 ) );	// cast after subtraction to prevent conversion of sps_qp_table_start_minus26 to unsigned
       chromaQpMappingTableParams.setNumPtsInCQPTableMinus1( i, sps_num_points_in_qp_table_minus1 );
 
       std::vector<int> deltaQpInValMinus1( sps_num_points_in_qp_table_minus1 + 1 );

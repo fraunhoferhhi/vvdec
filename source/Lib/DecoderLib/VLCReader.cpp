@@ -66,51 +66,12 @@ void VLCReader::xReadFlag( uint32_t& ruiCode )
 
 void VLCReader::xReadUvlc( uint32_t& ruiVal )
 {
-  uint32_t uiVal = 0;
-  uint32_t uiCode = 0;
-  uint32_t uiLength = 0;
-
-  uiCode = m_pcBitstream->read( 1 );
-  if( 0 == uiCode )
-  {
-    uiLength = 0;
-
-    while( ! ( uiCode & 1 ) )
-    {
-      uiCode = m_pcBitstream->read( 1 );
-      uiLength++;
-    }
-
-    uiVal = m_pcBitstream->read( uiLength );
-
-    uiVal += ( 1 << uiLength ) - 1;
-  }
-
-  ruiVal = uiVal;
+  ruiVal = xReadUvlc();
 }
 
 void VLCReader::xReadSvlc( int32_t& riVal )
 {
-  uint32_t uiBits = m_pcBitstream->read( 1 );
-  if( 0 == uiBits )
-  {
-    uint32_t uiLength = 0;
-
-    while( ! ( uiBits & 1 ) )
-    {
-      uiBits = m_pcBitstream->read( 1 );
-      uiLength++;
-    }
-
-    uiBits = m_pcBitstream->read( uiLength );
-
-    uiBits += ( 1 << uiLength );
-    riVal = ( uiBits & 1 ) ? -(int32_t)( uiBits>>1 ) : (int32_t)( uiBits>>1 );
-  }
-  else
-  {
-    riVal = 0;
-  }
+  riVal = xReadSvlc();
 }
 
 void VLCReader::xReadCode( uint32_t uiLength, uint32_t& ruiCode )
@@ -196,10 +157,11 @@ uint32_t VLCReader::xReadUvlc()
       uiCode = m_pcBitstream->read( 1 );
       uiLength++;
     }
+    CHECK( uiLength > 31, "UVLC length overflow" );
 
     uiVal = m_pcBitstream->read( uiLength );
 
-    uiVal += ( 1 << uiLength ) - 1;
+    uiVal += ( 1u << uiLength ) - 1;
   }
 
   return uiVal;
@@ -217,10 +179,11 @@ int32_t VLCReader::xReadSvlc()
       uiBits = m_pcBitstream->read( 1 );
       uiLength++;
     }
+    CHECK( uiLength > 30, "SVLC length overflow" );
 
     uiBits = m_pcBitstream->read( uiLength );
 
-    uiBits += ( 1 << uiLength );
+    uiBits += ( 1u << uiLength );
     return ( uiBits & 1 ) ? -(int32_t)( uiBits>>1 ) : (int32_t)( uiBits>>1 );
   }
   else
@@ -239,7 +202,7 @@ int32_t VLCReader::xReadSCode( uint32_t length )
 {
   CHECK( length == 0 || length > 31, "wrong" );
   uint32_t val = m_pcBitstream->read( length );
-  return length >= 32 ? int32_t( val ) : ( ( -int32_t( val & ( uint32_t( 1 ) << ( length - 1 ) ) ) ) | int32_t( val ) );
+  return  ( -int32_t( val & ( 1u << ( length - 1 ) ) ) ) | int32_t( val ) ;
 }
 
 bool VLCReader::xReadFlag( const char* pSymbolName )
