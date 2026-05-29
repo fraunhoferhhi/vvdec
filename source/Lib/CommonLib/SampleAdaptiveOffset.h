@@ -73,7 +73,7 @@ template<typename T> static inline int sgn( T val )
 class SampleAdaptiveOffset
 {
 public:
-  SampleAdaptiveOffset() {}
+  SampleAdaptiveOffset( bool enableOpt = true );
   ~SampleAdaptiveOffset();
 
   void create( int picWidth, int picHeight, ChromaFormat format, uint32_t maxCUWidth, uint32_t maxCUHeight, uint32_t maxCUDepth, uint32_t bitShift, PelUnitBuf& unitBuf );
@@ -126,6 +126,7 @@ protected:
                                 int                  numHorVirBndry,
                                 int                  numVerVirBndry );
 
+public:
   void ( *offsetBlock )( const int            channelBitDepth,
                          const ClpRng&        clpRng,
                          int                  typeIdx,
@@ -153,6 +154,7 @@ protected:
                          int                  numHorVirBndry,
                          int                  numVerVirBndry );
 
+protected:
   void invertQuantOffsets     ( ComponentID compIdx, int typeIdc, int typeAuxInfo, int* dstOffsets, int* srcOffsets ) const;
   void reconstructBlkSAOParam ( SAOBlkParam& recParam, SAOBlkParam* mergeList[NUM_SAO_MERGE_TYPES] ) const;
   int  getMergeList           ( CodingStructure& cs, int ctuRsAddr, SAOBlkParam* mergeList[NUM_SAO_MERGE_TYPES] );

@@ -339,6 +339,18 @@ void SampleAdaptiveOffset::offsetBlock_core( const int            channelBitDept
   }
 }
 
+SampleAdaptiveOffset::SampleAdaptiveOffset( bool enableOpt )
+{
+  offsetBlock = offsetBlock_core;
+
+  if( enableOpt )
+  {
+#if ENABLE_SIMD_OPT_SAO && defined( TARGET_SIMD_X86 )
+    initSampleAdaptiveOffsetX86();
+#endif
+  }
+}
+
 SampleAdaptiveOffset::~SampleAdaptiveOffset()
 {
   destroy();
@@ -346,11 +358,6 @@ SampleAdaptiveOffset::~SampleAdaptiveOffset()
 
 void SampleAdaptiveOffset::create( int picWidth, int picHeight, ChromaFormat format, uint32_t maxCUWidth, uint32_t maxCUHeight, uint32_t maxCUDepth, uint32_t bitShift, PelUnitBuf& unitBuf )
 {
-  offsetBlock = offsetBlock_core;
-#if ENABLE_SIMD_OPT_SAO && defined( TARGET_SIMD_X86 )
-  initSampleAdaptiveOffsetX86();
-#endif
-
   m_tempBuf = unitBuf;
 
   //bit-depth related

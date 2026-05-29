@@ -48,6 +48,7 @@ POSSIBILITY OF SUCH DAMAGE.
 #include "CommonLib/InterPrediction.h"
 #include "CommonLib/InterpolationFilter.h"
 #include "CommonLib/LoopFilter.h"
+#include "CommonLib/SampleAdaptiveOffset.h"
 #include "CommonLib/TrQuant_EMT.h"
 
 using namespace vvdec;
@@ -1697,6 +1698,268 @@ static bool test_RdCost()
 }
 #endif // ENABLE_SIMD_OPT_DIST
 
+#if ENABLE_SIMD_OPT_SAO
+struct SaoAvailCase
+{
+  bool left;
+  bool right;
+  bool above;
+  bool below;
+  const char* name;
+};
+
+struct SaoVirtualBoundaryCase
+{
+  unsigned numVertical;
+  unsigned numHorizontal;
+  enum Placement
+  {
+    Middle,
+    NearEdge,
+    BlockStart,
+    BlockEnd,
+  } placement;
+  const char* name;
+};
+
+static void fillVirtualBoundaryPositions( int positions[2], int& numPositions, unsigned size, unsigned numRequested,
+                                          SaoVirtualBoundaryCase::Placement placement )
+{
+  CHECK( numRequested > 2, "SAO unit test supports up to two virtual boundaries" );
+
+  numPositions = ( int )numRequested;
+
+  if( numRequested == 0 )
+  {
+    return;
+  }
+
+  if( numRequested == 1 )
+  {
+    switch( placement )
+    {
+    case SaoVirtualBoundaryCase::NearEdge:
+      positions[0] = 1;
+      break;
+    case SaoVirtualBoundaryCase::BlockStart:
+      positions[0] = 0;
+      break;
+    case SaoVirtualBoundaryCase::BlockEnd:
+      positions[0] = ( int )size;
+      break;
+    default:
+      positions[0] = ( int )size / 2;
+      break;
+    }
+  }
+  else // numRequested == 2
+  {
+    switch( placement )
+    {
+    case SaoVirtualBoundaryCase::NearEdge:
+      positions[0] = 1;
+      positions[1] = ( int )size - 1;
+      break;
+    case SaoVirtualBoundaryCase::BlockStart:
+      positions[0] = 0;
+      positions[1] = 1;
+      break;
+    case SaoVirtualBoundaryCase::BlockEnd:
+      positions[0] = ( int )size - 1;
+      positions[1] = ( int )size;
+      break;
+    default:
+      positions[0] = ( int )size / 3;
+      positions[1] = ( int )( 2 * size ) / 3;
+      break;
+    }
+  }
+}
+
+static bool check_one_offsetBlock( SampleAdaptiveOffset* ref, SampleAdaptiveOffset* opt, int bitDepth, int typeIdx,
+                                   unsigned width, unsigned height, const SaoAvailCase& avail,
+                                   const SaoVirtualBoundaryCase& vbCase, unsigned caseIdx,
+                                   std::ostringstream& sstm_test )
+{
+  DimensionGenerator rng;
+  InputGenerator<Pel> inputGenerator{ ( unsigned )bitDepth, /*is_signed=*/false };
+  const ClpRng clpRng{ bitDepth };
+
+  CHECK( width % 8 != 0, "SAO offsetBlock expects 8-aligned widths" );
+
+  // Source padding for EO neighbor reads around the tested block.
+  static constexpr unsigned padLeft = 1;
+  static constexpr unsigned padRight = 1;
+  static constexpr unsigned padTop = 1;
+  static constexpr unsigned padBottom = 1;
+  const unsigned srcStride = padLeft + width + padRight;
+  const unsigned srcRows = padTop + height + padBottom;
+  const unsigned dstStride = width;
+  const unsigned dstRows = height;
+
+  // Use aligned buffers.
+  Pel* src = ( Pel* )xMalloc( Pel, srcRows * srcStride );
+  Pel* dstRef = ( Pel* )xMalloc( Pel, dstRows * dstStride );
+  Pel* dstOpt = ( Pel* )xMalloc( Pel, dstRows * dstStride );
+
+  std::generate_n( src, srcRows * srcStride, inputGenerator );
+
+  // Point srcBlk inside the padded buffer so EO modes can read neighboring samples.
+  const Pel* srcBlk = src + padTop * srcStride + padLeft;
+
+  // Pre-fill dst with source block values to match the real resBlk precondition.
+  // EO modes leave boundary/disabled samples unchanged, and those samples are still checked.
+  for( unsigned y = 0; y < height; y++ )
+  {
+    std::copy_n( srcBlk + y * srcStride, width, dstRef + y * dstStride );
+    std::copy_n( srcBlk + y * srcStride, width, dstOpt + y * dstStride );
+  }
+
+  int offset[MAX_NUM_SAO_CLASSES] = { 0 };
+  int startIdx = 0;
+  const int maxOffset = SampleAdaptiveOffset::getMaxOffsetQVal( bitDepth );
+  if( typeIdx == SAO_TYPE_BO )
+  {
+    startIdx = rng.get( 0, MAX_NUM_SAO_CLASSES - 1 );
+    for( int i = 0; i < 4; i++ )
+    {
+      // BO uses offsets for 4 consecutive bands starting at startIdx, with wraparound.
+      offset[( startIdx + i ) % MAX_NUM_SAO_CLASSES] = rng.get( 0, 2 * maxOffset ) - maxOffset;
+    }
+  }
+  else
+  {
+    for( int i = 0; i < NUM_SAO_EO_CLASSES; i++ )
+    {
+      offset[i] = rng.get( 0, 2 * maxOffset ) - maxOffset;
+    }
+    offset[SAO_CLASS_EO_PLAIN] = 0;
+  }
+
+  std::vector<int8_t> signLineBuf1Ref( MAX_CU_SIZE + 2 );
+  std::vector<int8_t> signLineBuf2Ref( MAX_CU_SIZE + 2 );
+  std::vector<int8_t> signLineBuf1Opt( MAX_CU_SIZE + 2 );
+  std::vector<int8_t> signLineBuf2Opt( MAX_CU_SIZE + 2 );
+
+  int horVirBndryPos[2] = { 0, 0 };
+  int verVirBndryPos[2] = { 0, 0 };
+  int numHorVirBndry = 0;
+  int numVerVirBndry = 0;
+  fillVirtualBoundaryPositions( horVirBndryPos, numHorVirBndry, height, vbCase.numHorizontal, vbCase.placement );
+  fillVirtualBoundaryPositions( verVirBndryPos, numVerVirBndry, width, vbCase.numVertical, vbCase.placement );
+  const bool isCtuCrossedByVirtualBoundaries = numHorVirBndry > 0 || numVerVirBndry > 0;
+
+  const bool aboveLeft = avail.above && avail.left;
+  const bool aboveRight = avail.above && avail.right;
+  const bool belowLeft = avail.below && avail.left;
+  const bool belowRight = avail.below && avail.right;
+
+  ref->offsetBlock( bitDepth, clpRng, typeIdx, offset, startIdx, srcBlk, dstRef, srcStride, dstStride, width, height,
+                    avail.left, avail.right, avail.above, avail.below, aboveLeft, aboveRight, belowLeft, belowRight,
+                    &signLineBuf1Ref, &signLineBuf2Ref, isCtuCrossedByVirtualBoundaries, horVirBndryPos, verVirBndryPos,
+                    numHorVirBndry, numVerVirBndry );
+  opt->offsetBlock( bitDepth, clpRng, typeIdx, offset, startIdx, srcBlk, dstOpt, srcStride, dstStride, width, height,
+                    avail.left, avail.right, avail.above, avail.below, aboveLeft, aboveRight, belowLeft, belowRight,
+                    &signLineBuf1Opt, &signLineBuf2Opt, isCtuCrossedByVirtualBoundaries, horVirBndryPos, verVirBndryPos,
+                    numHorVirBndry, numVerVirBndry );
+
+  std::ostringstream sstm_subtest;
+  sstm_subtest << sstm_test.str() << " avail=" << avail.name << " vb=" << vbCase.name << " case=" << caseIdx;
+
+  const bool passed = compare_values_2d( sstm_subtest.str(), dstRef, dstOpt, height, width, dstStride );
+
+  xFree( src );
+  xFree( dstRef );
+  xFree( dstOpt );
+
+  return passed;
+}
+
+static bool check_offsetBlock( SampleAdaptiveOffset* ref, SampleAdaptiveOffset* opt, unsigned numCases, int bitDepth,
+                               int typeIdx, unsigned width, unsigned height )
+{
+  static constexpr const char* typeNames[] = { "EO_0", "EO_90", "EO_135", "EO_45", "BO" };
+
+  std::ostringstream sstm_test;
+  sstm_test << "SampleAdaptiveOffset::offsetBlock bd=" << bitDepth << " typeIdx=" << typeNames[typeIdx]
+            << " w=" << width << " h=" << height;
+  std::cout << "Testing " << sstm_test.str() << std::endl;
+
+  static constexpr SaoAvailCase availCases[] = {
+      { false, false, false, false, "l0_r0_a0_b0"  },
+      { false, false, false, true,  "l0_r0_a0_b1"  },
+      { false, false, true,  false, "l0_r0_a1_b0"  },
+      { false, false, true,  true,  "l0_r0_a1_b1"  },
+      { false, true,  false, false, "l0_r1_a0_b0"  },
+      { false, true,  false, true,  "l0_r1_a0_b1"  },
+      { false, true,  true,  false, "l0_r1_a1_b0"  },
+      { false, true,  true,  true,  "l0_r1_a1_b1"  },
+      { true,  false, false, false, "l1_r0_a0_b0"  },
+      { true,  false, false, true,  "l1_r0_a0_b1"  },
+      { true,  false, true,  false, "l1_r0_a1_b0"  },
+      { true,  false, true,  true,  "l1_r0_a1_b1"  },
+      { true,  true,  false, false, "l1_r1_a0_b0"  },
+      { true,  true,  false, true,  "l1_r1_a0_b1"  },
+      { true,  true,  true,  false, "l1_r1_a1_b0"  },
+      { true,  true,  true,  true,  "allAvailCase" },
+  };
+  static constexpr SaoVirtualBoundaryCase vbCases[] = {
+      { 0, 0, SaoVirtualBoundaryCase::Middle,     "none"            },
+      { 1, 0, SaoVirtualBoundaryCase::Middle,     "vertical"        },
+      { 0, 1, SaoVirtualBoundaryCase::Middle,     "horizontal"      },
+      { 1, 1, SaoVirtualBoundaryCase::Middle,     "both"            },
+      { 1, 1, SaoVirtualBoundaryCase::NearEdge,   "bothNearEdge"    },
+      { 1, 1, SaoVirtualBoundaryCase::BlockStart, "bothBlockStart"  },
+      { 1, 1, SaoVirtualBoundaryCase::BlockEnd,   "bothBlockEnd"    },
+      { 2, 0, SaoVirtualBoundaryCase::Middle,     "twoVertical"     },
+      { 0, 2, SaoVirtualBoundaryCase::Middle,     "twoHorizontal"   },
+      { 2, 2, SaoVirtualBoundaryCase::Middle,     "twoEach"         },
+      { 2, 2, SaoVirtualBoundaryCase::NearEdge,   "twoEachNearEdge" },
+  };
+
+  bool passed = true;
+  constexpr unsigned allAvailCaseIdx = sizeof( availCases ) / sizeof( availCases[0] ) - 1;
+  const unsigned numAvailCases = typeIdx == SAO_TYPE_BO ? 1 : sizeof( availCases ) / sizeof( availCases[0] );
+  constexpr unsigned numVbCases = sizeof( vbCases ) / sizeof( vbCases[0] );
+  const unsigned numTestCases = std::max( numCases, numAvailCases * numVbCases );
+
+  for( unsigned caseIdx = 0; caseIdx < numTestCases; caseIdx++ )
+  {
+    const SaoAvailCase& avail =
+        typeIdx == SAO_TYPE_BO ? availCases[allAvailCaseIdx] : availCases[caseIdx % numAvailCases];
+    const SaoVirtualBoundaryCase& vbCase = vbCases[( caseIdx / numAvailCases ) % numVbCases];
+    passed = check_one_offsetBlock( ref, opt, bitDepth, typeIdx, width, height, avail, vbCase, caseIdx, sstm_test ) &&
+             passed;
+  }
+  return passed;
+}
+
+static bool test_SampleAdaptiveOffset()
+{
+  SampleAdaptiveOffset ref{ /*enableOpt=*/false };
+  SampleAdaptiveOffset opt{ /*enableOpt=*/true };
+
+  unsigned numCases = NUM_CASES;
+  bool passed = true;
+
+  for( int bitDepth : { 8, 10 } )
+  {
+    for( int typeIdx : { SAO_TYPE_EO_0, SAO_TYPE_EO_90, SAO_TYPE_EO_135, SAO_TYPE_EO_45, SAO_TYPE_BO } )
+    {
+      for( unsigned h : { 8, 16, 32, 48, 64, 128 } )
+      {
+        for( unsigned w : { 8, 16, 24, 32, 40, 64, 72, 120, 128 } )
+        {
+          passed = check_offsetBlock( &ref, &opt, numCases, bitDepth, typeIdx, w, h ) && passed;
+        }
+      }
+    }
+  }
+
+  return passed;
+}
+#endif // ENABLE_SIMD_OPT_SAO
+
 struct UnitTestEntry
 {
   std::string name;
@@ -1721,6 +1984,9 @@ static const UnitTestEntry test_suites[] = {
 #endif
 #if ENABLE_SIMD_OPT_DIST
     { "RdCost", test_RdCost },
+#endif
+#if ENABLE_SIMD_OPT_SAO
+    { "SAO", test_SampleAdaptiveOffset },
 #endif
 #if ENABLE_SIMD_TCOEFF_OPS
     { "TCoeffOps", test_TCoeffOps },
