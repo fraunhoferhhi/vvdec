@@ -536,6 +536,145 @@ static bool check_filterBlk( AdaptiveLoopFilter* ref, AdaptiveLoopFilter* opt, u
   return true;
 }
 
+static int16_t getRandomCcAlfCoeff( DimensionGenerator& rng )
+{
+  // CC-ALF coeffs are signalled as zero or signed powers of two from mapped 3-bit abs levels.
+  static constexpr int16_t ccAlfCoeffLevels[] = { 0, 1, -1, 2, -2, 4, -4, 8, -8, 16, -16, 32, -32, 64, -64 };
+  return ccAlfCoeffLevels[rng.get( 0, sizeof( ccAlfCoeffLevels ) / sizeof( ccAlfCoeffLevels[0] ) - 1 )];
+}
+
+static bool check_one_filterBlkCcAlfBoth( AdaptiveLoopFilter* ref, AdaptiveLoopFilter* opt, ChromaFormat chromaFormat,
+                                          unsigned chromaW, unsigned chromaH, std::ostringstream& sstm_test )
+{
+  CHECK( chromaW % 4, "filterBlkCcAlfBoth width must be a multiple of 4" );
+  CHECK( chromaH % 4, "filterBlkCcAlfBoth height must be a multiple of 4" );
+
+  DimensionGenerator rng;
+  static constexpr unsigned bd = 10; // Test 10-bit only as bit depth only changes the ClipPel range and offset.
+
+  // Production filterAreaChromaBothCc currently passes zero-origin areas, but m_filterCcAlfBoth accepts arbitrary
+  // Area offsets. Randomize them to exercise pointer offsetting and VB row calculation.
+  const unsigned chromaX = rng.get( 0, MAX_CU_SIZE, 4 );
+  const unsigned chromaY = rng.get( 0, MAX_CU_SIZE, 4 );
+
+  const int scaleX = getComponentScaleX( COMPONENT_Cb, chromaFormat );
+  const int scaleY = getComponentScaleY( COMPONENT_Cb, chromaFormat );
+  const unsigned lumaW = chromaW << scaleX;
+  const unsigned lumaH = chromaH << scaleY;
+
+  // Luma source block offset (blkSrc), derived from the chroma block offset (blkDst).
+  const unsigned lumaX = chromaX << scaleX;
+  const unsigned lumaY = chromaY << scaleY;
+
+  // Add luma padding so the seven CC-ALF neighbor samples stay in bounds.
+  // The filter reads one sample left/right, one row above, and two rows below.
+  constexpr unsigned padL = 1;
+  constexpr unsigned padR = 16; // Allow extra right-side samples for SIMD vector loads.
+  constexpr unsigned padT = 1;
+  constexpr unsigned padB = 2;
+
+  const unsigned lumaPadX = padL + padR;
+  const unsigned lumaPadY = padT + padB;
+  const unsigned lumaRows = lumaH + lumaY;
+  const unsigned lumaCols = lumaW + lumaX;
+  const unsigned lumaPaddedRows = lumaRows + lumaPadY;
+  const unsigned lumaPaddedCols = lumaCols + lumaPadX;
+  const unsigned lumaMaxPaddedCols = MAX_CU_SIZE + lumaX + lumaPadX;
+
+  const unsigned chromaRows = chromaH + chromaY;
+  const unsigned chromaCols = chromaW + chromaX;
+  const unsigned chromaMaxCols = MAX_CU_SIZE + chromaX;
+
+  // Strides must also cover the block offset (and luma padding) so blkDst/blkSrc stay in bounds.
+  const ptrdiff_t lumaStride = rng.get( lumaPaddedCols, lumaMaxPaddedCols );
+  const ptrdiff_t chromaStride = rng.get( chromaCols, chromaMaxCols );
+
+  std::ostringstream sstm_subtest;
+  sstm_subtest << sstm_test.str() << " lumaStride=" << lumaStride << " chromaStride=" << chromaStride
+               << " chromaW=" << chromaW << " chromaH=" << chromaH << " chromaX=" << chromaX << " chromaY=" << chromaY;
+
+  InputGenerator<Pel> gen{ bd, /*is_signed=*/false };
+
+  std::vector<Pel> luma( lumaPaddedRows * lumaStride ); // Create luma buffer with padding.
+  std::vector<Pel> cbRef( chromaRows * chromaStride );
+  std::vector<Pel> crRef( chromaRows * chromaStride );
+
+  std::generate( luma.begin(), luma.end(), gen );
+  std::generate( cbRef.begin(), cbRef.end(), gen );
+  std::generate( crRef.begin(), crRef.end(), gen );
+
+  std::vector<Pel> cbOpt = cbRef;
+  std::vector<Pel> crOpt = crRef;
+
+  // Buffer sizes describe the full plane (origin to the end of the filtered block).
+  Size lumaSize{ lumaCols, lumaRows };
+  Size chromaSize{ chromaCols, chromaRows };
+
+  // filterBlkCcAlfBoth only uses chromaFormat and srcY from srcUnitBuf.
+  // srcCb/srcCr planes are only used to form CPelUnitBuf.
+  AreaBuf<const Pel> srcY{ luma.data() + padT * lumaStride + padL, lumaStride, lumaSize };
+  AreaBuf<const Pel> srcCb{ cbRef.data(), chromaStride, chromaSize };
+  AreaBuf<const Pel> srcCr{ crRef.data(), chromaStride, chromaSize };
+  CPelUnitBuf srcUnitBuf{ chromaFormat, srcY, srcCb, srcCr };
+
+  PelBuf dstCbRef{ cbRef.data(), chromaStride, chromaSize };
+  PelBuf dstCrRef{ crRef.data(), chromaStride, chromaSize };
+  PelBuf dstCbOpt{ cbOpt.data(), chromaStride, chromaSize };
+  PelBuf dstCrOpt{ crOpt.data(), chromaStride, chromaSize };
+
+  int16_t coeffCb[MAX_NUM_CC_ALF_CHROMA_COEFF] = { 0 };
+  int16_t coeffCr[MAX_NUM_CC_ALF_CHROMA_COEFF] = { 0 };
+  for( unsigned i = 0; i < MAX_NUM_CC_ALF_CHROMA_COEFF - 1; ++i )
+  {
+    coeffCb[i] = getRandomCcAlfCoeff( rng );
+    coeffCr[i] = getRandomCcAlfCoeff( rng );
+  }
+
+  const Area blkDst{ ( int )chromaX, ( int )chromaY, chromaW, chromaH };
+  const Area blkSrc{ ( int )lumaX, ( int )lumaY, lumaW, lumaH };
+  const ClpRngs clpRng{ ( int )bd };
+  const int vbCTUHeight = rng.getOneOf<int>( { 32, 64, 128 } ); // Must be power of two.
+  const int vbPos = vbCTUHeight - ALF_VB_POS_ABOVE_CTUROW_LUMA;
+
+  ref->m_filterCcAlfBoth( dstCbRef, dstCrRef, srcUnitBuf, blkDst, blkSrc, coeffCb, coeffCr, clpRng, vbCTUHeight,
+                          vbPos );
+  opt->m_filterCcAlfBoth( dstCbOpt, dstCrOpt, srcUnitBuf, blkDst, blkSrc, coeffCb, coeffCr, clpRng, vbCTUHeight,
+                          vbPos );
+
+  bool passed = true;
+  passed = compare_values_2d( sstm_subtest.str() + " Cb optimized", cbRef.data(), cbOpt.data(), chromaRows,
+                              ( unsigned )chromaStride ) &&
+           passed;
+  passed = compare_values_2d( sstm_subtest.str() + " Cr optimized", crRef.data(), crOpt.data(), chromaRows,
+                              ( unsigned )chromaStride ) &&
+           passed;
+
+  return passed;
+}
+
+static bool check_filterBlkCcAlfBoth( AdaptiveLoopFilter* ref, AdaptiveLoopFilter* opt, unsigned num_cases,
+                                      ChromaFormat chromaFormat, unsigned w, unsigned h )
+{
+  static constexpr const char* chromaFormatNames[NUM_CHROMA_FORMAT] =
+  {
+    "CHROMA_400", "CHROMA_420", "CHROMA_422", "CHROMA_444"
+  };
+
+  std::ostringstream sstm_test;
+  sstm_test << "AdaptiveLoopFilter::filterBlkCcAlfBoth format=" << chromaFormatNames[chromaFormat] << " w=" << w
+            << " h=" << h;
+  std::cout << "Testing " << sstm_test.str() << std::endl;
+
+  bool passed = true;
+
+  for( unsigned i = 0; i < num_cases; ++i )
+  {
+    passed = check_one_filterBlkCcAlfBoth( ref, opt, chromaFormat, w, h, sstm_test ) && passed;
+  }
+
+  return passed;
+}
+
 static bool test_AdaptiveLoopFilter()
 {
   AdaptiveLoopFilter ref{ /*enableOpt=*/false };
@@ -565,6 +704,18 @@ static bool test_AdaptiveLoopFilter()
     for( unsigned h : { 4, 8, 16, 24, 32, 40, 48, 56, 64 } )
     {
       passed = check_filterBlk<ALF_FILTER_5>( &ref, &opt, num_cases, w, h ) && passed;
+    }
+  }
+
+  // CHROMA_400 does not use the CC-ALF filter.
+  for( ChromaFormat chromaFormat : { CHROMA_420, CHROMA_422, CHROMA_444 } )
+  {
+    for( unsigned w : { 4, 8, 12, 16, 20, 32, 64 } )
+    {
+      for( unsigned h : { 4, 8, 16, 24, 32 } )
+      {
+        passed = check_filterBlkCcAlfBoth( &ref, &opt, num_cases, chromaFormat, w, h ) && passed;
+      }
     }
   }
 
