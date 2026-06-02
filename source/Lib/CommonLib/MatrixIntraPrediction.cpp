@@ -216,7 +216,7 @@ void PredictorMIP::boundaryDownsampling1D(Pel* reducedDst, const Pel* const full
         Pel valBehind = *behind;
         Pel valBefore = *before;
         Pel valDiff   = valBehind - valBefore;
-        Pel scaledVal = ( valBefore << log2UpsmpFactor ) + roundingOffset;
+        Pel scaledVal = valBefore * ( 1 << log2UpsmpFactor ) + roundingOffset;
 
         for( int i = 0; i < upsmpFactor; i++ )
         {

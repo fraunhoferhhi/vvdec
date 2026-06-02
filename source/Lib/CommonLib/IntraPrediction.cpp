@@ -697,7 +697,7 @@ void IntraPrediction::xPredIntraAng( const CPelBuf &pSrc, PelBuf &pDst, const Ch
         for( int x = 0; x < lev[scale]; x++ )
         {
           int wL = 32 >> std::min( 31, ( ( x << 1 ) >> scale ) );
-          *line++ = ClipPel( ( wL * ( left - topLeft ) + ( refMain[x + 1] << 6 ) + 32 ) >> 6, clpRng );
+          *line++ = ClipPel( ( wL * ( left - topLeft ) + refMain[x + 1] * ( 1 << 6 ) + 32 ) >> 6, clpRng );
         }
         memcpy( line, refMain + lev[scale] + 1, ( width - lev[scale] ) * sizeof( Pel ) );
       }
