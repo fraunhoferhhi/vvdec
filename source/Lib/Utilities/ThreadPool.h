@@ -267,7 +267,7 @@ struct WaitCounter
   void wait_nothrow() const
   {
     std::unique_lock<std::mutex> l( m_lock );
-    m_cond.wait( l, [this] { return m_count == 0|| m_done.hasException(); } );
+    m_cond.wait( l, [this] { return m_count == 0; } );
   }
 
   void setException( std::exception_ptr e )
