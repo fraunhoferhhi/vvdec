@@ -53,6 +53,7 @@ POSSIBILITY OF SUCH DAMAGE.
 #include "CommonDefARM.h"
 #include "CommonLib/CommonDef.h"
 #include "mem_neon.h"
+#include "sum_neon.h"
 #include "tbl_neon.h"
 
 //! \ingroup CommonLib
@@ -188,6 +189,61 @@ void addAvg16_neon( const Pel* src0, ptrdiff_t src0Stride, const Pel* src1, ptrd
     src1 += src1Stride;
     dst += dstStride;
   } while( --height != 0 );
+}
+
+void reco8_neon( const Pel* src0, ptrdiff_t src0Stride, const Pel* src1, ptrdiff_t src1Stride, Pel* dst,
+                 ptrdiff_t dstStride, int width, int height, const ClpRng& clpRng )
+{
+  CHECKD( width < 8 || width & 7, "Width must be >= 8 and a multiple of 8" );
+  const uint16x8_t max = vdupq_n_u16( clpRng.max() );
+
+  if( height == 1 )
+  {
+    int x = 0;
+    do
+    {
+      const uint16x8_t s0 = vreinterpretq_u16_s16( vld1q_s16( src0 + x ) );
+      const int16x8_t s1 = vld1q_s16( src1 + x );
+
+      uint16x8_t sum = vvdec_vsqaddq_u16( s0, s1 );
+      sum = vminq_u16( max, sum );
+
+      vst1q_s16( dst + x, vreinterpretq_s16_u16( sum ) );
+
+      x += 8;
+    } while( x != width );
+  }
+  else
+  {
+    CHECKD( height & 1, "Height must be multiple of 2" );
+
+    do
+    {
+      int x = 0;
+      do
+      {
+        const uint16x8_t s0 = vreinterpretq_u16_s16( vld1q_s16( src0 + x ) );
+        const uint16x8_t s2 = vreinterpretq_u16_s16( vld1q_s16( src0 + x + src0Stride ) );
+        const int16x8_t s1 = vld1q_s16( src1 + x );
+        const int16x8_t s3 = vld1q_s16( src1 + x + src1Stride );
+
+        uint16x8_t sum0 = vvdec_vsqaddq_u16( s0, s1 );
+        uint16x8_t sum1 = vvdec_vsqaddq_u16( s2, s3 );
+        sum0 = vminq_u16( max, sum0 );
+        sum1 = vminq_u16( max, sum1 );
+
+        vst1q_s16( dst + x, vreinterpretq_s16_u16( sum0 ) );
+        vst1q_s16( dst + x + dstStride, vreinterpretq_s16_u16( sum1 ) );
+
+        x += 8;
+      } while( x != width );
+
+      src0 += 2 * src0Stride;
+      src1 += 2 * src1Stride;
+      dst += 2 * dstStride;
+      height -= 2;
+    } while( height != 0 );
+  }
 }
 
 void rspFwdCore_neon( Pel* ptr, ptrdiff_t ptrStride, int width, int height, const int bd, const Pel OrgCW,
@@ -370,6 +426,7 @@ void PelBufferOps::_initPelBufOpsARM<NEON>()
   addAvg8 = addAvg8_neon;
   addAvg16 = addAvg16_neon;
   applyLut = applyLut_neon;
+  reco8 = reco8_neon;
   rspFwd = rspFwdCore_neon;
 }
 
