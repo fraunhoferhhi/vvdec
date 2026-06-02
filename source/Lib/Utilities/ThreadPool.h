@@ -156,7 +156,7 @@ struct Barrier
 
   inline void checkAndRethrowException() const
   {
-    if( !m_hasException )
+    if LIKELY( !m_hasException )
     {
       return;
     }
