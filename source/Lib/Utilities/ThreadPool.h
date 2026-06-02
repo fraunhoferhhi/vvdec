@@ -243,8 +243,8 @@ struct WaitCounter
     const unsigned int new_count = --m_count;
     if( new_count == 0 )
     {
+      m_cond.notify_all();   // we can notify before unlocking the barrier, because wait() and wait_nothrow() wait for m_count and not for m_done
       m_done.unlock();
-      m_cond.notify_all();
     }
     l.unlock(); // unlock mutex after done-barrier to prevent race between barrier and counter
     return new_count;
