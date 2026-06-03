@@ -1013,12 +1013,194 @@ void DeriveClassificationBlk_neon( AlfClassifier* classifier, const CPelBuf& src
   } while( i < blk.height );
 }
 
+static inline void processCcAlfBothRow4_neon( const Pel* srcCross, Pel* srcSelfCb, Pel* srcSelfCr,
+                                              const ptrdiff_t offset1, const ptrdiff_t offset2, const ptrdiff_t offset3,
+                                              const int16x8_t coeffCb, const int16x8_t coeffCr, const uint16x8_t offset,
+                                              const uint16x8_t maxVal )
+{
+  static constexpr int scaleBits = 8;
+  static constexpr uint8_t narrowMergeIdx[16] = {
+      1,  2,  5,  6,  9,  10, 13, 14, // sumCb index
+      17, 18, 21, 22, 25, 26, 29, 30  // sumCr index
+  };
+
+  const int16x8_t src0  = vld1q_s16( srcCross + offset2 );
+  const int16x8_t src1  = vld1q_s16( srcCross - 1 );
+  const int16x8_t src2  = vld1q_s16( srcCross );
+  const int16x8_t src3  = vld1q_s16( srcCross + offset1 - 1 );
+  const int16x8_t src45 = vld1q_s16( srcCross + offset1 );
+  const int16x8_t src6  = vld1q_s16( srcCross + offset3 );
+
+  const int16x8_t srcCurr   = vuzpq_s16( src2, src2  ).val[0];
+  const int16x8_t srcDiff01 = vuzpq_s16( src0, src1  ).val[0];
+  const int16x8_t srcDiff25 = vuzpq_s16( src2, src45 ).val[1];
+  const int16x8_t srcDiff34 = vuzpq_s16( src3, src45 ).val[0];
+  const int16x8_t srcDiff6  = vuzpq_s16( src6, src6  ).val[0];
+
+  const int16x8_t diff01 = vsubq_s16( srcDiff01, srcCurr );
+  const int16x8_t diff25 = vsubq_s16( srcDiff25, srcCurr );
+  const int16x8_t diff34 = vsubq_s16( srcDiff34, srcCurr );
+  const int16x8_t diff6  = vsubq_s16( srcDiff6,  srcCurr );
+
+  int32x4_t sumCb = vdupq_n_s32( 1 << ( scaleBits - 1 ) );
+  int32x4_t sumCr = sumCb;
+
+  sumCb = vmlal_lane_s16( sumCb, vget_low_s16 ( diff01 ), vget_low_s16 ( coeffCb ), 0 );
+  sumCr = vmlal_lane_s16( sumCr, vget_low_s16 ( diff01 ), vget_low_s16 ( coeffCr ), 0 );
+  sumCb = vmlal_lane_s16( sumCb, vget_high_s16( diff01 ), vget_low_s16 ( coeffCb ), 1 );
+  sumCr = vmlal_lane_s16( sumCr, vget_high_s16( diff01 ), vget_low_s16 ( coeffCr ), 1 );
+  sumCb = vmlal_lane_s16( sumCb, vget_low_s16 ( diff25 ), vget_low_s16 ( coeffCb ), 2 );
+  sumCr = vmlal_lane_s16( sumCr, vget_low_s16 ( diff25 ), vget_low_s16 ( coeffCr ), 2 );
+  sumCb = vmlal_lane_s16( sumCb, vget_low_s16 ( diff34 ), vget_low_s16 ( coeffCb ), 3 );
+  sumCr = vmlal_lane_s16( sumCr, vget_low_s16 ( diff34 ), vget_low_s16 ( coeffCr ), 3 );
+  sumCb = vmlal_lane_s16( sumCb, vget_high_s16( diff34 ), vget_high_s16( coeffCb ), 0 );
+  sumCr = vmlal_lane_s16( sumCr, vget_high_s16( diff34 ), vget_high_s16( coeffCr ), 0 );
+  sumCb = vmlal_lane_s16( sumCb, vget_high_s16( diff25 ), vget_high_s16( coeffCb ), 1 );
+  sumCr = vmlal_lane_s16( sumCr, vget_high_s16( diff25 ), vget_high_s16( coeffCr ), 1 );
+  sumCb = vmlal_lane_s16( sumCb, vget_low_s16 ( diff6  ), vget_high_s16( coeffCb ), 2 );
+  sumCr = vmlal_lane_s16( sumCr, vget_low_s16 ( diff6  ), vget_high_s16( coeffCr ), 2 );
+
+  const uint8x16x2_t sumCbCr = { vreinterpretq_u8_s32( sumCb ), vreinterpretq_u8_s32( sumCr ) };
+
+  // Use TBL2 to narrow (>> 8) and merge sumCb and sumCr into a single int16x8 vector.
+  int16x8_t deltaCbCr = vreinterpretq_s16_u8( vvdec_vqtbl2q_u8( sumCbCr, vld1q_u8( narrowMergeIdx ) ) );
+  deltaCbCr = vreinterpretq_s16_u16( vsubq_u16( vminq_u16( vvdec_vsqaddq_u16( offset, deltaCbCr ), maxVal ), offset ) );
+
+  const uint16x8_t srcSelfCbCrU = vreinterpretq_u16_s16( vcombine_s16( vld1_s16( srcSelfCb ), vld1_s16( srcSelfCr ) ) );
+
+  const uint16x8_t outCbCr = vminq_u16( vvdec_vsqaddq_u16( srcSelfCbCrU, deltaCbCr ), maxVal );
+
+  vst1_s16( srcSelfCb, vreinterpret_s16_u16( vget_low_u16 ( outCbCr ) ) );
+  vst1_s16( srcSelfCr, vreinterpret_s16_u16( vget_high_u16( outCbCr ) ) );
+}
+
+void FilterBlkCcAlfBoth_neon( const PelBuf& dstBufCb, const PelBuf& dstBufCr, const CPelUnitBuf& recSrc,
+                              const Area& blkDst, const Area& blkSrc, const int16_t filterCoeffCb[8],
+                              const int16_t filterCoeffCr[8], const ClpRngs& clpRngs, int vbCTUHeight, int vbPos )
+{
+  CHECKD( blkDst.x || blkDst.y || blkSrc.x || blkSrc.y, "Unexpected non-zero offset" );
+  CHECKD( 1 << getLog2( vbCTUHeight ) != vbCTUHeight, "Not a power of 2" );
+  CHECKD( vbPos != vbCTUHeight - ALF_VB_POS_ABOVE_CTUROW_LUMA, "Unexpected VB position" );
+
+  const ChromaFormat nChromaFormat = recSrc.chromaFormat;
+  CHECKD( nChromaFormat == CHROMA_400, "Wrong chroma format" );
+
+  const int scaleX = getComponentScaleX( COMPONENT_Cb, nChromaFormat ); // 420: 1; 422: 1; 444: 0
+  const int scaleY = getComponentScaleY( COMPONENT_Cb, nChromaFormat ); // 420: 1; 422: 0; 444: 0
+
+  const int width  = blkDst.width;
+  const int height = blkDst.height;
+
+  CHECKD( height <= 0 || height % 4, "Wrong height in filtering" );
+  CHECKD( width <= 0 || width % 4, "Wrong width in filtering" );
+
+  if( scaleX != 1 )
+  {
+    // Chroma 4:4:4 keeps scalar handling for now, matching the existing x86 split.
+    AdaptiveLoopFilter::filterBlkCcAlfBoth( dstBufCb, dstBufCr, recSrc, blkDst, blkSrc, filterCoeffCb, filterCoeffCr,
+                                            clpRngs, vbCTUHeight, vbPos );
+    return;
+  }
+
+  const CPelBuf&  srcBuf     = recSrc.get( COMPONENT_Y );
+  const ptrdiff_t lumaStride = srcBuf.stride;
+  const Pel*      lumaPtr    = srcBuf.buf;
+
+  const ptrdiff_t cbStride = dstBufCb.stride;
+  const ptrdiff_t crStride = dstBufCr.stride;
+  Pel*            cbPtr    = dstBufCb.buf;
+  Pel*            crPtr    = dstBufCr.buf;
+
+  const uint16x8_t offset = vdupq_n_u16( 1 << ( clpRngs.bd - 1 ) );
+  const uint16x8_t maxVal = vdupq_n_u16( clpRngs.max() );
+
+  // Shift the filter coefficients left by 1 so scaleBits becomes 8.
+  // This lets TBL2 narrow (>> 8) and merge sumCb and sumCr into a single int16x8 vector.
+  const int16x8_t coeffCb = vshlq_n_s16( vld1q_s16( filterCoeffCb ), 1 );
+  const int16x8_t coeffCr = vshlq_n_s16( vld1q_s16( filterCoeffCr ), 1 );
+
+  const ptrdiff_t lumaStepY = ( lumaStride * 4 ) << scaleY;
+
+  int i = 0;
+  do
+  {
+    const int pos           = ( i << scaleY ) & ( vbCTUHeight - 1 );
+    const int firstDistance = vbPos - pos;
+    const int lastDistance  = firstDistance - ( 3 << scaleY );
+
+    if( lastDistance > 2 )
+    {
+      const ptrdiff_t offset1 = lumaStride;
+      const ptrdiff_t offset2 = -lumaStride;
+      const ptrdiff_t offset3 = 2 * lumaStride;
+
+      for( int ii = 0; ii < 4; ii++ )
+      {
+        const Pel* srcCrossRow  = lumaPtr + ( ii << scaleY ) * lumaStride;
+        Pel*       srcSelfCbRow = cbPtr + ii * cbStride;
+        Pel*       srcSelfCrRow = crPtr + ii * crStride;
+
+        int j = 0;
+        do
+        {
+          processCcAlfBothRow4_neon( srcCrossRow + ( j << 1 ), srcSelfCbRow + j, srcSelfCrRow + j, offset1, offset2,
+                                     offset3, coeffCb, coeffCr, offset, maxVal );
+          j += 4;
+        } while( j < width );
+      }
+    }
+    else
+    {
+      for( int ii = 0; ii < 4; ii++ )
+      {
+        ptrdiff_t offset1 = lumaStride;
+        ptrdiff_t offset2 = -lumaStride;
+        ptrdiff_t offset3 = 2 * lumaStride;
+
+        const int distance = firstDistance - ( ii << scaleY );
+        if( scaleY == 0 && ( distance == 0 || distance == -1 ) )
+        {
+          continue;
+        }
+        if( distance == 2 || distance == -1 )
+        {
+          offset3 = offset1;
+        }
+        else if( distance == 1 || distance == 0 )
+        {
+          offset1 = 0;
+          offset2 = 0;
+          offset3 = 0;
+        }
+
+        const Pel* srcCrossRow  = lumaPtr + ( ii << scaleY ) * lumaStride;
+        Pel*       srcSelfCbRow = cbPtr + ii * cbStride;
+        Pel*       srcSelfCrRow = crPtr + ii * crStride;
+
+        int j = 0;
+        do
+        {
+          processCcAlfBothRow4_neon( srcCrossRow + ( j << 1 ), srcSelfCbRow + j, srcSelfCrRow + j, offset1, offset2,
+                                     offset3, coeffCb, coeffCr, offset, maxVal );
+          j += 4;
+        } while( j < width );
+      }
+    }
+
+    cbPtr += cbStride * 4;
+    crPtr += crStride * 4;
+    lumaPtr += lumaStepY;
+    i += 4;
+  } while( i < height );
+}
+
 template<>
 void AdaptiveLoopFilter::_initAdaptiveLoopFilterARM<NEON>()
 {
   m_deriveClassificationBlk = DeriveClassificationBlk_neon;
-  m_filter7x7Blk = Filter7x7Blk_neon;
-  m_filter5x5Blk = Filter5x5Blk_neon;
+  m_filter7x7Blk            = Filter7x7Blk_neon;
+  m_filter5x5Blk            = Filter5x5Blk_neon;
+  m_filterCcAlfBoth         = FilterBlkCcAlfBoth_neon;
 }
 
 } // namespace vvdec
