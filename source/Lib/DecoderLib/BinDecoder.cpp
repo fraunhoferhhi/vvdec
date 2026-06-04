@@ -51,10 +51,20 @@ POSSIBILITY OF SUCH DAMAGE.
 
 #include "CommonLib/dtrace_next.h"
 
+#include <limits>
+
 #define CNT_OFFSET 0
 
 namespace vvdec
 {
+
+// BinDecoder uses the `signed >> 31` sign-extract idiom, which is implementation-defined
+// for negative operands before C++20. Require two's-complement representation so the idiom
+// behaves as intended (mandatory anyway in C++20).
+static_assert( std::numeric_limits<int>::min() == -std::numeric_limits<int>::max() - 1,
+               "two's complement signed integer representation required" );
+static_assert( ( -1 >> 1 ) == -1,
+               "right shift of negative number needs to be implemented as arithmetic shift." );
 
 void BinDecoder::init( InputBitstream* bitstream )
 {
@@ -72,7 +82,7 @@ void BinDecoder::start()
 {
   CHECK( m_Bitstream->getNumBitsUntilByteAligned(), "Bitstream is not byte aligned." );
   m_Range       = 510;
-  m_Value       = ( m_Bitstream->readByte() << 8 ) + m_Bitstream->readByte();
+  m_Value       = ( uint32_t( m_Bitstream->readByte() ) << 8 ) + m_Bitstream->readByte();
   m_bitsNeeded  = -8;
 }
 
@@ -94,7 +104,7 @@ void BinDecoder::reset( int qp, int initId )
 
 unsigned BinDecoder::decodeBinEP()
 {
-  int value = m_Value << 1;
+  unsigned value = m_Value << 1;
   if (++m_bitsNeeded >= 0) {
     value += m_Bitstream->readByte();
     m_bitsNeeded = -8;
@@ -129,10 +139,10 @@ unsigned BinDecoder::decodeBinsEP( unsigned numBins )
   }
   unsigned remBins = numBins;
   unsigned bins    = 0;
-  int value = m_Value;
-  int range = m_Range;
+  unsigned value   = m_Value;
+  unsigned range = m_Range;
   int bitsNeeded = m_bitsNeeded;
-  while(   remBins > 8 )
+  while( remBins > 8 )
   {
     value       = ( value << 8 ) + ( m_Bitstream->readByte() << ( 8 + bitsNeeded ) );
     unsigned SR =   range << 15;
@@ -148,7 +158,7 @@ unsigned BinDecoder::decodeBinsEP( unsigned numBins )
     }
     remBins -= 8;
   }
-  bitsNeeded   += remBins;
+  bitsNeeded   += (int)remBins;
   value       <<= remBins;
   if( bitsNeeded >= 0 )
   {
@@ -156,7 +166,7 @@ unsigned BinDecoder::decodeBinsEP( unsigned numBins )
     bitsNeeded -= 8;
   }
   unsigned SR = range << ( remBins + 7 );
-  for ( int i = 0; i < remBins; i++ )
+  for ( unsigned i = 0; i < remBins; i++ )
   {
     bins += bins;
     SR  >>= 1;
@@ -189,7 +199,7 @@ unsigned BinDecoder::decodeRemAbsEP(unsigned goRicePar, unsigned cutoff, int max
       prefix++;
       codeWord = decodeBinEP();
     } while (codeWord && prefix < maxPrefix);
-    prefix -= 1 - codeWord;
+    prefix -= 1 - (int)codeWord;
   }
 
   unsigned length = goRicePar, offset;
@@ -199,9 +209,9 @@ unsigned BinDecoder::decodeRemAbsEP(unsigned goRicePar, unsigned cutoff, int max
   }
   else
   {
-    offset = (((1 << (prefix - cutoff)) + cutoff - 1) << goRicePar);
+    offset = (((1u << (prefix - cutoff)) + cutoff - 1) << goRicePar);
     {
-      length += (prefix == (32 - maxLog2TrDynamicRange) ? maxLog2TrDynamicRange - goRicePar : prefix - cutoff);
+      length += (prefix == (32u - maxLog2TrDynamicRange) ? maxLog2TrDynamicRange - goRicePar : prefix - cutoff);
     }
   }
   return offset + decodeBinsEP(length);
@@ -254,7 +264,7 @@ unsigned BinDecoder::decodeAlignedBinsEP( unsigned numBins )
 #endif
   unsigned remBins = numBins;
   unsigned bins    = 0;
-  while(   remBins > 0 )
+  while( remBins > 0 )
   {
     // The MSB of m_Value is known to be 0 because range is 256. Therefore:
     //   > The comparison against the symbol range of 128 is simply a test on the next-most-significant bit
@@ -270,7 +280,7 @@ unsigned BinDecoder::decodeAlignedBinsEP( unsigned numBins )
     bins                = ( bins    << binsToRead) | newBins;
     m_Value             = ( m_Value << binsToRead) & 0x7FFF;
     remBins            -= binsToRead;
-    m_bitsNeeded       += binsToRead;
+    m_bitsNeeded       += (int)binsToRead;
     if( m_bitsNeeded >= 0 )
     {
       m_Value          |= m_Bitstream->readByte() << m_bitsNeeded;
@@ -292,31 +302,31 @@ unsigned BinDecoder::decodeBin( unsigned ctxId )
   BinProbModel& rcProbModel = m_Ctx[ctxId];
 
   unsigned bin, LPS;
-  uint32_t Range      = m_Range;
-  uint32_t Value      = m_Value;
+  uint32_t range      = m_Range;
+  uint32_t value      = m_Value;
   int32_t  bitsNeeded = m_bitsNeeded;
 
-  rcProbModel.lpsmps( Range, LPS, bin );
+  rcProbModel.lpsmps( range, LPS, bin );
 
 //  DTRACE( g_trace_ctx, D_CABAC, "%d" " xxx " "%d" "  " "[%d:%d]" "  " "%2d(MPS=%d)"  "  " , DTRACE_GET_COUNTER( g_trace_ctx, D_CABAC ), m_Range, m_Range-LPS, LPS, ( unsigned int )( rcProbModel.state() ), m_Value < ( ( m_Range - LPS ) << 7 ) );
-  DTRACE( g_trace_ctx, D_CABAC, "%d" " %d " "%d" "  " "[%d:%d]" "  " "%2d(MPS=%d)"  "  " , DTRACE_GET_COUNTER( g_trace_ctx, D_CABAC ), 666, Range, Range-LPS, LPS, ( unsigned int )( rcProbModel.state() ), Value < ( ( Range - LPS ) << 7 ) );
+  DTRACE( g_trace_ctx, D_CABAC, "%d" " %d " "%d" "  " "[%d:%d]" "  " "%2d(MPS=%d)"  "  " , DTRACE_GET_COUNTER( g_trace_ctx, D_CABAC ), 666, range, range-LPS, LPS, ( unsigned int )( rcProbModel.state() ), value < ( ( range - LPS ) << 7 ) );
   //DTRACE( g_trace_ctx, D_CABAC, " %d " "%d" "  " "[%d:%d]" "  " "%2d(MPS=%d)"  "  ", DTRACE_GET_COUNTER( g_trace_ctx, D_CABAC ), m_Range, m_Range - LPS, LPS, (unsigned int)( rcProbModel.state() ), m_Value < ( ( m_Range - LPS ) << 7 ) );
 
-  Range     -=  LPS;
-  uint32_t      SR          = Range << 7;
+  range      -= LPS;
+  uint32_t SR = range << 7;
 
-  int b = ~( ( int( Value ) - int( SR ) ) >> 31 );
-  int a = ~b & ( ( int( Range ) - 256 ) >> 31 );
+  int b = ~( ( int( value ) - int( SR ) ) >> 31 );
+  int a = ~b & ( ( int( range ) - 256 ) >> 31 );
   //int b = -( Value >= SR );
   
-  int numBits  = ( a & rcProbModel.getRenormBitsRange( Range ) ) | ( b & rcProbModel.getRenormBitsLPS( LPS ) );
+  int numBits  = ( a & rcProbModel.getRenormBitsRange( range ) ) | ( b & rcProbModel.getRenormBitsLPS( LPS ) );
   
-  Value       -= b & SR;
-  Value      <<= numBits;
+  value       -= b & SR;
+  value      <<= numBits;
   
-  Range       &=  ~b;
-  Range       |= ( b & LPS );
-  Range      <<= numBits;
+  range       &=  ~b;
+  range       |= ( b & LPS );
+  range      <<= numBits;
   
   // b    0 0 1 1
   // bin  0 1 0 1
@@ -329,7 +339,7 @@ unsigned BinDecoder::decodeBin( unsigned ctxId )
   bitsNeeded  += numBits & ( a | b );
   
   const int c = ~(bitsNeeded >> 31);
-  Value      += m_Bitstream->readByteFlag( c ) << ( bitsNeeded & 31 );
+  value      += uint32_t( m_Bitstream->readByteFlag( c ) ) << ( bitsNeeded & 31 );
   bitsNeeded -= c & 8;
   
   //if( Value < SR )
@@ -364,8 +374,8 @@ unsigned BinDecoder::decodeBin( unsigned ctxId )
   //  }
   //}
 
-  m_Range      = Range;
-  m_Value      = Value;
+  m_Range      = range;
+  m_Value      = value;
   m_bitsNeeded = bitsNeeded;
 
   rcProbModel.update( bin );
