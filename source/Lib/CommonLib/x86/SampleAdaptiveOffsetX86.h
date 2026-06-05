@@ -51,9 +51,6 @@ POSSIBILITY OF SUCH DAMAGE.
 namespace vvdec
 {
 
-#  define SAO_NUM_OFFSETS 4                             /* number of SAO offset values */
-#  define SAO_EO_NUM_CATEGORIES ( SAO_NUM_OFFSETS + 1 ) /* number of different eo categories */
-
 #  if USE_AVX2 && !defined( _mm256_set_m128i )
 #    define VVCLIB_OWN_mm256_set_m128i
 #    define _mm256_set_m128i( v0, v1 ) _mm256_inserti128_si256( _mm256_castsi128_si256( v1 ), ( v0 ), 1 )

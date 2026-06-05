@@ -55,6 +55,9 @@ POSSIBILITY OF SUCH DAMAGE.
 namespace vvdec
 {
 
+#  define SAO_NUM_OFFSETS 4                             /* number of SAO offset values */
+#  define SAO_EO_NUM_CATEGORIES ( SAO_NUM_OFFSETS + 1 ) /* number of different eo categories */
+
 template<typename T> static inline int sgn( T val )
 {
   return ( T( 0 ) < val ) - ( val < T( 0 ) );
@@ -87,18 +90,6 @@ public:
   static int getMaxOffsetQVal( const int channelBitDepth ) { return ( 1 << ( std::min<int>( channelBitDepth, MAX_SAO_TRUNCATED_BITDEPTH ) - 5 ) ) - 1; }   // Table 9-32, inclusive
   void setReshaper(Reshape * p) { m_pcReshape = p; }
 
-protected:
-  void deriveLoopFilterBoundaryAvailibility( CodingStructure& cs,
-                                             const Position&  pos,
-                                             bool&            isLeftAvail,
-                                             bool&            isRightAvail,
-                                             bool&            isAboveAvail,
-                                             bool&            isBelowAvail,
-                                             bool&            isAboveLeftAvail,
-                                             bool&            isAboveRightAvail,
-                                             bool&            isBelowLeftAvail,
-                                             bool&            isBelowRightAvail ) const;
-
   static void offsetBlock_core( const int            channelBitDepth,
                                 const ClpRng&        clpRng,
                                 int                  typeIdx,
@@ -126,7 +117,6 @@ protected:
                                 int                  numHorVirBndry,
                                 int                  numVerVirBndry );
 
-public:
   void ( *offsetBlock )( const int            channelBitDepth,
                          const ClpRng&        clpRng,
                          int                  typeIdx,
@@ -155,6 +145,17 @@ public:
                          int                  numVerVirBndry );
 
 protected:
+  void deriveLoopFilterBoundaryAvailibility( CodingStructure& cs,
+                                             const Position&  pos,
+                                             bool&            isLeftAvail,
+                                             bool&            isRightAvail,
+                                             bool&            isAboveAvail,
+                                             bool&            isBelowAvail,
+                                             bool&            isAboveLeftAvail,
+                                             bool&            isAboveRightAvail,
+                                             bool&            isBelowLeftAvail,
+                                             bool&            isBelowRightAvail ) const;
+
   void invertQuantOffsets     ( ComponentID compIdx, int typeIdc, int typeAuxInfo, int* dstOffsets, int* srcOffsets ) const;
   void reconstructBlkSAOParam ( SAOBlkParam& recParam, SAOBlkParam* mergeList[NUM_SAO_MERGE_TYPES] ) const;
   int  getMergeList           ( CodingStructure& cs, int ctuRsAddr, SAOBlkParam* mergeList[NUM_SAO_MERGE_TYPES] );
@@ -170,7 +171,11 @@ protected:
   void _initSampleAdaptiveOffsetX86();
 #endif
 
-
+#if defined( TARGET_SIMD_ARM ) && ENABLE_SIMD_OPT_SAO
+  void initSampleAdaptiveOffsetARM();
+  template<ARM_VEXT vext>
+  void _initSampleAdaptiveOffsetARM();
+#endif
 
 protected:
   uint32_t   m_offsetStepLog2;   // offset step
