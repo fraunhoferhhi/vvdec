@@ -830,7 +830,9 @@ public:
 #define CHECK( cond, msg )             { if UNLIKELY( cond ) { THROW_RECOVERABLE( msg << "\nERROR CONDITION: "   << #cond ); } }
 #define CHECK_UNSUPPORTED( cond, msg ) { if UNLIKELY( cond ) { THROW_UNSUPPORTED( msg << "\nERROR CONDITION: "   << #cond ); } }
 
-#if defined( _DEBUG )
+#if defined( FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION )   // CHECKD should not abort, when running fuzzing builds, to allow fuzzing to continue
+#  define CHECKD( cond, msg )          CHECK_WARN( cond, msg )
+#elif defined( _DEBUG )
 #  define CHECKD( cond, msg )          { if UNLIKELY( cond ) { ABORT            ( msg << "\nERROR CONDITION: "   << #cond ); } }
 #else
 #  define CHECKD( cond, msg )
