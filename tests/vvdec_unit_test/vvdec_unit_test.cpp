@@ -1239,6 +1239,73 @@ static bool check_applyLut( PelBufferOps* ref, PelBufferOps* opt, unsigned num_c
   return passed;
 }
 
+static bool check_reco( PelBufferOps* ref, PelBufferOps* opt, unsigned num_cases )
+{
+  DimensionGenerator dim;
+
+  static constexpr size_t buf_size = MAX_CU_SIZE * MAX_CU_SIZE;
+
+  std::vector<Pel> src0( buf_size );
+  std::vector<Pel> src1( buf_size );
+  std::vector<Pel> dest_ref( buf_size );
+  std::vector<Pel> dest_opt( buf_size );
+
+  bool passed = true;
+
+  for( unsigned bd : { 8, 10 } )
+  {
+    ClpRng clpRng{ ( int )bd };
+    InputGenerator<Pel> src0_gen{ bd, /*is_signed=*/false };
+    // src1 holds signed residual, use range wider than the bit depth to exercise reconstruction clipping.
+    InputGenerator<Pel> src1_gen{ bd + 2, /*is_signed=*/true };
+
+    for( int height : { 1, 2, 4, 8, 16, 32, 64 } )
+    {
+      for( int width : { 4, 8, 16, 32, 64 } )
+      {
+        std::ostringstream sstm_test;
+        sstm_test << "PelBufferOps::reco" << " bd=" << bd << " w=" << width << " h=" << height;
+        std::cout << "Testing " << sstm_test.str() << std::endl;
+
+        for( unsigned n = 0; n < num_cases; n++ )
+        {
+          const ptrdiff_t src0Stride = dim.get( width, MAX_CU_SIZE );
+          const ptrdiff_t src1Stride = dim.get( width, MAX_CU_SIZE );
+          const ptrdiff_t destStride = dim.get( width, MAX_CU_SIZE );
+
+          std::generate( src0.begin(), src0.end(), src0_gen );
+          std::generate( src1.begin(), src1.end(), src1_gen );
+
+          if( ( width & 7 ) == 0 )
+          {
+            ref->reco8( src0.data(), src0Stride, src1.data(), src1Stride, dest_ref.data(), destStride, width, height,
+                        clpRng );
+            opt->reco8( src0.data(), src0Stride, src1.data(), src1Stride, dest_opt.data(), destStride, width, height,
+                        clpRng );
+          }
+          else if( ( width & 3 ) == 0 )
+          {
+            ref->reco4( src0.data(), src0Stride, src1.data(), src1Stride, dest_ref.data(), destStride, width, height,
+                        clpRng );
+            opt->reco4( src0.data(), src0Stride, src1.data(), src1Stride, dest_opt.data(), destStride, width, height,
+                        clpRng );
+          }
+
+          std::ostringstream sstm_subtest;
+          sstm_subtest << sstm_test.str() << " src0Stride=" << src0Stride << " src1Stride=" << src1Stride
+                       << " destStride=" << destStride;
+
+          passed = compare_values_2d( sstm_subtest.str(), dest_ref.data(), dest_opt.data(), height, width,
+                                      ( unsigned )destStride ) &&
+                   passed;
+        }
+      }
+    }
+  }
+
+  return passed;
+}
+
 static bool check_one_rspFwdCore( PelBufferOps* ref, PelBufferOps* opt, unsigned num_cases, unsigned width,
                                   unsigned height, unsigned bd )
 {
@@ -1323,6 +1390,7 @@ static bool test_PelBufferOps()
   bool passed = true;
 
   passed = check_addAvg( &ref, &opt, num_cases ) && passed;
+  passed = check_reco( &ref, &opt, num_cases ) && passed;
   passed = check_rspFwdCore( &ref, &opt, num_cases ) && passed;
   passed = check_applyLut( &ref, &opt, num_cases ) && passed;
 
