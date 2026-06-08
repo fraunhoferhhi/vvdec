@@ -188,7 +188,7 @@ static void offsetBlock_BO_neon( const int* offset, int startIdx, const Pel* src
       vst1q_s16( resLine + x, res );
 
       x += 8;
-    } while( x != width );
+    } while( x < width ); // Width can be non multiple of 8; padded buffers allow the final vector to overrun.
 
     srcLine += srcStride;
     resLine += resStride;
@@ -254,7 +254,7 @@ static void offsetBlock_EO_process_neon( const int channelBitDepth, const int* o
       vst1q_s16( resLine + x, res );
 
       x += 8;
-    } while( x != width );
+    } while( x < width ); // Width can be non multiple of 8; padded buffers allow the final vector to overrun.
 
     srcLine += srcStride;
     resLine += resStride;
@@ -299,7 +299,7 @@ void offsetBlock_neon( const int channelBitDepth, const ClpRng& clpRng, int type
                        bool isCtuCrossedByVirtualBoundaries, int horVirBndryPos[], int verVirBndryPos[],
                        int numHorVirBndry, int numVerVirBndry )
 {
-  CHECKD( width <= 0 || ( width & 7 ), "Width must be positive and a multiple of 8" );
+  CHECKD( width <= 0, "Width must be positive" );
   CHECKD( width > MAX_CU_SIZE, "Width must not exceed MAX_CU_SIZE" );
   CHECKD( height <= 0, "Height must be positive" );
 
