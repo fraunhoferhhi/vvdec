@@ -66,10 +66,6 @@ POSSIBILITY OF SUCH DAMAGE.
 
 #endif
 
-
-#define CHECK_READ( cond, msg, val )            CHECK( cond, msg << " (read:" << val << ")" )
-#define CHECK_READ_RANGE( val, min, max, name ) CHECK( (val) < (min) || (val) > (max), name << " out of bounds (read:" << (val) << ")." )
-
 #if ENABLE_TRACING
 #  define X_READ_FLAG(  name )                             const bool     name = xReadFlag ( #name )
 #  define X_READ_FLAG_idx( name, idx )                     const bool     name = xReadFlag ( #name idx )

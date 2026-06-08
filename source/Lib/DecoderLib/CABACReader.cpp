@@ -2306,7 +2306,8 @@ void CABACReader::cu_qp_delta( CodingUnit& cu, int predQP, int8_t& qp )
     {
       DQp = -DQp;
     }
-    int     qpBdOffsetY = cu.sps->getQpBDOffset();
+    const int qpBdOffsetY = cu.sps->getQpBDOffset();
+    CHECK_READ_RANGE( DQp, -( 32 + qpBdOffsetY / 2 ), ( 31 + qpBdOffsetY / 2 ), "CuQpDeltaVal" );
     qpY = ( (predQP + DQp + (MAX_QP + 1) + 2 * qpBdOffsetY) % ((MAX_QP + 1) + qpBdOffsetY)) - qpBdOffsetY;
   }
   qp = (int8_t)qpY;
