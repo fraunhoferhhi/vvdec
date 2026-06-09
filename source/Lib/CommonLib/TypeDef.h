@@ -841,6 +841,9 @@ public:
 #define CHECK_NULLPTR( _ptr )  CHECK_FATAL ( !( _ptr ), "Accessing a NULL pointer!" )
 #define CHECKD_NULLPTR( _ptr ) CHECKD( !( _ptr ), "Accessing a NULL pointer!" )
 
+#define CHECK_READ( cond, msg, val )            CHECK( cond, msg << " (read:" << val << ")" )
+#define CHECK_READ_RANGE( val, min, max, name ) CHECK( (val) < (min) || (val) > (max), name << " out of bounds (read:" << (val) << ")." )
+
 // ---------------------------------------------------------------------------
 // static vector
 // ---------------------------------------------------------------------------
