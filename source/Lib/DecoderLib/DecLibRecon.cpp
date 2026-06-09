@@ -697,6 +697,14 @@ Picture* DecLibRecon::waitForPrevDecompressedPic()
     CHECK_FATAL( m_currDecompPic->reconDone.isBlocked(), "can't make progress. some dependecy has not been finished" );
   }
 
+  const Slice*   lastSlice           = m_currDecompPic->slices.back();
+  const unsigned lastSliceLastCtuIdx = lastSlice->getCtuAddrInSlice( lastSlice->getNumCtuInSlice() - 1 );
+  if( lastSliceLastCtuIdx != m_currDecompPic->cs->pcv->sizeInCtus - 1 )
+  {
+    m_currDecompPic->error = true;
+    THROW_RECOVERABLE( "Picture incomplete. A slice was probably lost." );
+  }
+
   try
   {
     m_currDecompPic->reconDone.wait();
