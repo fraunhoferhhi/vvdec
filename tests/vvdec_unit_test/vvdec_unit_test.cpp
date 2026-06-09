@@ -1844,6 +1844,11 @@ static void fillVirtualBoundaryPositions( int positions[2], int& numPositions, u
   }
 }
 
+static constexpr unsigned alignUp( const unsigned value, const unsigned vectorAlign )
+{
+  return ( value + vectorAlign - 1 ) & ~( vectorAlign - 1 );
+}
+
 static bool check_one_offsetBlock( SampleAdaptiveOffset* ref, SampleAdaptiveOffset* opt, int bitDepth, int typeIdx,
                                    unsigned width, unsigned height, const SaoAvailCase& avail,
                                    const SaoVirtualBoundaryCase& vbCase, unsigned caseIdx,
@@ -1853,16 +1858,15 @@ static bool check_one_offsetBlock( SampleAdaptiveOffset* ref, SampleAdaptiveOffs
   InputGenerator<Pel> inputGenerator{ ( unsigned )bitDepth, /*is_signed=*/false };
   const ClpRng clpRng{ bitDepth };
 
-  CHECK( width % 8 != 0, "SAO offsetBlock expects 8-aligned widths" );
-
-  // Source padding for EO neighbor reads around the tested block.
+  // Padding covers EO neighbor reads and SIMD paths that process a final partial vector.
   static constexpr unsigned padLeft = 1;
-  static constexpr unsigned padRight = 1;
+  static constexpr unsigned padRight = 16; // Add enough padding on the right for SIMD processing.
   static constexpr unsigned padTop = 1;
   static constexpr unsigned padBottom = 1;
   const unsigned srcStride = padLeft + width + padRight;
   const unsigned srcRows = padTop + height + padBottom;
-  const unsigned dstStride = width;
+  static constexpr unsigned vectorAlign = 8;
+  const unsigned dstStride = alignUp( width + padRight, vectorAlign );
   const unsigned dstRows = height;
 
   // Use aligned buffers.
@@ -2016,7 +2020,7 @@ static bool test_SampleAdaptiveOffset()
     {
       for( unsigned h : { 8, 16, 32, 48, 64, 128 } )
       {
-        for( unsigned w : { 8, 16, 24, 32, 40, 64, 72, 120, 128 } )
+        for( unsigned w : { 8, 16, 24, 32, 40, 44, 64, 72, 128 } )
         {
           passed = check_offsetBlock( &ref, &opt, numCases, bitDepth, typeIdx, w, h ) && passed;
         }
