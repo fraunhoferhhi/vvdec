@@ -41,6 +41,7 @@ POSSIBILITY OF SUCH DAMAGE.
 ------------------------------------------------------------------------------------------- */
 
 #include <iostream>
+#include <iomanip>
 #include <limits.h>
 
 #include "CommonLib/AdaptiveLoopFilter.h"
@@ -50,6 +51,7 @@ POSSIBILITY OF SUCH DAMAGE.
 #include "CommonLib/LoopFilter.h"
 #include "CommonLib/SampleAdaptiveOffset.h"
 #include "CommonLib/TrQuant_EMT.h"
+#include "CommonLib/Quant.h"
 
 using namespace vvdec;
 
@@ -2032,6 +2034,110 @@ static bool test_SampleAdaptiveOffset()
 }
 #endif // ENABLE_SIMD_OPT_SAO
 
+#if ENABLE_SIMD_OPT_QUANT
+template<typename T>
+bool test_DeQuant_impl( const Quant& ref, const Quant& opt, int w, int h, int srcStride )
+{
+  static_assert( std::is_same<T, TCoeffSig>::value || std::is_same<T, TCoeff>::value, "wrong coeff type" );
+
+  DimensionGenerator rng;
+
+  std::vector<T> src( srcStride * h + 8 );   // +8 to prevent SIMD out-of-bounds read
+  std::generate( src.begin(), src.end(), InputGenerator<T>( 14 ) );
+
+  const int maxX = rng.get( 0, w - 1 );
+  const int maxY = rng.get( 0, h - 1 );
+
+  const int rightShift = rng.get( 0, 20 ) - 10;
+
+  const uint32_t maxLog2TrDynamicRange = 15;
+  const int      scaleBits             = ( IQUANT_SHIFT + 1 );
+  const uint32_t targetInputBitDepth   = std::min<uint32_t>( maxLog2TrDynamicRange + 1, 32 + rightShift - scaleBits );
+
+  const int    inputMaximum     = ( 1 << ( targetInputBitDepth - 1 ) ) - 1;
+  const TCoeff transformMaximum = ( 1 << maxLog2TrDynamicRange ) - 1;
+
+  const int scaleQP = rng.getOneOf<int>( { 40, 45, 51, 57, 64, 72, 80, 90, 102 } );
+
+  std::vector<TCoeff> dst_ref( MAX_CU_SIZE * MAX_CU_SIZE, 0 );
+  std::vector<TCoeff> dst_opt( MAX_CU_SIZE * MAX_CU_SIZE, 0 );
+
+  bool passed = true;
+  {
+    std::ostringstream sstm;
+
+    if ( std::is_same<T, TCoeffSig>::value )
+    {
+      // cast to TCoeffSig is only needed to ensure compilation, although this branch is never taken, when it has type TCoeff
+      ref.DeQuant( w, maxX, maxY, scaleQP, (const TCoeffSig*) src.data(), srcStride, dst_ref.data(), rightShift, inputMaximum, transformMaximum );
+      opt.DeQuant( w, maxX, maxY, scaleQP, (const TCoeffSig*) src.data(), srcStride, dst_opt.data(), rightShift, inputMaximum, transformMaximum );
+      sstm << "DeQuant";
+    }
+    else   // T = TCoeff
+    {
+      // cast to TCoeff is only needed to ensure compilation, although this branch is never taken, when it has type TCoeffSig
+      ref.DeQuantPCM( w, maxX, maxY, scaleQP, (const TCoeff*) src.data(), srcStride, dst_ref.data(), rightShift, inputMaximum, transformMaximum );
+      opt.DeQuantPCM( w, maxX, maxY, scaleQP, (const TCoeff*) src.data(), srcStride, dst_opt.data(), rightShift, inputMaximum, transformMaximum );
+      sstm << "DeQuantPCM";
+    }
+
+    sstm << " w=" << w << " h=" << h << " stride=" << srcStride << " maxX=" << maxX << " maxY=" << maxY << " scaleQP=" << scaleQP << " rightShift=" << rightShift
+         << " inputMaximum=" << inputMaximum << " transformMaximum=" << transformMaximum;
+    passed &= compare_values_2d( sstm.str(), dst_ref.data(), dst_opt.data(), h, w, srcStride );
+  }
+
+  {
+    std::vector<int> dequantCoef( w * h + 4 );   // +4 to prevent SIMD out-of-bounds read
+    std::generate( dequantCoef.begin(), dequantCoef.end(), InputGenerator<int>( 8, false ) );
+
+    std::ostringstream sstm;
+    if ( std::is_same<T, TCoeffSig>::value )
+    {
+      // cast to TCoeffSig is only needed to ensure compilation, although this branch is never taken, when it has type TCoeff
+      ref.DeQuantScaling( w, maxX, maxY, scaleQP, dequantCoef.data(), (const TCoeffSig*) src.data(), srcStride, dst_ref.data(), rightShift, inputMaximum, transformMaximum );
+      opt.DeQuantScaling( w, maxX, maxY, scaleQP, dequantCoef.data(), (const TCoeffSig*) src.data(), srcStride, dst_opt.data(), rightShift, inputMaximum, transformMaximum );
+      sstm << "DeQuantScaling";
+    }
+    else   // T = TCoeff
+    {
+      // cast to TCoeff is only needed to ensure compilation, although this branch is never taken, when it has type TCoeffSig
+      ref.DeQuantScalingPCM( w, maxX, maxY, scaleQP, dequantCoef.data(), (const TCoeff*) src.data(), srcStride, dst_ref.data(), rightShift, inputMaximum, transformMaximum );
+      opt.DeQuantScalingPCM( w, maxX, maxY, scaleQP, dequantCoef.data(), (const TCoeff*) src.data(), srcStride, dst_opt.data(), rightShift, inputMaximum, transformMaximum );
+      sstm << "DeQuantScalingPCM";
+    }
+
+    sstm << " w=" << w << " h=" << h << " stride=" << srcStride << " maxX=" << maxX << " maxY=" << maxY << " scaleQP=" << scaleQP
+         << " rightShift=" << rightShift << " inputMaximum=" << inputMaximum << " transformMaximum=" << transformMaximum;
+    passed &= compare_values_2d( sstm.str(), dst_ref.data(), dst_opt.data(), h, w, srcStride );
+  }
+  return passed;
+}
+
+static bool test_DeQuant()
+{
+  Quant ref{ nullptr, /*enableOpt=*/false };
+  Quant opt{ &ref,    /*enableOpt=*/true };
+
+  bool passed = true;
+  for( unsigned w: { 1, 2, 4, 8, 16, 32, 64 } )
+  {
+    for( unsigned h: { 1, 2, 4, 8, 16, 32, 64 } )
+    {
+      for( unsigned stride: { w, w + 2, w + 4, w + 8, 128u } )
+      {
+        for( int i=0; i<NUM_CASES; ++i )
+        {
+          passed &= test_DeQuant_impl<TCoeffSig>( ref, opt, w, h, stride );
+          passed &= test_DeQuant_impl<TCoeff>   ( ref, opt, w, h, stride );
+        }
+      }
+    }
+  }
+
+  return passed;
+}
+#endif // ENABLE_SIMD_OPT_QUANT
+
 struct UnitTestEntry
 {
   std::string name;
@@ -2041,6 +2147,9 @@ struct UnitTestEntry
 static const UnitTestEntry test_suites[] = {
 #if ENABLE_SIMD_OPT_ALF
     { "ALF", test_AdaptiveLoopFilter },
+#endif
+#if ENABLE_SIMD_OPT_QUANT
+    { "DeQuant", test_DeQuant },
 #endif
 #if ENABLE_SIMD_OPT_MCIF
     { "InterpolationFilter", test_InterpolationFilter },
@@ -2065,21 +2174,98 @@ static const UnitTestEntry test_suites[] = {
 #endif
 };
 
-int main( int argc, char* argv[] )
+struct UnitTestArgs
 {
-  srand( ( unsigned )time( NULL ) );
+  bool show_help = false;
+  int seed;
+  std::string simd;
+  std::string testcase;
+};
 
-  bool passed = true;
-
+static inline std::string get_testcase_help_text()
+{
+  std::ostringstream sstm;
+  sstm << "Run a single test suite. One of: ";
+  bool first = true;
   for( const auto& entry : test_suites )
   {
-    std::cout << "Running test suite: " << entry.name << "\n";
-    passed = entry.fn() && passed;
+    if( !first )
+    {
+      sstm << ", ";
+    }
+    first = false;
+    sstm << entry.name;
+  }
+  return sstm.str();
+}
+
+UnitTestArgs parse_args( int argc, char* argv[] )
+{
+  UnitTestArgs args;
+  args.seed = ( unsigned )time( NULL );
+
+  for( int i = 1; i < argc; ++i )
+  {
+    const std::string argStr( argv[i] );
+    if( argStr == "--help" || argStr == "-h" )
+    {
+      args.show_help = 1;
+    }
+    else if( argStr == "--seed" && i + 1 < argc )
+    {
+      args.seed = std::stoi( argv[++i] );
+    }
+    else if( ( argStr == "--testcase" || argStr == "-t" ) && i + 1 < argc )
+    {
+      args.testcase = argv[++i];
+    }
+    else
+    {
+      std::cerr << "Unknown argument: " << argStr << "\n";
+      args.show_help = true;
+    }
+  }
+
+  if( args.show_help )
+  {
+    std::cout << std::left
+              << "    " << std::setw(20) << "--help, -h"     << "Show this help message\n"
+              << "    " << std::setw(20) << "--seed"         << "Set random seed for running tests\n"
+              << "    " << std::setw(20) << "--testcase, -t" << get_testcase_help_text() << "\n";
+    exit( EXIT_SUCCESS );
+  }
+
+  return args;
+}
+
+int main( int argc, char* argv[] )
+{
+  UnitTestArgs args = parse_args( argc, argv );
+
+  srand( args.seed );
+  std::cout << "Running unit tests with seed=" << args.seed << ".\n\n";
+
+  bool passed        = true;
+  bool foundTestCase = false;
+  for( const auto& entry : test_suites )
+  {
+    if( args.testcase == "" || args.testcase == entry.name )
+    {
+      foundTestCase = true;
+      std::cout << "Running test suite: " << entry.name << "\n";
+      passed = entry.fn() && passed;
+    }
+  }
+
+  if( !foundTestCase )
+  {
+    std::cerr << "No test case was run for testcase \""<< args.testcase << "\". Please check the --testcase argument." << std::endl;
+    exit( EXIT_FAILURE );
   }
 
   if( !passed )
   {
-    printf( "\nerror: some tests failed!\n\n" );
+    printf( "\nerror: some tests failed for seed=%u!\n\n", args.seed );
     exit( EXIT_FAILURE );
   }
 

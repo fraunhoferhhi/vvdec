@@ -789,6 +789,7 @@ int main( int argc, char* argv[] )
           }
           *logStream << std::endl;
 
+          vvdec_decoder_close( dec );
           vvdec_accessUnit_free( accessUnit );
           return iRet;
         }
@@ -818,6 +819,7 @@ int main( int argc, char* argv[] )
 #endif
                              ) )
           {
+            vvdec_decoder_close( dec );
             vvdec_accessUnit_free( accessUnit );
             return -1;
           }
@@ -857,6 +859,7 @@ int main( int argc, char* argv[] )
           *logStream << " detail: " << cAdditionalErr;
         }
         *logStream << std::endl;
+        vvdec_decoder_close( dec );
         vvdec_accessUnit_free( accessUnit );
         return iRet;
       }
@@ -885,6 +888,7 @@ int main( int argc, char* argv[] )
 #endif
                            ) )
         {
+          vvdec_decoder_close( dec );
           vvdec_accessUnit_free( accessUnit );
           return -1;
         }
@@ -927,6 +931,7 @@ int main( int argc, char* argv[] )
     if (iSEIHashErrCount )
     {
       *logStream << "vvdecapp [error]: MD5 checksum error ( " << iSEIHashErrCount << " errors )" << std::endl;
+      vvdec_decoder_close( dec );
       vvdec_accessUnit_free( accessUnit );
       return iSEIHashErrCount;
     }
@@ -934,6 +939,7 @@ int main( int argc, char* argv[] )
     if( iComprPics && !uiFrames )
     {
       *logStream << "vvdecapp [error]: read some input pictures (" << iComprPics << "), but no output was generated." << std::endl;
+      vvdec_decoder_close( dec );
       vvdec_accessUnit_free( accessUnit );
       return -1;
     }
@@ -946,6 +952,7 @@ int main( int argc, char* argv[] )
       if( cExpectedYuvMD5 != yuvMD5 )
       {
         *logStream << "vvdecapp [error] full YUV output MD5 mismatch: " << cExpectedYuvMD5 << " != " << yuvMD5 << std::endl;
+        vvdec_decoder_close( dec );
         vvdec_accessUnit_free( accessUnit );
         return -1;
       }
@@ -959,6 +966,7 @@ int main( int argc, char* argv[] )
       vvdec_accessUnit_free( accessUnit );
       return iRet;
     }
+    dec = 0;
 
     if( iLoopCount < 0 || iLoop < iLoopCount-1 )
     {

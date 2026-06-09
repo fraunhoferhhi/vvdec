@@ -66,7 +66,8 @@ set( VVDEC_ENABLE_ARM_SIMD_SVE ${FLAG_sve}           CACHE BOOL "Enable Arm SVE 
 set( VVDEC_ENABLE_ARM_SIMD_SVE2 ${FLAG_sve2}         CACHE BOOL "Enable Arm SVE2 intrinsics" )
 set( VVDEC_ENABLE_LOONGARCH64_LSX_SIMD  ${VVDEC_LOONGARCH64_SIMD_DEFAULT} CACHE BOOL "Enable loongarch64 LSX intrinsics" )
 
-set( VVDEC_ENABLE_TRACING      FALSE                   CACHE BOOL "Compile in tracing functionality" )
+set( VVDEC_ENABLE_TRACING        FALSE                 CACHE BOOL "Compile in tracing functionality" )
+set( VVDEC_WRITE_INPUT_BITSTREAM FALSE                 CACHE BOOL "Write input bitstream to file specified in the environment variable VVDEC_WRITE_INPUT_BITSTREAM" )
 
 set( VVDEC_ENABLE_UNSTABLE_API OFF                     CACHE BOOL "Enable unstable API (include 3.0.0 API and ABI incompatible interface extensions)" )
 

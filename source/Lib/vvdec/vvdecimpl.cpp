@@ -42,6 +42,10 @@ POSSIBILITY OF SUCH DAMAGE.
 
 #include <string>
 
+#ifdef VVDEC_WRITE_INPUT_BITSTREAM
+#  include <fstream>
+#endif
+
 #if defined( __linux__ )
 #include <malloc.h>
 #endif
@@ -303,6 +307,20 @@ int VVDecImpl::decode( vvdecAccessUnit& rcAccessUnit, vvdecFrame** ppcFrame )
 
     if( rcAccessUnit.payloadUsedSize )
     {
+#ifdef VVDEC_WRITE_INPUT_BITSTREAM
+      if( std::getenv( "VVDEC_WRITE_INPUT_BITSTREAM" ) )
+      {
+        std::string bitstreamOutFileName( std::getenv( "VVDEC_WRITE_INPUT_BITSTREAM" ) );
+        if( !bitstreamOutFileName.empty() )
+        {
+          msg( WARNING, "Warning: writing input bitstream to file %s\n", bitstreamOutFileName.c_str() );
+
+          std::ofstream bitstreamOutFile( bitstreamOutFileName, std::ios::binary | std::ios::app );
+          bitstreamOutFile.write( (const char*) rcAccessUnit.payload, rcAccessUnit.payloadUsedSize );
+        }
+      }
+#endif
+
       bool bStartCodeFound = false;
       std::vector<size_t> iStartCodePosVec;
       std::vector<size_t> iAUEndPosVec;
