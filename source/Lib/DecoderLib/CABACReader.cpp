@@ -2473,7 +2473,7 @@ void CABACReader::residual_coding( TransformUnit& tu, ComponentID compID, CUCtx&
       const int posX          = cctx.posX( blkPos );
       const int posY          = cctx.posY( blkPos );
 
-      int AbsCoeff            = depQuant ? ( coeff[blkPos] << 1 ) - ( ( ( int ) sub1Pattern ) & 1 ) : coeff[blkPos];
+      int AbsCoeff            = depQuant ? ( coeff[blkPos] * (1 << 1) ) - ( ( ( int ) sub1Pattern ) & 1 ) : coeff[blkPos];
       dstCff.at( posX, posY ) = ( signPattern & 1u ? -AbsCoeff : AbsCoeff );
     }
   }

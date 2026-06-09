@@ -452,6 +452,7 @@ void SEIReader::xParseSEIDecodedPictureHash(vvdecSEI* s, uint32_t payloadSize, s
 
   uint32_t val;
   sei_read_code( pDecodedMessageOutputStream, 8, val, "dph_sei_hash_type" );
+  CHECK_READ_RANGE( val, 0, VVDEC_HASHTYPE_NONE, "dph_sei_hash_type" );
   sei->method = static_cast<vvdecHashType>(val); bytesRead++;
   sei_read_code( pDecodedMessageOutputStream, 1, val, "dph_sei_single_component_flag");
   sei->singleCompFlag = val;

@@ -57,8 +57,8 @@ namespace vvdec
 template<X86_VEXT vext>
 void simdDeriveClassificationBlk(AlfClassifier *classifier, const CPelBuf &srcLuma, const Area& blk, const int shift, int vbCTUHeight, int vbPos)
 {
-  const size_t imgStride = srcLuma.stride;
-  const Pel *  srcExt    = srcLuma.buf;
+  const ptrdiff_t imgStride = srcLuma.stride;
+  const Pel*      srcExt    = srcLuma.buf;
 
   const int imgHExtended = blk.height + 4;
   const int imgWExtended = blk.width + 4;
@@ -72,7 +72,7 @@ void simdDeriveClassificationBlk(AlfClassifier *classifier, const CPelBuf &srcLu
 
   for (int i = 0; i < imgHExtended; i += 2)
   {
-    const size_t offset = (i + posY - 3) * imgStride + posX - 3;
+    const ptrdiff_t offset = ( i + posY - 3 ) * imgStride + posX - 3;
 
     const Pel *imgY0 = &srcExt[offset];
     const Pel *imgY1 = &srcExt[offset + imgStride];
@@ -302,7 +302,7 @@ void simdDeriveClassificationBlk(AlfClassifier *classifier, const CPelBuf &srcLu
 template<>
 void simdDeriveClassificationBlk<AVX2>(AlfClassifier *classifier, const CPelBuf &srcLuma, const Area& blk, const int shift, int vbCTUHeight, int vbPos)
 {
-  const size_t imgStride = srcLuma.stride;
+  const ptrdiff_t imgStride = srcLuma.stride;
   const Pel *  srcExt    = srcLuma.buf;
 
   const int imgHExtended = blk.height + 4;
@@ -336,7 +336,7 @@ void simdDeriveClassificationBlk<AVX2>(AlfClassifier *classifier, const CPelBuf 
 
   for (int i = 0; i < imgHExtended; i += 2)
   {
-    const size_t offset = (i + posY - 3) * imgStride + posX - 3;
+    const ptrdiff_t offset = (i + posY - 3) * imgStride + posX - 3;
 
     _mm_prefetch( ( const char* ) &srcExt[offset + 4 * imgStride], _MM_HINT_T0 );
     _mm_prefetch( ( const char* ) &srcExt[offset + 5 * imgStride], _MM_HINT_T0 );
@@ -592,8 +592,8 @@ static void simdFilter5x5Blk( const AlfClassifier*,
   const CPelBuf srcBuffer = recSrc.get(compId);
   PelBuf        dstBuffer = recDst.get(compId);
 
-  const size_t srcStride = srcBuffer.stride;
-  const size_t dstStride = dstBuffer.stride;
+  const ptrdiff_t srcStride = srcBuffer.stride;
+  const ptrdiff_t dstStride = dstBuffer.stride;
 
   constexpr int SHIFT = AdaptiveLoopFilter::m_NUM_BITS - 1;
   constexpr int ROUND = 1 << (SHIFT - 1);
@@ -781,8 +781,8 @@ void simdFilter5x5Blk<AVX2>( const AlfClassifier*,
   const CPelBuf srcBuffer = recSrc.get(compId);
   PelBuf        dstBuffer = recDst.get(compId);
 
-  const size_t srcStride = srcBuffer.stride;
-  const size_t dstStride = dstBuffer.stride;
+  const ptrdiff_t srcStride = srcBuffer.stride;
+  const ptrdiff_t dstStride = dstBuffer.stride;
 
   constexpr int SHIFT = AdaptiveLoopFilter::m_NUM_BITS - 1;
   constexpr int ROUND = 1 << (SHIFT - 1);
@@ -1004,8 +1004,8 @@ static void simdFilter7x7Blk( const AlfClassifier*   classifier,
   const CPelBuf srcBuffer = recSrc.get(compId);
   PelBuf        dstBuffer = recDst.get(compId);
 
-  const size_t srcStride = srcBuffer.stride;
-  const size_t dstStride = dstBuffer.stride;
+  const ptrdiff_t srcStride = srcBuffer.stride;
+  const ptrdiff_t dstStride = dstBuffer.stride;
 
   constexpr int SHIFT = AdaptiveLoopFilter::m_NUM_BITS - 1;
   constexpr int ROUND = 1 << (SHIFT - 1);
@@ -1226,8 +1226,8 @@ void simdFilter7x7Blk<AVX2>( const AlfClassifier* classifier,
   const CPelBuf srcBuffer = recSrc.get(compId);
   PelBuf        dstBuffer = recDst.get(compId);
 
-  const size_t srcStride = srcBuffer.stride;
-  const size_t dstStride = dstBuffer.stride;
+  const ptrdiff_t srcStride = srcBuffer.stride;
+  const ptrdiff_t dstStride = dstBuffer.stride;
 
   constexpr int SHIFT = AdaptiveLoopFilter::m_NUM_BITS - 1;
   constexpr int ROUND = 1 << (SHIFT - 1);
