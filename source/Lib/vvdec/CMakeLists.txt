@@ -184,6 +184,10 @@ endif()
 if( VVDEC_ENABLE_TRACING )
   add_compile_definitions( ENABLE_TRACING=1 )
 endif()
+if( VVDEC_WRITE_INPUT_BITSTREAM )
+  add_compile_definitions( VVDEC_WRITE_INPUT_BITSTREAM=1 )
+endif()
+
 
 # set resource file for MSVC compilers
 if( MSVC )

@@ -104,14 +104,44 @@ public:
   void setScalingListDec         ( const ScalingList &scalingList);
   bool processScalingListDec     ( const int *coeff, int *dequantcoeff, uint32_t height, uint32_t width, uint32_t ratio, int sizuNum, uint32_t dc);
 
-  Quant( const Quant* other );
+  Quant( const Quant* other, bool enableOpt = true );
   ~Quant();
 
   // initialize class
   void init( const Picture *pic );
-public:
+
   // de-quantization
   void dequant           ( const TransformUnit &tu, CoeffBuf &dstCoeff, const ComponentID &compID, const QpParam &cQP );
+
+  template<class T>
+  static void DeQuantCore( const SizeType width,
+                           const int      maxX,
+                           const int      maxY,
+                           const int      scale,
+                           const T* const piQCoef,
+                           const size_t   piQCfStride,
+                           TCoeff* const  piCoef,
+                           const int      rightShift,
+                           const int      inputMaximum,
+                           const TCoeff   transformMaximum );
+  template<class T>
+  static void DeQuantScalingCore( const SizeType width,
+                                  const int      maxX,
+                                  const int      maxY,
+                                  const int      scaleQP,
+                                  const int*     piDequantCoef,
+                                  const T* const piQCoef,
+                                  const size_t   piQCfStride,
+                                  TCoeff* const  piCoef,
+                                  const int      rightShift,
+                                  const int      inputMaximum,
+                                  const TCoeff   transformMaximum );
+
+  void ( *DeQuant    )        (const SizeType width, const int maxX, const int maxY, const int scale,                             const TCoeffSig* const piQCoef, const size_t piQCfStride, TCoeff* const piCoef, const int rightShift, const int inputMaximum, const TCoeff transformMaximum);
+  void ( *DeQuantPCM )        (const SizeType width, const int maxX, const int maxY, const int scale,                             const TCoeff   * const piQCoef, const size_t piQCfStride, TCoeff* const piCoef, const int rightShift, const int inputMaximum, const TCoeff transformMaximum);
+
+  void ( *DeQuantScaling    ) (const SizeType width, const int maxX, const int maxY, const int scaleQP, const int* piDequantCoef, const TCoeffSig* const piQCoef, const size_t piQCfStride, TCoeff* const piCoef, const int rightShift, const int inputMaximum, const TCoeff transformMaximum);
+  void ( *DeQuantScalingPCM ) (const SizeType width, const int maxX, const int maxY, const int scaleQP, const int* piDequantCoef, const TCoeff   * const piQCoef, const size_t piQCfStride, TCoeff* const piCoef, const int rightShift, const int inputMaximum, const TCoeff transformMaximum);
 
 private:
   void xInitScalingList   ( const Quant* other );
@@ -123,13 +153,6 @@ private:
   int *m_dequantCoef   [SCALING_LIST_SIZE_NUM][SCALING_LIST_SIZE_NUM][SCALING_LIST_NUM]; ///< array of dequantization matrix coefficient 4x4
   int *m_dequantCoefBuf;
   bool m_ownDequantCoeff;
-
-
-  void ( *DeQuant    ) (const int maxX,const int restX,const int maxY,const int scale,const TCoeffSig*const piQCoef,const size_t piQCfStride,TCoeff   *const piCoef,const int rightShift,const int inputMaximum,const TCoeff transformMaximum);
-  void ( *DeQuantPCM ) (const int maxX,const int restX,const int maxY,const int scale,      TCoeff   *const piQCoef,const size_t piQCfStride,TCoeff   *const piCoef,const int rightShift,const int inputMaximum,const TCoeff transformMaximum);
-
-  void ( *DeQuantScaling    ) (const int maxX,const int restX,const int maxY,const int scaleQP,const int *piDequantCoef,const TCoeffSig*const piQCoef,const size_t piQCfStride,TCoeff   *const piCoef,const int rightShift,const int inputMaximum,const TCoeff transformMaximum);
-  void ( *DeQuantScalingPCM   ) (const int maxX,const int restX,const int maxY,const int scaleQP,const int *piDequantCoef,TCoeff   *const piQCoef,const size_t piQCfStride,TCoeff   *const piCoef,const int rightShift,const int inputMaximum,const TCoeff transformMaximum);
 
 #if ENABLE_SIMD_OPT_QUANT && defined( TARGET_SIMD_X86 )
   void initQuantX86();

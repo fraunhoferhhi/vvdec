@@ -1,7 +1,7 @@
 /* -----------------------------------------------------------------------------
 The copyright in this software is being made available under the Clear BSD
-License, included below. No patent rights, trademark rights and/or 
-other Intellectual Property Rights other than the copyrights concerning 
+License, included below. No patent rights, trademark rights and/or
+other Intellectual Property Rights other than the copyrights concerning
 the Software are granted under this license.
 
 The Clear BSD License
@@ -54,1016 +54,275 @@ namespace vvdec
 #if ENABLE_SIMD_OPT_QUANT
 #ifdef TARGET_SIMD_X86
 
-#if USE_AVX2 && !defined( _mm256_set_m128i )
-#define VVCLIB_OWN_mm256_set_m128i
-#define _mm256_set_m128i( v0, v1 ) _mm256_inserti128_si256( _mm256_castsi128_si256( v1 ), ( v0 ), 1 )
-
-#endif
-
-static constexpr unsigned short levmask[16] = {0xffff,0xffff,0xffff,0xffff,0xffff,0xffff,0xffff,0xffff,0,0,0,0,0,0,0,0};
-#if USE_AVX2
-static constexpr unsigned short xlevmask[32] = {0xffff,0xffff,0xffff,0xffff,0xffff,0xffff,0xffff,0xffff,0xffff,0xffff,0xffff,0xffff,0xffff,0xffff,0xffff,0xffff,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
-#endif
-
-template< X86_VEXT vext>
-static void DeQuantScalingCoreSIMD(const int maxX,const int restX,const int maxY,const int scaleQP,const int *piDequantCoef,const TCoeffSig*const piQCoef,const size_t piQCfStride,TCoeff   *const piCoef,const int rightShift,const int inputMaximum,const TCoeff transformMaximum)
+template<X86_VEXT vext, class T, bool UseScalingList, bool RightShiftPositive>
+static inline void DeQuantImplSIMD( const SizeType width,
+                                    const int      maxX,
+                                    const int      maxY,
+                                    const int      scaleQP,
+                                    const int*     piDequantCoef,   // unused if UseScalingList == false
+                                    const T* const piQCoef,
+                                    const size_t   piQCfStride,
+                                    TCoeff* const  piCoef,
+                                    const int      rightShift,
+                                    const int      inputMaximum,
+                                    const TCoeff   transformMaximum )
 {
-  const int inputMinimum = -(inputMaximum+1);
-  const TCoeff transformMinimum = -(transformMaximum+1);
-  const int width = restX+maxX+1;
-  __m128i vlevmask;
-  if (maxX<7)
-    vlevmask = _mm_loadu_si128( ( __m128i const * )&levmask[7-maxX] );
-  else
-    vlevmask = _mm_set_epi64x(0xffffffffffffffff,0xffffffffffffffff);
+  static_assert( sizeof( piQCoef[0] ) == sizeof( int16_t ) || sizeof( piQCoef[0] ) == sizeof( int32_t ), "wrong coeff type" );
+
+  constexpr static bool QCoef_16bit = sizeof( piQCoef[0] ) == sizeof( int16_t );
+
+  const int    inputMinimum     = -( inputMaximum + 1 );
+  const TCoeff transformMinimum = -( transformMaximum + 1 );
+
+  const int iAdd  = RightShiftPositive ? 1 << ( rightShift - 1 ) : 0;
+  const int shift = RightShiftPositive ? rightShift : -rightShift;
+
+  const __m128i vInputMin     = _mm_set1_epi32( inputMinimum );
+  const __m128i vInputMax     = _mm_set1_epi32( inputMaximum );
+  const __m128i vTransformMin = _mm_set1_epi32( transformMinimum );
+  const __m128i vTransformMax = _mm_set1_epi32( transformMaximum );
+
+  const __m128i vAdd   = _mm_set1_epi32( iAdd );
+  const __m128i vShift = _mm_set_epi64x( 0, shift );
+        __m128i vScale = _mm_set1_epi32( scaleQP );
+
 #if USE_AVX2
-  __m256i xvlevmask;
-  if (maxX<15)
-    xvlevmask = _mm256_loadu_si256( ( __m256i const * )&xlevmask[15-maxX] );
-  else
-    xvlevmask = _mm256_set_epi64x(0xffffffffffffffff,0xffffffffffffffff,0xffffffffffffffff,0xffffffffffffffff);
-#endif
-  if (rightShift>0)
+  const __m256i xvInputMin     = _mm256_set1_epi32( inputMinimum );
+  const __m256i xvInputMax     = _mm256_set1_epi32( inputMaximum );
+  const __m256i xvTransformMin = _mm256_set1_epi32( transformMinimum );
+  const __m256i xvTransformMax = _mm256_set1_epi32( transformMaximum );
+
+  const __m256i xvAdd   = _mm256_set1_epi32( iAdd );
+        __m256i xvScale = _mm256_set1_epi32( scaleQP );
+#endif   // USE_AVX2
+
+  const int endX       = maxX + 1;
+  const int maskCoeffs = endX & 3;   // number of coefficients in the last vector read
+  // clang-format off
+  const __m128i vMask = maskCoeffs == 3 ? _mm_set_epi32( 0, -1, -1, -1 ) :
+                      ( maskCoeffs == 2 ? _mm_set_epi32( 0, 0, -1, -1 )
+                                        : _mm_set_epi32( 0, 0, 0, -1 ) );
+  // clang-format on
+
+  for( int y = 0; y <= maxY; y++ )
   {
-    const Intermediate_Int iAdd = (Intermediate_Int) 1 << (rightShift - 1);
+    int x = 0;
+    int n = y * width;
 
-    __m128i v_max =  _mm_set1_epi16 ((short)inputMaximum);
-    __m128i v_min =  _mm_set1_epi16 ((short)inputMinimum);
-    __m128i v_Tmax =  _mm_set1_epi32 ((short)transformMaximum);
-    __m128i v_Tmin =  _mm_set1_epi32 ((short)transformMinimum);
-    __m128i v_scaleQP = _mm_set1_epi16 ((short)scaleQP);
-    __m128i v_add = _mm_set1_epi32 (iAdd);
-    __m128i v_rshift = _mm_set1_epi64x (rightShift);
-    if (maxX<4)
-    {
-      for( int y = 0; y <= maxY; y++)
-      {
-        __m128i v_level = maxX  > 1 ? _mm_loadu_si64( ( const __m128i* ) &piQCoef[y * piQCfStride] )
-                        : maxX == 1 ? _mm_setr_epi16( piQCoef[y * piQCfStride], piQCoef[y * piQCfStride + 1], 0, 0, 0, 0, 0, 0 )
-                                    : _mm_setr_epi16( piQCoef[y * piQCfStride], 0, 0, 0, 0, 0, 0, 0 );
-
-        __m128i v_scale = maxX  > 1 ? _mm_loadu_si128( ( const __m128i* ) &piDequantCoef[y * width] )
-                                : maxX == 1 ? _mm_setr_epi32( piDequantCoef[y * width], piDequantCoef[y * width + 1], 0, 0 )
-                                            : _mm_setr_epi32( piDequantCoef[y * width], 0, 0, 0 );
-
-        v_level = _mm_max_epi16 (v_level, v_min);
-        v_level = _mm_min_epi16 (v_level, v_max);
-        __m128i v_low = _mm_mullo_epi16(v_level,v_scaleQP);
-        __m128i v_high = _mm_mulhi_epi16(v_level,v_scaleQP);
-
-        v_level = _mm_unpacklo_epi16(v_low,v_high);  
-        v_level = _mm_mullo_epi32(v_level,v_scale);
-        v_level =  _mm_add_epi32(v_level,v_add);
-        v_level = _mm_sra_epi32(v_level,v_rshift);        
-
-        v_level = _mm_max_epi32 (v_level, v_Tmin);
-        v_level = _mm_min_epi32 (v_level, v_Tmax);
-        _mm_storeu_si128(( __m128i * )(piCoef+y*width ), v_level );
-      }
-    }
 #if USE_AVX2
-    else if (maxX<8)
+    for( ; x + 7 < endX; x += 8, n += 8 )
     {
-      __m256i xv_add = _mm256_set1_epi32 (iAdd);
-      __m256i xv_Tmax =  _mm256_set1_epi32 ((short)transformMaximum);
-      __m256i xv_Tmin =  _mm256_set1_epi32 ((short)transformMinimum);
-
-      for( int y = 0; y <= maxY; y++)
+      if( UseScalingList )
       {
-        __m128i v_level = _mm_loadu_si128( ( __m128i const * )&piQCoef[y * piQCfStride]  );
-        __m256i v_scale = _mm256_loadu_si256( ( const __m256i* ) &piDequantCoef[y * width] );
-
-        v_level = _mm_max_epi16 (v_level, v_min);
-        v_level = _mm_min_epi16 (v_level, v_max);
-        __m128i v_low = _mm_mullo_epi16(v_level,v_scaleQP);
-        __m128i v_high = _mm_mulhi_epi16(v_level,v_scaleQP);
-        __m256i xv_level = _mm256_set_m128i (_mm_unpackhi_epi16(v_low,v_high), _mm_unpacklo_epi16(v_low,v_high));
-        xv_level = _mm256_mullo_epi32(xv_level,v_scale);
-        xv_level =  _mm256_add_epi32(xv_level,xv_add);
-        xv_level = _mm256_sra_epi32(xv_level,v_rshift);
-        xv_level = _mm256_max_epi32 (xv_level, xv_Tmin);
-        xv_level = _mm256_min_epi32 (xv_level, xv_Tmax);
-        _mm256_storeu_si256(( __m256i * )(piCoef+y*width ), xv_level );
+        xvScale = _mm256_set1_epi32( scaleQP );
+        xvScale = _mm256_mullo_epi32( xvScale, _mm256_loadu_si256( (__m256i*) &piDequantCoef[n] ) );
       }
+
+      __m256i xvLevel = QCoef_16bit ? _mm256_cvtepi16_epi32( _mm_loadu_si128( (__m128i*) &piQCoef[x + y * piQCfStride] ) )   // 16 bit coeffs
+                                    : _mm256_loadu_si256( (__m256i*) &piQCoef[x + y * piQCfStride] );                        // 32 bit coeffs
+
+      xvLevel = _mm256_max_epi32( xvLevel, xvInputMin );
+      xvLevel = _mm256_min_epi32( xvLevel, xvInputMax );
+
+      xvLevel = _mm256_mullo_epi32( xvLevel, xvScale );
+      if( RightShiftPositive )
+      {
+        xvLevel = _mm256_add_epi32( xvLevel, xvAdd );
+        xvLevel = _mm256_sra_epi32( xvLevel, vShift );
+      }
+      else
+      {
+        xvLevel = _mm256_sll_epi32( xvLevel, vShift );
+      }
+
+      xvLevel = _mm256_max_epi32( xvLevel, xvTransformMin );
+      xvLevel = _mm256_min_epi32( xvLevel, xvTransformMax );
+
+      _mm256_storeu_si256( (__m256i*) &piCoef[n], xvLevel );
     }
-    else
+#endif   // USE_AVX2
+
+    for( ; x + 3 < endX; x += 4, n += 4 )
     {
-      __m256i xv_max =  _mm256_set1_epi16 ((short)inputMaximum);
-      __m256i xv_min =  _mm256_set1_epi16 ((short)inputMinimum);
-      __m256i xv_scaleQP = _mm256_set1_epi16 ((short)scaleQP);
-      __m256i xv_add = _mm256_set1_epi32 (iAdd);
-      __m256i xv_Tmax =  _mm256_set1_epi32 ((short)transformMaximum);
-      __m256i xv_Tmin =  _mm256_set1_epi32 ((short)transformMinimum);
-
-      __m256i v_scale_l,v_scale_h;
-      for( int y = 0; y <= maxY; y++)
+      if( UseScalingList )
       {
-        for( int x = 0; x <= maxX; x+=16)
-        {
-          __m256i xv_level = _mm256_loadu_si256( ( __m256i const * )&piQCoef[x+ y * piQCfStride]  );
-          v_scale_l = _mm256_loadu_si256( ( const __m256i* ) &piDequantCoef[y * width + x ]);
-          v_scale_h = _mm256_loadu_si256( ( const __m256i* ) &piDequantCoef[y * width + x + 8 ]);
-
-          xv_level = _mm256_and_si256(xv_level,xvlevmask);
-          xv_level = _mm256_max_epi16 (xv_level, xv_min);
-          xv_level = _mm256_min_epi16 (xv_level, xv_max);
-          __m256i xv_low = _mm256_mullo_epi16(xv_level,xv_scaleQP);
-          __m256i xv_high = _mm256_mulhi_epi16(xv_level,xv_scaleQP);
-
-          xv_low = _mm256_permute4x64_epi64(xv_low,0xD8);
-          xv_high = _mm256_permute4x64_epi64(xv_high,0xD8);
-
-          xv_level = _mm256_unpacklo_epi16(xv_low,xv_high);
-          xv_level = _mm256_mullo_epi32(xv_level,v_scale_l);
-
-          xv_level =  _mm256_add_epi32(xv_level,xv_add);
-          xv_level = _mm256_sra_epi32(xv_level,v_rshift);
-
-          xv_level = _mm256_max_epi32 (xv_level, xv_Tmin);
-          xv_level = _mm256_min_epi32 (xv_level, xv_Tmax);
-
-          _mm256_storeu_si256(( __m256i * )(piCoef+x+y*width ), xv_level );
-
-          xv_level = _mm256_unpackhi_epi16(xv_low,xv_high);
-          xv_level = _mm256_mullo_epi32(xv_level,v_scale_h);
-
-          xv_level =  _mm256_add_epi32(xv_level,xv_add);
-          xv_level = _mm256_sra_epi32(xv_level,v_rshift);
-
-          xv_level = _mm256_max_epi32 (xv_level, xv_Tmin);
-          xv_level = _mm256_min_epi32 (xv_level, xv_Tmax);
-
-          _mm256_storeu_si256(( __m256i * )(piCoef+8+x+y*width ), xv_level );
-        }
+        vScale = _mm_set1_epi32( scaleQP );
+        vScale = _mm_mullo_epi32( vScale, _mm_loadu_si128( (__m128i*) &piDequantCoef[n] ) );
       }
-    }
-#else
-    else
-    {        
-      __m128i v_scale_l,v_scale_h;
-      for( int y = 0; y <= maxY; y++)
+
+      __m128i vLevel = QCoef_16bit ? _mm_cvtepi16_epi32( _mm_loadu_si64( &piQCoef[x + y * piQCfStride] ) )   // 16 bit coeffs
+                                   : _mm_loadu_si128( (__m128i*) &piQCoef[x + y * piQCfStride] );            // 32 bit coeffs
+
+      vLevel = _mm_max_epi32( vLevel, vInputMin );
+      vLevel = _mm_min_epi32( vLevel, vInputMax );
+
+      vLevel = _mm_mullo_epi32( vLevel, vScale );
+      if( RightShiftPositive )
       {
-        for( int x = 0; x <= maxX; x+=8)
-        {
-          __m128i v_level = _mm_loadu_si128( ( __m128i const * )&piQCoef[x+ y * piQCfStride]  );
-
-          v_scale_l = _mm_loadu_si128( ( const __m128i* ) &piDequantCoef[y * width+x] );
-          v_level = _mm_and_si128(v_level,vlevmask);
-          v_level = _mm_max_epi16 (v_level, v_min);
-          v_level = _mm_min_epi16 (v_level, v_max);
-          __m128i v_low = _mm_mullo_epi16(v_level,v_scaleQP);
-          __m128i v_high = _mm_mulhi_epi16(v_level,v_scaleQP);
-
-          v_level = _mm_unpacklo_epi16(v_low,v_high);
-          v_level = _mm_mullo_epi32(v_level,v_scale_l);
-          v_level =  _mm_add_epi32(v_level,v_add);
-          v_level = _mm_sra_epi32(v_level,v_rshift);        
-
-          v_level = _mm_max_epi32 (v_level, v_Tmin);
-          v_level = _mm_min_epi32 (v_level, v_Tmax);
-          _mm_storeu_si128(( __m128i * )(piCoef+y*width +x), v_level );
-          if (maxX + 1 - x > 4)
-          {
-            v_scale_h = _mm_loadu_si128( ( const __m128i* ) &piDequantCoef[y * width+x+4] );
-            v_level = _mm_unpackhi_epi16(v_low,v_high);
-            v_level = _mm_mullo_epi32(v_level,v_scale_h);
-            v_level =  _mm_add_epi32(v_level,v_add);
-            v_level = _mm_sra_epi32(v_level,v_rshift);
-            v_level = _mm_max_epi32 (v_level, v_Tmin);
-            v_level = _mm_min_epi32 (v_level, v_Tmax);
-            _mm_storeu_si128(( __m128i * )(piCoef+4+x+y*width ), v_level );
-          }
-        }
+        vLevel = _mm_add_epi32( vLevel, vAdd );
+        vLevel = _mm_sra_epi32( vLevel, vShift );
       }
+      else
+      {
+        vLevel = _mm_sll_epi32( vLevel, vShift );
+      }
+
+      vLevel = _mm_max_epi32( vLevel, vTransformMin );
+      vLevel = _mm_min_epi32( vLevel, vTransformMax );
+
+      _mm_storeu_si128( (__m128i*) &piCoef[n], vLevel );
     }
-#endif
-  }
-  else  // rightshift <0
-  {
-    __m128i v_max =  _mm_set1_epi16 ((short)inputMaximum);
-    __m128i v_min =  _mm_set1_epi16 ((short)inputMinimum);
-    __m128i v_Tmax =  _mm_set1_epi32 ((short)transformMaximum);
-    __m128i v_Tmin =  _mm_set1_epi32 ((short)transformMinimum);
-    __m128i v_scaleQP = _mm_set1_epi16 ((short)scaleQP);
-    __m128i v_lshift = _mm_set1_epi64x (-rightShift);
-    if (maxX<4)
+
+#if 0   // dequant remaining coefficients using scalar code
+    (void)vMask;
+    for( ; x < endX; x++, n++ )
     {
-      for( int y = 0; y <= maxY; y++)
+      const TCoeff level = piQCoef[x + y * piQCfStride];
+      if( !level )
       {
-        __m128i v_level = maxX  > 1 ? _mm_loadu_si64( ( const __m128i* ) &piQCoef[y * piQCfStride] )
-                        : maxX == 1 ? _mm_setr_epi16( piQCoef[y * piQCfStride], piQCoef[y * piQCfStride + 1], 0, 0, 0, 0, 0, 0 )
-                                    : _mm_setr_epi16( piQCoef[y * piQCfStride], 0, 0, 0, 0, 0, 0, 0 );
-
-        __m128i v_scale = maxX  > 1 ? _mm_loadu_si128( ( const __m128i* ) &piDequantCoef[y * width] )
-                                : maxX == 1 ? _mm_setr_epi32( piDequantCoef[y * width], piDequantCoef[y * width + 1], 0, 0 )
-                                            : _mm_setr_epi32( piDequantCoef[y * width], 0, 0, 0 );
-        v_level = _mm_max_epi16 (v_level, v_min);
-        v_level = _mm_min_epi16 (v_level, v_max);
-        __m128i v_low = _mm_mullo_epi16(v_level,v_scaleQP);
-        __m128i v_high = _mm_mulhi_epi16(v_level,v_scaleQP);
-
-        v_level = _mm_unpacklo_epi16(v_low,v_high);
-        v_level = _mm_mullo_epi32(v_level,v_scale);
-        v_level = _mm_sll_epi32(v_level,v_lshift);
-        v_level = _mm_max_epi32 (v_level, v_Tmin);
-        v_level = _mm_min_epi32 (v_level, v_Tmax);
-        _mm_storeu_si128(( __m128i * )(piCoef+y*width ), v_level );
+        continue;
       }
-    }
-#if USE_AVX2
-    else if (maxX<8)
-    {
-      __m256i xv_Tmax =  _mm256_set1_epi32 ((short)transformMaximum);
-      __m256i xv_Tmin =  _mm256_set1_epi32 ((short)transformMinimum);
-      for( int y = 0; y <= maxY; y++)
-      {
-        __m128i v_level = _mm_loadu_si128( ( __m128i const * )&piQCoef[y * piQCfStride]  );
-        __m256i v_scale = _mm256_loadu_si256( ( const __m256i* ) &piDequantCoef[y * width] );
 
-        v_level = _mm_and_si128(v_level,vlevmask);
-        v_level = _mm_max_epi16 (v_level, v_min);
-        v_level = _mm_min_epi16 (v_level, v_max);
-        __m128i v_low = _mm_mullo_epi16(v_level,v_scaleQP);
-        __m128i v_high = _mm_mulhi_epi16(v_level,v_scaleQP);
-        __m256i xv_level = _mm256_set_m128i (_mm_unpackhi_epi16(v_low,v_high), _mm_unpacklo_epi16(v_low,v_high));
-        xv_level = _mm256_mullo_epi32(xv_level,v_scale);
-        xv_level = _mm256_sll_epi32(xv_level,v_lshift);
-        xv_level = _mm256_max_epi32 (xv_level, xv_Tmin);
-        xv_level = _mm256_min_epi32 (xv_level, xv_Tmax);
-        _mm256_storeu_si256(( __m256i * )(piCoef+y*width ), xv_level );
+      const int        scale     = UseScalingList ? piDequantCoef[n] * scaleQP   //
+                                                  : scaleQP;
+      const TCoeff     clipQCoef = TCoeff( Clip3<Intermediate_Int>( inputMinimum, inputMaximum, level ) );
+      Intermediate_Int iCoeffQ   = RightShiftPositive ? ( Intermediate_Int( clipQCoef ) * scale + iAdd ) >> rightShift   //
+                                                      : ( Intermediate_Int( clipQCoef ) * scale ) * ( 1 << shift );
+
+      piCoef[n] = TCoeff( Clip3<Intermediate_Int>( transformMinimum, transformMaximum, iCoeffQ ) );
+    }
+
+#else   // dequant remaining coefficients using SSE
+
+    if( x < endX )
+    {
+      CHECKD( endX - x >= 4 || endX - x != maskCoeffs, "wrong mask for remaining coeffs" << ( endX - x ) << " " << maskCoeffs );
+
+      if( UseScalingList )
+      {
+        vScale = _mm_set1_epi32( scaleQP );
+        vScale = _mm_mullo_epi32( vScale, _mm_loadu_si128( (__m128i*) &piDequantCoef[n] ) );
+        vScale = _mm_and_si128( vScale, vMask );
       }
-    }
-    else
-    {
-      __m256i xv_max =  _mm256_set1_epi16 ((short)inputMaximum);
-      __m256i xv_min =  _mm256_set1_epi16 ((short)inputMinimum);
-      __m256i xv_scaleQP = _mm256_set1_epi16 ((short)scaleQP);
-      __m256i xv_Tmax =  _mm256_set1_epi32 ((short)transformMaximum);
-      __m256i xv_Tmin =  _mm256_set1_epi32 ((short)transformMinimum);
-      __m256i v_scale_l,v_scale_h;
 
-      for( int y = 0; y <= maxY; y++)
+      __m128i vLevel = QCoef_16bit ? _mm_cvtepi16_epi32( _mm_loadu_si64( &piQCoef[x + y * piQCfStride] ) )   // 16 bit coeffs
+                                   : _mm_loadu_si128( (__m128i*) &piQCoef[x + y * piQCfStride] );            // 32 bit coeffs
+
+      vLevel = _mm_and_si128( vLevel, vMask );
+
+      vLevel = _mm_max_epi32( vLevel, vInputMin );
+      vLevel = _mm_min_epi32( vLevel, vInputMax );
+
+      vLevel = _mm_mullo_epi32( vLevel, vScale );
+      if( RightShiftPositive )
       {
-        for( int x = 0; x <= maxX; x+=16)
-        {
-          __m256i xv_level = _mm256_loadu_si256( ( __m256i const * )&piQCoef[x+ y * piQCfStride]  );
-          v_scale_l = _mm256_loadu_si256( ( const __m256i* ) &piDequantCoef[y * width + x ]);
-          v_scale_h = _mm256_loadu_si256( ( const __m256i* ) &piDequantCoef[y * width + x + 8 ]);
-
-          xv_level = _mm256_and_si256(xv_level,xvlevmask);
-          xv_level = _mm256_max_epi16 (xv_level, xv_min);
-          xv_level = _mm256_min_epi16 (xv_level, xv_max);
-          __m256i xv_low = _mm256_mullo_epi16(xv_level,xv_scaleQP);
-          __m256i xv_high = _mm256_mulhi_epi16(xv_level,xv_scaleQP);
-
-          xv_low = _mm256_permute4x64_epi64(xv_low,0xD8);
-          xv_high = _mm256_permute4x64_epi64(xv_high,0xD8);
-
-          xv_level = _mm256_unpacklo_epi16(xv_low,xv_high);
-          xv_level = _mm256_mullo_epi32(xv_level,v_scale_l);
-
-          xv_level = _mm256_sll_epi32(xv_level,v_lshift);
-
-          xv_level = _mm256_max_epi32 (xv_level, xv_Tmin);
-          xv_level = _mm256_min_epi32 (xv_level, xv_Tmax);
-
-          _mm256_storeu_si256(( __m256i * )(piCoef+x+y*width ), xv_level );
-          xv_level = _mm256_unpackhi_epi16(xv_low,xv_high);
-          xv_level = _mm256_mullo_epi32(xv_level,v_scale_h);
-
-          xv_level = _mm256_sll_epi32(xv_level,v_lshift);
-
-          xv_level = _mm256_max_epi32 (xv_level, xv_Tmin);
-          xv_level = _mm256_min_epi32 (xv_level, xv_Tmax);
-
-          _mm256_storeu_si256(( __m256i * )(piCoef+8+x+y*width ), xv_level );
-        }
+        vLevel = _mm_add_epi32( vLevel, vAdd );
+        vLevel = _mm_sra_epi32( vLevel, vShift );
       }
-    }
-#else
-    else
-    {
-      __m128i v_scale_l,v_scale_h;
-      for( int y = 0; y <= maxY; y++)
+      else
       {
-        for( int x = 0; x <= maxX; x+=8)
-        {
-          __m128i v_level = _mm_loadu_si128( ( __m128i const * )&piQCoef[x+ y * piQCfStride]  );
+        vLevel = _mm_sll_epi32( vLevel, vShift );
+      }
 
-          v_scale_l = _mm_loadu_si128( ( const __m128i* ) &piDequantCoef[y * width+x] );
-          v_level = _mm_and_si128(v_level,vlevmask);
-          v_level = _mm_max_epi16 (v_level, v_min);
-          v_level = _mm_min_epi16 (v_level, v_max);
-          __m128i v_low = _mm_mullo_epi16(v_level,v_scaleQP);
-          __m128i v_high = _mm_mulhi_epi16(v_level,v_scaleQP);
+      vLevel = _mm_max_epi32( vLevel, vTransformMin );
+      vLevel = _mm_min_epi32( vLevel, vTransformMax );
 
-          v_level = _mm_unpacklo_epi16(v_low,v_high);
-          v_level = _mm_mullo_epi32(v_level,v_scale_l);
-          v_level = _mm_sll_epi32(v_level,v_lshift);
-          v_level = _mm_max_epi32 (v_level, v_Tmin);
-          v_level = _mm_min_epi32 (v_level, v_Tmax);
-          _mm_storeu_si128(( __m128i * )(piCoef+x+y*width ), v_level );
-
-          if (maxX + 1 - x > 4)
-          {
-            v_scale_h = _mm_loadu_si128( ( const __m128i* ) &piDequantCoef[y * width+x+4] );
-            v_level = _mm_unpackhi_epi16(v_low,v_high);
-            v_level = _mm_mullo_epi32(v_level,v_scale_h);
-            v_level = _mm_sll_epi32(v_level,v_lshift);
-            v_level = _mm_max_epi32 (v_level, v_Tmin);
-            v_level = _mm_min_epi32 (v_level, v_Tmax);
-            _mm_storeu_si128(( __m128i * )(piCoef+4+x+y*width ), v_level );
-          }
-        }
+      if( maskCoeffs <= 2 )
+      {
+        _mm_storeu_si64( (__m128i*) &piCoef[n], vLevel );
+      }
+      else
+      {
+        _mm_storeu_si128( (__m128i*) &piCoef[n], vLevel );
       }
     }
 #endif
   }
 }
 
-template< X86_VEXT vext>
-static void DeQuantCoreSIMD(const int maxX,const int restX,const int maxY,const int scale,const TCoeffSig*const piQCoef,const size_t piQCfStride,TCoeff   *const piCoef,const int rightShift,const int inputMaximum,const TCoeff transformMaximum)
+template<X86_VEXT vext, class T>
+static void DeQuantCoreSIMD( const SizeType width,
+                             const int      maxX,
+                             const int      maxY,
+                             const int      scale,
+                             const T* const piQCoef,
+                             const size_t   piQCfStride,
+                             TCoeff* const  piCoef,
+                             const int      rightShift,
+                             const int      inputMaximum,
+                             const TCoeff   transformMaximum )
 {
-  const int inputMinimum = -(inputMaximum+1);
-  const TCoeff transformMinimum = -(transformMaximum+1);
-  const int width = restX+maxX+1;
-  __m128i vlevmask;
-  if (maxX<7)
-    vlevmask = _mm_loadu_si128( ( __m128i const * )&levmask[7-maxX] );
-  else
-    vlevmask = _mm_set_epi64x(0xffffffffffffffff,0xffffffffffffffff);
-
-#if USE_AVX2
-  __m256i xvlevmask;
-  if (maxX<15)
-    xvlevmask = _mm256_loadu_si256( ( __m256i const * )&xlevmask[15-maxX] );
-  else
-    xvlevmask = _mm256_set_epi64x(0xffffffffffffffff,0xffffffffffffffff,0xffffffffffffffff,0xffffffffffffffff);
-
-#endif
-
-  if (rightShift>0)
+  if( maxX < 2 )
   {
-    const Intermediate_Int iAdd = (Intermediate_Int) 1 << (rightShift - 1);
-
-    __m128i v_max =  _mm_set1_epi16 ((short)inputMaximum);
-    __m128i v_min =  _mm_set1_epi16 ((short)inputMinimum);
-    __m128i v_Tmax =  _mm_set1_epi32 ((short)transformMaximum);
-    __m128i v_Tmin =  _mm_set1_epi32 ((short)transformMinimum);
-    __m128i v_scale = _mm_set1_epi16 ((short)scale);
-    __m128i v_add = _mm_set1_epi32 (iAdd);
-    __m128i v_rshift = _mm_set1_epi64x (rightShift);
-
-    if (maxX<4)
-    {
-      for( int y = 0; y <= maxY; y++)
-      {
-        __m128i v_level = maxX  > 1 ? _mm_loadu_si64( ( const __m128i* ) &piQCoef[y * piQCfStride] )
-                        : maxX == 1 ? _mm_setr_epi16( piQCoef[y * piQCfStride], piQCoef[y * piQCfStride + 1], 0, 0, 0, 0, 0, 0 )
-                                    : _mm_setr_epi16( piQCoef[y * piQCfStride], 0, 0, 0, 0, 0, 0, 0 );
-
-        v_level = _mm_max_epi16 (v_level, v_min);
-        v_level = _mm_min_epi16 (v_level, v_max);
-        __m128i v_low = _mm_mullo_epi16(v_level,v_scale);
-        __m128i v_high = _mm_mulhi_epi16(v_level,v_scale);
-
-        v_level = _mm_unpacklo_epi16(v_low,v_high);
-        v_level =  _mm_add_epi32(v_level,v_add);
-        v_level = _mm_sra_epi32(v_level,v_rshift);
-
-        v_level = _mm_max_epi32 (v_level, v_Tmin);
-        v_level = _mm_min_epi32 (v_level, v_Tmax);
-        _mm_storeu_si128(( __m128i * )(piCoef+y*width ), v_level );
-      }
-    }
-#if USE_AVX2
-    else if (maxX<8)
-    {
-      __m256i xv_add = _mm256_set1_epi32 (iAdd);
-      __m256i xv_Tmax =  _mm256_set1_epi32 ((short)transformMaximum);
-      __m256i xv_Tmin =  _mm256_set1_epi32 ((short)transformMinimum);
-
-      for( int y = 0; y <= maxY; y++)
-      {
-        __m128i v_level = _mm_loadu_si128( ( __m128i const * )&piQCoef[y * piQCfStride]  );
-        v_level = _mm_max_epi16 (v_level, v_min);
-        v_level = _mm_min_epi16 (v_level, v_max);
-        __m128i v_low = _mm_mullo_epi16(v_level,v_scale);
-        __m128i v_high = _mm_mulhi_epi16(v_level,v_scale);
-
-        __m256i xv_level = _mm256_set_m128i (_mm_unpackhi_epi16(v_low,v_high), _mm_unpacklo_epi16(v_low,v_high));
-
-        xv_level =  _mm256_add_epi32(xv_level,xv_add);
-        xv_level = _mm256_sra_epi32(xv_level,v_rshift);
-
-        xv_level = _mm256_max_epi32 (xv_level, xv_Tmin);
-        xv_level = _mm256_min_epi32 (xv_level, xv_Tmax);
-
-        _mm256_storeu_si256(( __m256i * )(piCoef+y*width ), xv_level );
-      }
-    }
-    else
-    {
-      __m256i xv_max =  _mm256_set1_epi16 ((short)inputMaximum);
-      __m256i xv_min =  _mm256_set1_epi16 ((short)inputMinimum);
-      __m256i xv_scale = _mm256_set1_epi16 ((short)scale);
-      __m256i xv_add = _mm256_set1_epi32 (iAdd);
-      __m256i xv_Tmax =  _mm256_set1_epi32 ((short)transformMaximum);
-      __m256i xv_Tmin =  _mm256_set1_epi32 ((short)transformMinimum);
-
-      for( int y = 0; y <= maxY; y++)
-      {
-        for( int x = 0; x <= maxX; x+=16)
-        {
-          __m256i xv_level = _mm256_loadu_si256( ( __m256i const * )&piQCoef[x+ y * piQCfStride]  );
-          xv_level = _mm256_and_si256(xv_level,xvlevmask);
-          xv_level = _mm256_max_epi16 (xv_level, xv_min);
-          xv_level = _mm256_min_epi16 (xv_level, xv_max);
-          __m256i xv_low = _mm256_mullo_epi16(xv_level,xv_scale);
-          __m256i xv_high = _mm256_mulhi_epi16(xv_level,xv_scale);
-
-          xv_low = _mm256_permute4x64_epi64(xv_low,0xD8);
-          xv_high = _mm256_permute4x64_epi64(xv_high,0xD8);
-
-
-          xv_level = _mm256_unpacklo_epi16(xv_low,xv_high);
-          xv_level =  _mm256_add_epi32(xv_level,xv_add);
-          xv_level = _mm256_sra_epi32(xv_level,v_rshift);
-
-          xv_level = _mm256_max_epi32 (xv_level, xv_Tmin);
-          xv_level = _mm256_min_epi32 (xv_level, xv_Tmax);
-
-          _mm256_storeu_si256(( __m256i * )(piCoef+x+y*width ), xv_level );
-          xv_level = _mm256_unpackhi_epi16(xv_low,xv_high);
-          xv_level =  _mm256_add_epi32(xv_level,xv_add);
-          xv_level = _mm256_sra_epi32(xv_level,v_rshift);
-
-          xv_level = _mm256_max_epi32 (xv_level, xv_Tmin);
-          xv_level = _mm256_min_epi32 (xv_level, xv_Tmax);
-
-          _mm256_storeu_si256(( __m256i * )(piCoef+8+x+y*width ), xv_level );
-        }
-      }
-
-    }
-
-#else
-/*
-    else if (maxX<8)
-    {
-      for( int y = 0; y <= maxY; y++)
-      {
-        __m128i v_level = _mm_loadu_si128( ( __m128i const * )&piQCoef[y * piQCfStride]  );
-        v_level = _mm_and_si128(v_level,vlevmask);
-        v_level = _mm_max_epi16 (v_level, v_min);
-        v_level = _mm_min_epi16 (v_level, v_max);
-        __m128i v_low = _mm_mullo_epi16(v_level,v_scale);
-        __m128i v_high = _mm_mulhi_epi16(v_level,v_scale);
-
-        v_level = _mm_unpacklo_epi16(v_low,v_high);
-        v_level =  _mm_add_epi32(v_level,v_add);
-        v_level = _mm_sra_epi32(v_level,v_rshift);
-
-        v_level = _mm_max_epi32 (v_level, v_Tmin);
-        v_level = _mm_min_epi32 (v_level, v_Tmax);
-        _mm_storeu_si128(( __m128i * )(piCoef+y*width ), v_level );
-
-        v_level = _mm_unpackhi_epi16(v_low,v_high);
-        v_level =  _mm_add_epi32(v_level,v_add);
-        v_level = _mm_sra_epi32(v_level,v_rshift);
-
-        v_level = _mm_max_epi32 (v_level, v_Tmin);
-        v_level = _mm_min_epi32 (v_level, v_Tmax);
-        _mm_storeu_si128(( __m128i * )(piCoef+4+y*width ), v_level );
-      }
-    }
-*/
-    else
-    {
-      for( int y = 0; y <= maxY; y++)
-      {
-        for( int x = 0; x <= maxX; x+=8)
-        {
-          __m128i v_level = _mm_loadu_si128( ( __m128i const * )&piQCoef[x+ y * piQCfStride]  );
-          v_level = _mm_and_si128(v_level,vlevmask);
-          v_level = _mm_max_epi16 (v_level, v_min);
-          v_level = _mm_min_epi16 (v_level, v_max);
-          __m128i v_low = _mm_mullo_epi16(v_level,v_scale);
-          __m128i v_high = _mm_mulhi_epi16(v_level,v_scale);
-
-          v_level = _mm_unpacklo_epi16(v_low,v_high);
-          v_level =  _mm_add_epi32(v_level,v_add);
-          v_level = _mm_sra_epi32(v_level,v_rshift);
-
-          v_level = _mm_max_epi32 (v_level, v_Tmin);
-          v_level = _mm_min_epi32 (v_level, v_Tmax);
-          _mm_storeu_si128(( __m128i * )(piCoef+x+y*width ), v_level );
-
-          if( maxX + 1 - x <= 4 ) continue;
-
-          v_level = _mm_unpackhi_epi16(v_low,v_high);
-          v_level =  _mm_add_epi32(v_level,v_add);
-          v_level = _mm_sra_epi32(v_level,v_rshift);
-
-          v_level = _mm_max_epi32 (v_level, v_Tmin);
-          v_level = _mm_min_epi32 (v_level, v_Tmax);
-          _mm_storeu_si128(( __m128i * )(piCoef+4+x+y*width ), v_level );
-        }
-      }
-    }
-#endif
+    Quant::DeQuantCore<T>(width,
+                   maxX,
+                   maxY,
+                   scale,
+                   piQCoef,
+                   piQCfStride,
+                   piCoef,
+                   rightShift,
+                   inputMaximum,
+                   transformMaximum );
   }
-  else  // rightshift <0
+  else if( rightShift > 0 )
   {
-
-    __m128i v_max =  _mm_set1_epi16 ((short)inputMaximum);
-    __m128i v_min =  _mm_set1_epi16 ((short)inputMinimum);
-    __m128i v_Tmax =  _mm_set1_epi32 ((short)transformMaximum);
-    __m128i v_Tmin =  _mm_set1_epi32 ((short)transformMinimum);
-    __m128i v_scale = _mm_set1_epi16 ((short)scale);
-    __m128i v_lshift = _mm_set1_epi64x (-rightShift);
-
-    if (maxX<4)
-    {
-      for( int y = 0; y <= maxY; y++)
-      {
-        __m128i v_level = maxX  > 1 ? _mm_loadu_si64( ( const __m128i* ) &piQCoef[y * piQCfStride] )
-                        : maxX == 1 ? _mm_setr_epi16( piQCoef[y * piQCfStride], piQCoef[y * piQCfStride + 1], 0, 0, 0, 0, 0, 0 )
-                                    : _mm_setr_epi16( piQCoef[y * piQCfStride], 0, 0, 0, 0, 0, 0, 0 );
-
-        v_level = _mm_max_epi16 (v_level, v_min);
-        v_level = _mm_min_epi16 (v_level, v_max);
-        __m128i v_low = _mm_mullo_epi16(v_level,v_scale);
-        __m128i v_high = _mm_mulhi_epi16(v_level,v_scale);
-
-        v_level = _mm_unpacklo_epi16(v_low,v_high);
-        v_level = _mm_sll_epi32(v_level,v_lshift);
-
-        v_level = _mm_max_epi32 (v_level, v_Tmin);
-        v_level = _mm_min_epi32 (v_level, v_Tmax);
-        _mm_storeu_si128(( __m128i * )(piCoef+y*width ), v_level );
-
-      }
-    }
-#if USE_AVX2
-    else if (maxX<8)
-    {
-      __m256i xv_Tmax =  _mm256_set1_epi32 ((short)transformMaximum);
-      __m256i xv_Tmin =  _mm256_set1_epi32 ((short)transformMinimum);
-
-      for( int y = 0; y <= maxY; y++)
-      {
-        __m128i v_level = _mm_loadu_si128( ( __m128i const * )&piQCoef[y * piQCfStride]  );
-        v_level = _mm_and_si128(v_level,vlevmask);
-        v_level = _mm_max_epi16 (v_level, v_min);
-        v_level = _mm_min_epi16 (v_level, v_max);
-        __m128i v_low = _mm_mullo_epi16(v_level,v_scale);
-        __m128i v_high = _mm_mulhi_epi16(v_level,v_scale);
-
-        __m256i xv_level = _mm256_set_m128i (_mm_unpackhi_epi16(v_low,v_high), _mm_unpacklo_epi16(v_low,v_high));
-
-        xv_level = _mm256_sll_epi32(xv_level,v_lshift);
-
-        xv_level = _mm256_max_epi32 (xv_level, xv_Tmin);
-        xv_level = _mm256_min_epi32 (xv_level, xv_Tmax);
-
-        _mm256_storeu_si256(( __m256i * )(piCoef+y*width ), xv_level );
-      }
-    }
-
-    else
-    {
-      __m256i xv_max =  _mm256_set1_epi16 ((short)inputMaximum);
-      __m256i xv_min =  _mm256_set1_epi16 ((short)inputMinimum);
-      __m256i xv_scale = _mm256_set1_epi16 ((short)scale);
-      __m256i xv_Tmax =  _mm256_set1_epi32 ((short)transformMaximum);
-      __m256i xv_Tmin =  _mm256_set1_epi32 ((short)transformMinimum);
-
-      for( int y = 0; y <= maxY; y++)
-      {
-        for( int x = 0; x <= maxX; x+=16)
-        {
-          __m256i xv_level = _mm256_loadu_si256( ( __m256i const * )&piQCoef[x+ y * piQCfStride]  );
-          xv_level = _mm256_and_si256(xv_level,xvlevmask);
-          xv_level = _mm256_max_epi16 (xv_level, xv_min);
-          xv_level = _mm256_min_epi16 (xv_level, xv_max);
-          __m256i xv_low = _mm256_mullo_epi16(xv_level,xv_scale);
-          __m256i xv_high = _mm256_mulhi_epi16(xv_level,xv_scale);
-
-          xv_low = _mm256_permute4x64_epi64(xv_low,0xD8);
-          xv_high = _mm256_permute4x64_epi64(xv_high,0xD8);
-
-
-          xv_level = _mm256_unpacklo_epi16(xv_low,xv_high);
-          xv_level = _mm256_sll_epi32(xv_level,v_lshift);
-
-          xv_level = _mm256_max_epi32 (xv_level, xv_Tmin);
-          xv_level = _mm256_min_epi32 (xv_level, xv_Tmax);
-
-          _mm256_storeu_si256(( __m256i * )(piCoef+x+y*width ), xv_level );
-          xv_level = _mm256_unpackhi_epi16(xv_low,xv_high);
-          xv_level = _mm256_sll_epi32(xv_level,v_lshift);
-
-          xv_level = _mm256_max_epi32 (xv_level, xv_Tmin);
-          xv_level = _mm256_min_epi32 (xv_level, xv_Tmax);
-
-          _mm256_storeu_si256(( __m256i * )(piCoef+8+x+y*width ), xv_level );
-        }
-      }
-    }
-
-#else
-/*
-    else if (maxX<8)
-    {
-      for( int y = 0; y <= maxY; y++)
-      {
-        __m128i v_level = _mm_loadu_si128( ( __m128i const * )&piQCoef[y * piQCfStride]  );
-        v_level = _mm_and_si128(v_level,vlevmask);
-        v_level = _mm_max_epi16 (v_level, v_min);
-        v_level = _mm_min_epi16 (v_level, v_max);
-        __m128i v_low = _mm_mullo_epi16(v_level,v_scale);
-        __m128i v_high = _mm_mulhi_epi16(v_level,v_scale);
-
-        v_level = _mm_unpacklo_epi16(v_low,v_high);
-        v_level = _mm_sll_epi32(v_level,v_lshift);
-
-        v_level = _mm_max_epi32 (v_level, v_Tmin);
-        v_level = _mm_min_epi32 (v_level, v_Tmax);
-        _mm_storeu_si128(( __m128i * )(piCoef+y*width ), v_level );
-
-        v_level = _mm_unpackhi_epi16(v_low,v_high);
-        v_level = _mm_sll_epi32(v_level,v_lshift);
-
-        v_level = _mm_max_epi32 (v_level, v_Tmin);
-        v_level = _mm_min_epi32 (v_level, v_Tmax);
-        _mm_storeu_si128(( __m128i * )(piCoef+4+y*width ), v_level );
-      }
-    }
-*/
-    else
-    {
-      for( int y = 0; y <= maxY; y++)
-      {
-        for( int x = 0; x <= maxX; x+=8)
-        {
-          __m128i v_level = _mm_loadu_si128( ( __m128i const * )&piQCoef[x+ y * piQCfStride]  );
-          v_level = _mm_and_si128(v_level,vlevmask);
-          v_level = _mm_max_epi16 (v_level, v_min);
-          v_level = _mm_min_epi16 (v_level, v_max);
-          __m128i v_low = _mm_mullo_epi16(v_level,v_scale);
-          __m128i v_high = _mm_mulhi_epi16(v_level,v_scale);
-
-          v_level = _mm_unpacklo_epi16(v_low,v_high);
-          v_level = _mm_sll_epi32(v_level,v_lshift);
-
-          v_level = _mm_max_epi32 (v_level, v_Tmin);
-          v_level = _mm_min_epi32 (v_level, v_Tmax);
-          _mm_storeu_si128(( __m128i * )(piCoef+x+y*width ), v_level );
-
-          if( maxX + 1 - x <= 4 ) continue;
-
-          v_level = _mm_unpackhi_epi16(v_low,v_high);
-          v_level = _mm_sll_epi32(v_level,v_lshift);
-
-          v_level = _mm_max_epi32 (v_level, v_Tmin);
-          v_level = _mm_min_epi32 (v_level, v_Tmax);
-          _mm_storeu_si128(( __m128i * )(piCoef+4+x+y*width ), v_level );
-        }
-      }
-    }
-#endif
+    DeQuantImplSIMD<vext, T, false, true>( width, maxX, maxY, scale, nullptr, piQCoef, piQCfStride, piCoef, rightShift, inputMaximum, transformMaximum );
+  }
+  else
+  {
+    DeQuantImplSIMD<vext, T, false, false>( width, maxX, maxY, scale, nullptr, piQCoef, piQCfStride, piCoef, rightShift, inputMaximum, transformMaximum );
   }
 }
 
-template< X86_VEXT vext>
-static void DeQuantCorePCMSIMD(const int maxX,const int restX,const int maxY,const int scale,TCoeff   *const piQCoef,const size_t piQCfStride,TCoeff   *const piCoef,const int rightShift,const int inputMaximum,const TCoeff transformMaximum)
+template<X86_VEXT vext, class T>
+static void DeQuantScalingCoreSIMD( const SizeType width,
+                                    const int      maxX,
+                                    const int      maxY,
+                                    const int      scaleQP,
+                                    const int*     piDequantCoef,
+                                    const T* const piQCoef,
+                                    const size_t   piQCfStride,
+                                    TCoeff* const  piCoef,
+                                    const int      rightShift,
+                                    const int      inputMaximum,
+                                    const TCoeff   transformMaximum )
 {
-  const int inputMinimum = -(inputMaximum+1);
-  const TCoeff transformMinimum = -(transformMaximum+1);
-  const int width = restX+maxX+1;
-  __m128i vlevmask;
-  if (maxX<7)
-    vlevmask = _mm_loadu_si128( ( __m128i const * )&levmask[7-maxX] );
-  else
-    vlevmask = _mm_set_epi64x(0xffffffffffffffff,0xffffffffffffffff);
-
-  if (rightShift>0)
+  if( maxX < 2 )
   {
-    const Intermediate_Int iAdd = (Intermediate_Int) 1 << (rightShift - 1);
-
-    __m128i v_max =  _mm_set1_epi16 ((short)inputMaximum);
-    __m128i v_min =  _mm_set1_epi16 ((short)inputMinimum);
-    __m128i v_Tmax =  _mm_set1_epi32 ((short)transformMaximum);
-    __m128i v_Tmin =  _mm_set1_epi32 ((short)transformMinimum);
-    __m128i v_scale = _mm_set1_epi16 ((short)scale);
-    __m128i v_add = _mm_set1_epi32 (iAdd);
-    __m128i v_rshift = _mm_set1_epi64x (rightShift);
-
-    if (maxX<4)
-    {
-      for( int y = 0; y <= maxY; y++)
-      {
-        __m128i v_level = _mm_loadu_si128( ( __m128i const * )&piQCoef[y * piQCfStride]  );
-        v_level = _mm_packs_epi32 (v_level,v_level);
-        v_level = _mm_and_si128(v_level,vlevmask);
-        v_level = _mm_max_epi16 (v_level, v_min);
-        v_level = _mm_min_epi16 (v_level, v_max);
-        __m128i v_low = _mm_mullo_epi16(v_level,v_scale);
-        __m128i v_high = _mm_mulhi_epi16(v_level,v_scale);
-
-        v_level = _mm_unpacklo_epi16(v_low,v_high);
-        v_level =  _mm_add_epi32(v_level,v_add);
-        v_level = _mm_sra_epi32(v_level,v_rshift);
-
-        v_level = _mm_max_epi32 (v_level, v_Tmin);
-        v_level = _mm_min_epi32 (v_level, v_Tmax);
-        _mm_storeu_si128(( __m128i * )(piCoef+y*width ), v_level );
-      }
-    }
-    else
-    {
-      for( int y = 0; y <= maxY; y++)
-      {
-        for( int x = 0; x <= maxX; x+=8)
-        {
-
-          __m128i v_levell = _mm_loadu_si128( ( __m128i const * )&piQCoef[x+ y * piQCfStride]  );
-          __m128i v_levelh = _mm_loadu_si128( ( __m128i const * )&piQCoef[x+4 + y * piQCfStride]  );
-          __m128i v_level = _mm_packs_epi32 (v_levell,v_levelh);
-          v_level = _mm_and_si128(v_level,vlevmask);
-          v_level = _mm_max_epi16 (v_level, v_min);
-          v_level = _mm_min_epi16 (v_level, v_max);
-          __m128i v_low = _mm_mullo_epi16(v_level,v_scale);
-          __m128i v_high = _mm_mulhi_epi16(v_level,v_scale);
-
-          v_level = _mm_unpacklo_epi16(v_low,v_high);
-          v_level =  _mm_add_epi32(v_level,v_add);
-          v_level = _mm_sra_epi32(v_level,v_rshift);
-
-          v_level = _mm_max_epi32 (v_level, v_Tmin);
-          v_level = _mm_min_epi32 (v_level, v_Tmax);
-          _mm_storeu_si128(( __m128i * )(piCoef+x+y*width ), v_level );
-
-          v_level = _mm_unpackhi_epi16(v_low,v_high);
-          v_level =  _mm_add_epi32(v_level,v_add);
-          v_level = _mm_sra_epi32(v_level,v_rshift);
-
-          v_level = _mm_max_epi32 (v_level, v_Tmin);
-          v_level = _mm_min_epi32 (v_level, v_Tmax);
-          _mm_storeu_si128(( __m128i * )(piCoef+4+x+y*width ), v_level );
-        }
-      }
-    }
+    Quant::DeQuantScalingCore<T>(width,
+                          maxX,
+                          maxY,
+                          scaleQP,
+                          piDequantCoef,
+                          piQCoef,
+                          piQCfStride,
+                          piCoef,
+                          rightShift,
+                          inputMaximum,
+                          transformMaximum );
   }
-  else  // rightshift <0
+  else if( rightShift > 0 )
   {
-
-    __m128i v_max =  _mm_set1_epi16 ((short)inputMaximum);
-    __m128i v_min =  _mm_set1_epi16 ((short)inputMinimum);
-    __m128i v_Tmax =  _mm_set1_epi32 ((short)transformMaximum);
-    __m128i v_Tmin =  _mm_set1_epi32 ((short)transformMinimum);
-    __m128i v_scale = _mm_set1_epi16 ((short)scale);
-    __m128i v_lshift = _mm_set1_epi64x (-rightShift);
-
-    if (maxX<4)
-    {
-      for( int y = 0; y <= maxY; y++)
-      {
-        __m128i v_level = _mm_loadu_si128( ( __m128i const * )&piQCoef[y * piQCfStride]  );
-        v_level = _mm_packs_epi32 (v_level,v_level);
-        v_level = _mm_and_si128(v_level,vlevmask);
-
-        v_level = _mm_max_epi16 (v_level, v_min);
-        v_level = _mm_min_epi16 (v_level, v_max);
-        __m128i v_low = _mm_mullo_epi16(v_level,v_scale);
-        __m128i v_high = _mm_mulhi_epi16(v_level,v_scale);
-
-        v_level = _mm_unpacklo_epi16(v_low,v_high);
-        v_level = _mm_sll_epi32(v_level,v_lshift);
-
-        v_level = _mm_max_epi32 (v_level, v_Tmin);
-        v_level = _mm_min_epi32 (v_level, v_Tmax);
-        _mm_storeu_si128(( __m128i * )(piCoef+y*width ), v_level );
-      }
-    }
-    else
-    {
-      for( int y = 0; y <= maxY; y++)
-      {
-        for( int x = 0; x <= maxX; x+=8)
-        {
-          __m128i v_levell = _mm_loadu_si128( ( __m128i const * )&piQCoef[x+ y * piQCfStride]  );
-          __m128i v_levelh = _mm_loadu_si128( ( __m128i const * )&piQCoef[x+4 + y * piQCfStride]  );
-          __m128i v_level = _mm_packs_epi32 (v_levell,v_levelh);
-          v_level = _mm_and_si128(v_level,vlevmask);
-          v_level = _mm_max_epi16 (v_level, v_min);
-          v_level = _mm_min_epi16 (v_level, v_max);
-          __m128i v_low = _mm_mullo_epi16(v_level,v_scale);
-          __m128i v_high = _mm_mulhi_epi16(v_level,v_scale);
-
-          v_level = _mm_unpacklo_epi16(v_low,v_high);
-          v_level = _mm_sll_epi32(v_level,v_lshift);
-
-          v_level = _mm_max_epi32 (v_level, v_Tmin);
-          v_level = _mm_min_epi32 (v_level, v_Tmax);
-          _mm_storeu_si128(( __m128i * )(piCoef+x+y*width ), v_level );
-
-          v_level = _mm_unpackhi_epi16(v_low,v_high);
-          v_level = _mm_sll_epi32(v_level,v_lshift);
-
-          v_level = _mm_max_epi32 (v_level, v_Tmin);
-          v_level = _mm_min_epi32 (v_level, v_Tmax);
-          _mm_storeu_si128(( __m128i * )(piCoef+4+x+y*width ), v_level );
-        }
-      }
-    }
+    DeQuantImplSIMD<vext, T, true, true>( width, maxX, maxY, scaleQP, piDequantCoef, piQCoef, piQCfStride, piCoef, rightShift, inputMaximum, transformMaximum );
+  }
+  else
+  {
+    DeQuantImplSIMD<vext, T, true, false>( width, maxX, maxY, scaleQP, piDequantCoef, piQCoef, piQCfStride, piCoef, rightShift, inputMaximum, transformMaximum );
   }
 }
-
-template< X86_VEXT vext>
-static void DeQuantScalingPCMCoreSIMD(const int maxX,const int restX,const int maxY,const int scaleQP,const int     *piDequantCoef,TCoeff   *const piQCoef,const size_t piQCfStride,TCoeff   *const piCoef,const int rightShift,const int inputMaximum,const TCoeff transformMaximum)
-{
-  const int inputMinimum = -(inputMaximum+1);
-  const TCoeff transformMinimum = -(transformMaximum+1);
-  const int width = restX+maxX+1;
-  __m128i vlevmask;
-  if (maxX<7)
-    vlevmask = _mm_loadu_si128( ( __m128i const * )&levmask[7-maxX] );
-  else
-    vlevmask = _mm_set_epi64x(0xffffffffffffffff,0xffffffffffffffff);
-
-  if (rightShift>0)
-  {
-    const Intermediate_Int iAdd = (Intermediate_Int) 1 << (rightShift - 1);
-
-    __m128i v_max =  _mm_set1_epi16 ((short)inputMaximum);
-    __m128i v_min =  _mm_set1_epi16 ((short)inputMinimum);
-    __m128i v_Tmax =  _mm_set1_epi32 ((short)transformMaximum);
-    __m128i v_Tmin =  _mm_set1_epi32 ((short)transformMinimum);
-    __m128i v_scaleQP = _mm_set1_epi16 ((short)scaleQP);
-    __m128i v_add = _mm_set1_epi32 (iAdd);
-    __m128i v_rshift = _mm_set1_epi64x (rightShift);
-
-    if (maxX<4)
-    {
-      for( int y = 0; y <= maxY; y++)
-      {
-        __m128i v_level = _mm_loadu_si128( ( __m128i const * )&piQCoef[y * piQCfStride]  );
-        __m128i v_scale = maxX  > 1 ? _mm_loadu_si128( ( const __m128i* ) &piDequantCoef[y * width] )
-                                : maxX == 1 ? _mm_setr_epi32( piDequantCoef[y * width], piDequantCoef[y * width + 1], 0, 0 )
-                                            : _mm_setr_epi32( piDequantCoef[y * width], 0, 0, 0 );
-
-        v_level = _mm_packs_epi32 (v_level,v_level);
-        v_level = _mm_and_si128(v_level,vlevmask);
-        v_level = _mm_max_epi16 (v_level, v_min);
-        v_level = _mm_min_epi16 (v_level, v_max);
-        __m128i v_low = _mm_mullo_epi16(v_level,v_scaleQP);
-        __m128i v_high = _mm_mulhi_epi16(v_level,v_scaleQP);
-
-        v_level = _mm_unpacklo_epi16(v_low,v_high);
-        v_level = _mm_mullo_epi32(v_level,v_scale);
-
-        v_level =  _mm_add_epi32(v_level,v_add);
-        v_level = _mm_sra_epi32(v_level,v_rshift);
-
-        v_level = _mm_max_epi32 (v_level, v_Tmin);
-        v_level = _mm_min_epi32 (v_level, v_Tmax);
-        _mm_storeu_si128(( __m128i * )(piCoef+y*width ), v_level );
-      }
-    }
-    else
-    {
-      for( int y = 0; y <= maxY; y++)
-      {
-        for( int x = 0; x <= maxX; x+=8)
-        {
-          __m128i v_levell = _mm_loadu_si128( ( __m128i const * )&piQCoef[x+ y * piQCfStride]  );
-          __m128i v_scale = _mm_loadu_si128( ( const __m128i* ) &piDequantCoef[y * width+x] );
-          __m128i v_levelh = _mm_loadu_si128( ( __m128i const * )&piQCoef[x+4 + y * piQCfStride]  );
-          __m128i v_level = _mm_packs_epi32 (v_levell,v_levelh);
-
-          v_level = _mm_and_si128(v_level,vlevmask);
-          v_level = _mm_max_epi16 (v_level, v_min);
-          v_level = _mm_min_epi16 (v_level, v_max);
-          __m128i v_low = _mm_mullo_epi16(v_level,v_scaleQP);
-          __m128i v_high = _mm_mulhi_epi16(v_level,v_scaleQP);
-
-          v_level = _mm_unpacklo_epi16(v_low,v_high);
-
-          v_level = _mm_mullo_epi32(v_level,v_scale);
-
-          v_level =  _mm_add_epi32(v_level,v_add);
-          v_level = _mm_sra_epi32(v_level,v_rshift);
-
-          v_level = _mm_max_epi32 (v_level, v_Tmin);
-          v_level = _mm_min_epi32 (v_level, v_Tmax);
-          _mm_storeu_si128(( __m128i * )(piCoef+x+y*width ), v_level );
-
-          v_scale = _mm_loadu_si128( ( const __m128i* ) &piDequantCoef[y * width+x+4]);
-          v_level = _mm_unpackhi_epi16(v_low,v_high);
-          v_level = _mm_mullo_epi32(v_level,v_scale);
-          v_level =  _mm_add_epi32(v_level,v_add);
-          v_level = _mm_sra_epi32(v_level,v_rshift);
-
-          v_level = _mm_max_epi32 (v_level, v_Tmin);
-          v_level = _mm_min_epi32 (v_level, v_Tmax);
-          _mm_storeu_si128(( __m128i * )(piCoef+4+x+y*width ), v_level );
-        }
-      }
-    }
-  }
-  else  // rightshift <0
-  {
-    __m128i v_max =  _mm_set1_epi16 ((short)inputMaximum);
-    __m128i v_min =  _mm_set1_epi16 ((short)inputMinimum);
-    __m128i v_Tmax =  _mm_set1_epi32 ((short)transformMaximum);
-    __m128i v_Tmin =  _mm_set1_epi32 ((short)transformMinimum);
-    __m128i v_scaleQP = _mm_set1_epi16 ((short)scaleQP);
-    __m128i v_lshift = _mm_set1_epi64x (-rightShift);
-
-    if (maxX<4)
-    {
-      for( int y = 0; y <= maxY; y++)
-      {
-        __m128i v_level = _mm_loadu_si128( ( __m128i const * )&piQCoef[y * piQCfStride]  );
-        __m128i v_scale = maxX  > 1 ? _mm_loadu_si128( ( const __m128i* ) &piDequantCoef[y * width] )
-                                : maxX == 1 ? _mm_setr_epi32( piDequantCoef[y * width], piDequantCoef[y * width + 1], 0, 0 )
-                                            : _mm_setr_epi32( piDequantCoef[y * width], 0, 0, 0 );
-
-        v_level = _mm_packs_epi32 (v_level,v_level);
-        v_level = _mm_and_si128(v_level,vlevmask);
-
-        v_level = _mm_max_epi16 (v_level, v_min);
-        v_level = _mm_min_epi16 (v_level, v_max);
-        __m128i v_low = _mm_mullo_epi16(v_level,v_scaleQP);
-        __m128i v_high = _mm_mulhi_epi16(v_level,v_scaleQP);
-
-        v_level = _mm_unpacklo_epi16(v_low,v_high);
-        v_level = _mm_mullo_epi32(v_level,v_scale);
-
-        v_level = _mm_sll_epi32(v_level,v_lshift);
-        v_level = _mm_max_epi32 (v_level, v_Tmin);
-        v_level = _mm_min_epi32 (v_level, v_Tmax);
-        _mm_storeu_si128(( __m128i * )(piCoef+y*width ), v_level );
-      }
-    }
-    else
-    {
-      for( int y = 0; y <= maxY; y++)
-      {
-        for( int x = 0; x <= maxX; x+=8)
-        {
-          __m128i v_levell = _mm_loadu_si128( ( __m128i const * )&piQCoef[x+ y * piQCfStride]  );
-          __m128i v_levelh = _mm_loadu_si128( ( __m128i const * )&piQCoef[x+4 + y * piQCfStride]  );
-          __m128i v_scale = _mm_loadu_si128( ( const __m128i* ) &piDequantCoef[y * width+x] );
-
-          __m128i v_level = _mm_packs_epi32 (v_levell,v_levelh);
-          v_level = _mm_and_si128(v_level,vlevmask);
-          v_level = _mm_max_epi16 (v_level, v_min);
-          v_level = _mm_min_epi16 (v_level, v_max);
-          __m128i v_low = _mm_mullo_epi16(v_level,v_scaleQP);
-          __m128i v_high = _mm_mulhi_epi16(v_level,v_scaleQP);
-
-          v_level = _mm_unpacklo_epi16(v_low,v_high);
-          v_level = _mm_mullo_epi32(v_level,v_scale);
-
-          v_level = _mm_sll_epi32(v_level,v_lshift);
-
-          v_level = _mm_max_epi32 (v_level, v_Tmin);
-          v_level = _mm_min_epi32 (v_level, v_Tmax);
-          _mm_storeu_si128(( __m128i * )(piCoef+x+y*width ), v_level );
-
-          v_scale = _mm_loadu_si128( ( const __m128i* ) &piDequantCoef[y * width+x+4]);
-
-          v_level = _mm_unpackhi_epi16(v_low,v_high);
-          v_level = _mm_mullo_epi32(v_level,v_scale);
-
-          v_level = _mm_sll_epi32(v_level,v_lshift);
-          v_level = _mm_max_epi32 (v_level, v_Tmin);
-          v_level = _mm_min_epi32 (v_level, v_Tmax);
-          _mm_storeu_si128(( __m128i * )(piCoef+4+x+y*width ), v_level );
-        }
-      }
-    }
-  }
-}
-
-
-
 
 template<X86_VEXT vext>
 void Quant::_initQuantX86()
 {
-  DeQuant = DeQuantCoreSIMD<vext>;
-  DeQuantPCM = DeQuantCorePCMSIMD<vext>;
-  DeQuantScaling    = DeQuantScalingCoreSIMD<vext>;
-  DeQuantScalingPCM    = DeQuantScalingPCMCoreSIMD<vext>;
-
+  DeQuant           = DeQuantCoreSIMD<vext, TCoeffSig>;
+  DeQuantPCM        = DeQuantCoreSIMD<vext, TCoeff>;
+  DeQuantScaling    = DeQuantScalingCoreSIMD<vext, TCoeffSig>;
+  DeQuantScalingPCM = DeQuantScalingCoreSIMD<vext, TCoeff>;
 }
 template void Quant::_initQuantX86<SIMDX86>();
 
-#endif // TARGET_SIMD_X86
-#endif
+#endif  // TARGET_SIMD_X86
+#endif  // ENABLE_SIMD_OPT_QUANT
 
-}
+}   // namespace vvdec

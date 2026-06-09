@@ -87,6 +87,10 @@ ifneq ($(enable-tracing),)
 CONFIG_OPTIONS += -DVVDEC_ENABLE_TRACING=$(enable-tracing)
 endif
 
+ifneq ($(write-input-bitstream),)
+CONFIG_OPTIONS += -DVVDEC_WRITE_INPUT_BITSTREAM=$(enable-tracing)
+endif
+
 ifeq ($(j),)
 # Query cmake for the number of cores
 NUM_JOBS := $(shell cmake -P cmake/modules/vvdecNumCores.cmake)
