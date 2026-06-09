@@ -809,7 +809,6 @@ void xPredIntraPlanar_SIMD( const CPelBuf &pSrc, PelBuf &pDst, const SPS& sps )
 
   const Pel *ptrSrc =pSrc.buf;
 
-  int leftColumn,rightColumn;
   Pel tmp;
   int topRight = pSrc.at( width + 1, 0 );
 
@@ -824,9 +823,9 @@ void xPredIntraPlanar_SIMD( const CPelBuf &pSrc, PelBuf &pDst, const SPS& sps )
 
   for( int y = 0; y < height; y++)
   {
-    leftColumn=pSrc.at(  0, y + 1 );
-    rightColumn = topRight - leftColumn;
-    leftColumn  = leftColumn << log2W;
+    int leftColumn  = pSrc.at( 0, y + 1 );
+    int rightColumn = topRight - leftColumn;
+    leftColumn = leftColumn * (1 << log2W);
     const __m128i leftColumn32 = _mm_set_epi32(leftColumn,leftColumn,leftColumn,leftColumn);
     const __m128i rightcolumn16 = _mm_set_epi16(rightColumn,rightColumn,rightColumn,rightColumn,rightColumn,rightColumn,rightColumn,rightColumn);
     const __m128i y16 = _mm_set_epi16(y+1,y+1,y+1,y+1,y+1,y+1,y+1,y+1);
