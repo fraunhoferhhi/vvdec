@@ -429,10 +429,24 @@ static bool check_one_filterBlk( AdaptiveLoopFilter* ref, AdaptiveLoopFilter* op
       }
     }
 
-    ref->m_filter7x7Blk( classifier.data(), dstUnitBuf_ref, srcUnitBuf, blk, compId, coeffLuma.data(), clipLuma.data(),
-                         clpRng, vbCTUHeight, vbPos );
-    opt->m_filter7x7Blk( classifier.data(), dstUnitBuf_opt, srcUnitBuf, blk, compId, coeffLuma.data(), clipLuma.data(),
-                         clpRng, vbCTUHeight, vbPos );
+    auto check7x7 = [&]( bool isFixedFilterSet, const char* mode )
+    {
+      std::fill( dst_ref.begin(), dst_ref.end(), 0 );
+      std::fill( dst_opt.begin(), dst_opt.end(), 0 );
+
+      ref->m_filter7x7Blk( classifier.data(), dstUnitBuf_ref, srcUnitBuf, blk, compId, coeffLuma.data(),
+                           clipLuma.data(), clpRng, vbCTUHeight, vbPos, isFixedFilterSet );
+      opt->m_filter7x7Blk( classifier.data(), dstUnitBuf_opt, srcUnitBuf, blk, compId, coeffLuma.data(),
+                           clipLuma.data(), clpRng, vbCTUHeight, vbPos, isFixedFilterSet );
+
+      return compare_values_2d( sstm.str() + mode, dst_ref.data(), dst_opt.data(), h, w, ( unsigned )dstStride );
+    };
+
+    bool passed = check7x7( false, " isFixedFilterSet=false" );
+    std::fill( clipLuma.begin(), clipLuma.end(), AdaptiveLoopFilter::m_alfClippVls[bitDepth - 8][0] );
+    passed = check7x7( true, " isFixedFilterSet=true" ) && passed;
+
+    return passed;
   }
   else
   {
@@ -476,12 +490,11 @@ static bool check_one_filterBlk( AdaptiveLoopFilter* ref, AdaptiveLoopFilter* op
 
     // The classifier is unused for 5x5 chroma filtering, so pass nullptr.
     ref->m_filter5x5Blk( nullptr, dstUnitBuf_ref, srcUnitBuf, blk, compId, chromaCoeff, chrmClip.data(), clpRng,
-                         vbCTUHeight, vbPos );
+                         vbCTUHeight, vbPos, /*isFixedFilterSet = */ false );
     opt->m_filter5x5Blk( nullptr, dstUnitBuf_opt, srcUnitBuf, blk, compId, chromaCoeff, chrmClip.data(), clpRng,
-                         vbCTUHeight, vbPos );
+                         vbCTUHeight, vbPos, /*isFixedFilterSet = */ false );
+    return compare_values_2d( sstm.str(), dst_ref.data(), dst_opt.data(), h, w, ( unsigned )dstStride );
   }
-
-  return compare_values_2d( sstm.str(), dst_ref.data(), dst_opt.data(), h, w, (unsigned)dstStride );
 }
 
 static bool check_deriveClassificationBlk( AdaptiveLoopFilter* ref, AdaptiveLoopFilter* opt, unsigned num_cases, int w,

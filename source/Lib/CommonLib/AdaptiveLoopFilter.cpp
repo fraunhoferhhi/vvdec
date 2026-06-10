@@ -507,6 +507,8 @@ void AdaptiveLoopFilter::filterAreaLuma( const CPelUnitBuf& srcBuf,
 {
   const short* coeff = nullptr;
   const short* clip  = nullptr;
+  const bool isFixedFilterSet = filterSetIndex < NUM_FIXED_FILTER_SETS;
+
   if( filterSetIndex >= NUM_FIXED_FILTER_SETS )
   {
     CHECK( slice->getNumAlfAps() <= ( filterSetIndex - NUM_FIXED_FILTER_SETS ), "deduemm" );
@@ -536,7 +538,7 @@ void AdaptiveLoopFilter::filterAreaLuma( const CPelUnitBuf& srcBuf,
       int nWidth = std::min( j + m_CLASSIFICATION_BLK_SIZE, right ) - j;
       
       m_deriveClassificationBlk( classifier[tId].data(), srcBuf.Y(),     Area( j, i, nWidth, nHeight ), m_inputBitDepth + 4,               m_alfVBLumaCTUHeight, m_alfVBLumaPos );
-      m_filter7x7Blk           ( classifier[tId].data(), dstBuf, srcBuf, Area( j, i, nWidth, nHeight ), COMPONENT_Y, coeff, clip, clpRngs, m_alfVBLumaCTUHeight, m_alfVBLumaPos );
+      m_filter7x7Blk           ( classifier[tId].data(), dstBuf, srcBuf, Area( j, i, nWidth, nHeight ), COMPONENT_Y, coeff, clip, clpRngs, m_alfVBLumaCTUHeight, m_alfVBLumaPos, isFixedFilterSet );
     }
   }
 }
@@ -569,7 +571,7 @@ void AdaptiveLoopFilter::filterAreaChroma( const CPelUnitBuf& srcBuf,
                     alfSliceParam.chrmClippFinal + altIdx * MAX_NUM_ALF_CHROMA_COEFF,
                     clpRngs,
                     m_alfVBChmaCTUHeight,
-                    m_alfVBChmaPos );
+                    m_alfVBChmaPos, false );
   }
   else
   {
@@ -1180,8 +1182,10 @@ void AdaptiveLoopFilter::filterBlk( const AlfClassifier* classifier,
                                     const short*         fClipSet,
                                     const ClpRng&        clpRng,
                                     int                  vbCTUHeight,
-                                    int                  vbPos )
+                                    int                  vbPos,
+                                    const bool           isFixedFilterSet )
 {
+  ( void ) isFixedFilterSet;
   const bool bChroma = isChroma( compId );
 
   if( bChroma )

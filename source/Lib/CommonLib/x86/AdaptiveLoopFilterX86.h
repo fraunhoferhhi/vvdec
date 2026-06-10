@@ -584,8 +584,10 @@ static void simdFilter5x5Blk( const AlfClassifier*,
                               const short*       fClipSet,
                               const ClpRng&      clpRng,
                               int                vbCTUHeight,
-                              int                vbPos )
+                              int                vbPos,
+                              const bool        isFixedFilterSet )
 {
+  ( void ) isFixedFilterSet;
   CHECK(!isChroma(compId), "ALF 5x5 filter is for chroma only");
 
 
@@ -773,8 +775,10 @@ void simdFilter5x5Blk<AVX2>( const AlfClassifier*,
                              const short*           fClipSet,
                              const ClpRng&          clpRng,
                              int                    vbCTUHeight,
-                             int                    vbPos )
+                             int                    vbPos,
+                             const bool             isFixedFilterSet )
 {
+  ( void ) isFixedFilterSet;
   CHECK( !isChroma( compId ), "ALF 5x5 filter is for chroma only" );
 
 
@@ -999,8 +1003,10 @@ static void simdFilter7x7Blk( const AlfClassifier*   classifier,
                               const short*           fClipSet,
                               const ClpRng&          clpRng,
                               int                    vbCTUHeight,
-                              int                    vbPos )
+                              int                    vbPos,
+                              const bool             isFixedFilterSet )
 {
+  ( void ) isFixedFilterSet;
   const CPelBuf srcBuffer = recSrc.get(compId);
   PelBuf        dstBuffer = recDst.get(compId);
 
@@ -1215,11 +1221,13 @@ void simdFilter7x7Blk<AVX2>( const AlfClassifier* classifier,
                              const short*         fClipSet,
                              const ClpRng&        clpRng,
                              int                  vbCTUHeight,
-                             int                  vbPos )
+                             int                  vbPos,
+                             const bool           isFixedFilterSet )
 {
+
   if( blk.width & 15 )
   {
-    simdFilter7x7Blk<SSE42>( classifier, recDst, recSrc, blk, compId, filterSet, fClipSet, clpRng, vbCTUHeight, vbPos );
+    simdFilter7x7Blk<SSE42>( classifier, recDst, recSrc, blk, compId, filterSet, fClipSet, clpRng, vbCTUHeight, vbPos, isFixedFilterSet );
     return;
   }
 

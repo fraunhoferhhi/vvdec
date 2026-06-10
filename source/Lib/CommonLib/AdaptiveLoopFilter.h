@@ -127,10 +127,10 @@ public:
 
   void ( *m_filter5x5Blk )( const AlfClassifier* classifier, const PelUnitBuf& recDst, const CPelUnitBuf& recSrc,
                             const Area& blk, const ComponentID compId, const short* filterSet, const short* fClipSet,
-                            const ClpRng& clpRng, int vbCTUHeight, int vbPos );
+                            const ClpRng& clpRng, int vbCTUHeight, int vbPos, const bool isFixedFilterSet );
   void ( *m_filter7x7Blk )( const AlfClassifier* classifier, const PelUnitBuf& recDst, const CPelUnitBuf& recSrc,
                             const Area& blk, const ComponentID compId, const short* filterSet, const short* fClipSet,
-                            const ClpRng& clpRng, int vbCTUHeight, int vbPos );
+                            const ClpRng& clpRng, int vbCTUHeight, int vbPos, const bool isFixedFilterSet );
   void ( *m_deriveClassificationBlk )( AlfClassifier *classifier, const CPelBuf& srcLuma, const Area& blk, const int shift, int vbCTUHeight, int vbPos );
 protected:
 
@@ -143,7 +143,7 @@ protected:
   void filterAreaChromaBothCc        ( const CPelUnitBuf& srcBuf, PelUnitBuf& dstBuf, const Area& blkLuma, const Area& blkChroma, const Slice* slice, const APS* const* aps, const CtuAlfData& ctuAlfData, const ClpRngs& clpRngs );
 
   template<AlfFilterType filtType>
-  static void filterBlk              ( const AlfClassifier *classifier, const PelUnitBuf &recDst, const CPelUnitBuf& recSrc, const Area& blk, const ComponentID compId, const short* filterSet, const short* fClipSet, const ClpRng& clpRng, int vbCTUHeight, int vbPos );
+  static void filterBlk              ( const AlfClassifier *classifier, const PelUnitBuf &recDst, const CPelUnitBuf& recSrc, const Area& blk, const ComponentID compId, const short* filterSet, const short* fClipSet, const ClpRng& clpRng, int vbCTUHeight, int vbPos, const bool isFixedFilterSet );
   void ( *m_filterCcAlf )            ( const PelBuf &dstBuf, const CPelUnitBuf &recSrc, const Area &blkDst, const Area &blkSrc, const ComponentID compId, const int16_t *filterCoeff, const ClpRngs &clpRngs, int vbCTUHeight, int vbPos );
   void ( *m_filterCcAlfBoth )        ( const PelBuf& dstBufCb, const PelBuf& dstBufCr, const CPelUnitBuf &recSrc, const Area &blkDst,
                                       const Area &blkSrc, const int16_t* filterCoeffCb, const int16_t* filterCoeffCr,
