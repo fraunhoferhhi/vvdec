@@ -3096,6 +3096,7 @@ unsigned CABACReader::exp_golomb_eqprob( unsigned count )
   {
     bit     = m_BinDecoder.decodeBinEP( );
     symbol += bit << count++;
+    CHECK( count >= 31, "exp_golomb_eqprob count overflow" );
   }
   if( --count )
   {
