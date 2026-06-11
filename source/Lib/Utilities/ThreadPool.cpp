@@ -357,7 +357,7 @@ bool ThreadPool::processTask( int threadId, ThreadPool::Slot& task )
     }
     if( task.counter != nullptr )
     {
-      --(*task.counter);
+      task.counter->decrement_nothrow();
     }
   }
   catch( ... )
@@ -420,14 +420,7 @@ void ThreadPool::handleTaskException( const std::exception_ptr e, Barrier* done,
   if( counter != nullptr )
   {
     counter->setException( e );
-    // Barrier::unlock() in the decrement operator throws, when the counter reaches zero, so we catch it here
-    try
-    {
-      --( *counter );
-    }
-    catch( ... )
-    {
-    }
+    counter->decrement_nothrow();
   }
 
   if( slot_state != nullptr )
