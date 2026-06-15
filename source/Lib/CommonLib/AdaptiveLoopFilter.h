@@ -131,6 +131,9 @@ public:
   void ( *m_filter7x7Blk )( const AlfClassifier* classifier, const PelUnitBuf& recDst, const CPelUnitBuf& recSrc,
                             const Area& blk, const ComponentID compId, const short* filterSet, const short* fClipSet,
                             const ClpRng& clpRng, int vbCTUHeight, int vbPos, const bool isFixedFilterSet );
+  void ( *m_filterCcAlf )( const PelBuf& dstBuf, const CPelUnitBuf& recSrc, const Area& blkDst, const Area& blkSrc,
+                           const ComponentID compId, const int16_t* filterCoeff, const ClpRngs& clpRngs,
+                           int vbCTUHeight, int vbPos );
   void ( *m_filterCcAlfBoth )( const PelBuf& dstBufCb, const PelBuf& dstBufCr, const CPelUnitBuf& recSrc,
                                const Area& blkDst, const Area& blkSrc, const int16_t* filterCoeffCb,
                                const int16_t* filterCoeffCr, const ClpRngs& clpRngs, int vbCTUHeight, int vbPos );
@@ -149,7 +152,6 @@ protected:
 
   template<AlfFilterType filtType>
   static void filterBlk              ( const AlfClassifier *classifier, const PelUnitBuf &recDst, const CPelUnitBuf& recSrc, const Area& blk, const ComponentID compId, const short* filterSet, const short* fClipSet, const ClpRng& clpRng, int vbCTUHeight, int vbPos, const bool isFixedFilterSet );
-  void ( *m_filterCcAlf )            ( const PelBuf &dstBuf, const CPelUnitBuf &recSrc, const Area &blkDst, const Area &blkSrc, const ComponentID compId, const int16_t *filterCoeff, const ClpRngs &clpRngs, int vbCTUHeight, int vbPos );
 
 #if defined(TARGET_SIMD_X86)  && ENABLE_SIMD_OPT_ALF
   void initAdaptiveLoopFilterX86();
