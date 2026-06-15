@@ -395,7 +395,7 @@ int VVDecImpl::decode( vvdecAccessUnit& rcAccessUnit, vvdecFrame** ppcFrame )
         rBitstream.clearEmulationPreventionByteLocation();
 
         size_t numNaluBytes = iAUEndPosVec[iAU] - iStartCodePosVec[iAU];
-        if( numNaluBytes )
+        if( numNaluBytes >= 2 )
         {
           const uint8_t*    naluData = &rcAccessUnit.payload[iStartCodePosVec[iAU]];
           const NalUnitType nut      = (NalUnitType) ( ( naluData[1] >> 3 ) & 0x1f );
