@@ -49,4 +49,3 @@ source_group( "Resource Files" FILES ${RESOURCE_FILE} )
 set_target_properties( ${EXE_NAME} PROPERTIES FOLDER tests )
 
 add_test( NAME vvdec_unit_test COMMAND ${VVDEC_TESTS_DEBUGGER_COMMAND} $<TARGET_FILE:${EXE_NAME}> )
-set_tests_properties( vvdec_unit_test PROPERTIES TIMEOUT 120 )
