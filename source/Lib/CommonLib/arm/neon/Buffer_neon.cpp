@@ -49,9 +49,9 @@ POSSIBILITY OF SUCH DAMAGE.
 //  Includes
 //  ====================================================================================================================
 
-#include "../BufferARM.h"
-#include "CommonDefARM.h"
+#include "CommonLib/Buffer.h"
 #include "CommonLib/CommonDef.h"
+#include "CommonLib/arm/CommonDefARM.h"
 #include "mem_neon.h"
 #include "sum_neon.h"
 #include "tbl_neon.h"
