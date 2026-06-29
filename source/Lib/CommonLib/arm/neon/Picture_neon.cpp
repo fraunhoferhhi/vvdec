@@ -114,9 +114,33 @@ void paddPicBorderLeftRight_neon( Pel* pi, ptrdiff_t stride, int width, int xmar
   }
 }
 
+template<bool Top>
+void paddPicBorderTopBot_neon( Pel* pi, ptrdiff_t stride, int width, int xmargin, int ymargin )
+{
+  if( ( xmargin & 15 ) == 0 )
+  {
+    paddPicBorderRow_neon<16>( pi, width, xmargin );
+  }
+  else
+  {
+    paddPicBorderRow_neon<8>( pi, width, xmargin );
+  }
+
+  const int size = sizeof( Pel ) * ( width + ( xmargin << 1 ) );
+  const ptrdiff_t dstStride = Top ? -stride : stride;
+  pi -= xmargin;
+
+  do
+  {
+    ::memcpy( pi + ymargin * dstStride, pi, size );
+  } while( --ymargin != 0 );
+}
+
 template<>
 void Picture::_initPictureARM<NEON>()
 {
+  paddPicBorderBot = paddPicBorderTopBot_neon<false>;
+  paddPicBorderTop = paddPicBorderTopBot_neon<true>;
   paddPicBorderLeftRight = paddPicBorderLeftRight_neon;
 }
 
