@@ -80,7 +80,7 @@ struct PicListRange
 
 struct Picture : public UnitArea
 {
-  Picture() = default;
+  explicit Picture( bool enableOpt = true );
   ~Picture() = default;
   CLASS_COPY_MOVE_DELETE( Picture )
 
