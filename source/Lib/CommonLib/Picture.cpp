@@ -235,6 +235,9 @@ Picture::Picture( bool enableOpt )
 #if ENABLE_SIMD_OPT_PICTURE && defined( TARGET_SIMD_X86 )
     initPictureX86();
 #endif
+#if ENABLE_SIMD_OPT_PICTURE && defined( TARGET_SIMD_ARM )
+    initPictureARM();
+#endif
   }
 }
 

@@ -64,6 +64,10 @@ namespace vvdec
 using namespace x86_simd;
 #endif
 
+#if ENABLE_SIMD_OPT_PICTURE && defined( TARGET_SIMD_ARM )
+using namespace arm_simd;
+#endif
+
 struct Picture;
 
 typedef std::list<Picture*> PicList;
@@ -286,6 +290,12 @@ public:
   void initPictureX86();
   template <X86_VEXT vext>
   void _initPictureX86();
+#endif
+
+#if ENABLE_SIMD_OPT_PICTURE && defined( TARGET_SIMD_ARM )
+  void initPictureARM();
+  template <ARM_VEXT vext>
+  void _initPictureARM();
 #endif
 };
 
