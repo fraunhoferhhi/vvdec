@@ -224,6 +224,20 @@ const CPelUnitBuf Picture::getRecoBuf(const UnitArea &unit, bool wrap)     const
        PelUnitBuf Picture::getRecoBuf( bool wrap )                               { return wrap ? m_bufs[PIC_RECON_WRAP] : m_bufs[PIC_RECONSTRUCTION]; }
 const CPelUnitBuf Picture::getRecoBuf( bool wrap )                         const { return wrap ? m_bufs[PIC_RECON_WRAP] : m_bufs[PIC_RECONSTRUCTION]; }
 
+Picture::Picture( bool enableOpt )
+{
+  paddPicBorderBot = paddPicBorderBotCore;
+  paddPicBorderTop = paddPicBorderTopCore;
+  paddPicBorderLeftRight = paddPicBorderLeftRightCore;
+
+  if( enableOpt )
+  {
+#if ENABLE_SIMD_OPT_PICTURE && defined( TARGET_SIMD_X86 )
+    initPictureX86();
+#endif
+  }
+}
+
 void Picture::finalInit( CUChunkCache* cuChunkCache, TUChunkCache* tuChunkCache, const SPS *sps, const PPS *pps, const std::shared_ptr<PicHeader>& ph, const APS* const alfApss[ALF_CTB_MAX_NUM_APS], const APS* lmcsAps, const APS* scalingListAps, bool phPSupdate )
 {
   SEI_internal::deleteSEIs( seiMessageList );
@@ -275,14 +289,6 @@ void Picture::finalInit( CUChunkCache* cuChunkCache, TUChunkCache* tuChunkCache,
   cs->rebindPicBufs();
 
   resetProcessingTime();
-
-  paddPicBorderBot       = paddPicBorderBotCore;
-  paddPicBorderTop       = paddPicBorderTopCore;
-  paddPicBorderLeftRight = paddPicBorderLeftRightCore;
-
-#if ENABLE_SIMD_OPT_PICTURE && defined( TARGET_SIMD_X86 )
-  initPictureX86();
-#endif
 }
 
 Slice* Picture::allocateNewSlice( Slice** pilot )

@@ -49,6 +49,7 @@ POSSIBILITY OF SUCH DAMAGE.
 #include "CommonLib/InterPrediction.h"
 #include "CommonLib/InterpolationFilter.h"
 #include "CommonLib/LoopFilter.h"
+#include "CommonLib/Picture.h"
 #include "CommonLib/SampleAdaptiveOffset.h"
 #include "CommonLib/TrQuant_EMT.h"
 #include "CommonLib/Quant.h"
@@ -301,6 +302,105 @@ static bool test_TCoeffOps()
   return passed;
 }
 #endif // ENABLE_SIMD_TCOEFF_OPS
+
+#if ENABLE_SIMD_OPT_PICTURE
+static bool check_one_paddPicBorder( const std::string& name, Picture* ref, Picture* opt, int width, int height,
+                                     int xmargin, int ymargin )
+{
+  InputGenerator<Pel> g{ 10, /*is_signed=*/false };
+  DimensionGenerator rng;
+
+  const unsigned w = width + 2 * xmargin;
+  const unsigned stride = rng.get( w, w + MAX_CU_SIZE );
+  const unsigned buf_size = stride * ( height + 2 * ymargin );
+
+  std::vector<Pel> refBuf( buf_size );
+  std::generate( refBuf.begin(), refBuf.end(), g );
+
+  std::vector<Pel> optBuf = refBuf;
+
+  Pel* refPi = refBuf.data() + ymargin * stride + xmargin;
+  Pel* optPi = optBuf.data() + ymargin * stride + xmargin;
+
+  if( name == "Bottom" )
+  {
+    ref->paddPicBorderBot( refPi, stride, width, xmargin, ymargin );
+    opt->paddPicBorderBot( optPi, stride, width, xmargin, ymargin );
+  }
+  else if( name == "Top" )
+  {
+    ref->paddPicBorderTop( refPi, stride, width, xmargin, ymargin );
+    opt->paddPicBorderTop( optPi, stride, width, xmargin, ymargin );
+  }
+  else
+  {
+    ref->paddPicBorderLeftRight( refPi, stride, width, xmargin, height );
+    opt->paddPicBorderLeftRight( optPi, stride, width, xmargin, height );
+  }
+
+  std::ostringstream sstm;
+  sstm << "paddPicBorder" << name << " width=" << width << " height=" << height << " xmargin=" << xmargin
+       << " ymargin=" << ymargin << " stride=" << stride;
+
+  return compare_values_1d( sstm.str(), refBuf.data(), optBuf.data(), buf_size );
+}
+
+static bool check_paddPicBorder( const std::string& name, Picture* ref, Picture* opt )
+{
+  printf( "Testing Picture::paddPicBorder%s\n", name.c_str() );
+
+  // Mirrors getComponentScaleX()/getComponentScaleY() for the tested formats.
+  static constexpr int scales[][2] = {
+      { 0, 0 }, // 444 chroma / luma.
+      { 1, 1 }, // 420 chroma.
+      { 1, 0 }, // 422 chroma.
+  };
+
+  bool passed = true;
+  // Cover component widths observed in real decoding cases.
+  for( int width : { 208, 384, 416, 640, 768, 832, 840, 1280, 1680, 3840 } )
+  {
+    for( int maxCUWidth : { 32, 64, 128 } )
+    {
+      const int margin = 16 + maxCUWidth;
+      for( const auto& scale : scales )
+      {
+        const int xmargin = margin >> scale[0];
+        const int ymargin = margin >> scale[1];
+
+        if( name == "LeftRight" )
+        {
+          // extendPicBorderBuf passes 1 + p.height / 2 to paddPicBorderLeftRight. These values
+          // cover heights observed in real decoding cases.
+          for( int height : { 3, 33, 61, 65, 97, 121, 181, 193, 209, 241, 361, 417, 1081 } )
+          {
+            passed = check_one_paddPicBorder( name, ref, opt, width, height, xmargin, ymargin ) && passed;
+          }
+        }
+        else
+        {
+          passed = check_one_paddPicBorder( name, ref, opt, width, 1, xmargin, ymargin ) && passed;
+        }
+      }
+    }
+  }
+
+  return passed;
+}
+
+static bool test_Picture()
+{
+  Picture ref( /*enableOpt=*/false );
+  Picture opt( /*enableOpt=*/true );
+
+  bool passed = true;
+  passed = check_paddPicBorder( "Bottom", &ref, &opt ) && passed;
+  passed = check_paddPicBorder( "Top", &ref, &opt ) && passed;
+  passed = check_paddPicBorder( "LeftRight", &ref, &opt ) && passed;
+
+  return passed;
+}
+#endif // ENABLE_SIMD_OPT_PICTURE
 
 #if ENABLE_SIMD_OPT_ALF
 template<typename G>
@@ -2324,6 +2424,9 @@ static const UnitTestEntry test_suites[] = {
 #endif
 #if ENABLE_SIMD_OPT_BUFFER
     { "PelBufferOps", test_PelBufferOps },
+#endif
+#if ENABLE_SIMD_OPT_PICTURE
+    { "Picture", test_Picture },
 #endif
 #if ENABLE_SIMD_OPT_DIST
     { "RdCost", test_RdCost },
