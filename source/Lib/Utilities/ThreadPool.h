@@ -87,6 +87,11 @@ struct Barrier
     m_lockState.store( false );
   }
 
+  virtual void unlock_nothrow()
+  {
+    m_lockState.store( false );
+  }
+
   virtual void lock()
   {
     checkAndRethrowException();
@@ -240,11 +245,26 @@ struct WaitCounter
   int operator--()
   {
     std::unique_lock<std::mutex> l( m_lock );
-    const unsigned int new_count = --m_count;
-    if( new_count == 0 )
+    const int new_count = --m_count;
+    if( new_count <= 0 )
     {
+      CHECK( new_count < 0, "WaitCounter is negative, this is probably a bug." );
       m_cond.notify_all();   // we can notify before unlocking the barrier, because wait() and wait_nothrow() wait for m_count and not for m_done
       m_done.unlock();
+    }
+    l.unlock(); // unlock mutex after done-barrier to prevent race between barrier and counter
+    return new_count;
+  }
+
+  int decrement_nothrow()
+  {
+    std::unique_lock<std::mutex> l( m_lock );
+    const int new_count = --m_count;
+    if( new_count <= 0 )
+    {
+      CHECK_WARN( new_count < 0, "WaitCounter is negative, this is probably a bug." );
+      m_cond.notify_all();   // we can notify before unlocking the barrier, because wait() and wait_nothrow() wait for m_count and not for m_done
+      m_done.unlock_nothrow();
     }
     l.unlock(); // unlock mutex after done-barrier to prevent race between barrier and counter
     return new_count;
@@ -254,20 +274,20 @@ struct WaitCounter
   {
     std::lock_guard<std::mutex> l( m_lock );
     m_done.checkAndRethrowException();
-    return 0 != m_count;
+    return m_count > 0;
   }
 
   void wait() const
   {
     std::unique_lock<std::mutex> l( m_lock );
-    m_cond.wait( l, [this] { return m_count == 0 || m_done.hasException(); } );
+    m_cond.wait( l, [this] { return m_count <= 0 || m_done.hasException(); } );
     m_done.checkAndRethrowException();
   }
 
   void wait_nothrow() const
   {
     std::unique_lock<std::mutex> l( m_lock );
-    m_cond.wait( l, [this] { return m_count == 0; } );
+    m_cond.wait( l, [this] { return m_count <= 0; } );
   }
 
   void setException( std::exception_ptr e )
@@ -293,9 +313,11 @@ struct WaitCounter
   const Barrier* donePtr() const { return &m_done; }
 
 private:
-  mutable std::condition_variable m_cond;
+  mutable std::condition_variable m_cond;   // We can't use a BlockingBarrier but need a separate condition variable here,
+                                            // so we can wait for m_count to reach zero (all tasks have been cleared from
+                                            // the thread pool) even if the exception flag is set.
   mutable std::mutex              m_lock;
-  unsigned int                    m_count = 0;
+  int                             m_count = 0;
   Barrier                         m_done{ false };
 };
 

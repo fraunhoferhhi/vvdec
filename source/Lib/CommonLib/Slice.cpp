@@ -482,6 +482,10 @@ void Slice::constructSingleRefPicList( const PicList& rcPicList, RefPicList list
     if( !rRPL.isRefPicLongterm( ii ) )
     {
       refPOC   = getPOC() + rRPL.getRefPicIdentifier( ii );
+      // A same-layer STRP entry must not resolve to the current POC: that is either the current
+      // picture or a stale POC-colliding picture, neither valid for inter prediction (only the
+      // separate inter-layer path may reference the current POC, in a different layer).
+      CHECK( refPOC == getPOC(), "An STRP entry must not refer to a picture with the current POC" );
       pcRefPic = xGetRefPic( rcPicList, refPOC, m_pcPic->layerId );
       CHECK( !pcRefPic, "Picture pointer missing from ref pic list" );
 

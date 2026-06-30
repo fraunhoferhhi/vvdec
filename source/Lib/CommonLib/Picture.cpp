@@ -54,7 +54,7 @@ POSSIBILITY OF SUCH DAMAGE.
 namespace vvdec
 {
 
-void paddPicBorderTopCore(Pel *pi, ptrdiff_t stride,int width,int xmargin,int ymargin)
+static void paddPicBorderTopCore(Pel *pi, ptrdiff_t stride,int width,int xmargin,int ymargin)
 {
   for( int x = 0; x < xmargin; x++ )
   {
@@ -69,7 +69,7 @@ void paddPicBorderTopCore(Pel *pi, ptrdiff_t stride,int width,int xmargin,int ym
   }
 }
 
-void paddPicBorderBotCore(Pel *pi, ptrdiff_t stride,int width,int xmargin,int ymargin)
+static void paddPicBorderBotCore(Pel *pi, ptrdiff_t stride,int width,int xmargin,int ymargin)
 {
   for( int x = 0; x < xmargin; x++ )
   {
@@ -84,7 +84,7 @@ void paddPicBorderBotCore(Pel *pi, ptrdiff_t stride,int width,int xmargin,int ym
   }
 }
 
-void paddPicBorderLeftRightCore(Pel *pi, ptrdiff_t stride,int width,int xmargin,int height)
+static void paddPicBorderLeftRightCore(Pel *pi, ptrdiff_t stride,int width,int xmargin,int height)
 {
   for( int y = 1; y < ( height - 1 ); y++ )
    {
@@ -263,8 +263,9 @@ void Picture::finalInit( CUChunkCache* cuChunkCache, TUChunkCache* tuChunkCache,
   parseDone   . lock();
   cs->picture   = this;
   cs->picHeader = ph;
-  cs->pps       = pps ? pps->getSharedPtr() : nullptr;
-  cs->sps       = sps ? sps->getSharedPtr() : nullptr;
+  cs->pps       = pps->getSharedPtr();
+  cs->sps       = sps->getSharedPtr();
+  cs->pcv       = pps->pcv.get();
 
   if( phPSupdate )
   {
@@ -284,9 +285,13 @@ void Picture::finalInit( CUChunkCache* cuChunkCache, TUChunkCache* tuChunkCache,
     cs->lmcsAps = lmcsAps ? lmcsAps->getSharedPtr() : nullptr;
   }
 
-  cs->pcv = pps->pcv.get();
   cs->allocTempInternals();
   cs->rebindPicBufs();
+
+  if( sps->getIBCFlag() )
+  {
+    cs->initVIbcBuf( cs->pcv->heightInCtus, sps->getChromaFormatIdc(), sps->getMaxCUHeight() );
+  }
 
   resetProcessingTime();
 }
@@ -373,11 +378,14 @@ void Picture::ensureUsableAsRef()
   CHECK_FATAL( reconDone.hasException(), "to be usable as reference the picture should not have an Exception reconDone barrier" );
 }
 
-void Picture::fillGrey( const SPS* sps )
+void Picture::fillGrey( const SPS* fallbackSPS )
 {
+  CHECK( !cs && !cs->sps && !fallbackSPS, "No SPS accessible" );
+
+  const int bitDepth = cs && cs->sps ? cs->sps->getBitDepth() : fallbackSPS->getBitDepth();
   // fill in grey buffer for missing reference pictures (GDR or broken bitstream)
-  const uint32_t yFill = 1 << ( sps->getBitDepth() - 1 );
-  const uint32_t cFill = 1 << ( sps->getBitDepth() - 1 );
+  const uint32_t yFill = 1 << ( bitDepth - 1 );
+  const uint32_t cFill = 1 << ( bitDepth - 1 );
   getRecoBuf().Y().fill( yFill );
   getRecoBuf().Cb().fill( cFill );
   getRecoBuf().Cr().fill( cFill );

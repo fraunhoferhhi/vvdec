@@ -105,10 +105,10 @@ void fastInv_SSE( const TMatrixCoeff* it, const TCoeff* src, TCoeff* dst, unsign
           __m128i xscale = maxLoopL == 4
                          ? _mm_packs_epi32( _mm_load_si128( ( const __m128i* )srcPtr0 ), _mm_load_si128( ( const __m128i* )srcPtr1 ) )
                          : _mm_packs_epi32( _mm_loadu_si64( ( const __m128i* )srcPtr0 ), _mm_loadu_si64( ( const __m128i* )srcPtr1 ) );
-          xscale = _mm_shuffle_epi8( xscale, _mm_setr_epi8( 0, 1, 8, 9, 2, 3, 10, 11, 4, 5, 12, 13, 6, 7, 14, 15 ) );
 
           if( _mm_test_all_zeros( xscale, xscale ) ) { dstPtr += ( trSize * maxLoopL ); continue; }
 
+          xscale = _mm_shuffle_epi8( xscale, _mm_setr_epi8( 0, 1, 8, 9, 2, 3, 10, 11, 4, 5, 12, 13, 6, 7, 14, 15 ) );
           for( int l = 0; l < maxLoopL; l++ )
           {
             __m256i
@@ -172,10 +172,10 @@ void fastInv_SSE( const TMatrixCoeff* it, const TCoeff* src, TCoeff* dst, unsign
           __m128i xscale = maxLoopL == 4
                          ? _mm_packs_epi32( _mm_load_si128( ( const __m128i* )srcPtr0 ), _mm_load_si128( ( const __m128i* )srcPtr1 ) )
                          : _mm_packs_epi32( _mm_loadu_si64( ( const __m128i* )srcPtr0 ), _mm_loadu_si64( ( const __m128i* )srcPtr1 ) );
-          xscale = _mm_shuffle_epi8( xscale, _mm_setr_epi8( 0, 1, 8, 9, 2, 3, 10, 11, 4, 5, 12, 13, 6, 7, 14, 15 ) );
 
           if( _mm_test_all_zeros( xscale, xscale ) ) { dstPtr += ( trSize * maxLoopL ); continue; }
 
+          xscale = _mm_shuffle_epi8( xscale, _mm_setr_epi8( 0, 1, 8, 9, 2, 3, 10, 11, 4, 5, 12, 13, 6, 7, 14, 15 ) );
           for( int l = 0; l < maxLoopL; l++ )
           {
             __m256i
@@ -212,13 +212,13 @@ void fastInv_SSE( const TMatrixCoeff* it, const TCoeff* src, TCoeff* dst, unsign
         __m128i xscale = maxLoopL == 4
                         ? _mm_packs_epi32( _mm_load_si128( ( const __m128i* )srcPtr0 ), _mm_load_si128( ( const __m128i* )srcPtr1 ) )
                         : _mm_packs_epi32( _mm_loadu_si64( ( const __m128i* )srcPtr0 ), _mm_loadu_si64( ( const __m128i* )srcPtr1 ) );
-        xscale = _mm_shuffle_epi8( xscale, _mm_setr_epi8( 0, 1, 8, 9, 2, 3, 10, 11, 4, 5, 12, 13, 6, 7, 14, 15 ) );
 
         if( _mm_test_all_zeros( xscale, xscale ) ) { dstPtr += ( trSize * maxLoopL ); continue; }
 
+        xscale = _mm_shuffle_epi8( xscale, _mm_setr_epi8( 0, 1, 8, 9, 2, 3, 10, 11, 4, 5, 12, 13, 6, 7, 14, 15 ) );
         for( int l = 0; l < maxLoopL; l++ )
         {
-          const TMatrixCoeff*  itPtr0 = &it[k      * trSize];
+          const TMatrixCoeff*  itPtr0 = &it[k         * trSize];
           const TMatrixCoeff*  itPtr1 = &it[( k + 1 ) * trSize];
 
           __m128i
@@ -257,10 +257,8 @@ void fastInv_SSE( const TMatrixCoeff* it, const TCoeff* src, TCoeff* dst, unsign
     }
   }
 #endif
-  else if( trSize >= 4 )
+  else if( trSize == 4 )
   {
-    CHECKD( trSize != 4, "trSize needs to be '4'!" );
-
     for( int k = 0; k < rows; k += 2 )
     {
             TCoeff* dstPtr  =  dst;
@@ -278,10 +276,10 @@ void fastInv_SSE( const TMatrixCoeff* it, const TCoeff* src, TCoeff* dst, unsign
         __m128i xscale = maxLoopL == 4
                         ? _mm_packs_epi32( _mm_load_si128( ( const __m128i* )srcPtr0 ), _mm_load_si128( ( const __m128i* )srcPtr1 ) )
                         : _mm_packs_epi32( _mm_loadu_si64( ( const __m128i* )srcPtr0 ), _mm_loadu_si64( ( const __m128i* )srcPtr1 ) );
-        xscale = _mm_shuffle_epi8( xscale, _mm_setr_epi8( 0, 1, 8, 9, 2, 3, 10, 11, 4, 5, 12, 13, 6, 7, 14, 15 ) );
 
         if( _mm_test_all_zeros( xscale, xscale ) ) { dstPtr += ( trSize * maxLoopL ); continue; }
 
+        xscale = _mm_shuffle_epi8( xscale, _mm_setr_epi8( 0, 1, 8, 9, 2, 3, 10, 11, 4, 5, 12, 13, 6, 7, 14, 15 ) );
         for( int l = 0; l < maxLoopL; l++ )
         {
           __m128i

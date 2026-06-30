@@ -121,6 +121,7 @@ private:
 #endif
   Picture* getNextOutputPic ( bool bFlush = false );
   void     blockAndFinishPictures( Picture* pcPic = nullptr );   // iterate over DecLibRecon instances and wait to finish picture(s)
+  void     sanitizeBrokenPicture( Picture* pcParsedPic );
   void     xCheckNalUnitConstraintFlags( const ConstraintInfo *cInfo, uint32_t naluType );
 };
 

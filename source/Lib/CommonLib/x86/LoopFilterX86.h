@@ -692,7 +692,7 @@ static inline void xFilteringPandQX86Ver( Pel* src, ptrdiff_t step, const ptrdif
                  _mm_unpacklo_epi16( dbParr, dbParr ) ),
                _mm_unpackhi_epi16( dbParr, dbParr ), 1 );
       ydbp = _mm256_abs_epi16     ( _mm256_sub_epi16( _mm256_set1_epi32( 64 ), ytmp ) );
-      ytmp = _mm256_set1_epi32    ( refP | ( refMiddle << 16 ) );
+      ytmp = _mm256_set1_epi32    ( refP | ( refMiddle * ( 1 << 16 ) ) );
       ydst = _mm256_madd_epi16    ( ydbp, ytmp );
       ydst = _mm256_add_epi32     ( ydst, _mm256_set1_epi32( 32 ) );
       ydst = _mm256_srli_epi32    ( ydst, 6 );
@@ -725,7 +725,7 @@ static inline void xFilteringPandQX86Ver( Pel* src, ptrdiff_t step, const ptrdif
                  _mm_unpacklo_epi16( dbQarr, dbQarr ) ),
                _mm_unpackhi_epi16( dbQarr, dbQarr ), 1 );
       ydbp = _mm256_abs_epi16     ( _mm256_sub_epi16( _mm256_set1_epi32( 64 ), ytmp ) );
-      ytmp = _mm256_set1_epi32    ( refQ | ( refMiddle << 16 ) );
+      ytmp = _mm256_set1_epi32    ( refQ | ( refMiddle * ( 1 << 16 ) ) );
       ydst = _mm256_madd_epi16    ( ydbp, ytmp );
       ydst = _mm256_add_epi32     ( ydst, _mm256_set1_epi32( 32 ) );
       ydst = _mm256_srli_epi32    ( ydst, 6 );

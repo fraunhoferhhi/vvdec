@@ -2473,7 +2473,7 @@ void CABACReader::residual_coding( TransformUnit& tu, ComponentID compID, CUCtx&
       const int posX          = cctx.posX( blkPos );
       const int posY          = cctx.posY( blkPos );
 
-      int AbsCoeff            = depQuant ? ( coeff[blkPos] << 1 ) - ( ( ( int ) sub1Pattern ) & 1 ) : coeff[blkPos];
+      int AbsCoeff            = depQuant ? ( coeff[blkPos] * (1 << 1) ) - ( ( ( int ) sub1Pattern ) & 1 ) : coeff[blkPos];
       dstCff.at( posX, posY ) = ( signPattern & 1u ? -AbsCoeff : AbsCoeff );
     }
   }
@@ -2970,7 +2970,7 @@ void CABACReader::residual_coding_subblockTS( CoeffCodingContext& cctx, TCoeffSi
           DTRACE( g_trace_ctx, D_SYNTAX_RESI, "ts_par_flag() bin=%d ctx=%d\n", parFlag, cctx.parityCtxIdAbsTS() );
           cctx.decNumCtxBins(1);
       }
-      coeff[ blkPos ] = (sign ? -1 : 1 ) * (1 + parFlag + gt1Flag);
+      coeff[ blkPos ] = (sign ? -1 : 1 ) * int(1 + parFlag + gt1Flag);
       DTRACE( g_trace_ctx, D_SYNTAX_RESI, "coeff[ blkPos ]=%d  blkPos=%d\n", coeff[ blkPos ], blkPos  );
     }
     lastScanPosPass1 = nextSigPos;
@@ -3096,6 +3096,7 @@ unsigned CABACReader::exp_golomb_eqprob( unsigned count )
   {
     bit     = m_BinDecoder.decodeBinEP( );
     symbol += bit << count++;
+    CHECK( count >= 31, "exp_golomb_eqprob count overflow" );
   }
   if( --count )
   {

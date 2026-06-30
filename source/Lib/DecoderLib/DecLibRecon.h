@@ -186,7 +186,7 @@ public:
 
   void     decompressPicture( Picture* pcPic );
   Picture* waitForPrevDecompressedPic();
-  void     cleanupOnException( std::exception_ptr exception );
+  void     cleanupOnException();
   Picture* getCurrPic() const { return m_currDecompPic; }
   void     swapBufs( CodingStructure& cs );
 

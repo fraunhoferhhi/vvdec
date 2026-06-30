@@ -542,9 +542,10 @@ void CodingStructure::initVIbcBuf( int numCtuLines, ChromaFormat chromaFormatIDC
   m_virtualIBCbuf.resize( numCtuLines );
   for( auto& buf: m_virtualIBCbuf )
   {
-    if( buf.bufs.empty() )
+    if( buf.bufs.empty() || m_IBCBufferWidth != g_IBCBufferSize / ctuSize )
     {
       m_IBCBufferWidth = g_IBCBufferSize / ctuSize;
+      buf.destroy();
       buf.create( UnitArea( chromaFormatIDC, Area( 0, 0, m_IBCBufferWidth, ctuSize ) ) );
     }
   }
