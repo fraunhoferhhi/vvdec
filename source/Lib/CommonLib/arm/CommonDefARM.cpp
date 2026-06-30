@@ -45,6 +45,18 @@ POSSIBILITY OF SUCH DAMAGE.
 
 #include "CommonDefARM.h"
 
+#if defined( __APPLE__ )
+#include <cstdint>
+#include <sys/sysctl.h>
+#endif
+
+#if defined( _WIN32 )
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+#include <windows.h>
+#endif
+
 #if TARGET_SIMD_ARM
 #if defined( __linux__ ) || HAVE_ELF_AUX_INFO
 #include <sys/auxv.h>  // getauxval / elf_aux_info
@@ -151,6 +163,72 @@ static ARM_VEXT _get_arm_extensions()
 #endif // TARGET_SIMD_ARM_SVE
   }
 #endif // TARGET_SIMD_ARM_RDM
+
+  return ext;
+}
+
+#elif defined( __APPLE__ )
+
+static bool have_feature( const char* feature )
+{
+  int64_t feature_present = 0;
+  size_t  size            = sizeof( feature_present );
+  if( sysctlbyname( feature, &feature_present, &size, nullptr, 0 ) != 0 )
+  {
+    return false;
+  }
+  return feature_present != 0;
+}
+
+static ARM_VEXT _get_arm_extensions()
+{
+  // We assume Neon is always supported for relevant Apple Silicon processors.
+  // The SVE and SVE2 features are not available at time of writing.
+  ARM_VEXT ext = NEON;
+
+#if TARGET_SIMD_ARM_RDM
+  if( have_feature( "hw.optional.arm.FEAT_RDM" ) )
+  {
+    ext = NEON_RDM;
+  }
+#endif
+
+  return ext;
+}
+
+#elif defined( _WIN32 )
+
+static ARM_VEXT _get_arm_extensions()
+{
+  // We assume Neon is always supported for relevant Arm processors.
+  ARM_VEXT ext = NEON;
+
+  // There is no flag to detect the Neon RDM feature at time of writing, so
+  // check `PF_ARM_V82_DP_INSTRUCTIONS_AVAILABLE` instead. This is fine since
+  // `FEAT_RDM` is a mandatory feature from Armv8.1-A and `FEAT_DotProd` is
+  // only available from Armv8.1-A or later (originally it was available from
+  // Armv8.2-A or later, hence the unfortunate "V82" in the macro name).
+  // Transitively, if `FEAT_DotProd` is available then `FEAT_RDM` must also be!
+#if TARGET_SIMD_ARM_RDM && defined( PF_ARM_V82_DP_INSTRUCTIONS_AVAILABLE )
+  if( IsProcessorFeaturePresent( PF_ARM_V82_DP_INSTRUCTIONS_AVAILABLE ) )
+  {
+    ext = NEON_RDM;
+  }
+#endif
+
+#if TARGET_SIMD_ARM_SVE && defined( PF_ARM_SVE_INSTRUCTIONS_AVAILABLE )
+  if( ext >= NEON_RDM && IsProcessorFeaturePresent( PF_ARM_SVE_INSTRUCTIONS_AVAILABLE ) )
+  {
+    ext = SVE;
+  }
+#endif
+
+#if TARGET_SIMD_ARM_SVE2 && defined( PF_ARM_SVE2_INSTRUCTIONS_AVAILABLE )
+  if( ext >= SVE && IsProcessorFeaturePresent( PF_ARM_SVE2_INSTRUCTIONS_AVAILABLE ) )
+  {
+    ext = SVE2;
+  }
+#endif
 
   return ext;
 }
