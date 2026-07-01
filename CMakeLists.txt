@@ -14,7 +14,7 @@ endif()
 # project name
 project( vvdec VERSION 3.2.0 )
 # set alternative version numbering for release candidates
-set( PROJECT_VERSION_RC rc1 )
+set( PROJECT_VERSION_RC rc2 )
 if( PROJECT_VERSION_RC )
     set( PROJECT_VERSION "${PROJECT_VERSION}-${PROJECT_VERSION_RC}" )
 endif()
