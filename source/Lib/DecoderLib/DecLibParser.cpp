@@ -254,7 +254,10 @@ bool DecLibParser::parse( InputNALUnit& nalu )
         {
           m_threadPool->processTasksOnMainThread();
         }
-        m_pcParsePic->reconDone.wait();
+        else
+        {
+          m_pcParsePic->reconDone.wait();
+        }
         m_decLib.checkPictureHashSEI( m_pcParsePic );
       }
     }
@@ -1199,12 +1202,13 @@ void DecLibParser::xActivateParameterSets( const int layerId )
   CHECK( sps->getProfileTierLevel()->getConstraintInfo()->getNoLumaTransformSize64ConstraintFlag() && sps->getLog2MaxTbSize() != 5,
          "When gci_no_luma_transform_size_64_constraint_flag is equal to 1, the value of sps_max_luma_transform_size_64_flag shall be equal to 0" );
 
-  // TODO: fix MT static maps
-  static std::unordered_map<int, int> m_layerChromaFormat;
-  static std::unordered_map<int, int> m_layerBitDepth;
-
+#if 0
   if( vps && vps->getMaxLayers() > 1 )
   {
+    // TODO: fix MT static maps
+    static std::unordered_map<int, int> m_layerChromaFormat;
+    static std::unordered_map<int, int> m_layerBitDepth;
+
     int curLayerIdx          = vps->getGeneralLayerIdx(layerId);
     int curLayerChromaFormat = sps->getChromaFormatIdc();
     int curLayerBitDepth     = sps->getBitDepth();
@@ -1231,6 +1235,7 @@ void DecLibParser::xActivateParameterSets( const int layerId )
       }
     }
   }
+#endif
 
   const int minCuSize = 1 << sps->getLog2MinCodingBlockSize();
   CHECK( ( pps->getPicWidthInLumaSamples()  % ( std::max( 8, minCuSize) ) ) != 0, "Coded frame width must be a multiple of Max(8, the minimum unit size)" );

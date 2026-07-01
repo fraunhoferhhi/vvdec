@@ -697,6 +697,7 @@ bool PU::addMergeHMVPCand(const CodingStructure &cs, MergeCtx& mrgCtx, MotionHis
   {
     const HPMVInfo &miNeighbor = lut[(num_avai_candInLUT - mrgIdx)];
     mrgCtx.interDirNeighbours[cnt] = miNeighbor.interDir();
+    CHECK(mrgCtx.interDirNeighbours[cnt] == 0, "miNeighbor.interDir() shouldn't be zero");
     mrgCtx.mvFieldNeighbours[cnt << 1].setMvField(miNeighbor.mv[0], miNeighbor.mhRefIdx[0]);
     mrgCtx.useAltHpelIf[cnt] = !ibcFlag && miNeighbor.useAltHpelIf;
     if (isInterB)

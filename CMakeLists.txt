@@ -14,7 +14,7 @@ endif()
 # project name
 project( vvdec VERSION 3.2.0 )
 # set alternative version numbering for release candidates
-set( PROJECT_VERSION_RC rc1 )
+set( PROJECT_VERSION_RC rc2 )
 if( PROJECT_VERSION_RC )
     set( PROJECT_VERSION "${PROJECT_VERSION}-${PROJECT_VERSION_RC}" )
 endif()
@@ -264,6 +264,8 @@ set( VVDEC_ENABLE_WERROR                    ON  CACHE BOOL   "Treat warnings as 
 
 set( VVDEC_USE_ADDRESS_SANITIZER            OFF CACHE BOOL   "Enable or disable address sanitizer" )
 
+set( VVDEC_FUZZING_BUILD                    OFF CACHE BOOL   "Build fuzz-testing binaries using clang -fsanitize=fuzzer" )
+
 if( CMAKE_CXX_COMPILER_ID STREQUAL "GNU" OR
     CMAKE_CXX_COMPILER_ID STREQUAL "Clang" )
 
@@ -387,6 +389,19 @@ if( VVDEC_USE_THREAD_SANITIZER )
   add_link_options( "-fsanitize=thread" )
 endif()
 
+if( VVDEC_FUZZING_BUILD )
+  add_compile_definitions( FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION=1 )
+
+  if( CMAKE_CXX_COMPILER_ID STREQUAL "Clang" )
+    message( STATUS "enabled GNU/Clang fuzzing sanitizer" )
+
+    add_compile_options( -fsanitize=fuzzer -fno-omit-frame-pointer )
+    add_link_options( "-fsanitize=fuzzer-no-link" )
+  else()
+    message( WARNING "You probably want to build with clang, when enabling VVDEC_FUZZING_BUILD" )
+  endif()
+endif()
+
 if( VVDEC_ENABLE_WERROR )
     add_compile_options( "$<$<OR:$<CXX_COMPILER_ID:GNU>,$<CXX_COMPILER_ID:Clang>,$<CXX_COMPILER_ID:AppleClang>>:-Werror>" )
     add_compile_options( "$<$<CXX_COMPILER_ID:MSVC>:/WX>" )
@@ -485,6 +500,9 @@ enable_testing()
 
 if( NOT BUILD_SHARED_LIBS )
   add_subdirectory( "tests/vvdec_unit_test" )
+endif()
+if( VVDEC_FUZZING_BUILD )
+  add_subdirectory( "tests/fuzzing" )
 endif()
 
 # create a list of all test bitstreams in variable BITSTREAM_FILES

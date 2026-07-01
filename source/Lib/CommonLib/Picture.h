@@ -274,7 +274,7 @@ public:
 
   void         waitForAllTasks();
   void         ensureUsableAsRef();
-  void         fillGrey( const SPS* sps );
+  void         fillGrey( const SPS* fallbackSPS = nullptr );
 
 #if TRACE_ENABLE_ITT
   __itt_domain* m_itt_decLibInst;

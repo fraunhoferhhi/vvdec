@@ -1037,13 +1037,7 @@ void HLSyntaxReader::parseLmcsAps( APS* aps )
       X_READ_FLAG_idx( lmcs_delta_sign_cw_flag, "[ i ]" );
       info.reshaperModelBinCWDelta[i] *= 1 - 2 * lmcs_delta_sign_cw_flag;
     }
-#if 0
-    // TODO: needs bitdepth from SPS
-    int OrgCW = ( 1 << BitDepth ) / 16;
-    int lmcsCW = OrgCW + info.reshaperModelBinCWDelta[i];
-    CHECK_READ_RANGE( lmcsCW, OrgCW >> 3, ( OrgCW << 3 ) - 1, "lmcsCW[i]" );
-    // TODO: also CHECK( sum(lmcsCW[0..15]) > ( 1 << BitDepth ) − 1 );
-#endif
+    // lmcsCW[i] range is checked in Reshape::constructReshaper()
   }
 
   if( aps->chromaPresentFlag )
@@ -1055,10 +1049,8 @@ void HLSyntaxReader::parseLmcsAps( APS* aps )
       X_READ_FLAG( lmcs_delta_sign_crs_flag );
       info.chrResScalingOffset *= ( 1 - 2 * lmcs_delta_sign_crs_flag );
     }
+    // lmcsDeltaCrs range is checked in Reshape::constructReshaper()
   }
-  // TODO:
-  // It is a requirement of bitstream conformance that, when lmcsCW[ i ] is not equal to 0, ( lmcsCW[ i ] + lmcsDeltaCrs )
-  //   shall be in the range of ( OrgCW >> 3 ) to ( ( OrgCW << 3 ) - 1 ), inclusive
 }
 
 void HLSyntaxReader::parseScalingListAps( APS* aps )

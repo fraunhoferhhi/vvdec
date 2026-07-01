@@ -467,7 +467,7 @@ void InterpolationFilter::filterCopy( const ClpRng& clpRng, const Pel* src, cons
         {
           for( col = 0; col < width; col++ )
           {
-            dst[col] = src[col] << shift10BitOut;
+            dst[col] = src[col] * ( 1 << shift10BitOut );
           }
           INCY( src, srcStride );
           INCY( dst, dstStride );
@@ -482,7 +482,7 @@ void InterpolationFilter::filterCopy( const ClpRng& clpRng, const Pel* src, cons
         {
           for( col = 0; col < width; col++ )
           {
-            Pel val  = src[col] << shift;
+            Pel val  = src[col] * ( 1 << shift );
             dst[col] = val - ( Pel ) IF_INTERNAL_OFFS;
           }
 

@@ -343,7 +343,8 @@ void Quant::dequant( const TransformUnit& tu, CoeffBuf& dstCoeff, const Componen
   // from the dequantisation equation:
   // iCoeffQ                         = Intermediate_Int((int64_t(clipQCoef) * scale + iAdd) >> rightShift);
   //(sizeof(Intermediate_Int) * 8)  =                    inputBitDepth   + scaleBits      - rightShift
-  const uint32_t         targetInputBitDepth = std::min<uint32_t>( maxLog2TrDynamicRange + 1, sizeof( Intermediate_Int ) * 8 + rightShift - scaleBits );
+  const uint32_t         targetInputBitDepth = std::min<uint32_t>( maxLog2TrDynamicRange + 1, (int) sizeof( Intermediate_Int ) * 8 + rightShift - scaleBits );
+  CHECK( targetInputBitDepth < 8, "Invalid bit depth" );
   const Intermediate_Int inputMaximum        = ( 1 << ( targetInputBitDepth - 1 ) ) - 1;
 
   if( !enableScalingLists )

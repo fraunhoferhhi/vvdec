@@ -466,6 +466,10 @@ void MergeCtx::setMmvdMergeCandiInfo( CodingUnit& cu, int candIdx )
     cu.mv    [REF_PIC_LIST_1][0] = mmvdBaseMv[fPosBaseIdx][1].mv + tempMv[1];
     cu.refIdx[REF_PIC_LIST_1]    = refList1;
   }
+  else
+  {
+    CHECK( refList0 < 0 && refList1 < 0, "MMVD base merge candidate for the signalled base index is not available" );
+  }
 
   //cu.setMmvdFlag        ( true );
   cu.mmvdIdx            = candIdx;

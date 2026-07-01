@@ -116,8 +116,6 @@ protected:
   bool                 m_subPuMC = false;
 
   UnitArea             m_currCuArea;
-  int                  m_IBCBufferWidth;
-  PelStorage           m_IBCBuffer;
 
   void xIntraBlockCopy          (CodingUnit &cu, PelUnitBuf &predBuf, const ComponentID compID);
 

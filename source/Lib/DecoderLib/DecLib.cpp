@@ -192,44 +192,19 @@ Picture* DecLib::decode( InputNALUnit& nalu )
   if( newPic )
   {
     Picture* pcParsedPic = m_decLibParser.getNextDecodablePicture();
+
+    while( pcParsedPic && ( pcParsedPic->error || pcParsedPic->wasLost || pcParsedPic->parseDone.hasException() ) )
+    {
+      CHECK_FATAL( pcParsedPic->progress >= Picture::reconstructing, "The error picture shouldn't be in reconstructing state yet." );
+
+      sanitizeBrokenPicture( pcParsedPic );
+
+      // try again to get a picture, that we can reconstruct now
+      pcParsedPic = m_decLibParser.getNextDecodablePicture();
+    }
+
     if( pcParsedPic )
     {
-      while( pcParsedPic->error || pcParsedPic->wasLost || pcParsedPic->parseDone.hasException() )
-      {
-        CHECK_FATAL( pcParsedPic->progress >= Picture::reconstructing, "The error picture shouldn't be in reconstructing state yet." );
-
-        std::exception_ptr parsing_exception = pcParsedPic->parseDone.hasException() ? pcParsedPic->parseDone.getException() : nullptr;
-        if( parsing_exception )
-        {   // the exception has not been thrown out of the library. Do that after preparing this picture for referencing
-          pcParsedPic->error = true;
-          pcParsedPic->waitForAllTasks();
-          pcParsedPic->parseDone.clearException();
-        }
-
-        pcParsedPic->waitForAllTasks();
-
-        if( pcParsedPic->progress < Picture::parsing )
-        {
-          // we don't know if all structures are there yet, so we init them
-          pcParsedPic->ensureUsableAsRef();
-        }
-        pcParsedPic->fillGrey( m_decLibParser.getParameterSetManager().getFirstSPS() );
-
-        // need to finish picture here, because it won't go through declibRecon
-        finishPicture( pcParsedPic );
-
-        // this exception has not been thrown outside (error must have happened in slice parsing task)
-        if( parsing_exception )
-        {
-          CHECK_FATAL( pcParsedPic->exceptionThrownOut, "The exception shouldn't have been thrown out already." );
-          pcParsedPic->exceptionThrownOut = true;
-          std::rethrow_exception( parsing_exception );
-        }
-
-        // try again to get a picture, that we can reconstruct now
-        pcParsedPic = m_decLibParser.getNextDecodablePicture();
-      }
-
       reconPicture( pcParsedPic );
     }
   }
@@ -260,12 +235,22 @@ Picture* DecLib::decode( InputNALUnit& nalu )
 
 Picture* DecLib::flushPic()
 {
-  Picture* outPic = getNextOutputPic( false );
+  Picture* outPic = nullptr;
   try
   {
     // at end of file, fill the decompression queue and decode pictures until the next output-picture is finished
     while( Picture* pcParsedPic = m_decLibParser.getNextDecodablePicture() )
     {
+      if( pcParsedPic->error || pcParsedPic->wasLost || pcParsedPic->parseDone.hasException() )
+      {
+        CHECK_FATAL( pcParsedPic->progress >= Picture::reconstructing, "The error picture shouldn't be in reconstructing state yet." );
+
+        sanitizeBrokenPicture( pcParsedPic );
+
+        // try again to get a picture, that we can reconstruct now
+        continue;
+      }
+
       // reconPicture() blocks and finishes one picture on each call
       reconPicture( pcParsedPic );
 
@@ -279,6 +264,11 @@ Picture* DecLib::flushPic()
       }
     }
 
+    // no more pictures to finish decoding, but we might still have finished pictures in the recon queue
+    if( !outPic )
+    {
+      outPic = getNextOutputPic( false );
+    }
     if( outPic && outPic->progress == Picture::finished )
     {
       return outPic;
@@ -307,7 +297,7 @@ Picture* DecLib::flushPic()
   }
   catch( ... )
   {
-    m_picListManager.releasePicture(outPic);
+    m_picListManager.releasePicture( outPic );
     throw;
   }
 
@@ -318,6 +308,37 @@ Picture* DecLib::flushPic()
   m_checkMissingOutput = false;
 
   return nullptr;
+}
+
+void DecLib::sanitizeBrokenPicture( Picture* pcParsedPic )
+{
+  std::exception_ptr parsing_exception = pcParsedPic->parseDone.hasException() ? pcParsedPic->parseDone.getException() : nullptr;
+  if( parsing_exception )
+  {   // the exception has not been thrown out of the library. Do that after preparing this picture for referencing
+    pcParsedPic->error = true;
+    pcParsedPic->waitForAllTasks();
+    pcParsedPic->parseDone.clearException();
+  }
+
+  pcParsedPic->waitForAllTasks();
+
+  if( pcParsedPic->progress < Picture::parsing )
+  {
+    // we don't know if all structures are there yet, so we init them
+    pcParsedPic->ensureUsableAsRef();
+  }
+  pcParsedPic->fillGrey( m_decLibParser.getParameterSetManager().getFirstSPS() );
+
+  // need to finish picture here, because it won't go through declibRecon
+  finishPicture( pcParsedPic );
+
+  // this exception has not been thrown outside (error must have happened in slice parsing task)
+  if( parsing_exception )
+  {
+    CHECK_FATAL( pcParsedPic->exceptionThrownOut, "The exception shouldn't have been thrown out already." );
+    pcParsedPic->exceptionThrownOut = true;
+    std::rethrow_exception( parsing_exception );
+  }
 }
 
 #if JVET_R0270
@@ -335,6 +356,7 @@ int DecLib::finishPicture( Picture* pcPic, MsgLevel msgl )
   if( pcPic->wasLost || pcPic->error || pcPic->reconDone.hasException() || pcPic->parseDone.hasException() )
   {
     msg( msgl, "POC %4d LId: %2d TId: %1d %s\n", pcPic->poc, pcPic->layerId, pcSlice->getTLayer(), pcPic->wasLost ? "LOST" : "ERROR" );
+    pcPic->fillGrey( pcPic->cs->sps.get() );
     pcPic->progress = Picture::finished;
 
     // if the picture has an exception set (originating from thread-pool tasks), don't return here, but rethrow the exception

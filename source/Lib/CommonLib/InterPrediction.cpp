@@ -268,7 +268,7 @@ void gradFilterCore(Pel* pSrc, ptrdiff_t srcStride, int width, int height, ptrdi
 
 void PaddBIOCore(const Pel* refPel,Pel* dstPel,unsigned width,const int shift)
 {
-#define LFTSHFT(y,shift) y<<shift           // simplification because shift is never < 0
+#define LFTSHFT( y, shift ) y * ( 1 << shift )   // simplification because shift is never < 0
 
   for( int w = 0; w < width + 2 * BIO_EXTEND_SIZE; w++ )
   {
@@ -328,6 +328,19 @@ InterPrediction::InterPrediction()
   clipMv = clipMvInPic;
 
   m_currChromaFormat = NUM_CHROMA_FORMAT;
+
+  memset( m_gradX0,               0x00, sizeof( m_gradX0             ) );
+  memset( m_gradY0,               0x00, sizeof( m_gradY0             ) );
+  memset( m_gradX1,               0x00, sizeof( m_gradX1             ) );
+  memset( m_gradY1,               0x00, sizeof( m_gradY1             ) );
+  memset( m_bdofBlock,            0x00, sizeof( m_bdofBlock          ) );
+  memset( m_acYuvPred,            0x00, sizeof( m_acYuvPred          ) );
+  memset( m_tmpBlock,             0x00, sizeof( m_tmpBlock           ) );
+  memset( m_cRefSamplesDMVRL0,    0x00, sizeof( m_cRefSamplesDMVRL0  ) );
+  memset( m_cRefSamplesDMVRL1,    0x00, sizeof( m_cRefSamplesDMVRL1  ) );
+  memset( m_cYuvPredTempDMVRL0,   0x00, sizeof( m_cYuvPredTempDMVRL0 ) );
+  memset( m_cYuvPredTempDMVRL1,   0x00, sizeof( m_cYuvPredTempDMVRL1 ) );
+  memset( m_SADsArray,            0x00, sizeof( m_SADsArray          ) );
 }
 
 InterPrediction::~InterPrediction()
@@ -337,7 +350,6 @@ InterPrediction::~InterPrediction()
 
 void InterPrediction::destroy()
 {
-  m_IBCBuffer.destroy();
 }
 
 void InterPrediction::init( RdCost* pcRdCost, ChromaFormat chromaFormatIDC, const int ctuSize, bool enableOpt )
@@ -382,11 +394,6 @@ void InterPrediction::init( RdCost* pcRdCost, ChromaFormat chromaFormatIDC, cons
     }
   }
 
-  if( m_IBCBuffer.bufs.empty() )
-  {
-    m_IBCBufferWidth = g_IBCBufferSize / ctuSize;
-    m_IBCBuffer.create( UnitArea( chromaFormatIDC, Area( 0, 0, m_IBCBufferWidth, ctuSize ) ) );
-  }
   m_currChromaFormat = chromaFormatIDC;
 }
 
@@ -863,8 +870,8 @@ void InterPrediction::xPredInterBlk( const ComponentID&    compID,
 
     for( int h = 0; h < height; h++ )
     {
-      dstPel[0]         = ( refPel[0        ] << shift ) - ( Pel ) IF_INTERNAL_OFFS;
-      dstPel[width + 1] = ( refPel[width + 1] << shift ) - ( Pel ) IF_INTERNAL_OFFS;
+      dstPel[0]         = refPel[0        ] * ( 1 << shift ) - ( Pel ) IF_INTERNAL_OFFS;
+      dstPel[width + 1] = refPel[width + 1] * ( 1 << shift ) - ( Pel ) IF_INTERNAL_OFFS;
 
       refPel += refStride;
       dstPel += dstStride;
@@ -1257,8 +1264,8 @@ void InterPrediction::xPredAffineBlk( const ComponentID&        compID,
           dstPel = dst;
           for( int ph = 0; ph < 4; ph++, refPel += refStride, dstPel += dstStride )
           {
-            dstPel[        -1] = ( refPel[        -1] << shift ) - Pel( IF_INTERNAL_OFFS );
-            dstPel[blockWidth] = ( refPel[blockWidth] << shift ) - Pel( IF_INTERNAL_OFFS );
+            dstPel[        -1] = refPel[        -1] * ( 1 << shift ) - Pel( IF_INTERNAL_OFFS );
+            dstPel[blockWidth] = refPel[blockWidth] * ( 1 << shift ) - Pel( IF_INTERNAL_OFFS );
           }
 
           profGradFilter( dst, dstStride, blockWidth, blockHeight, AFFINE_MIN_BLOCK_SIZE, gradX, gradY, clpRng.bd );
@@ -1643,7 +1650,7 @@ void xSubPelErrorSrfc(uint64_t *sadBuffer, int32_t *deltaMv)
   int32_t mvDeltaSubPel;
   int32_t mvSubPelLvl = 4;/*1: half pel, 2: Qpel, 3:1/8, 4: 1/16*/
                                                         /*horizontal*/
-    numerator = (int64_t)((sadBuffer[1] - sadBuffer[3]) << mvSubPelLvl);
+    numerator = (int64_t)(sadBuffer[1] - sadBuffer[3]) * (int64_t(1) << mvSubPelLvl);
     denominator = (int64_t)((sadBuffer[1] + sadBuffer[3] - (sadBuffer[0] << 1)));
 
     if (0 != denominator)
@@ -2004,31 +2011,32 @@ void InterPrediction::xIntraBlockCopy( CodingUnit &cu, PelUnitBuf &predBuf, cons
     refx = cu.Cb().x + (bv.hor >> shiftSampleHor);
     refy = cu.Cb().y + (bv.ver >> shiftSampleVer);
   }
-  refx &= ((m_IBCBufferWidth >> shiftSampleHor) - 1);
+  const int ibcBufferWidth = cu.cs->m_IBCBufferWidth >> shiftSampleHor;
+  refx &= ( ibcBufferWidth - 1 );
   refy &= ((1 << ctuSizeVerLog2) - 1);
 
   const int lineIdx = cu.lumaPos().y / cu.slice->getSPS()->getMaxCUHeight();
 
   CHECK( refy + predBuf.bufs[compID].height > ( 1 << ctuSizeVerLog2 ), "IBC access out of bounds." );
-  if (refx + (int)predBuf.bufs[compID].width <= (m_IBCBufferWidth >> shiftSampleHor))
+  if (refx + (int)predBuf.bufs[compID].width <= ibcBufferWidth)
   {
     const CompArea srcArea = CompArea( compID, Position( refx, refy ), Size( predBuf.bufs[compID] ) );
-    const CPelBuf refBuf = cu.cs->m_virtualIBCbuf[lineIdx].getBuf( srcArea );   //m_IBCBuffer.getBuf(srcArea);
+    const CPelBuf refBuf = cu.cs->m_virtualIBCbuf[lineIdx].getBuf( srcArea );
     predBuf.bufs[compID].copyFrom( refBuf );
   }
   else
   {   // wrap around
-    CHECK( (int) predBuf.bufs[compID].width > ( m_IBCBufferWidth >> shiftSampleHor ), "IBC access out of bounds." );
+    CHECK( (int) predBuf.bufs[compID].width > ibcBufferWidth, "IBC access out of bounds." );
 
-    const int width   = ( m_IBCBufferWidth >> shiftSampleHor ) - refx;
+    const int width   = ibcBufferWidth - refx;
     CompArea  srcArea = CompArea( compID, Position( refx, refy ), Size( width, predBuf.bufs[compID].height ) );
-    CPelBuf   srcBuf  = cu.cs->m_virtualIBCbuf[lineIdx].getBuf( srcArea );   // m_IBCBuffer.getBuf(srcArea);
+    CPelBuf   srcBuf  = cu.cs->m_virtualIBCbuf[lineIdx].getBuf( srcArea );
     PelBuf    dstBuf  = predBuf.bufs[compID].subBuf( 0, 0, width, predBuf.bufs[compID].height );
     dstBuf.copyFrom( srcBuf );
 
     const int remWidth = predBuf.bufs[compID].width - width;
     srcArea            = CompArea( compID, Position( 0, refy ), Size( remWidth, predBuf.bufs[compID].height ) );
-    srcBuf             = cu.cs->m_virtualIBCbuf[lineIdx].getBuf( srcArea );   // m_IBCBuffer.getBuf(srcArea);
+    srcBuf             = cu.cs->m_virtualIBCbuf[lineIdx].getBuf( srcArea );
     dstBuf             = predBuf.bufs[compID].subBuf( width, 0, remWidth, predBuf.bufs[compID].height );
     dstBuf.copyFrom( srcBuf );
   }
