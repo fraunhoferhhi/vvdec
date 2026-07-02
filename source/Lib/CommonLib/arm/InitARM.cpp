@@ -197,15 +197,16 @@ void InterPrediction::initInterPredictionARM()
 }
 #endif
 
-//#  if ENABLE_SIMD_OPT_PICTURE
-//void Picture::initPictureARM()
-//{
-//  auto vext = read_arm_extension_flags();
-//  if( vext >= NEON )
-//  {
-//    _initPictureARM<NEON>();
-//  }
-//#  endif
+#if ENABLE_SIMD_OPT_PICTURE
+void Picture::initPictureARM()
+{
+  auto vext = read_arm_extension_flags();
+  if( vext >= NEON )
+  {
+    _initPictureARM<NEON>();
+  }
+}
+#endif
 
 //#  if ENABLE_SIMD_OPT_QUANT
 //void Quant::initQuantARM()
