@@ -208,15 +208,16 @@ void Picture::initPictureARM()
 }
 #endif
 
-//#  if ENABLE_SIMD_OPT_QUANT
-//void Quant::initQuantARM()
-//{
-//  auto vext = read_arm_extension_flags();
-//  if( vext >= NEON )
-//  {
-//    _initQuantARM<NEON>();
-//  }
-//#  endif
+#if ENABLE_SIMD_OPT_QUANT
+void Quant::initQuantARM()
+{
+  auto vext = read_arm_extension_flags();
+  if( vext >= NEON )
+  {
+    _initQuantARM<NEON>();
+  }
+}
+#endif
 
 #endif   // TARGET_SIMD_ARM
 
