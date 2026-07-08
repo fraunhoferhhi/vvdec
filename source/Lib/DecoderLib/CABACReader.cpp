@@ -3092,12 +3092,12 @@ unsigned CABACReader::exp_golomb_eqprob( unsigned count )
 {
   unsigned symbol = 0;
   unsigned bit    = 1;
-  while( bit )
+  while( bit & (count >> 5) )
   {
     bit     = m_BinDecoder.decodeBinEP( );
     symbol += bit << count++;
-    CHECK( count >= 31, "exp_golomb_eqprob count overflow" );
   }
+  CHECK( count == 32 && bit == 1, "exp_golomb_eqprob count overflow" );
   if( --count )
   {
     symbol += m_BinDecoder.decodeBinsEP( count );
