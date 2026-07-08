@@ -3092,7 +3092,7 @@ unsigned CABACReader::exp_golomb_eqprob( unsigned count )
 {
   unsigned symbol = 0;
   unsigned bit    = 1;
-  while( bit & (count >> 5) )
+  while( bit & ~(count >> 5) )
   {
     bit     = m_BinDecoder.decodeBinEP( );
     symbol += bit << count++;
