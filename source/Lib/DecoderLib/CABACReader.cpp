@@ -3087,11 +3087,13 @@ unsigned CABACReader::unary_max_eqprob( unsigned maxSymbol )
   return maxSymbol;
 }
 
-
+// `count` is always 0 in VVC
 unsigned CABACReader::exp_golomb_eqprob( unsigned count )
 {
   unsigned symbol = 0;
   unsigned bit    = 1;
+  // when `count` reaches 32 ((32 >> 5) == 1), exit the loop and trigger the CHECK below
+  // the `bit << 32` will never be triggered then
   while( bit & ~(count >> 5) )
   {
     bit     = m_BinDecoder.decodeBinEP( );
