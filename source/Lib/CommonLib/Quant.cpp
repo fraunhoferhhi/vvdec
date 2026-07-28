@@ -225,6 +225,9 @@ Quant::Quant( const Quant* other, bool enableOpt )
 #if ENABLE_SIMD_OPT_QUANT && defined( TARGET_SIMD_X86 )
     initQuantX86();
 #endif
+#if ENABLE_SIMD_OPT_QUANT && defined( TARGET_SIMD_ARM )
+    initQuantARM();
+#endif
   }
 }
 

@@ -58,6 +58,9 @@ class ScalingList;
 #if ENABLE_SIMD_OPT_QUANT && defined( TARGET_SIMD_X86 )
 using namespace x86_simd;
 #endif
+#if ENABLE_SIMD_OPT_QUANT && defined( TARGET_SIMD_ARM )
+using namespace arm_simd;
+#endif
 
 // ====================================================================================================================
 // Constants
@@ -158,6 +161,11 @@ private:
   void initQuantX86();
   template <X86_VEXT vext>
   void _initQuantX86();
+#endif
+#if ENABLE_SIMD_OPT_QUANT && defined( TARGET_SIMD_ARM )
+  void initQuantARM();
+  template <ARM_VEXT vext>
+  void _initQuantARM();
 #endif
 };// END CLASS DEFINITION Quant
 
