@@ -12,9 +12,9 @@ if( NOT CMAKE_BUILD_TYPE )
 endif()
 
 # project name
-project( vvdec VERSION 3.2.0 )
+project( vvdec VERSION 3.3.0 )
 # set alternative version numbering for release candidates
-#set( PROJECT_VERSION_RC rc2 )
+set( PROJECT_VERSION_RC dev )
 if( PROJECT_VERSION_RC )
     set( PROJECT_VERSION "${PROJECT_VERSION}-${PROJECT_VERSION_RC}" )
 endif()
