@@ -171,12 +171,12 @@ if( VVDEC_ENABLE_ARM_SIMD )
 
   add_library( ${LIB_NAME}_arm_simd OBJECT ${ARM_SIMD_SRC_FILES} )
 
-  # NEON is enabled by default for all files, so don't need to disable LTO
-  # set_target_properties( ${LIB_NAME}_arm_simd PROPERTIES
-  #                                             INTERPROCEDURAL_OPTIMIZATION                OFF
-  #                                             INTERPROCEDURAL_OPTIMIZATION_RELEASE        OFF
-  #                                             INTERPROCEDURAL_OPTIMIZATION_RELWITHDEBINFO OFF
-  #                                             INTERPROCEDURAL_OPTIMIZATION_MINSIZEREL     OFF )
+  # disble LTO for the files compiled with special architecture flags
+  set_target_properties( ${LIB_NAME}_arm_simd PROPERTIES
+                                              INTERPROCEDURAL_OPTIMIZATION                OFF
+                                              INTERPROCEDURAL_OPTIMIZATION_RELEASE        OFF
+                                              INTERPROCEDURAL_OPTIMIZATION_RELWITHDEBINFO OFF
+                                              INTERPROCEDURAL_OPTIMIZATION_MINSIZEREL     OFF )
 
   set_target_properties( ${LIB_NAME}_arm_simd PROPERTIES FOLDER lib )
 endif()
