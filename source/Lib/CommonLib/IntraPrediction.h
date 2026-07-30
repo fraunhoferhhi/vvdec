@@ -156,6 +156,11 @@ public:
   template <X86_VEXT vext>
   void _initIntraPredictionX86();
 #endif
+#if ENABLE_SIMD_OPT_INTRAPRED && defined( TARGET_SIMD_ARM )
+  void initIntraPredictionARM();
+  template <ARM_VEXT vext>
+  void _initIntraPredictionARM();
+#endif
 };
 
 }

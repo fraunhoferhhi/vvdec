@@ -48,6 +48,7 @@ POSSIBILITY OF SUCH DAMAGE.
 #include "CommonLib/CommonDef.h"
 #include "CommonLib/InterPrediction.h"
 #include "CommonLib/InterpolationFilter.h"
+#include "CommonLib/IntraPrediction.h"
 #include "CommonLib/LoopFilter.h"
 #include "CommonLib/Picture.h"
 #include "CommonLib/SampleAdaptiveOffset.h"
@@ -2513,6 +2514,70 @@ static bool test_DeQuant()
 }
 #endif // ENABLE_SIMD_OPT_QUANT
 
+#if ENABLE_SIMD_OPT_INTRAPRED
+static bool test_IntraPredAngleChroma()
+{
+  IntraPrediction ref;
+  IntraPrediction opt;
+#if defined( TARGET_SIMD_X86 )
+  opt.initIntraPredictionX86();
+#endif
+#if defined( TARGET_SIMD_ARM )
+  opt.initIntraPredictionARM();
+#endif
+
+  DimensionGenerator rng;
+  bool passed = true;
+
+  for( unsigned bd : { 8u, 10u } )
+  {
+    for( unsigned width : { 4u, 8u, 16u, 32u } )
+    {
+      for( unsigned height : { 2u, 4u, 8u, 16u, 32u } )
+      {
+        for( int c = 0; c < NUM_CASES; ++c )
+        {
+          // Size the border buffer for the worst-case deltaInt drift over all rows, plus a
+          // margin so a SIMD kernel's vector load past the block width stays in bounds.
+          const int MAX_ANGLE     = 32;
+          const int SIMD_MARGIN   = 64;
+          const int deltaInt_max  = ( MAX_ANGLE * (int)height + 31 ) / 32 + 1;
+          const int PAD           = deltaInt_max + SIMD_MARGIN;
+          const int RIGHT_MARGIN  = (int)width + deltaInt_max + SIMD_MARGIN;
+          const int BORDER_SIZE   = PAD + RIGHT_MARGIN;
+
+          std::vector<int16_t> border( BORDER_SIZE );
+          InputGenerator<int16_t> g{ bd, /*is_signed=*/false };
+          std::generate( border.begin(), border.end(), g );
+          int16_t* pBorder = border.data() + PAD;
+
+          const ptrdiff_t dstStride = (ptrdiff_t)width + rng.get( 0, 8 );
+          std::vector<int16_t> dstRef( (size_t)dstStride * height + 16, 0 );
+          std::vector<int16_t> dstOpt( (size_t)dstStride * height + 16, 0 );
+
+          const int intraPredAngle = rng.getOneOf<int>( { 32, 16, 6, 3, 1, -1, -3, -6, -16, -32 } );
+          const int deltaPos       = intraPredAngle;
+
+          ref.IntraPredAngleChroma8( dstRef.data(), dstStride, pBorder, (int)width, (int)height, deltaPos, intraPredAngle );
+
+          if( width >= 8 )
+            opt.IntraPredAngleChroma8( dstOpt.data(), dstStride, pBorder, (int)width, (int)height, deltaPos, intraPredAngle );
+          else
+            opt.IntraPredAngleChroma4( dstOpt.data(), dstStride, pBorder, (int)width, (int)height, deltaPos, intraPredAngle );
+
+          std::ostringstream sstm;
+          sstm << "IntraPredAngleChroma bd=" << bd << " w=" << width << " h=" << height
+               << " angle=" << intraPredAngle << " deltaPos=" << deltaPos;
+          passed &= compare_values_2d( sstm.str(), dstRef.data(), dstOpt.data(),
+                                       height, width, (unsigned)dstStride );
+        }
+      }
+    }
+  }
+  return passed;
+}
+#endif // ENABLE_SIMD_OPT_INTRAPRED
+
 struct UnitTestEntry
 {
   std::string name;
@@ -2525,6 +2590,9 @@ static const UnitTestEntry test_suites[] = {
 #endif
 #if ENABLE_SIMD_OPT_QUANT
     { "DeQuant", test_DeQuant },
+#endif
+#if ENABLE_SIMD_OPT_INTRAPRED
+    { "IntraPredAngleChroma", test_IntraPredAngleChroma },
 #endif
 #if ENABLE_SIMD_OPT_MCIF
     { "InterpolationFilter", test_InterpolationFilter },

@@ -165,15 +165,16 @@ void TCoeffOps::initTCoeffOpsARM()
 //}
 #endif
 
-//#  if ENABLE_SIMD_OPT_INTRAPRED
-//void IntraPrediction::initIntraPredictionARM()
-//{
-//  auto vext = read_arm_extension_flags();
-//  if( vext >= NEON )
-//  {
-//    _initIntraPredictionARM<NEON>();
-//  }
-//#  endif
+#if ENABLE_SIMD_OPT_INTRAPRED
+void IntraPrediction::initIntraPredictionARM()
+{
+  auto vext = read_arm_extension_flags();
+  if( vext >= NEON )
+  {
+    _initIntraPredictionARM<NEON>();
+  }
+}
+#endif
 
 #if ENABLE_SIMD_OPT_SAO
 void SampleAdaptiveOffset::initSampleAdaptiveOffsetARM()
