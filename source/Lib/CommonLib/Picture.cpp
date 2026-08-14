@@ -289,6 +289,7 @@ void Picture::finalInit( CUChunkCache* cuChunkCache, TUChunkCache* tuChunkCache,
 
   cs->allocTempInternals();
   cs->rebindPicBufs();
+  cs->initStructData();
 
   if( sps->getIBCFlag() )
   {
