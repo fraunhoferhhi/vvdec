@@ -102,7 +102,14 @@ void PicListManager::deleteBuffers()
 {
   for( auto& pcPic: m_cPicList )
   {
-    pcPic->destroy();
+    try
+    {
+      pcPic->destroy();
+    }
+    catch( ... )   // this function is called from destructors, so we don't throw here
+    {
+      msg( ERROR, "PicListManager::deleteBuffers: caught exception while destroying picture buffers\n" );
+    }
 
     delete pcPic;
     pcPic = NULL;
