@@ -113,7 +113,7 @@ void Picture::createWrapAroundBuf( const bool isWrapAround, const unsigned _maxC
 
 void Picture::resetForUse( int _layerId )
 {
-  CHECK( lockedByApplication, "the picture can not be re-used, because it has not been unlocked by the application." );
+  CHECK( lockedByApplication == LOCKED, "the picture can not be re-used, because it has not been unlocked by the application." );
 
   if( cs )
   {
@@ -142,7 +142,7 @@ void Picture::resetForUse( int _layerId )
   subpicsCheckedDPH.clear();
   dphMismatch   = false;
 
-  lockedByApplication = false;
+  lockedByApplication = UNLOCKED;
 
   poc                 = 0;
   cts                 = 0;
@@ -180,7 +180,7 @@ void Picture::resetForUse( int _layerId )
 
 void Picture::destroy()
 {
-  CHECK( lockedByApplication, "the picture can not be destroyed, because it has not been unlocked by the application." );
+  CHECK( lockedByApplication == LOCKED, "the picture can not be destroyed, because it has not been unlocked by the application." );
 
   for (uint32_t t = 0; t < NUM_PIC_TYPES; t++)
   {

@@ -398,7 +398,7 @@ Picture* PicListManager::getNextOutputPic( uint32_t numReorderPicsHighestTid,
   if( lowestPOCPic )
   {
     m_firstOutputPic                  = false;
-    lowestPOCPic->lockedByApplication = true;
+    lowestPOCPic->lockedByApplication = Picture::WAITING;
     lowestPOCPic->neededForOutput     = false;
 
     IF_DEBUG_PIC_ORDER( std::cout << " ==> " << lowestPOCPic->poc );
@@ -412,7 +412,7 @@ void PicListManager::releasePicture( Picture* pic )
 {
   if( pic )
   {
-    pic->lockedByApplication = false;
+    pic->lockedByApplication = Picture::UNLOCKED;
   }
 }
 
