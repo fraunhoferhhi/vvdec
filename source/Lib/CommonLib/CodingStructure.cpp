@@ -94,16 +94,13 @@ void CodingStructure::destroy()
 
   deallocTempInternals();
 
-  if( m_ctuData ) free( m_ctuData );
-  m_ctuData = nullptr;
+  m_ctuData.reset();
   m_ctuDataSize = 0;
 
-  if( m_colMiMap ) free( m_colMiMap );
-  m_colMiMap = nullptr;
+  m_colMiMap.reset();
   m_colMiMapSize = 0;
 
-  if( m_cuMap ) free( m_cuMap );
-  m_cuMap = nullptr;
+  m_cuMap.reset();
   m_cuMapSize = 0;
 }
 
@@ -285,25 +282,25 @@ void CodingStructure::allocTempInternals()
   const ptrdiff_t ctuCuMapSize    = pcv->num4x4CtuBlks;
   const ptrdiff_t ctuColMiMapSize = pcv->num8x8CtuBlks;
 
-  if( m_cuMapSize != ctuCuMapSize * pcv->sizeInCtus * 2 )
+  const ptrdiff_t newCuMapSize = ctuCuMapSize * pcv->sizeInCtus * 2;
+  if( m_cuMapSize != newCuMapSize )
   {
-    if( m_cuMap ) free( m_cuMap );
-    m_cuMapSize = ctuCuMapSize * pcv->sizeInCtus * 2;
-    m_cuMap     = ( CodingUnit** ) malloc( sizeof( CodingUnit* ) * m_cuMapSize );
+    m_cuMap     = std::make_unique<CodingUnit*[]>( newCuMapSize );
+    m_cuMapSize = newCuMapSize;
   }
 
-  if( m_colMiMapSize != ctuColMiMapSize * pcv->sizeInCtus )
+  const ptrdiff_t newColMiMapSize = ctuColMiMapSize * pcv->sizeInCtus;
+  if( m_colMiMapSize != newColMiMapSize )
   {
-    if( m_colMiMap ) free( m_colMiMap );
-    m_colMiMapSize = ctuColMiMapSize * pcv->sizeInCtus;
-    m_colMiMap     = ( ColocatedMotionInfo* ) malloc( sizeof( ColocatedMotionInfo ) * m_colMiMapSize );
+    m_colMiMap     = std::make_unique<ColocatedMotionInfo[]>( newColMiMapSize );
+    m_colMiMapSize = newColMiMapSize;
   }
-  
-  if( m_ctuDataSize != pcv->sizeInCtus )
+
+  const size_t newCtuDataSize = pcv->sizeInCtus;
+  if( m_ctuDataSize != newCtuDataSize )
   {
-    m_ctuDataSize = pcv->sizeInCtus;
-    if( m_ctuData ) free( m_ctuData );
-    m_ctuData = ( CtuData* ) malloc( m_ctuDataSize * sizeof( CtuData ) );
+    m_ctuData     = std::make_unique<CtuData[]>( newCtuDataSize );
+    m_ctuDataSize = newCtuDataSize;
   }
 }
 
@@ -312,8 +309,7 @@ void CodingStructure::deallocTempInternals()
   m_cuCache.releaseAll();
   m_tuCache.releaseAll();
 
-  if( m_cuMap ) free( m_cuMap );
-  m_cuMap     = nullptr;
+  m_cuMap.reset();
   m_cuMapSize = 0;
 }
 
@@ -330,9 +326,9 @@ void CodingStructure::initStructData()
   m_ctuWidthLog2[0] = pcv->maxCUWidthLog2 - unitScale[CH_L].posx;
   m_ctuWidthLog2[1] = m_ctuWidthLog2[0]; // same for luma and chroma, because of the 2x2 blocks
 
-  memset( NO_WARNING_class_memaccess( m_ctuData ),             0, sizeof( CtuData             ) * m_ctuDataSize );
-  memset( NO_WARNING_class_memaccess( m_cuMap ),               0, sizeof( CodingUnit*         ) * m_cuMapSize );
-  memset( NO_WARNING_class_memaccess( m_colMiMap ), CO_NOT_VALID, sizeof( ColocatedMotionInfo ) * m_colMiMapSize );
+  memset( NO_WARNING_class_memaccess( m_ctuData.get() ),             0, sizeof( CtuData             ) * m_ctuDataSize );
+  memset( NO_WARNING_class_memaccess( m_cuMap.get() ),               0, sizeof( CodingUnit*         ) * m_cuMapSize );
+  memset( NO_WARNING_class_memaccess( m_colMiMap.get() ), CO_NOT_VALID, sizeof( ColocatedMotionInfo ) * m_colMiMapSize );
 
   const ptrdiff_t ctuSampleSizeL  = pcv->maxCUHeight * pcv->maxCUWidth;
   const ptrdiff_t ctuSampleSizeC  = isChromaEnabled( pcv->chrFormat ) ? ( ctuSampleSizeL >> ( getChannelTypeScaleX( CH_C, pcv->chrFormat) + getChannelTypeScaleY( CH_C, pcv->chrFormat ) ) ) : 0;

@@ -180,7 +180,7 @@ void Picture::resetForUse( int _layerId )
 
 void Picture::destroy()
 {
-  CHECK( lockedByApplication == LOCKED, "the picture can not be destroyed, because it has not been unlocked by the application." );
+  CHECK_WARN( lockedByApplication == LOCKED, "the picture can not be destroyed, because it has not been unlocked by the application." );
 
   for (uint32_t t = 0; t < NUM_PIC_TYPES; t++)
   {
@@ -190,8 +190,7 @@ void Picture::destroy()
   if( cs )
   {
     cs->destroy();
-    delete cs;
-    cs = nullptr;
+    cs.reset();
   }
 
 #if  RECO_WHILE_PARSE
@@ -252,7 +251,7 @@ void Picture::finalInit( CUChunkCache* cuChunkCache, TUChunkCache* tuChunkCache,
 
   if( !cs )
   {
-    cs = new CodingStructure( cuChunkCache, tuChunkCache );
+    cs = std::make_unique<CodingStructure>( cuChunkCache, tuChunkCache );
     cs->create( chromaFormatIDC, Area( 0, 0, iWidth, iHeight ) );
   }
 

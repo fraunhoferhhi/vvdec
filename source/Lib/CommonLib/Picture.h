@@ -257,8 +257,8 @@ public:
   CBarrierVec     refPicExtDepBarriers;
 #endif
 
-  CodingStructure*    cs = nullptr;
-  std::vector<Slice*> slices;
+  std::unique_ptr<CodingStructure> cs;
+  std::vector<Slice*>              slices;
 
   seiMessages        seiMessageList;
 
