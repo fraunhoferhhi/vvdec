@@ -81,7 +81,6 @@ void DecSlice::parseSlice( Slice* slice, InputBitstream* bitstream, int threadId
   CodingStructure& cs = *pic->cs;
   cs.chromaQpAdj      = 0;
 
-  const int       startCtuTsAddr              = slice->getFirstCtuRsAddrInSlice();
   const unsigned  widthInCtus                 = cs.pcv->widthInCtus;
   const bool      wavefrontsEnabled           = cs.sps->getEntropyCodingSyncEnabledFlag();
   const bool      entryPointPresent           = cs.sps->getEntryPointsPresentFlag();
@@ -91,12 +90,6 @@ void DecSlice::parseSlice( Slice* slice, InputBitstream* bitstream, int threadId
   CABACReader cabacReader;
   cabacReader.initBitstream( ppcSubstreams[0].get() );
   cabacReader.initCtxModels( *slice );
-
-  // if first slice, finish init of the coding structure
-  if( startCtuTsAddr == 0 )
-  {
-    cs.initStructData();
-  }
 
   // Quantization parameter
   int prevQP[2] = { slice->getSliceQp(), slice->getSliceQp() };

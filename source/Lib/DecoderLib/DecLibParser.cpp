@@ -1064,6 +1064,7 @@ void DecLibParser::xActivateParameterSets( const int layerId )
     m_pcParsePic->poc          = m_apcSlicePilot->getPOC();
     m_pcParsePic->eNalUnitType = m_apcSlicePilot->getNalUnitType();
     m_pcParsePic->finalInit( &m_cuChunkCache, &m_tuChunkCache, sps, pps, m_picHeader, alfApss, lmcsAPS, scalingListAPS );
+    m_pcParsePic->cs->initStructData();
 
 #if !DISABLE_CONFROMANCE_CHECK
     m_apcSlicePilot->checkLeadingPictureRestrictions( m_dpbReferencePics );
