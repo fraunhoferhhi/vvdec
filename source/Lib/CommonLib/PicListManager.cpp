@@ -102,7 +102,14 @@ void PicListManager::deleteBuffers()
 {
   for( auto& pcPic: m_cPicList )
   {
-    pcPic->destroy();
+    try
+    {
+      pcPic->destroy();
+    }
+    catch( ... )   // this function is called from destructors, so we don't throw here
+    {
+      msg( ERROR, "PicListManager::deleteBuffers: caught exception while destroying picture buffers\n" );
+    }
 
     delete pcPic;
     pcPic = NULL;
@@ -398,7 +405,7 @@ Picture* PicListManager::getNextOutputPic( uint32_t numReorderPicsHighestTid,
   if( lowestPOCPic )
   {
     m_firstOutputPic                  = false;
-    lowestPOCPic->lockedByApplication = true;
+    lowestPOCPic->lockedByApplication = Picture::WAITING;
     lowestPOCPic->neededForOutput     = false;
 
     IF_DEBUG_PIC_ORDER( std::cout << " ==> " << lowestPOCPic->poc );
@@ -412,7 +419,7 @@ void PicListManager::releasePicture( Picture* pic )
 {
   if( pic )
   {
-    pic->lockedByApplication = false;
+    pic->lockedByApplication = Picture::UNLOCKED;
   }
 }
 

@@ -467,6 +467,10 @@ int VVDecImpl::decode( vvdecAccessUnit& rcAccessUnit, vvdecFrame** ppcFrame )
       {
         *ppcFrame = &std::get<vvdecFrame>( *m_pcFrameNext );
         m_uiSeqNumOutput = (*ppcFrame)->sequenceNumber;
+        if( Picture* pic = std::get<Picture*>( *m_pcFrameNext ) )
+        {
+          pic->lockedByApplication = Picture::LOCKED;
+        }
         ++m_pcFrameNext;
       }
     }

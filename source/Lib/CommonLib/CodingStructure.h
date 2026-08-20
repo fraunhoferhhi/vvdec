@@ -125,15 +125,16 @@ public:
   std::shared_ptr<const APS> lmcsAps;
   const PreCalcValues*       pcv;
 
-  // data for which memory is partially borrowed from DecLibRecon
-  CtuData*          m_ctuData;
-  size_t            m_ctuDataSize;
+  std::unique_ptr<CtuData[]> m_ctuData;
+  size_t                     m_ctuDataSize;
 
+  // data for which memory is partially borrowed from DecLibRecon
   Pel*              m_predBuf;
   Mv*               m_dmvrMvCache;
   // end of partially borrowed data
   
   CodingStructure( CUChunkCache* cuChunkCache, TUChunkCache* tuChunkCache );
+  ~CodingStructure() { destroy(); }
 
   void create(const UnitArea &_unit);
   void create(const ChromaFormat &_chromaFormat, const Area& _area);
@@ -198,10 +199,10 @@ public:
   PosType              m_ctuSizeMask[2];
   PosType              m_ctuWidthLog2[2];
 
-  CodingUnit**         m_cuMap;
-  ptrdiff_t            m_cuMapSize;
-  ColocatedMotionInfo* m_colMiMap;
-  ptrdiff_t            m_colMiMapSize;
+  std::unique_ptr<CodingUnit*[]>         m_cuMap;
+  ptrdiff_t                              m_cuMapSize;
+  std::unique_ptr<ColocatedMotionInfo[]> m_colMiMap;
+  ptrdiff_t                              m_colMiMapSize;
 
 public:
 

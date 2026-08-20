@@ -214,9 +214,14 @@ public:
   std::vector<bool> subpicsCheckedDPH;
   bool              dphMismatch   = false;
 
-  // As long as this field is true, the picture will not be reused or deleted.
+  // As long as this field is nonzero, the picture will not be reused or deleted.
   // An external application needs to call DecLib::releasePicture(), when it is done using the picture buffer.
-  bool lockedByApplication = false;
+  enum : int8_t
+  {
+    UNLOCKED = 0,
+    WAITING,   // the picture has not yet been passed to the application
+    LOCKED     // the picture has been passed to the application and is still in use
+  } lockedByApplication = UNLOCKED;
 
   int         poc          = 0;
   uint64_t    cts          = 0;   // composition time stamp
@@ -252,8 +257,8 @@ public:
   CBarrierVec     refPicExtDepBarriers;
 #endif
 
-  CodingStructure*    cs = nullptr;
-  std::vector<Slice*> slices;
+  std::unique_ptr<CodingStructure> cs;
+  std::vector<Slice*>              slices;
 
   seiMessages        seiMessageList;
 

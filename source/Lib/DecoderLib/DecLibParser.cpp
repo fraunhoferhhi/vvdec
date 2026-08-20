@@ -1297,7 +1297,6 @@ void DecLibParser::prepareUnavailablePicture( bool isLost, const PPS* pps, int i
   m_dpbReferencePics.push_back( cFillPic );
   const APS* nullAlfApss[ALF_CTB_MAX_NUM_APS] = { nullptr, };
   cFillPic->finalInit( &m_cuChunkCache, &m_tuChunkCache, m_parameterSetManager.getFirstSPS(), m_parameterSetManager.getFirstPPS(), m_picHeader, nullAlfApss, nullptr, nullptr, false );
-  cFillPic->cs->initStructData();
 
   CHECK_FATAL( !cFillPic->slices.empty(), "fill pic should not contain slices, already." );
   cFillPic->allocateNewSlice();
