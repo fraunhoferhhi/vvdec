@@ -383,7 +383,7 @@ void Picture::ensureUsableAsRef()
 
 void Picture::fillGrey( const SPS* fallbackSPS )
 {
-  CHECK( !cs && !cs->sps && !fallbackSPS, "No SPS accessible" );
+  CHECK( ( !cs || !cs->sps ) && !fallbackSPS, "No SPS accessible" );
 
   const int bitDepth = cs && cs->sps ? cs->sps->getBitDepth() : fallbackSPS->getBitDepth();
   // fill in grey buffer for missing reference pictures (GDR or broken bitstream)
