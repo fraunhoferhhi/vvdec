@@ -634,7 +634,14 @@ PelStorage::PelStorage()
 
 PelStorage::~PelStorage()
 {
-  destroy();
+  try
+  {
+    destroy();
+  }
+  catch( ... )   // this is a destructor, so we don't throw here
+  {
+    msg( ERROR, "PelStorage::~PelStorage: caught exception while releasing the buffers\n" );
+  }
 }
 
 void PelStorage::create( const UnitArea &_UnitArea )
