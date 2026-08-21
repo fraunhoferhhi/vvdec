@@ -1703,23 +1703,4 @@ void DecLibParser::xCheckMixedNalUnit( Slice* pcSlice, const InputNALUnit& nalu 
   }
 }
 
-void DecLibParser::waitForPicsToFinishParsing( const std::vector<Picture*>& refPics )
-{
-  for( Picture* pic: refPics )
-  {
-    if( m_threadPool->numThreads() == 0 )
-    {
-      m_threadPool->processTasksOnMainThread();
-    }
-    try
-    {
-      pic->parseDone.wait();
-    }
-    catch( ... )
-    {
-      pic->waitForAllTasks();
-    }
-  }
-}
-
 }   // namespace vvdec
