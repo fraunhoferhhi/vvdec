@@ -1005,10 +1005,6 @@ bool DecLibParser::xDecodeSliceMain( InputNALUnit& nalu )
   {
     parseTask( 0, pcSlice );
     pcSlice->parseDone.unlock();
-    if( m_pcParsePic->slices.size() != 1 && !m_pcParsePic->parseDone.isBlocked() && m_numDecThreads == 0 )
-    {
-      while( !m_threadPool->processTasksOnMainThread() );
-    }
   }
 
   if( pcSlice->getFirstCtuRsAddrInSlice() == 0 && !m_bFirstSliceInPicture )

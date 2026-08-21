@@ -691,8 +691,9 @@ Picture* DecLibRecon::waitForPrevDecompressedPic()
   {
     if( m_decodeThreadPool->numThreads() == 0 )
     {
-      /*bool stillTasksWaiting = */ m_decodeThreadPool->processTasksOnMainThread();
-      CHECK_FATAL( m_currDecompPic->reconDone.isBlocked(), "can't make progress. some dependecy has not been finished" );
+      m_decodeThreadPool->processTasksOnMainThread();
+      CHECK_FATAL( m_currDecompPic->reconDone.isBlocked(),
+                   "can't make progress reconstructing POC " << m_currDecompPic->poc << ". some dependency has not been finished." );
     }
 
     const Slice*   lastSlice           = m_currDecompPic->slices.back();
@@ -721,6 +722,11 @@ Picture* DecLibRecon::waitForPrevDecompressedPic()
 
 void DecLibRecon::cleanupOnException()
 {
+  if( m_decodeThreadPool->numThreads() == 0 )
+  {
+    CHECK_FATAL( m_decodeThreadPool->processTasksOnMainThread() != true, "can't make progress: stuck tasks." );
+  }
+
   // there was an exception anywhere in m_currDecompPic
   // => we need to wait for all tasks to be cleared from the thread pool
   m_currDecompPic->waitForAllTasks();
