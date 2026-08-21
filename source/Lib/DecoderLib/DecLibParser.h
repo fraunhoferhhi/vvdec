@@ -177,8 +177,6 @@ private:
 
   bool isRandomAccessSkipPicture();
   void xCheckMixedNalUnit     ( Slice* pcSlice, const InputNALUnit& nalu );
-
-  void waitForPicsToFinishParsing( const std::vector<Picture*>& refPics );
 };
 
 }
