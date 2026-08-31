@@ -1005,10 +1005,6 @@ bool DecLibParser::xDecodeSliceMain( InputNALUnit& nalu )
   {
     parseTask( 0, pcSlice );
     pcSlice->parseDone.unlock();
-    if( m_pcParsePic->slices.size() != 1 && !m_pcParsePic->parseDone.isBlocked() && m_numDecThreads == 0 )
-    {
-      while( !m_threadPool->processTasksOnMainThread() );
-    }
   }
 
   if( pcSlice->getFirstCtuRsAddrInSlice() == 0 && !m_bFirstSliceInPicture )
@@ -1704,25 +1700,6 @@ void DecLibParser::xCheckMixedNalUnit( Slice* pcSlice, const InputNALUnit& nalu 
       }
     }
     CHECK( !sameNalUnitType, "mixed_nalu_types_in_pic_flag is zero, but have different nal unit types" );
-  }
-}
-
-void DecLibParser::waitForPicsToFinishParsing( const std::vector<Picture*>& refPics )
-{
-  for( Picture* pic: refPics )
-  {
-    if( m_threadPool->numThreads() == 0 )
-    {
-      m_threadPool->processTasksOnMainThread();
-    }
-    try
-    {
-      pic->parseDone.wait();
-    }
-    catch( ... )
-    {
-      pic->waitForAllTasks();
-    }
   }
 }
 
