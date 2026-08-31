@@ -443,10 +443,13 @@ static int writeY4MHeader( std::ostream *f, vvdecFrame *frame )
 
   if ( frame->sequenceNumber == 0 )
   {
-    const char *cf = (frame->colorFormat == VVDEC_CF_YUV444_PLANAR) ? "444"
+    const bool mono = frame->colorFormat == VVDEC_CF_YUV400_PLANAR;
+
+    const char *cf = mono                                           ? "mono"
+                   : (frame->colorFormat == VVDEC_CF_YUV444_PLANAR) ? "444"
                    : (frame->colorFormat == VVDEC_CF_YUV422_PLANAR) ? "422" : "420";
 
-    const char *bdepth = (frame->bitDepth == 10) ? "p10" : "";
+    const char *bdepth = (frame->bitDepth == 10) ? ( mono ? "10" : "p10" ) : "";
 
     int frameRate=50;
     int frameScale=1;
