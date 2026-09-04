@@ -638,9 +638,13 @@ PelStorage::~PelStorage()
   {
     destroy();
   }
-  catch( ... )   // this is a destructor, so we don't throw here
+  catch( Exception& e )   // this is a destructor, so we don't throw here
   {
-    msg( ERROR, "PelStorage::~PelStorage: caught exception while releasing the buffers\n" );
+    msg( ERROR, "PelStorage::~PelStorage: caught exception while releasing the buffers: %s\n", e.what() );
+  }
+  catch( ... )
+  {
+    msg( ERROR, "PelStorage::~PelStorage: caught unknown exception while releasing the buffers\n" );
   }
 }
 
