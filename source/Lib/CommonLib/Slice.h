@@ -2567,7 +2567,7 @@ private:
 
   uint32_t                   m_sliceSubPicId                 = 0;
 
-  const APS*                 m_alfApss[ALF_CTB_MAX_NUM_APS]      = { 0 };
+  std::shared_ptr<const APS> m_alfApss[ALF_CTB_MAX_NUM_APS];
   bool                       m_alfEnabledFlag[MAX_NUM_COMPONENT] = { false, false, false };
   int                        m_numAlfAps                         = 0;
   AlfApsIdVec                m_lumaAlfApsId;
@@ -2594,11 +2594,10 @@ public:
   void                        setPPS( const PPS* pcPPS )                             { m_pcPPS = pcPPS;                                              }
   const PPS*                  getPPS() const                                         { CHECK_NULLPTR( m_pcPPS ); return m_pcPPS;                     }
 
-  void                        setAlfApss( std::shared_ptr<const APS> apss[ALF_CTB_MAX_NUM_APS] ) { for( int i = 0; i < ALF_CTB_MAX_NUM_APS; ++i ) { m_alfApss[i] = apss[i].get(); } }
-  void                        setAlfApss(                 const APS *apss[ALF_CTB_MAX_NUM_APS] ) { for( int i = 0; i < ALF_CTB_MAX_NUM_APS; ++i ) { m_alfApss[i] = apss[i]; } }
-  void                        clearAlfAPSs()                                         { memset( m_alfApss, 0, sizeof( m_alfApss ) );                  }
-  const APS**                 getAlfAPSs()                                           { return m_alfApss;                                             }
-  const APS* const*           getAlfAPSs() const                                     { return m_alfApss;                                             }
+  void                        setAlfApss( std::shared_ptr<const APS> apss[ALF_CTB_MAX_NUM_APS] ) { for( int i = 0; i < ALF_CTB_MAX_NUM_APS; ++i ) { m_alfApss[i] = apss[i]; } }
+  void                        setAlfApss(                 const APS *apss[ALF_CTB_MAX_NUM_APS] ) { for( int i = 0; i < ALF_CTB_MAX_NUM_APS; ++i ) { m_alfApss[i] = apss[i] ? apss[i]->getSharedPtr() : nullptr; } }
+  void                        clearAlfAPSs()                                         { for( int i = 0; i < ALF_CTB_MAX_NUM_APS; ++i ) { m_alfApss[i].reset(); } }
+  const APS*                  getAlfAPS( int idx ) const                             { return m_alfApss[idx].get();                                  }
   void                        setSaoEnabledFlag(ChannelType chType, bool s)          { m_saoEnabledFlag[chType] = s;                                 }
   bool                        getSaoEnabledFlag(ChannelType chType) const            { return m_saoEnabledFlag[chType];                              }
   void                        clearRPL( RefPicList l )                               { m_RPL[l].clear();                                             }

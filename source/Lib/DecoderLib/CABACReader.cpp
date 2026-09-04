@@ -425,8 +425,8 @@ void CABACReader::readAlf( CodingStructure& cs, unsigned int ctuRsAddr, const Pa
         if( isChroma( ( ComponentID ) compIdx ) )
         {
           const int apsIdx                  = m_slice->getAlfApsIdChroma();
-          CHECK( m_slice->getAlfAPSs()[apsIdx] == nullptr, "APS not initialized" );
-          const AlfSliceParam& alfParam     = m_slice->getAlfAPSs()[apsIdx]->getAlfAPSParam();
+          CHECK( m_slice->getAlfAPS( apsIdx ) == nullptr, "APS not initialized" );
+          const AlfSliceParam& alfParam     = m_slice->getAlfAPS( apsIdx )->getAlfAPSParam();
           const int numAlts                 = alfParam.numAlternativesChroma;
           currAlfData.alfCtuAlternative[compIdx - 1] = 0;
 
@@ -455,7 +455,7 @@ void CABACReader::readAlf( CodingStructure& cs, unsigned int ctuRsAddr, const Pa
       if ( idcVal )
       {
         const int apsIdx        = compIdx == 1 ? m_slice->getCcAlfCbApsId() : m_slice->getCcAlfCrApsId();
-        const int filterCount   = m_slice->getAlfAPSs()[apsIdx]->getCcAlfAPSParam().ccAlfFilterCount[compIdx - 1];
+        const int filterCount   = m_slice->getAlfAPS( apsIdx )->getCcAlfAPSParam().ccAlfFilterCount[compIdx - 1];
         while ( ( idcVal != filterCount ) && m_BinDecoder.decodeBinEP() )
         {
           idcVal++;

@@ -627,12 +627,10 @@ void AdaptiveLoopFilter::filterAreaChromaBothCc( const CPelUnitBuf& srcBuf,
   if( filterIdxCb && filterIdxCr )
   {
     const Area blk( Position( 0, 0 ), Size( srcBuf.get( COMPONENT_Cb ) ) );
-    int apsIdxCb = slice->getCcAlfCbApsId();
-    const int16_t* filterCoeffCb =
-        slice->getAlfAPSs()[apsIdxCb]->getCcAlfAPSParam().ccAlfCoeff[COMPONENT_Cb - 1][filterIdxCb - 1];
-    int apsIdxCr = slice->getCcAlfCrApsId();
-    const int16_t* filterCoeffCr =
-        slice->getAlfAPSs()[apsIdxCr]->getCcAlfAPSParam().ccAlfCoeff[COMPONENT_Cr - 1][filterIdxCr - 1];
+    const int      apsIdxCb      = slice->getCcAlfCbApsId();
+    const int16_t* filterCoeffCb = slice->getAlfAPS( apsIdxCb )->getCcAlfAPSParam().ccAlfCoeff[COMPONENT_Cb - 1][filterIdxCb - 1];
+    const int      apsIdxCr      = slice->getCcAlfCrApsId();
+    const int16_t* filterCoeffCr = slice->getAlfAPS( apsIdxCr )->getCcAlfAPSParam().ccAlfCoeff[COMPONENT_Cr - 1][filterIdxCr - 1];
 
     m_filterCcAlfBoth( dstBuf.get( COMPONENT_Cb ), dstBuf.get( COMPONENT_Cr ), srcBuf, blkChroma, blkLuma, filterCoeffCb, filterCoeffCr, clpRngs, m_alfVBLumaCTUHeight, m_alfVBLumaPos );
 
@@ -642,9 +640,8 @@ void AdaptiveLoopFilter::filterAreaChromaBothCc( const CPelUnitBuf& srcBuf,
     if( filterIdxCb )
     {
       const Area blk( Position( 0, 0 ), Size( srcBuf.get( COMPONENT_Cb ) ) );
-      int apsIdx = slice->getCcAlfCbApsId();
-      const int16_t* filterCoeff =
-          slice->getAlfAPSs()[apsIdx]->getCcAlfAPSParam().ccAlfCoeff[COMPONENT_Cb - 1][filterIdxCb - 1];
+      const int      apsIdx      = slice->getCcAlfCbApsId();
+      const int16_t* filterCoeff = slice->getAlfAPS( apsIdx )->getCcAlfAPSParam().ccAlfCoeff[COMPONENT_Cb - 1][filterIdxCb - 1];
 
       m_filterCcAlf( dstBuf.get( COMPONENT_Cb ), srcBuf, blkChroma, blkLuma, COMPONENT_Cb, filterCoeff, clpRngs, m_alfVBLumaCTUHeight, m_alfVBLumaPos );
     }
@@ -652,9 +649,8 @@ void AdaptiveLoopFilter::filterAreaChromaBothCc( const CPelUnitBuf& srcBuf,
     if( filterIdxCr )
     {
       const Area blk( Position( 0, 0 ), Size( srcBuf.get( COMPONENT_Cr ) ) );
-      int apsIdx = slice->getCcAlfCrApsId();
-      const int16_t* filterCoeff =
-          slice->getAlfAPSs()[apsIdx]->getCcAlfAPSParam().ccAlfCoeff[COMPONENT_Cr - 1][filterIdxCr - 1];
+      const int      apsIdx      = slice->getCcAlfCrApsId();
+      const int16_t* filterCoeff = slice->getAlfAPS( apsIdx )->getCcAlfAPSParam().ccAlfCoeff[COMPONENT_Cr - 1][filterIdxCr - 1];
 
       m_filterCcAlf( dstBuf.get( COMPONENT_Cr ), srcBuf, blkChroma, blkLuma, COMPONENT_Cr, filterCoeff, clpRngs, m_alfVBLumaCTUHeight, m_alfVBLumaPos );
     }
@@ -671,9 +667,14 @@ void AdaptiveLoopFilter::filterCTU( const CPelUnitBuf&     srcBuf,
                                     Position               ctuPos,
                                     int                    tid )
 {
-  const Slice*         slice          = cs.getCtuData( ctuIdx ).cuPtr[0][0]->slice;
-  const APS* const*    aps            = slice->getAlfAPSs();
-  const PreCalcValues& pcv            = *cs.pcv;
+  const Slice*         slice                     = cs.getCtuData( ctuIdx ).cuPtr[0][0]->slice;
+  const APS*           apss[ALF_CTB_MAX_NUM_APS] = { 0 };
+  const PreCalcValues& pcv                       = *cs.pcv;
+
+  for( int i = 0; i < ALF_CTB_MAX_NUM_APS; i++ )
+  {
+    apss[i] = slice->getAlfAPS( i );
+  }
 
   bool clipTop = false, clipBottom = false, clipLeft = false, clipRight = false;
   int  numHorVirBndry   = 0;
@@ -722,23 +723,23 @@ void AdaptiveLoopFilter::filterCTU( const CPelUnitBuf&     srcBuf,
       {
         const Area blk( Position( 0, 0 ), Size( srcBuf.get( compID ) ) );
         const short filterSetIndex = ctuAlfData.alfCtbFilterIndex;
-        filterAreaLuma( srcBuf, dstBuf, blk, slice, aps, filterSetIndex, clpRngs, tid );
+        filterAreaLuma( srcBuf, dstBuf, blk, slice, apss, filterSetIndex, clpRngs, tid );
       }
       else
       {
         const Area blkLuma  ( Position( 0, 0 ), Size( width, height ) );
         const Area blkChroma( Position( 0, 0 ), Size( srcBuf.get( compID ) ) );
 
-        filterAreaChroma( srcBuf, dstBuf, blkChroma, compID, slice, aps, ctuAlfData, clpRngs );
+        filterAreaChroma( srcBuf, dstBuf, blkChroma, compID, slice, apss, ctuAlfData, clpRngs );
       }
     }
-    
+
     // has chroma
     if( numComp > 1 )
     {
-      const Area blkLuma  ( Position( 0, 0 ), Size( width, height ) );
+      const Area blkLuma( Position( 0, 0 ), Size( width, height ) );
       const Area blkChroma( Position( 0, 0 ), Size( srcBuf.get( COMPONENT_Cb ) ) );
-      filterAreaChromaBothCc( srcBuf, dstBuf, blkLuma, blkChroma, slice, aps, ctuAlfData, clpRngs );
+      filterAreaChromaBothCc( srcBuf, dstBuf, blkLuma, blkChroma, slice, apss, ctuAlfData, clpRngs );
     }
   }
   else
@@ -833,15 +834,15 @@ void AdaptiveLoopFilter::filterCTU( const CPelUnitBuf&     srcBuf,
             {
               const Area blk( xInSrc, yInSrc, w, h );
               const short filterSetIndex = ctuAlfData.alfCtbFilterIndex;
-              filterAreaLuma( m_tempBuf[tid], dstBuf, blk, slice, aps, filterSetIndex, clpRngs, tid );
+              filterAreaLuma( m_tempBuf[tid], dstBuf, blk, slice, apss, filterSetIndex, clpRngs, tid );
             }
             else
             {
               const Area blkLuma ( Position( xInSrc,                 yInSrc ),                 Size( w,                 h ) );
               const Area blkChoma( Position( xInSrc >> chromaScaleX, yInSrc >> chromaScaleY ), Size( w >> chromaScaleX, h >> chromaScaleY ) );
 
-              filterAreaChroma( m_tempBuf[tid], dstBuf, blkChoma, compID, slice, aps, ctuAlfData, clpRngs );
-              filterAreaChromaCc( m_tempBuf[tid], dstBuf, blkLuma, blkChoma, compID, slice, aps, ctuAlfData, clpRngs );
+              filterAreaChroma( m_tempBuf[tid], dstBuf, blkChoma, compID, slice, apss, ctuAlfData, clpRngs );
+              filterAreaChromaCc( m_tempBuf[tid], dstBuf, blkLuma, blkChoma, compID, slice, apss, ctuAlfData, clpRngs );
             }
             xStart = xEnd;
           }
@@ -855,7 +856,6 @@ void AdaptiveLoopFilter::filterCTU( const CPelUnitBuf&     srcBuf,
 void AdaptiveLoopFilter::reconstructCoeffAPSs( Slice& slice )
 {
   const SPS*  sps = slice.getSPS();
-  const APS** aps = slice.getAlfAPSs();
 
   // luma
   if( slice.getAlfEnabledFlag( COMPONENT_Y ) )
@@ -863,7 +863,7 @@ void AdaptiveLoopFilter::reconstructCoeffAPSs( Slice& slice )
     for( int i = 0; i < slice.getNumAlfAps(); i++ )
     {
       int        apsIdx = slice.getAlfApsIdsLuma()[i];
-      const APS* curAPS = aps[apsIdx];
+      const APS* curAPS = slice.getAlfAPS( apsIdx );
       CHECK( curAPS == NULL, "invalid APS" );
 
       AlfSliceParam& alfSliceParamTmp = curAPS->getMutableAlfAPSParam();
@@ -876,7 +876,7 @@ void AdaptiveLoopFilter::reconstructCoeffAPSs( Slice& slice )
   if( slice.getAlfEnabledFlag( COMPONENT_Cb ) || slice.getAlfEnabledFlag( COMPONENT_Cr ) )
   {
     int        apsIdxChroma = slice.getAlfApsIdChroma();
-    const APS* curAPS       = aps[apsIdxChroma];
+    const APS* curAPS       = slice.getAlfAPS( apsIdxChroma );
     CHECK( curAPS == NULL, "invalid APS" );
 
     AlfSliceParam& alfSliceParamTmp = curAPS->getMutableAlfAPSParam();
