@@ -275,7 +275,7 @@ Slice::Slice()
   resetWpScaling();
   initWpAcDcParam();
 
-  memset( m_alfApss, 0, sizeof( m_alfApss ) );
+  clearAlfAPSs();
 }
 
 

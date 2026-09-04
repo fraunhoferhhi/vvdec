@@ -1643,7 +1643,7 @@ public:
   bool                    getEntryPointsPresentFlag() const                                               { return m_entryPointPresentFlag;                                      }
   void                    setEntryPointsPresentFlag(bool val)                                             { m_entryPointPresentFlag = val;                                       }
 
-  static constexpr int    getMaxLog2TrDynamicRange( ChannelType )            			                        { return 15; }
+  static constexpr int    getMaxLog2TrDynamicRange( ChannelType )                                         { return 15; }
 
   int                     getQpBDOffset() const                                                           { return m_qpBDOffset;                                                 }
   void                    setQpBDOffset(int i)                                                            { m_qpBDOffset = i;                                                    }
@@ -2541,9 +2541,9 @@ private:
   std::pair<int, int>        m_scalingRatio       [NUM_REF_PIC_LIST_01][MAX_NUM_REF_PICS];
 
   // access channel
-  const VPS*                 m_pcVPS                         = nullptr;
-  const SPS*                 m_pcSPS                         = nullptr;
-  const PPS*                 m_pcPPS                         = nullptr;
+  std::shared_ptr<const VPS> m_pcVPS                         = nullptr;
+  std::shared_ptr<const SPS> m_pcSPS                         = nullptr;
+  std::shared_ptr<const PPS> m_pcPPS                         = nullptr;
   Picture*                   m_pcPic                         = nullptr;
   PicHeader*                 m_pcPicHeader                   = nullptr;    //!< pointer to picture header structure
   bool                       m_colFromL0Flag                 = true;   // collocated picture from List0 flag
@@ -2567,7 +2567,7 @@ private:
 
   uint32_t                   m_sliceSubPicId                 = 0;
 
-  const APS*                 m_alfApss[ALF_CTB_MAX_NUM_APS]      = { 0 };
+  std::shared_ptr<const APS> m_alfApss[ALF_CTB_MAX_NUM_APS];
   bool                       m_alfEnabledFlag[MAX_NUM_COMPONENT] = { false, false, false };
   int                        m_numAlfAps                         = 0;
   AlfApsIdVec                m_lumaAlfApsId;
@@ -2584,21 +2584,20 @@ public:
   PicHeader*                  getPicHeader() const                                   { return m_pcPicHeader;                                         }
   int                         getRefIdx4MVPair( RefPicList eCurRefPicList, int nCurRefIdx );
 
-  void                        setVPS( const VPS* pcVPS )                             { m_pcVPS = pcVPS;                                              }
-  const VPS*                  getVPS() const                                         { CHECK_NULLPTR( m_pcVPS ); return m_pcVPS;                     }
-  const VPS*                  getVPS_nothrow() const                                 { return m_pcVPS;                                               }
+  void                        setVPS( const VPS* pcVPS )                             { m_pcVPS.reset( pcVPS );                                       }
+  const VPS*                  getVPS() const                                         { CHECK_NULLPTR( m_pcVPS ); return m_pcVPS.get();               }
+  const VPS*                  getVPS_nothrow() const                                 { return m_pcVPS.get();                                         }
 
-  void                        setSPS( const SPS* pcSPS )                             { m_pcSPS = pcSPS;                                              }
-  const SPS*                  getSPS() const                                         { CHECK_NULLPTR( m_pcSPS ); return m_pcSPS;                     }
+  void                        setSPS( const SPS* pcSPS )                             { m_pcSPS.reset( pcSPS );                                       }
+  const SPS*                  getSPS() const                                         { CHECK_NULLPTR( m_pcSPS ); return m_pcSPS.get();               }
 
-  void                        setPPS( const PPS* pcPPS )                             { m_pcPPS = pcPPS;                                              }
-  const PPS*                  getPPS() const                                         { CHECK_NULLPTR( m_pcPPS ); return m_pcPPS;                     }
+  void                        setPPS( const PPS* pcPPS )                             { m_pcPPS.reset( pcPPS );                                       }
+  const PPS*                  getPPS() const                                         { CHECK_NULLPTR( m_pcPPS ); return m_pcPPS.get();               }
 
-  void                        setAlfApss( std::shared_ptr<const APS> apss[ALF_CTB_MAX_NUM_APS] ) { for( int i = 0; i < ALF_CTB_MAX_NUM_APS; ++i ) { m_alfApss[i] = apss[i].get(); } }
-  void                        setAlfApss(                 const APS *apss[ALF_CTB_MAX_NUM_APS] ) { for( int i = 0; i < ALF_CTB_MAX_NUM_APS; ++i ) { m_alfApss[i] = apss[i]; } }
-  void                        clearAlfAPSs()                                         { memset( m_alfApss, 0, sizeof( m_alfApss ) );                  }
-  const APS**                 getAlfAPSs()                                           { return m_alfApss;                                             }
-  const APS* const*           getAlfAPSs() const                                     { return m_alfApss;                                             }
+  void                        setAlfApss( std::shared_ptr<const APS> apss[ALF_CTB_MAX_NUM_APS] ) { for( int i = 0; i < ALF_CTB_MAX_NUM_APS; ++i ) { m_alfApss[i] = apss[i]; } }
+  void                        setAlfApss(                 const APS *apss[ALF_CTB_MAX_NUM_APS] ) { for( int i = 0; i < ALF_CTB_MAX_NUM_APS; ++i ) { m_alfApss[i] = apss[i] ? apss[i]->getSharedPtr() : nullptr; } }
+  void                        clearAlfAPSs()                                         { for( int i = 0; i < ALF_CTB_MAX_NUM_APS; ++i ) { m_alfApss[i].reset(); } }
+  const APS*                  getAlfAPS( int idx ) const                             { return m_alfApss[idx].get();                                  }
   void                        setSaoEnabledFlag(ChannelType chType, bool s)          { m_saoEnabledFlag[chType] = s;                                 }
   bool                        getSaoEnabledFlag(ChannelType chType) const            { return m_saoEnabledFlag[chType];                              }
   void                        clearRPL( RefPicList l )                               { m_RPL[l].clear();                                             }
