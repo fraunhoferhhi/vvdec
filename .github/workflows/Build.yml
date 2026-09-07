@@ -48,6 +48,7 @@ jobs:
 #      - run: git fetch --prune --unshallow # is this really needed?
 
       - uses: actions/cache/restore@v6
+        if: ${{ matrix.run_unit_test }}
         with:
           path: ext/bitstreams
           key: bitstreams-${{ matrix.name || matrix.os }}-${{ hashFiles('cmake/modules/define_bitstream_files.cmake') }}
@@ -75,6 +76,7 @@ jobs:
           ctest --test-dir build/static --build-config Release --output-on-failure -E unit_test
 
       - uses: actions/cache/save@v6
+        if: ${{ matrix.run_unit_test }}
         with:
           path: ext/bitstreams
           key: bitstreams-${{ matrix.name || matrix.os }}-${{ hashFiles('cmake/modules/define_bitstream_files.cmake') }}
@@ -183,6 +185,7 @@ jobs:
           path: .ccache
           key: ccache-${{ matrix.name || matrix.os }}-${{ matrix.compiler[1] || matrix.osx_arch }}
       - uses: actions/cache/restore@v6
+        if: ${{ matrix.run_unit_test }}
         with:
           path: ext/bitstreams
           key: bitstreams-${{ matrix.name || matrix.os }}-${{ hashFiles('cmake/modules/define_bitstream_files.cmake') }}
@@ -210,6 +213,7 @@ jobs:
           path: .ccache
           key: ccache-${{ matrix.name || matrix.os }}-${{ matrix.compiler[1] || matrix.osx_arch }}
       - uses: actions/cache/save@v6
+        if: ${{ matrix.run_unit_test }}
         with:
           path: ext/bitstreams
           key: bitstreams-${{ matrix.name || matrix.os }}-${{ hashFiles('cmake/modules/define_bitstream_files.cmake') }}
