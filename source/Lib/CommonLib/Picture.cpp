@@ -310,9 +310,9 @@ Slice* Picture::allocateNewSlice( Slice** pilot )
       ( *pilot )->copySliceInfo( slices[slices.size() - 2] );
       ( *pilot )->initSlice();
     }
-    ( *pilot )->setSPS( 0 );
-    ( *pilot )->setPPS( 0 );
-    ( *pilot )->setVPS( 0 );
+    ( *pilot )->clearSPS();
+    ( *pilot )->clearPPS();
+    ( *pilot )->clearVPS();
     ( *pilot )->clearAlfAPSs();
   }
   else
@@ -327,9 +327,9 @@ Slice* Picture::allocateNewSlice( Slice** pilot )
 
   Slice* slice = slices.back();
 
-  slice->setPPS( cs->pps.get() );
-  slice->setSPS( cs->sps.get() );
-  slice->setVPS( cs->vps.get() );
+  slice->setPPS( cs->pps );
+  slice->setSPS( cs->sps );
+  slice->setVPS( cs->vps );
   slice->setAlfApss( cs->alfApss );
   slice->setPic( this );
 

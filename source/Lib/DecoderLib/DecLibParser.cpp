@@ -1303,7 +1303,7 @@ void DecLibParser::prepareUnavailablePicture( bool isLost, const PPS* pps, int i
 
   // picture header is not derived for generated reference picture
   cFillPic->slices[0]->setPicHeader( nullptr );
-  cFillPic->slices[0]->setPPS( pps );
+  cFillPic->slices[0]->setPPS( pps->getSharedPtr() );
 
   cFillPic->dpbReferenceMark        = longTermFlag ? Picture::LongTerm : Picture::ShortTerm;
   cFillPic->stillReferenced         = true;
