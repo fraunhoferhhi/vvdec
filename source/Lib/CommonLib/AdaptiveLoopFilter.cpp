@@ -667,10 +667,10 @@ void AdaptiveLoopFilter::filterCTU( const CPelUnitBuf&     srcBuf,
                                     Position               ctuPos,
                                     int                    tid )
 {
-  const Slice*         slice                     = cs.getCtuData( ctuIdx ).cuPtr[0][0]->slice;
-  const APS*           apss[ALF_CTB_MAX_NUM_APS] = { 0 };
-  const PreCalcValues& pcv                       = *cs.pcv;
+  const Slice*         slice = cs.getCtuData( ctuIdx ).cuPtr[0][0]->slice;
+  const PreCalcValues& pcv   = *cs.pcv;
 
+  const APS* apss[ALF_CTB_MAX_NUM_APS] = { 0 };
   for( int i = 0; i < ALF_CTB_MAX_NUM_APS; i++ )
   {
     apss[i] = slice->getAlfAPS( i );

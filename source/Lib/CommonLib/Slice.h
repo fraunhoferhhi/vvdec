@@ -2584,18 +2584,21 @@ public:
   PicHeader*                  getPicHeader() const                                   { return m_pcPicHeader;                                         }
   int                         getRefIdx4MVPair( RefPicList eCurRefPicList, int nCurRefIdx );
 
-  void                        setVPS( const VPS* pcVPS )                             { m_pcVPS.reset( pcVPS );                                       }
+  void                        setVPS( const std::shared_ptr<const VPS>& pcVPS )      { m_pcVPS = pcVPS;                                              }
+  void                        clearVPS()                                             { m_pcVPS.reset();                                              }
   const VPS*                  getVPS() const                                         { CHECK_NULLPTR( m_pcVPS ); return m_pcVPS.get();               }
   const VPS*                  getVPS_nothrow() const                                 { return m_pcVPS.get();                                         }
 
-  void                        setSPS( const SPS* pcSPS )                             { m_pcSPS.reset( pcSPS );                                       }
+  void                        setSPS( const std::shared_ptr<const SPS>& pcSPS )      { m_pcSPS = pcSPS;                                              }
+  void                        clearSPS()                                             { m_pcSPS.reset();                                              }
   const SPS*                  getSPS() const                                         { CHECK_NULLPTR( m_pcSPS ); return m_pcSPS.get();               }
 
-  void                        setPPS( const PPS* pcPPS )                             { m_pcPPS.reset( pcPPS );                                       }
+  void                        setPPS( const std::shared_ptr<const PPS>& pcPPS )      { m_pcPPS = pcPPS;                                              }
+  void                        clearPPS()                                             { m_pcPPS.reset();                                              }
   const PPS*                  getPPS() const                                         { CHECK_NULLPTR( m_pcPPS ); return m_pcPPS.get();               }
 
   void                        setAlfApss( std::shared_ptr<const APS> apss[ALF_CTB_MAX_NUM_APS] ) { for( int i = 0; i < ALF_CTB_MAX_NUM_APS; ++i ) { m_alfApss[i] = apss[i]; } }
-  void                        setAlfApss(                 const APS *apss[ALF_CTB_MAX_NUM_APS] ) { for( int i = 0; i < ALF_CTB_MAX_NUM_APS; ++i ) { m_alfApss[i] = apss[i] ? apss[i]->getSharedPtr() : nullptr; } }
+  void                        setAlfApss(                 const APS* apss[ALF_CTB_MAX_NUM_APS] ) { for( int i = 0; i < ALF_CTB_MAX_NUM_APS; ++i ) { m_alfApss[i] = apss[i] ? apss[i]->getSharedPtr() : nullptr; } }
   void                        clearAlfAPSs()                                         { for( int i = 0; i < ALF_CTB_MAX_NUM_APS; ++i ) { m_alfApss[i].reset(); } }
   const APS*                  getAlfAPS( int idx ) const                             { return m_alfApss[idx].get();                                  }
   void                        setSaoEnabledFlag(ChannelType chType, bool s)          { m_saoEnabledFlag[chType] = s;                                 }
