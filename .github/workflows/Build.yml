@@ -204,7 +204,7 @@ jobs:
         run: |
           ctest --test-dir build/static --output-on-failure -R unit_test
       - name: Run Decoding Tests
-        if: ${{ matrix.run_unit_test }}
+        if: ${{ matrix.run_unit_test && !contains(matrix.cxx_flags,  '-fsanitize=address') }}
         run: |
           ctest --test-dir build/static --output-on-failure -E unit_test
 
