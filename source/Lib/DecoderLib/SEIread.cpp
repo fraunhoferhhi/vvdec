@@ -380,14 +380,7 @@ void SEIReader::xReadSEImessage( seiMessages& seiList, const NalUnitType nalUnit
   }
   catch( ... )
   {
-    if (s)
-    {
-      if (s->payload)
-      {
-        free(s->payload);
-      }
-      delete s;
-    }
+    SEI_internal::deleteSEI( s );
     throw;
   }
 

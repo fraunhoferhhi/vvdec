@@ -113,35 +113,34 @@ seiMessages SEI_internal::extractSeisByType(seiMessages &seiList, vvdecSEIPayloa
   return result;
 }
 
+void SEI_internal::deleteSEI( vvdecSEI* sei )
+{
+  if( !sei )
+  {
+    return;
+  }
+
+  if( sei->payloadType == VVDEC_SCALABLE_NESTING && sei->payload )
+  {
+    const vvdecSEIScalableNesting* nestingSei = ( vvdecSEIScalableNesting* ) sei->payload;
+
+    for( int i = 0; i < nestingSei->snNumSEIs; ++i )
+    {
+      // nested SEIs may be unset, if parsing of the nesting SEI was aborted
+      deleteSEI( nestingSei->nestedSEIs[i] );
+    }
+  }
+
+  if( sei->payload )
+    free( sei->payload );
+  delete sei;
+}
+
 void SEI_internal::deleteSEIs ( seiMessages &seiList)
 {
   for( auto &sei : seiList )
   {
-    if( sei )
-    {
-      if( sei->payloadType == VVDEC_SCALABLE_NESTING )
-      {
-        const vvdecSEIScalableNesting* nestingSei = ( vvdecSEIScalableNesting* ) sei->payload;
-
-        if( !nestingSei->snSubpicFlag )
-        {
-          continue;
-        }
-
-        for( int i = 0; i < nestingSei->snNumSEIs; ++i )
-        {
-          auto& nestedSei = nestingSei->nestedSEIs[i];
-
-          if( nestedSei->payload )
-            free( nestedSei->payload );
-          delete nestedSei;
-        }
-      }
-
-      if( sei->payload )
-          free( sei->payload );
-      delete sei ;
-    }
+    deleteSEI( sei );
   }
   seiList.clear();
 }
