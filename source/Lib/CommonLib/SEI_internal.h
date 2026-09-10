@@ -69,6 +69,9 @@ public:
   /// remove a selection of SEI messages by payload type from the original list and return them in a new list.
   static seiMessages extractSeisByType(seiMessages &seiList, vvdecSEIPayloadType seiType);
 
+  /// delete a single SEI message, including any SEIs nested inside it
+  static void deleteSEI (vvdecSEI* sei);
+
   /// delete list of SEI messages (freeing the referenced objects)
   static void deleteSEIs (seiMessages &seiList);
 

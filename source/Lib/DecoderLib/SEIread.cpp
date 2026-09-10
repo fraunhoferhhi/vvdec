@@ -380,14 +380,7 @@ void SEIReader::xReadSEImessage( seiMessages& seiList, const NalUnitType nalUnit
   }
   catch( ... )
   {
-    if (s)
-    {
-      if (s->payload)
-      {
-        free(s->payload);
-      }
-      delete s;
-    }
+    SEI_internal::deleteSEI( s );
     throw;
   }
 
@@ -584,11 +577,6 @@ void SEIReader::xParseSEIScalableNesting(vvdecSEI* s, const NalUnitType nalUnitT
     xReadSEImessage(tmpSeiList, nalUnitType, nuhLayerId, 0, vps, sps, m_nestedHrd, decodedMessageOutputStream);
     CHECK( tmpSeiList.empty(), "read empty nested sei list." );
 
-    if (tmpSeiList.front()->payloadType == VVDEC_BUFFERING_PERIOD)
-    {
-      vvdecSEIBufferingPeriod *bp = (vvdecSEIBufferingPeriod*) tmpSeiList.front();
-      m_nestedHrd.setBufferingPeriodSEI(bp);
-    }
     sei->nestedSEIs[i] = tmpSeiList.front();
   }
 
