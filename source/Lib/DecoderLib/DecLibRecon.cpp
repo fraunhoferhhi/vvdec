@@ -392,7 +392,8 @@ void DecLibRecon::createSubPicRefBufs( Picture* pic, const Picture* currPic )
   const SPS* sps       = pic->cs->sps.get();
   const int  numSubPic = pps->getNumSubPics();
 
-  pic->m_subPicRefBufs.resize( numSubPic );
+  pic->m_subPicRefBufs .resize( numSubPic );
+  pic->m_subPicExtTasks.resize( numSubPic );
   for( int i = 0; i < numSubPic; ++i )
   {
     const SubPic& currSubPic = pps->getSubPic( i );
@@ -410,10 +411,10 @@ void DecLibRecon::createSubPicRefBufs( Picture* pic, const Picture* currPic )
       t->picture->extendPicBorderBuf( *t->subPicBuf );
       return true;
     };
-    m_subPicExtTasks.emplace_back( SubPicExtTask{ pic, &pic->m_subPicRefBufs[i], subPicArea } );
+    pic->m_subPicExtTasks[i] = SubPicExtTask{ pic, &pic->m_subPicRefBufs[i], subPicArea };
     m_decodeThreadPool->addBarrierTask( TP_TASK_NAME_ARG( "POC:" + std::to_string( currPic->poc ) + " subPicBorderExtTask refPOC:" + std::to_string( pic->poc ) )
                                         task,
-                                        &m_subPicExtTasks.back(),
+                                        &pic->m_subPicExtTasks[i],
                                         &pic->m_borderExtTaskCounter,
                                         nullptr,
                                         { &pic->reconDone } );
@@ -535,11 +536,6 @@ void DecLibRecon::decompressPicture( Picture* pcPic )
 #endif
 
   const int numSubPic = cs.pps->getNumSubPics();
-  if( numSubPic > 1 )
-  {
-    m_subPicExtTasks.clear();
-    m_subPicExtTasks.reserve( pcPic->slices.size() * MAX_NUM_REF_PICS * numSubPic );
-  }
 
   std::vector<Picture*> borderExtRefPics( pcPic->buildAllRefPicsVec() );
   for( Picture* refPic : borderExtRefPics )

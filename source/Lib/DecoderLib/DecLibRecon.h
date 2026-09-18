@@ -94,13 +94,6 @@ struct CommonTaskParam
   void reset( CodingStructure& cs, TaskType ctuStartState, int tasksPerLine, bool doALF );
 };
 
-struct SubPicExtTask
-{
-  Picture*    picture   = nullptr;
-  PelStorage* subPicBuf = nullptr;
-  Area        subPicArea;
-};
-
 struct LineTaskParam
 {
   CommonTaskParam& common;
@@ -170,7 +163,6 @@ private:
   PelStorage           m_fltBuf;
 
   CommonTaskParam            commonTaskParam{ this };
-  std::vector<SubPicExtTask> m_subPicExtTasks;
   std::vector<LineTaskParam> tasksFinishMotion;
   std::vector<CtuTaskParam>  tasksCtu;
   FinishPicTaskParam         taskFinishPic;
