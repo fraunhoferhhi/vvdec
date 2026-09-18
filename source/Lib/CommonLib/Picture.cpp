@@ -357,6 +357,19 @@ bool Picture::lastSliceOfPicPresent() const
   return lastCtuInSlice == lastSlice->getPPS()->pcv->sizeInCtus - 1;
 }
 
+void Picture::setParseError( std::exception_ptr e )
+{
+  error = true;
+  parseDone.setException( e );
+#if RECO_WHILE_PARSE
+  // reconstruction can already be waiting for CTUs, that will never be parsed
+  for( auto& b: ctuParsedBarrier )
+  {
+    b.setException( e );
+  }
+#endif
+}
+
 void Picture::waitForAllTasks()
 {
   m_ctuTaskCounter.wait_nothrow();

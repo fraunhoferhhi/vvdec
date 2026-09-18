@@ -297,6 +297,18 @@ bool DecLibParser::parse( InputNALUnit& nalu )
   return false;
 }
 
+void DecLibParser::failIncompleteParsePic()
+{
+  if( !m_pcParsePic || m_pcParsePic->lastSliceOfPicPresent() )
+  {
+    return;
+  }
+
+  // reconstruction can already be waiting for CTUs, that will never be parsed, so the picture needs to be failed explicitly
+  m_pcParsePic->setParseError( std::make_exception_ptr( RecoverableException( "the slices of the picture don't cover all CTUs" ) ) );
+  m_pcParsePic = nullptr;
+}
+
 Picture* DecLibParser::getNextDecodablePicture()
 {
   if( m_parseFrameList.empty() )
@@ -422,6 +434,8 @@ bool DecLibParser::xDecodeSliceHead( InputNALUnit& nalu )
 
   if( m_bFirstSliceInPicture )
   {
+    failIncompleteParsePic();   // a new picture starts, but the previous one was never completed
+
     m_uiSliceSegmentIdx = 0;
     m_apcSlicePilot->setPicHeader   ( m_picHeader.get() );
   }
@@ -985,14 +999,7 @@ bool DecLibParser::xDecodeSliceMain( InputNALUnit& nalu )
     }
     catch( ... )
     {
-      pic->error = true;
-      pic->parseDone.setException( std::current_exception() );
-#if RECO_WHILE_PARSE
-      for( auto& b: pic->ctuParsedBarrier )
-      {
-        b.setException( std::current_exception() );
-      }
-#endif
+      pic->setParseError( std::current_exception() );
       std::rethrow_exception( std::current_exception() );
     }
     return true;

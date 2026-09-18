@@ -290,6 +290,7 @@ public:
   Slice*       allocateNewSlice( Slice** pilot = nullptr );
   void         clearSliceBuffer();
   bool         lastSliceOfPicPresent() const;
+  void         setParseError( std::exception_ptr e );
 
   void         waitForAllTasks();
   void         ensureUsableAsRef();
