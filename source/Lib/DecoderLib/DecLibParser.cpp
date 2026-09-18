@@ -460,6 +460,23 @@ bool DecLibParser::xDecodeSliceHead( InputNALUnit& nalu )
 
   CHECK( vps && !vps->getIndependentLayerFlag( nalu.m_nuhLayerId ), "Decoding of dependent layers not implemented. Dependent layer POC derivation was here." );
 
+  if( !m_bFirstSliceInPicture )
+  {
+    // the slices of a picture shall be in increasing order of their addresses and shall not overlap
+    const Slice* prevSlice = m_pcParsePic->slices[m_uiSliceSegmentIdx - 1];
+    if( pps->getRectSliceFlag() )
+    {
+      // the rect slice map is a partition of the picture (verified in PPS::checkSliceMap()), so distinct indices suffice
+      CHECK( m_apcSlicePilot->getSliceID() <= prevSlice->getSliceID(), "slices shall be in increasing order of their slice indices" );
+    }
+    else
+    {
+      // a raster-scan slice covers the tiles [sh_slice_address, sh_slice_address + numTilesInSlice)
+      const uint32_t prevSliceLastTileIdx = pps->getTileIdx( prevSlice->getCtuAddrInSlice( prevSlice->getNumCtuInSlice() - 1 ) );
+      CHECK( m_apcSlicePilot->getSliceID() <= prevSliceLastTileIdx, "slices shall be in increasing order of sh_slice_address and shall not overlap" );
+    }
+  }
+
   // update independent slice index
   m_apcSlicePilot->setIndependentSliceIdx( m_uiSliceSegmentIdx );
 
