@@ -104,7 +104,9 @@ void fastInv_SSE( const TMatrixCoeff* it, const TCoeff* src, TCoeff* dst, unsign
         {
           __m128i xscale = maxLoopL == 4
                          ? _mm_packs_epi32( _mm_load_si128( ( const __m128i* )srcPtr0 ), _mm_load_si128( ( const __m128i* )srcPtr1 ) )
-                         : _mm_packs_epi32( _mm_loadu_si64( ( const __m128i* )srcPtr0 ), _mm_loadu_si64( ( const __m128i* )srcPtr1 ) );
+                         : maxLoopL == 2
+                           ? _mm_packs_epi32( _mm_loadu_si64( ( const __m128i* )srcPtr0 ), _mm_loadu_si64( ( const __m128i* )srcPtr1 ) )
+                           : _mm_packs_epi32( _mm_loadu_si32( ( const __m128i* )srcPtr0 ), _mm_loadu_si32( ( const __m128i* )srcPtr1 ) );
 
           if( _mm_test_all_zeros( xscale, xscale ) ) { dstPtr += ( trSize * maxLoopL ); continue; }
 
@@ -171,7 +173,9 @@ void fastInv_SSE( const TMatrixCoeff* it, const TCoeff* src, TCoeff* dst, unsign
         {
           __m128i xscale = maxLoopL == 4
                          ? _mm_packs_epi32( _mm_load_si128( ( const __m128i* )srcPtr0 ), _mm_load_si128( ( const __m128i* )srcPtr1 ) )
-                         : _mm_packs_epi32( _mm_loadu_si64( ( const __m128i* )srcPtr0 ), _mm_loadu_si64( ( const __m128i* )srcPtr1 ) );
+                         : maxLoopL == 2
+                           ? _mm_packs_epi32( _mm_loadu_si64( ( const __m128i* )srcPtr0 ), _mm_loadu_si64( ( const __m128i* )srcPtr1 ) )
+                           : _mm_packs_epi32( _mm_loadu_si32( ( const __m128i* )srcPtr0 ), _mm_loadu_si32( ( const __m128i* )srcPtr1 ) );
 
           if( _mm_test_all_zeros( xscale, xscale ) ) { dstPtr += ( trSize * maxLoopL ); continue; }
 
@@ -211,7 +215,9 @@ void fastInv_SSE( const TMatrixCoeff* it, const TCoeff* src, TCoeff* dst, unsign
       {
         __m128i xscale = maxLoopL == 4
                         ? _mm_packs_epi32( _mm_load_si128( ( const __m128i* )srcPtr0 ), _mm_load_si128( ( const __m128i* )srcPtr1 ) )
-                        : _mm_packs_epi32( _mm_loadu_si64( ( const __m128i* )srcPtr0 ), _mm_loadu_si64( ( const __m128i* )srcPtr1 ) );
+                        : maxLoopL == 2
+                          ? _mm_packs_epi32( _mm_loadu_si64( ( const __m128i* )srcPtr0 ), _mm_loadu_si64( ( const __m128i* )srcPtr1 ) )
+                          : _mm_packs_epi32( _mm_loadu_si32( ( const __m128i* )srcPtr0 ), _mm_loadu_si32( ( const __m128i* )srcPtr1 ) );
 
         if( _mm_test_all_zeros( xscale, xscale ) ) { dstPtr += ( trSize * maxLoopL ); continue; }
 
@@ -275,7 +281,9 @@ void fastInv_SSE( const TMatrixCoeff* it, const TCoeff* src, TCoeff* dst, unsign
       {
         __m128i xscale = maxLoopL == 4
                         ? _mm_packs_epi32( _mm_load_si128( ( const __m128i* )srcPtr0 ), _mm_load_si128( ( const __m128i* )srcPtr1 ) )
-                        : _mm_packs_epi32( _mm_loadu_si64( ( const __m128i* )srcPtr0 ), _mm_loadu_si64( ( const __m128i* )srcPtr1 ) );
+                        : maxLoopL == 2
+                          ? _mm_packs_epi32( _mm_loadu_si64( ( const __m128i* )srcPtr0 ), _mm_loadu_si64( ( const __m128i* )srcPtr1 ) )
+                          : _mm_packs_epi32( _mm_loadu_si32( ( const __m128i* )srcPtr0 ), _mm_loadu_si32( ( const __m128i* )srcPtr1 ) );
 
         if( _mm_test_all_zeros( xscale, xscale ) ) { dstPtr += ( trSize * maxLoopL ); continue; }
 
