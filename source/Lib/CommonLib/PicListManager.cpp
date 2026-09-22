@@ -269,6 +269,7 @@ void PicListManager::markUnusedPicturesReusable()
     {
       pic->stillReferenced = false;
       pic->m_subPicRefBufs.clear();
+      pic->m_subPicExtTasks.clear();
     }
   }
 }

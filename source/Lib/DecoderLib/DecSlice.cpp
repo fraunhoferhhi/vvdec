@@ -147,6 +147,9 @@ void DecSlice::parseSlice( Slice* slice, InputBitstream* bitstream, int threadId
 
     //memset( cs.getCtuData( ctuRsAddr ).cuPtr, 0, sizeof( CtuData::cuPtr ) );
     CtuData& ctuData = cs.getCtuData( ctuRsAddr );
+    // each CTU shall be contained in exactly one slice; re-coding it would leave the CUs of the
+    // first slice pointing at motion info spanned by the second one
+    CHECK( ctuData.slice, "CTU " << ctuRsAddr << " has already been coded in a previous slice" );
     ctuData.slice = slice;
     ctuData.pps   = slice->getPPS();
     ctuData.sps   = slice->getSPS();

@@ -121,6 +121,7 @@ void Picture::resetForUse( int _layerId )
   }
 
   m_subPicRefBufs.clear();
+  m_subPicExtTasks.clear();
 
   m_dProcessingTime       = 0;
   subPicExtStarted        = false;

@@ -72,6 +72,13 @@ struct Picture;
 
 typedef std::list<Picture*> PicList;
 
+struct SubPicExtTask
+{
+  Picture*    picture   = nullptr;
+  PelStorage* subPicBuf = nullptr;
+  Area        subPicArea;
+};
+
 struct PicListRange
 {
   PicList::const_iterator m_begin;
@@ -238,6 +245,9 @@ public:
   std::vector<int>        sliceSubpicIdx;
   std::vector<SubPic>     subPictures;
   std::vector<PelStorage> m_subPicRefBufs;   // used as reference for subpictures, that are treated as pictures
+  // SubPicExtTasks need to live as long as the buffers they point to. The tasks can still be pending,
+  // when the next picture is decoded.
+  std::vector<SubPicExtTask> m_subPicExtTasks;
 
   bool subLayerNonReferencePictureDueToSTSA = 0;
 
