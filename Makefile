@@ -88,7 +88,7 @@ CONFIG_OPTIONS += -DVVDEC_ENABLE_TRACING=$(enable-tracing)
 endif
 
 ifneq ($(write-input-bitstream),)
-CONFIG_OPTIONS += -DVVDEC_WRITE_INPUT_BITSTREAM=$(enable-tracing)
+CONFIG_OPTIONS += -DVVDEC_WRITE_INPUT_BITSTREAM=$(write-input-bitstream)
 endif
 
 ifeq ($(j),)
