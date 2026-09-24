@@ -155,14 +155,14 @@ void TCoeffOps::initTCoeffOpsARM()
   }
 }
 
-//void TrQuant::initTrQuantARM()
-//{
-//  auto vext = read_arm_extension_flags();
-//  if( vext >= NEON )
-//  {
-//    _initTrQuantARM<NEON>();
-//  }
-//}
+void TrQuant::initTrQuantARM()
+{
+  auto vext = read_arm_extension_flags();
+  if( vext >= NEON )
+  {
+    _initTrQuantARM<NEON>();
+  }
+}
 #endif
 
 #if ENABLE_SIMD_OPT_INTRAPRED
