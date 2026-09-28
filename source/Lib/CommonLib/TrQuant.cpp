@@ -127,7 +127,7 @@ template<int signedMode> void invTransformCbCr( PelBuf &resCb, PelBuf &resCr )
 // TrQuant class member functions
 // ====================================================================================================================
 
-TrQuant::TrQuant( class InterPrediction* ip, const TrQuant* other ) : Quant( other )
+TrQuant::TrQuant( class InterPrediction* ip, const TrQuant* other, bool enableOpt ) : Quant( other, enableOpt )
 {
   // allocate temporary buffers
   m_invICT      = m_invICTMem + maxAbsIctMode;
@@ -153,9 +153,20 @@ TrQuant::TrQuant( class InterPrediction* ip, const TrQuant* other ) : Quant( oth
   m_blk  = ( TCoeff* ) ( ( ptrdiff_t ) blk  + ( MEMORY_ALIGN_DEF_SIZE - ( ( ptrdiff_t ) blk  & ( MEMORY_ALIGN_DEF_SIZE - 1 ) ) ) );
   m_dqnt = ( TCoeff* ) ( ( ptrdiff_t ) dqnt + ( MEMORY_ALIGN_DEF_SIZE - ( ( ptrdiff_t ) dqnt & ( MEMORY_ALIGN_DEF_SIZE - 1 ) ) ) );
 
+  if( enableOpt )
+  {
 #if defined( TARGET_SIMD_X86 ) && ENABLE_SIMD_TCOEFF_OPS
-  initTrQuantX86();
+    initTrQuantX86();
 #endif
+#if defined( TARGET_SIMD_ARM ) && ENABLE_SIMD_TCOEFF_OPS
+    initTrQuantARM();
+#endif
+  }
+}
+
+void TrQuant::invLfnstNxN( int* src, int* dst, const uint32_t mode, const uint32_t index, const uint32_t size, int zeroOutSize )
+{
+  m_invLfnstNxN( src, dst, mode, index, size, zeroOutSize );
 }
 
 void TrQuant::xDeQuant(const TransformUnit &tu,

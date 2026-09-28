@@ -42,6 +42,7 @@ POSSIBILITY OF SUCH DAMAGE.
 
 #include <iostream>
 #include <iomanip>
+#include <functional>
 #include <limits.h>
 
 #include "CommonLib/AdaptiveLoopFilter.h"
@@ -52,6 +53,7 @@ POSSIBILITY OF SUCH DAMAGE.
 #include "CommonLib/LoopFilter.h"
 #include "CommonLib/Picture.h"
 #include "CommonLib/SampleAdaptiveOffset.h"
+#include "CommonLib/TrQuant.h"
 #include "CommonLib/TrQuant_EMT.h"
 #include "CommonLib/Quant.h"
 
@@ -299,6 +301,77 @@ static bool test_TCoeffOps()
   passed = check_fastInvCore( &ref, &opt, num_cases, 2, 16 ) && passed;
   passed = check_fastInvCore( &ref, &opt, num_cases, 3, 32 ) && passed;
   passed = check_fastInvCore( &ref, &opt, num_cases, 4, 64 ) && passed;
+
+  return passed;
+}
+
+static bool check_one_invLfnst( TrQuant* ref, TrQuant* opt, uint32_t mode, uint32_t index, uint32_t size,
+                                int zeroOutSize, const std::string& variant, const std::function<int()>& gen )
+{
+  const int trSize = ( size > 4 ) ? 48 : 16;
+
+  int src[16];
+  int dst_ref[48];
+  int dst_opt[48];
+
+  std::generate_n( src, 16, gen );
+  if( zeroOutSize == 8 )
+  {
+    // poison the inactive tail: a kernel that reads past zeroOutSize would pick
+    // these up and produce a mismatch against the reference.
+    for( int i = 8; i < 16; i++ )
+    {
+      src[i] = ( i % 2 == 0 ) ? 32767 : -32768;
+    }
+  }
+
+  memset( dst_ref, 0, sizeof( dst_ref ) );
+  memset( dst_opt, 0, sizeof( dst_opt ) );
+
+  ref->invLfnstNxN( src, dst_ref, mode, index, size, zeroOutSize );
+  opt->invLfnstNxN( src, dst_opt, mode, index, size, zeroOutSize );
+
+  std::ostringstream sstm;
+  sstm << "invLfnstNxN size=" << size << " mode=" << mode << " index=" << index << " zeroOutSize=" << zeroOutSize
+       << " input=" << variant;
+  return compare_values_1d( sstm.str(), dst_ref, dst_opt, ( unsigned )trSize );
+}
+
+static bool test_InvLfnst()
+{
+  InterPrediction ipRef;
+  InterPrediction ipOpt;
+  TrQuant         ref{ &ipRef, nullptr, /*enableOpt=*/false };
+  TrQuant         opt{ &ipOpt, &ref,    /*enableOpt=*/true };
+
+  InputGenerator<int> randGen{ 16 };
+  MinMaxGenerator<int> extremeGen{ 16 };
+
+  bool passed = true;
+
+  for( uint32_t size : { 4u, 8u } )
+  {
+    for( uint32_t mode = 0; mode < 4; mode++ )
+    {
+      for( uint32_t index = 0; index < 2; index++ )
+      {
+        for( int zeroOutSize : { 8, 16 } )
+        {
+          // directed cases first, then the random sweep.
+          passed = check_one_invLfnst( &ref, &opt, mode, index, size, zeroOutSize, "zero",
+                                       [] { return 0; } ) && passed;
+          passed = check_one_invLfnst( &ref, &opt, mode, index, size, zeroOutSize, "minmax",
+                                       [&] { return extremeGen(); } ) && passed;
+
+          for( int i = 0; i < NUM_CASES; i++ )
+          {
+            passed = check_one_invLfnst( &ref, &opt, mode, index, size, zeroOutSize, "rand",
+                                         [&] { return randGen(); } ) && passed;
+          }
+        }
+      }
+    }
+  }
 
   return passed;
 }
@@ -2617,6 +2690,7 @@ static const UnitTestEntry test_suites[] = {
 #endif
 #if ENABLE_SIMD_TCOEFF_OPS
     { "TCoeffOps", test_TCoeffOps },
+    { "InvLfnst", test_InvLfnst },
 #endif
 };
 

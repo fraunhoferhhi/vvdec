@@ -67,7 +67,7 @@ typedef void InvTrans(const TCoeff*, TCoeff*, int, int, int, int, bool, const TC
 class TrQuant : Quant
 {
 public:
-  TrQuant( class InterPrediction* ip, const TrQuant* other = nullptr );
+  TrQuant( class InterPrediction* ip, const TrQuant* other = nullptr, bool enableOpt = true );
 
   // initialize class
   void init      ( const Picture *pic );
@@ -130,6 +130,11 @@ private:
   template<X86_VEXT vext>
   void _initTrQuantX86();
   void initTrQuantX86();
+#endif
+#if defined(TARGET_SIMD_ARM) &&  ENABLE_SIMD_TCOEFF_OPS
+  template<ARM_VEXT vext>
+  void _initTrQuantARM();
+  void initTrQuantARM();
 #endif
 };// END CLASS DEFINITION TrQuant
 
