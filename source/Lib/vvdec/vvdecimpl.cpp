@@ -326,6 +326,16 @@ int VVDecImpl::decode( vvdecAccessUnit& rcAccessUnit, vvdecFrame** ppcFrame )
       std::vector<size_t> iAUEndPosVec;
       std::vector<size_t> iStartCodeSizeVec;
 
+      // trailing_zero_8bits between a NAL unit and the next start code belong to neither of them (Rec. ITU-T H.266 Annex B)
+      auto pushNalEndPos = [&]( int iEndPos )
+      {
+        while( iEndPos > 0 && rcAccessUnit.payload[iEndPos-1] == 0 )
+        {
+          iEndPos--;
+        }
+        iAUEndPosVec.push_back( iEndPos );
+      };
+
       int pos = 0;
       while( pos+3 < rcAccessUnit.payloadUsedSize )
       {
@@ -342,7 +352,7 @@ int VVDecImpl::decode( vvdecAccessUnit& rcAccessUnit, vvdecFrame** ppcFrame )
 
           if( pos > 0 )
           {
-            iAUEndPosVec.push_back(pos);
+            pushNalEndPos( pos );
           }
 
           pos+=3;
@@ -358,7 +368,7 @@ int VVDecImpl::decode( vvdecAccessUnit& rcAccessUnit, vvdecFrame** ppcFrame )
             iStartCodeSizeVec.push_back( 3 );
             if( pos > 0 )
             {
-              iAUEndPosVec.push_back(pos);
+              pushNalEndPos( pos );
             }
 
             pos+=2;
@@ -372,12 +382,7 @@ int VVDecImpl::decode( vvdecAccessUnit& rcAccessUnit, vvdecFrame** ppcFrame )
         return VVDEC_ERR_DEC_INPUT;
       }
 
-      int iLastPos = rcAccessUnit.payloadUsedSize;
-      while( iLastPos > 0 && rcAccessUnit.payload[iLastPos-1] == 0 )
-      {
-        iLastPos--;
-      }
-      iAUEndPosVec.push_back( iLastPos );
+      pushNalEndPos( rcAccessUnit.payloadUsedSize );
 
       // check if first AU begins on begin of payload (otherwise wrong input), but we allow empty input
       if( !iStartCodePosVec.empty() && iStartCodePosVec[0] != iStartCodeSizeVec[0] )
