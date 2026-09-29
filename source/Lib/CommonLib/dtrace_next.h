@@ -159,8 +159,7 @@ enum DTRACE_CHANNEL
 
 static void tracing_uninit( CDTrace *pDtrace )
 {
-  if( pDtrace )
-    delete pDtrace;
+  delete pDtrace;
 }
 
 

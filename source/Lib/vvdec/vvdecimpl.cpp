@@ -1601,11 +1601,8 @@ void VVDecImpl::vvdec_frame_reset(vvdecFrame *frame)
     m_cFrameStorageMap.erase (storageIter);
   }
 
-  if( frame->picAttributes )
-  {
-    xFree( frame->picAttributes );
-    frame->picAttributes = NULL;
-  }
+  xFree( frame->picAttributes );
+  frame->picAttributes = NULL;
 
   if( m_cUserAllocator.enabled && m_cUserAllocator.unref && bIsExternAllocator )
   {

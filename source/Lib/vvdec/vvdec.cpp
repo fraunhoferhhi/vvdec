@@ -88,10 +88,7 @@ VVDEC_DECL vvdecParams* vvdec_params_alloc()
 
 VVDEC_DECL void vvdec_params_free(vvdecParams *params )
 {
-  if( params )
-  {
-    free(params);
-  }
+  free(params);
 }
 
 
