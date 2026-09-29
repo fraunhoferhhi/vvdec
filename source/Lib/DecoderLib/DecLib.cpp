@@ -238,6 +238,8 @@ Picture* DecLib::flushPic()
   Picture* outPic = nullptr;
   try
   {
+    m_decLibParser.failIncompleteParsePic();   // no more slices are coming for the last picture
+
     // at end of file, fill the decompression queue and decode pictures until the next output-picture is finished
     while( Picture* pcParsedPic = m_decLibParser.getNextDecodablePicture() )
     {

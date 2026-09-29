@@ -144,6 +144,7 @@ public:
 
   bool     parse                ( InputNALUnit& nalu );
   Picture* getNextDecodablePicture();
+  void     failIncompleteParsePic();
 
   void checkNoOutputPriorPics   ();
   void setNoOutputPriorPicsFlag (bool val)              { m_isNoOutputPriorPics = val; }
