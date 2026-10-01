@@ -2,7 +2,7 @@
 
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options as ChromeOptions
-from selenium.webdriver.common.desired_capabilities import DesiredCapabilities
+from selenium.webdriver.chrome.service import Service as ChromeService
 
 import time
 import logging
@@ -10,15 +10,16 @@ import atexit
 
 OUTPUT_TIMEOUT = 120
 
-caps = DesiredCapabilities.CHROME
-caps['goog:loggingPrefs'] = { 'browser':'ALL' }
-
 opts = ChromeOptions()
-opts.headless = True
+opts.capabilities['goog:loggingPrefs'] = { 'browser':'ALL' }
 opts.add_argument('--disable-gpu')
 opts.add_argument('--no-sandbox')
-driver = webdriver.Chrome(options=opts, desired_capabilities=caps)
+opts.add_argument('--headless')
 
+opts.binary_location = "/usr/bin/chromium"
+chromeservice = ChromeService(executable_path="/usr/bin/chromedriver")
+
+driver = webdriver.Chrome(options=opts, service=chromeservice)
 atexit.register(driver.quit)
 
 driver.get('http://localhost:8000/tests/wasm/shell.html#autorun')

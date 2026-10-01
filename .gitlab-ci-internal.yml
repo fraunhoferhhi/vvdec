@@ -80,12 +80,16 @@ variables:
   script:
     - make osx-arch=${OSX_ARCH} enable-bitstream-download=1 enable-local-bitstream-download=1 enable-lto=${ENABLE_LTO} all
     - make osx-arch=${OSX_ARCH} test
+  tags:
+    - macos-arm
 
 .build_test_msvc_template:
   extends: .build_test_template
   script:
     - make msvc-arch=${MSVC_ARCH} enable-bitstream-download=1 enable-local-bitstream-download=1 enable-lto=${ENABLE_LTO} all
     - make msvc-arch=${MSVC_ARCH} test
+  tags:
+    - vs-latest
 
 .build_android_template:
   extends: .build_only_template_full
@@ -376,8 +380,6 @@ test_vs2017:
     MSVC_ARCH: x64
     # use VS 2017 compilers:
     CONFIG_OPTIONS: -T v141
-  tags:
-    - vs-latest
 
 test_vs2019:
   extends: .build_test_msvc_template
@@ -385,8 +387,6 @@ test_vs2019:
     MSVC_ARCH: x64
     # use VS 2019 compilers:
     CONFIG_OPTIONS: -T v142
-  tags:
-    - vs-latest
 
 test_vs2022:
   extends: .build_test_msvc_template
@@ -394,8 +394,6 @@ test_vs2022:
     MSVC_ARCH: x64
     # use VS 2022 compilers:
     CONFIG_OPTIONS: -T v143
-  tags:
-    - vs-latest
 
 test_vs2026:
   extends: .build_test_msvc_template
@@ -403,8 +401,6 @@ test_vs2026:
     MSVC_ARCH: x64
     # use VS 2026 compilers:
     CONFIG_OPTIONS: -T v145
-  tags:
-    - vs-latest
 
 test_vs2026_Win32:
   extends: .build_test_msvc_template
@@ -412,8 +408,6 @@ test_vs2026_Win32:
     MSVC_ARCH: Win32
     # use VS 2026 compilers:
     CONFIG_OPTIONS: -T v145
-  tags:
-    - vs-latest
 
 test_vs2026_arm64:
   extends: .build_test_msvc_template
@@ -428,15 +422,7 @@ test_macos_arm64:
   extends: .build_test_macos_template
   variables:
     OSX_ARCH: arm64
-  tags:
-    - macos-arm
 
-test_macos_x86_64:
-  extends: .build_test_macos_template
-  variables:
-    OSX_ARCH: x86_64
-  tags:
-    - macos-x86_64
 
 
 .rebuild_docker_image_template:
