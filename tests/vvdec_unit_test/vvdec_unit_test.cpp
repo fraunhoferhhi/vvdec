@@ -2651,6 +2651,8 @@ static bool test_IntraPredAngleChroma()
 }
 #endif // ENABLE_SIMD_OPT_INTRAPRED
 
+bool test_FilmGrain();
+
 struct UnitTestEntry
 {
   std::string name;
@@ -2664,6 +2666,7 @@ static const UnitTestEntry test_suites[] = {
 #if ENABLE_SIMD_OPT_QUANT
     { "DeQuant", test_DeQuant },
 #endif
+    { "FilmGrain", test_FilmGrain },
 #if ENABLE_SIMD_OPT_INTRAPRED
     { "IntraPredAngleChroma", test_IntraPredAngleChroma },
 #endif
