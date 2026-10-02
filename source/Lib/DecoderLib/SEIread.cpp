@@ -758,9 +758,8 @@ void SEIReader::xParseSEIBufferingPeriod(vvdecSEI* s, uint32_t payloadSize, std:
   }
   if (sei->cpbRemovalDelayDeltasPresentFlag)
   {
-    sei_read_uvlc( pDecodedMessageOutputStream, code, "num_cpb_removal_delay_deltas_minus1" );
+    sei_read_uvlc( pDecodedMessageOutputStream, code, "num_cpb_removal_delay_deltas_minus1" );             sei->numCpbRemovalDelayDeltas = code + 1;
     CHECK( sei->numCpbRemovalDelayDeltas > 14, "num_cpb_removal_delay_deltas_minus1 must be <= 13 in vvdecSEIBufferingPeriod" );
-    sei->numCpbRemovalDelayDeltas = code + 1;
 
     for( i = 0; i < sei->numCpbRemovalDelayDeltas; i ++ )
     {
@@ -768,9 +767,8 @@ void SEIReader::xParseSEIBufferingPeriod(vvdecSEI* s, uint32_t payloadSize, std:
       sei->cpbRemovalDelayDelta[ i ] = code;
     }
   }
-  sei_read_uvlc( pDecodedMessageOutputStream, code, "bp_cpb_cnt_minus1" );
+  sei_read_uvlc( pDecodedMessageOutputStream, code, "bp_cpb_cnt_minus1" ); sei->bpCpbCnt = code + 1;
   CHECK( sei->bpCpbCnt > 32, "bp_cpb_cnt_minus1 must be <= 31 in vvdecSEIBufferingPeriod" );
-  sei->bpCpbCnt = code + 1;
   if (sei->bpMaxSubLayers - 1 > 0)
   {
     sei_read_flag(pDecodedMessageOutputStream, code, "bp_sublayer_initial_cpb_removal_delay_present_flag");
@@ -934,8 +932,8 @@ void SEIReader::xParseSEIPictureTiming(vvdecSEI* s, uint32_t payloadSize, const 
   if( bp.bpDecodingUnitHrdParamsPresentFlag && bp.decodingUnitCpbParamsInPicTimingSeiFlag )
   {
     sei_read_uvlc( pDecodedMessageOutputStream, symbol, "num_decoding_units_minus1" );
-    CHECK( sei->numDecodingUnits > 32, "num_decoding_units_minus1 must be <= 31 in vvdecSEIPictureTiming" );
     sei->numDecodingUnits = symbol+1;
+    CHECK( sei->numDecodingUnits > 32, "num_decoding_units_minus1 must be <= 31 in vvdecSEIPictureTiming" );
 
     if (sei->numDecodingUnits > 1)
     {
@@ -1042,9 +1040,8 @@ void SEIReader::xParseSEIFramePacking(vvdecSEI* s, uint32_t payloadSize, std::os
 
   if( !sei->arrangementCancelFlag )
   {
-    sei_read_code( pDecodedMessageOutputStream, 7, val, "frame_packing_arrangement_type" );
+    sei_read_code( pDecodedMessageOutputStream, 7, val, "frame_packing_arrangement_type" );          sei->arrangementType = val;
     CHECK( ( sei->arrangementType <= 2 ) || ( sei->arrangementType >= 6 ), "Invalid arrangement type" );
-    sei->arrangementType = val;
 
     sei_read_flag( pDecodedMessageOutputStream, val, "quincunx_sampling_flag" );                     sei->quincunxSamplingFlag = val;
 
@@ -1412,9 +1409,8 @@ void SEIReader::xParseSEIOmniViewport(vvdecSEI* s, uint32_t payloadSize, std::os
   if (!sei->omniViewportCancelFlag)
   {
     sei_read_flag( pDecodedMessageOutputStream,    code, "omni_viewport_persistence_flag" );  sei->omniViewportPersistenceFlag = code;
-    sei_read_code( pDecodedMessageOutputStream, 4, code, "omni_viewport_cnt_minus1"       );
+    sei_read_code( pDecodedMessageOutputStream, 4, code, "omni_viewport_cnt_minus1"       );  sei->omniViewportCnt =  code+1;
     CHECK( sei->omniViewportCnt > 16, "omni_viewport_cnt_minus1 must be < 16 in vvdecSEIOmniViewport" );
-    sei->omniViewportCnt =  code+1;
 
     for(uint32_t region=0; region < sei->omniViewportCnt; region++)
     {
@@ -1531,21 +1527,18 @@ void SEIReader::xParseSEISubpictureLevelInfo(vvdecSEI* s, uint32_t payloadSize, 
   ::memset(sei, 0, sizeof(vvdecSEISubpictureLevelInfo));
 
   uint32_t val;
-  sei_read_code( pDecodedMessageOutputStream,   3,  val,    "sli_nuref_levels_minus1" );
+  sei_read_code( pDecodedMessageOutputStream,   3,  val,    "sli_nuref_levels_minus1" );              sei->numRefLevels  = val + 1;
   CHECK( sei->numRefLevels > 6, "sli_nuref_levels_minus1 must be < 6 in vvdecSEISubpictureLevelInfo" );
-  sei->numRefLevels  = val + 1;
 
   sei_read_flag( pDecodedMessageOutputStream,       val,    "sli_cbr_constraint_flag" );              sei->cbrConstraintFlag = val;
   sei_read_flag( pDecodedMessageOutputStream,       val,    "sli_explicit_fraction_present_flag" );   sei->explicitFractionPresentFlag = val;
   if (sei->explicitFractionPresentFlag)
   {
-    sei_read_uvlc(pDecodedMessageOutputStream,      val,    "sli_nusubpics_minus1");
+    sei_read_uvlc(pDecodedMessageOutputStream,      val,    "sli_nusubpics_minus1");                  sei->numSubpics = val + 1;
     CHECK( sei->numSubpics > 64, "sli_nusubpics_minus1 must be < 64 in vvdecSEISubpictureLevelInfo" );
-    sei->numSubpics = val + 1;
   }
-  sei_read_code(pDecodedMessageOutputStream,    3,  val,    "sli_max_sublayers_minus1"  );
+  sei_read_code(pDecodedMessageOutputStream,    3,  val,    "sli_max_sublayers_minus1"  );            sei->sliMaxSublayers = val + 1;
   CHECK( sei->sliMaxSublayers > 6, "sli_max_sublayers_minus1 must be < 6 in vvdecSEISubpictureLevelInfo" );
-  sei->sliMaxSublayers = val + 1;
 
   sei_read_flag(pDecodedMessageOutputStream,        val,    "sli_sublayer_info_present_flag");        sei->sliSublayerInfoPresentFlag = val;
   while (!isByteAligned())
