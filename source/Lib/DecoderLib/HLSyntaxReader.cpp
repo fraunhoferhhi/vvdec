@@ -1784,6 +1784,8 @@ void HLSyntaxReader::parseSPS( SPS* sps, const ParameterSetManager* parameterSet
          "sps_pic_width_max_in_luma_samples shall not be equal to 0 and shall be an integer multiple of Max( 8, MinCbSizeY )" );
   CHECK( sps_pic_height_max_in_luma_samples == 0 || sps_pic_height_max_in_luma_samples & ( std::max( 8, MinCbSizeY ) - 1 ),
          "sps_pic_height_max_in_luma_samples shall not be equal to 0 and shall be an integer multiple of Max( 8, MinCbSizeY )" );
+  // reject picture sizes whose buffer sizes overflow 32 bits
+  PelStorage::calcCompBufSize( {sps_pic_width_max_in_luma_samples, sps_pic_height_max_in_luma_samples}, CtbSizeY, 16 + CtbSizeY, MEMORY_ALIGN_DEF_SIZE, true, 0, 0 );
 
   const int minCuSize = 1 << sps->getLog2MinCodingBlockSize();
   CHECK( ( sps->getMaxPicWidthInLumaSamples() % ( std::max( 8, minCuSize ) ) ) != 0, "Coded frame width must be a multiple of Max(8, the minimum unit size)" );

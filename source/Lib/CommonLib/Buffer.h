@@ -941,6 +941,16 @@ struct PelStorage : public PelUnitBuf
   void create( const ChromaFormat _chromaFormat, const Size& _size, const unsigned _maxCUSize = 0, const unsigned _margin = 0, const unsigned _alignment = 0, const bool _scaleChromaMargin = true, const UserAllocator* userAlloc = nullptr );
   void destroy();
 
+  struct CompBufSize
+  {
+    Size     total;   // incl. margins and alignment
+    unsigned xmargin;
+    unsigned ymargin;
+    size_t   area;
+  };
+  // padded size of one component's buffer, as allocated by create(); throws if too large
+  static CompBufSize calcCompBufSize( const Size& _size, const unsigned _maxCUSize, const unsigned _margin, const unsigned _alignmentByte, const bool _scaleChromaMargin, const unsigned scaleX, const unsigned scaleY );
+
          PelBuf getBuf( const CompArea &blk );
   const CPelBuf getBuf( const CompArea &blk ) const;
 
