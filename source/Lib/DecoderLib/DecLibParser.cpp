@@ -1072,8 +1072,6 @@ void DecLibParser::xActivateParameterSets( const int layerId )
 
     xParsePrefixSEImessages();
 
-    CHECK( sps->getBitDepth() > 12, "High bit depth support must be enabled at compile-time in order to decode this bitstream\n" );
-
     applyReferencePictureListBasedMarking( m_apcSlicePilot, layerId, *pps );
 
     //  Get a new picture buffer

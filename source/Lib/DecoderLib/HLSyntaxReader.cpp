@@ -1715,6 +1715,7 @@ void HLSyntaxReader::parseSPS( SPS* sps, const ParameterSetManager* parameterSet
   }
 
   X_READ_UVLC( sps_bitdepth_minus8, 0, 8 );
+  CHECK( sps_bitdepth_minus8 > 2, "bit depths above 10 are not supported" );
   const Profile::Name profile = sps->getProfileTierLevel()->getProfileIdc();
   if( profile != Profile::NONE )
   {
@@ -2581,7 +2582,9 @@ void HLSyntaxReader::parseVPS( VPS* pcVPS )
         READ_UVLC( uiCode, "vps_ols_dpb_pic_width[i]" );                   pcVPS->setOlsDpbPicWidth( i, uiCode );
         READ_UVLC( uiCode, "vps_ols_dpb_pic_height[i]" );                  pcVPS->setOlsDpbPicHeight( i, uiCode );
         READ_CODE( 2, uiCode, "vps_ols_dpb_chroma_format[i]" );            pcVPS->setOlsDpbChromaFormatIdc( i, uiCode );
-        READ_UVLC( uiCode, "vps_ols_dpb_bitdepth_minus8[i]" );             pcVPS->setOlsDpbBitDepthMinus8( i, uiCode );
+        READ_UVLC( uiCode, "vps_ols_dpb_bitdepth_minus8[i]" );
+        CHECK( uiCode > 2, "bit depths above 10 are not supported" );
+        pcVPS->setOlsDpbBitDepthMinus8( i, uiCode );
         const Profile::Name profile = pcVPS->getProfileTierLevel( pcVPS->getOlsPtlIdx( i ) ).getProfileIdc();
         if( profile != Profile::NONE )
         {
