@@ -1370,7 +1370,7 @@ void sampleRateConvSIMD_8tap( const std::pair<int, int> scalingRatio,
 
     for( int i = 0; i < scaledWidth; i++ )
     {
-      int refPos  = ( ( ( i << compScale.first ) - afterScaleLeftOffset ) * scalingRatio.first + addX ) >> posShiftX;
+      int refPos  = int( ( ( int64_t(i << compScale.first) - afterScaleLeftOffset ) * scalingRatio.first + addX ) >> posShiftX );
       int integer = refPos >> numFracShift;
       int frac    = refPos  & numFracPositions;
 
@@ -1444,7 +1444,7 @@ void sampleRateConvSIMD_8tap( const std::pair<int, int> scalingRatio,
 
     for( int j = 0; j < scaledHeight; j++ )
     {
-      const int refPos      = ( ( ( j << compScale.second ) - afterScaleTopOffset ) * scalingRatio.second + addY ) >> posShiftY;
+      const int refPos      = int( ( ( int64_t(j << compScale.second) - afterScaleTopOffset ) * scalingRatio.second + addY ) >> posShiftY );
       const int integer     = refPos >> numFracShift;
       const int frac        = refPos & numFracPositions;
       const TFilterCoeff* f = filterVer + frac * filterLength;
@@ -1646,7 +1646,7 @@ void sampleRateConvSIMD_4tap( const std::pair<int, int> scalingRatio,
 
     for( int i = 0; i < scaledWidth; i++ )
     {
-      int refPos = (((i << compScale.first) - afterScaleLeftOffset) * scalingRatio.first + addX) >> posShiftX;
+      int refPos = int( ( ( int64_t(i << compScale.first) - afterScaleLeftOffset ) * scalingRatio.first + addX ) >> posShiftX );
       int integer = refPos >> numFracShift;
       int frac = refPos & numFracPositions;
 
@@ -1716,7 +1716,7 @@ void sampleRateConvSIMD_4tap( const std::pair<int, int> scalingRatio,
 
     for( int j = 0; j < scaledHeight; j++ )
     {
-      const int refPos = (((j << compScale.second) - afterScaleTopOffset) * scalingRatio.second + addY) >> posShiftY;
+      const int refPos = int( ( ( int64_t(j << compScale.second) - afterScaleTopOffset ) * scalingRatio.second + addY ) >> posShiftY );
       const int integer = refPos >> numFracShift;
       const int frac = refPos & numFracPositions;
       const TFilterCoeff* f = filterVer + frac * filterLength;

@@ -268,7 +268,7 @@ void sampleRateConvCore( const std::pair<int, int> scalingRatio, const std::pair
   for( int i = 0; i < scaledWidth; i++ )
   {
     const Pel* org = orgSrc;
-    int refPos = (((i << compScale.first) - afterScaleLeftOffset) * scalingRatio.first + addX) >> posShiftX;
+    int refPos = int( ((int64_t(i << compScale.first) - afterScaleLeftOffset) * scalingRatio.first + addX) >> posShiftX );
     int integer = refPos >> numFracShift;
     int frac = refPos & numFracPositions;
     int* tmp = buf.get() + i;
@@ -295,7 +295,7 @@ void sampleRateConvCore( const std::pair<int, int> scalingRatio, const std::pair
 
   for( int j = 0; j < scaledHeight; j++ )
   {
-    int refPos = (((j << compScale.second) - afterScaleTopOffset) * scalingRatio.second + addY) >> posShiftY;
+    int refPos = int( ((int64_t(j << compScale.second) - afterScaleTopOffset) * scalingRatio.second + addY) >> posShiftY );
     int integer = refPos >> numFracShift;
     int frac = refPos & numFracPositions;
 
@@ -653,24 +653,55 @@ void PelStorage::create( const UnitArea &_UnitArea )
   create( _UnitArea.chromaFormat, _UnitArea.blocks[0] );
 }
 
+PelStorage::CompBufSize PelStorage::calcCompBufSize( const Size& _size, const unsigned _maxCUSize, const unsigned _margin, const unsigned _alignmentByte, const bool _scaleChromaMargin, const unsigned scaleX, const unsigned scaleY )
+{
+  uint64_t extHeight = _size.height;
+  uint64_t extWidth  = _size.width;
+
+  if( _maxCUSize )
+  {
+    extHeight = ( ( extHeight + _maxCUSize - 1 ) / _maxCUSize ) * _maxCUSize;
+    extWidth  = ( ( extWidth  + _maxCUSize - 1 ) / _maxCUSize ) * _maxCUSize;
+  }
+
+  const unsigned _alignment = _alignmentByte / sizeof( Pel );
+
+  unsigned ymargin = _margin >> (_scaleChromaMargin ? scaleY : 0);
+  unsigned xmargin = _margin >> (_scaleChromaMargin ? scaleX : 0);
+
+  if( _alignment && xmargin )
+  {
+    xmargin = ( ( xmargin + _alignment - 1 ) / _alignment ) * _alignment;
+  }
+
+  uint64_t totalWidth  = ( extWidth  >> scaleX ) + 2 * xmargin;
+  uint64_t totalHeight = ( extHeight >> scaleY ) + 2 * ymargin;
+
+  if( _alignment )
+  {
+    // make sure buffer lines are align
+    totalWidth = ( ( totalWidth + _alignment - 1 ) / _alignment ) * _alignment;
+  }
+
+#if ENABLE_SIMD_OPT_INTER
+  const uint64_t area = totalWidth * totalHeight + 1; // +1 for the extra Pel overread in prefetchPad_SSE, in case reading from the very bottom right of the picture
+#else
+  const uint64_t area = totalWidth * totalHeight;
+#endif
+  // buffer sizes and offsets are computed in 32 bit
+  CHECK( area > INT32_MAX / sizeof( Pel ), "Buffer size " << _size.width << "x" << _size.height << " too large" );
+
+  return { Size{ SizeType( totalWidth ), SizeType( totalHeight ) }, xmargin, ymargin, size_t( area ) };
+}
+
 void PelStorage::create( const ChromaFormat _chromaFormat, const Size& _size, const unsigned _maxCUSize, const unsigned _margin, const unsigned _alignmentByte, const bool _scaleChromaMargin, const UserAllocator* userAlloc )
 {
   CHECK( !bufs.empty(), "Trying to re-create an already initialized buffer" );
+  CHECK( _alignmentByte && _alignmentByte != MEMORY_ALIGN_DEF_SIZE, "Unsupported alignment" );
 
   chromaFormat = _chromaFormat;
 
   const uint32_t numCh = getNumberValidComponents( _chromaFormat );
-
-  unsigned extHeight = _size.height;
-  unsigned extWidth  = _size.width;
-
-  if( _maxCUSize )
-  {
-    extHeight = ( ( _size.height + _maxCUSize - 1 ) / _maxCUSize ) * _maxCUSize;
-    extWidth  = ( ( _size.width  + _maxCUSize - 1 ) / _maxCUSize ) * _maxCUSize;
-  }
-
-  const unsigned _alignment = _alignmentByte / sizeof( Pel );
 
   for( uint32_t i = 0; i < numCh; i++ )
   {
@@ -678,49 +709,23 @@ void PelStorage::create( const ChromaFormat _chromaFormat, const Size& _size, co
     const unsigned scaleX = getComponentScaleX( compID, _chromaFormat );
     const unsigned scaleY = getComponentScaleY( compID, _chromaFormat );
 
-    unsigned scaledHeight = extHeight >> scaleY;
-    unsigned scaledWidth  = extWidth  >> scaleX;
-    unsigned ymargin      = _margin >> (_scaleChromaMargin?scaleY:0);
-    unsigned xmargin      = _margin >> (_scaleChromaMargin?scaleX:0);
+    const CompBufSize bufSize = calcCompBufSize( _size, _maxCUSize, _margin, _alignmentByte, _scaleChromaMargin, scaleX, scaleY );
+    CHECK( !bufSize.area, "Trying to create a buffer with zero area" );
 
-#if 1
-    if( _alignment && xmargin )
-    {
-      xmargin = ( ( xmargin + _alignment - 1 ) / _alignment ) * _alignment;
-    }
-
-#endif
-    SizeType totalWidth   = scaledWidth + 2 * xmargin;
-    SizeType totalHeight  = scaledHeight +2 * ymargin;
-
-    if( _alignment )
-    {
-      // make sure buffer lines are align
-      CHECK( _alignmentByte != MEMORY_ALIGN_DEF_SIZE, "Unsupported alignment" );
-      totalWidth = ( ( totalWidth + _alignment - 1 ) / _alignment ) * _alignment;
-    }
-
-#if ENABLE_SIMD_OPT_INTER
-    uint32_t area = totalWidth * totalHeight + 1; // +1 for the extra Pel overread in prefetchPad_SSE, in case reading from the very bottom right of the picture
-#else
-    uint32_t area = totalWidth * totalHeight;
-#endif
-    CHECK( !area, "Trying to create a buffer with zero area" );
-
-    m_origSi[i] = Size{ totalWidth, totalHeight };
+    m_origSi[i] = bufSize.total;
     if( userAlloc && userAlloc->enabled )
     {
-      m_origin[i] = ( Pel* ) userAlloc->create( userAlloc->opaque, (vvdecComponentType)i, sizeof(Pel)*area, MEMORY_ALIGN_DEF_SIZE, &m_allocator[i] );
+      m_origin[i] = ( Pel* ) userAlloc->create( userAlloc->opaque, (vvdecComponentType)i, uint32_t( sizeof(Pel)*bufSize.area ), MEMORY_ALIGN_DEF_SIZE, &m_allocator[i] );
       CHECK( m_origin[i] == nullptr, "external allocator callback failed (returned NULL)." );
       m_externAllocator = true;
       m_userAlloc       = userAlloc;
     }
     else
     {
-      m_origin[i] = ( Pel* ) xMalloc( Pel, area );
+      m_origin[i] = ( Pel* ) xMalloc( Pel, bufSize.area );
     }
-    Pel* topLeft = m_origin[i] + totalWidth * ymargin + xmargin;
-    bufs.push_back( PelBuf( topLeft, totalWidth, _size.width >> scaleX, _size.height >> scaleY ) );
+    Pel* topLeft = m_origin[i] + bufSize.total.width * bufSize.ymargin + bufSize.xmargin;
+    bufs.push_back( PelBuf( topLeft, bufSize.total.width, _size.width >> scaleX, _size.height >> scaleY ) );
   }
 }
 
