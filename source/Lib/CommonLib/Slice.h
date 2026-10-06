@@ -2037,8 +2037,8 @@ public:
                                                                                             m_picHeightInCtu = (m_picHeightInLumaSamples  + m_ctuSize - 1) / m_ctuSize; }
   uint8_t                getLog2CtuSize( ) const                                          { return  m_log2CtuSize;                        }
   uint8_t                getCtuSize( ) const                                              { return  m_ctuSize;                            }
-  uint8_t                getPicWidthInCtu( ) const                                        { return  m_picWidthInCtu;                      }
-  uint8_t                getPicHeightInCtu( ) const                                       { return  m_picHeightInCtu;                     }
+  uint32_t               getPicWidthInCtu( ) const                                        { return  m_picWidthInCtu;                      }
+  uint32_t               getPicHeightInCtu( ) const                                       { return  m_picHeightInCtu;                     }
   void                   setNumExpTileColumns( uint32_t u )                               { m_numExpTileCols = u;                         }
   uint32_t               getNumExpTileColumns( ) const                                    { return  m_numExpTileCols;                     }
   void                   setNumExpTileRows( uint32_t u )                                  { m_numExpTileRows = u;                         }
