@@ -1630,8 +1630,8 @@ VVDEC_DECL void rescalePlane( const vvdecPlane&      srcPlane,
   const ChromaFormat chromaFormatIDC = static_cast<ChromaFormat>( colorFormat );
   const ComponentID  compID          = static_cast<ComponentID>( planeComponent );
 
-  const int xScale = ( ( srcPlane.width  << SCALE_RATIO_BITS ) + ( dstPlane.width  >> 1 ) ) / dstPlane.width;
-  const int yScale = ( ( srcPlane.height << SCALE_RATIO_BITS ) + ( dstPlane.height >> 1 ) ) / dstPlane.height;
+  const int xScale = int( ( ( uint64_t(srcPlane.width)  << SCALE_RATIO_BITS ) + ( dstPlane.width  >> 1 ) ) / dstPlane.width );
+  const int yScale = int( ( ( uint64_t(srcPlane.height) << SCALE_RATIO_BITS ) + ( dstPlane.height >> 1 ) ) / dstPlane.height );
 
 #if ENABLE_SIMD_OPT_BUFFER
   g_pelBufOP.sampleRateConv

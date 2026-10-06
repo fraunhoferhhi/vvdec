@@ -268,7 +268,7 @@ void sampleRateConvCore( const std::pair<int, int> scalingRatio, const std::pair
   for( int i = 0; i < scaledWidth; i++ )
   {
     const Pel* org = orgSrc;
-    int refPos = (((i << compScale.first) - afterScaleLeftOffset) * scalingRatio.first + addX) >> posShiftX;
+    int refPos = int( ((int64_t(i << compScale.first) - afterScaleLeftOffset) * scalingRatio.first + addX) >> posShiftX );
     int integer = refPos >> numFracShift;
     int frac = refPos & numFracPositions;
     int* tmp = buf.get() + i;
@@ -295,7 +295,7 @@ void sampleRateConvCore( const std::pair<int, int> scalingRatio, const std::pair
 
   for( int j = 0; j < scaledHeight; j++ )
   {
-    int refPos = (((j << compScale.second) - afterScaleTopOffset) * scalingRatio.second + addY) >> posShiftY;
+    int refPos = int( ((int64_t(j << compScale.second) - afterScaleTopOffset) * scalingRatio.second + addY) >> posShiftY );
     int integer = refPos >> numFracShift;
     int frac = refPos & numFracPositions;
 
