@@ -389,6 +389,7 @@ const Pel AdaptiveLoopFilter::m_alfClippVls[3][MaxAlfNumClippingValues] =
 void AdaptiveLoopFilter::create( const PicHeader* picHeader, const SPS* sps, const PPS* pps, int numThreads, PelUnitBuf& unitBuf )
 {
   auto inputBitDepth = sps->getBitDepths().recon;
+  CHECK( inputBitDepth > 10 , "m_alfClippingValues or m_alfClippVls needs to be enabled/adjusted" );
   if( m_inputBitDepth != inputBitDepth )
   {
     const auto clippVl = m_alfClippVls[inputBitDepth - 8][0];
@@ -409,8 +410,6 @@ void AdaptiveLoopFilter::create( const PicHeader* picHeader, const SPS* sps, con
 
   m_alfVBLumaPos = m_alfVBLumaCTUHeight - ALF_VB_POS_ABOVE_CTUROW_LUMA;
   m_alfVBChmaPos = m_alfVBChmaCTUHeight - ALF_VB_POS_ABOVE_CTUROW_CHMA;
-
-  CHECK( m_inputBitDepth > 10 , "m_alfClippingValues or m_alfClippVls needs to be enabled/adjusted" );
 
   bool loopFilterAcrossSubPicEnabledFlag = true;
   if( sps->getSubPicInfoPresentFlag() )
