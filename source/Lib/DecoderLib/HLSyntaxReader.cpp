@@ -1527,10 +1527,10 @@ void HLSyntaxReader::parseSPS( SPS* sps, const ParameterSetManager* parameterSet
 
   if( sps_subpic_info_present_flag )
   {
-    X_READ_UVLC_NO_RANGE( sps_num_subpics_minus1 );
+    X_READ_UVLC( sps_num_subpics_minus1, 0, MAX_NUM_SUB_PICS - 1 );
     CHECK( sps_num_subpics_minus1 + 1 > ( ( sps_pic_width_max_in_luma_samples + CtbSizeY - 1 ) / CtbSizeY )
-                                                      * ( ( sps_pic_height_max_in_luma_samples + CtbSizeY - 1 ) / CtbSizeY ),
-                       "Invalid sps_num_subpics_minus1 value" );
+                                      * ( ( sps_pic_height_max_in_luma_samples + CtbSizeY - 1 ) / CtbSizeY ),
+           "Invalid sps_num_subpics_minus1 value" );
     sps->setNumSubPics( sps_num_subpics_minus1 + 1 );
 
     if( sps_num_subpics_minus1 == 0 )
