@@ -850,7 +850,7 @@ bool DecLibParser::xDecodeSliceMain( InputNALUnit& nalu )
     CU::checkConformanceILRP(pcSlice);
   }
 
-  pcSlice->scaleRefPicList( m_pcParsePic->cs->picHeader.get() );
+  pcSlice->scaleRefPicList();
 
 
   if (!pcSlice->isIntra())
