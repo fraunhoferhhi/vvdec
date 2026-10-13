@@ -107,7 +107,7 @@ void Picture::create(const ChromaFormat &_chromaFormat, const Size &size, const 
 
 void Picture::createWrapAroundBuf( const bool isWrapAround, const unsigned _maxCUSize )
 {
-  if( isWrapAround )
+  if( isWrapAround && m_bufs[PIC_RECON_WRAP].bufs.empty() )
     m_bufs[PIC_RECON_WRAP].create( chromaFormat, Y().size(), _maxCUSize, margin, MEMORY_ALIGN_DEF_SIZE );
 }
 

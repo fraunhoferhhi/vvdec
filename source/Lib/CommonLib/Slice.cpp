@@ -508,6 +508,9 @@ void Slice::constructSingleRefPicList( const PicList& rcPicList, RefPicList list
 
     CHECK( pcRefPic->getPOC() != refPOC, "reference picture as wrong POC" );
     CHECK_FATAL(pcRefPic->chromaFormat != getPic()->chromaFormat,"reference picture has wrong chroma format");
+    // buffers of a reference decoded under a different SPS may lack the margin or wrap-around buffer prediction relies on
+    CHECK( pcRefPic->margin != getPic()->margin, "reference picture has wrong margin" );
+    CHECK( getSPS()->getUseWrapAround() && !pcRefPic->cs->sps->getUseWrapAround(), "reference picture has no wrap-around buffer" );
 
     if( ii < numOfActiveRef )
     {
