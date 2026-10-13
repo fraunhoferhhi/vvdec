@@ -1310,11 +1310,14 @@ void DecLibParser::prepareUnavailablePicture( bool isLost, const PPS* pps, int i
   {
     msg( INFO, "inserting unavailable poc : %d\n", iUnavailablePoc );
   }
-  Picture* cFillPic = m_picListManager.getNewPicBuffer( *m_parameterSetManager.getFirstSPS(), *m_parameterSetManager.getFirstPPS(), 0, layerId, m_parameterSetManager.getVPS( m_parameterSetManager.getFirstSPS()->getVPSId() ) );
+  // use the parameter sets of the referencing picture, so the generated reference has a compatible buffer layout
+  const SPS* sps = static_cast<const ParameterSetManager&>( m_parameterSetManager ).getSPS( pps->getSPSId() );
+  CHECK( !sps, "no SPS for unavailable reference picture" );
+  Picture* cFillPic = m_picListManager.getNewPicBuffer( *sps, *pps, 0, layerId, m_parameterSetManager.getVPS( sps->getVPSId() ) );
   CHECK( std::find( m_dpbReferencePics.cbegin(), m_dpbReferencePics.cend(), cFillPic ) != m_dpbReferencePics.cend(), "reused picture shouldn't be in decoded picture buffer" );
   m_dpbReferencePics.push_back( cFillPic );
   const APS* nullAlfApss[ALF_CTB_MAX_NUM_APS] = { nullptr, };
-  cFillPic->finalInit( &m_cuChunkCache, &m_tuChunkCache, m_parameterSetManager.getFirstSPS(), m_parameterSetManager.getFirstPPS(), m_picHeader, nullAlfApss, nullptr, nullptr, false );
+  cFillPic->finalInit( &m_cuChunkCache, &m_tuChunkCache, sps, pps, m_picHeader, nullAlfApss, nullptr, nullptr, false );
 
   CHECK_FATAL( !cFillPic->slices.empty(), "fill pic should not contain slices, already." );
   cFillPic->allocateNewSlice();
@@ -1365,7 +1368,7 @@ void DecLibParser::prepareUnavailablePicture( bool isLost, const PPS* pps, int i
   }
 #endif
 
-  cFillPic->fillGrey( m_parameterSetManager.getFirstSPS() );
+  cFillPic->fillGrey( sps );
 
   if( m_pocRandomAccess == MAX_INT )
   {

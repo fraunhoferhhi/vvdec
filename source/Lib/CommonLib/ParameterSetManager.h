@@ -192,7 +192,6 @@ public:
   const APSArray&       getAlfAPSs()                             const { return m_alfAPSs; }
 
   const SPS*            getFirstSPS()                            const { return m_spsMap.getFirstPS();                                     }
-  const PPS*            getFirstPPS()                            const { return m_ppsMap.getFirstPS();                                     }
   const APS*            getFirstAPS()                            const { return m_apsMap.getFirstPS();                                     }
 
   //! activate a PPS and, depending on isIDR parameter, also SPS. returns true, if activation is successful
