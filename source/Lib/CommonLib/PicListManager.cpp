@@ -210,6 +210,7 @@ Picture* PicListManager::getNewPicBuffer( const SPS& sps, const PPS& pps, const 
   }
 
   if( pcPic->lumaSize() != Size( pps.getPicWidthInLumaSamples(), pps.getPicHeightInLumaSamples() )
+      || pcPic->chromaFormat != sps.getChromaFormatIdc()
       || pcPic->cs->pcv->maxCUWidth != sps.getMaxCUWidth()
       || pcPic->cs->pcv->maxCUHeight != sps.getMaxCUHeight()
       || pcPic->layerId != layerId
@@ -223,8 +224,9 @@ Picture* PicListManager::getNewPicBuffer( const SPS& sps, const PPS& pps, const 
                    picMargin,
                    layerId,
                    userAllocator );
-    pcPic->createWrapAroundBuf( sps.getUseWrapAround(), sps.getMaxCUWidth() );
   }
+  // a reused picture may come from an SPS without wrap-around
+  pcPic->createWrapAroundBuf( sps.getUseWrapAround(), sps.getMaxCUWidth() );
 
   pcPic->resetForUse( layerId );
 
