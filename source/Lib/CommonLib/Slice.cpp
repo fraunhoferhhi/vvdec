@@ -1819,12 +1819,10 @@ void ScalingList::reset()
   }
 }
 
-void Slice::scaleRefPicList( const PicHeader* picHeader )
+void Slice::scaleRefPicList()
 {
   const SPS* sps = getSPS();
   const PPS* pps = getPPS();
-
-  bool refPicIsSameRes = false;
 
   if( m_eSliceType == I_SLICE )
   {
@@ -1840,25 +1838,25 @@ void Slice::scaleRefPicList( const PicHeader* picHeader )
 
     for( int rIdx = 0; rIdx < m_aiNumRefIdx[refList]; rIdx++ )
     {
-      // if rescaling is needed, otherwise just reuse the original picture pointer; it is needed for motion field, otherwise motion field requires a copy as well
-      // reference resampling for the whole picture is not applied at decoder
+      // if rescaling is needed, otherwise just reuse the original picture pointer; it is needed for motion field, otherwise motion field
+      // requires a copy as well reference resampling for the whole picture is not applied at decoder
+
+      CHECK( !m_apcRefPicList[refList][rIdx], "scaleRefPicList missing ref pic" );
 
       int xScale, yScale;
       CU::getRprScaling( sps, pps, m_apcRefPicList[refList][rIdx]->slices[0]->getPPS(), xScale, yScale );
       m_scalingRatio[refList][rIdx] = std::pair<int, int>( xScale, yScale );
-
-      CHECK( !m_apcRefPicList[refList][rIdx], "scaleRefPicList missing ref pic" );
-      if( m_apcRefPicList[refList][rIdx]->isRefScaled( pps ) == false )
-      {
-        refPicIsSameRes = true;
-      }
     }
   }
-  
-  //Make sure that TMVP is disabled when there are no reference pictures with the same resolution
-  if( !refPicIsSameRes )
+
+  // the collocated motion field is indexed with the current picture's layout (7.4.8)
+  if( getPicHeader()->getEnableTMVPFlag() )
   {
-    CHECK( getPicHeader()->getEnableTMVPFlag() != 0, "TMVP cannot be enabled in pictures that have no reference pictures with the same resolution" )
+    const RefPicList colList = RefPicList( isInterB() ? 1 - getColFromL0Flag() : 0 );
+    CHECK( getColRefIdx() >= getNumRefIdx( colList ), "collocated_ref_idx shall be less than NumRefIdxActive" );
+
+    const Picture* colPic = getRefPic( colList, getColRefIdx() );
+    CHECK( colPic->isRefScaled( pps ), "the collocated picture shall have the same size and scaling window as the current picture" );
   }
 }
 

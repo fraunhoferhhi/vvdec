@@ -2800,7 +2800,7 @@ public:
   int                         getCcAlfCbApsId()                       const { return m_ccAlfCbApsId; }
   int                         getCcAlfCrApsId()                       const { return m_ccAlfCrApsId; }
 
-  void                        scaleRefPicList( const PicHeader* picHeader );
+  void                        scaleRefPicList();
   const std::pair<int, int>&  getScalingRatio( const RefPicList refPicList, const int refIdx )  const { return m_scalingRatio[refPicList][refIdx]; }
   void                        setNumEntryPoints( const SPS *sps, const PPS *pps );
   uint32_t                    getNumEntryPoints( ) const { return m_numEntryPoints;  }
