@@ -67,7 +67,7 @@ const UnitScale UnitScaleArray[NUM_CHROMA_FORMAT][MAX_NUM_COMPONENT] =
 // coding structure method definitions
 // ---------------------------------------------------------------------------
 
-CodingStructure::CodingStructure( CUChunkCache* cuChunkCache, TUChunkCache* tuChunkCache, CUMapCache* cuMapCache )
+CodingStructure::CodingStructure( CUChunkCache* cuChunkCache, TUChunkCache* tuChunkCache, CUMapCache* cuMapCache, CUMapCache* chromaCuMapCache )
   : area      ()
   , picture   ( nullptr )
   , m_ctuData ( nullptr )
@@ -76,6 +76,8 @@ CodingStructure::CodingStructure( CUChunkCache* cuChunkCache, TUChunkCache* tuCh
   , m_cuCache ( cuChunkCache )
   , m_tuCache ( tuChunkCache )
   , m_cuMapCache( cuMapCache )
+  , m_chromaCuMapCache( chromaCuMapCache )
+  , m_chromaCuMapSize( 0 )
   , m_cuMap   ( nullptr )
   , m_cuMapSize( 0 )
   , m_colMiMap ( nullptr )
@@ -148,6 +150,12 @@ CodingUnit& CodingStructure::addCU( const UnitArea &unit, const ChannelType chTy
 
   cu->predBufOff = ctuData.predBufOffset;
 
+  const bool sharedCuMap = ctuData.cuPtr[CH_C] == ctuData.cuPtr[CH_L];
+  if( sharedCuMap && numCh > 1 && !( cu->blocks[CH_L].valid() && cu->blocks[CH_C].valid() ) )
+  {
+    separateChromaCuMap( ctuData );
+  }
+
   for( uint32_t i = 0; i < numCh; i++ )
   {
     if( !cu->blocks[i].valid() )
@@ -174,7 +182,11 @@ CodingUnit& CodingStructure::addCU( const UnitArea &unit, const ChannelType chTy
     const int        sclW   = scale.scaleHor( _blk.width );
     const int        sclH   = scale.scaleVer( _blk.height );
 
-    g_pelBufOP.fillN_CU( ctuData.cuPtr[i] + ( sclX & m_ctuSizeMask[i] ) + ( ( sclY & m_ctuSizeMask[i] ) << m_ctuWidthLog2[i] ), stride, sclW, sclH, cu );
+    // a CU of both channel types covers the same entries in both maps, so a shared map is filled only once
+    if( i == CH_L || ctuData.cuPtr[CH_C] != ctuData.cuPtr[CH_L] )
+    {
+      g_pelBufOP.fillN_CU( ctuData.cuPtr[i] + ( sclX & m_ctuSizeMask[i] ) + ( ( sclY & m_ctuSizeMask[i] ) << m_ctuWidthLog2[i] ), stride, sclW, sclH, cu );
+    }
 
     if( i == chType )
     {
@@ -283,9 +295,12 @@ void CodingStructure::allocTempInternals()
   const ptrdiff_t ctuCuMapSize    = pcv->num4x4CtuBlks;
   const ptrdiff_t ctuColMiMapSize = pcv->num8x8CtuBlks;
 
+  // m_ctuData may be reallocated below, and initStructData() clears it
+  releaseChromaCuMaps();
+
   // The CU map is only needed while the picture is parsed and reconstructed, so it is borrowed from a cache shared by
-  // all pictures. initStructData() clears it.
-  const ptrdiff_t newCuMapSize = ctuCuMapSize * pcv->sizeInCtus * 2;
+  // all pictures. initStructData() clears it. It is one map for both channel types, see separateChromaCuMap().
+  const ptrdiff_t newCuMapSize = ctuCuMapSize * pcv->sizeInCtus;
   if( m_cuMapSize != newCuMapSize )
   {
     releaseCuMap();
@@ -313,6 +328,7 @@ void CodingStructure::deallocTempInternals()
   m_cuCache.releaseAll();
   m_tuCache.releaseAll();
 
+  releaseChromaCuMaps();
   releaseCuMap();
 }
 
@@ -323,6 +339,28 @@ void CodingStructure::releaseCuMap()
     m_cuMapCache->cache( std::move( m_cuMap ), m_cuMapSize );
   }
   m_cuMapSize = 0;
+}
+
+void CodingStructure::separateChromaCuMap( CtuData& ctuData )
+{
+  // The CUs added so far cover both channel types, so the chroma map starts as a copy of the luma map.
+  // The CTU keeps the plain pointer, releaseChromaCuMaps() gives the map back to the cache.
+  CodingUnit** chromaCuMap = m_chromaCuMapCache->get( m_chromaCuMapSize ).release();
+  std::copy_n( ctuData.cuPtr[CH_L], m_chromaCuMapSize, chromaCuMap );
+  ctuData.cuPtr[CH_C] = chromaCuMap;
+}
+
+void CodingStructure::releaseChromaCuMaps()
+{
+  for( size_t i = 0; i < m_ctuDataSize; i++ )
+  {
+    CtuData& ctuData = m_ctuData[i];
+    if( ctuData.cuPtr[CH_C] != ctuData.cuPtr[CH_L] )
+    {
+      m_chromaCuMapCache->cache( std::unique_ptr<CodingUnit*[]>( ctuData.cuPtr[CH_C] ), m_chromaCuMapSize );
+      ctuData.cuPtr[CH_C] = ctuData.cuPtr[CH_L];
+    }
+  }
 }
 
 void CodingStructure::initStructData()
@@ -337,6 +375,10 @@ void CodingStructure::initStructData()
 
   m_ctuWidthLog2[0] = pcv->maxCUWidthLog2 - unitScale[CH_L].posx;
   m_ctuWidthLog2[1] = m_ctuWidthLog2[0]; // same for luma and chroma, because of the 2x2 blocks
+
+  // the separate chroma maps of the previous picture have its CTU size
+  releaseChromaCuMaps();
+  m_chromaCuMapSize = pcv->num4x4CtuBlks;
 
   memset( NO_WARNING_class_memaccess( m_ctuData.get() ),             0, sizeof( CtuData             ) * m_ctuDataSize );
   memset( NO_WARNING_class_memaccess( m_cuMap.get() ),               0, sizeof( CodingUnit*         ) * m_cuMapSize );
@@ -361,10 +403,10 @@ void CodingStructure::initStructData()
       m_ctuData[i].colIdx  = x;
       m_ctuData[i].ctuIdx  = i;
 
-      for( int j = 0; j < 2; j++ )
-      {
-        m_ctuData[i].cuPtr[j] = &m_cuMap[( 2 * i + j ) * ctuCuMapSize];
-      }
+      // Both channel types use the same CU map, because a CU of both channel types covers the same entries in the luma
+      // and the chroma map. separateChromaCuMap() gives a CTU its own chroma map, if it has a CU of only one channel type.
+      m_ctuData[i].cuPtr[CH_L] = &m_cuMap[i * ctuCuMapSize];
+      m_ctuData[i].cuPtr[CH_C] = m_ctuData[i].cuPtr[CH_L];
 
       m_ctuData[i].colMotion         = &m_colMiMap[i * ctuColMiMapSize];
       m_ctuData[i].predBufOffset     = i * ctuSampleSize;

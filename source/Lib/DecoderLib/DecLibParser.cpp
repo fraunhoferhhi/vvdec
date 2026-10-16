@@ -1081,7 +1081,7 @@ void DecLibParser::xActivateParameterSets( const int layerId )
     // assign these fields already, because they are needed by PicListManager::getPicListRange() and Slice::applyReferencePictureSet()
     m_pcParsePic->poc          = m_apcSlicePilot->getPOC();
     m_pcParsePic->eNalUnitType = m_apcSlicePilot->getNalUnitType();
-    m_pcParsePic->finalInit( &m_cuChunkCache, &m_tuChunkCache, &m_cuMapCache, sps, pps, m_picHeader, alfApss, lmcsAPS, scalingListAPS );
+    m_pcParsePic->finalInit( &m_cuChunkCache, &m_tuChunkCache, &m_cuMapCache, &m_chromaCuMapCache, sps, pps, m_picHeader, alfApss, lmcsAPS, scalingListAPS );
 
 #if !DISABLE_CONFROMANCE_CHECK
     m_apcSlicePilot->checkLeadingPictureRestrictions( m_dpbReferencePics );
@@ -1317,7 +1317,7 @@ void DecLibParser::prepareUnavailablePicture( bool isLost, const PPS* pps, int i
   CHECK( std::find( m_dpbReferencePics.cbegin(), m_dpbReferencePics.cend(), cFillPic ) != m_dpbReferencePics.cend(), "reused picture shouldn't be in decoded picture buffer" );
   m_dpbReferencePics.push_back( cFillPic );
   const APS* nullAlfApss[ALF_CTB_MAX_NUM_APS] = { nullptr, };
-  cFillPic->finalInit( &m_cuChunkCache, &m_tuChunkCache, &m_cuMapCache, sps, pps, m_picHeader, nullAlfApss, nullptr, nullptr, false );
+  cFillPic->finalInit( &m_cuChunkCache, &m_tuChunkCache, &m_cuMapCache, &m_chromaCuMapCache, sps, pps, m_picHeader, nullAlfApss, nullptr, nullptr, false );
 
   CHECK_FATAL( !cFillPic->slices.empty(), "fill pic should not contain slices, already." );
   cFillPic->allocateNewSlice();
