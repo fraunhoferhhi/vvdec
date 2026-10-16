@@ -133,7 +133,7 @@ public:
   Mv*               m_dmvrMvCache;
   // end of partially borrowed data
   
-  CodingStructure( CUChunkCache* cuChunkCache, TUChunkCache* tuChunkCache, CUMapCache* cuMapCache );
+  CodingStructure( CUChunkCache* cuChunkCache, TUChunkCache* tuChunkCache, CUMapCache* cuMapCache, CUMapCache* chromaCuMapCache );
   ~CodingStructure() { destroy(); }
 
   void create(const UnitArea &_unit);
@@ -190,6 +190,11 @@ public:
   void createInternals(const UnitArea& _unit);
   void releaseCuMap();
 
+  // The chroma CU map of a CTU is the luma one, until the CTU has a CU of only one channel type (dual tree or local
+  // dual tree).
+  void separateChromaCuMap( CtuData& ctuData );
+  void releaseChromaCuMaps();
+
   CUCache    m_cuCache;
   TUCache    m_tuCache;
 
@@ -201,6 +206,8 @@ public:
   PosType              m_ctuWidthLog2[2];
 
   CUMapCache*                            m_cuMapCache;
+  CUMapCache*                            m_chromaCuMapCache;   // the separate chroma maps of single CTUs
+  ptrdiff_t                              m_chromaCuMapSize;    // their size, set for each picture
   std::unique_ptr<CodingUnit*[]>         m_cuMap;
   ptrdiff_t                              m_cuMapSize;
   std::unique_ptr<ColocatedMotionInfo[]> m_colMiMap;
