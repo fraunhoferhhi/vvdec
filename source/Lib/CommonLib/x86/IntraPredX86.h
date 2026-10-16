@@ -792,11 +792,96 @@ void  IntraPredSampleFilter_SIMD(Pel *ptrSrc,const ptrdiff_t srcStride,PelBuf &p
 #endif
 }
 
+// Planar prediction for blocks at least 8 samples wide. The C code's horizontal and vertical terms are rearranged into
+//   pred = ( ( ( W-1-x ) * left + ( x+1 ) * topRight ) * H + ( ( H-1-y ) * top + ( y+1 ) * bottomLeft ) * W + W * H )
+//          >> ( 1 + log2W + log2H ),
+// so that each of the two terms is one madd of a sample pair with a weight pair. The weights are at most 64 * 64 = 4096
+// and the samples at most 1023, so the 32 bit sums cannot overflow.
+template<X86_VEXT vext>
+static void xPredIntraPlanarMadd_SIMD( const CPelBuf& pSrc, PelBuf& pDst )
+{
+  const int       width      = pDst.width;
+  const int       height     = pDst.height;
+  const int       log2W      = getLog2( width );
+  const int       log2H      = getLog2( height );
+  const int       finalShift = 1 + log2W + log2H;
+  const ptrdiff_t stride     = pDst.stride;
+  Pel*            pred       = pDst.buf;
+
+  const int topRight   = pSrc.at( width + 1, 0 );
+  const int bottomLeft = pSrc.at( 0, height + 1 );
+
+  // per column: the weights ( ( W-1-x ) * H, ( x+1 ) * H ) of ( left, topRight ), and the samples ( top, bottomLeft )
+  int16_t horWeights[2 * MAX_CU_SIZE];
+  int16_t topPairs  [2 * MAX_CU_SIZE];
+  for( int x = 0; x < width; x++ )
+  {
+    horWeights[2 * x]     = ( width - 1 - x ) << log2H;
+    horWeights[2 * x + 1] = ( x + 1 ) << log2H;
+    topPairs  [2 * x]     = pSrc.at( x + 1, 0 );
+    topPairs  [2 * x + 1] = bottomLeft;
+  }
+
+#ifdef USE_AVX2
+  if( vext >= AVX2 && width >= 16 )
+  {
+    const __m256i offset = _mm256_set1_epi32( 1 << ( log2W + log2H ) );
+
+    for( int y = 0; y < height; y++, pred += stride )
+    {
+      // ( left, topRight ) and the weights ( ( H-1-y ) * W, ( y+1 ) * W ) of ( top, bottomLeft ), for the whole row
+      const __m256i leftPair   = _mm256_set1_epi32( ( topRight << 16 ) | ( uint16_t ) pSrc.at( 0, y + 1 ) );
+      const __m256i vertWeight = _mm256_set1_epi32( ( ( y + 1 ) << ( log2W + 16 ) ) | ( ( height - 1 - y ) << log2W ) );
+
+      for( int x = 0; x < width; x += 16 )
+      {
+        __m256i lo = _mm256_madd_epi16( leftPair, _mm256_loadu_si256( ( const __m256i* ) &horWeights[2 * x] ) );
+        __m256i hi = _mm256_madd_epi16( leftPair, _mm256_loadu_si256( ( const __m256i* ) &horWeights[2 * x + 16] ) );
+        lo = _mm256_add_epi32( lo, _mm256_madd_epi16( _mm256_loadu_si256( ( const __m256i* ) &topPairs[2 * x] ),      vertWeight ) );
+        hi = _mm256_add_epi32( hi, _mm256_madd_epi16( _mm256_loadu_si256( ( const __m256i* ) &topPairs[2 * x + 16] ), vertWeight ) );
+        lo = _mm256_srai_epi32( _mm256_add_epi32( lo, offset ), finalShift );
+        hi = _mm256_srai_epi32( _mm256_add_epi32( hi, offset ), finalShift );
+
+        // packs works within the 128 bit lanes, the permutation restores the sample order
+        const __m256i res = _mm256_permute4x64_epi64( _mm256_packs_epi32( lo, hi ), 0xd8 );
+        _mm256_storeu_si256( ( __m256i* ) &pred[x], res );
+      }
+    }
+    return;
+  }
+#endif
+
+  const __m128i offset = _mm_set1_epi32( 1 << ( log2W + log2H ) );
+
+  for( int y = 0; y < height; y++, pred += stride )
+  {
+    const __m128i leftPair   = _mm_set1_epi32( ( topRight << 16 ) | ( uint16_t ) pSrc.at( 0, y + 1 ) );
+    const __m128i vertWeight = _mm_set1_epi32( ( ( y + 1 ) << ( log2W + 16 ) ) | ( ( height - 1 - y ) << log2W ) );
+
+    for( int x = 0; x < width; x += 8 )
+    {
+      __m128i lo = _mm_madd_epi16( leftPair, _mm_loadu_si128( ( const __m128i* ) &horWeights[2 * x] ) );
+      __m128i hi = _mm_madd_epi16( leftPair, _mm_loadu_si128( ( const __m128i* ) &horWeights[2 * x + 8] ) );
+      lo = _mm_add_epi32( lo, _mm_madd_epi16( _mm_loadu_si128( ( const __m128i* ) &topPairs[2 * x] ),     vertWeight ) );
+      hi = _mm_add_epi32( hi, _mm_madd_epi16( _mm_loadu_si128( ( const __m128i* ) &topPairs[2 * x + 8] ), vertWeight ) );
+      lo = _mm_srai_epi32( _mm_add_epi32( lo, offset ), finalShift );
+      hi = _mm_srai_epi32( _mm_add_epi32( hi, offset ), finalShift );
+
+      _mm_storeu_si128( ( __m128i* ) &pred[x], _mm_packs_epi32( lo, hi ) );
+    }
+  }
+}
+
 /** Function for deriving planar intra prediction. This function derives the prediction samples for planar mode (intra coding).
  */
 template< X86_VEXT vext>
 void xPredIntraPlanar_SIMD( const CPelBuf &pSrc, PelBuf &pDst, const SPS& sps )
 {
+  if( pDst.width >= 8 )
+  {
+    xPredIntraPlanarMadd_SIMD<vext>( pSrc, pDst );
+    return;
+  }
 
   const uint32_t width      = pDst.width;
   const uint32_t height     = pDst.height;
