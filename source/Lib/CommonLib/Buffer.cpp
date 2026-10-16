@@ -232,6 +232,23 @@ void fillN_CuCore( CodingUnit** ptr, ptrdiff_t ptrStride, int width, int height,
   }
 }
 
+void fillN_MotionInfoCore( MotionInfo* ptr, ptrdiff_t ptrStride, int width, int height, const MotionInfo& val )
+{
+  if( width == ptrStride )
+  {
+    std::fill_n( ptr, width * height, val );
+  }
+  else
+  {
+    MotionInfo* dst = ptr;
+
+    for( int y = 0; y < height; y++, dst += ptrStride )
+    {
+      std::fill_n( dst, width, val );
+    }
+  }
+}
+
 void sampleRateConvCore( const std::pair<int, int> scalingRatio, const std::pair<int, int> compScale,
                          const Pel* orgSrc, const ptrdiff_t orgStride, const int orgWidth, const int orgHeight,
                          const int beforeScaleLeftOffset, const int beforeScaleTopOffset,
@@ -361,7 +378,8 @@ PelBufferOps::PelBufferOps()
   rspFwd   = rspFwdCore;
   rspBcw   = nullptr;
 
-  fillN_CU = fillN_CuCore;
+  fillN_CU         = fillN_CuCore;
+  fillN_MotionInfo = fillN_MotionInfoCore;
 
   sampleRateConv = sampleRateConvCore;
 }
@@ -608,19 +626,7 @@ void AreaBuf<Pel>::transposedFrom( const AreaBuf<const Pel> &other )
 template<>
 void AreaBuf<MotionInfo>::fill( const MotionInfo& val )
 {
-  if( width == stride )
-  {
-    std::fill_n( buf, width * height, val );
-  }
-  else
-  {
-    MotionInfo* dst = buf;
-
-    for( int y = 0; y < height; y++, dst += stride )
-    {
-      std::fill_n( dst, width, val );
-    }
-  }
+  g_pelBufOP.fillN_MotionInfo( buf, stride, width, height, val );
 }
 
 PelStorage::PelStorage()
