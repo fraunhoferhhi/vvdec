@@ -2771,6 +2771,64 @@ static bool test_IntraPredHorVerPdpc()
 }
 #endif // ENABLE_SIMD_OPT_INTRAPRED
 
+#if ENABLE_SIMD_OPT_INTRAPRED
+static bool test_GetLumaRecPixel420Collocated()
+{
+  IntraPrediction ref;
+  IntraPrediction opt;
+#if defined( TARGET_SIMD_X86 )
+  opt.initIntraPredictionX86();
+#endif
+#if defined( TARGET_SIMD_ARM )
+  opt.initIntraPredictionARM();
+#endif
+
+  DimensionGenerator rng;
+  bool passed = true;
+
+  for( unsigned bd : { 8u, 10u } )
+  {
+    for( bool maxInput : { false, true } )
+    {
+      for( int width = 1; width <= 32; width++ )
+      {
+        for( int height : { 1, 2, 4, 8, 16, 32 } )
+        {
+          // The luma block is 2 * width x 2 * height samples, with one column on the left and one line above it,
+          // which the downsampling reads.
+          const ptrdiff_t srcStride = 2 * width + 1 + rng.get( 0, 8 );
+          std::vector<Pel> src( srcStride * ( 2 * height + 1 ) );
+          InputGenerator<Pel> g{ bd, /*is_signed=*/false };
+          if( maxInput )
+          {
+            std::fill( src.begin(), src.end(), Pel( ( 1 << bd ) - 1 ) );
+          }
+          else
+          {
+            std::generate( src.begin(), src.end(), g );
+          }
+          const Pel* const block = src.data() + srcStride + 1;
+
+          // The rows are compared after the call, so writes into the stride padding are detected.
+          const ptrdiff_t dstStride = width + rng.get( 0, 8 );
+          std::vector<Pel> dstRef( dstStride * height, 0 );
+          std::vector<Pel> dstOpt( dstStride * height, 0 );
+
+          ref.GetLumaRecPixel420Collocated( width, height, block, srcStride, dstRef.data(), dstStride );
+          opt.GetLumaRecPixel420Collocated( width, height, block, srcStride, dstOpt.data(), dstStride );
+
+          std::ostringstream sstm;
+          sstm << "GetLumaRecPixel420Collocated bd=" << bd << " w=" << width << " h=" << height << " max=" << maxInput;
+          passed &= compare_values_2d( sstm.str(), dstRef.data(), dstOpt.data(), (unsigned)height, (unsigned)dstStride,
+                                       (unsigned)dstStride );
+        }
+      }
+    }
+  }
+  return passed;
+}
+#endif // ENABLE_SIMD_OPT_INTRAPRED
+
 #if ENABLE_SIMD_OPT && ( defined( TARGET_SIMD_X86 ) || defined( TARGET_SIMD_ARM ) )
 // Adds film grain to a few rows of a random picture with the scalar FilmGrainImpl and with a SIMD one, both set up
 // alike, the way FilmGrain::add_grain_line does it, and compares all three planes.
@@ -3184,6 +3242,9 @@ static const UnitTestEntry test_suites[] = {
     { "FilmGrainChromaFormats", test_FilmGrainChromaFormats },
 #if ENABLE_SIMD_OPT && ( defined( TARGET_SIMD_X86 ) || defined( TARGET_SIMD_ARM ) )
     { "FilmGrainImpl", test_FilmGrainImpl },
+#endif
+#if ENABLE_SIMD_OPT_INTRAPRED
+    { "GetLumaRecPixel420Collocated", test_GetLumaRecPixel420Collocated },
 #endif
 #if ENABLE_SIMD_OPT_INTRAPRED
     { "IntraPredAngleChroma", test_IntraPredAngleChroma },

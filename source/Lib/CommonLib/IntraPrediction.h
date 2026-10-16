@@ -151,6 +151,7 @@ public:
   void  ( *IntraPredHorVerPdpc )        ( Pel* pDst, const ptrdiff_t dstStride, const Pel* refMain, const Pel* refSide, const int width, const int height, const int scale, const Pel topLeft, const ClpRng& clpRng );
 
   void ( *GetLumaRecPixel420 )          ( const int width,const int height, const Pel* pRecSrc0,const ptrdiff_t iRecStride,Pel* pDst0,const ptrdiff_t iDstStride );
+  void ( *GetLumaRecPixel420Collocated )( const int width, const int height, const Pel* pRecSrc0, const ptrdiff_t iRecStride, Pel* pDst0, const ptrdiff_t iDstStride );
 
 #if ENABLE_SIMD_OPT_INTRAPRED && defined( TARGET_SIMD_X86 )
   void initIntraPredictionX86();
