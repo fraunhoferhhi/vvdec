@@ -1790,8 +1790,12 @@ static void simdFilter( const ClpRng& clpRng, const Pel* src, const ptrdiff_t sr
    _mm256_inserti128_si256(_mm256_castsi128_si256(lo), (hi), 0x1)
 
 #if USE_AVX2
+// The helpers below must always be inlined. On 64-bit Windows, a returned __m256i is passed through memory, and GCC
+// does not align that stack slot to 32 bytes. Without optimization the helpers would be called, and the aligned store
+// of the result crashed the debug build.
+
 // horizontal 6-tap filter of two rows (lane 0: row 0, lane 1: row 1), src points to the first tap
-static inline __m256i simdFilter4x4_N6_hor2_AVX2( const Pel* src, const ptrdiff_t srcStride, const __m256i& c12, const __m256i& c34, const __m256i& c56, int shift )
+static ALWAYS_INLINE __m256i simdFilter4x4_N6_hor2_AVX2( const Pel* src, const ptrdiff_t srcStride, const __m256i& c12, const __m256i& c34, const __m256i& c56, int shift )
 {
   const __m256i s0 = _mm256_seti_m128i( _mm_loadu_si128( ( const __m128i* ) &src[srcStride    ] ), _mm_loadu_si128( ( const __m128i* ) &src[0] ) );
   const __m256i s1 = _mm256_seti_m128i( _mm_loadu_si128( ( const __m128i* ) &src[srcStride + 1] ), _mm_loadu_si128( ( const __m128i* ) &src[1] ) );
@@ -1808,7 +1812,7 @@ static inline __m256i simdFilter4x4_N6_hor2_AVX2( const Pel* src, const ptrdiff_
 }
 
 // horizontal 6-tap filter of a single row
-static inline __m128i simdFilter4x4_N6_hor1_AVX2( const Pel* src, const __m256i& c12, const __m256i& c34, const __m256i& c56, int shift )
+static ALWAYS_INLINE __m128i simdFilter4x4_N6_hor1_AVX2( const Pel* src, const __m256i& c12, const __m256i& c34, const __m256i& c56, int shift )
 {
   const __m128i s0 = _mm_loadu_si128( ( const __m128i* ) &src[0] );
   const __m128i s1 = _mm_loadu_si128( ( const __m128i* ) &src[1] );
