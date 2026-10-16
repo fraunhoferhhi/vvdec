@@ -607,6 +607,52 @@ public:
   }
 };
 
+// Keeps released arrays of one size for reuse.
+// Large per-picture arrays are expensive to allocate anew for every picture: the operating system has to map and
+// zero every page on first touch. Reusing them keeps that cost out of the per-picture work.
+template<typename T>
+class thread_safe_array_cache
+{
+  std::vector<std::unique_ptr<T[]>> m_arrays;
+  size_t                            m_arraySize = 0;
+  std::mutex                        m_mutex;
+
+public:
+  // Returns an array of the requested size. Its contents are not initialized.
+  std::unique_ptr<T[]> get( size_t size )
+  {
+    std::unique_lock<std::mutex> l( m_mutex );
+
+    if( size == m_arraySize && !m_arrays.empty() )
+    {
+      std::unique_ptr<T[]> array = std::move( m_arrays.back() );
+      m_arrays.pop_back();
+      return array;
+    }
+
+    if( size != m_arraySize )
+    {
+      // the picture size changed, cached arrays of the old size will not be needed again
+      m_arrays.clear();
+      m_arraySize = size;
+    }
+
+    l.unlock();
+    return std::unique_ptr<T[]>( new T[size] );
+  }
+
+  // Takes back an array that was returned by get(). An array of an outdated size is freed instead.
+  void cache( std::unique_ptr<T[]> array, size_t size )
+  {
+    std::unique_lock<std::mutex> l( m_mutex );
+
+    if( size == m_arraySize )
+    {
+      m_arrays.push_back( std::move( array ) );
+    }
+  }
+};
+
 template<typename T>
 class dynamic_cache
 {
@@ -664,6 +710,8 @@ typedef dynamic_cache<struct TransformUnit> TUCache;
 
 typedef thread_safe_chunk_cache<struct CodingUnit>    CUChunkCache;
 typedef thread_safe_chunk_cache<struct TransformUnit> TUChunkCache;
+
+typedef thread_safe_array_cache<struct CodingUnit*>   CUMapCache;
 
 }
 
