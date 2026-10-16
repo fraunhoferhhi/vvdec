@@ -736,9 +736,9 @@ void FilmGrain::updateFGC( vvdecSEIFilmGrainCharacteristics* fgc )
   for( int c = 0; c < 3; c++ )
   {
     vvdecCompModel& cm = fgc->compModel[c];
+    fgs.comp_model_present_flag[c] = cm.presentFlag ? 1 : 0;
     if( cm.presentFlag )
     {
-      fgs.comp_model_present_flag[c] = 1;
       fgs.num_intensity_intervals[c] = cm.numIntensityIntervals;
       fgs.num_model_values[c]        = cm.numModelValues;
       for( int i = 0; i < fgs.num_intensity_intervals[c]; i++ )
