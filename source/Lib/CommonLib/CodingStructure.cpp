@@ -67,7 +67,7 @@ const UnitScale UnitScaleArray[NUM_CHROMA_FORMAT][MAX_NUM_COMPONENT] =
 // coding structure method definitions
 // ---------------------------------------------------------------------------
 
-CodingStructure::CodingStructure( CUChunkCache* cuChunkCache, TUChunkCache* tuChunkCache )
+CodingStructure::CodingStructure( CUChunkCache* cuChunkCache, TUChunkCache* tuChunkCache, CUMapCache* cuMapCache )
   : area      ()
   , picture   ( nullptr )
   , m_ctuData ( nullptr )
@@ -75,6 +75,7 @@ CodingStructure::CodingStructure( CUChunkCache* cuChunkCache, TUChunkCache* tuCh
   , m_dmvrMvCache ( nullptr )
   , m_cuCache ( cuChunkCache )
   , m_tuCache ( tuChunkCache )
+  , m_cuMapCache( cuMapCache )
   , m_cuMap   ( nullptr )
   , m_cuMapSize( 0 )
   , m_colMiMap ( nullptr )
@@ -282,10 +283,13 @@ void CodingStructure::allocTempInternals()
   const ptrdiff_t ctuCuMapSize    = pcv->num4x4CtuBlks;
   const ptrdiff_t ctuColMiMapSize = pcv->num8x8CtuBlks;
 
+  // The CU map is only needed while the picture is parsed and reconstructed, so it is borrowed from a cache shared by
+  // all pictures. initStructData() clears it.
   const ptrdiff_t newCuMapSize = ctuCuMapSize * pcv->sizeInCtus * 2;
   if( m_cuMapSize != newCuMapSize )
   {
-    m_cuMap     = std::make_unique<CodingUnit*[]>( newCuMapSize );
+    releaseCuMap();
+    m_cuMap     = m_cuMapCache->get( newCuMapSize );
     m_cuMapSize = newCuMapSize;
   }
 
@@ -309,7 +313,15 @@ void CodingStructure::deallocTempInternals()
   m_cuCache.releaseAll();
   m_tuCache.releaseAll();
 
-  m_cuMap.reset();
+  releaseCuMap();
+}
+
+void CodingStructure::releaseCuMap()
+{
+  if( m_cuMap )
+  {
+    m_cuMapCache->cache( std::move( m_cuMap ), m_cuMapSize );
+  }
   m_cuMapSize = 0;
 }
 

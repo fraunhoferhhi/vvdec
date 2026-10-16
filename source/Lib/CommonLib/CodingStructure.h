@@ -133,7 +133,7 @@ public:
   Mv*               m_dmvrMvCache;
   // end of partially borrowed data
   
-  CodingStructure( CUChunkCache* cuChunkCache, TUChunkCache* tuChunkCache );
+  CodingStructure( CUChunkCache* cuChunkCache, TUChunkCache* tuChunkCache, CUMapCache* cuMapCache );
   ~CodingStructure() { destroy(); }
 
   void create(const UnitArea &_unit);
@@ -188,6 +188,7 @@ public:
   void deallocTempInternals();
 
   void createInternals(const UnitArea& _unit);
+  void releaseCuMap();
 
   CUCache    m_cuCache;
   TUCache    m_tuCache;
@@ -199,6 +200,7 @@ public:
   PosType              m_ctuSizeMask[2];
   PosType              m_ctuWidthLog2[2];
 
+  CUMapCache*                            m_cuMapCache;
   std::unique_ptr<CodingUnit*[]>         m_cuMap;
   ptrdiff_t                              m_cuMapSize;
   std::unique_ptr<ColocatedMotionInfo[]> m_colMiMap;
