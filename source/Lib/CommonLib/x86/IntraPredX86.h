@@ -1100,7 +1100,90 @@ void GetLumaRecPixel420SIMD (const int width,const int height, const Pel* pRecSr
     }
 }
 
+// Pure vertical prediction with PDPC, see IntraPredHorVerPdpcCore().
+// The PDPC term ( wL * ( left - topLeft ) + 32 ) >> 6 is computed exactly by _mm_mulhrs_epi16( left - topLeft, wL << 9 ),
+// and it can be added to the reference sample afterwards, because the reference sample is weighted by 64. Samples
+// beyond the PDPC length get the weight 0, which leaves the reference sample unchanged, as the copy in the C code does.
+template<X86_VEXT vext>
+void IntraPredHorVerPdpc_SIMD( Pel* pDst, const ptrdiff_t dstStride, const Pel* refMain, const Pel* refSide, const int width, const int height, const int scale, const Pel topLeft, const ClpRng& clpRng )
+{
+  const int numWeighted = std::min( 3 << scale, width );
+  CHECKD( numWeighted > 32, "PDPC weights do not fit" );
 
+  // wL << 9, at most 32 << 9 = 16384, which fits the signed 16 bit operand of mulhrs
+  int16_t weights[32] = { 0 };
+  for( int x = 0; x < numWeighted; x++ )
+  {
+    weights[x] = ( 32 >> std::min( 31, ( x << 1 ) >> scale ) ) << 9;
+  }
+
+  const Pel* ref = refMain + 1;
+
+#ifdef USE_AVX2
+  if( vext >= AVX2 && width >= 16 )
+  {
+    const __m256i vmin = _mm256_set1_epi16( clpRng.min() );
+    const __m256i vmax = _mm256_set1_epi16( clpRng.max() );
+
+    for( int y = 0; y < height; y++ )
+    {
+      const __m256i diff = _mm256_set1_epi16( refSide[y + 1] - topLeft );
+      Pel*          line = pDst + y * dstStride;
+
+      for( int x = 0; x < width; x += 16 )
+      {
+        __m256i val = _mm256_loadu_si256( ( const __m256i* ) &ref[x] );
+        if( x < numWeighted )
+        {
+          val = _mm256_add_epi16( val, _mm256_mulhrs_epi16( diff, _mm256_loadu_si256( ( const __m256i* ) &weights[x] ) ) );
+          val = _mm256_min_epi16( _mm256_max_epi16( val, vmin ), vmax );
+        }
+        _mm256_storeu_si256( ( __m256i* ) &line[x], val );
+      }
+    }
+    return;
+  }
+#endif
+
+  const __m128i vmin = _mm_set1_epi16( clpRng.min() );
+  const __m128i vmax = _mm_set1_epi16( clpRng.max() );
+
+  if( width >= 8 )
+  {
+    for( int y = 0; y < height; y++ )
+    {
+      const __m128i diff = _mm_set1_epi16( refSide[y + 1] - topLeft );
+      Pel*          line = pDst + y * dstStride;
+
+      for( int x = 0; x < width; x += 8 )
+      {
+        __m128i val = _mm_loadu_si128( ( const __m128i* ) &ref[x] );
+        if( x < numWeighted )
+        {
+          val = _mm_add_epi16( val, _mm_mulhrs_epi16( diff, _mm_loadu_si128( ( const __m128i* ) &weights[x] ) ) );
+          val = _mm_min_epi16( _mm_max_epi16( val, vmin ), vmax );
+        }
+        _mm_storeu_si128( ( __m128i* ) &line[x], val );
+      }
+    }
+  }
+  else
+  {
+    CHECKD( width != 4, "unsupported block width" );
+
+    const __m128i vweights = _mm_loadl_epi64( ( const __m128i* ) weights );
+    const __m128i vref     = _mm_loadl_epi64( ( const __m128i* ) ref );
+
+    for( int y = 0; y < height; y++ )
+    {
+      const __m128i diff = _mm_set1_epi16( refSide[y + 1] - topLeft );
+
+      __m128i val = _mm_add_epi16( vref, _mm_mulhrs_epi16( diff, vweights ) );
+      val         = _mm_min_epi16( _mm_max_epi16( val, vmin ), vmax );
+      _mm_storel_epi64( ( __m128i* ) ( pDst + y * dstStride ), val );
+    }
+  }
+}
 
 template<X86_VEXT vext>
 void IntraPrediction::_initIntraPredictionX86()
@@ -1114,6 +1197,7 @@ void IntraPrediction::_initIntraPredictionX86()
   IntraPredSampleFilter16 = IntraPredSampleFilter_SIMD<vext, 16>;
 
   xPredIntraPlanar = xPredIntraPlanar_SIMD<vext>;
+  IntraPredHorVerPdpc = IntraPredHorVerPdpc_SIMD<vext>;
 
   GetLumaRecPixel420 = GetLumaRecPixel420SIMD<vext>;
 

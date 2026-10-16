@@ -2649,6 +2649,72 @@ static bool test_IntraPredAngleChroma()
   }
   return passed;
 }
+
+static bool test_IntraPredHorVerPdpc()
+{
+  IntraPrediction ref;
+  IntraPrediction opt;
+#if defined( TARGET_SIMD_X86 )
+  opt.initIntraPredictionX86();
+#endif
+#if defined( TARGET_SIMD_ARM )
+  opt.initIntraPredictionARM();
+#endif
+
+  DimensionGenerator rng;
+  bool passed = true;
+
+  for( unsigned bd : { 8u, 10u } )
+  {
+    const ClpRng clpRng{ ( int ) bd };
+    const Pel    maxVal = ( 1 << bd ) - 1;
+
+    for( int width : { 4, 8, 16, 32, 64 } )
+    {
+      for( int height : { 4, 8, 16, 32, 64 } )
+      {
+        for( int scale = 0; scale <= 3; scale++ )
+        {
+          for( int c = 0; c < NUM_CASES; ++c )
+          {
+            // refMain and refSide point at the sample before the block, as in xPredIntraAng()
+            std::vector<Pel> refMain( width + 1 ), refSide( height + 1 );
+            InputGenerator<Pel> g{ bd, /*is_signed=*/false };
+            std::generate( refMain.begin(), refMain.end(), g );
+            std::generate( refSide.begin(), refSide.end(), g );
+            Pel topLeft = g();
+
+            // extreme differences between the left and the top-left sample test the clipping
+            if( c == 1 )
+            {
+              std::fill( refSide.begin(), refSide.end(), maxVal );
+              topLeft = 0;
+            }
+            else if( c == 2 )
+            {
+              std::fill( refSide.begin(), refSide.end(), 0 );
+              topLeft = maxVal;
+            }
+
+            const ptrdiff_t dstStride = width + rng.get( 0, 8 );
+            // the guard values after each block row must stay untouched
+            std::vector<Pel> dstRef( dstStride * height, -1 );
+            std::vector<Pel> dstOpt( dstStride * height, -1 );
+
+            ref.IntraPredHorVerPdpc( dstRef.data(), dstStride, refMain.data(), refSide.data(), width, height, scale, topLeft, clpRng );
+            opt.IntraPredHorVerPdpc( dstOpt.data(), dstStride, refMain.data(), refSide.data(), width, height, scale, topLeft, clpRng );
+
+            std::ostringstream sstm;
+            sstm << "IntraPredHorVerPdpc bd=" << bd << " w=" << width << " h=" << height << " scale=" << scale
+                 << " case=" << c;
+            passed &= compare_values_2d( sstm.str(), dstRef.data(), dstOpt.data(), ( unsigned ) height, ( unsigned ) dstStride, ( unsigned ) dstStride );
+          }
+        }
+      }
+    }
+  }
+  return passed;
+}
 #endif // ENABLE_SIMD_OPT_INTRAPRED
 
 struct UnitTestEntry
@@ -2666,6 +2732,7 @@ static const UnitTestEntry test_suites[] = {
 #endif
 #if ENABLE_SIMD_OPT_INTRAPRED
     { "IntraPredAngleChroma", test_IntraPredAngleChroma },
+    { "IntraPredHorVerPdpc", test_IntraPredHorVerPdpc },
 #endif
 #if ENABLE_SIMD_OPT_MCIF
     { "InterpolationFilter", test_InterpolationFilter },
