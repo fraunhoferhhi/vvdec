@@ -2649,6 +2649,67 @@ static bool test_IntraPredAngleChroma()
   }
   return passed;
 }
+
+static bool test_MipMatrixMul()
+{
+  IntraPrediction ref;
+  IntraPrediction opt;
+#if defined( TARGET_SIMD_X86 )
+  opt.initIntraPredictionX86();
+#endif
+#if defined( TARGET_SIMD_ARM )
+  opt.initIntraPredictionARM();
+#endif
+
+  DimensionGenerator rng;
+  bool passed = true;
+
+  // the three MIP block size classes: inputs, outputs, and whether the first input is left out
+  struct MipShape { int inputSize, outputSize; bool skipFirstInput; };
+  for( const MipShape shape : { MipShape{ 4, 16, false }, MipShape{ 8, 16, false }, MipShape{ 8, 64, true } } )
+  {
+    for( int bd : { 8, 10 } )
+    {
+      for( int c = 0; c < 4 * NUM_CASES; c++ )
+      {
+        const bool extreme  = c < 4;   // the largest weights with the largest inputs of either sign
+        const int  rowLength = shape.inputSize - ( shape.skipFirstInput ? 1 : 0 );
+
+        // exactly the size of a matrix, so that the last row is at the end of the allocation
+        std::vector<uint8_t> matrix( shape.outputSize * rowLength );
+        for( auto& w : matrix )
+        {
+          w = extreme ? 127 : (uint8_t) rng.get( 0, 127 );
+        }
+
+        // the inputs are differences of samples, the first one as computed in deriveBoundaryData()
+        Pel input[MIP_MAX_INPUT_SIZE];
+        for( int i = 0; i < MIP_MAX_INPUT_SIZE; i++ )
+        {
+          const int limit = ( 1 << bd ) - 1;
+          input[i] = extreme ? Pel( ( c & 1 ) ? limit : -limit ) : Pel( (int) rng.get( 0, 2 * limit ) - limit );
+        }
+        int sum = 0;
+        for( int i = 0; i < shape.inputSize; i++ )
+        {
+          sum += input[i];
+        }
+        const int offset      = ( 1 << ( MIP_SHIFT_MATRIX - 1 ) ) - MIP_OFFSET_MATRIX * sum;
+        const int inputOffset = extreme ? ( ( c & 2 ) ? ( 1 << bd ) - 1 : 0 ) : (int) rng.get( 0, ( 1 << bd ) - 1 );
+
+        Pel resultRef[MIP_MAX_REDUCED_OUTPUT_SAMPLES];
+        Pel resultOpt[MIP_MAX_REDUCED_OUTPUT_SAMPLES];
+        ref.MipMatrixMul( resultRef, input, matrix.data(), shape.inputSize, shape.outputSize, shape.skipFirstInput, offset, inputOffset, bd );
+        opt.MipMatrixMul( resultOpt, input, matrix.data(), shape.inputSize, shape.outputSize, shape.skipFirstInput, offset, inputOffset, bd );
+
+        std::ostringstream sstm;
+        sstm << "MipMatrixMul inputs=" << shape.inputSize << " outputs=" << shape.outputSize << " bd=" << bd << " case=" << c;
+        passed &= compare_values_2d( sstm.str(), resultRef, resultOpt, 1, (unsigned) shape.outputSize );
+      }
+    }
+  }
+  return passed;
+}
 #endif // ENABLE_SIMD_OPT_INTRAPRED
 
 struct UnitTestEntry
@@ -2666,6 +2727,7 @@ static const UnitTestEntry test_suites[] = {
 #endif
 #if ENABLE_SIMD_OPT_INTRAPRED
     { "IntraPredAngleChroma", test_IntraPredAngleChroma },
+    { "MipMatrixMul", test_MipMatrixMul },
 #endif
 #if ENABLE_SIMD_OPT_MCIF
     { "InterpolationFilter", test_InterpolationFilter },
