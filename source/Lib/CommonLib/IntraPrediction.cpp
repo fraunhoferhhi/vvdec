@@ -147,6 +147,23 @@ void GetLumaRecPixel420Core (const int width,const int height, const Pel* pRecSr
     }
 }
 
+// 4:2:0 luma downsampling for CCLM when the chroma samples are collocated with the even luma samples
+// (sps_chroma_vertical_collocated_flag): a 5-tap cross around each even luma sample. The left and the above neighbours
+// of the block must be available.
+void GetLumaRecPixel420CollocatedCore( const int width, const int height, const Pel* pRecSrc0, const ptrdiff_t iRecStride, Pel* pDst0, const ptrdiff_t iDstStride )
+{
+  for( int y = 0; y < height; y++ )
+  {
+    for( int x = 0; x < width; x++ )
+    {
+      const Pel* center = pRecSrc0 + 2 * x;
+      pDst0[x] = ( center[-iRecStride] + center[-1] + 4 * center[0] + center[1] + center[iRecStride] + 4 ) >> 3;
+    }
+    pDst0    += iDstStride;
+    pRecSrc0 += 2 * iRecStride;
+  }
+}
+
 /** Function for deriving planar intra prediction. This function derives the prediction samples for planar mode (intra coding).
  */
 
@@ -370,7 +387,8 @@ IntraPrediction::IntraPrediction() : m_currChromaFormat( NUM_CHROMA_FORMAT )
 
   xPredIntraPlanar = xPredIntraPlanarCore;
 
-  GetLumaRecPixel420 = GetLumaRecPixel420Core;
+  GetLumaRecPixel420           = GetLumaRecPixel420Core;
+  GetLumaRecPixel420Collocated = GetLumaRecPixel420CollocatedCore;
 }
 
 IntraPrediction::~IntraPrediction()
@@ -1590,6 +1608,14 @@ NO_THREAD_SANITIZE void IntraPrediction::xGetLumaRecPixels(const CodingUnit &cu,
 
   if( cu.sps->getCclmCollocatedChromaFlag() )
   {
+    // The 4:2:0 kernel reads the luma samples left of and above the block, so blocks at an unavailable edge keep the
+    // generic loop below.
+    if( cu.chromaFormat == CHROMA_420 && bLeftAvaillable && bAboveAvaillable )
+    {
+      GetLumaRecPixel420Collocated( uiCWidth, uiCHeight, pRecSrc0, iRecStride, pDst0, iDstStride );
+      return;
+    }
+
     // TODO: unroll loop
     for( int j = 0; j < uiCHeight; j++ )
     {
