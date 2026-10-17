@@ -615,15 +615,17 @@ static void simdFilter5x5Blk( const AlfClassifier*,
   const __m128i mmMin = _mm_set1_epi16( clpRng.min() );
   const __m128i mmMax = _mm_set1_epi16( clpRng.max() );
 
-  __m128i params[3][2];
-  __m128i fs = _mm_loadu_si128( ( __m128i * ) filterSet );
-  params[0][1] = _mm_shuffle_epi32( fs, 0x00 );
-  params[1][1] = _mm_shuffle_epi32( fs, 0x55 );
-  params[2][1] = _mm_shuffle_epi32( fs, 0xaa );
-  __m128i fc = _mm_loadu_si128( ( __m128i * ) fClipSet );
-  params[0][0] = _mm_shuffle_epi32( fc, 0x00 );
-  params[1][0] = _mm_shuffle_epi32( fc, 0x55 );
-  params[2][0] = _mm_shuffle_epi32( fc, 0xaa );
+  // coeff[i]: the coefficients 2i and 2i+1, alternating. limit[t]: the clipping limit of coefficient t.
+  __m128i coeff[3], limit[6], negLimit[6];
+  const __m128i fs = _mm_loadu_si128( ( __m128i * ) filterSet );
+  coeff[0] = _mm_shuffle_epi32( fs, 0x00 );
+  coeff[1] = _mm_shuffle_epi32( fs, 0x55 );
+  coeff[2] = _mm_shuffle_epi32( fs, 0xaa );
+  for( int t = 0; t < 6; t++ )
+  {
+    limit   [t] = _mm_set1_epi16( fClipSet[t] );
+    negLimit[t] = _mm_set1_epi16( short( -fClipSet[t] ) );
+  }
 
   const ptrdiff_t halfLine = width >> 1;
 
@@ -693,38 +695,26 @@ static void simdFilter5x5Blk( const AlfClassifier*,
         __m128i accumA = mmOffset;
         __m128i accumB = mmOffset;
 
+        // ptr0 and ptr1 are the samples of coefficient 2i, ptr2 and ptr3 those of coefficient 2i+1. The two samples of a
+        // coefficient are clipped and added first, so that only their sums are interleaved for madd.
         auto process2coeffs = [&](const int i, const Pel *ptr0, const Pel *ptr1, const Pel *ptr2, const Pel *ptr3) {
-          const __m128i val00 = _mm_sub_epi16(_mm_loadu_si128((const __m128i *) ptr0), cur);
-          const __m128i val10 = _mm_sub_epi16(_mm_loadu_si128((const __m128i *) ptr2), cur);
-          const __m128i val01 = _mm_sub_epi16(_mm_loadu_si128((const __m128i *) ptr1), cur);
-          const __m128i val11 = _mm_sub_epi16(_mm_loadu_si128((const __m128i *) ptr3), cur);
+          const int tA = 2 * i, tB = 2 * i + 1;
 
-          __m128i val01A = _mm_unpacklo_epi16(val00, val10);
-          __m128i val01B = _mm_unpackhi_epi16(val00, val10);
-          __m128i val01C = _mm_unpacklo_epi16(val01, val11);
-          __m128i val01D = _mm_unpackhi_epi16(val01, val11);
+          __m128i val0 = _mm_sub_epi16( _mm_loadu_si128( ( const __m128i * ) ptr0 ), cur );
+          __m128i val1 = _mm_sub_epi16( _mm_loadu_si128( ( const __m128i * ) ptr1 ), cur );
+          __m128i val2 = _mm_sub_epi16( _mm_loadu_si128( ( const __m128i * ) ptr2 ), cur );
+          __m128i val3 = _mm_sub_epi16( _mm_loadu_si128( ( const __m128i * ) ptr3 ), cur );
 
-          __m128i limit01A = params[i][0];
+          val0 = _mm_max_epi16( _mm_min_epi16( val0, limit[tA] ), negLimit[tA] );
+          val1 = _mm_max_epi16( _mm_min_epi16( val1, limit[tA] ), negLimit[tA] );
+          val2 = _mm_max_epi16( _mm_min_epi16( val2, limit[tB] ), negLimit[tB] );
+          val3 = _mm_max_epi16( _mm_min_epi16( val3, limit[tB] ), negLimit[tB] );
 
-          val01A = _mm_min_epi16( val01A, limit01A );
-          val01B = _mm_min_epi16( val01B, limit01A );
-          val01C = _mm_min_epi16( val01C, limit01A );
-          val01D = _mm_min_epi16( val01D, limit01A );
+          const __m128i sumA = _mm_add_epi16( val0, val1 );
+          const __m128i sumB = _mm_add_epi16( val2, val3 );
 
-          limit01A = _mm_sub_epi16( _mm_setzero_si128(), limit01A );
-
-          val01A = _mm_max_epi16( val01A, limit01A );
-          val01B = _mm_max_epi16( val01B, limit01A );
-          val01C = _mm_max_epi16( val01C, limit01A );
-          val01D = _mm_max_epi16( val01D, limit01A );
-
-          val01A = _mm_add_epi16( val01A, val01C );
-          val01B = _mm_add_epi16( val01B, val01D );
-
-          __m128i coeff01A = params[i][1];
-
-          accumA = _mm_add_epi32( accumA, _mm_madd_epi16( val01A, coeff01A ) );
-          accumB = _mm_add_epi32( accumB, _mm_madd_epi16( val01B, coeff01A ) );
+          accumA = _mm_add_epi32( accumA, _mm_madd_epi16( _mm_unpacklo_epi16( sumA, sumB ), coeff[i] ) );
+          accumB = _mm_add_epi32( accumB, _mm_madd_epi16( _mm_unpackhi_epi16( sumA, sumB ), coeff[i] ) );
         };
 
         process2coeffs(0, pImg3 + 0, pImg4 + 0, pImg1 + 1, pImg2 - 1);
@@ -806,17 +796,18 @@ void simdFilter5x5Blk<AVX2>( const AlfClassifier*,
   const __m256i mmMin    = _mm256_set1_epi16( clpRng.min() );
   const __m256i mmMax    = _mm256_set1_epi16( clpRng.max() );
 
-  __m256i params[3][2];
+  // coeff[i]: the coefficients 2i and 2i+1, alternating. limit[t]: the clipping limit of coefficient t.
+  __m256i coeff[3], limit[6], negLimit[6];
   __m256i fs   = _mm256_castsi128_si256( _mm_loadu_si128( ( __m128i* ) filterSet ) );
   fs = _mm256_inserti128_si256( fs, _mm256_extracti128_si256( fs, 0 ), 1 );
-  params[0][1] = _mm256_shuffle_epi32( fs, 0x00 );
-  params[1][1] = _mm256_shuffle_epi32( fs, 0x55 );
-  params[2][1] = _mm256_shuffle_epi32(fs, 0xaa);
-  __m256i fc   = _mm256_castsi128_si256( _mm_loadu_si128( ( __m128i* ) fClipSet ) );
-  fc = _mm256_inserti128_si256( fc, _mm256_extracti128_si256( fc, 0 ), 1 );
-  params[0][0] = _mm256_shuffle_epi32( fc, 0x00 );
-  params[1][0] = _mm256_shuffle_epi32( fc, 0x55 );
-  params[2][0] = _mm256_shuffle_epi32( fc, 0xaa );
+  coeff[0] = _mm256_shuffle_epi32( fs, 0x00 );
+  coeff[1] = _mm256_shuffle_epi32( fs, 0x55 );
+  coeff[2] = _mm256_shuffle_epi32( fs, 0xaa );
+  for( int t = 0; t < 6; t++ )
+  {
+    limit   [t] = _mm256_set1_epi16( fClipSet[t] );
+    negLimit[t] = _mm256_set1_epi16( short( -fClipSet[t] ) );
+  }
 
   const ptrdiff_t halfLine = width >> 1;
 
@@ -886,38 +877,26 @@ void simdFilter5x5Blk<AVX2>( const AlfClassifier*,
         __m256i accumA = mmOffset;
         __m256i accumB = mmOffset;
 
+        // ptr0 and ptr1 are the samples of coefficient 2i, ptr2 and ptr3 those of coefficient 2i+1. The two samples of a
+        // coefficient are clipped and added first, so that only their sums are interleaved for madd.
         auto process2coeffs = [&](const int i, const Pel *ptr0, const Pel *ptr1, const Pel *ptr2, const Pel *ptr3) {
-          const __m256i val00 = _mm256_sub_epi16(_mm256_loadu_si256((const __m256i *) ptr0), cur);
-          const __m256i val10 = _mm256_sub_epi16(_mm256_loadu_si256((const __m256i *) ptr2), cur);
-          const __m256i val01 = _mm256_sub_epi16(_mm256_loadu_si256((const __m256i *) ptr1), cur);
-          const __m256i val11 = _mm256_sub_epi16(_mm256_loadu_si256((const __m256i *) ptr3), cur);
+          const int tA = 2 * i, tB = 2 * i + 1;
 
-          __m256i val01A = _mm256_unpacklo_epi16(val00, val10);
-          __m256i val01B = _mm256_unpackhi_epi16(val00, val10);
-          __m256i val01C = _mm256_unpacklo_epi16(val01, val11);
-          __m256i val01D = _mm256_unpackhi_epi16(val01, val11);
+          __m256i val0 = _mm256_sub_epi16( _mm256_loadu_si256( ( const __m256i * ) ptr0 ), cur );
+          __m256i val1 = _mm256_sub_epi16( _mm256_loadu_si256( ( const __m256i * ) ptr1 ), cur );
+          __m256i val2 = _mm256_sub_epi16( _mm256_loadu_si256( ( const __m256i * ) ptr2 ), cur );
+          __m256i val3 = _mm256_sub_epi16( _mm256_loadu_si256( ( const __m256i * ) ptr3 ), cur );
 
-          __m256i limit01A = params[i][0];
+          val0 = _mm256_max_epi16( _mm256_min_epi16( val0, limit[tA] ), negLimit[tA] );
+          val1 = _mm256_max_epi16( _mm256_min_epi16( val1, limit[tA] ), negLimit[tA] );
+          val2 = _mm256_max_epi16( _mm256_min_epi16( val2, limit[tB] ), negLimit[tB] );
+          val3 = _mm256_max_epi16( _mm256_min_epi16( val3, limit[tB] ), negLimit[tB] );
 
-          val01A = _mm256_min_epi16( val01A, limit01A );
-          val01B = _mm256_min_epi16( val01B, limit01A );
-          val01C = _mm256_min_epi16( val01C, limit01A );
-          val01D = _mm256_min_epi16( val01D, limit01A );
+          const __m256i sumA = _mm256_add_epi16( val0, val1 );
+          const __m256i sumB = _mm256_add_epi16( val2, val3 );
 
-          limit01A = _mm256_sub_epi16( _mm256_setzero_si256(), limit01A );
-
-          val01A = _mm256_max_epi16( val01A, limit01A );
-          val01B = _mm256_max_epi16( val01B, limit01A );
-          val01C = _mm256_max_epi16( val01C, limit01A );
-          val01D = _mm256_max_epi16( val01D, limit01A );
-
-          val01A = _mm256_add_epi16( val01A, val01C );
-          val01B = _mm256_add_epi16( val01B, val01D );
-
-          __m256i coeff01A = params[i][1];
-
-          accumA = _mm256_add_epi32( accumA, _mm256_madd_epi16( val01A, coeff01A ) );
-          accumB = _mm256_add_epi32( accumB, _mm256_madd_epi16( val01B, coeff01A ) );
+          accumA = _mm256_add_epi32( accumA, _mm256_madd_epi16( _mm256_unpacklo_epi16( sumA, sumB ), coeff[i] ) );
+          accumB = _mm256_add_epi32( accumB, _mm256_madd_epi16( _mm256_unpackhi_epi16( sumA, sumB ), coeff[i] ) );
         };
 
         process2coeffs(0, pImg3 + 0, pImg4 + 0, pImg1 + 1, pImg2 - 1);
