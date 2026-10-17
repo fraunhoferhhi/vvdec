@@ -98,6 +98,10 @@ private:
   void xEdgeFilterLuma            ( CodingStructure& cs, const Position& pos, const LoopFilterParam& lfp, const Slice& slice ) const;
   template<DeblockEdgeDir edgeDir>
   void xEdgeFilterChroma          ( CodingStructure& cs, const Position& pos, const LoopFilterParam& lfp, const Slice& slice ) const;
+  template<DeblockEdgeDir edgeDir>
+  void xGetChromaSegmentFilter    ( CodingStructure& cs, const Position& pos, const LoopFilterParam& lfp, const Slice& slice, int tc[2], bool strong[2] ) const;
+  template<DeblockEdgeDir edgeDir>
+  void xEdgeFilterChroma420x4     ( CodingStructure& cs, const Position& pos, const LoopFilterParam* lfp, const ptrdiff_t lfpStep, const Slice& slice ) const;
 
 #if LUMA_ADAPTIVE_DEBLOCKING_FILTER_QP_OFFSET
   void deriveLADFShift            ( const Pel* src, const ptrdiff_t stride, int& shift, const DeblockEdgeDir edgeDir, const SPS& sps ) const;
@@ -124,6 +128,8 @@ public:
   void( *xFilteringPandQ )( Pel* src, ptrdiff_t step, const ptrdiff_t offset, int numberPSide, int numberQSide, int tc );
   void( *xPelFilterLuma  )( Pel* piSrc, const ptrdiff_t step, const ptrdiff_t offset, const int tc, const bool sw, const int iThrCut, const bool bFilterSecondP, const bool bFilterSecondQ, const ClpRng& clpRng );
   unsigned( *xMvCompPQ )( const Picture* piRefP0, const Picture* piRefP1, const Picture* piRefQ0, const Picture* piRefQ1, const MotionInfo& miP, const MotionInfo& miQ );
+  // the chroma deblocking of 8 lines of an edge, step apart, each with its own tc (0: not filtered) and filter
+  void( *xPelFilterChroma8 )( Pel* piSrc, const ptrdiff_t step, const ptrdiff_t offset, const int16_t tc[8], const bool strong[8], const bool isChromaHorCTBBoundary, const ClpRng& clpRng );
 
   LoopFilter( bool enableOpt = true );
   ~LoopFilter();
