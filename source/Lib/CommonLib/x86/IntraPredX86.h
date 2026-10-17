@@ -1100,7 +1100,134 @@ void GetLumaRecPixel420SIMD (const int width,const int height, const Pel* pRecSr
     }
 }
 
+// The collocated 4:2:0 downsampling ( above + left + 4 * center + right + below + 4 ) >> 3 of 4 outputs, as 32 bit
+// values. 'center' points to the luma sample of the first output. In a row loaded at the center sample, the even lanes
+// hold the center samples and the odd lanes their right neighbours, so one madd gives 4 * center + right. The rows
+// loaded one sample to the left, one line above and one line below hold the other three taps in their even lanes; their
+// 16 bit sum cannot overflow for samples of up to 13 bits, and a second madd with the weights ( 1, 0 ) keeps only the
+// even lanes of that sum.
+static ALWAYS_INLINE __m128i downsampleCollocated420x4( const Pel* const center, const ptrdiff_t stride )
+{
+  const __m128i vCenterRight = _mm_loadu_si128( (const __m128i*) center );
+  const __m128i vLeft        = _mm_loadu_si128( (const __m128i*) ( center - 1 ) );
+  const __m128i vAbove       = _mm_loadu_si128( (const __m128i*) ( center - stride ) );
+  const __m128i vBelow       = _mm_loadu_si128( (const __m128i*) ( center + stride ) );
+  const __m128i vOtherTaps   = _mm_add_epi16( _mm_add_epi16( vLeft, vAbove ), vBelow );
 
+  const __m128i vSum = _mm_add_epi32( _mm_madd_epi16( vCenterRight, _mm_set1_epi32( 0x00010004 ) ),
+                                      _mm_madd_epi16( vOtherTaps, _mm_set1_epi32( 0x00000001 ) ) );
+  return _mm_srai_epi32( _mm_add_epi32( vSum, _mm_set1_epi32( 4 ) ), 3 );
+}
+
+#ifdef USE_AVX2
+// The same as downsampleCollocated420x4() for 8 outputs.
+static ALWAYS_INLINE __m256i downsampleCollocated420x8_AVX2( const Pel* const center, const ptrdiff_t stride )
+{
+  const __m256i vCenterRight = _mm256_loadu_si256( (const __m256i*) center );
+  const __m256i vLeft        = _mm256_loadu_si256( (const __m256i*) ( center - 1 ) );
+  const __m256i vAbove       = _mm256_loadu_si256( (const __m256i*) ( center - stride ) );
+  const __m256i vBelow       = _mm256_loadu_si256( (const __m256i*) ( center + stride ) );
+  const __m256i vOtherTaps   = _mm256_add_epi16( _mm256_add_epi16( vLeft, vAbove ), vBelow );
+
+  const __m256i vSum = _mm256_add_epi32( _mm256_madd_epi16( vCenterRight, _mm256_set1_epi32( 0x00010004 ) ),
+                                         _mm256_madd_epi16( vOtherTaps, _mm256_set1_epi32( 0x00000001 ) ) );
+  return _mm256_srai_epi32( _mm256_add_epi32( vSum, _mm256_set1_epi32( 4 ) ), 3 );
+}
+#endif
+
+template<X86_VEXT vext>
+void GetLumaRecPixel420CollocatedSIMD( const int width, const int height, const Pel* pRecSrc0, const ptrdiff_t iRecStride, Pel* pDst0, const ptrdiff_t iDstStride )
+{
+  for( int y = 0; y < height; y++ )
+  {
+    int x = 0;
+#ifdef USE_AVX2
+    for( ; x + 16 <= width; x += 16 )
+    {
+      const __m256i vLo = downsampleCollocated420x8_AVX2( pRecSrc0 + 2 * x, iRecStride );
+      const __m256i vHi = downsampleCollocated420x8_AVX2( pRecSrc0 + 2 * x + 16, iRecStride );
+      // packs works within the 128 bit lanes, the permutation restores the order of the outputs
+      _mm256_storeu_si256( (__m256i*) &pDst0[x], _mm256_permute4x64_epi64( _mm256_packs_epi32( vLo, vHi ), 0xD8 ) );
+    }
+#endif
+    for( ; x + 8 <= width; x += 8 )
+    {
+      const __m128i vLo = downsampleCollocated420x4( pRecSrc0 + 2 * x, iRecStride );
+      const __m128i vHi = downsampleCollocated420x4( pRecSrc0 + 2 * x + 8, iRecStride );
+      _mm_storeu_si128( (__m128i*) &pDst0[x], _mm_packs_epi32( vLo, vHi ) );
+    }
+    if( x + 4 <= width )
+    {
+      const __m128i vOut = downsampleCollocated420x4( pRecSrc0 + 2 * x, iRecStride );
+      _mm_storel_epi64( (__m128i*) &pDst0[x], _mm_packs_epi32( vOut, vOut ) );
+      x += 4;
+    }
+    for( ; x < width; x++ )
+    {
+      const Pel* center = pRecSrc0 + 2 * x;
+      pDst0[x] = ( center[-iRecStride] + center[-1] + 4 * center[0] + center[1] + center[iRecStride] + 4 ) >> 3;
+    }
+
+    pDst0    += iDstStride;
+    pRecSrc0 += 2 * iRecStride;
+  }
+}
+
+// the luma columns -3..0 of two rows, one per 64 bit half
+static ALWAYS_INLINE __m128i loadLumaLeftColumns( const Pel* const row0, const Pel* const row1 )
+{
+  return _mm_unpacklo_epi64( _mm_loadl_epi64( (const __m128i*) row0 ), _mm_loadl_epi64( (const __m128i*) row1 ) );
+}
+
+template<X86_VEXT vext>
+void GetLumaRecPixel420Left_SIMD( const int height, const Pel* pRecSrc0, const ptrdiff_t iRecStride, Pel* pDst, const ptrdiff_t iDstStride, const bool collocated )
+{
+  // Each output needs the luma columns -3..-1 of two rows (6-tap) or of three rows (collocated). A 4 sample load from
+  // column -3 of a row holds them in its first three lanes. madd with the weights of the lanes and hadd give one sum
+  // per output, 4 outputs per step.
+  const __m128i vWeights      = collocated ? _mm_setr_epi16( 1, 4, 1, 0, 1, 4, 1, 0 ) : _mm_setr_epi16( 1, 2, 1, 0, 1, 2, 1, 0 );
+  const __m128i vWeightsAbove = _mm_setr_epi16( 0, 1, 0, 0, 0, 1, 0, 0 );   // collocated: the rows above and below
+  const ptrdiff_t stride      = iRecStride;
+  const Pel*      src         = pRecSrc0 - 3;
+
+  int y = 0;
+  for( ; y + 4 <= height; y += 4, src += 8 * stride )
+  {
+    __m128i vSums[2];
+    for( int k = 0; k < 2; k++ )
+    {
+      // the outputs y + 2k and y + 2k + 1
+      const Pel* row0 = src + 4 * k * stride;
+      const Pel* row1 = row0 + 2 * stride;
+      const __m128i vCenter = loadLumaLeftColumns( row0, row1 );
+      const __m128i vBelow  = loadLumaLeftColumns( row0 + stride, row1 + stride );
+      if( collocated )
+      {
+        const __m128i vAbove = loadLumaLeftColumns( row0 - stride, row1 - stride );
+        vSums[k] = _mm_add_epi32( _mm_madd_epi16( vCenter, vWeights ), _mm_madd_epi16( _mm_add_epi16( vAbove, vBelow ), vWeightsAbove ) );
+      }
+      else
+      {
+        vSums[k] = _mm_madd_epi16( _mm_add_epi16( vCenter, vBelow ), vWeights );
+      }
+    }
+
+    __m128i vOut = _mm_hadd_epi32( vSums[0], vSums[1] );
+    vOut = _mm_srai_epi32( _mm_add_epi32( vOut, _mm_set1_epi32( 4 ) ), 3 );
+    pDst[0]              = (Pel) _mm_extract_epi32( vOut, 0 );
+    pDst[    iDstStride] = (Pel) _mm_extract_epi32( vOut, 1 );
+    pDst[2 * iDstStride] = (Pel) _mm_extract_epi32( vOut, 2 );
+    pDst[3 * iDstStride] = (Pel) _mm_extract_epi32( vOut, 3 );
+    pDst += 4 * iDstStride;
+  }
+
+  for( ; y < height; y++, src += 2 * stride, pDst += iDstStride )
+  {
+    const Pel* center = src + 1;
+    pDst[0] = collocated ? ( center[-stride] + center[-1] + 4 * center[0] + center[1] + center[stride] + 4 ) >> 3
+                         : ( 2 * center[0] + center[-1] + center[1] + 2 * center[stride] + center[stride - 1] + center[stride + 1] + 4 ) >> 3;
+  }
+}
 
 template<X86_VEXT vext>
 void IntraPrediction::_initIntraPredictionX86()
@@ -1115,7 +1242,9 @@ void IntraPrediction::_initIntraPredictionX86()
 
   xPredIntraPlanar = xPredIntraPlanar_SIMD<vext>;
 
-  GetLumaRecPixel420 = GetLumaRecPixel420SIMD<vext>;
+  GetLumaRecPixel420           = GetLumaRecPixel420SIMD<vext>;
+  GetLumaRecPixel420Collocated = GetLumaRecPixel420CollocatedSIMD<vext>;
+  GetLumaRecPixel420Left       = GetLumaRecPixel420Left_SIMD<vext>;
 
 }
 template void IntraPrediction::_initIntraPredictionX86<SIMDX86>();
