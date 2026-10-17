@@ -1825,6 +1825,55 @@ bool check_rspFwdCore( PelBufferOps* ref, PelBufferOps* opt, unsigned num_cases 
   return passed;
 }
 
+static bool check_copyBuffer( PelBufferOps* ref, PelBufferOps* opt, unsigned num_cases )
+{
+  DimensionGenerator dim;
+  bool passed = true;
+
+  // row lengths in bytes: those of blocks of 16 bit samples (multiples of 32, 16, 8) and other lengths
+  for( int width : { 2, 4, 6, 8, 12, 16, 24, 32, 48, 64, 96, 128, 160, 256 } )
+  {
+    for( int height : { 1, 2, 3, 4, 8, 16, 64 } )
+    {
+      std::ostringstream sstm_test;
+      sstm_test << "PelBufferOps::copyBuffer w=" << width << " h=" << height;
+      std::cout << "Testing " << sstm_test.str() << std::endl;
+
+      for( unsigned n = 0; n < num_cases; n++ )
+      {
+        // equal strides as well, which copy the whole block at once
+        const bool      packed    = n == 0;
+        const ptrdiff_t srcStride = packed ? width : dim.get( width, 2 * MAX_CU_SIZE );
+        const ptrdiff_t dstStride = packed ? width : dim.get( width, 2 * MAX_CU_SIZE );
+
+        std::vector<char> src( srcStride * height );
+        for( auto& c : src )
+        {
+          c = ( char ) rand();
+        }
+        // the destination keeps its other bytes, so writes outside the rows are found too
+        std::vector<char> dstRef( dstStride * height );
+        for( auto& c : dstRef )
+        {
+          c = ( char ) rand();
+        }
+        std::vector<char> dstOpt = dstRef;
+
+        ref->copyBuffer( src.data(), srcStride, dstRef.data(), dstStride, width, height );
+        opt->copyBuffer( src.data(), srcStride, dstOpt.data(), dstStride, width, height );
+
+        if( dstRef != dstOpt )
+        {
+          std::cout << "failed: " << sstm_test.str() << " srcStride=" << srcStride << " dstStride=" << dstStride << std::endl;
+          passed = false;
+        }
+      }
+    }
+  }
+
+  return passed;
+}
+
 static bool test_PelBufferOps()
 {
   PelBufferOps ref;
@@ -1844,6 +1893,7 @@ static bool test_PelBufferOps()
   passed = check_reco( &ref, &opt, num_cases ) && passed;
   passed = check_rspFwdCore( &ref, &opt, num_cases ) && passed;
   passed = check_applyLut( &ref, &opt, num_cases ) && passed;
+  passed = check_copyBuffer( &ref, &opt, num_cases ) && passed;
 
   return passed;
 }
