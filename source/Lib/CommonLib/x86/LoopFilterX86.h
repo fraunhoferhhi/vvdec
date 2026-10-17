@@ -853,11 +853,177 @@ static void xFilteringPandQX86( Pel* src, ptrdiff_t step, const ptrdiff_t offset
 #endif
 }
 
+// The chroma deblocking of xPelFilterChroma8Core() for 8 lines at once: m[i] holds the sample i - 4 across the edge
+// (p3 .. q3) of each line, one line per 16 bit lane, and each lane has its own tc and filter. The weak filter changes
+// m[3] and m[4], the strong filter m[1] .. m[6] (m[3] .. m[6] at a CTU boundary). The sums of the strong filter are at
+// most 8 * 1023 + 4 and the difference of the weak filter at most 5 * 1023 + 4 for samples of up to 10 bits, so 16 bit
+// lanes suffice. A lane with tc 0 does not change.
+static ALWAYS_INLINE void xPelFilterChromaLanes( const __m128i m[8], __m128i out[8], const __m128i vTc, const __m128i vStrong, const bool anyStrong, const bool isChromaHorCTBBoundary, const ClpRng& clpRng )
+{
+  const __m128i vFour = _mm_set1_epi16( 4 );
+  const auto    add   = []( const __m128i a, const __m128i b ) { return _mm_add_epi16( a, b ); };
+  const auto    x2    = []( const __m128i a ) { return _mm_add_epi16( a, a ); };
+
+  for( int i = 0; i < 8; i++ )
+  {
+    out[i] = m[i];
+  }
+
+  // weak: delta = Clip3( -tc, tc, ( ( q0 - p0 ) * 4 + p1 - q1 + 4 ) >> 3 ), p0 + delta and q0 - delta clipped to the bit depth
+  const __m128i vDiff  = _mm_add_epi16( _mm_slli_epi16( _mm_sub_epi16( m[4], m[3] ), 2 ), _mm_sub_epi16( m[2], m[5] ) );
+  __m128i       vDelta = _mm_srai_epi16( _mm_add_epi16( vDiff, vFour ), 3 );
+  vDelta = _mm_min_epi16( _mm_max_epi16( vDelta, _mm_sub_epi16( _mm_setzero_si128(), vTc ) ), vTc );
+  const __m128i vMax = _mm_set1_epi16( clpRng.max() );
+  out[3] = _mm_min_epi16( _mm_max_epi16( _mm_add_epi16( m[3], vDelta ), _mm_setzero_si128() ), vMax );
+  out[4] = _mm_min_epi16( _mm_max_epi16( _mm_sub_epi16( m[4], vDelta ), _mm_setzero_si128() ), vMax );
+
+  if( !anyStrong )
+  {
+    return;
+  }
+
+  // strong: the weighted sums of xPelFilterChroma(), rounded and divided by 8, clipped to center +- tc
+  const auto filter = [&]( const __m128i vSum, const __m128i vCenter )
+  {
+    const __m128i vVal = _mm_srai_epi16( _mm_add_epi16( vSum, vFour ), 3 );
+    return _mm_min_epi16( _mm_max_epi16( vVal, _mm_sub_epi16( vCenter, vTc ) ), _mm_add_epi16( vCenter, vTc ) );
+  };
+  const auto select = [&]( const __m128i vOther, const __m128i vStrongResult ) { return _mm_blendv_epi8( vOther, vStrongResult, vStrong ); };
+
+  if( isChromaHorCTBBoundary )
+  {
+    // above a CTU boundary only one line, m[2], is used on the P side
+    const __m128i vM345 = add( add( m[3], m[4] ), m[5] );
+    out[3] = select( out[3], filter( add( add( add( x2( m[2] ), m[2] ), x2( m[3] ) ), add( add( m[4], m[5] ), m[6] ) ), m[3] ) );
+    out[4] = select( out[4], filter( add( add( x2( m[2] ), add( vM345, m[4] ) ), add( m[6], m[7] ) ), m[4] ) );
+    out[5] = select( out[5], filter( add( add( m[2], vM345 ), add( add( m[5], m[6] ), x2( m[7] ) ) ), m[5] ) );
+    out[6] = select( out[6], filter( add( vM345, add( x2( m[6] ), add( x2( m[7] ), m[7] ) ) ), m[6] ) );
+  }
+  else
+  {
+    const __m128i vM34 = add( m[3], m[4] );
+    out[1] = select( out[1], filter( add( add( add( x2( m[0] ), m[0] ), x2( m[1] ) ), add( m[2], vM34 ) ), m[1] ) );
+    out[2] = select( out[2], filter( add( add( x2( m[0] ), m[1] ), add( add( x2( m[2] ), vM34 ), m[5] ) ), m[2] ) );
+    out[3] = select( out[3], filter( add( add( add( m[0], m[1] ), add( m[2], m[3] ) ), add( add( vM34, m[5] ), m[6] ) ), m[3] ) );
+    out[4] = select( out[4], filter( add( add( add( m[1], m[2] ), vM34 ), add( add( m[4], m[5] ), add( m[6], m[7] ) ) ), m[4] ) );
+    out[5] = select( out[5], filter( add( add( m[2], vM34 ), add( add( x2( m[5] ), m[6] ), x2( m[7] ) ) ), m[5] ) );
+    out[6] = select( out[6], filter( add( add( vM34, m[5] ), add( x2( m[6] ), add( x2( m[7] ), m[7] ) ) ), m[6] ) );
+  }
+}
+
+template<X86_VEXT vext>
+static void xPelFilterChroma8X86( Pel* piSrc, const ptrdiff_t step, const ptrdiff_t offset, const int16_t tc[8], const bool strong[8], const bool isChromaHorCTBBoundary, const ClpRng& clpRng )
+{
+  static_assert( sizeof( bool ) == 1, "the strong flags are loaded as bytes" );
+
+  const __m128i vTc       = _mm_loadu_si128( (const __m128i*) tc );
+  const __m128i vFiltered = _mm_cmpgt_epi16( vTc, _mm_setzero_si128() );
+  // -1 for the lanes that use the strong filter, 0 for the others
+  const __m128i vStrong   = _mm_and_si128( _mm_sub_epi16( _mm_setzero_si128(), _mm_cvtepu8_epi16( _mm_loadl_epi64( (const __m128i*) strong ) ) ), vFiltered );
+  const bool    anyStrong = _mm_movemask_epi8( vStrong ) != 0;
+
+  // Only the samples that xPelFilterChroma8Core() writes are written: p0 and q0 of the filtered lines, and the samples
+  // further out of the strong lines. One bit per line.
+  const int filteredLines = _mm_movemask_epi8( _mm_packs_epi16( vFiltered, _mm_setzero_si128() ) );
+  const int strongLines   = _mm_movemask_epi8( _mm_packs_epi16( vStrong, _mm_setzero_si128() ) );
+  const auto writtenLines = [&]( const int i ) { return i == 3 || i == 4 ? filteredLines : strongLines; };
+
+  // the samples that are read (m[first] .. m[7]) and those that can change (m[firstOut] .. m[lastOut])
+  const int first    = anyStrong && !isChromaHorCTBBoundary ? 0 : 2;
+  const int last     = anyStrong ? 7 : 5;
+  const int firstOut = anyStrong && !isChromaHorCTBBoundary ? 1 : 3;
+  const int lastOut  = anyStrong ? 6 : 4;
+
+  __m128i m[8], out[8];
+  for( int i = 0; i < 8; i++ )
+  {
+    m[i] = _mm_setzero_si128();
+  }
+
+  if( step == 1 )
+  {
+    // a horizontal edge: the lines are neighbouring columns, so each row across the edge is one load
+    for( int i = first; i <= last; i++ )
+    {
+      m[i] = _mm_loadu_si128( (const __m128i*) ( piSrc + ( i - 4 ) * offset ) );
+    }
+    xPelFilterChromaLanes( m, out, vTc, vStrong, anyStrong, isChromaHorCTBBoundary, clpRng );
+    for( int i = firstOut; i <= lastOut; i++ )
+    {
+      Pel*      row   = piSrc + ( i - 4 ) * offset;
+      const int lines = writtenLines( i );
+      if( lines == 0xff )
+      {
+        _mm_storeu_si128( (__m128i*) row, out[i] );
+      }
+      else if( lines )
+      {
+        Pel samples[8];
+        _mm_storeu_si128( (__m128i*) samples, out[i] );
+        for( int l = 0; l < 8; l++ )
+        {
+          if( lines & ( 1 << l ) )
+          {
+            row[l] = samples[l];
+          }
+        }
+      }
+    }
+    return;
+  }
+
+  // a vertical edge: the lines are rows of 8 samples p3 .. q3, transposed into one vector per sample position
+  __m128i vRow[8];
+  for( int l = 0; l < 8; l++ )
+  {
+    vRow[l] = _mm_loadu_si128( (const __m128i*) ( piSrc + l * step - 4 ) );
+  }
+  const __m128i a0 = _mm_unpacklo_epi16( vRow[0], vRow[1] ), a1 = _mm_unpackhi_epi16( vRow[0], vRow[1] );
+  const __m128i a2 = _mm_unpacklo_epi16( vRow[2], vRow[3] ), a3 = _mm_unpackhi_epi16( vRow[2], vRow[3] );
+  const __m128i a4 = _mm_unpacklo_epi16( vRow[4], vRow[5] ), a5 = _mm_unpackhi_epi16( vRow[4], vRow[5] );
+  const __m128i a6 = _mm_unpacklo_epi16( vRow[6], vRow[7] ), a7 = _mm_unpackhi_epi16( vRow[6], vRow[7] );
+  const __m128i b0 = _mm_unpacklo_epi32( a0, a2 ), b1 = _mm_unpackhi_epi32( a0, a2 );
+  const __m128i b2 = _mm_unpacklo_epi32( a1, a3 ), b3 = _mm_unpackhi_epi32( a1, a3 );
+  const __m128i b4 = _mm_unpacklo_epi32( a4, a6 ), b5 = _mm_unpackhi_epi32( a4, a6 );
+  const __m128i b6 = _mm_unpacklo_epi32( a5, a7 ), b7 = _mm_unpackhi_epi32( a5, a7 );
+  m[0] = _mm_unpacklo_epi64( b0, b4 );
+  m[1] = _mm_unpackhi_epi64( b0, b4 );
+  m[2] = _mm_unpacklo_epi64( b1, b5 );
+  m[3] = _mm_unpackhi_epi64( b1, b5 );
+  m[4] = _mm_unpacklo_epi64( b2, b6 );
+  m[5] = _mm_unpackhi_epi64( b2, b6 );
+  m[6] = _mm_unpacklo_epi64( b3, b7 );
+  m[7] = _mm_unpackhi_epi64( b3, b7 );
+
+  xPelFilterChromaLanes( m, out, vTc, vStrong, anyStrong, isChromaHorCTBBoundary, clpRng );
+
+  // Back to the rows, two samples at a time: the pairs p2 p1, p0 q0 and q1 q2 are written by the same lines.
+  for( int i = firstOut; i <= lastOut; i += 2 )
+  {
+    const int lines = writtenLines( i );
+    if( !lines )
+    {
+      continue;
+    }
+    int32_t pairs[8];
+    _mm_storeu_si128( (__m128i*) &pairs[0], _mm_unpacklo_epi16( out[i], out[i + 1] ) );
+    _mm_storeu_si128( (__m128i*) &pairs[4], _mm_unpackhi_epi16( out[i], out[i + 1] ) );
+    for( int l = 0; l < 8; l++ )
+    {
+      if( lines & ( 1 << l ) )
+      {
+        memcpy( piSrc + l * step + i - 4, &pairs[l], sizeof( int32_t ) );
+      }
+    }
+  }
+}
+
 template <X86_VEXT vext>
 void LoopFilter::_initLoopFilterX86()
 {
-  xPelFilterLuma  = xPelFilterLumaX86<vext>;
-  xFilteringPandQ = xFilteringPandQX86<vext>;
+  xPelFilterLuma    = xPelFilterLumaX86<vext>;
+  xPelFilterChroma8 = xPelFilterChroma8X86<vext>;
+  xFilteringPandQ   = xFilteringPandQX86<vext>;
 }
 
 template void LoopFilter::_initLoopFilterX86<SIMDX86>();
