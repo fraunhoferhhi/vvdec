@@ -56,6 +56,21 @@ namespace vvdec
 static const int MIP_MAX_INPUT_SIZE             =  8;
 static const int MIP_MAX_REDUCED_OUTPUT_SAMPLES = 64;
 
+static const uint8_t MIP_SHIFT_MATRIX = 6;
+static const uint8_t MIP_OFFSET_MATRIX = 32;
+
+// The matrix multiplication of the reduced MIP prediction: each of the outputSize outputs is the product of the input
+// with its row of the matrix, rounded, shifted, offset and clipped. With skipFirstInput the rows have one weight less
+// and start at input[1].
+typedef void ( *MipMatrixMulFunc )( Pel* const result, const Pel* const input, const uint8_t* matrix, const int inputSize, const int outputSize,
+                                    const bool skipFirstInput, const int offset, const int inputOffset, const int bitDepth );
+
+// The horizontal upsampling of the reduced MIP prediction: each of the reducedSize rows of src (reducedSize samples,
+// preceded by the boundary sample bndry[k * bndryStep + bndryStep - 1] of row k) is interpolated to
+// reducedSize * upsmpFactor samples in the row k of dst.
+typedef void ( *MipUpsampleHorFunc )( Pel* const dst, const ptrdiff_t dstStride, const Pel* const src, const Pel* const bndry,
+                                      const int bndryStep, const int reducedSize, const int upsmpFactor );
+
 
 namespace Mip
 {
@@ -65,6 +80,9 @@ namespace Mip
     PredictorMIP();
     void             deriveBoundaryData(const CPelBuf& src, const Area& block, const int bitDepth);
     void             getPrediction     (Pel* const result, const int modeIdx, const bool transpose, const int bitDepth);
+
+    MipMatrixMulFunc   MatrixMul;     // the C version by default, set by IntraPrediction to its SIMD version
+    MipUpsampleHorFunc UpsampleHor;   // the C version by default, set by IntraPrediction to its SIMD version
   private:
     Pel m_reducedBoundary          [MIP_MAX_INPUT_SIZE]; // downsampled             boundary of a block
     Pel m_reducedBoundaryTransposed[MIP_MAX_INPUT_SIZE]; // downsampled, transposed boundary of a block
@@ -91,6 +109,8 @@ namespace Mip
                                         const SizeType dstStep, const SizeType dstStride,
                                         const SizeType bndryStep,
                                         const unsigned int upsmpFactor );
+    static void predictionUpsamplingHorCore( Pel* const dst, const ptrdiff_t dstStride, const Pel* const src, const Pel* const bndry,
+                                             const int bndryStep, const int reducedSize, const int upsmpFactor );
 
     const uint8_t* getMatrixData(const int modeIdx) const;
 
