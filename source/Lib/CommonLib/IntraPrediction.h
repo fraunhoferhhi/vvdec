@@ -151,6 +151,8 @@ public:
 
   void ( *GetLumaRecPixel420 )          ( const int width,const int height, const Pel* pRecSrc0,const ptrdiff_t iRecStride,Pel* pDst0,const ptrdiff_t iDstStride );
 
+  void ( *CiipBlend )                   ( Pel* dst, const ptrdiff_t dstStride, const Pel* intraPred, const ptrdiff_t intraStride, const int width, const int height, const int wMerge, const int wIntra );
+
 #if ENABLE_SIMD_OPT_INTRAPRED && defined( TARGET_SIMD_X86 )
   void initIntraPredictionX86();
   template <X86_VEXT vext>

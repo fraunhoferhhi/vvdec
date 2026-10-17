@@ -1100,7 +1100,56 @@ void GetLumaRecPixel420SIMD (const int width,const int height, const Pel* pRecSr
     }
 }
 
+// ( wMerge * merge + wIntra * intra + 2 ) >> 2 for 4 samples as 32 bit values: madd of interleaved
+// ( merge, intra ) sample pairs with the ( wMerge, wIntra ) weight pairs.
+static ALWAYS_INLINE __m128i ciipBlend4( const __m128i vMergeIntra, const __m128i vWeights )
+{
+  return _mm_srai_epi32( _mm_add_epi32( _mm_madd_epi16( vMergeIntra, vWeights ), _mm_set1_epi32( 2 ) ), 2 );
+}
 
+template<X86_VEXT vext>
+void CiipBlend_SIMD( Pel* dst, const ptrdiff_t dstStride, const Pel* intraPred, const ptrdiff_t intraStride, const int width, const int height, const int wMerge, const int wIntra )
+{
+  CHECKD( width & 3, "CIIP blocks are a multiple of 4 samples wide" );
+
+  const __m128i vWeights = _mm_set1_epi32( ( wIntra << 16 ) | wMerge );
+#ifdef USE_AVX2
+  const __m256i vWeights256 = _mm256_set1_epi32( ( wIntra << 16 ) | wMerge );
+#endif
+
+  for( int y = 0; y < height; y++, dst += dstStride, intraPred += intraStride )
+  {
+    int x = 0;
+#ifdef USE_AVX2
+    for( ; x + 16 <= width; x += 16 )
+    {
+      const __m256i vMerge = _mm256_loadu_si256( (const __m256i*) &dst[x] );
+      const __m256i vIntra = _mm256_loadu_si256( (const __m256i*) &intraPred[x] );
+      // the unpacks and the pack work within the 128 bit lanes, so the outputs stay in order
+      __m256i vLo = _mm256_madd_epi16( _mm256_unpacklo_epi16( vMerge, vIntra ), vWeights256 );
+      __m256i vHi = _mm256_madd_epi16( _mm256_unpackhi_epi16( vMerge, vIntra ), vWeights256 );
+      vLo = _mm256_srai_epi32( _mm256_add_epi32( vLo, _mm256_set1_epi32( 2 ) ), 2 );
+      vHi = _mm256_srai_epi32( _mm256_add_epi32( vHi, _mm256_set1_epi32( 2 ) ), 2 );
+      _mm256_storeu_si256( (__m256i*) &dst[x], _mm256_packs_epi32( vLo, vHi ) );
+    }
+#endif
+    for( ; x + 8 <= width; x += 8 )
+    {
+      const __m128i vMerge = _mm_loadu_si128( (const __m128i*) &dst[x] );
+      const __m128i vIntra = _mm_loadu_si128( (const __m128i*) &intraPred[x] );
+      const __m128i vLo    = ciipBlend4( _mm_unpacklo_epi16( vMerge, vIntra ), vWeights );
+      const __m128i vHi    = ciipBlend4( _mm_unpackhi_epi16( vMerge, vIntra ), vWeights );
+      _mm_storeu_si128( (__m128i*) &dst[x], _mm_packs_epi32( vLo, vHi ) );
+    }
+    if( x < width )
+    {
+      const __m128i vMerge = _mm_loadl_epi64( (const __m128i*) &dst[x] );
+      const __m128i vIntra = _mm_loadl_epi64( (const __m128i*) &intraPred[x] );
+      const __m128i vOut   = ciipBlend4( _mm_unpacklo_epi16( vMerge, vIntra ), vWeights );
+      _mm_storel_epi64( (__m128i*) &dst[x], _mm_packs_epi32( vOut, vOut ) );
+    }
+  }
+}
 
 template<X86_VEXT vext>
 void IntraPrediction::_initIntraPredictionX86()
@@ -1116,6 +1165,8 @@ void IntraPrediction::_initIntraPredictionX86()
   xPredIntraPlanar = xPredIntraPlanar_SIMD<vext>;
 
   GetLumaRecPixel420 = GetLumaRecPixel420SIMD<vext>;
+
+  CiipBlend = CiipBlend_SIMD<vext>;
 
 }
 template void IntraPrediction::_initIntraPredictionX86<SIMDX86>();
