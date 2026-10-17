@@ -1100,7 +1100,76 @@ void GetLumaRecPixel420SIMD (const int width,const int height, const Pel* pRecSr
     }
 }
 
+// one row of 8 MIP weights, widened to 16 bit
+static ALWAYS_INLINE __m128i loadMipWeights8( const uint8_t* weight )
+{
+  return _mm_cvtepu8_epi16( _mm_loadl_epi64( (const __m128i*) weight ) );
+}
 
+template<X86_VEXT vext>
+void MipMatrixMul_SIMD( Pel* const result, const Pel* const input, const uint8_t* matrix, const int inputSize, const int outputSize,
+                        const bool skipFirstInput, const int offset, const int inputOffset, const int bitDepth )
+{
+  CHECKD( outputSize & 3, "MIP has 16 or 64 outputs" );
+  CHECKD( inputSize != 4 && inputSize != 8, "MIP has 4 or 8 inputs" );
+
+  const __m128i vOffset      = _mm_set1_epi32( offset );
+  const __m128i vInputOffset = _mm_set1_epi32( inputOffset );
+  const __m128i vMax         = _mm_set1_epi32( ( 1 << bitDepth ) - 1 );
+
+  // The weights are at most 127 and the inputs differences of samples, so the 32 bit sums of madd cannot overflow.
+  // Each madd multiplies a row of weights with the input and gives partial sums, which the hadds add up to one sum per
+  // output, four outputs per step.
+  __m128i vInput;
+  if( inputSize == 4 )
+  {
+    // two rows of 4 weights per vector, so the input is duplicated
+    const __m128i vInput4 = _mm_loadl_epi64( (const __m128i*) input );
+    vInput = _mm_unpacklo_epi64( vInput4, vInput4 );
+  }
+  else
+  {
+    // with skipFirstInput the rows have 7 weights for input[1..7], the 8th input is set to 0
+    vInput = _mm_loadu_si128( (const __m128i*) input );
+    vInput = skipFirstInput ? _mm_srli_si128( vInput, 2 ) : vInput;
+  }
+
+  const int      rowLength = inputSize - ( skipFirstInput ? 1 : 0 );
+  const uint8_t* weight    = matrix;
+
+  for( int pos = 0; pos < outputSize; pos += 4, weight += 4 * rowLength )
+  {
+    __m128i vSum;
+    if( rowLength == 4 )
+    {
+      const __m128i vWeights = _mm_loadu_si128( (const __m128i*) weight );
+      const __m128i vRows01  = _mm_madd_epi16( _mm_cvtepu8_epi16( vWeights ), vInput );
+      const __m128i vRows23  = _mm_madd_epi16( _mm_cvtepu8_epi16( _mm_srli_si128( vWeights, 8 ) ), vInput );
+      vSum = _mm_hadd_epi32( vRows01, vRows23 );
+    }
+    else
+    {
+      // A row of 7 weights is loaded with the first weight of the next row, which meets the input 0. The last row of
+      // the matrix is copied first, so that nothing behind the matrix is read.
+      uint8_t lastRow[8] = { 0 };
+      const uint8_t* row3 = weight + 3 * rowLength;
+      if( rowLength == 7 && pos + 4 == outputSize )
+      {
+        memcpy( lastRow, row3, 7 );
+        row3 = lastRow;
+      }
+      const __m128i vRow0 = _mm_madd_epi16( loadMipWeights8( weight ), vInput );
+      const __m128i vRow1 = _mm_madd_epi16( loadMipWeights8( weight + rowLength ), vInput );
+      const __m128i vRow2 = _mm_madd_epi16( loadMipWeights8( weight + 2 * rowLength ), vInput );
+      const __m128i vRow3 = _mm_madd_epi16( loadMipWeights8( row3 ), vInput );
+      vSum = _mm_hadd_epi32( _mm_hadd_epi32( vRow0, vRow1 ), _mm_hadd_epi32( vRow2, vRow3 ) );
+    }
+
+    __m128i vResult = _mm_add_epi32( _mm_srai_epi32( _mm_add_epi32( vSum, vOffset ), MIP_SHIFT_MATRIX ), vInputOffset );
+    vResult = _mm_min_epi32( _mm_max_epi32( vResult, _mm_setzero_si128() ), vMax );
+    _mm_storel_epi64( (__m128i*) &result[pos], _mm_packs_epi32( vResult, vResult ) );
+  }
+}
 
 template<X86_VEXT vext>
 void IntraPrediction::_initIntraPredictionX86()
@@ -1117,6 +1186,8 @@ void IntraPrediction::_initIntraPredictionX86()
 
   GetLumaRecPixel420 = GetLumaRecPixel420SIMD<vext>;
 
+  MipMatrixMul = MipMatrixMul_SIMD<vext>;
+  m_matrixIntraPred.m_predictorMip.MatrixMul = MipMatrixMul;
 }
 template void IntraPrediction::_initIntraPredictionX86<SIMDX86>();
 
