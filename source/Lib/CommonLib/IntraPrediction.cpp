@@ -372,7 +372,8 @@ IntraPrediction::IntraPrediction() : m_currChromaFormat( NUM_CHROMA_FORMAT )
 
   GetLumaRecPixel420 = GetLumaRecPixel420Core;
 
-  MipMatrixMul = m_matrixIntraPred.m_predictorMip.MatrixMul;
+  MipMatrixMul   = m_matrixIntraPred.m_predictorMip.MatrixMul;
+  MipUpsampleHor = m_matrixIntraPred.m_predictorMip.UpsampleHor;
 }
 
 IntraPrediction::~IntraPrediction()

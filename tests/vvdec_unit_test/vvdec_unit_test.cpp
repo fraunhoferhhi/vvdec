@@ -2710,6 +2710,61 @@ static bool test_MipMatrixMul()
   }
   return passed;
 }
+
+static bool test_MipUpsampleHor()
+{
+  IntraPrediction ref;
+  IntraPrediction opt;
+#if defined( TARGET_SIMD_X86 )
+  opt.initIntraPredictionX86();
+#endif
+#if defined( TARGET_SIMD_ARM )
+  opt.initIntraPredictionARM();
+#endif
+
+  DimensionGenerator rng;
+  bool passed = true;
+
+  for( unsigned bd : { 8u, 10u } )
+  {
+    for( int reducedSize : { 4, 8 } )
+    {
+      for( int upsmpFactor : { 2, 4, 8, 16 } )
+      {
+        if( reducedSize * upsmpFactor > 64 )
+        {
+          continue;   // MIP blocks are at most 64 wide
+        }
+        // the boundary step is the vertical upsampling factor
+        for( int bndryStep : { 1, 2, 4, 8 } )
+        {
+          for( int c = 0; c < NUM_CASES; c++ )
+          {
+            InputGenerator<Pel> g{ bd, /*is_signed=*/false };
+            std::vector<Pel> src( reducedSize * reducedSize );
+            std::vector<Pel> bndry( reducedSize * bndryStep );
+            std::generate( src.begin(), src.end(), g );
+            std::generate( bndry.begin(), bndry.end(), g );
+
+            // The rows are compared including the stride padding, so writes outside them are detected.
+            const int       width     = reducedSize * upsmpFactor;
+            const ptrdiff_t dstStride = width + rng.get( 0, 8 );
+            std::vector<Pel> dstRef( dstStride * reducedSize, 0 );
+            std::vector<Pel> dstOpt( dstStride * reducedSize, 0 );
+
+            ref.MipUpsampleHor( dstRef.data(), dstStride, src.data(), bndry.data(), bndryStep, reducedSize, upsmpFactor );
+            opt.MipUpsampleHor( dstOpt.data(), dstStride, src.data(), bndry.data(), bndryStep, reducedSize, upsmpFactor );
+
+            std::ostringstream sstm;
+            sstm << "MipUpsampleHor bd=" << bd << " reduced=" << reducedSize << " factor=" << upsmpFactor << " bndryStep=" << bndryStep;
+            passed &= compare_values_2d( sstm.str(), dstRef.data(), dstOpt.data(), (unsigned) reducedSize, (unsigned) dstStride, (unsigned) dstStride );
+          }
+        }
+      }
+    }
+  }
+  return passed;
+}
 #endif // ENABLE_SIMD_OPT_INTRAPRED
 
 struct UnitTestEntry
@@ -2728,6 +2783,7 @@ static const UnitTestEntry test_suites[] = {
 #if ENABLE_SIMD_OPT_INTRAPRED
     { "IntraPredAngleChroma", test_IntraPredAngleChroma },
     { "MipMatrixMul", test_MipMatrixMul },
+    { "MipUpsampleHor", test_MipUpsampleHor },
 #endif
 #if ENABLE_SIMD_OPT_MCIF
     { "InterpolationFilter", test_InterpolationFilter },
