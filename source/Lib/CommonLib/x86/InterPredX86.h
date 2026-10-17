@@ -276,52 +276,48 @@ static inline void calcBIOSums_SSE(const Pel* srcY0Tmp, const Pel* srcY1Tmp, con
 }
 
 #if USE_AVX2
-static inline void calcBIOSums2x_AVX2(const Pel* srcY0Tmp, const Pel* srcY1Tmp, const Pel* gradX0, const Pel* gradX1, const Pel* gradY0, const Pel* gradY1, const int widthG, const int bitDepth, int limit, int &tmpx0, int &tmpx1, int &tmpy0, int &tmpy1 )
+// The BDOF sums of two neighbouring 4x4 blocks go over windows of 6x6 samples, in 16 bit lanes: the low lane holds the
+// window of the first block, the high lane that of the second (columns 4 further).
+enum BIOSum { BIO_SUM_ABS_GX, BIO_SUM_DIX, BIO_SUM_ABS_GY, BIO_SUM_DIY, BIO_SUM_SIGN_GY_GX, NUM_BIO_SUMS };
+
+// the 8 samples of a window row of the first block (low lane) and of the second block (high lane)
+static ALWAYS_INLINE __m256i loadBIOWindowRows2x_AVX2( const Pel* addr )
+{
+  return _mm256_inserti128_si256( _mm256_castsi128_si256( _mm_loadu_si128( (const __m128i*) &addr[0] ) ), _mm_loadu_si128( (const __m128i*) &addr[4] ), 1 );
+}
+
+// adds the contributions of the window rows row0 to row1 - 1 to the sums
+static ALWAYS_INLINE void addBIOSumRows2x_AVX2( const Pel* srcY0, const Pel* srcY1, const Pel* gradX0, const Pel* gradX1, const Pel* gradY0, const Pel* gradY1, const ptrdiff_t widthG, const int row0, const int row1, __m256i sums[NUM_BIO_SUMS] )
 {
   static constexpr int shift4 = 4;
   static constexpr int shift5 = 1;
-  const int srcStride = widthG;
-  
-  __m256i sumAbsGXTmp     = _mm256_setzero_si256();
-  __m256i sumDIXTmp       = _mm256_setzero_si256();
-  __m256i sumAbsGYTmp     = _mm256_setzero_si256();
-  __m256i sumDIYTmp       = _mm256_setzero_si256();
-  __m256i sumSignGyGxTmp  = _mm256_setzero_si256();
 
-#define _mm256_load2_si128_offset4(addr) _mm256_inserti128_si256( _mm256_castsi128_si256(_mm_loadu_si128((const __m128i*) &addr[0])), _mm_loadu_si128((const __m128i*) &addr[4]), 1 )
-
-  for (int y = 0; y < 6; y++)
+  for( int y = row0; y < row1; y++ )
   {
-    __m256i shiftSrcY0Tmp = _mm256_srai_epi16(_mm256_load2_si128_offset4(srcY0Tmp), shift4);
-    __m256i shiftSrcY1Tmp = _mm256_srai_epi16(_mm256_load2_si128_offset4(srcY1Tmp), shift4);
-    __m256i loadGradX0    = _mm256_load2_si128_offset4(gradX0);
-    __m256i loadGradX1    = _mm256_load2_si128_offset4(gradX1);
-    __m256i loadGradY0    = _mm256_load2_si128_offset4(gradY0);
-    __m256i loadGradY1    = _mm256_load2_si128_offset4(gradY1);
-    __m256i subTemp1      = _mm256_sub_epi16(shiftSrcY1Tmp, shiftSrcY0Tmp);
-    __m256i packTempX     = _mm256_srai_epi16(_mm256_add_epi16(loadGradX0, loadGradX1), shift5);
-    __m256i packTempY     = _mm256_srai_epi16(_mm256_add_epi16(loadGradY0, loadGradY1), shift5);
-    __m256i gX            = _mm256_abs_epi16(packTempX);
-    __m256i gY            = _mm256_abs_epi16(packTempY);
-    __m256i dIX           = _mm256_sign_epi16(subTemp1,  packTempX );
-    __m256i dIY           = _mm256_sign_epi16(subTemp1,  packTempY );
-    __m256i signGY_GX     = _mm256_sign_epi16(packTempX, packTempY );
+    const ptrdiff_t o = y * widthG;
 
-    sumAbsGXTmp     = _mm256_add_epi16(sumAbsGXTmp, gX);
-    sumDIXTmp       = _mm256_add_epi16(sumDIXTmp, dIX);
-    sumAbsGYTmp     = _mm256_add_epi16(sumAbsGYTmp, gY);
-    sumDIYTmp       = _mm256_add_epi16(sumDIYTmp, dIY);
-    sumSignGyGxTmp  = _mm256_add_epi16(sumSignGyGxTmp, signGY_GX);
+    const __m256i shiftSrcY0Tmp = _mm256_srai_epi16( loadBIOWindowRows2x_AVX2( srcY0 + o ), shift4 );
+    const __m256i shiftSrcY1Tmp = _mm256_srai_epi16( loadBIOWindowRows2x_AVX2( srcY1 + o ), shift4 );
+    const __m256i subTemp1      = _mm256_sub_epi16( shiftSrcY1Tmp, shiftSrcY0Tmp );
+    const __m256i packTempX     = _mm256_srai_epi16( _mm256_add_epi16( loadBIOWindowRows2x_AVX2( gradX0 + o ), loadBIOWindowRows2x_AVX2( gradX1 + o ) ), shift5 );
+    const __m256i packTempY     = _mm256_srai_epi16( _mm256_add_epi16( loadBIOWindowRows2x_AVX2( gradY0 + o ), loadBIOWindowRows2x_AVX2( gradY1 + o ) ), shift5 );
 
-    srcY0Tmp += srcStride;
-    srcY1Tmp += srcStride;
-    gradX0 += widthG;
-    gradX1 += widthG;
-    gradY0 += widthG;
-    gradY1 += widthG;
+    sums[BIO_SUM_ABS_GX]     = _mm256_add_epi16( sums[BIO_SUM_ABS_GX],     _mm256_abs_epi16( packTempX ) );
+    sums[BIO_SUM_DIX]        = _mm256_add_epi16( sums[BIO_SUM_DIX],        _mm256_sign_epi16( subTemp1, packTempX ) );
+    sums[BIO_SUM_ABS_GY]     = _mm256_add_epi16( sums[BIO_SUM_ABS_GY],     _mm256_abs_epi16( packTempY ) );
+    sums[BIO_SUM_DIY]        = _mm256_add_epi16( sums[BIO_SUM_DIY],        _mm256_sign_epi16( subTemp1, packTempY ) );
+    sums[BIO_SUM_SIGN_GY_GX] = _mm256_add_epi16( sums[BIO_SUM_SIGN_GY_GX], _mm256_sign_epi16( packTempX, packTempY ) );
   }
+}
 
-#undef _mm256_load2_si128_offset4
+// the motion refinement (tmpx, tmpy) of the two blocks from the sums over their whole windows
+static ALWAYS_INLINE void calcBIORefinement2x_AVX2( const __m256i sums[NUM_BIO_SUMS], const int limit, int &tmpx0, int &tmpx1, int &tmpy0, int &tmpy1 )
+{
+  __m256i sumAbsGXTmp    = sums[BIO_SUM_ABS_GX];
+  __m256i sumDIXTmp      = sums[BIO_SUM_DIX];
+  __m256i sumAbsGYTmp    = sums[BIO_SUM_ABS_GY];
+  __m256i sumDIYTmp      = sums[BIO_SUM_DIY];
+  __m256i sumSignGyGxTmp = sums[BIO_SUM_SIGN_GY_GX];
 
   sumAbsGXTmp    = _mm256_madd_epi16(sumAbsGXTmp,    _mm256_setr_epi16(1, 1, 1, 1, 1, 1, 0, 0, 1, 1, 1, 1, 1, 1, 0, 0));
   sumDIXTmp      = _mm256_madd_epi16(sumDIXTmp,      _mm256_setr_epi16(1, 1, 1, 1, 1, 1, 0, 0, 1, 1, 1, 1, 1, 1, 0, 0));
@@ -435,40 +431,73 @@ void BiOptFlowCoreSIMD( const Pel* srcY0,
   const int xUnit         = ( width  >> 2 );
   const int yUnit         = ( height >> 2 );
 
+  int tmpx0, tmpy0, tmpx1, tmpy1;
+
+#if USE_AVX2
+  // Each pair of 4x4 blocks side by side is walked down its 8 columns. The 6x6 windows of vertically neighbouring
+  // blocks share 2 rows, whose sums are carried down instead of being computed again.
+  for( int xu = 0; xu < xUnit; xu += 2 )
+  {
+    const int x = xu << 2;
+
+    // the sums of the window rows shared with the block above
+    __m256i shared[NUM_BIO_SUMS];
+    for( int i = 0; i < NUM_BIO_SUMS; i++ )
+    {
+      shared[i] = _mm256_setzero_si256();
+    }
+    addBIOSumRows2x_AVX2( srcY0 + x, srcY1 + x, gradX0 + x, gradX1 + x, gradY0 + x, gradY1 + x, widthG, 0, 2, shared );
+
+    for( int yu = 0; yu < yUnit; yu++ )
+    {
+      const int offPad = ( ( yu * widthG ) << 2 ) + x;
+      const int offPos = offsetPos + offPad;
+
+      __m256i sums[NUM_BIO_SUMS], sharedBelow[NUM_BIO_SUMS];
+      for( int i = 0; i < NUM_BIO_SUMS; i++ )
+      {
+        sums       [i] = shared[i];
+        sharedBelow[i] = _mm256_setzero_si256();
+      }
+      addBIOSumRows2x_AVX2( srcY0 + offPad, srcY1 + offPad, gradX0 + offPad, gradX1 + offPad, gradY0 + offPad, gradY1 + offPad, widthG, 2, 4, sums );
+      addBIOSumRows2x_AVX2( srcY0 + offPad, srcY1 + offPad, gradX0 + offPad, gradX1 + offPad, gradY0 + offPad, gradY1 + offPad, widthG, 4, 6, sharedBelow );
+      for( int i = 0; i < NUM_BIO_SUMS; i++ )
+      {
+        sums  [i] = _mm256_add_epi16( sums[i], sharedBelow[i] );
+        shared[i] = sharedBelow[i];
+      }
+
+      calcBIORefinement2x_AVX2( sums, limit, tmpx0, tmpx1, tmpy0, tmpy1 );
+
+      addBIOAvg4_2x_SSE<vext>( srcY0 + offPad + stridePredMC + 1,
+                               srcY1 + offPad + stridePredMC + 1,
+                               dstY + ( ( yu * dstStride ) << 2 ) + x, dstStride,
+                               gradX0 + offPos, gradX1 + offPos, gradY0 + offPos, gradY1 + offPos, widthG,
+                               tmpx0, tmpx1, tmpy0, tmpy1,
+                               shiftNum, offset, clpRng );
+    }
+  }
+
+  _mm256_zeroupper();
+#else
   const Pel* srcY0Temp;
   const Pel* srcY1Temp;
         Pel *dstY0;
-  
+
   int OffPos;
   int OffPad = 0;
-
-  int tmpx0, tmpy0, tmpx1, tmpy1;
 
   for( int yu = 0; yu < yUnit; yu++, srcY0 += ( stridePredMC << 2 ), srcY1 += ( stridePredMC << 2 ), dstY += ( dstStride << 2 ), offsetPos += ( widthG << 2 ) )
   {
     srcY0Temp = srcY0;
     srcY1Temp = srcY1;
     dstY0     = dstY;
-    
+
     OffPos = offsetPos;
     OffPad = ( ( yu * widthG ) << 2 );
 
     for( int xu = 0; xu < xUnit; xu += 2, srcY0Temp += 8, srcY1Temp += 8, dstY0 += 8, OffPos += 8, OffPad += 8 )
     {
-#if USE_AVX2
-      calcBIOSums2x_AVX2( srcY0Temp, srcY1Temp,
-                          gradX0 + OffPad, gradX1 + OffPad, gradY0 + OffPad, gradY1 + OffPad,
-                          stridePredMC,
-                          bitDepth, limit,
-                          tmpx0, tmpx1, tmpy0, tmpy1 );
-
-      addBIOAvg4_2x_SSE<vext>( srcY0Temp + stridePredMC + 1,
-                               srcY1Temp + stridePredMC + 1,
-                               dstY0, dstStride,
-                               gradX0 + OffPos, gradX1 + OffPos, gradY0 + OffPos, gradY1 + OffPos, widthG,
-                               tmpx0, tmpx1, tmpy0, tmpy1,
-                               shiftNum, offset, clpRng );
-#else
       calcBIOSums_SSE<vext>( srcY0Temp + 0, srcY1Temp + 0,
                              gradX0 + OffPad + 0, gradX1 + OffPad + 0, gradY0 + OffPad + 0, gradY1 + OffPad + 0,
                              stridePredMC,
@@ -486,12 +515,8 @@ void BiOptFlowCoreSIMD( const Pel* srcY0,
                                gradX0 + OffPos, gradX1 + OffPos, gradY0 + OffPos, gradY1 + OffPos, widthG,
                                tmpx0, tmpy0, tmpx1, tmpy1,
                                shiftNum, offset, clpRng );
-#endif
     }  // xu
   }  // yu
-#if USE_AVX2
-
-  _mm256_zeroupper();
 #endif
 }
 
