@@ -387,7 +387,8 @@ IntraPrediction::IntraPrediction() : m_currChromaFormat( NUM_CHROMA_FORMAT )
   IntraPredSampleFilter8 = IntraPredSampleFilterCore;
   IntraPredSampleFilter16 = IntraPredSampleFilterCore;
 
-  MipMatrixMul = m_matrixIntraPred.m_predictorMip.MatrixMul;
+  MipMatrixMul   = m_matrixIntraPred.m_predictorMip.MatrixMul;
+  MipUpsampleHor = m_matrixIntraPred.m_predictorMip.UpsampleHor;
 
   xPredIntraPlanar = xPredIntraPlanarCore;
   IntraPredHorVerPdpc = IntraPredHorVerPdpcCore;
