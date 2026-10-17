@@ -89,9 +89,6 @@ static void fullPelCopySSE( const ClpRng& clpRng, const void*_src, ptrdiff_t src
   {
     for( int col = 0; col < width; col+=N )
     {
-      _mm_prefetch( (const char*)src+2*srcStride, _MM_HINT_T0 );
-      _mm_prefetch( (const char*)src+( width>>1 ) + 2*srcStride, _MM_HINT_T0 );
-      _mm_prefetch( (const char*)src+width-1 + 2*srcStride, _MM_HINT_T0 );
       for( int i=0; i<N; i+=8 )
       {
         if( sizeof( Tsrc )==1 )
@@ -153,10 +150,6 @@ static void fullPelCopySSE_M4( const ClpRng& clpRng, const void*_src, ptrdiff_t 
   {
     for( int col = 0; col < width; col+=4 )
     {
-      _mm_prefetch( (const char*)src+2*srcStride, _MM_HINT_T0 );
-      _mm_prefetch( (const char*)src+( width>>1 ) + 2*srcStride, _MM_HINT_T0 );
-      _mm_prefetch( (const char*)src+width-1 + 2*srcStride, _MM_HINT_T0 );
-
       if( sizeof( Tsrc )==1 )
       {
         vsrc = _mm_cvtepu8_epi16( _mm_loadu_si64( ( __m128i const * )&src[col] ) );
@@ -218,9 +211,6 @@ static void fullPelCopyAVX2( const ClpRng& clpRng, const void*_src, ptrdiff_t sr
   {
     for( int col = 0; col < width; col+=N )
     {
-      _mm_prefetch( (const char*)( src+3*srcStride ), _MM_HINT_T0 );
-      _mm_prefetch( (const char*)( src+( width>>1 ) + 3*srcStride ), _MM_HINT_T0 );
-      _mm_prefetch( (const char*)( src+width-1 + 3*srcStride ), _MM_HINT_T0 );
       for( int i=0; i<N; i+=16 )
       {
         if( sizeof( Tsrc )==1 )
