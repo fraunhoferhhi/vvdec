@@ -271,14 +271,14 @@ inline void xPelFilterLumaCore( Pel* piSrc, const ptrdiff_t step, const ptrdiff_
 /**
 - Deblocking of one line/column for the chrominance component
 .
-\param piSrc           pointer to picture data
-\param iOffset         offset value for picture data
-\param tc              tc value
-\param bPartPNoFilter  indicator to disable filtering on partP
-\param bPartQNoFilter  indicator to disable filtering on partQ
-\param bitDepthChroma  chroma bit depth
+\param piSrc                  pointer to the first sample after the edge (q0)
+\param iOffset                offset between the samples across the edge
+\param tc                     tc value
+\param sw                     use the strong filter
+\param clpRng                 clipping range of the samples
+\param isChromaHorCTBBoundary a horizontal edge at a CTU boundary, where only one line above it is used
 */
-static inline void xPelFilterChroma( Pel* piSrc, const ptrdiff_t iOffset, const int tc, const bool sw, const ClpRng& clpRng, const bool largeBoundary, const bool isChromaHorCTBBoundary )
+static inline void xPelFilterChroma( Pel* piSrc, const ptrdiff_t iOffset, const int tc, const bool sw, const ClpRng& clpRng, const bool isChromaHorCTBBoundary )
 {
   const Pel m2 = piSrc[-iOffset * 2];
   const Pel m3 = piSrc[-iOffset * 1];
@@ -330,14 +330,29 @@ static inline void xPelFilterChroma( Pel* piSrc, const ptrdiff_t iOffset, const 
     piSrc[       0] = ClipPel( m4 - delta, clpRng );
   }
 }
+
+// The chroma deblocking of 8 lines of an edge, step apart, each with its own tc and filter. A line with tc 0 would not
+// change, so it is skipped.
+static void xPelFilterChroma8Core( Pel* piSrc, const ptrdiff_t step, const ptrdiff_t offset, const int16_t tc[8], const bool strong[8], const bool isChromaHorCTBBoundary, const ClpRng& clpRng )
+{
+  for( int i = 0; i < 8; i++ )
+  {
+    if( tc[i] )
+    {
+      xPelFilterChroma( piSrc + step * i, offset, tc[i], strong[i], clpRng, isChromaHorCTBBoundary );
+    }
+  }
+}
+
 // ====================================================================================================================
 // Constructor / destructor / create / destroy
 // ====================================================================================================================
 
 LoopFilter::LoopFilter( bool enableOpt )
 {
-  xPelFilterLuma  = xPelFilterLumaCore;
-  xFilteringPandQ = xFilteringPandQCore;
+  xPelFilterLuma    = xPelFilterLumaCore;
+  xPelFilterChroma8 = xPelFilterChroma8Core;
+  xFilteringPandQ   = xFilteringPandQCore;
 
   if( enableOpt )
   {
@@ -473,21 +488,77 @@ void LoopFilter::xDeblockCtuArea( CodingStructure& cs, const UnitArea& area, con
     const int cstepy = cincy / ( incy >> csy );
     const int cstepx = cincx / ( incx >> csx );
 
-    for( int cdy = 0; cdy < area.chromaSize().height; cdy += cincy )
+    const auto isFiltered = []( const LoopFilterParam& lfp ) { return ( BsGet( lfp.bs, COMPONENT_Cb ) | BsGet( lfp.bs, COMPONENT_Cr ) ) != 0; };
+
+    if( pcv.chrFormat != CHROMA_420 )
     {
-      LoopFilterParam const* lineLfpPtr = lfpPtr;
-
-      for( int cdx = 0; cdx < area.chromaSize().width; cdx += cincx, lineLfpPtr += cstepx )
+      for( int cdy = 0; cdy < area.chromaSize().height; cdy += cincy )
       {
-        const uint8_t bs = lineLfpPtr->bs;
+        LoopFilterParam const* lineLfpPtr = lfpPtr;
 
-        if( BsGet( bs, COMPONENT_Cb ) | BsGet( bs, COMPONENT_Cr ) )
+        for( int cdx = 0; cdx < area.chromaSize().width; cdx += cincx, lineLfpPtr += cstepx )
         {
-          xEdgeFilterChroma<edgeDir>( cs, { chrmPos.x + cdx, chrmPos.y + cdy }, *lineLfpPtr, slice );
+          if( isFiltered( *lineLfpPtr ) )
+          {
+            xEdgeFilterChroma<edgeDir>( cs, { chrmPos.x + cdx, chrmPos.y + cdy }, *lineLfpPtr, slice );
+          }
+        }
+
+        OFFSETY( lfpPtr, lfpStride, cstepy );
+      }
+    }
+    else if( edgeDir == EDGE_HOR )
+    {
+      // The 4:2:0 segments are 2 samples long, 4 neighbouring segments of an edge are filtered at once.
+      for( int cdy = 0; cdy < area.chromaSize().height; cdy += cincy )
+      {
+        LoopFilterParam const* lineLfpPtr = lfpPtr;
+
+        int cdx = 0;
+        for( ; cdx + 4 * cincx <= area.chromaSize().width; cdx += 4 * cincx, lineLfpPtr += 4 * cstepx )
+        {
+          if( isFiltered( lineLfpPtr[0] ) || isFiltered( lineLfpPtr[cstepx] ) || isFiltered( lineLfpPtr[2 * cstepx] ) || isFiltered( lineLfpPtr[3 * cstepx] ) )
+          {
+            xEdgeFilterChroma420x4<edgeDir>( cs, { chrmPos.x + cdx, chrmPos.y + cdy }, lineLfpPtr, cstepx, slice );
+          }
+        }
+        for( ; cdx < area.chromaSize().width; cdx += cincx, lineLfpPtr += cstepx )
+        {
+          if( isFiltered( *lineLfpPtr ) )
+          {
+            xEdgeFilterChroma<edgeDir>( cs, { chrmPos.x + cdx, chrmPos.y + cdy }, *lineLfpPtr, slice );
+          }
+        }
+
+        OFFSETY( lfpPtr, lfpStride, cstepy );
+      }
+    }
+    else
+    {
+      // The 4:2:0 segments are 2 samples long, 4 neighbouring segments of an edge are filtered at once. So the vertical
+      // edges are processed one after the other; they are 8 samples apart and their filters do not overlap.
+      const ptrdiff_t lfpStepY = cstepy * lfpStride;
+
+      for( int cdx = 0; cdx < area.chromaSize().width; cdx += cincx, lfpPtr += cstepx )
+      {
+        LoopFilterParam const* edgeLfpPtr = lfpPtr;
+
+        int cdy = 0;
+        for( ; cdy + 4 * cincy <= area.chromaSize().height; cdy += 4 * cincy, edgeLfpPtr += 4 * lfpStepY )
+        {
+          if( isFiltered( edgeLfpPtr[0] ) || isFiltered( edgeLfpPtr[lfpStepY] ) || isFiltered( edgeLfpPtr[2 * lfpStepY] ) || isFiltered( edgeLfpPtr[3 * lfpStepY] ) )
+          {
+            xEdgeFilterChroma420x4<edgeDir>( cs, { chrmPos.x + cdx, chrmPos.y + cdy }, edgeLfpPtr, lfpStepY, slice );
+          }
+        }
+        for( ; cdy < area.chromaSize().height; cdy += cincy, edgeLfpPtr += lfpStepY )
+        {
+          if( isFiltered( *edgeLfpPtr ) )
+          {
+            xEdgeFilterChroma<edgeDir>( cs, { chrmPos.x + cdx, chrmPos.y + cdy }, *edgeLfpPtr, slice );
+          }
         }
       }
-
-      OFFSETY( lfpPtr, lfpStride, cstepy );
     }
   }
 }
@@ -1616,15 +1687,15 @@ void LoopFilter::xEdgeFilterLuma( CodingStructure& cs, const Position& pos, cons
   }
 }
 
+// The chroma deblocking of one edge segment: tc[c] of each chroma component, 0 if it is not filtered, and whether it
+// uses the strong filter. The decisions read only the samples of the segment.
 template<DeblockEdgeDir edgeDir>
-void LoopFilter::xEdgeFilterChroma( CodingStructure &cs, const Position &pos, const LoopFilterParam& lfp, const Slice& slice ) const
+void LoopFilter::xGetChromaSegmentFilter( CodingStructure &cs, const Position &pos, const LoopFilterParam& lfp, const Slice& slice, int tc[2], bool strong[2] ) const
 {
   const PreCalcValues &pcv               = *cs.pcv;
 
   const ChromaFormat nChromaFormat       = pcv.chrFormat;
   const int          csy                 = getChannelTypeScaleY( CH_C, nChromaFormat );
-  const unsigned     uiPelsInPartChromaH = pcv.minCUWidth  >> getChannelTypeScaleX( CH_C, nChromaFormat );
-  const unsigned     uiPelsInPartChromaV = pcv.minCUHeight >> csy;
 
   PelBuf             picYuvRecCb         = cs.getRecoBuf( COMPONENT_Cb );
   PelBuf             picYuvRecCr         = cs.getRecoBuf( COMPONENT_Cr );
@@ -1637,27 +1708,17 @@ void LoopFilter::xEdgeFilterChroma( CodingStructure &cs, const Position &pos, co
   const int tcOffsetDiv2[2]              = { slice.getDeblockingFilterCbTcOffsetDiv2(),   slice.getDeblockingFilterCrTcOffsetDiv2() };
   const int betaOffsetDiv2[2]            = { slice.getDeblockingFilterCbBetaOffsetDiv2(), slice.getDeblockingFilterCrBetaOffsetDiv2() };
 
-  ptrdiff_t offset, srcStep;
-  unsigned  uiLoopLength;
-
-  if( edgeDir == EDGE_VER )
-  {
-    offset       = 1;
-    srcStep      = iStride;
-    uiLoopLength = uiPelsInPartChromaV;
-  }
-  else
-  {
-    offset       = iStride;
-    srcStep      = 1;
-    uiLoopLength = uiPelsInPartChromaH;
-  }
+  const ptrdiff_t offset  = edgeDir == EDGE_VER ? 1 : iStride;
+  const ptrdiff_t srcStep = edgeDir == EDGE_VER ? iStride : 1;
 
   unsigned bS[2];
 
   unsigned tmpBs = lfp.bs;
   bS[0] = BsGet( tmpBs, COMPONENT_Cb );
   bS[1] = BsGet( tmpBs, COMPONENT_Cr );
+
+  tc    [0] = tc    [1] = 0;
+  strong[0] = strong[1] = false;
 
   if( bS[0] <= 0 && bS[1] <= 0 )
   {
@@ -1672,21 +1733,17 @@ void LoopFilter::xEdgeFilterChroma( CodingStructure &cs, const Position &pos, co
     isChromaHorCTBBoundary = true;
   }
 
-  static constexpr bool bPartPNoFilter = false;
-  static constexpr bool bPartQNoFilter = false;
-
-  if( !bPartPNoFilter || !bPartQNoFilter )
   for( unsigned chromaIdx = 0; chromaIdx < 2; chromaIdx++ )
   {
     if( bS[chromaIdx] == 2 || ( largeBoundary && bS[chromaIdx] == 1 ) )
     {
-      const ClpRng& clpRng( cs.picture->slices[0]->clpRng( ComponentID( chromaIdx + 1 ) ) );
-
       int iQP = lfp.qp[chromaIdx + 1];
 
       const int iIndexTC = Clip3<int>( 0, MAX_QP + DEFAULT_INTRA_TC_OFFSET, iQP + DEFAULT_INTRA_TC_OFFSET * ( bS[chromaIdx] - 1 ) + ( tcOffsetDiv2[chromaIdx] *2 ) );
       const int iTc = bitDepthChroma < 10 ? ((sm_tcTable[iIndexTC] + (1 << (9 - bitDepthChroma))) >> (10 - bitDepthChroma)) : ((sm_tcTable[iIndexTC]) << (bitDepthChroma - 10));
       Pel* piSrcChroma   = chromaIdx == 0 ? piSrcCb : piSrcCr;
+
+      tc[chromaIdx] = iTc;
 
       if( largeBoundary )
       {
@@ -1709,22 +1766,90 @@ void LoopFilter::xEdgeFilterChroma( CodingStructure &cs, const Position &pos, co
 
         if( d < beta )
         {
-          const bool sw = xUseStrongFiltering( piSrcChroma, offset, 2 * d0, beta, iTc, false, false, 7, 7, isChromaHorCTBBoundary )
-                       && xUseStrongFiltering( piSrcChroma + ( ( subSamplingShift == 1 ) ? srcStep : srcStep*3 ), offset, 2 * d3, beta, iTc, false, false, 7, 7, isChromaHorCTBBoundary );
-
-          for( unsigned uiStep = 0; uiStep < uiLoopLength; uiStep++ )
-          {
-            xPelFilterChroma( piSrcChroma + srcStep * uiStep, offset, iTc, sw, clpRng, largeBoundary, isChromaHorCTBBoundary );
-          }
-
-          continue;
+          strong[chromaIdx] = xUseStrongFiltering( piSrcChroma, offset, 2 * d0, beta, iTc, false, false, 7, 7, isChromaHorCTBBoundary )
+                           && xUseStrongFiltering( piSrcChroma + ( ( subSamplingShift == 1 ) ? srcStep : srcStep*3 ), offset, 2 * d3, beta, iTc, false, false, 7, 7, isChromaHorCTBBoundary );
         }
       }
+    }
+  }
+}
+
+template<DeblockEdgeDir edgeDir>
+void LoopFilter::xEdgeFilterChroma( CodingStructure &cs, const Position &pos, const LoopFilterParam& lfp, const Slice& slice ) const
+{
+  int  tc    [2];
+  bool strong[2];
+  xGetChromaSegmentFilter<edgeDir>( cs, pos, lfp, slice, tc, strong );
+
+  const PreCalcValues &pcv         = *cs.pcv;
+  const ChromaFormat nChromaFormat = pcv.chrFormat;
+  const int          csy           = getChannelTypeScaleY( CH_C, nChromaFormat );
+  const unsigned     uiLoopLength  = edgeDir == EDGE_VER ? pcv.minCUHeight >> csy
+                                                         : pcv.minCUWidth  >> getChannelTypeScaleX( CH_C, nChromaFormat );
+  const bool isChromaHorCTBBoundary = edgeDir == EDGE_HOR && ( pos.y & ( pcv.maxCUHeightMask >> csy ) ) == 0;
+
+  for( unsigned chromaIdx = 0; chromaIdx < 2; chromaIdx++ )
+  {
+    if( tc[chromaIdx] )
+    {
+      const ComponentID compID = ComponentID( chromaIdx + 1 );
+      const ClpRng&     clpRng( cs.picture->slices[0]->clpRng( compID ) );
+      PelBuf            picYuvRec   = cs.getRecoBuf( compID );
+      Pel*              piSrcChroma = picYuvRec.bufAt( pos );
+      const ptrdiff_t   offset      = edgeDir == EDGE_VER ? 1 : picYuvRec.stride;
+      const ptrdiff_t   srcStep     = edgeDir == EDGE_VER ? picYuvRec.stride : 1;
 
       for( unsigned uiStep = 0; uiStep < uiLoopLength; uiStep++ )
       {
-        xPelFilterChroma( piSrcChroma + srcStep * uiStep, offset, iTc, false, clpRng, largeBoundary, isChromaHorCTBBoundary );
+        xPelFilterChroma( piSrcChroma + srcStep * uiStep, offset, tc[chromaIdx], strong[chromaIdx], clpRng, isChromaHorCTBBoundary );
       }
+    }
+  }
+}
+
+// Four neighbouring 4:2:0 edge segments of 2 lines each, filtered at once: their parameters are derived one by one,
+// the filtering of all 8 lines is one call of xPelFilterChroma8 per component.
+template<DeblockEdgeDir edgeDir>
+void LoopFilter::xEdgeFilterChroma420x4( CodingStructure &cs, const Position &pos, const LoopFilterParam* lfp, const ptrdiff_t lfpStep, const Slice& slice ) const
+{
+  static constexpr int numLines = 2;   // lines per segment
+
+  int16_t tc    [2][4 * numLines];
+  bool    strong[2][4 * numLines];
+  bool    any[2] = { false, false };
+
+  for( int k = 0; k < 4; k++, lfp += lfpStep )
+  {
+    const Position posK = edgeDir == EDGE_VER ? Position{ pos.x, pos.y + k * numLines } : Position{ pos.x + k * numLines, pos.y };
+    int  tcK    [2] = { 0, 0 };
+    bool strongK[2] = { false, false };
+    if( BsGet( lfp->bs, COMPONENT_Cb ) | BsGet( lfp->bs, COMPONENT_Cr ) )
+    {
+      xGetChromaSegmentFilter<edgeDir>( cs, posK, *lfp, slice, tcK, strongK );
+    }
+    for( int c = 0; c < 2; c++ )
+    {
+      for( int i = 0; i < numLines; i++ )
+      {
+        tc    [c][k * numLines + i] = int16_t( tcK[c] );
+        strong[c][k * numLines + i] = strongK[c];
+      }
+      any[c] |= tcK[c] != 0;
+    }
+  }
+
+  const PreCalcValues &pcv          = *cs.pcv;
+  const bool isChromaHorCTBBoundary = edgeDir == EDGE_HOR && ( pos.y & ( pcv.maxCUHeightMask >> getChannelTypeScaleY( CH_C, pcv.chrFormat ) ) ) == 0;
+
+  for( int c = 0; c < 2; c++ )
+  {
+    if( any[c] )
+    {
+      const ComponentID compID = ComponentID( c + 1 );
+      PelBuf            picYuvRec = cs.getRecoBuf( compID );
+      const ptrdiff_t   offset    = edgeDir == EDGE_VER ? 1 : picYuvRec.stride;
+      const ptrdiff_t   srcStep   = edgeDir == EDGE_VER ? picYuvRec.stride : 1;
+      xPelFilterChroma8( picYuvRec.bufAt( pos ), srcStep, offset, tc[c], strong[c], isChromaHorCTBBoundary, cs.picture->slices[0]->clpRng( compID ) );
     }
   }
 }
