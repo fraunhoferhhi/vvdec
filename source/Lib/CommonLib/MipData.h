@@ -49,9 +49,6 @@ POSSIBILITY OF SUCH DAMAGE.
 namespace vvdec
 {
 
-static const uint8_t MIP_SHIFT_MATRIX = 6;
-static const uint8_t MIP_OFFSET_MATRIX = 32;
-
 ALIGN_DATA( MEMORY_ALIGN_DEF_SIZE, const uint8_t mipMatrix4x4[16][16][4] ) =
 {
   {
