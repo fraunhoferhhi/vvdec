@@ -72,6 +72,9 @@ enum PredBuf
 
 static const uint32_t MAX_INTRA_FILTER_DEPTHS=8;
 
+// the C version of IntraPrediction::IntraPredAngPdpc, also used by the SIMD version for the rare steep angles
+void IntraPredAngPdpcCore( Pel* pDst, const ptrdiff_t dstStride, const Pel* refSide, const int width, const int height, const int invAngle, const int angularScale );
+
 class IntraPrediction
 {
 private:
@@ -141,6 +144,8 @@ public:
 
   void ( *IntraPredAngleCore4 )         ( Pel* pDstBuf,const ptrdiff_t dstStride,Pel* refMain,int width,int height,int deltaPos,int intraPredAngle,const TFilterCoeff *ff,const bool useCubicFilter,const ClpRng& clpRng);
   void ( *IntraPredAngleCore8 )         ( Pel* pDstBuf,const ptrdiff_t dstStride,Pel* refMain,int width,int height,int deltaPos,int intraPredAngle,const TFilterCoeff *ff,const bool useCubicFilter,const ClpRng& clpRng);
+
+  void ( *IntraPredAngPdpc )            ( Pel* pDst, const ptrdiff_t dstStride, const Pel* refSide, const int width, const int height, const int invAngle, const int angularScale );
 
   void( *IntraPredAngleChroma4 )        ( int16_t* pDst, const ptrdiff_t dstStride, int16_t* pBorder, int width, int height, int deltaPos, int intraPredAngle );
   void( *IntraPredAngleChroma8 )        ( int16_t* pDst, const ptrdiff_t dstStride, int16_t* pBorder, int width, int height, int deltaPos, int intraPredAngle );
