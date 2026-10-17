@@ -2649,6 +2649,64 @@ static bool test_IntraPredAngleChroma()
   }
   return passed;
 }
+
+static bool test_IntraPredAngPdpc()
+{
+  IntraPrediction ref;
+  IntraPrediction opt;
+#if defined( TARGET_SIMD_X86 )
+  opt.initIntraPredictionX86();
+#endif
+#if defined( TARGET_SIMD_ARM )
+  opt.initIntraPredictionARM();
+#endif
+
+  DimensionGenerator rng;
+  bool passed = true;
+
+  // the inverse angles of the positive angles, as in xPredIntraAng()
+  static const int invAngles[] = { 16384, 8192, 5461, 4096, 2731, 2048, 1638, 1365, 1170, 1024, 910, 819, 712, 630, 565,
+                                   512, 468, 420, 364, 321, 287, 256, 224, 191, 161, 128, 96, 64, 48, 32, 16 };
+
+  for( unsigned bd : { 8u, 10u } )
+  {
+    for( int invAngle : invAngles )
+    {
+      for( int sideSize : { 4, 8, 16, 32, 64 } )
+      {
+        const int angularScale = std::min( 2, getLog2( sideSize ) - ( getLog2( 3 * invAngle - 2 ) - 8 ) );
+        if( angularScale < 0 )
+        {
+          continue;   // no PDPC for this angle and size
+        }
+
+        for( int width : { 1, 2, 4, 8, 16, 32, 64 } )
+        {
+          for( int height : { 1, 4, 16, 64 } )
+          {
+            InputGenerator<Pel> g{ bd, /*is_signed=*/false };
+            std::vector<Pel> refSide( 256 );
+            std::generate( refSide.begin(), refSide.end(), g );
+
+            // The rows are compared including the stride padding, so writes outside the block are detected.
+            const ptrdiff_t dstStride = width + rng.get( 0, 8 );
+            std::vector<Pel> dstRef( dstStride * height );
+            std::generate( dstRef.begin(), dstRef.end(), g );
+            std::vector<Pel> dstOpt = dstRef;
+
+            ref.IntraPredAngPdpc( dstRef.data(), dstStride, refSide.data(), width, height, invAngle, angularScale );
+            opt.IntraPredAngPdpc( dstOpt.data(), dstStride, refSide.data(), width, height, invAngle, angularScale );
+
+            std::ostringstream sstm;
+            sstm << "IntraPredAngPdpc bd=" << bd << " invAngle=" << invAngle << " scale=" << angularScale << " w=" << width << " h=" << height;
+            passed &= compare_values_2d( sstm.str(), dstRef.data(), dstOpt.data(), (unsigned) height, (unsigned) dstStride, (unsigned) dstStride );
+          }
+        }
+      }
+    }
+  }
+  return passed;
+}
 #endif // ENABLE_SIMD_OPT_INTRAPRED
 
 struct UnitTestEntry
@@ -2666,6 +2724,7 @@ static const UnitTestEntry test_suites[] = {
 #endif
 #if ENABLE_SIMD_OPT_INTRAPRED
     { "IntraPredAngleChroma", test_IntraPredAngleChroma },
+    { "IntraPredAngPdpc", test_IntraPredAngPdpc },
 #endif
 #if ENABLE_SIMD_OPT_MCIF
     { "InterpolationFilter", test_InterpolationFilter },

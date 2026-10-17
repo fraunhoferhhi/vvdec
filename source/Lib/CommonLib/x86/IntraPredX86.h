@@ -1100,7 +1100,78 @@ void GetLumaRecPixel420SIMD (const int width,const int height, const Pel* pRecSr
     }
 }
 
+// PDPC of one row of up to 8 samples: dst + ( ( wL * ( left - dst ) + 32 ) >> 6 ), with mulhrs and the weights wL << 9
+// (mulhrs( d, wL << 9 ) = ( d * wL * 512 + 16384 ) >> 15 = ( d * wL + 32 ) >> 6). A weight 0 leaves the sample as it is.
+static ALWAYS_INLINE __m128i angPdpcRow( const __m128i vDst, const __m128i vLeft, const __m128i vWeights )
+{
+  return _mm_add_epi16( vDst, _mm_mulhrs_epi16( _mm_sub_epi16( vLeft, vDst ), vWeights ) );
+}
 
+template<X86_VEXT vext>
+void IntraPredAngPdpc_SIMD( Pel* pDst, const ptrdiff_t dstStride, const Pel* refSide, const int width, const int height, const int invAngle, const int angularScale )
+{
+  const int numSamples = std::min( 3 << angularScale, width );   // at most 12
+  const int firstIdx   = ( 256 + invAngle ) >> 9;
+
+  if( width < 4 )
+  {
+    // ISP sub-partitions of 1 or 2 samples
+    IntraPredAngPdpcCore( pDst, dstStride, refSide, width, height, invAngle, angularScale );
+    return;
+  }
+
+  // The side reference sample of x is at the same offset from the one of x = 0 in every row. With those offsets in a
+  // 16 sample window, each row loads the window and picks the samples with two byte shuffles: vectors A for x = 0..7,
+  // B for x = 8..15. Steep angles reach farther and keep the C code.
+  int8_t  shuffleLo[2][16], shuffleHi[2][16];
+  int16_t weights[16];
+  for( int x = 0; x < 16; x++ )
+  {
+    const int offset = x < numSamples ? ( ( 256 + invAngle * ( x + 1 ) ) >> 9 ) - firstIdx : 0;
+    if( offset > 15 )
+    {
+      IntraPredAngPdpcCore( pDst, dstStride, refSide, width, height, invAngle, angularScale );
+      return;
+    }
+    // a shuffle index with the top bit set gives 0
+    shuffleLo[x >> 3][2 * ( x & 7 )    ] = offset < 8 ? int8_t( 2 * offset )     : int8_t( -128 );
+    shuffleLo[x >> 3][2 * ( x & 7 ) + 1] = offset < 8 ? int8_t( 2 * offset + 1 ) : int8_t( -128 );
+    shuffleHi[x >> 3][2 * ( x & 7 )    ] = offset < 8 ? int8_t( -128 ) : int8_t( 2 * ( offset - 8 ) );
+    shuffleHi[x >> 3][2 * ( x & 7 ) + 1] = offset < 8 ? int8_t( -128 ) : int8_t( 2 * ( offset - 8 ) + 1 );
+    weights[x] = x < numSamples ? int16_t( ( 32 >> ( 2 * x >> angularScale ) ) << 9 ) : 0;
+  }
+
+  const __m128i vShuffleLoA = _mm_loadu_si128( (const __m128i*) shuffleLo[0] );
+  const __m128i vShuffleHiA = _mm_loadu_si128( (const __m128i*) shuffleHi[0] );
+  const __m128i vShuffleLoB = _mm_loadu_si128( (const __m128i*) shuffleLo[1] );
+  const __m128i vShuffleHiB = _mm_loadu_si128( (const __m128i*) shuffleHi[1] );
+  const __m128i vWeightsA   = _mm_loadu_si128( (const __m128i*) &weights[0] );
+  const __m128i vWeightsB   = _mm_loadu_si128( (const __m128i*) &weights[8] );
+
+  for( int y = 0; y < height; y++, pDst += dstStride )
+  {
+    const Pel*    side    = refSide + y + 1 + firstIdx;
+    const __m128i vSideLo = _mm_loadu_si128( (const __m128i*) side );
+    const __m128i vSideHi = _mm_loadu_si128( (const __m128i*) ( side + 8 ) );
+    const __m128i vLeftA  = _mm_or_si128( _mm_shuffle_epi8( vSideLo, vShuffleLoA ), _mm_shuffle_epi8( vSideHi, vShuffleHiA ) );
+
+    if( width >= 8 )
+    {
+      _mm_storeu_si128( (__m128i*) pDst, angPdpcRow( _mm_loadu_si128( (const __m128i*) pDst ), vLeftA, vWeightsA ) );
+    }
+    else
+    {
+      _mm_storel_epi64( (__m128i*) pDst, angPdpcRow( _mm_loadl_epi64( (const __m128i*) pDst ), vLeftA, vWeightsA ) );
+    }
+
+    if( numSamples > 8 )
+    {
+      // numSamples is 12 here, so the block is at least 16 wide
+      const __m128i vLeftB = _mm_or_si128( _mm_shuffle_epi8( vSideLo, vShuffleLoB ), _mm_shuffle_epi8( vSideHi, vShuffleHiB ) );
+      _mm_storeu_si128( (__m128i*) ( pDst + 8 ), angPdpcRow( _mm_loadu_si128( (const __m128i*) ( pDst + 8 ) ), vLeftB, vWeightsB ) );
+    }
+  }
+}
 
 template<X86_VEXT vext>
 void IntraPrediction::_initIntraPredictionX86()
@@ -1117,6 +1188,7 @@ void IntraPrediction::_initIntraPredictionX86()
 
   GetLumaRecPixel420 = GetLumaRecPixel420SIMD<vext>;
 
+  IntraPredAngPdpc = IntraPredAngPdpc_SIMD<vext>;
 }
 template void IntraPrediction::_initIntraPredictionX86<SIMDX86>();
 

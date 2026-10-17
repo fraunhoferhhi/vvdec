@@ -147,6 +147,25 @@ void GetLumaRecPixel420Core (const int width,const int height, const Pel* pRecSr
     }
 }
 
+// PDPC of the angular modes with a positive angle: the first samples of each row move towards the side reference
+// sample on their prediction direction, with a weight that decreases with the distance from the side.
+void IntraPredAngPdpcCore( Pel* pDst, const ptrdiff_t dstStride, const Pel* refSide, const int width, const int height, const int invAngle, const int angularScale )
+{
+  for( int y = 0; y < height; y++, pDst += dstStride )
+  {
+    int invAngleSum = 256;
+
+    for( int x = 0; x < std::min( 3 << angularScale, width ); x++ )
+    {
+      invAngleSum += invAngle;
+
+      int wL   = 32 >> ( 2 * x >> angularScale );
+      Pel left = refSide[y + ( invAngleSum >> 9 ) + 1];
+      pDst[x]  = pDst[x] + ( ( wL * ( left - pDst[x] ) + 32 ) >> 6 );
+    }
+  }
+}
+
 /** Function for deriving planar intra prediction. This function derives the prediction samples for planar mode (intra coding).
  */
 
@@ -371,6 +390,8 @@ IntraPrediction::IntraPrediction() : m_currChromaFormat( NUM_CHROMA_FORMAT )
   xPredIntraPlanar = xPredIntraPlanarCore;
 
   GetLumaRecPixel420 = GetLumaRecPixel420Core;
+
+  IntraPredAngPdpc = IntraPredAngPdpcCore;
 }
 
 IntraPrediction::~IntraPrediction()
@@ -807,36 +828,23 @@ void IntraPrediction::xPredIntraAng( const CPelBuf &pSrc, PelBuf &pDst, const Ch
       }
     }
 
-    pDsty=pDstBuf;
-    for (int y = 0; y<height; y++, pDsty += dstStride)
+    int angularScale = 0;
+    if( intraPredAngle < 0 )
     {
-      int angularScale = 0;
-      if( intraPredAngle < 0 )
-      {
-        doPDPC = false;
-      }
-      else if( intraPredAngle > 0 )
-      {
-        const int sideSize = predMode >= DIA_IDX ? pDst.height : pDst.width;
-        const int maxScale = 2;
+      doPDPC = false;
+    }
+    else if( intraPredAngle > 0 )
+    {
+      const int sideSize = predMode >= DIA_IDX ? pDst.height : pDst.width;
+      const int maxScale = 2;
 
-        angularScale = std::min(maxScale, getLog2(sideSize) - (getLog2(3 * invAngle - 2) - 8));
-        doPDPC &= angularScale >= 0;
-      }
+      angularScale = std::min(maxScale, getLog2(sideSize) - (getLog2(3 * invAngle - 2) - 8));
+      doPDPC &= angularScale >= 0;
+    }
 
-      if( doPDPC )
-      {
-        int invAngleSum = 256;
-
-        for (int x = 0; x < std::min(3 << angularScale, width); x++)
-        {
-          invAngleSum += invAngle;
-
-          int wL   = 32 >> (2 * x >> angularScale);
-          Pel left = refSide[y + (invAngleSum >> 9) + 1];
-          pDsty[x] = pDsty[x] + ((wL * (left - pDsty[x]) + 32) >> 6);
-        }
-      }
+    if( doPDPC )
+    {
+      IntraPredAngPdpc( pDstBuf, dstStride, refSide, width, height, invAngle, angularScale );
     }
   }
 
