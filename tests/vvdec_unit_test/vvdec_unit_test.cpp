@@ -2814,10 +2814,45 @@ static bool check_sei_region_wise_packing()
   return passed;
 }
 
+static bool check_sei_buffering_period()
+{
+  std::cout << "Testing the buffering period SEI message" << std::endl;
+
+  // one sublayer and one CPB with NAL HRD parameters
+  SEIPayloadWriter payload;
+  payload.write( 1, 1 );        // bp_nal_hrd_params_present_flag
+  payload.write( 0, 1 );        // bp_vcl_hrd_params_present_flag
+  payload.write( 23, 5 );       // bp_cpb_initial_removal_delay_length_minus1
+  payload.write( 15, 5 );       // bp_cpb_removal_delay_length_minus1
+  payload.write( 15, 5 );       // bp_dpb_output_delay_length_minus1
+  payload.write( 0, 1 );        // bp_du_hrd_params_present_flag
+  payload.write( 0, 1 );        // bp_concatenation_flag
+  payload.write( 0, 1 );        // bp_additional_concatenation_info_present_flag
+  payload.write( 0, 16 );       // bp_cpb_removal_delay_delta_minus1
+  payload.write( 0, 3 );        // bp_max_sublayers_minus1
+  payload.write( 1, 1 );        // bp_cpb_cnt_minus1 = 0, as ue(v)
+  payload.write( 90000, 24 );   // bp_nal_initial_cpb_removal_delay[0][0]
+  payload.write( 1234, 24 );    // bp_nal_initial_cpb_removal_offset[0][0]
+  payload.write( 0, 1 );        // bp_alt_cpb_params_present_flag
+
+  vvdecSEI* sei = parse_prefix_sei( VVDEC_BUFFERING_PERIOD, payload );
+  if( !sei )
+  {
+    return false;
+  }
+  const auto* bp = (const vvdecSEIBufferingPeriod*) sei->payload;
+  bool passed = true;
+  passed = check_sei_field( "bp_nal_initial_cpb_removal_delay[0][0]", bp->initialCpbRemovalDelay[0][0][0], 90000 ) && passed;
+  passed = check_sei_field( "bp_nal_initial_cpb_removal_offset[0][0]", bp->initialCpbRemovalOffset[0][0][0], 1234 ) && passed;
+  SEI_internal::deleteSEI( sei );
+  return passed;
+}
+
 static bool test_SEI()
 {
   bool passed = true;
   passed = check_sei_region_wise_packing() && passed;
+  passed = check_sei_buffering_period() && passed;
   return passed;
 }
 
