@@ -790,7 +790,7 @@ void SEIReader::xParseSEIBufferingPeriod(vvdecSEI* s, uint32_t payloadSize, std:
           sei_read_code( pDecodedMessageOutputStream, sei->initialCpbRemovalDelayLength, code, nalOrVcl ? "vcl_initial_cpb_removal_delay[i][j]" : "nal_initial_cpb_removal_delay[i][j]" );
           sei->initialCpbRemovalDelay[i][j][nalOrVcl] = code;
           sei_read_code( pDecodedMessageOutputStream, sei->initialCpbRemovalDelayLength, code, nalOrVcl ? "vcl_initial_cpb_removal_offset[i][j]" : "nal_initial_cpb_removal_offset[i][j]" );
-          sei->initialCpbRemovalDelay[i][j][nalOrVcl] = code;
+          sei->initialCpbRemovalOffset[i][j][nalOrVcl] = code;
         }
       }
     }
@@ -1437,6 +1437,7 @@ void SEIReader::xParseSEIRegionWisePacking(vvdecSEI* s, uint32_t payloadSize, st
   vvdecSEIRegionWisePacking* sei =(vvdecSEIRegionWisePacking*)s->payload;
   ::memset(sei, 0, sizeof(vvdecSEIRegionWisePacking));
 
+  sei_read_flag( pDecodedMessageOutputStream,             val,    "rwp_cancel_flag" );                      sei->rwpCancelFlag = val;
   if (!sei->rwpCancelFlag)
     {
     sei_read_flag( pDecodedMessageOutputStream,           val,    "rwp_persistence_flag" );                 sei->rwpPersistenceFlag = val;
