@@ -2730,6 +2730,7 @@ public:
   bool                        checkThatAllRefPicsAreAvailable( const PicList& rcListPic,
                                                                const ReferencePictureList* pRPL,
                                                                int                         numActiveRefPics,
+                                                               int                         currPicBitsForPoc,
                                                                int*                        missingPOC,
                                                                int*                        missingRefPicIndex ) const;
 

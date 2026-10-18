@@ -45,7 +45,7 @@ POSSIBILITY OF SUCH DAMAGE.
 namespace vvdec
 {
 
-ParameterSetManager::ActivePSs ParameterSetManager::xActivateParameterSets( const bool isFirstSlice, const Slice* pSlicePilot, const PicHeader* picHeader )
+ParameterSetManager::ActivePSs ParameterSetManager::xActivateParameterSets( const bool isFirstSlice, const Slice* pSlicePilot, const PicHeader* picHeader, const bool rejectSpsChangeInClvs )
 {
   PPS* pps = getPPS( picHeader->getPPSId() );
   CHECK( pps == 0, "No PPS present" );
@@ -57,8 +57,20 @@ ParameterSetManager::ActivePSs ParameterSetManager::xActivateParameterSets( cons
   {
     CHECK( !pps->pcv->isCorrect( *sps, *pps ), "PPS has PCV already, but values chaged???" );
 
+    // the SPS may only change at the start of a CLVS (IRAP or GDR with NoOutputBeforeRecoveryFlag = 1)
+    const NalUnitType nut     = pSlicePilot->getNalUnitType();
+    const bool        isClvss = nut >= NAL_UNIT_CODED_SLICE_IDR_W_RADL && nut <= NAL_UNIT_CODED_SLICE_GDR
+                                && !pps->getMixedNaluTypesInPicFlag() && picHeader->getNoOutputBeforeRecoveryFlag();
+    if( rejectSpsChangeInClvs && !isClvss && m_activeSPSId >= 0 )
+    {
+      CHECK( pps->getSPSId() != m_activeSPSId, "a different SPS was activated within a CLVS" );
+      CHECK( sps->getChangedFlag(), "the SPS content changed within a CLVS" );
+    }
+
     sps->clearChangedFlag();
     pps->clearChangedFlag();
+    // APS NAL units can't occur between the slices of a picture, so any APS change after this point is an error
+    m_apsMap.clearChangedFlags();
 
     if( false == activatePPS( picHeader->getPPSId(), pSlicePilot->isIRAP() ) )
     {
@@ -77,7 +89,6 @@ ParameterSetManager::ActivePSs ParameterSetManager::xActivateParameterSets( cons
 
     if( alfApsL )
     {
-      if( isFirstSlice ) alfApsL->clearChangedFlag();
       m_alfAPSs[apsId] = alfApsL;
       if( false == activateAPS( apsId, ALF_APS ) )
       {
@@ -98,7 +109,6 @@ ParameterSetManager::ActivePSs ParameterSetManager::xActivateParameterSets( cons
     APS* alfApsC = getAPS( apsId , ALF_APS );
     if( alfApsC )
     {
-      if( isFirstSlice ) alfApsC->clearChangedFlag();
       m_alfAPSs[apsId] = alfApsC;
       if( false == activateAPS( apsId, ALF_APS ) )
       {
@@ -152,7 +162,6 @@ ParameterSetManager::ActivePSs ParameterSetManager::xActivateParameterSets( cons
 
   if( lmcsAPS )
   {
-    if( isFirstSlice ) lmcsAPS->clearChangedFlag();
     if( false == activateAPS( picHeader->getLmcsAPSId(), LMCS_APS ) )
     {
       THROW_RECOVERABLE( "LMCS APS activation failed!" );
@@ -173,8 +182,6 @@ ParameterSetManager::ActivePSs ParameterSetManager::xActivateParameterSets( cons
 
   if( scalingListAPS )
   {
-    if( isFirstSlice ) scalingListAPS->clearChangedFlag();
-
     if( false == activateAPS( picHeader->getScalingListAPSId(), SCALING_LIST_APS ) )
     {
       THROW_RECOVERABLE( "LMCS APS activation failed!" );

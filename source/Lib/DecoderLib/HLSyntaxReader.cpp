@@ -265,9 +265,9 @@ void HLSyntaxReader::parsePPS( PPS* pcPPS, const ParameterSetManager* parameterS
     X_READ_UVLC_NO_RANGE( pps_conf_win_top_offset );
     X_READ_UVLC_NO_RANGE( pps_conf_win_bottom_offset );
 
-    CHECK( SubWidthC * ( pps_conf_win_left_offset + pps_conf_win_right_offset ) >= pps_pic_width_in_luma_samples,
+    CHECK( SubWidthC * ( uint64_t( pps_conf_win_left_offset ) + pps_conf_win_right_offset ) >= pps_pic_width_in_luma_samples,
            "pps_conf_win_left_offset + pps_conf_win_right_offset too large" );
-    CHECK( SubHeightC * ( pps_conf_win_top_offset + pps_conf_win_bottom_offset ) >= pps_pic_height_in_luma_samples,
+    CHECK( SubHeightC * ( uint64_t( pps_conf_win_top_offset ) + pps_conf_win_bottom_offset ) >= pps_pic_height_in_luma_samples,
            "pps_conf_win_top_offset + pps_conf_win_bottom_offset too large" );
 
     Window& conf = pcPPS->getConformanceWindow();
@@ -288,32 +288,32 @@ void HLSyntaxReader::parsePPS( PPS* pcPPS, const ParameterSetManager* parameterS
     X_READ_SVLC_NO_RANGE( pps_scaling_win_top_offset );
     X_READ_SVLC_NO_RANGE( pps_scaling_win_bottom_offset );
 
-    CHECK( SubWidthC * pps_scaling_win_left_offset < -(int) pps_pic_width_in_luma_samples * 15
-             || SubWidthC * pps_scaling_win_left_offset >= (int) pps_pic_width_in_luma_samples,
+    CHECK( SubWidthC * int64_t( pps_scaling_win_left_offset ) < -int64_t( pps_pic_width_in_luma_samples ) * 15
+             || SubWidthC * int64_t( pps_scaling_win_left_offset ) >= pps_pic_width_in_luma_samples,
            "pps_scaling_win_left_offset (" << pps_scaling_win_left_offset << ") out of bounds" );
-    CHECK( SubWidthC * pps_scaling_win_right_offset < -(int) pps_pic_width_in_luma_samples * 15
-             || SubWidthC * pps_scaling_win_right_offset >= (int) pps_pic_width_in_luma_samples,
+    CHECK( SubWidthC * int64_t( pps_scaling_win_right_offset ) < -int64_t( pps_pic_width_in_luma_samples ) * 15
+             || SubWidthC * int64_t( pps_scaling_win_right_offset ) >= pps_pic_width_in_luma_samples,
            "pps_scaling_win_right_offset (" << pps_scaling_win_right_offset << ") out of bounds" );
-    CHECK( SubHeightC * pps_scaling_win_top_offset < -(int) pps_pic_height_in_luma_samples * 15
-             || SubHeightC * pps_scaling_win_top_offset >= (int) pps_pic_height_in_luma_samples,
+    CHECK( SubHeightC * int64_t( pps_scaling_win_top_offset ) < -int64_t( pps_pic_height_in_luma_samples ) * 15
+             || SubHeightC * int64_t( pps_scaling_win_top_offset ) >= pps_pic_height_in_luma_samples,
            "pps_scaling_win_top_offset (" << pps_scaling_win_top_offset << ") out of bounds" );
-    CHECK( SubHeightC * pps_scaling_win_bottom_offset < -(int) pps_pic_height_in_luma_samples * 15
-             || SubHeightC * pps_scaling_win_bottom_offset >= (int) pps_pic_height_in_luma_samples,
+    CHECK( SubHeightC * int64_t( pps_scaling_win_bottom_offset ) < -int64_t( pps_pic_height_in_luma_samples ) * 15
+             || SubHeightC * int64_t( pps_scaling_win_bottom_offset ) >= pps_pic_height_in_luma_samples,
            "pps_scaling_win_bottom_offset (" << pps_scaling_win_bottom_offset << ") out of bounds" );
 
-    CHECK( SubWidthC * ( pps_scaling_win_left_offset + pps_scaling_win_right_offset ) < -(int) pps_pic_width_in_luma_samples * 15
-             || SubWidthC * ( pps_scaling_win_left_offset + pps_scaling_win_right_offset ) >= (int) pps_pic_width_in_luma_samples,
+    CHECK( SubWidthC * ( int64_t( pps_scaling_win_left_offset ) + pps_scaling_win_right_offset ) < -int64_t( pps_pic_width_in_luma_samples ) * 15
+             || SubWidthC * ( int64_t( pps_scaling_win_left_offset ) + pps_scaling_win_right_offset ) >= pps_pic_width_in_luma_samples,
            "SubWidthC * ( pps_scaling_win_left_offset + pps_scaling_win_right_offset ) shall be greater than or equal to"
            " -pps_pic_width_in_luma_samples * 15 and less than pps_pic_width_in_luma_samples."
            " (pps_scaling_win_left_offset + pps_scaling_win_right_offset = "
-             << pps_scaling_win_left_offset + pps_scaling_win_right_offset << ")" );
+             << int64_t( pps_scaling_win_left_offset ) + pps_scaling_win_right_offset << ")" );
 
-    CHECK( SubHeightC * ( pps_scaling_win_top_offset + pps_scaling_win_bottom_offset ) < -(int) pps_pic_height_in_luma_samples * 15
-             || SubHeightC * ( pps_scaling_win_top_offset + pps_scaling_win_bottom_offset ) >= (int) pps_pic_height_in_luma_samples,
+    CHECK( SubHeightC * ( int64_t( pps_scaling_win_top_offset ) + pps_scaling_win_bottom_offset ) < -int64_t( pps_pic_height_in_luma_samples ) * 15
+             || SubHeightC * ( int64_t( pps_scaling_win_top_offset ) + pps_scaling_win_bottom_offset ) >= pps_pic_height_in_luma_samples,
            "SubHeightC * ( pps_scaling_win_top_offset + pps_scaling_win_bottom_offset ) shall be greater than or equal to"
            " -pps_pic_height_in_luma_samples * 15 and less than pps_pic_height_in_luma_samples."
            " (pps_scaling_win_top_offset + pps_scaling_win_bottom_offset = "
-             << pps_scaling_win_top_offset + pps_scaling_win_bottom_offset << ")" )
+             << int64_t( pps_scaling_win_top_offset ) + pps_scaling_win_bottom_offset << ")" )
 
 #if 0
     // these checks need to be moved to the creation of ref pic lists
@@ -1375,13 +1375,15 @@ void HLSyntaxReader::dpb_parameters( int maxSubLayersMinus1, bool subLayerInfoFl
   CHECK( maxSubLayersMinus1 >= MAX_TLAYER, "maxSubLayersMinus1 out of bounds" );
   for( int i = ( subLayerInfoFlag ? 0 : maxSubLayersMinus1 ); i <= maxSubLayersMinus1; i++ )
   {
-    X_READ_UVLC_NO_RANGE_idx( dpb_max_dec_pic_buffering_minus1, "[i]" );
+    // The spec bounds this by MaxDpbSize - 1, which is at most 15 (A.4.2) - except at level 15.5, where it is unbounded.
+    // We can't handle more than MAX_NUM_REF_PICS reference pictures anyway, so larger values are rejected at any level.
+    X_READ_UVLC_idx( dpb_max_dec_pic_buffering_minus1, "[i]", 0, MAX_NUM_REF_PICS - 1 );
     CHECK( i > 0 && dpb_max_dec_pic_buffering_minus1 < pcSPS->getMaxDecPicBuffering( i - 1 ) - 1,
            "When i is greater than 0, dpb_max_dec_pic_buffering_minus1[ i ] shall be greater than or equal to dpb_max_dec_pic_buffering_minus1[ i − 1 ]." );
     pcSPS->setMaxDecPicBuffering( dpb_max_dec_pic_buffering_minus1 + 1, i );
 
     X_READ_UVLC_idx( dpb_max_num_reorder_pics, "[i]", 0, dpb_max_dec_pic_buffering_minus1 );
-    CHECK( i > 0 && dpb_max_dec_pic_buffering_minus1 < pcSPS->getNumReorderPics( i - 1 ),
+    CHECK( i > 0 && dpb_max_num_reorder_pics < pcSPS->getNumReorderPics( i - 1 ),
            "When i is greater than 0, dpb_max_num_reorder_pics[ i ] shall be greater than or equal to dpb_max_num_reorder_pics[ i − 1 ]." );
     pcSPS->setNumReorderPics( dpb_max_num_reorder_pics, i );
 
@@ -1506,9 +1508,9 @@ void HLSyntaxReader::parseSPS( SPS* sps, const ParameterSetManager* parameterSet
     X_READ_UVLC_NO_RANGE( sps_conf_win_top_offset );
     X_READ_UVLC_NO_RANGE( sps_conf_win_bottom_offset );
 
-    CHECK( SubWidthC * ( sps_conf_win_left_offset + sps_conf_win_right_offset ) > sps_pic_width_max_in_luma_samples,
+    CHECK( SubWidthC * ( uint64_t( sps_conf_win_left_offset ) + sps_conf_win_right_offset ) >= sps_pic_width_max_in_luma_samples,
            "The value of SubWidthC * ( sps_conf_win_left_offset + sps_conf_win_right_offset ) shall be less than sps_pic_width_max_in_luma_samples." );
-    CHECK( SubHeightC * ( sps_conf_win_top_offset + sps_conf_win_bottom_offset ) > sps_pic_height_max_in_luma_samples,
+    CHECK( SubHeightC * ( uint64_t( sps_conf_win_top_offset ) + sps_conf_win_bottom_offset ) >= sps_pic_height_max_in_luma_samples,
            "The value of SubHeightC * ( sps_conf_win_top_offset + sps_conf_win_bottom_offset ) shall be less than sps_pic_height_max_in_luma_samples." );
 
     Window& conf = sps->getConformanceWindow();
@@ -1629,6 +1631,12 @@ void HLSyntaxReader::parseSPS( SPS* sps, const ParameterSetManager* parameterSet
           sps->setSubPicWidth( picIdx, sps->getSubPicWidth( 0 ) );
           sps->setSubPicHeight( picIdx, sps->getSubPicHeight( 0 ) );
         }
+
+        // 6.3.1: the subpictures partition the picture, so no CTU of a subpicture may lie outside the picture
+        CHECK( sps->getSubPicCtuTopLeftX( picIdx ) + sps->getSubPicWidth( picIdx ) > tmpWidthVal,
+               "Subpicture " << picIdx << " extends beyond the right picture boundary" );
+        CHECK( sps->getSubPicCtuTopLeftY( picIdx ) + sps->getSubPicHeight( picIdx ) > tmpHeightVal,
+               "Subpicture " << picIdx << " extends beyond the bottom picture boundary" );
 
         // TODO: It is a requirement of bitstream conformance that the shapes of the subpictures shall be such that each subpicture, when
         //       decoded, shall have its entire left boundary and entire top boundary consisting of picture boundaries or consisting of
@@ -1937,10 +1945,14 @@ void HLSyntaxReader::parseSPS( SPS* sps, const ParameterSetManager* parameterSet
       std::vector<int> deltaQpOutVal( sps_num_points_in_qp_table_minus1 + 1 );
       for( unsigned j = 0; j <= sps_num_points_in_qp_table_minus1; j++ )
       {
-        X_READ_UVLC_NO_RANGE( sps_delta_qp_in_val_minus1 );   // checked later in ChromaQpMappingTable::deriveChromaQPMappingTables()
+        // qpInVal/qpOutVal are checked exactly in deriveChromaQPMappingTables(); these ranges only keep their
+        // derivation from overflowing: both qpInVal and the XOR below are bounded by maxDeltaQp
+        const unsigned maxDeltaQp = MAX_QP + QpBdOffset;
+
+        X_READ_UVLC_idx( sps_delta_qp_in_val_minus1, "[ i ][ j ]", 0, maxDeltaQp );
         deltaQpInValMinus1[j] = sps_delta_qp_in_val_minus1;
 
-        X_READ_UVLC_NO_RANGE( sps_delta_qp_diff_val );   // checked later in ChromaQpMappingTable::deriveChromaQPMappingTables()
+        X_READ_UVLC_idx( sps_delta_qp_diff_val, "[ i ][ j ]", 0, 2 * maxDeltaQp + 1 );
         deltaQpOutVal[j] = sps_delta_qp_diff_val ^ deltaQpInValMinus1[j];
       }
       chromaQpMappingTableParams.setDeltaQpInValMinus1( i, deltaQpInValMinus1 );
@@ -1983,6 +1995,7 @@ void HLSyntaxReader::parseSPS( SPS* sps, const ParameterSetManager* parameterSet
   if( sps_video_parameter_set_id > 0 )
   {
     X_READ_FLAG( sps_inter_layer_prediction_enabled_flag );
+    CHECK_UNSUPPORTED( sps_inter_layer_prediction_enabled_flag, "Inter-layer prediction not yet supported" );
     sps->setInterLayerPresentFlag( sps_inter_layer_prediction_enabled_flag );
     // CHECK( vps->getIndependentLayerFlag( vps->getGeneralLayerIdx( nuh_layer_id ) ) == 1 && sps_inter_layer_prediction_enabled_flag != 0,
     //        "When vps_independent_layer_flag[ GeneralLayerIdx[ nuh_layer_id ] ] is equal to 1,"
@@ -2558,6 +2571,7 @@ void HLSyntaxReader::parseVPS( VPS* pcVPS )
       for( int j = ( pcVPS->m_sublayerDpbParamsPresentFlag ? 0 : pcVPS->m_dpbMaxTemporalId[i] ); j <= pcVPS->m_dpbMaxTemporalId[i]; j++ )
       {
         READ_UVLC( uiCode, "dpb_max_dec_pic_buffering_minus1[i]" );        pcVPS->m_dpbParameters[i].m_maxDecPicBuffering[j] = uiCode + 1;
+        CHECK( uiCode >= MAX_NUM_REF_PICS, "dpb_max_dec_pic_buffering_minus1[i] out of bounds (read:" << uiCode << ")" );
         READ_UVLC( uiCode, "dpb_max_num_reorder_pics[i]" );                pcVPS->m_dpbParameters[i].m_numReorderPics[j] = uiCode;
         READ_UVLC( uiCode, "dpb_max_latency_increase_plus1[i]" );          pcVPS->m_dpbParameters[i].m_maxLatencyIncreasePlus1[j] = uiCode;
       }
@@ -3458,8 +3472,7 @@ void HLSyntaxReader::parseSliceHeader( Slice*                      pcSlice,
     picHeader.reset( new PicHeader );
     parsePictureHeader( picHeader.get(), parameterSetManager, false );
   }
-  CHECK( !picHeader, "Picture Header not allocated" );   // should always be allocated, even if it is not valid
-  CHECK( !picHeader->isValid(), "Picture Header missing" );
+  CHECK( !picHeader || !picHeader->isValid(), "Picture Header missing" );
 
   checkAlfNaluTidAndPicTid( pcSlice, picHeader.get(), parameterSetManager );
 
@@ -3494,28 +3507,26 @@ void HLSyntaxReader::parseSliceHeader( Slice*                      pcSlice,
   // picture order count
   const int iPOClsb    = picHeader->getPocLsb();
   const int iMaxPOClsb = 1 << sps->getBitsForPOC();
+  int64_t   iPOCmsb;   // 64 bit, because ph_poc_msb_cycle_val * MaxPicOrderCntLsb can exceed 32 bit
   if( pcSlice->getIdrPicFlag() )
   {
-    int iPOCmsb;
     if( picHeader->getPocMsbPresentFlag() )
     {
-      iPOCmsb = picHeader->getPocMsbVal() * iMaxPOClsb;
+      iPOCmsb = (int64_t) picHeader->getPocMsbVal() * iMaxPOClsb;
     }
     else
     {
       iPOCmsb = 0;
     }
-    pcSlice->setPOC( iPOCmsb + iPOClsb );
   }
   else
   {
     const int iPrevPOC    = prevTid0POC;
     const int iPrevPOClsb = iPrevPOC & ( iMaxPOClsb - 1 );
     const int iPrevPOCmsb = iPrevPOC - iPrevPOClsb;
-    int       iPOCmsb;
     if( picHeader->getPocMsbPresentFlag() )
     {
-      iPOCmsb = picHeader->getPocMsbVal() * iMaxPOClsb;
+      iPOCmsb = (int64_t) picHeader->getPocMsbVal() * iMaxPOClsb;
     }
     else
     {
@@ -3532,8 +3543,12 @@ void HLSyntaxReader::parseSliceHeader( Slice*                      pcSlice,
         iPOCmsb = iPrevPOCmsb;
       }
     }
-    pcSlice->setPOC( iPOCmsb + iPOClsb );
   }
+
+  const int64_t poc = iPOCmsb + iPOClsb;
+  CHECK( poc < std::numeric_limits<int>::min() || poc > std::numeric_limits<int>::max(),
+         "The value of PicOrderCntVal shall be in the range of -2^31 to 2^31 - 1, inclusive" );
+  pcSlice->setPOC( (int) poc );
 
   if( sps->getSubPicInfoPresentFlag() )
   {
@@ -4144,6 +4159,7 @@ void HLSyntaxReader::parsePicOrSliceHeaderRPL( HeaderT* header, const SPS* sps, 
 
     // Deal POC Msb cycle signalling for LTRP
     auto* rpl = header->getRPL( listIdx );
+    uint32_t deltaPocMsbCycleLt = 0;   // accumulated over the LTRP entries (eq. 148)
     for( int j = 0; j < rpl->getNumRefEntries(); ++j )
     {
       if( !rpl->isRefPicLongterm( j ) )
@@ -4162,8 +4178,13 @@ void HLSyntaxReader::parsePicOrSliceHeaderRPL( HeaderT* header, const SPS* sps, 
 
       if( delta_poc_msb_cycle_present_flag )
       {
-        X_READ_UVLC( delta_poc_msb_cycle_lt, 0, 1 << ( 32 - sps->getBitsForPOC() ) );
-        rpl->setDeltaPocMSBCycleLT( j, delta_poc_msb_cycle_lt );
+        const uint32_t maxDeltaPocMsbCycleLt = 1u << ( 32 - sps->getBitsForPOC() );
+
+        X_READ_UVLC( delta_poc_msb_cycle_lt, 0, maxDeltaPocMsbCycleLt );
+        deltaPocMsbCycleLt += delta_poc_msb_cycle_lt;
+        // bound the sum like a single value so it can't overflow (FullPocLt has to be a valid POC anyway)
+        CHECK( deltaPocMsbCycleLt > maxDeltaPocMsbCycleLt, "accumulated delta_poc_msb_cycle_lt out of range" );
+        rpl->setDeltaPocMSBCycleLT( j, deltaPocMsbCycleLt );
       }
     }
   }

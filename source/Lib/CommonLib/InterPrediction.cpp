@@ -849,6 +849,18 @@ void InterPrediction::xPredInterBlk( const ComponentID&    compID,
   {
     m_if.filter8xH( compID, refPtr, refStride, dstBuf, dstStride, 8, height, xFrac, yFrac, rndRes, chFmt, clpRng, useAltHpelIf );
   }
+  else if( isLuma( compID ) && ( width % 16 ) == 0 && ( height % 4 ) == 0 )
+  {
+    // Fused single-temp-pass MC for wide luma blocks (width = 32/48/64/96/128).
+    // Apply the verified sliding-window 16xH N8 kernel in independent 16-wide column
+    // strips, eliminating the separate filterHor->m_tmpBlock->filterVer second memory
+    // pass. 2D separable MC is column-independent, so per-strip results are bit-exact
+    // to the two-pass path (the width==16 branch above uses the same kernel).
+    for( unsigned x = 0; x < width; x += 16 )
+    {
+      m_if.filter16xH( compID, refPtr + x, refStride, dstBuf + x, dstStride, 16, height, xFrac, yFrac, rndRes, chFmt, clpRng, useAltHpelIf );
+    }
+  }
   else
   {
     Pel *tmpBuf = m_tmpBlock;

@@ -45,6 +45,7 @@ POSSIBILITY OF SUCH DAMAGE.
 #include "CommonDef.h"
 #include "Slice.h"
 
+#include <algorithm>
 #include <map>
 #include <vector>
 #include <array>
@@ -76,8 +77,9 @@ public:
     {
       MapData& mapData   = m_paramsetMap[psId];
 
-      // work out changed flag
+      // work out changed flag, also on the replaced one: a picture being parsed still uses it
       mapData.parameterSet->m_changedFlag |= ( mapData.cNaluData != cNaluData );
+      const bool changed = mapData.parameterSet->m_changedFlag;
 
       // Don't throw away identical parameter sets as VTM does:
       //   The PPS can be identical to a previous one, but the SPS changed, so it needs to be interpreted differently.
@@ -95,6 +97,7 @@ public:
       }
       m_paramsetMap[psId].cNaluData.clear();
       m_paramsetMap[psId].parameterSet.reset(ps);
+      ps->m_changedFlag = changed;
     }
     else
     {
@@ -147,6 +150,17 @@ public:
 
   void setActive( int psId ) { m_activePsId.push_back( psId ); }
   void clearActive()         { m_activePsId.clear(); }
+
+  void clearChangedFlags()
+  {
+    for( auto& entry: m_paramsetMap ) entry.second.parameterSet->clearChangedFlag();
+  }
+
+  bool getAnyChangedFlag() const
+  {
+    return std::any_of( m_paramsetMap.begin(), m_paramsetMap.end(), []( const auto& entry ) { return entry.second.parameterSet->getChangedFlag(); } );
+  }
+
   void clearMap()            { m_paramsetMap.clear(); }
 
 private:
@@ -173,7 +187,7 @@ public:
     const APS*      scalingListAps;
   };
 
-  ActivePSs xActivateParameterSets( const bool isFirstSlice, const Slice* pPilot, const PicHeader* picHeader );
+  ActivePSs xActivateParameterSets( const bool isFirstSlice, const Slice* pPilot, const PicHeader* picHeader, const bool rejectSpsChangeInClvs = false );
 
   //! store sequence parameter set and take ownership of it
   //! store picture parameter set and take ownership of it
@@ -193,6 +207,7 @@ public:
 
   const SPS*            getFirstSPS()                            const { return m_spsMap.getFirstPS();                                     }
   const APS*            getFirstAPS()                            const { return m_apsMap.getFirstPS();                                     }
+  bool                  getAPSChangedFlag()                      const { return m_apsMap.getAnyChangedFlag();                              }
 
   //! activate a PPS and, depending on isIDR parameter, also SPS. returns true, if activation is successful
   bool                  activatePPS( int ppsId, bool isIRAP );

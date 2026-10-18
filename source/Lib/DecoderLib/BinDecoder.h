@@ -47,6 +47,8 @@ POSSIBILITY OF SUCH DAMAGE.
 #pragma once
 
 #include "CommonLib/Contexts.h"
+#include "CommonLib/BitStream.h"      // complete type needed to inline readByte/readByteFlag below
+#include "CommonLib/dtrace_next.h"    // DTRACE macros (no-ops in release) used by the inlined bodies
 
 namespace vvdec
 {
@@ -88,5 +90,111 @@ protected:
   uint32_t        m_Value      = 0;
   int32_t         m_bitsNeeded = 0;
 };
+
+// ---------------------------------------------------------------------------
+// Hot-path bin decoders are defined here (not in BinDecoder.cpp) and forced
+// ALWAYS_INLINE so they inline into the CABAC parser hot loops (residual_coding,
+// coding_tree, ...) which live in a different translation unit. This keeps
+// m_Range/m_Value/m_bitsNeeded in registers across consecutive bins instead of
+// reloading/storing them through `this` on every bin. Pure relocation: bodies
+// are identical to the previous out-of-line definitions -> bit-exact output.
+// ---------------------------------------------------------------------------
+
+ALWAYS_INLINE unsigned BinDecoder::decodeBinEP()
+{
+  unsigned value = m_Value << 1;
+  if (++m_bitsNeeded >= 0) {
+    value += m_Bitstream->readByte();
+    m_bitsNeeded = -8;
+  }
+
+  unsigned bin = 0;
+  unsigned SR = m_Range << 7;
+  if (value >= SR) {
+    value -= SR;
+    bin = 1;
+  }
+  m_Value = value;
+  DTRACE(g_trace_ctx, D_CABAC,
+         "%d"
+         "  "
+         "%d"
+         "  EP=%d \n",
+         DTRACE_GET_COUNTER(g_trace_ctx, D_CABAC), m_Range, bin);
+  return bin;
+}
+
+ALWAYS_INLINE unsigned BinDecoder::decodeBinTrm()
+{
+  m_Range    -= 2;
+  unsigned SR = m_Range << 7;
+
+  DTRACE( g_trace_ctx, D_CABAC, "%d" " binTrm  range=" "%d" "  bin=%d\n" , DTRACE_GET_COUNTER( g_trace_ctx, D_CABAC ), m_Range, m_Value >= SR );
+
+  if( m_Value >= SR )
+  {
+    return 1;
+  }
+  else
+  {
+    if( m_Range < 256 )
+    {
+      m_Range += m_Range;
+      m_Value += m_Value;
+      if( ++m_bitsNeeded == 0 )
+      {
+        m_Value      += m_Bitstream->readByte();
+        m_bitsNeeded  = -8;
+      }
+    }
+    return 0;
+  }
+}
+
+ALWAYS_INLINE unsigned BinDecoder::decodeBin( unsigned ctxId )
+{
+  BinProbModel& rcProbModel = m_Ctx[ctxId];
+
+  unsigned bin, LPS, s0, s1;
+  uint32_t range      = m_Range;
+  uint32_t value      = m_Value;
+  int32_t  bitsNeeded = m_bitsNeeded;
+
+  rcProbModel.lpsmps( range, LPS, bin, s0, s1 );
+
+  DTRACE( g_trace_ctx, D_CABAC, "%d" " %d " "%d" "  " "[%d:%d]" "  " "%2d(MPS=%d)"  "  " , DTRACE_GET_COUNTER( g_trace_ctx, D_CABAC ), 666, range, range-LPS, LPS, ( unsigned int )( rcProbModel.state() ), value < ( ( range - LPS ) << 7 ) );
+
+  range      -= LPS;
+  uint32_t SR = range << 7;
+
+  int b = ~( ( int( value ) - int( SR ) ) >> 31 );
+  int a = ~b & ( ( int( range ) - 256 ) >> 31 );
+
+  int numBits  = ( a & rcProbModel.getRenormBitsRange( range ) ) | ( b & rcProbModel.getRenormBitsLPS( LPS ) );
+
+  value       -= b & SR;
+  value      <<= numBits;
+
+  range       &=  ~b;
+  range       |= ( b & LPS );
+  range      <<= numBits;
+
+  bin         ^= b;
+  bin         &= 1;
+
+  bitsNeeded  += numBits & ( a | b );
+
+  const int c = ~(bitsNeeded >> 31);
+  value      += uint32_t( m_Bitstream->readByteFlag( c ) ) << ( bitsNeeded & 31 );
+  bitsNeeded -= c & 8;
+
+  m_Range      = range;
+  m_Value      = value;
+  m_bitsNeeded = bitsNeeded;
+
+  rcProbModel.update( bin, s0, s1 );
+  DTRACE_WITHOUT_COUNT( g_trace_ctx, D_CABAC, "  -  " "%d" "\n", bin );
+  return  bin;
+}
 
 }

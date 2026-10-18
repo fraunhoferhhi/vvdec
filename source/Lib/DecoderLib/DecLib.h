@@ -80,9 +80,6 @@ class DecLib
   int  m_iMaxTemporalLayer  = -1;
   bool m_checkMissingOutput = false;
 
-  std::vector<NalUnitType> m_pictureUnitNals;
-  std::list<InputNALUnit>  m_pictureSeiNalus;
-
 public:
   DecLib();
   ~DecLib() = default;
@@ -104,10 +101,6 @@ public:
   void     checkPictureHashSEI( Picture* pcPic );
 
   void     checkNalUnitConstraints( uint32_t naluType );
-  void     checkSeiInPictureUnit();
-  void     resetPictureSeiNalus();
-  void     checkAPSInPictureUnit();
-  void     resetPictureUnitNals() { m_pictureUnitNals.clear(); }
 
 
   ThreadPool& getThreadPool() { return *m_decodeThreadPool; }

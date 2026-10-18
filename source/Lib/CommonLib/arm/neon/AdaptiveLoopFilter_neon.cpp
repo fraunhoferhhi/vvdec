@@ -66,6 +66,7 @@ typedef struct ALFGroupParam
 {
   int16x8_t clipA, negClipA;
   int16x8_t clipB, negClipB;
+  int16x4_t coeff;
 } ALFGroupParam;
 
 static inline int16x8_t clip3_neon( const int16x8_t val, const int16x8_t minVal, const int16x8_t maxVal )
@@ -464,11 +465,14 @@ void Filter7x7Blk_neon( const AlfClassifier* classifier, const PelUnitBuf& recDs
   }
 }
 
-static inline int16x8_t processALF_5x5_NearVB_neon( const Pel* pImg, const short* coeff, const short* clip,
-                                                    const int clpRngMax )
+static inline int16x8_t processALF_5x5_NearVB_neon( const Pel* pImg, const ALFGroupParam param[3], const int clpRngMax )
 {
   constexpr int SHIFT = AdaptiveLoopFilter::m_NUM_BITS - 1 + 3; // Weaker filter near VB.
 
+  // For chroma there is a single filter/clip set, precomputed once per Filter5x5Blk_neon call:
+  //   param[0]: clipA/coeff lane 0 -> clip[0]/coeff[0], clipB/coeff lane 1 -> clip[1]/coeff[1]
+  //   param[1]: clipA/coeff lane 0 -> clip[2]/coeff[2], clipB/coeff lane 1 -> clip[3]/coeff[3]
+  //   param[2]: clipA/coeff lane 0 -> clip[4]/coeff[4], clipB/coeff lane 1 -> clip[5]/coeff[5]
   const int16x8_t curr = vld1q_s16( pImg + 0 );
   const int16x8_t v0p1 = vld1q_s16( pImg + 1 );
   const int16x8_t v0m1 = vld1q_s16( pImg - 1 );
@@ -480,31 +484,31 @@ static inline int16x8_t processALF_5x5_NearVB_neon( const Pel* pImg, const short
   const int16x8_t diff_v0p2 = vsubq_s16( v0p2, curr );
   const int16x8_t diff_v0m2 = vsubq_s16( v0m2, curr );
 
-  const int16x8_t diff_v0p1_c1 = clip3_neon( diff_v0p1, vdupq_n_s16( -clip[1] ), vdupq_n_s16( clip[1] ) );
-  const int16x8_t diff_v0m1_c1 = clip3_neon( diff_v0m1, vdupq_n_s16( -clip[1] ), vdupq_n_s16( clip[1] ) );
-  const int16x8_t diff_v0m1_c3 = clip3_neon( diff_v0m1, vdupq_n_s16( -clip[3] ), vdupq_n_s16( clip[3] ) );
-  const int16x8_t diff_v0p1_c3 = clip3_neon( diff_v0p1, vdupq_n_s16( -clip[3] ), vdupq_n_s16( clip[3] ) );
+  const int16x8_t diff_v0p1_c1 = clip3_neon( diff_v0p1, param[0].negClipB, param[0].clipB ); // clip[1]
+  const int16x8_t diff_v0m1_c1 = clip3_neon( diff_v0m1, param[0].negClipB, param[0].clipB ); // clip[1]
+  const int16x8_t diff_v0m1_c3 = clip3_neon( diff_v0m1, param[1].negClipB, param[1].clipB ); // clip[3]
+  const int16x8_t diff_v0p1_c3 = clip3_neon( diff_v0p1, param[1].negClipB, param[1].clipB ); // clip[3]
 
   const int16x8_t acc1 = vaddq_s16( diff_v0p1_c1, diff_v0m1_c1 );
   const int16x8_t acc3 = vaddq_s16( diff_v0m1_c3, diff_v0p1_c3 );
 
-  int32x4_t accLo = vmull_n_s16( vget_low_s16( acc1 ), coeff[1] );
-  int32x4_t accHi = vmull_n_s16( vget_high_s16( acc1 ), coeff[1] );
-  accLo = vmlal_n_s16( accLo, vget_low_s16( acc3 ), coeff[3] );
-  accHi = vmlal_n_s16( accHi, vget_high_s16( acc3 ), coeff[3] );
+  int32x4_t accLo = vmull_lane_s16( vget_low_s16( acc1 ), param[0].coeff, 1 );  // coeff[1]
+  int32x4_t accHi = vmull_lane_s16( vget_high_s16( acc1 ), param[0].coeff, 1 ); // coeff[1]
+  accLo = vmlal_lane_s16( accLo, vget_low_s16( acc3 ), param[1].coeff, 1 );     // coeff[3]
+  accHi = vmlal_lane_s16( accHi, vget_high_s16( acc3 ), param[1].coeff, 1 );    // coeff[3]
 
-  const int16x8_t diff_v0p2_c4 = clip3_neon( diff_v0p2, vdupq_n_s16( -clip[4] ), vdupq_n_s16( clip[4] ) );
-  const int16x8_t diff_v0m2_c4 = clip3_neon( diff_v0m2, vdupq_n_s16( -clip[4] ), vdupq_n_s16( clip[4] ) );
-  const int16x8_t diff_v0p1_c5 = clip3_neon( diff_v0p1, vdupq_n_s16( -clip[5] ), vdupq_n_s16( clip[5] ) );
-  const int16x8_t diff_v0m1_c5 = clip3_neon( diff_v0m1, vdupq_n_s16( -clip[5] ), vdupq_n_s16( clip[5] ) );
+  const int16x8_t diff_v0p2_c4 = clip3_neon( diff_v0p2, param[2].negClipA, param[2].clipA ); // clip[4]
+  const int16x8_t diff_v0m2_c4 = clip3_neon( diff_v0m2, param[2].negClipA, param[2].clipA ); // clip[4]
+  const int16x8_t diff_v0p1_c5 = clip3_neon( diff_v0p1, param[2].negClipB, param[2].clipB ); // clip[5]
+  const int16x8_t diff_v0m1_c5 = clip3_neon( diff_v0m1, param[2].negClipB, param[2].clipB ); // clip[5]
 
   const int16x8_t acc4 = vaddq_s16( diff_v0p2_c4, diff_v0m2_c4 );
   const int16x8_t acc5 = vaddq_s16( diff_v0p1_c5, diff_v0m1_c5 );
 
-  accLo = vmlal_n_s16( accLo, vget_low_s16( acc4 ), coeff[4] );
-  accHi = vmlal_n_s16( accHi, vget_high_s16( acc4 ), coeff[4] );
-  accLo = vmlal_n_s16( accLo, vget_low_s16( acc5 ), coeff[5] );
-  accHi = vmlal_n_s16( accHi, vget_high_s16( acc5 ), coeff[5] );
+  accLo = vmlal_lane_s16( accLo, vget_low_s16( acc4 ), param[2].coeff, 0 );  // coeff[4]
+  accHi = vmlal_lane_s16( accHi, vget_high_s16( acc4 ), param[2].coeff, 0 ); // coeff[4]
+  accLo = vmlal_lane_s16( accLo, vget_low_s16( acc5 ), param[2].coeff, 1 );  // coeff[5]
+  accHi = vmlal_lane_s16( accHi, vget_high_s16( acc5 ), param[2].coeff, 1 ); // coeff[5]
 
   int16x8_t acc = vcombine_s16( vrshrn_n_s32( accLo, SHIFT ), vrshrn_n_s32( accHi, SHIFT ) );
   acc = vqaddq_s16( acc, curr );
@@ -513,7 +517,7 @@ static inline int16x8_t processALF_5x5_NearVB_neon( const Pel* pImg, const short
 
 template<bool isFoldingRequired>
 static inline int16x8_t processALF5x5Row_neon( const Pel* pImg0, const int distance, const ptrdiff_t srcStride,
-                                               const short* coeff, const short* clip, const int clpRngMax )
+                                               const ALFGroupParam param[3], const int clpRngMax )
 {
   constexpr int SHIFT = AdaptiveLoopFilter::m_NUM_BITS - 1;
 
@@ -530,7 +534,7 @@ static inline int16x8_t processALF5x5Row_neon( const Pel* pImg0, const int dista
     if( distance == 0 || distance == 1 )
     {
       // All point to the same row.
-      return processALF_5x5_NearVB_neon( pImg0, coeff, clip, clpRngMax );
+      return processALF_5x5_NearVB_neon( pImg0, param, clpRngMax );
     }
 
     if( distance == ALF_5x5_VB_FOLD_MIN_DIST || distance == ALF_5x5_VB_FOLD_MAX_DIST )
@@ -543,26 +547,26 @@ static inline int16x8_t processALF5x5Row_neon( const Pel* pImg0, const int dista
   const int16x8_t curr = vld1q_s16( pImg0 );
 
   int16x8_t a, b;
-  processALF_CoeffPair_neon( pImg3 + 0, pImg4 + 0, pImg1 + 1, pImg2 - 1, curr, vdupq_n_s16( clip[0] ),
-                             vdupq_n_s16( clip[1] ), vdupq_n_s16( -clip[0] ), vdupq_n_s16( -clip[1] ), a, b );
-  int32x4_t accLo = vmull_n_s16( vget_low_s16( a ), coeff[0] );
-  int32x4_t accHi = vmull_n_s16( vget_high_s16( a ), coeff[0] );
-  accLo = vmlal_n_s16( accLo, vget_low_s16( b ), coeff[1] );
-  accHi = vmlal_n_s16( accHi, vget_high_s16( b ), coeff[1] );
+  processALF_CoeffPair_neon( pImg3 + 0, pImg4 + 0, pImg1 + 1, pImg2 - 1, curr, param[0].clipA, param[0].clipB,
+                             param[0].negClipA, param[0].negClipB, a, b );
+  int32x4_t accLo = vmull_lane_s16( vget_low_s16( a ), param[0].coeff, 0 );  // coeff[0]
+  int32x4_t accHi = vmull_lane_s16( vget_high_s16( a ), param[0].coeff, 0 ); // coeff[0]
+  accLo = vmlal_lane_s16( accLo, vget_low_s16( b ), param[0].coeff, 1 );     // coeff[1]
+  accHi = vmlal_lane_s16( accHi, vget_high_s16( b ), param[0].coeff, 1 );    // coeff[1]
 
-  processALF_CoeffPair_neon( pImg1 + 0, pImg2 + 0, pImg1 - 1, pImg2 + 1, curr, vdupq_n_s16( clip[2] ),
-                             vdupq_n_s16( clip[3] ), vdupq_n_s16( -clip[2] ), vdupq_n_s16( -clip[3] ), a, b );
-  accLo = vmlal_n_s16( accLo, vget_low_s16( a ), coeff[2] );
-  accHi = vmlal_n_s16( accHi, vget_high_s16( a ), coeff[2] );
-  accLo = vmlal_n_s16( accLo, vget_low_s16( b ), coeff[3] );
-  accHi = vmlal_n_s16( accHi, vget_high_s16( b ), coeff[3] );
+  processALF_CoeffPair_neon( pImg1 + 0, pImg2 + 0, pImg1 - 1, pImg2 + 1, curr, param[1].clipA, param[1].clipB,
+                             param[1].negClipA, param[1].negClipB, a, b );
+  accLo = vmlal_lane_s16( accLo, vget_low_s16( a ), param[1].coeff, 0 );  // coeff[2]
+  accHi = vmlal_lane_s16( accHi, vget_high_s16( a ), param[1].coeff, 0 ); // coeff[2]
+  accLo = vmlal_lane_s16( accLo, vget_low_s16( b ), param[1].coeff, 1 );  // coeff[3]
+  accHi = vmlal_lane_s16( accHi, vget_high_s16( b ), param[1].coeff, 1 ); // coeff[3]
 
-  processALF_CoeffPair_neon( pImg0 + 2, pImg0 - 2, pImg0 + 1, pImg0 - 1, curr, vdupq_n_s16( clip[4] ),
-                             vdupq_n_s16( clip[5] ), vdupq_n_s16( -clip[4] ), vdupq_n_s16( -clip[5] ), a, b );
-  accLo = vmlal_n_s16( accLo, vget_low_s16( a ), coeff[4] );
-  accHi = vmlal_n_s16( accHi, vget_high_s16( a ), coeff[4] );
-  accLo = vmlal_n_s16( accLo, vget_low_s16( b ), coeff[5] );
-  accHi = vmlal_n_s16( accHi, vget_high_s16( b ), coeff[5] );
+  processALF_CoeffPair_neon( pImg0 + 2, pImg0 - 2, pImg0 + 1, pImg0 - 1, curr, param[2].clipA, param[2].clipB,
+                             param[2].negClipA, param[2].negClipB, a, b );
+  accLo = vmlal_lane_s16( accLo, vget_low_s16( a ), param[2].coeff, 0 );  // coeff[4]
+  accHi = vmlal_lane_s16( accHi, vget_high_s16( a ), param[2].coeff, 0 ); // coeff[4]
+  accLo = vmlal_lane_s16( accLo, vget_low_s16( b ), param[2].coeff, 1 );  // coeff[5]
+  accHi = vmlal_lane_s16( accHi, vget_high_s16( b ), param[2].coeff, 1 ); // coeff[5]
 
   int16x8_t acc = vcombine_s16( vrshrn_n_s32( accLo, SHIFT ), vrshrn_n_s32( accHi, SHIFT ) );
   acc = vqaddq_s16( acc, curr );
@@ -596,6 +600,24 @@ void Filter5x5Blk_neon( const AlfClassifier*, const PelUnitBuf& recDst, const CP
   CHECKD( height % 4, "Height must be multiple of 4!" );
 
   const int clpRngMax = clpRng.max();
+
+  // For chroma there is a single filter/clip set per call. Precompute the clip/coeff splats once, outside the
+  // i/j loops, instead of re-deriving them on every row. Each param entry pairs two consecutive taps:
+  //   param[k].clipA / coeff lane 0 -> clip[2k]   / coeff[2k]
+  //   param[k].clipB / coeff lane 1 -> clip[2k+1] / coeff[2k+1]
+  // Only taps 0..5 are read, matching the original kernels exactly (bit-exact, same widening multiplies).
+  ALFGroupParam param[3];
+  for( int k = 0; k < 3; k++ )
+  {
+    param[k].clipA    = vdupq_n_s16( fClipSet[2 * k + 0] );
+    param[k].clipB    = vdupq_n_s16( fClipSet[2 * k + 1] );
+    param[k].negClipA = vdupq_n_s16( -fClipSet[2 * k + 0] );
+    param[k].negClipB = vdupq_n_s16( -fClipSet[2 * k + 1] );
+
+    int16x4_t coeff = vdup_n_s16( filterSet[2 * k + 0] );              // lane 0 = coeff[2k]
+    coeff           = vset_lane_s16( filterSet[2 * k + 1], coeff, 1 ); // lane 1 = coeff[2k+1]
+    param[k].coeff  = coeff;
+  }
 
   for( int i = 0; i < height; i += STEP_Y )
   {
@@ -631,21 +653,21 @@ void Filter5x5Blk_neon( const AlfClassifier*, const PelUnitBuf& recDst, const CP
 
       if( foldingRequired )
       {
-        dst0 = processALF5x5Row_neon<true>( pImg0 + 0 * srcStride, VbDistance[0], srcStride, filterSet, fClipSet,
+        dst0 = processALF5x5Row_neon<true>( pImg0 + 0 * srcStride, VbDistance[0], srcStride, param,
                                             clpRngMax );
-        dst1 = processALF5x5Row_neon<true>( pImg0 + 1 * srcStride, VbDistance[1], srcStride, filterSet, fClipSet,
+        dst1 = processALF5x5Row_neon<true>( pImg0 + 1 * srcStride, VbDistance[1], srcStride, param,
                                             clpRngMax );
-        dst2 = processALF5x5Row_neon<true>( pImg0 + 2 * srcStride, VbDistance[2], srcStride, filterSet, fClipSet,
+        dst2 = processALF5x5Row_neon<true>( pImg0 + 2 * srcStride, VbDistance[2], srcStride, param,
                                             clpRngMax );
-        dst3 = processALF5x5Row_neon<true>( pImg0 + 3 * srcStride, VbDistance[3], srcStride, filterSet, fClipSet,
+        dst3 = processALF5x5Row_neon<true>( pImg0 + 3 * srcStride, VbDistance[3], srcStride, param,
                                             clpRngMax );
       }
       else
       {
-        dst0 = processALF5x5Row_neon<false>( pImg0 + 0 * srcStride, 0, srcStride, filterSet, fClipSet, clpRngMax );
-        dst1 = processALF5x5Row_neon<false>( pImg0 + 1 * srcStride, 0, srcStride, filterSet, fClipSet, clpRngMax );
-        dst2 = processALF5x5Row_neon<false>( pImg0 + 2 * srcStride, 0, srcStride, filterSet, fClipSet, clpRngMax );
-        dst3 = processALF5x5Row_neon<false>( pImg0 + 3 * srcStride, 0, srcStride, filterSet, fClipSet, clpRngMax );
+        dst0 = processALF5x5Row_neon<false>( pImg0 + 0 * srcStride, 0, srcStride, param, clpRngMax );
+        dst1 = processALF5x5Row_neon<false>( pImg0 + 1 * srcStride, 0, srcStride, param, clpRngMax );
+        dst2 = processALF5x5Row_neon<false>( pImg0 + 2 * srcStride, 0, srcStride, param, clpRngMax );
+        dst3 = processALF5x5Row_neon<false>( pImg0 + 3 * srcStride, 0, srcStride, param, clpRngMax );
       }
 
       vst1q_s16( pDst + 0 * dstStride, dst0 );
@@ -663,21 +685,21 @@ void Filter5x5Blk_neon( const AlfClassifier*, const PelUnitBuf& recDst, const CP
 
       if( foldingRequired )
       {
-        dst0 = processALF5x5Row_neon<true>( pImg0 + 0 * srcStride, VbDistance[0], srcStride, filterSet, fClipSet,
+        dst0 = processALF5x5Row_neon<true>( pImg0 + 0 * srcStride, VbDistance[0], srcStride, param,
                                             clpRngMax );
-        dst1 = processALF5x5Row_neon<true>( pImg0 + 1 * srcStride, VbDistance[1], srcStride, filterSet, fClipSet,
+        dst1 = processALF5x5Row_neon<true>( pImg0 + 1 * srcStride, VbDistance[1], srcStride, param,
                                             clpRngMax );
-        dst2 = processALF5x5Row_neon<true>( pImg0 + 2 * srcStride, VbDistance[2], srcStride, filterSet, fClipSet,
+        dst2 = processALF5x5Row_neon<true>( pImg0 + 2 * srcStride, VbDistance[2], srcStride, param,
                                             clpRngMax );
-        dst3 = processALF5x5Row_neon<true>( pImg0 + 3 * srcStride, VbDistance[3], srcStride, filterSet, fClipSet,
+        dst3 = processALF5x5Row_neon<true>( pImg0 + 3 * srcStride, VbDistance[3], srcStride, param,
                                             clpRngMax );
       }
       else
       {
-        dst0 = processALF5x5Row_neon<false>( pImg0 + 0 * srcStride, 0, srcStride, filterSet, fClipSet, clpRngMax );
-        dst1 = processALF5x5Row_neon<false>( pImg0 + 1 * srcStride, 0, srcStride, filterSet, fClipSet, clpRngMax );
-        dst2 = processALF5x5Row_neon<false>( pImg0 + 2 * srcStride, 0, srcStride, filterSet, fClipSet, clpRngMax );
-        dst3 = processALF5x5Row_neon<false>( pImg0 + 3 * srcStride, 0, srcStride, filterSet, fClipSet, clpRngMax );
+        dst0 = processALF5x5Row_neon<false>( pImg0 + 0 * srcStride, 0, srcStride, param, clpRngMax );
+        dst1 = processALF5x5Row_neon<false>( pImg0 + 1 * srcStride, 0, srcStride, param, clpRngMax );
+        dst2 = processALF5x5Row_neon<false>( pImg0 + 2 * srcStride, 0, srcStride, param, clpRngMax );
+        dst3 = processALF5x5Row_neon<false>( pImg0 + 3 * srcStride, 0, srcStride, param, clpRngMax );
       }
 
       vst1_s16( pDst + 0 * dstStride, vget_low_s16( dst0 ) );

@@ -102,29 +102,7 @@ void BinDecoder::reset( int qp, int initId )
 }
 
 
-unsigned BinDecoder::decodeBinEP()
-{
-  unsigned value = m_Value << 1;
-  if (++m_bitsNeeded >= 0) {
-    value += m_Bitstream->readByte();
-    m_bitsNeeded = -8;
-  }
-
-  unsigned bin = 0;
-  unsigned SR = m_Range << 7;
-  if (value >= SR) {
-    value -= SR;
-    bin = 1;
-  }
-  m_Value = value;
-  DTRACE(g_trace_ctx, D_CABAC,
-         "%d"
-         "  "
-         "%d"
-         "  EP=%d \n",
-         DTRACE_GET_COUNTER(g_trace_ctx, D_CABAC), m_Range, bin);
-  return bin;
-}
+// decodeBinEP() is defined ALWAYS_INLINE in BinDecoder.h (moved for inlining into the CABAC hot loops).
 
 
 unsigned BinDecoder::decodeBinsEP( unsigned numBins )
@@ -217,32 +195,7 @@ unsigned BinDecoder::decodeRemAbsEP(unsigned goRicePar, unsigned cutoff, int max
   return offset + decodeBinsEP(length);
 }
 
-unsigned BinDecoder::decodeBinTrm()
-{
-  m_Range    -= 2;
-  unsigned SR = m_Range << 7;
-  
-  DTRACE( g_trace_ctx, D_CABAC, "%d" " binTrm  range=" "%d" "  bin=%d\n" , DTRACE_GET_COUNTER( g_trace_ctx, D_CABAC ), m_Range, m_Value >= SR );
-
-  if( m_Value >= SR )
-  {
-    return 1;
-  }
-  else
-  {
-    if( m_Range < 256 )
-    {
-      m_Range += m_Range;
-      m_Value += m_Value;
-      if( ++m_bitsNeeded == 0 )
-      {
-        m_Value      += m_Bitstream->readByte();
-        m_bitsNeeded  = -8;
-      }
-    }
-    return 0;
-  }
-}
+// decodeBinTrm() is defined ALWAYS_INLINE in BinDecoder.h (moved for inlining into the CABAC hot loops).
 
 
 void BinDecoder::align()
@@ -297,90 +250,6 @@ unsigned BinDecoder::decodeAlignedBinsEP( unsigned numBins )
 }
 
 
-unsigned BinDecoder::decodeBin( unsigned ctxId )
-{
-  BinProbModel& rcProbModel = m_Ctx[ctxId];
-
-  unsigned bin, LPS;
-  uint32_t range      = m_Range;
-  uint32_t value      = m_Value;
-  int32_t  bitsNeeded = m_bitsNeeded;
-
-  rcProbModel.lpsmps( range, LPS, bin );
-
-//  DTRACE( g_trace_ctx, D_CABAC, "%d" " xxx " "%d" "  " "[%d:%d]" "  " "%2d(MPS=%d)"  "  " , DTRACE_GET_COUNTER( g_trace_ctx, D_CABAC ), m_Range, m_Range-LPS, LPS, ( unsigned int )( rcProbModel.state() ), m_Value < ( ( m_Range - LPS ) << 7 ) );
-  DTRACE( g_trace_ctx, D_CABAC, "%d" " %d " "%d" "  " "[%d:%d]" "  " "%2d(MPS=%d)"  "  " , DTRACE_GET_COUNTER( g_trace_ctx, D_CABAC ), 666, range, range-LPS, LPS, ( unsigned int )( rcProbModel.state() ), value < ( ( range - LPS ) << 7 ) );
-  //DTRACE( g_trace_ctx, D_CABAC, " %d " "%d" "  " "[%d:%d]" "  " "%2d(MPS=%d)"  "  ", DTRACE_GET_COUNTER( g_trace_ctx, D_CABAC ), m_Range, m_Range - LPS, LPS, (unsigned int)( rcProbModel.state() ), m_Value < ( ( m_Range - LPS ) << 7 ) );
-
-  range      -= LPS;
-  uint32_t SR = range << 7;
-
-  int b = ~( ( int( value ) - int( SR ) ) >> 31 );
-  int a = ~b & ( ( int( range ) - 256 ) >> 31 );
-  //int b = -( Value >= SR );
-  
-  int numBits  = ( a & rcProbModel.getRenormBitsRange( range ) ) | ( b & rcProbModel.getRenormBitsLPS( LPS ) );
-  
-  value       -= b & SR;
-  value      <<= numBits;
-  
-  range       &=  ~b;
-  range       |= ( b & LPS );
-  range      <<= numBits;
-  
-  // b    0 0 1 1
-  // bin  0 1 0 1
-  // res  0 1 1 0
-
-  //bin          = ( ~b & bin ) | ( b & !bin );
-  bin         ^= b;
-  bin         &= 1;
-  
-  bitsNeeded  += numBits & ( a | b );
-  
-  const int c = ~(bitsNeeded >> 31);
-  value      += uint32_t( m_Bitstream->readByteFlag( c ) ) << ( bitsNeeded & 31 );
-  bitsNeeded -= c & 8;
-  
-  //if( Value < SR )
-  //{
-  //  // MPS path
-  //  if( Range < 256 )
-  //  {
-  //    int numBits   = rcProbModel.getRenormBitsRange( Range );
-  //    Range       <<= numBits;
-  //    Value       <<= numBits;
-  //    bitsNeeded   += numBits;
-  //    if( bitsNeeded >= 0 )
-  //    {
-  //      Value      += m_Bitstream->readByte() << bitsNeeded;
-  //      bitsNeeded -= 8;
-  //    }
-  //  }
-  //}
-  //else
-  //{
-  //  bin = !bin;
-  //  // LPS path
-  //  int numBits   = rcProbModel.getRenormBitsLPS( LPS );
-  //  Value        -= SR;
-  //  Value       <<= numBits;
-  //  Range         = LPS     << numBits;
-  //  bitsNeeded   += numBits;
-  //  if( bitsNeeded >= 0 )
-  //  {
-  //    Value      += m_Bitstream->readByte() << bitsNeeded;
-  //    bitsNeeded -= 8;
-  //  }
-  //}
-
-  m_Range      = range;
-  m_Value      = value;
-  m_bitsNeeded = bitsNeeded;
-
-  rcProbModel.update( bin );
-  DTRACE_WITHOUT_COUNT( g_trace_ctx, D_CABAC, "  -  " "%d" "\n", bin );
-  return  bin;
-}
+// decodeBin() is defined ALWAYS_INLINE in BinDecoder.h (moved for inlining into the CABAC hot loops).
 
 }

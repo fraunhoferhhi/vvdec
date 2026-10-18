@@ -223,9 +223,44 @@ static inline int16x4_t filter_horiz_4x1_N8_neon( Pel const* src, int16x8_t ch, 
 static inline int16x8_t filter_horiz_8x1_N8_neon( Pel const* src, int16x8_t ch, int32x4_t voffset1,
                                                   int32x4_t invshift1st )
 {
-  int16x4_t lo = filter_horiz_4x1_N8_neon( src + 0, ch, voffset1, invshift1st );
-  int16x4_t hi = filter_horiz_4x1_N8_neon( src + 4, ch, voffset1, invshift1st );
-  return vcombine_s16( lo, hi );
+  // Transpose-free column-broadcast scheme: load 8 column-shifted vectors and accumulate
+  // one tap (lane) at a time. Lanes 0..3 of vsuma produce outputs 0..3 (from vget_low of the
+  // sources), and vsumb produces outputs 4..7 (from vget_high). This computes the identical
+  // 8-tap dot product + offset per output as the per-row reduction, just regrouping the int32
+  // partial-sum additions (associative, no intermediate overflow), so results are bit-exact.
+  int16x8_t vsrc0 = vld1q_s16( src + 0 );
+  int16x8_t vsrc1 = vld1q_s16( src + 1 );
+  int16x8_t vsrc2 = vld1q_s16( src + 2 );
+  int16x8_t vsrc3 = vld1q_s16( src + 3 );
+  int16x8_t vsrc4 = vld1q_s16( src + 4 );
+  int16x8_t vsrc5 = vld1q_s16( src + 5 );
+  int16x8_t vsrc6 = vld1q_s16( src + 6 );
+  int16x8_t vsrc7 = vld1q_s16( src + 7 );
+
+  int32x4_t vsuma = voffset1;
+  vsuma = vmlal_lane_s16( vsuma, vget_low_s16( vsrc0 ), vget_low_s16( ch ), 0 );
+  vsuma = vmlal_lane_s16( vsuma, vget_low_s16( vsrc1 ), vget_low_s16( ch ), 1 );
+  vsuma = vmlal_lane_s16( vsuma, vget_low_s16( vsrc2 ), vget_low_s16( ch ), 2 );
+  vsuma = vmlal_lane_s16( vsuma, vget_low_s16( vsrc3 ), vget_low_s16( ch ), 3 );
+  vsuma = vmlal_lane_s16( vsuma, vget_low_s16( vsrc4 ), vget_high_s16( ch ), 0 );
+  vsuma = vmlal_lane_s16( vsuma, vget_low_s16( vsrc5 ), vget_high_s16( ch ), 1 );
+  vsuma = vmlal_lane_s16( vsuma, vget_low_s16( vsrc6 ), vget_high_s16( ch ), 2 );
+  vsuma = vmlal_lane_s16( vsuma, vget_low_s16( vsrc7 ), vget_high_s16( ch ), 3 );
+
+  int32x4_t vsumb = voffset1;
+  vsumb = vmlal_lane_s16( vsumb, vget_high_s16( vsrc0 ), vget_low_s16( ch ), 0 );
+  vsumb = vmlal_lane_s16( vsumb, vget_high_s16( vsrc1 ), vget_low_s16( ch ), 1 );
+  vsumb = vmlal_lane_s16( vsumb, vget_high_s16( vsrc2 ), vget_low_s16( ch ), 2 );
+  vsumb = vmlal_lane_s16( vsumb, vget_high_s16( vsrc3 ), vget_low_s16( ch ), 3 );
+  vsumb = vmlal_lane_s16( vsumb, vget_high_s16( vsrc4 ), vget_high_s16( ch ), 0 );
+  vsumb = vmlal_lane_s16( vsumb, vget_high_s16( vsrc5 ), vget_high_s16( ch ), 1 );
+  vsumb = vmlal_lane_s16( vsumb, vget_high_s16( vsrc6 ), vget_high_s16( ch ), 2 );
+  vsumb = vmlal_lane_s16( vsumb, vget_high_s16( vsrc7 ), vget_high_s16( ch ), 3 );
+
+  vsuma = vshlq_s32( vsuma, invshift1st );
+  vsumb = vshlq_s32( vsumb, invshift1st );
+
+  return vcombine_s16( vqmovn_s32( vsuma ), vqmovn_s32( vsumb ) );
 }
 
 static inline int16x8x2_t filter_horiz_16x1_N8_neon( Pel const* src, int16x8_t ch, int32x4_t voffset1,

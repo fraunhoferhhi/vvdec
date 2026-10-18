@@ -62,6 +62,10 @@ POSSIBILITY OF SUCH DAMAGE.
 #include <simde/x86/sse4.1.h>
 #endif
 
+#if defined( TARGET_SIMD_ARM ) && ENABLE_SIMD_DBLF
+#include "CommonLib/arm/CommonDefARM.h"
+#endif
+
 namespace vvdec
 {
 
@@ -605,6 +609,8 @@ void LoopFilter::calcFilterStrengths( const CodingUnit& cu ) const
 
 #if ENABLE_SIMD_DBLF && defined( TARGET_SIMD_X86 )
   const bool           useSimd = read_x86_extension_flags() > x86_simd::SCALAR;
+#elif ENABLE_SIMD_DBLF && defined( TARGET_SIMD_ARM )
+  const bool           useSimd = read_arm_extension_flags() > arm_simd::SCALAR;
 #else
   const bool           useSimd = false;
 #endif
@@ -787,6 +793,8 @@ void LoopFilter::xSetMaxFilterLengthPQFromTransformSizes( const CodingUnit& cu, 
   const bool      dt = CU::isSepTree( cu );
 #if ENABLE_SIMD_DBLF && defined( TARGET_SIMD_X86 )
   const bool useSimd = read_x86_extension_flags() > x86_simd::SCALAR;
+#elif ENABLE_SIMD_DBLF && defined( TARGET_SIMD_ARM )
+  const bool useSimd = read_arm_extension_flags() > arm_simd::SCALAR;
 #else
   const bool useSimd = false;
 #endif
@@ -1291,6 +1299,42 @@ void LoopFilter::xGetBoundaryStrengthSingle( LoopFilterParam& lfp, const CodingU
           xdiff = _mm_abs_epi32( xdiff );
           xdiff = _mm_cmpgt_epi32( xdiff, xth );
           uiBs &= _mm_testz_si128( xdiff, xdiff ) ? 0 : 1;
+        }
+      }
+      else
+#elif defined( TARGET_SIMD_ARM ) && ENABLE_SIMD_DBLF
+      if( useSimd )
+      {
+        // xmvP/xmvQ lanes: [ hor0, ver0, hor1, ver1 ] (mv[0] in low 64 bits, mv[1] in high 64 bits)
+        const int32x4_t xmvP = vcombine_s32( refP0valid ? vld1_s32( ( const int32_t* ) &miP.mv[0] ) : vdup_n_s32( 0 ),
+                                             refP1valid ? vld1_s32( ( const int32_t* ) &miP.mv[1] ) : vdup_n_s32( 0 ) );
+        const int32x4_t xmvQ = vcombine_s32( refQ0valid ? vld1_s32( ( const int32_t* ) &miQ.mv[0] ) : vdup_n_s32( 0 ),
+                                             refQ1valid ? vld1_s32( ( const int32_t* ) &miQ.mv[1] ) : vdup_n_s32( 0 ) );
+        const int32x4_t xth  = vdupq_n_s32( nThreshold - 1 );
+
+        if( piRefP0 != piRefP1 )   // Different L0 & L1
+        {
+          if( piRefP0 == piRefQ0 )
+          {
+            uint32x4_t xdiff = vcgtq_s32( vabsq_s32( vsubq_s32( xmvQ, xmvP ) ), xth );
+            uiBs = vmaxvq_u32( xdiff ) ? 1 : 0;
+          }
+          else
+          {
+            // swap the two 64-bit halves of xmvQ: [ hor1, ver1, hor0, ver0 ]
+            const int32x4_t xmvQ1 = vextq_s32( xmvQ, xmvQ, 2 );
+            uint32x4_t xdiff = vcgtq_s32( vabsq_s32( vsubq_s32( xmvQ1, xmvP ) ), xth );
+            uiBs = vmaxvq_u32( xdiff ) ? 1 : 0;
+          }
+        }
+        else
+        {
+          const int32x4_t xmvQ1 = vextq_s32( xmvQ, xmvQ, 2 );
+          uint32x4_t xdiff = vcgtq_s32( vabsq_s32( vsubq_s32( xmvQ1, xmvP ) ), xth );
+          uiBs = vmaxvq_u32( xdiff ) ? 1 : 0;
+
+          xdiff = vcgtq_s32( vabsq_s32( vsubq_s32( xmvQ, xmvP ) ), xth );
+          uiBs &= vmaxvq_u32( xdiff ) ? 1 : 0;
         }
       }
       else
