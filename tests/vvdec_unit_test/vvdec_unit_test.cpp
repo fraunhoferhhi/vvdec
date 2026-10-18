@@ -56,6 +56,7 @@ POSSIBILITY OF SUCH DAMAGE.
 #include "CommonLib/TrQuant.h"
 #include "CommonLib/TrQuant_EMT.h"
 #include "CommonLib/Quant.h"
+#include "FilmGrain/FilmGrainImplX86.h"
 
 using namespace vvdec;
 
@@ -2651,6 +2652,166 @@ static bool test_IntraPredAngleChroma()
 }
 #endif // ENABLE_SIMD_OPT_INTRAPRED
 
+#if defined( TARGET_SIMD_X86 ) && ENABLE_SIMD_OPT
+// Adds film grain to a few rows of a random picture with the scalar FilmGrainImpl and with a SIMD one, both set up
+// alike, the way FilmGrain::add_grain_line does it, and compares all three planes.
+template<typename Pel>
+static bool check_one_FilmGrainImpl( FilmGrainImpl* ref, FilmGrainImpl* opt, const std::string& simdName,
+                                     unsigned bitDepth, int subx, int suby )
+{
+  DimensionGenerator rng;
+
+  // Pattern samples are clipped to [-127, 127] when the decoder generates them.
+  std::vector<int8_t> lumaPattern( 64 * 64 ), chromaPattern( 64 * 64 );
+
+  // Every component gets every scaling factor 0..255: an odd step makes the LUT a permutation of 0..255.
+  uint8_t scaleLut[3][256];
+  uint8_t patternLut[3][256];
+  bool    allZero[3];
+  for( int c = 0; c < 3; c++ )
+  {
+    const unsigned start = rng.get( 0, 255 );
+    const unsigned step  = 2 * rng.get( 0, 127 ) + 1;
+    allZero[c]           = rng.getBool();
+    for( unsigned k = 0; k < 256; k++ )
+    {
+      scaleLut[c][k]   = ( start + step * k ) & 255;
+      patternLut[c][k] = allZero[c] ? 0 : rng.get( 0, VFGS_MAX_PATTERNS - 1 ) << 4;
+    }
+  }
+
+  // FilmGrain::init_sei passes log2_scale_factor (minus one for the auto-regressive model), always 2..7.
+  const int scaleShift = rng.get( 2, 7 );
+
+  for( FilmGrainImpl* impl : { ref, opt } )
+  {
+    impl->set_depth( bitDepth );
+    impl->set_chroma_subsampling( subx, suby );
+    impl->set_scale_shift( scaleShift );
+  }
+  for( int i = 0; i < VFGS_MAX_PATTERNS; i++ )
+  {
+    const auto patternSample = [&]() { return int8_t( int( rng.get( 0, 254 ) ) - 127 ); };
+    std::generate( lumaPattern.begin(), lumaPattern.end(), patternSample );
+    std::generate( chromaPattern.begin(), chromaPattern.end(), patternSample );
+    for( FilmGrainImpl* impl : { ref, opt } )
+    {
+      impl->set_luma_pattern( i, lumaPattern.data() );
+      impl->set_chroma_pattern( i, chromaPattern.data() );
+    }
+  }
+  for( int c = 0; c < 3; c++ )
+  {
+    for( FilmGrainImpl* impl : { ref, opt } )
+    {
+      impl->set_scale_lut( c, scaleLut[c] );
+      impl->set_pattern_lut( c, patternLut[c], allZero[c] );
+    }
+  }
+
+  // add_grain_block needs a width above 128; VVC picture widths are multiples of 8. 40 rows cover the overlap
+  // rows 16, 17, 32 and 33. The last 16-sample block of a row may read and write up to 8 samples past the width.
+  const int width        = rng.get( 136, 520, 8 );
+  const int height       = 40;
+  const int lumaStride   = width + 16;
+  const int chromaStride = width / subx + 16;
+  const int chromaHeight = height / suby;
+
+  InputGenerator<Pel> g{ bitDepth, /*is_signed=*/false };
+  std::vector<Pel>    planeRef[3];
+  planeRef[0].resize( lumaStride * height );
+  planeRef[1].resize( chromaStride * chromaHeight );
+  planeRef[2].resize( chromaStride * chromaHeight );
+  for( auto& plane : planeRef )
+  {
+    std::generate( plane.begin(), plane.end(), g );
+  }
+  std::vector<Pel> planeOpt[3] = { planeRef[0], planeRef[1], planeRef[2] };
+
+  // One random seed per 16-row block line, as FilmGrain::prepareBlockSeeds makes them. The block offsets and signs
+  // come from all 32 bits, but rand() may give only 15.
+  std::vector<uint32_t> lineSeeds( height / 16 + 2 );
+  std::generate( lineSeeds.begin(), lineSeeds.end(),
+                 []() { return uint32_t( rand() ) << 30 ^ uint32_t( rand() ) << 15 ^ uint32_t( rand() ); } );
+
+  int16_t grainRef[3][32] = {}, grainOpt[3][32] = {};
+  uint8_t scaleRef[3][32] = {}, scaleOpt[3][32] = {};
+
+  for( int y = 0; y < height; y++ )
+  {
+    uint32_t rnd    = lineSeeds[y / 16 + 1];
+    uint32_t rnd_up = lineSeeds[y / 16];
+    for( int x = 0; x < width; x += 16 )
+    {
+      for( int c = 0; c < 3; c++ )
+      {
+        const int rowOffset = c ? chromaStride * ( y / suby ) : lumaStride * y;
+        ref->add_grain_block( planeRef[c].data() + rowOffset, c, x, y, width, rnd, rnd_up, grainRef, scaleRef );
+        opt->add_grain_block( planeOpt[c].data() + rowOffset, c, x, y, width, rnd, rnd_up, grainOpt, scaleOpt );
+      }
+      rnd    = prng( rnd );
+      rnd_up = prng( rnd_up );
+    }
+  }
+
+  std::ostringstream sstm;
+  sstm << "FilmGrainImpl " << simdName << " bitDepth=" << bitDepth << " subx=" << subx << " suby=" << suby
+       << " scaleShift=" << scaleShift << " width=" << width << " allZero=" << allZero[0] << allZero[1] << allZero[2];
+
+  bool passed = true;
+  passed = compare_values_2d( sstm.str() + " Y", planeRef[0].data(), planeOpt[0].data(), height, lumaStride ) && passed;
+  passed = compare_values_2d( sstm.str() + " U", planeRef[1].data(), planeOpt[1].data(), chromaHeight, chromaStride ) && passed;
+  passed = compare_values_2d( sstm.str() + " V", planeRef[2].data(), planeOpt[2].data(), chromaHeight, chromaStride ) && passed;
+  return passed;
+}
+
+static bool test_FilmGrainImpl()
+{
+  // Both SIMD levels are tested because the SSE4.1 and AVX2 code paths differ.
+  std::vector<std::pair<std::string, std::unique_ptr<FilmGrainImpl>>> optImpls;
+  const X86_VEXT vext = read_x86_extension_flags();
+  if( vext >= SSE41 )
+  {
+    optImpls.emplace_back( "SSE41", std::make_unique<FilmGrainImplX86<SSE41>>() );
+  }
+#if ENABLE_AVX2_IMPLEMENTATIONS
+  if( vext >= AVX2 )
+  {
+    optImpls.emplace_back( "AVX2", std::make_unique<FilmGrainImplX86<AVX2>>() );
+  }
+#endif
+
+  bool passed = true;
+  for( auto& optImpl : optImpls )
+  {
+    printf( "Testing FilmGrainImpl %s\n", optImpl.first.c_str() );
+    for( unsigned bitDepth : { 8u, 10u } )
+    {
+      // 4:2:0 and 4:2:2, as FilmGrain::setColorFormat sets them. 4:4:4 is left out: FilmGrainImpl::scale_and_output,
+      // too, shifts only 8 chroma samples per block, so there is no correct 4:4:4 output to compare with yet.
+      for( auto subsampling : { std::make_pair( 2, 2 ), std::make_pair( 2, 1 ) } )
+      {
+        for( int i = 0; i < NUM_CASES; i++ )
+        {
+          FilmGrainImpl ref;
+          if( bitDepth == 8 )
+          {
+            passed = check_one_FilmGrainImpl<uint8_t>( &ref, optImpl.second.get(), optImpl.first, bitDepth,
+                                                       subsampling.first, subsampling.second ) && passed;
+          }
+          else
+          {
+            passed = check_one_FilmGrainImpl<uint16_t>( &ref, optImpl.second.get(), optImpl.first, bitDepth,
+                                                        subsampling.first, subsampling.second ) && passed;
+          }
+        }
+      }
+    }
+  }
+  return passed;
+}
+#endif // defined( TARGET_SIMD_X86 ) && ENABLE_SIMD_OPT
+
 struct UnitTestEntry
 {
   std::string name;
@@ -2663,6 +2824,9 @@ static const UnitTestEntry test_suites[] = {
 #endif
 #if ENABLE_SIMD_OPT_QUANT
     { "DeQuant", test_DeQuant },
+#endif
+#if defined( TARGET_SIMD_X86 ) && ENABLE_SIMD_OPT
+    { "FilmGrainImpl", test_FilmGrainImpl },
 #endif
 #if ENABLE_SIMD_OPT_INTRAPRED
     { "IntraPredAngleChroma", test_IntraPredAngleChroma },
