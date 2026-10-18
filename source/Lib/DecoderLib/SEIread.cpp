@@ -516,7 +516,8 @@ void SEIReader::xParseSEIScalableNesting(vvdecSEI* s, const NalUnitType nalUnitT
       }
       else
       {
-        sei->snOlsIdx[i] = sei->snOlsIdxDelta[i]-1 + sei->snOlsIdxDelta[i - 1];
+        // NestingOlsIdx[i] = NestingOlsIdx[i - 1] + sn_ols_idx_delta_minus1[i] + 1, and snOlsIdxDelta holds the delta itself
+        sei->snOlsIdx[i] = sei->snOlsIdx[i - 1] + sei->snOlsIdxDelta[i];
       }
     }
     if (vps && vps->getVPSId() != 0)

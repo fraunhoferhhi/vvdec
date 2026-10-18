@@ -2697,13 +2697,28 @@ public:
     }
   }
 
+  // ue(v): value + 1 in binary, after as many zero bits as it has bits after its leading one
+  void writeUvlc( uint32_t value )
+  {
+    const uint64_t codeNum = uint64_t( value ) + 1;
+    int            numBits = 0;
+    while( codeNum >> numBits )
+    {
+      numBits++;
+    }
+    write( 0, numBits - 1 );
+    write( uint32_t( codeNum ), numBits );
+  }
+
+  void writeZeroBitsToByteBoundary() { write( 0, ( 8 - m_numBits % 8 ) % 8 ); }
+
   // A payload that does not end on a byte boundary ends with payload_bit_equal_to_one and zero bits up to the next one.
   void alignPayload()
   {
     if( m_numBits % 8 )
     {
       write( 1, 1 );
-      write( 0, ( 8 - m_numBits % 8 ) % 8 );
+      writeZeroBitsToByteBoundary();
     }
   }
 
@@ -2848,11 +2863,53 @@ static bool check_sei_buffering_period()
   return passed;
 }
 
+static bool check_sei_scalable_nesting()
+{
+  std::cout << "Testing the scalable nesting SEI message" << std::endl;
+
+  // three OLSs with the indices 1, 2 and 5
+  const uint32_t olsIdx[] = { 1, 2, 5 };
+
+  SEIPayloadWriter payload;
+  payload.write( 1, 1 );        // sn_ols_flag
+  payload.write( 0, 1 );        // sn_subpic_flag
+  payload.writeUvlc( 2 );       // sn_num_olss_minus1
+  payload.writeUvlc( 1 );       // sn_ols_idx_delta_minus1[0]
+  payload.writeUvlc( 0 );       // sn_ols_idx_delta_minus1[1]
+  payload.writeUvlc( 2 );       // sn_ols_idx_delta_minus1[2]
+  payload.writeUvlc( 0 );       // sn_num_seis_minus1
+  payload.writeZeroBitsToByteBoundary();   // sn_zero_bit
+
+  // the nested message: user data unregistered with a zero UUID and no user data
+  payload.write( VVDEC_USER_DATA_UNREGISTERED, 8 );   // payload_type
+  payload.write( 16, 8 );                              // payload_size
+  for( int i = 0; i < 16; i++ )
+  {
+    payload.write( 0, 8 );   // uuid_iso_iec_11578
+  }
+
+  vvdecSEI* sei = parse_prefix_sei( VVDEC_SCALABLE_NESTING, payload );
+  if( !sei )
+  {
+    return false;
+  }
+  const auto* nesting = (const vvdecSEIScalableNesting*) sei->payload;
+  bool passed = check_sei_field( "sn_num_olss_minus1 + 1", nesting->snNumOlss, 3 );
+  for( int i = 0; i < 3; i++ )
+  {
+    const std::string name = "NestingOlsIdx[" + std::to_string( i ) + "]";
+    passed = check_sei_field( name.c_str(), nesting->snOlsIdx[i], olsIdx[i] ) && passed;
+  }
+  SEI_internal::deleteSEI( sei );
+  return passed;
+}
+
 static bool test_SEI()
 {
   bool passed = true;
   passed = check_sei_region_wise_packing() && passed;
   passed = check_sei_buffering_period() && passed;
+  passed = check_sei_scalable_nesting() && passed;
   return passed;
 }
 
