@@ -62,7 +62,9 @@ POSSIBILITY OF SUCH DAMAGE.
 
 #include "CommonDef.h"
 
-#if defined( TARGET_SIMD_X86 ) && ENABLE_SIMD_OPT
+#if defined( TARGET_SIMD_ARM ) && ENABLE_SIMD_OPT
+#  include "FilmGrainImplARM.h"
+#elif defined( TARGET_SIMD_X86 ) && ENABLE_SIMD_OPT
 #  include "FilmGrainImplX86.h"
 #endif
 
@@ -402,14 +404,14 @@ static void idct2_32( int8_t B[][32] )
   }
 }
 
-static void make_sei_ff_pattern64( int8_t B[][64], int fh, int fv )
+static void make_sei_ff_pattern64( int8_t B[][64], int fh, int fv, uint32_t seed )
 {
   int      k, l;
   uint32_t n;
   fh = 4 * ( fh + 1 );
   fv = 4 * ( fv + 1 );
 
-  n = Seed_LUT[0];
+  n = seed;
   memset( B, 0, 64 * 64 * sizeof( int8_t ) );
   for( l = 0; l < 64; l++ )
   {
@@ -454,19 +456,20 @@ static void make_sei_ff_pattern32( int8_t B[][32], int fh, int fv )
   idct2_32( B );
 }
 
-static void make_ar_pattern( int8_t buf[], int8_t P[], int size, const int16_t ar_coef[], int nb_coef, int shift, int scale, uint32_t seed )
+/** Make a pattern of 64 / suby rows of 64 / subx samples in P. buf is the work area, with room for
+ *  ( subx > 1 ? 44 : 82 ) x ( suby > 1 ? 38 : 73 ) samples. */
+static void make_ar_pattern( int8_t buf[], int8_t P[], int subx, int suby, const int16_t ar_coef[], int nb_coef, int shift, int scale, uint32_t seed )
 {
   int16_t  coef[4][7];
   int      L = 0;
   int      x, y, i, j, k;
   int      g;
-  int      subx, suby, width, height;
+  int      width, height;
   uint32_t rnd = seed;
 
   memset( coef, 0, sizeof( coef ) );
-  subx = suby = ( size == 32 ) ? 2 : 1;
-  width       = ( subx > 1 ) ? 44 : 82;
-  height      = ( suby > 1 ) ? 38 : 73;
+  width  = ( subx > 1 ) ? 44 : 82;
+  height = ( suby > 1 ) ? 38 : 73;
 
   switch( nb_coef )
   {
@@ -525,7 +528,8 @@ static void make_ar_pattern( int8_t buf[], int8_t P[], int size, const int16_t a
   }
 
   // Copy cropped area to output
-  memset( P, 0, size * size );
+  const int size = 64 / subx;   // row length of P
+  memset( P, 0, size * ( 64 / suby ) );
   for( y = 0; y < 64 / suby; y++ )
   {
     for( x = 0; x < 64 / subx; x++ )
@@ -551,15 +555,68 @@ static int same_pattern( fgs_sei* cfg, int32_t a, int32_t b )
   return 1;
 }
 
+/** Adapt the chroma component model values of the frequency filtering model to a subsampled chroma plane, as VFGS
+ *  does: double the cut-off frequency in each subsampled direction and lower the scaling factor (halve it for 4:2:0,
+ *  divide it by sqrt(2) for 4:2:2). The auto-regressive model values are used as they are. */
+static void adapt_chroma_model_values( fgs_sei& cfg, int subx, int suby )
+{
+  if( cfg.model_id != 0 )
+  {
+    return;
+  }
+  for( int c = 1; c < 3; c++ )
+  {
+    if( cfg.comp_model_present_flag[c] )
+    {
+      for( int k = 0; k < cfg.num_intensity_intervals[c]; k++ )
+      {
+        int16_t* value = cfg.comp_model_value[c][k];
+        if( subx > 1 )
+        {
+          value[1] = std::max( 2, std::min( 14, value[1] << 1 ) );   // Horizontal frequency
+        }
+        if( suby > 1 )
+        {
+          value[2] = std::max( 2, std::min( 14, value[2] << 1 ) );   // Vertical frequency
+        }
+        if( subx > 1 && suby > 1 )
+        {
+          value[0] >>= 1;
+        }
+        else if( subx > 1 )
+        {
+          value[0] = ( value[0] * 181 + 128 ) >> 8;
+        }
+      }
+    }
+  }
+}
+
+/** Chroma subsampling factors of a chroma format. 4:0:0 has no chroma planes and keeps the 4:2:0 setup. */
+static void get_chroma_subsampling( vvdecColorFormat fmt, int& subx, int& suby )
+{
+  switch( fmt )
+  {
+    // clang-format off
+    case VVDEC_CF_YUV400_PLANAR:
+    case VVDEC_CF_YUV420_PLANAR: subx = 2; suby = 2; break;
+    case VVDEC_CF_YUV422_PLANAR: subx = 2; suby = 1; break;
+    case VVDEC_CF_YUV444_PLANAR: subx = 1; suby = 1; break;
+    default: THROW_FATAL( "invalid color format: " );
+    // clang-format on
+  }
+}
+
 void FilmGrain::set_seed( uint32_t seed )
 {
   m_line_rnd = m_line_rnd_up = seed;
 }
 
-/** Initialize "hardware" interface from FGS SEI parameters */
+/** Initialize "hardware" interface from FGS SEI parameters, for the chroma format m_colorFormat */
 void FilmGrain::init_sei()
 {
   int8_t        P[64 * 64];
+  int8_t        B[64][64];
   int8_t        Lbuf[73 * 82];
   int8_t        Cbuf[38 * 44];
   uint8_t       slut[256];
@@ -572,6 +629,11 @@ void FilmGrain::init_sei()
 
   int c, k;
 
+  int subx, suby;
+  get_chroma_subsampling( m_colorFormat, subx, suby );
+  fgs_sei cfg = fgs;
+  adapt_chroma_model_values( cfg, subx, suby );
+
   for( c = 0; c < 3; c++ )
   {
     memset( slut, 0, sizeof( slut ) );
@@ -582,16 +644,16 @@ void FilmGrain::init_sei()
       memset( patterns, ~0, sizeof( patterns ) );
     }
     // 1. Look for different patterns, up to max supported number
-    if( fgs.comp_model_present_flag[c] )
+    if( cfg.comp_model_present_flag[c] )
     {
-      for( k = 0; k < fgs.num_intensity_intervals[c]; k++ )
+      for( k = 0; k < cfg.num_intensity_intervals[c]; k++ )
       {
-        a           = fgs.intensity_interval_lower_bound[c][k];
+        a           = cfg.intensity_interval_lower_bound[c][k];
         uint32_t id = SEI_MAX_MODEL_VALUES * ( k + 256 * c );
 
         for( i = 0; i < VFGS_MAX_PATTERNS; i++ )
         {
-          if( same_pattern( &fgs, patterns[i], id ) )
+          if( same_pattern( &cfg, patterns[i], id ) )
           {
             break;
           }
@@ -624,30 +686,40 @@ void FilmGrain::init_sei()
       // 2. Register the patterns (with correct order)
       for( i = 0; i < np; i++ )
       {
-        int16_t* coef = &fgs.comp_model_value[0][0][0] + patterns[i];
+        int16_t* coef = &cfg.comp_model_value[0][0][0] + patterns[i];
 
         if( c == 0 )
         {
-          if( fgs.model_id )
+          if( cfg.model_id )
           {
-            make_ar_pattern( Lbuf, P, 64, coef, 6, 1, fgs.log2_scale_factor, Seed_LUT[0] );
+            make_ar_pattern( Lbuf, P, 1, 1, coef, 6, 1, cfg.log2_scale_factor, Seed_LUT[0] );
           }
           else
           {
-            make_sei_ff_pattern64( (int8_t( * )[64]) P, coef[1], coef[2] );
+            make_sei_ff_pattern64( (int8_t( * )[64]) P, coef[1], coef[2], Seed_LUT[0] );
           }
 
           m_impl->set_luma_pattern( i, P );
         }
         else if( c == 2 )
         {
-          if( fgs.model_id )
+          // A chroma pattern has 64 / suby rows of 64 / subx samples.
+          if( cfg.model_id )
           {
-            make_ar_pattern( Cbuf, P, 32, coef, 6, 1, fgs.log2_scale_factor, Seed_LUT[1] );
+            make_ar_pattern( subx > 1 && suby > 1 ? Cbuf : Lbuf, P, subx, suby, coef, 6, 1, cfg.log2_scale_factor, Seed_LUT[1] );
+          }
+          else if( subx > 1 && suby > 1 )
+          {
+            make_sei_ff_pattern32( (int8_t( * )[32]) P, coef[1], coef[2] );
           }
           else
           {
-            make_sei_ff_pattern32( (int8_t( * )[32]) P, coef[1], coef[2] );
+            // 4:2:2 and 4:4:4: a full-height pattern, of which a 4:2:2 plane uses the left half
+            make_sei_ff_pattern64( B, coef[1], coef[2], Seed_LUT[1] );
+            for( int y = 0; y < 64; y++ )
+            {
+              memcpy( P + ( 64 / subx ) * y, B[y], 64 / subx );
+            }
           }
           m_impl->set_chroma_pattern( i, P );
         }
@@ -655,19 +727,19 @@ void FilmGrain::init_sei()
       // 3. Fill up LUTs
       for( int cc = std::min( c, 1 ); cc <= c; cc++ )
       {
-        if( fgs.comp_model_present_flag[cc] )
+        if( cfg.comp_model_present_flag[cc] )
         {
           memset( plut, 255, sizeof( plut ) );
           // 3a. Fill valid patterns
-          for( k = 0; k < fgs.num_intensity_intervals[cc]; k++ )
+          for( k = 0; k < cfg.num_intensity_intervals[cc]; k++ )
           {
-            a           = fgs.intensity_interval_lower_bound[cc][k];
-            b           = fgs.intensity_interval_upper_bound[cc][k];
+            a           = cfg.intensity_interval_lower_bound[cc][k];
+            b           = cfg.intensity_interval_upper_bound[cc][k];
             uint32_t id = SEI_MAX_MODEL_VALUES * ( k + 256 * cc );
 
             for( i = 0; i < VFGS_MAX_PATTERNS; i++ )
             {
-              if( same_pattern( &fgs, patterns[i], id ) )
+              if( same_pattern( &cfg, patterns[i], id ) )
               {
                 break;
               }
@@ -676,7 +748,7 @@ void FilmGrain::init_sei()
 
             for( int l = a; l <= b; l++ )
             {
-              slut[l] = (uint8_t) fgs.comp_model_value[cc][k][0];
+              slut[l] = (uint8_t) cfg.comp_model_value[cc][k][0];
               if( i < VFGS_MAX_PATTERNS )
               {
                 plut[l] = i << 4;
@@ -715,13 +787,16 @@ void FilmGrain::init_sei()
     }
   }
 
-  m_impl->set_scale_shift( fgs.log2_scale_factor - ( fgs.model_id ? 1 : 0 ) );   // -1 for grain shift in pattern generation (see above)
+  m_impl->set_scale_shift( cfg.log2_scale_factor - ( cfg.model_id ? 1 : 0 ) );   // -1 for grain shift in pattern generation (see above)
 }
 
 FilmGrain::FilmGrain()
 {
-#if defined( TARGET_SIMD_X86 ) && ENABLE_SIMD_OPT
-  m_impl = FilmGrainImplX86<UNDEFINED>::makeFilmGrainImpl();
+#if defined( TARGET_SIMD_ARM ) && ENABLE_SIMD_OPT
+  // ARM builds also have the x86 code, through SIMD Everywhere, but use the Neon code.
+  m_impl = FilmGrainImplARM<arm_simd::UNDEFINED>::makeFilmGrainImpl();
+#elif defined( TARGET_SIMD_X86 ) && ENABLE_SIMD_OPT
+  m_impl = FilmGrainImplX86<x86_simd::UNDEFINED>::makeFilmGrainImpl();
 #else
   m_impl = std::make_unique<FilmGrainImpl>();
 #endif
@@ -766,23 +841,7 @@ void FilmGrain::updateFGC( vvdecSEIFilmGrainCharacteristics* fgc )
     }
   }
 
-  // Conversion of component model values for 4:2:0 chroma format
-  if( fgs.model_id == 0 )
-  {
-    for( int c = 1; c < 3; c++ )
-    {
-      if( fgs.comp_model_present_flag[c] )
-      {
-        for( int k = 0; k < fgs.num_intensity_intervals[c]; k++ )
-        {
-          fgs.comp_model_value[c][k][1] = std::max( 2, std::min( 14, fgs.comp_model_value[c][k][1] << 1 ) );   // Horizontal frequency
-          fgs.comp_model_value[c][k][2] = std::max( 2, std::min( 14, fgs.comp_model_value[c][k][2] << 1 ) );   // Vertical frequency
-          fgs.comp_model_value[c][k][0] >>= 1;
-        }
-      }
-    }
-  }
-
+  m_fgsReceived = true;
   init_sei();
 
   //  if (!m_bFgs)
@@ -821,15 +880,20 @@ void FilmGrain::prepareBlockSeeds( int width, int height )
 
 void FilmGrain::setColorFormat( vvdecColorFormat fmt )
 {
-  switch( fmt )
+  if( fmt == m_colorFormat )
   {
-    // clang-format off
-    case VVDEC_CF_YUV400_PLANAR: m_impl->set_chroma_subsampling( 0, 0 ); break;
-    case VVDEC_CF_YUV420_PLANAR: m_impl->set_chroma_subsampling( 2, 2 ); break;
-    case VVDEC_CF_YUV422_PLANAR: m_impl->set_chroma_subsampling( 2, 1 ); break;
-    case VVDEC_CF_YUV444_PLANAR: m_impl->set_chroma_subsampling( 1, 1 ); break;
-    default: THROW_FATAL( "invalid color format: " );
-    // clang-format on
+    return;
+  }
+
+  int subx, suby;
+  get_chroma_subsampling( fmt, subx, suby );
+  m_impl->set_chroma_subsampling( subx, suby );
+  m_colorFormat = fmt;
+
+  // The chroma patterns and model values depend on the chroma subsampling.
+  if( m_fgsReceived )
+  {
+    init_sei();
   }
 }
 

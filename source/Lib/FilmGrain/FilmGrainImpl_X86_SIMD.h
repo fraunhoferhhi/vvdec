@@ -71,9 +71,9 @@ void FilmGrainImplX86<CURR_X86_VEXT>::make_grain_pattern( const void* I,
   const uint16_t* I16 = (const uint16_t*) I;
   if( allZero[c] == 1 )
   {
-    if( c == 0 )
+    if( subx == 1 )   // 16 samples per block: luma, and 4:4:4 chroma
     {
-      __m128i vP = _mm_lddqu_si128( (__m128i*) &pattern[0][0][oy][ox] );
+      __m128i vP = _mm_lddqu_si128( (__m128i*) &pattern[c ? 1 : 0][0][oy][ox] );
       if( s == -1 )
       {
         vP = _mm_sub_epi8( _mm_set1_epi8( 0 ), vP );
@@ -110,7 +110,7 @@ void FilmGrainImplX86<CURR_X86_VEXT>::make_grain_pattern( const void* I,
         // p*oc1
         avP = _mm256_mullo_epi16( avP, avoc1 );   // max 16 Bit
         // pattern * s_up
-        __m128i vP2 = _mm_lddqu_si128( (__m128i*) &pattern[0][0][oy_up][ox_up] );
+        __m128i vP2 = _mm_lddqu_si128( (__m128i*) &pattern[c ? 1 : 0][0][oy_up][ox_up] );
         if( s_up == -1 )
         {
           vP2 = _mm_sub_epi8( _mm_set1_epi8( 0 ), vP2 );
@@ -128,8 +128,8 @@ void FilmGrainImplX86<CURR_X86_VEXT>::make_grain_pattern( const void* I,
       }
       _mm256_storeu_si256( (__m256i*) &grain[c][16], avP );
 
-      __m256i vscale0 = _mm256_i32gather_epi32 ((int *)&sLUT[0][0], vindex0, 1);  // load 8 32 bit values
-      __m256i vscale1 = _mm256_i32gather_epi32 ((int *)&sLUT[0][0], vindex1, 1);  // load 8 32 bit values
+      __m256i vscale0 = _mm256_i32gather_epi32 ((int *)&sLUT[c][0], vindex0, 1);  // load 8 32 bit values
+      __m256i vscale1 = _mm256_i32gather_epi32 ((int *)&sLUT[c][0], vindex1, 1);  // load 8 32 bit values
 
       vscale0 = _mm256_and_si256 (vscale0,vmask);
       vscale1 = _mm256_and_si256 (vscale1,vmask);
@@ -138,7 +138,7 @@ void FilmGrainImplX86<CURR_X86_VEXT>::make_grain_pattern( const void* I,
       vscale0 = _mm256_permute4x64_epi64 (vintensity, 0x8);
       vscale1 = _mm256_permute4x64_epi64 (vintensity, 0xd);
       vscale0 = _mm256_packus_epi16 (vscale0, vscale1);
-      _mm_storeu_si128(( __m128i * )&scale[0][16],_mm256_castsi256_si128(vscale0));
+      _mm_storeu_si128(( __m128i * )&scale[c][16],_mm256_castsi256_si128(vscale0));
 # else
       __m128i vPlo = _mm_cvtepi8_epi16( vP );
       __m128i vPhi = _mm_cvtepi8_epi16( _mm_bsrli_si128( vP, 8 ) );
@@ -150,7 +150,7 @@ void FilmGrainImplX86<CURR_X86_VEXT>::make_grain_pattern( const void* I,
         vPlo = _mm_mullo_epi16( vPlo, voc1 );   // max 16 Bit
         vPhi = _mm_mullo_epi16( vPhi, voc1 );
         // pattern * s_up
-        __m128i vP2 = _mm_lddqu_si128( (__m128i*) &pattern[0][0][oy_up][ox_up] );
+        __m128i vP2 = _mm_lddqu_si128( (__m128i*) &pattern[c ? 1 : 0][0][oy_up][ox_up] );
         if( s_up == -1 )
         {
           vP2 = _mm_sub_epi8( _mm_set1_epi8( 0 ), vP2 );
@@ -174,10 +174,10 @@ void FilmGrainImplX86<CURR_X86_VEXT>::make_grain_pattern( const void* I,
       _mm_storeu_si128( (__m128i*) &grain[c][16], vPlo );
       _mm_storeu_si128( (__m128i*) &grain[c][16 + 8], vPhi );
       // Scale sign already integrated above because of overlap
-      //scale[0][16+i] = sLUT[0][intensity];
+      //scale[c][16+i] = sLUT[c][intensity];
       uint8_t intensity;
-      uint8_t *pscale=&scale[0][16];
-      const uint8_t *pLUT=sLUT[0];
+      uint8_t *pscale=&scale[c][16];
+      const uint8_t *pLUT=sLUT[c];
       if (bs)
       {
         const uint16_t *pI16 = I16+x;
@@ -197,9 +197,9 @@ void FilmGrainImplX86<CURR_X86_VEXT>::make_grain_pattern( const void* I,
         }
       }
 #endif
-    }   // Y
+    }   // Y, and 4:4:4 U/V
     else
-    {   // U/V
+    {   // U/V with 8 samples per block
       __m128i vP;
 #ifdef USE_AVX2
       __m256i vindex;
@@ -282,7 +282,7 @@ void FilmGrainImplX86<CURR_X86_VEXT>::make_grain_pattern( const void* I,
     }
   }
 #ifdef USE_AVX2
-  else if( c>0 && allZero[c] == 0 )
+  else if( c > 0 && subx == 2 && allZero[c] == 0 )   // 8 chroma samples per block
   {
     __m128i vP;
     __m128i vintensity;
@@ -407,9 +407,9 @@ void FilmGrainImplX86<CURR_X86_VEXT>::scale_and_output( void* I, int c, int x, i
         // Horizontal deblock (across previous block)
         __m128i vgrain;
         __m128i vfac = _mm_set_epi16( 0, 0, 0, 1, 1, 3, 1, 1 );
-        if( c == 0 )
+        if( subx == 1 )
         {
-          vgrain = _mm_loadu_si64( (__m128i*) &grain[0][16 - 2] );   // r1 r0 l0 l1
+          vgrain = _mm_loadu_si64( (__m128i*) &grain[c][16 - 2] );   // r1 r0 l0 l1
         }
         else
         {
@@ -429,9 +429,9 @@ void FilmGrainImplX86<CURR_X86_VEXT>::scale_and_output( void* I, int c, int x, i
         vgrain          = _mm_or_si128( vgrainl, vgrainh );
         vgrain          = _mm_add_epi16( vgrain, _mm_set_epi16( 0, 0, 0, 0, 0, 0, 2, 2 ) );
         vgrain          = _mm_srai_epi16( vgrain, 2 );
-        if( c == 0 )
+        if( subx == 1 )
         {
-          _mm_storeu_si32( (__m128i*) &grain[0][16 - 1], vgrain );
+          _mm_storeu_si32( (__m128i*) &grain[c][16 - 1], vgrain );
         }
         else
         {
@@ -442,11 +442,11 @@ void FilmGrainImplX86<CURR_X86_VEXT>::scale_and_output( void* I, int c, int x, i
       {
 #  ifdef USE_AVX2
         __m128i vshift = _mm_set_epi16( 0, 0, 0, 0, 0, 0, 0, scale_shift );
-        if( c == 0 )
+        if( subx == 1 )
         {
           __m256i vadd    = _mm256_set1_epi32( 1 << ( scale_shift - 1 ) );
-          __m256i vgrain  = _mm256_lddqu_si256( (__m256i*) &grain[0][0] );   // load 16 * 16 bit
-          __m256i vscale  = _mm256_cvtepu8_epi16( _mm_lddqu_si128( (__m128i*) &scale[0][0] ) );
+          __m256i vgrain  = _mm256_lddqu_si256( (__m256i*) &grain[c][0] );   // load 16 * 16 bit
+          __m256i vscale  = _mm256_cvtepu8_epi16( _mm_lddqu_si128( (__m128i*) &scale[c][0] ) );
           __m256i tmplo   = _mm256_mullo_epi16( vscale, vgrain );
           __m256i tmphi   = _mm256_mulhi_epi16( vscale, vgrain );
           __m256i tmpgvlo = _mm256_unpacklo_epi16( tmplo, tmphi );   // 32 bit
@@ -486,7 +486,7 @@ void FilmGrainImplX86<CURR_X86_VEXT>::scale_and_output( void* I, int c, int x, i
           gvlo           = _mm_sra_epi32( gvlo, vshift );
           gvhi           = _mm_sra_epi32( gvhi, vshift );
           __m128i vI16lo = _mm_lddqu_si128( (__m128i*) &I16[( x - 16 ) / subx] );
-          __m128i vI16hi = _mm_lddqu_si128( (__m128i*) &I16[( x - 16 ) / subx + 4] );
+          __m128i vI16hi = _mm_loadl_epi64( (__m128i*) &I16[( x - 16 ) / subx + 4] );   // only the 4 used samples
           vI16lo         = _mm_cvtepi16_epi32( vI16lo );   // 32 bit
           vI16hi         = _mm_cvtepi16_epi32( vI16hi );
           vI16lo         = _mm_add_epi32( gvlo, vI16lo );
@@ -513,7 +513,7 @@ void FilmGrainImplX86<CURR_X86_VEXT>::scale_and_output( void* I, int c, int x, i
         gvlo           = _mm_sra_epi32( gvlo, vshift );
         gvhi           = _mm_sra_epi32( gvhi, vshift );
         __m128i vI16lo = _mm_lddqu_si128( (__m128i*) &I16[( x - 16 ) / subx] );
-        __m128i vI16hi = _mm_lddqu_si128( (__m128i*) &I16[( x - 16 ) / subx + 4] );
+        __m128i vI16hi = _mm_loadl_epi64( (__m128i*) &I16[( x - 16 ) / subx + 4] );   // only the 4 used samples
 
         vI16lo = _mm_cvtepi16_epi32( vI16lo );   // 32 bit
         vI16hi = _mm_cvtepi16_epi32( vI16hi );
@@ -525,7 +525,7 @@ void FilmGrainImplX86<CURR_X86_VEXT>::scale_and_output( void* I, int c, int x, i
         vI16hi = _mm_min_epi32( _mm_set1_epi32( I_max << bs ), vI16hi );
         vI16lo = _mm_packs_epi32( vI16lo, vI16hi );
         _mm_storeu_si128( (__m128i*) &I16[( x - 16 ) / subx], vI16lo );
-        if( c == 0 )
+        if( subx == 1 )
         {
           __m128i vscale = _mm_lddqu_si128( (__m128i*) &scale[c][8] );
           __m128i vgrain = _mm_lddqu_si128( (__m128i*) &grain[c][8] );
@@ -540,7 +540,7 @@ void FilmGrainImplX86<CURR_X86_VEXT>::scale_and_output( void* I, int c, int x, i
           gvlo           = _mm_sra_epi32( gvlo, vshift );
           gvhi           = _mm_sra_epi32( gvhi, vshift );
           __m128i vI16lo = _mm_lddqu_si128( (__m128i*) &I16[( x - 16 ) / subx + 8] );
-          __m128i vI16hi = _mm_lddqu_si128( (__m128i*) &I16[( x - 16 ) / subx + 12] );
+          __m128i vI16hi = _mm_loadl_epi64( (__m128i*) &I16[( x - 16 ) / subx + 12] );   // only the 4 used samples
           vI16lo         = _mm_cvtepi16_epi32( vI16lo );   // 32 bit
           vI16hi         = _mm_cvtepi16_epi32( vI16hi );
           vI16lo         = _mm_add_epi32( gvlo, vI16lo );
@@ -574,19 +574,19 @@ void FilmGrainImplX86<CURR_X86_VEXT>::scale_and_output( void* I, int c, int x, i
     // Shift pipeline
     if( !flush )
     {
-      if( c == 0 )
+      if( subx == 1 )
       {
 #ifdef USE_AVX2
-        __m256i vgrain = _mm256_lddqu_si256( (__m256i*) &grain[0][16] );
-        _mm256_storeu_si256( (__m256i*) &grain[0][0], vgrain );
+        __m256i vgrain = _mm256_lddqu_si256( (__m256i*) &grain[c][16] );
+        _mm256_storeu_si256( (__m256i*) &grain[c][0], vgrain );
 #else
-        __m128i vgrain0 = _mm_lddqu_si128( (__m128i*) &grain[0][16] );
-        __m128i vgrain1 = _mm_lddqu_si128( (__m128i*) &grain[0][24] );
-        _mm_storeu_si128( (__m128i*) &grain[0][0], vgrain0 );
-        _mm_storeu_si128( (__m128i*) &grain[0][8], vgrain1 );
+        __m128i vgrain0 = _mm_lddqu_si128( (__m128i*) &grain[c][16] );
+        __m128i vgrain1 = _mm_lddqu_si128( (__m128i*) &grain[c][24] );
+        _mm_storeu_si128( (__m128i*) &grain[c][0], vgrain0 );
+        _mm_storeu_si128( (__m128i*) &grain[c][8], vgrain1 );
 #endif
-        __m128i vscale = _mm_lddqu_si128( (__m128i*) &scale[0][16] );
-        _mm_storeu_si128( (__m128i*) &scale[0][0], vscale );
+        __m128i vscale = _mm_lddqu_si128( (__m128i*) &scale[c][16] );
+        _mm_storeu_si128( (__m128i*) &scale[c][0], vscale );
       }
       else
       {
