@@ -2672,10 +2672,40 @@ static bool check_accessUnit_free_payload()
   return passed;
 }
 
+static bool check_get_nal_unit_type()
+{
+  std::cout << "Testing vvdec_get_nal_unit_type" << std::endl;
+
+  // a 16 byte buffer, of which only the first payloadUsedSize bytes are the access unit; byte 5 holds the NAL unit type
+  // 8 (IDR_N_LP) for a 4 byte start code, and must only be read when it is part of the access unit
+  const unsigned char data[16] = { 0, 0, 0, 1, 0, 8 << 3 | 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+  struct Case { int usedSize; vvdecNalType expected; };
+  const Case cases[] = { { 3, VVC_NAL_UNIT_INVALID }, { 5, VVC_NAL_UNIT_INVALID }, { 6, VVC_NAL_UNIT_CODED_SLICE_IDR_N_LP } };
+
+  bool passed = true;
+  vvdecAccessUnit* accessUnit = vvdec_accessUnit_alloc();
+  vvdec_accessUnit_alloc_payload( accessUnit, sizeof( data ) );
+  memcpy( accessUnit->payload, data, sizeof( data ) );
+  for( const Case& c : cases )
+  {
+    accessUnit->payloadUsedSize = c.usedSize;
+    const vvdecNalType type = vvdec_get_nal_unit_type( accessUnit );
+    if( type != c.expected )
+    {
+      std::cout << "failed: payloadUsedSize=" << c.usedSize << " gives NAL unit type " << (int) type << ", expected "
+                << (int) c.expected << std::endl;
+      passed = false;
+    }
+  }
+  vvdec_accessUnit_free( accessUnit );
+  return passed;
+}
+
 static bool test_API()
 {
   bool passed = true;
   passed = check_accessUnit_free_payload() && passed;
+  passed = check_get_nal_unit_type() && passed;
   return passed;
 }
 
