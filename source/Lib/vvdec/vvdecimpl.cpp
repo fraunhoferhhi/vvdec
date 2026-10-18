@@ -735,9 +735,9 @@ vvdecNalType VVDecImpl::getNalUnitType ( vvdecAccessUnit& rcAccessUnit )
 {
   vvdecNalType eNalType = VVC_NAL_UNIT_INVALID;
 
+  // the shortest NAL unit that has a type: a 3 byte start code and the 2 byte NAL unit header
   if( rcAccessUnit.payload == nullptr ||
-      rcAccessUnit.payloadSize < 3 ||
-      rcAccessUnit.payloadUsedSize == 0 )
+      rcAccessUnit.payloadUsedSize < 5 )
   {
     return eNalType;
   }
@@ -787,7 +787,8 @@ vvdecNalType VVDecImpl::getNalUnitType ( vvdecAccessUnit& rcAccessUnit )
     }
   }
 
-  if( found )
+  // iOffset is the second byte of the NAL unit header, which holds nal_unit_type; it has to be within the used payload
+  if( found && iOffset < rcAccessUnit.payloadUsedSize )
   {
     unsigned char uc = pcBuf[iOffset];
     int nalUnitType   = ((uc >> 3) & 0x1F );
