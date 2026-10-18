@@ -169,9 +169,10 @@ static void DeQuantImpl( const SizeType width,
           const int              scale     = UseScalingList ? piDequantCoef[n] * scaleQP   //
                                                             : scaleQP;
           const TCoeff           clipQCoef = TCoeff( Clip3<Intermediate_Int>( inputMinimum, inputMaximum, level ) );
-          const Intermediate_Int iCoeffQ   = ( Intermediate_Int( clipQCoef ) * scale ) * ( 1 << leftShift );
+          // with a scaling list, level * scale can exceed 32 bits once it is shifted left
+          const int64_t          iCoeffQ   = int64_t( clipQCoef ) * scale * ( int64_t( 1 ) << leftShift );
 
-          piCoef[n] = TCoeff( Clip3<Intermediate_Int>( transformMinimum, transformMaximum, iCoeffQ ) );
+          piCoef[n] = TCoeff( Clip3<int64_t>( transformMinimum, transformMaximum, iCoeffQ ) );
         }
       }
     }

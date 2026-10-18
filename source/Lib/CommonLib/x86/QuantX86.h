@@ -77,8 +77,15 @@ static inline void DeQuantImplSIMD( const SizeType width,
   const int iAdd  = RightShiftPositive ? 1 << ( rightShift - 1 ) : 0;
   const int shift = RightShiftPositive ? rightShift : -rightShift;
 
+  // Shifted left, level * scale can exceed 32 bits with a scaling list. It is clamped to the values whose shift fits:
+  // the clamped ones are far outside the transform range either way, so the clipped result stays the same.
+  const int productMin = RightShiftPositive ? INT32_MIN : INT32_MIN >> shift;
+  const int productMax = RightShiftPositive ? INT32_MAX : INT32_MAX >> shift;
+
   const __m128i vInputMin     = _mm_set1_epi32( inputMinimum );
   const __m128i vInputMax     = _mm_set1_epi32( inputMaximum );
+  const __m128i vProductMin   = _mm_set1_epi32( productMin );
+  const __m128i vProductMax   = _mm_set1_epi32( productMax );
   const __m128i vTransformMin = _mm_set1_epi32( transformMinimum );
   const __m128i vTransformMax = _mm_set1_epi32( transformMaximum );
 
@@ -89,6 +96,8 @@ static inline void DeQuantImplSIMD( const SizeType width,
 #if USE_AVX2
   const __m256i xvInputMin     = _mm256_set1_epi32( inputMinimum );
   const __m256i xvInputMax     = _mm256_set1_epi32( inputMaximum );
+  const __m256i xvProductMin   = _mm256_set1_epi32( productMin );
+  const __m256i xvProductMax   = _mm256_set1_epi32( productMax );
   const __m256i xvTransformMin = _mm256_set1_epi32( transformMinimum );
   const __m256i xvTransformMax = _mm256_set1_epi32( transformMaximum );
 
@@ -132,6 +141,8 @@ static inline void DeQuantImplSIMD( const SizeType width,
       }
       else
       {
+        xvLevel = _mm256_max_epi32( xvLevel, xvProductMin );
+        xvLevel = _mm256_min_epi32( xvLevel, xvProductMax );
         xvLevel = _mm256_sll_epi32( xvLevel, vShift );
       }
 
@@ -164,6 +175,8 @@ static inline void DeQuantImplSIMD( const SizeType width,
       }
       else
       {
+        vLevel = _mm_max_epi32( vLevel, vProductMin );
+        vLevel = _mm_min_epi32( vLevel, vProductMax );
         vLevel = _mm_sll_epi32( vLevel, vShift );
       }
 
@@ -221,6 +234,8 @@ static inline void DeQuantImplSIMD( const SizeType width,
       }
       else
       {
+        vLevel = _mm_max_epi32( vLevel, vProductMin );
+        vLevel = _mm_min_epi32( vLevel, vProductMax );
         vLevel = _mm_sll_epi32( vLevel, vShift );
       }
 
