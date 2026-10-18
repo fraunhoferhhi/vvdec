@@ -56,6 +56,7 @@ POSSIBILITY OF SUCH DAMAGE.
 #include "CommonLib/TrQuant.h"
 #include "CommonLib/TrQuant_EMT.h"
 #include "CommonLib/Quant.h"
+#include "DecoderLib/SEIread.h"
 #include "vvdec/vvdec.h"
 
 using namespace vvdec;
@@ -2679,6 +2680,147 @@ static bool test_API()
   return passed;
 }
 
+// Collects the bits of a hand-made SEI message payload, most significant bit first.
+class SEIPayloadWriter
+{
+public:
+  void write( uint32_t value, int numBits )
+  {
+    for( int i = numBits - 1; i >= 0; i-- )
+    {
+      if( m_numBits % 8 == 0 )
+      {
+        m_bytes.push_back( 0 );
+      }
+      m_bytes.back() |= ( ( value >> i ) & 1 ) << ( 7 - m_numBits % 8 );
+      m_numBits++;
+    }
+  }
+
+  // A payload that does not end on a byte boundary ends with payload_bit_equal_to_one and zero bits up to the next one.
+  void alignPayload()
+  {
+    if( m_numBits % 8 )
+    {
+      write( 1, 1 );
+      write( 0, ( 8 - m_numBits % 8 ) % 8 );
+    }
+  }
+
+  const std::vector<uint8_t>& bytes() const { return m_bytes; }
+
+private:
+  std::vector<uint8_t> m_bytes;
+  int                  m_numBits = 0;
+};
+
+// Parses a prefix SEI NAL unit that holds one SEI message with the given payload, as the decoder does after the NAL unit
+// header, and returns that message, or nullptr if the parser fails. The caller frees it with SEI_internal::deleteSEI().
+static vvdecSEI* parse_prefix_sei( vvdecSEIPayloadType payloadType, SEIPayloadWriter payload )
+{
+  payload.alignPayload();
+  const std::vector<uint8_t>& payloadBytes = payload.bytes();
+  CHECK( payloadType >= 255 || payloadBytes.size() >= 255, "the test writes the payload type and size as one byte each" );
+
+  InputBitstream  bitstream;
+  AlignedByteVec& rbsp = bitstream.getFifo();
+  rbsp.push_back( payloadType );
+  rbsp.push_back( payloadBytes.size() );
+  rbsp.insert( rbsp.end(), payloadBytes.begin(), payloadBytes.end() );
+  rbsp.push_back( 0x80 );   // rbsp_trailing_bits()
+
+  SEIReader   reader;
+  HRD         hrd;
+  seiMessages seis;
+  try
+  {
+    reader.parseSEImessage( &bitstream, seis, NAL_UNIT_PREFIX_SEI, 0, 0, nullptr, nullptr, hrd, nullptr );
+  }
+  catch( const std::exception& e )
+  {
+    std::cout << "failed: the SEI parser stopped with" << e.what() << std::endl;
+    SEI_internal::deleteSEIs( seis );
+    return nullptr;
+  }
+  if( seis.size() != 1 || seis.front()->payloadType != payloadType )
+  {
+    std::cout << "failed: the SEI message was not decoded" << std::endl;
+    SEI_internal::deleteSEIs( seis );
+    return nullptr;
+  }
+  return seis.front();
+}
+
+static bool check_sei_field( const char* name, int64_t decoded, int64_t written )
+{
+  if( decoded != written )
+  {
+    std::cout << "failed: " << name << " is decoded as " << decoded << ", but " << written << " was written" << std::endl;
+    return false;
+  }
+  return true;
+}
+
+static bool check_sei_region_wise_packing()
+{
+  std::cout << "Testing the region-wise packing SEI message" << std::endl;
+  bool passed = true;
+
+  // a message that cancels the region-wise packing has nothing but its rwp_cancel_flag
+  {
+    SEIPayloadWriter payload;
+    payload.write( 1, 1 );   // rwp_cancel_flag
+
+    vvdecSEI* sei = parse_prefix_sei( VVDEC_REGION_WISE_PACKING, payload );
+    if( !sei )
+    {
+      return false;
+    }
+    const auto* rwp = (const vvdecSEIRegionWisePacking*) sei->payload;
+    passed = check_sei_field( "rwp_cancel_flag", rwp->rwpCancelFlag, 1 ) && passed;
+    SEI_internal::deleteSEI( sei );
+  }
+
+  // otherwise the packing follows rwp_cancel_flag
+  {
+    SEIPayloadWriter payload;
+    payload.write( 0, 1 );       // rwp_cancel_flag
+    payload.write( 1, 1 );       // rwp_persistence_flag
+    payload.write( 1, 1 );       // constituent_picture_matching_flag
+    payload.write( 0, 5 );       // rwp_reserved_zero_5bits
+    payload.write( 0, 8 );       // num_packed_regions
+    payload.write( 3840, 32 );   // proj_picture_width
+    payload.write( 1920, 32 );   // proj_picture_height
+    payload.write( 1920, 16 );   // packed_picture_width
+    payload.write( 1080, 16 );   // packed_picture_height
+
+    vvdecSEI* sei = parse_prefix_sei( VVDEC_REGION_WISE_PACKING, payload );
+    if( !sei )
+    {
+      return false;
+    }
+    const auto* rwp = (const vvdecSEIRegionWisePacking*) sei->payload;
+    passed = check_sei_field( "rwp_cancel_flag", rwp->rwpCancelFlag, 0 ) && passed;
+    passed = check_sei_field( "rwp_persistence_flag", rwp->rwpPersistenceFlag, 1 ) && passed;
+    passed = check_sei_field( "constituent_picture_matching_flag", rwp->constituentPictureMatchingFlag, 1 ) && passed;
+    passed = check_sei_field( "num_packed_regions", rwp->numPackedRegions, 0 ) && passed;
+    passed = check_sei_field( "proj_picture_width", rwp->projPictureWidth, 3840 ) && passed;
+    passed = check_sei_field( "proj_picture_height", rwp->projPictureHeight, 1920 ) && passed;
+    passed = check_sei_field( "packed_picture_width", rwp->packedPictureWidth, 1920 ) && passed;
+    passed = check_sei_field( "packed_picture_height", rwp->packedPictureHeight, 1080 ) && passed;
+    SEI_internal::deleteSEI( sei );
+  }
+
+  return passed;
+}
+
+static bool test_SEI()
+{
+  bool passed = true;
+  passed = check_sei_region_wise_packing() && passed;
+  return passed;
+}
+
 struct UnitTestEntry
 {
   std::string name;
@@ -2687,6 +2829,7 @@ struct UnitTestEntry
 
 static const UnitTestEntry test_suites[] = {
     { "API", test_API },
+    { "SEI", test_SEI },
 #if ENABLE_SIMD_OPT_ALF
     { "ALF", test_AdaptiveLoopFilter },
 #endif
