@@ -56,6 +56,8 @@ POSSIBILITY OF SUCH DAMAGE.
 #include "CommonLib/TrQuant.h"
 #include "CommonLib/TrQuant_EMT.h"
 #include "CommonLib/Quant.h"
+#include "DecoderLib/SEIread.h"
+#include "vvdec/vvdec.h"
 
 using namespace vvdec;
 
@@ -2651,6 +2653,266 @@ static bool test_IntraPredAngleChroma()
 }
 #endif // ENABLE_SIMD_OPT_INTRAPRED
 
+static bool check_accessUnit_free_payload()
+{
+  std::cout << "Testing vvdec_accessUnit_free_payload" << std::endl;
+
+  vvdecAccessUnit* accessUnit = vvdec_accessUnit_alloc();
+  vvdec_accessUnit_alloc_payload( accessUnit, 100 );
+  vvdec_accessUnit_free_payload( accessUnit );
+
+  // vvdec_accessUnit_free() releases the payload "if not done yet", so it must see that it was released
+  const bool passed = accessUnit->payload == nullptr && accessUnit->payloadSize == 0;
+  if( !passed )
+  {
+    std::cout << "failed: the payload pointer is still set after vvdec_accessUnit_free_payload()" << std::endl;
+  }
+
+  vvdec_accessUnit_free_payload( accessUnit );   // a second call must be harmless
+  vvdec_accessUnit_free( accessUnit );
+  return passed;
+}
+
+static bool test_API()
+{
+  bool passed = true;
+  passed = check_accessUnit_free_payload() && passed;
+  return passed;
+}
+
+// Collects the bits of a hand-made SEI message payload, most significant bit first.
+class SEIPayloadWriter
+{
+public:
+  void write( uint32_t value, int numBits )
+  {
+    for( int i = numBits - 1; i >= 0; i-- )
+    {
+      if( m_numBits % 8 == 0 )
+      {
+        m_bytes.push_back( 0 );
+      }
+      m_bytes.back() |= ( ( value >> i ) & 1 ) << ( 7 - m_numBits % 8 );
+      m_numBits++;
+    }
+  }
+
+  // ue(v): value + 1 in binary, after as many zero bits as it has bits after its leading one
+  void writeUvlc( uint32_t value )
+  {
+    const uint64_t codeNum = uint64_t( value ) + 1;
+    int            numBits = 0;
+    while( codeNum >> numBits )
+    {
+      numBits++;
+    }
+    write( 0, numBits - 1 );
+    write( uint32_t( codeNum ), numBits );
+  }
+
+  void writeZeroBitsToByteBoundary() { write( 0, ( 8 - m_numBits % 8 ) % 8 ); }
+
+  // A payload that does not end on a byte boundary ends with payload_bit_equal_to_one and zero bits up to the next one.
+  void alignPayload()
+  {
+    if( m_numBits % 8 )
+    {
+      write( 1, 1 );
+      writeZeroBitsToByteBoundary();
+    }
+  }
+
+  const std::vector<uint8_t>& bytes() const { return m_bytes; }
+
+private:
+  std::vector<uint8_t> m_bytes;
+  int                  m_numBits = 0;
+};
+
+// Parses a prefix SEI NAL unit that holds one SEI message with the given payload, as the decoder does after the NAL unit
+// header, and returns that message, or nullptr if the parser fails. The caller frees it with SEI_internal::deleteSEI().
+static vvdecSEI* parse_prefix_sei( vvdecSEIPayloadType payloadType, SEIPayloadWriter payload )
+{
+  payload.alignPayload();
+  const std::vector<uint8_t>& payloadBytes = payload.bytes();
+  CHECK( payloadType >= 255 || payloadBytes.size() >= 255, "the test writes the payload type and size as one byte each" );
+
+  InputBitstream  bitstream;
+  AlignedByteVec& rbsp = bitstream.getFifo();
+  rbsp.push_back( payloadType );
+  rbsp.push_back( payloadBytes.size() );
+  rbsp.insert( rbsp.end(), payloadBytes.begin(), payloadBytes.end() );
+  rbsp.push_back( 0x80 );   // rbsp_trailing_bits()
+
+  SEIReader   reader;
+  HRD         hrd;
+  seiMessages seis;
+  try
+  {
+    reader.parseSEImessage( &bitstream, seis, NAL_UNIT_PREFIX_SEI, 0, 0, nullptr, nullptr, hrd, nullptr );
+  }
+  catch( const std::exception& e )
+  {
+    std::cout << "failed: the SEI parser stopped with" << e.what() << std::endl;
+    SEI_internal::deleteSEIs( seis );
+    return nullptr;
+  }
+  if( seis.size() != 1 || seis.front()->payloadType != payloadType )
+  {
+    std::cout << "failed: the SEI message was not decoded" << std::endl;
+    SEI_internal::deleteSEIs( seis );
+    return nullptr;
+  }
+  return seis.front();
+}
+
+static bool check_sei_field( const char* name, int64_t decoded, int64_t written )
+{
+  if( decoded != written )
+  {
+    std::cout << "failed: " << name << " is decoded as " << decoded << ", but " << written << " was written" << std::endl;
+    return false;
+  }
+  return true;
+}
+
+static bool check_sei_region_wise_packing()
+{
+  std::cout << "Testing the region-wise packing SEI message" << std::endl;
+  bool passed = true;
+
+  // a message that cancels the region-wise packing has nothing but its rwp_cancel_flag
+  {
+    SEIPayloadWriter payload;
+    payload.write( 1, 1 );   // rwp_cancel_flag
+
+    vvdecSEI* sei = parse_prefix_sei( VVDEC_REGION_WISE_PACKING, payload );
+    if( !sei )
+    {
+      return false;
+    }
+    const auto* rwp = (const vvdecSEIRegionWisePacking*) sei->payload;
+    passed = check_sei_field( "rwp_cancel_flag", rwp->rwpCancelFlag, 1 ) && passed;
+    SEI_internal::deleteSEI( sei );
+  }
+
+  // otherwise the packing follows rwp_cancel_flag
+  {
+    SEIPayloadWriter payload;
+    payload.write( 0, 1 );       // rwp_cancel_flag
+    payload.write( 1, 1 );       // rwp_persistence_flag
+    payload.write( 1, 1 );       // constituent_picture_matching_flag
+    payload.write( 0, 5 );       // rwp_reserved_zero_5bits
+    payload.write( 0, 8 );       // num_packed_regions
+    payload.write( 3840, 32 );   // proj_picture_width
+    payload.write( 1920, 32 );   // proj_picture_height
+    payload.write( 1920, 16 );   // packed_picture_width
+    payload.write( 1080, 16 );   // packed_picture_height
+
+    vvdecSEI* sei = parse_prefix_sei( VVDEC_REGION_WISE_PACKING, payload );
+    if( !sei )
+    {
+      return false;
+    }
+    const auto* rwp = (const vvdecSEIRegionWisePacking*) sei->payload;
+    passed = check_sei_field( "rwp_cancel_flag", rwp->rwpCancelFlag, 0 ) && passed;
+    passed = check_sei_field( "rwp_persistence_flag", rwp->rwpPersistenceFlag, 1 ) && passed;
+    passed = check_sei_field( "constituent_picture_matching_flag", rwp->constituentPictureMatchingFlag, 1 ) && passed;
+    passed = check_sei_field( "num_packed_regions", rwp->numPackedRegions, 0 ) && passed;
+    passed = check_sei_field( "proj_picture_width", rwp->projPictureWidth, 3840 ) && passed;
+    passed = check_sei_field( "proj_picture_height", rwp->projPictureHeight, 1920 ) && passed;
+    passed = check_sei_field( "packed_picture_width", rwp->packedPictureWidth, 1920 ) && passed;
+    passed = check_sei_field( "packed_picture_height", rwp->packedPictureHeight, 1080 ) && passed;
+    SEI_internal::deleteSEI( sei );
+  }
+
+  return passed;
+}
+
+static bool check_sei_buffering_period()
+{
+  std::cout << "Testing the buffering period SEI message" << std::endl;
+
+  // one sublayer and one CPB with NAL HRD parameters
+  SEIPayloadWriter payload;
+  payload.write( 1, 1 );        // bp_nal_hrd_params_present_flag
+  payload.write( 0, 1 );        // bp_vcl_hrd_params_present_flag
+  payload.write( 23, 5 );       // bp_cpb_initial_removal_delay_length_minus1
+  payload.write( 15, 5 );       // bp_cpb_removal_delay_length_minus1
+  payload.write( 15, 5 );       // bp_dpb_output_delay_length_minus1
+  payload.write( 0, 1 );        // bp_du_hrd_params_present_flag
+  payload.write( 0, 1 );        // bp_concatenation_flag
+  payload.write( 0, 1 );        // bp_additional_concatenation_info_present_flag
+  payload.write( 0, 16 );       // bp_cpb_removal_delay_delta_minus1
+  payload.write( 0, 3 );        // bp_max_sublayers_minus1
+  payload.write( 1, 1 );        // bp_cpb_cnt_minus1 = 0, as ue(v)
+  payload.write( 90000, 24 );   // bp_nal_initial_cpb_removal_delay[0][0]
+  payload.write( 1234, 24 );    // bp_nal_initial_cpb_removal_offset[0][0]
+  payload.write( 0, 1 );        // bp_alt_cpb_params_present_flag
+
+  vvdecSEI* sei = parse_prefix_sei( VVDEC_BUFFERING_PERIOD, payload );
+  if( !sei )
+  {
+    return false;
+  }
+  const auto* bp = (const vvdecSEIBufferingPeriod*) sei->payload;
+  bool passed = true;
+  passed = check_sei_field( "bp_nal_initial_cpb_removal_delay[0][0]", bp->initialCpbRemovalDelay[0][0][0], 90000 ) && passed;
+  passed = check_sei_field( "bp_nal_initial_cpb_removal_offset[0][0]", bp->initialCpbRemovalOffset[0][0][0], 1234 ) && passed;
+  SEI_internal::deleteSEI( sei );
+  return passed;
+}
+
+static bool check_sei_scalable_nesting()
+{
+  std::cout << "Testing the scalable nesting SEI message" << std::endl;
+
+  // three OLSs with the indices 1, 2 and 5
+  const uint32_t olsIdx[] = { 1, 2, 5 };
+
+  SEIPayloadWriter payload;
+  payload.write( 1, 1 );        // sn_ols_flag
+  payload.write( 0, 1 );        // sn_subpic_flag
+  payload.writeUvlc( 2 );       // sn_num_olss_minus1
+  payload.writeUvlc( 1 );       // sn_ols_idx_delta_minus1[0]
+  payload.writeUvlc( 0 );       // sn_ols_idx_delta_minus1[1]
+  payload.writeUvlc( 2 );       // sn_ols_idx_delta_minus1[2]
+  payload.writeUvlc( 0 );       // sn_num_seis_minus1
+  payload.writeZeroBitsToByteBoundary();   // sn_zero_bit
+
+  // the nested message: user data unregistered with a zero UUID and no user data
+  payload.write( VVDEC_USER_DATA_UNREGISTERED, 8 );   // payload_type
+  payload.write( 16, 8 );                              // payload_size
+  for( int i = 0; i < 16; i++ )
+  {
+    payload.write( 0, 8 );   // uuid_iso_iec_11578
+  }
+
+  vvdecSEI* sei = parse_prefix_sei( VVDEC_SCALABLE_NESTING, payload );
+  if( !sei )
+  {
+    return false;
+  }
+  const auto* nesting = (const vvdecSEIScalableNesting*) sei->payload;
+  bool passed = check_sei_field( "sn_num_olss_minus1 + 1", nesting->snNumOlss, 3 );
+  for( int i = 0; i < 3; i++ )
+  {
+    const std::string name = "NestingOlsIdx[" + std::to_string( i ) + "]";
+    passed = check_sei_field( name.c_str(), nesting->snOlsIdx[i], olsIdx[i] ) && passed;
+  }
+  SEI_internal::deleteSEI( sei );
+  return passed;
+}
+
+static bool test_SEI()
+{
+  bool passed = true;
+  passed = check_sei_region_wise_packing() && passed;
+  passed = check_sei_buffering_period() && passed;
+  passed = check_sei_scalable_nesting() && passed;
+  return passed;
+}
+
 struct UnitTestEntry
 {
   std::string name;
@@ -2658,6 +2920,8 @@ struct UnitTestEntry
 };
 
 static const UnitTestEntry test_suites[] = {
+    { "API", test_API },
+    { "SEI", test_SEI },
 #if ENABLE_SIMD_OPT_ALF
     { "ALF", test_AdaptiveLoopFilter },
 #endif
