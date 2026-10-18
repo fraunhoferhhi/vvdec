@@ -1630,6 +1630,15 @@ void HLSyntaxReader::parseSPS( SPS* sps, const ParameterSetManager* parameterSet
           sps->setSubPicHeight( picIdx, sps->getSubPicHeight( 0 ) );
         }
 
+        // The subpicture has to lie inside the picture: the tile and slice maps derived from it are indexed with its
+        // right and bottom CTU.
+        CHECK( sps->getSubPicCtuTopLeftX( picIdx ) + sps->getSubPicWidth( picIdx ) > tmpWidthVal,
+               "Subpicture " << picIdx << " exceeds the picture width: sps_subpic_ctu_top_left_x[ i ] + sps_subpic_width_minus1[ i ] + 1"
+               " shall be less than or equal to the picture width in CTUs." );
+        CHECK( sps->getSubPicCtuTopLeftY( picIdx ) + sps->getSubPicHeight( picIdx ) > tmpHeightVal,
+               "Subpicture " << picIdx << " exceeds the picture height: sps_subpic_ctu_top_left_y[ i ] + sps_subpic_height_minus1[ i ] + 1"
+               " shall be less than or equal to the picture height in CTUs." );
+
         // TODO: It is a requirement of bitstream conformance that the shapes of the subpictures shall be such that each subpicture, when
         //       decoded, shall have its entire left boundary and entire top boundary consisting of picture boundaries or consisting of
         //       boundaries of previously decoded subpictures.
