@@ -1437,6 +1437,7 @@ void SEIReader::xParseSEIRegionWisePacking(vvdecSEI* s, uint32_t payloadSize, st
   vvdecSEIRegionWisePacking* sei =(vvdecSEIRegionWisePacking*)s->payload;
   ::memset(sei, 0, sizeof(vvdecSEIRegionWisePacking));
 
+  sei_read_flag( pDecodedMessageOutputStream,             val,    "rwp_cancel_flag" );                      sei->rwpCancelFlag = val;
   if (!sei->rwpCancelFlag)
     {
     sei_read_flag( pDecodedMessageOutputStream,           val,    "rwp_persistence_flag" );                 sei->rwpPersistenceFlag = val;
