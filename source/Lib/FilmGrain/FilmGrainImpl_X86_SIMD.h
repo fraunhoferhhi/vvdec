@@ -446,7 +446,7 @@ void FilmGrainImplX86<CURR_X86_VEXT>::scale_and_output( void* I, int c, int x, i
         {
           __m256i vadd    = _mm256_set1_epi32( 1 << ( scale_shift - 1 ) );
           __m256i vgrain  = _mm256_lddqu_si256( (__m256i*) &grain[0][0] );   // load 16 * 16 bit
-          __m256i vscale  = _mm256_cvtepi8_epi16( _mm_lddqu_si128( (__m128i*) &scale[0][0] ) );
+          __m256i vscale  = _mm256_cvtepu8_epi16( _mm_lddqu_si128( (__m128i*) &scale[0][0] ) );
           __m256i tmplo   = _mm256_mullo_epi16( vscale, vgrain );
           __m256i tmphi   = _mm256_mulhi_epi16( vscale, vgrain );
           __m256i tmpgvlo = _mm256_unpacklo_epi16( tmplo, tmphi );   // 32 bit
@@ -476,7 +476,7 @@ void FilmGrainImplX86<CURR_X86_VEXT>::scale_and_output( void* I, int c, int x, i
           __m128i vadd   = _mm_set1_epi32( 1 << ( scale_shift - 1 ) );
           __m128i vscale = _mm_lddqu_si128( (__m128i*) &scale[c] );
           __m128i vgrain = _mm_lddqu_si128( (__m128i*) &grain[c] );
-          vscale         = _mm_cvtepi8_epi16( vscale );   // 16 bit
+          vscale         = _mm_cvtepu8_epi16( vscale );   // 16 bit
           __m128i tmplo  = _mm_mullo_epi16( vscale, vgrain );
           __m128i tmphi  = _mm_mulhi_epi16( vscale, vgrain );
           __m128i gvlo   = _mm_unpacklo_epi16( tmplo, tmphi );   // 32 bit
@@ -503,7 +503,7 @@ void FilmGrainImplX86<CURR_X86_VEXT>::scale_and_output( void* I, int c, int x, i
         __m128i vshift = _mm_set_epi16( 0, 0, 0, 0, 0, 0, 0, scale_shift );
         __m128i vscale = _mm_lddqu_si128( (__m128i*) &scale[c] );
         __m128i vgrain = _mm_lddqu_si128( (__m128i*) &grain[c] );
-        vscale         = _mm_cvtepi8_epi16( vscale );   // 16 bit
+        vscale         = _mm_cvtepu8_epi16( vscale );   // 16 bit
         __m128i tmplo  = _mm_mullo_epi16( vscale, vgrain );
         __m128i tmphi  = _mm_mulhi_epi16( vscale, vgrain );
         __m128i gvlo   = _mm_unpacklo_epi16( tmplo, tmphi );   // 32 bit
@@ -529,7 +529,7 @@ void FilmGrainImplX86<CURR_X86_VEXT>::scale_and_output( void* I, int c, int x, i
         {
           __m128i vscale = _mm_lddqu_si128( (__m128i*) &scale[c][8] );
           __m128i vgrain = _mm_lddqu_si128( (__m128i*) &grain[c][8] );
-          vscale         = _mm_cvtepi8_epi16( vscale );   // 16 bit
+          vscale         = _mm_cvtepu8_epi16( vscale );   // 16 bit
           __m128i tmplo  = _mm_mullo_epi16( vscale, vgrain );
           __m128i tmphi  = _mm_mulhi_epi16( vscale, vgrain );
           __m128i gvlo   = _mm_unpacklo_epi16( tmplo, tmphi );   // 32 bit

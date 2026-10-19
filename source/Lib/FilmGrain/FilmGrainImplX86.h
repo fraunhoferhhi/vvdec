@@ -82,7 +82,7 @@ protected:
 };
 
 template<>
-inline std::unique_ptr<FilmGrainImpl> FilmGrainImplX86<UNDEFINED>::makeFilmGrainImpl()
+inline std::unique_ptr<FilmGrainImpl> FilmGrainImplX86<x86_simd::UNDEFINED>::makeFilmGrainImpl()
 {
   switch( read_x86_extension_flags() )
   {
