@@ -1037,6 +1037,54 @@ void rspBcwCore_SIMD( Pel* ptr, ptrdiff_t ptrStride, int width, int height, cons
   }
 }
 
+// LMCS chroma residual scaling of 8 samples, as in scaleSignalCore(): the magnitude of the clipped residual is scaled in
+// 32 bit (the scale can exceed 16 bit), the sign restored, and packs saturates to 16 bit like the C code's clipping.
+static ALWAYS_INLINE __m128i scaleSignal8( const __m128i vSrc, const __m128i vMin, const __m128i vMax, const __m128i vScale )
+{
+  const __m128i vClipped = _mm_min_epi16( _mm_max_epi16( vSrc, vMin ), vMax );
+  const __m128i vAbs     = _mm_abs_epi16( vClipped );
+  const __m128i vRound   = _mm_set1_epi32( 1 << ( CSCALE_FP_PREC - 1 ) );
+
+  __m128i vLo = _mm_mullo_epi32( _mm_cvtepu16_epi32( vAbs ), vScale );
+  __m128i vHi = _mm_mullo_epi32( _mm_cvtepu16_epi32( _mm_srli_si128( vAbs, 8 ) ), vScale );
+  vLo = _mm_srai_epi32( _mm_add_epi32( vLo, vRound ), CSCALE_FP_PREC );
+  vHi = _mm_srai_epi32( _mm_add_epi32( vHi, vRound ), CSCALE_FP_PREC );
+  // the sign of the clipped residual; a residual of 0 stays 0
+  vLo = _mm_sign_epi32( vLo, _mm_cvtepi16_epi32( vClipped ) );
+  vHi = _mm_sign_epi32( vHi, _mm_cvtepi16_epi32( _mm_srli_si128( vClipped, 8 ) ) );
+  return _mm_packs_epi32( vLo, vHi );
+}
+
+template<X86_VEXT vext>
+void scaleSignal_SIMD( Pel* ptr, ptrdiff_t ptrStride, int width, int height, const int scale, const int bd )
+{
+  const __m128i vMin   = _mm_set1_epi16( -( 1 << bd ) );
+  const __m128i vMax   = _mm_set1_epi16( ( 1 << bd ) - 1 );
+  const __m128i vScale = _mm_set1_epi32( scale );
+
+  for( int y = 0; y < height; y++, ptr += ptrStride )
+  {
+    int x = 0;
+    for( ; x + 8 <= width; x += 8 )
+    {
+      _mm_storeu_si128( (__m128i*) &ptr[x], scaleSignal8( _mm_loadu_si128( (const __m128i*) &ptr[x] ), vMin, vMax, vScale ) );
+    }
+    if( x + 4 <= width )
+    {
+      _mm_storel_epi64( (__m128i*) &ptr[x], scaleSignal8( _mm_loadl_epi64( (const __m128i*) &ptr[x] ), vMin, vMax, vScale ) );
+      x += 4;
+    }
+    for( ; x < width; x++ )
+    {
+      // the 2 sample wide chroma blocks of 4:2:0
+      const int clipped = std::min( std::max<int>( ptr[x], -( 1 << bd ) ), ( 1 << bd ) - 1 );
+      const int sign    = clipped >= 0 ? 1 : -1;
+      const int val     = sign * ( ( sign * clipped * scale + ( 1 << ( CSCALE_FP_PREC - 1 ) ) ) >> CSCALE_FP_PREC );
+      ptr[x] = (Pel) std::min( std::max( val, -32768 ), 32767 );
+    }
+  }
+}
+
 template<X86_VEXT vext>
 void rspFwdCore_SIMD( Pel* ptr, ptrdiff_t ptrStride, int width, int height, const int bd, const Pel OrgCW, const Pel* LmcsPivot, const Pel* ScaleCoeff, const Pel* InputPivot )
 {
@@ -1862,6 +1910,7 @@ void PelBufferOps::_initPelBufOpsX86()
 
 #endif
   rspFwd = rspFwdCore_SIMD<vext>;
+  scaleSignal = scaleSignal_SIMD<vext>;
 
 #if INTPTR_MAX == INT64_MAX || INTPTR_MAX == INT32_MAX
   fillN_CU = fillN_CU_SIMD<vext>;

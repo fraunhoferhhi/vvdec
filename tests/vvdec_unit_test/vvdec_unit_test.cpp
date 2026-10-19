@@ -1650,6 +1650,43 @@ static bool check_addAvg( PelBufferOps* ref, PelBufferOps* opt, unsigned num_cas
   return passed;
 }
 
+static bool check_scaleSignal( PelBufferOps* ref, PelBufferOps* opt, unsigned num_cases )
+{
+  DimensionGenerator rng;
+  InputGenerator<Pel> g{ 16 };   // residuals of any 16 bit value, so that the clipping is tested too
+  bool passed = true;
+
+  for( int bd : { 8, 10 } )
+  {
+    for( int w : { 1, 2, 3, 4, 6, 8, 12, 16, 32 } )
+    {
+      for( int h : { 1, 2, 4, 8, 16, 32 } )
+      {
+        printf( "Testing PelBufferOps::scaleSignal bd=%d w=%d h=%d\n", bd, w, h );
+        for( unsigned i = 0; i < num_cases; ++i )
+        {
+          // the chroma residual scale is ( 1 << 11 ) * initCW / codewords, from 1 up to about 2^17
+          const int scale = i == 0 ? 1 : i == 1 ? ( 1 << 17 ) : (int) rng.get( 1, 1 << 17 );
+
+          // The rows are compared including the stride padding, so writes outside the block are detected.
+          const ptrdiff_t stride = w + rng.get( 0, 8 );
+          std::vector<Pel> bufRef( stride * h );
+          std::generate( bufRef.begin(), bufRef.end(), g );
+          std::vector<Pel> bufOpt = bufRef;
+
+          ref->scaleSignal( bufRef.data(), stride, w, h, scale, bd );
+          opt->scaleSignal( bufOpt.data(), stride, w, h, scale, bd );
+
+          std::ostringstream sstm;
+          sstm << "scaleSignal bd=" << bd << " w=" << w << " h=" << h << " scale=" << scale;
+          passed = compare_values_2d( sstm.str(), bufRef.data(), bufOpt.data(), (unsigned) h, (unsigned) stride, (unsigned) stride ) && passed;
+        }
+      }
+    }
+  }
+  return passed;
+}
+
 static bool check_applyLut( PelBufferOps* ref, PelBufferOps* opt, unsigned num_cases )
 {
   DimensionGenerator rng;
@@ -1845,6 +1882,7 @@ static bool test_PelBufferOps()
   passed = check_reco( &ref, &opt, num_cases ) && passed;
   passed = check_rspFwdCore( &ref, &opt, num_cases ) && passed;
   passed = check_applyLut( &ref, &opt, num_cases ) && passed;
+  passed = check_scaleSignal( &ref, &opt, num_cases ) && passed;
 
   return passed;
 }
