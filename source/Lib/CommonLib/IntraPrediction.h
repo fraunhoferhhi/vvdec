@@ -72,6 +72,9 @@ enum PredBuf
 
 static const uint32_t MAX_INTRA_FILTER_DEPTHS=8;
 
+// the C version of IntraPrediction::IntraPredAngPdpc, also used by the SIMD version for the rare steep angles
+void IntraPredAngPdpcCore( Pel* pDst, const ptrdiff_t dstStride, const Pel* refSide, const int width, const int height, const int invAngle, const int angularScale );
+
 class IntraPrediction
 {
 private:
@@ -150,6 +153,8 @@ public:
   void  ( *xPredIntraPlanar )           ( const CPelBuf &pSrc, PelBuf &pDst, const SPS& sps );
 
   void ( *GetLumaRecPixel420 )          ( const int width,const int height, const Pel* pRecSrc0,const ptrdiff_t iRecStride,Pel* pDst0,const ptrdiff_t iDstStride );
+
+  void ( *IntraPredAngPdpc )            ( Pel* pDst, const ptrdiff_t dstStride, const Pel* refSide, const int width, const int height, const int invAngle, const int angularScale );
 
 #if ENABLE_SIMD_OPT_INTRAPRED && defined( TARGET_SIMD_X86 )
   void initIntraPredictionX86();
