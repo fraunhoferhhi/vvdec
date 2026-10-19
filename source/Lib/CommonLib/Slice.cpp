@@ -910,6 +910,7 @@ void Slice::checkLeadingPictureRestrictions( const PicList & rcListPic ) const
 bool Slice::checkThatAllRefPicsAreAvailable( const PicList&              rcListPic,
                                              const ReferencePictureList* pRPL,
                                              int                         numActiveRefPics,
+                                             int                         currPicBitsForPoc,
                                              int*                        missingPOC,
                                              int*                        missingRefPicIndex ) const
 {
@@ -925,7 +926,8 @@ bool Slice::checkThatAllRefPicsAreAvailable( const PicList&              rcListP
     if( !pRPL->isRefPicLongterm( ii ) )
       continue;
 
-    const int checkPoc    = pRPL->getRefPicIdentifier( ii );
+    // RefPicLtPocList (8.3.2): the full POC when the MSB is signalled, so the picture generated for it (8.3.4.1) matches
+    const int checkPoc    = pRPL->calcLTRefPOC( this->getPOC(), currPicBitsForPoc, ii );
     bool      isAvailable = 0;
     for( auto& rpcPic: rcListPic )
     {
@@ -1556,7 +1558,7 @@ uint32_t PPS::getSubPicIdxFromSubPicId( uint32_t subPicId ) const
       return i;
     }
   }
-  return 0;
+  THROW_RECOVERABLE( "subpicture ID does not match any subpicture of the PPS" );
 }
 
 void PPS::checkSliceMap()
@@ -1774,12 +1776,15 @@ bool ReferencePictureList::findInRefPicList( const Picture* checkRefPic, int cur
 int ReferencePictureList::calcLTRefPOC( int currPoc, int bitsForPoc, int refPicIdentifier, bool pocMSBPresent, int deltaPocMSBCycle )
 {
   const int pocCycle = 1 << bitsForPoc;
-  int       ltrpPoc  = refPicIdentifier & ( pocCycle - 1 );
+  int64_t   ltrpPoc  = refPicIdentifier & ( pocCycle - 1 );
   if( pocMSBPresent )
   {
-    ltrpPoc += currPoc - deltaPocMSBCycle * pocCycle - ( currPoc & ( pocCycle - 1 ) );
+    // 64 bit, because delta_poc_msb_cycle_lt * MaxPicOrderCntLsb can exceed 32 bit
+    ltrpPoc += currPoc - (int64_t) deltaPocMSBCycle * pocCycle - ( currPoc & ( pocCycle - 1 ) );
+    CHECK( ltrpPoc < std::numeric_limits<int>::min() || ltrpPoc > std::numeric_limits<int>::max(),
+           "ltrpPoc overflows 32 bit" );
   }
-  return ltrpPoc;
+  return (int) ltrpPoc;
 }
 
 int ReferencePictureList::calcLTRefPOC( int currPoc, int bitsForPoc, int refPicIdx ) const

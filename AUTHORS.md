@@ -17,3 +17,4 @@
 * Micro Daryl Robles, @micro-arm, Arm
 * Li Zhang, @lizhang-arm, Arm
 * Brian Zheng, @4KVCD,
+* Thomas Wiegand, , Fraunhofer HHI

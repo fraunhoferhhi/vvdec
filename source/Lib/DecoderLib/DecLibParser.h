@@ -96,8 +96,6 @@ private:
 
   DCI*     m_dci                  = nullptr;
 
-  std::vector<NalUnitType>  m_pictureUnitNals;
-  std::list<InputNALUnit>   m_pictureSeiNalus;
   std::list<InputNALUnit>   m_prefixSEINALUs;   /// Buffered up prefix SEI NAL Units.
 
   std::ostream*             m_pDecodedSEIOutputStream = nullptr;
@@ -154,9 +152,6 @@ public:
 
   void setDecodedSEIMessageOutputStream( std::ostream* pOpStream ) { m_pDecodedSEIOutputStream = pOpStream; }
 
-  void checkAPSInPictureUnit    ();
-  void resetPictureUnitNals     ()                      { m_pictureUnitNals.clear(); }
-
   const ParameterSetManager& getParameterSetManager() const { return m_parameterSetManager; }
 
 private:
@@ -165,7 +160,8 @@ private:
 
   void xActivateParameterSets( const int layerId );
   void prepareUnavailablePicture( bool isLost, const PPS* pps, int iUnavailablePoc, const int layerId, const bool longTermFlag, const int temporalId );
-  void applyReferencePictureListBasedMarking( Slice* currSlice, const int layerId, const PPS& pps );
+  void markAllRefPicsUnused( const int layerId );
+  void applyReferencePictureListBasedMarking( Slice* currSlice, const int layerId );
 
   void xParsePrefixSEImessages();
   void xParsePrefixSEIsForUnknownVCLNal();

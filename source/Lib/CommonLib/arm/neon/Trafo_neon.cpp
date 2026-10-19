@@ -125,6 +125,61 @@ void fastInvCore_neon( const TMatrixCoeff* it, const TCoeff* src, TCoeff* dst, u
   }
 }
 
+// Mirrors clipCore (TrQuant_EMT.cpp): dst = Clip3( min, max, ( dst + round ) >> shift ).
+// width is always a multiple of 4 (== uiTrSize, i.e. 4/8/16/32/64), stride == width here.
+void roundClip_neon( TCoeff* dst, unsigned width, unsigned height, unsigned stride, const TCoeff outputMin,
+                     const TCoeff outputMax, const TCoeff round, const TCoeff shift )
+{
+  const int32x4_t vmin = vdupq_n_s32( outputMin );
+  const int32x4_t vmax = vdupq_n_s32( outputMax );
+  const int32x4_t vrnd = vdupq_n_s32( round );
+  const int32x4_t vshr = vdupq_n_s32( -shift );   // arithmetic right shift via vshlq_s32 with negative count
+
+  while( height-- )
+  {
+    for( unsigned col = 0; col < width; col += 4 )
+    {
+      int32x4_t v = vld1q_s32( dst + col );
+      v = vaddq_s32( v, vrnd );
+      v = vshlq_s32( v, vshr );
+      // Clip3( min, max, v ) == min( max( min, v ), max ); clamp to max then to min.
+      v = vminq_s32( v, vmax );
+      v = vmaxq_s32( v, vmin );
+      vst1q_s32( dst + col, v );
+    }
+
+    dst += stride;
+  }
+}
+
+// Mirrors cpyResiClipCore (TrQuant_EMT.cpp): dst[Pel] = Clip3( min, max, ( src + round ) >> shift ).
+// src advances by width per row, dst (Pel = int16) advances by stride. width is a power of two >= 4.
+void cpyResiClip_neon( const TCoeff* src, Pel* dst, ptrdiff_t stride, unsigned width, unsigned height,
+                       const TCoeff outputMin, const TCoeff outputMax, const TCoeff round, const TCoeff shift )
+{
+  const int32x4_t vmin = vdupq_n_s32( outputMin );
+  const int32x4_t vmax = vdupq_n_s32( outputMax );
+  const int32x4_t vrnd = vdupq_n_s32( round );
+  const int32x4_t vshr = vdupq_n_s32( -shift );
+
+  while( height-- )
+  {
+    for( unsigned col = 0; col < width; col += 4 )
+    {
+      int32x4_t v = vld1q_s32( src + col );
+      v = vaddq_s32( v, vrnd );
+      v = vshlq_s32( v, vshr );
+      v = vminq_s32( v, vmax );
+      v = vmaxq_s32( v, vmin );
+      // values are already within [min,max] which fits in int16, so vqmovn is exact (matches x86 packs).
+      vst1_s16( dst + col, vqmovn_s32( v ) );
+    }
+
+    src += width;
+    dst += stride;
+  }
+}
+
 template<>
 void TCoeffOps::_initTCoeffOpsARM<NEON>()
 {
@@ -133,6 +188,15 @@ void TCoeffOps::_initTCoeffOpsARM<NEON>()
   fastInvCore[2] = fastInvCore_neon<16>;
   fastInvCore[3] = fastInvCore_neon<32>;
   fastInvCore[4] = fastInvCore_neon<64>;
+
+  // leave cpyResiClip[0] (width 1) and [1] (width 2) scalar, like x86
+  cpyResiClip[2] = cpyResiClip_neon;   //  4
+  cpyResiClip[3] = cpyResiClip_neon;   //  8
+  cpyResiClip[4] = cpyResiClip_neon;   // 16
+  cpyResiClip[5] = cpyResiClip_neon;   // 32
+  cpyResiClip[6] = cpyResiClip_neon;   // 64
+  roundClip4     = roundClip_neon;
+  roundClip8     = roundClip_neon;
 }
 
 // Portable (ARMv7 NEON and AArch64) horizontal reduction of four int32x4_t

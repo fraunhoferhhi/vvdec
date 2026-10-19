@@ -217,32 +217,37 @@ bool DecLibParser::parse( InputNALUnit& nalu )
   }
 
   case NAL_UNIT_EOS:
-    m_associatedIRAPType[nalu.m_nuhLayerId]     = NAL_UNIT_INVALID;
-    m_pocCRA[nalu.m_nuhLayerId]                 = INIT_POC;
-    m_gdrRecoveryPointPocVal[nalu.m_nuhLayerId] = INIT_POC;
-    m_gdrRecovered[nalu.m_nuhLayerId]           = false;
-    m_pocRandomAccess                           = MAX_INT;
-    m_prevPOC                                   = MAX_INT;
-    m_prevSliceSkipped                          = false;
-    m_skippedPOC                                = 0;
-    m_bFirstSliceInSequence[nalu.m_nuhLayerId]  = true;
-    m_bFirstSliceInPicture                      = true;
+  case NAL_UNIT_EOB:   // the end of the bitstream also ends the current CVS
+    failIncompleteParsePic();   // the current picture will never be completed
+    for( int layer = 0; layer < MAX_VPS_LAYERS; ++layer )
+    {
+      // EOS ends only its own layer, while EOB ends all of them (its nuh_layer_id is unconstrained)
+      if( nalu.m_nalUnitType == NAL_UNIT_EOS && layer != nalu.m_nuhLayerId )
+      {
+        continue;
+      }
+      m_associatedIRAPType[layer]     = NAL_UNIT_INVALID;
+      m_pocCRA[layer]                 = INIT_POC;
+      m_gdrRecoveryPointPocVal[layer] = INIT_POC;
+      m_gdrRecovered[layer]           = false;
+      m_bFirstSliceInSequence[layer]  = true;
+    }
+    m_pocRandomAccess      = MAX_INT;
+    m_prevPOC              = MAX_INT;
+    m_prevSliceSkipped     = false;
+    m_skippedPOC           = 0;
+    m_bFirstSliceInPicture = true;
     m_picListManager.restart();
-    return false;
-
-  case NAL_UNIT_EOB:
     return false;
 
   case NAL_UNIT_PREFIX_SEI:
     // Buffer up prefix SEI messages until SPS of associated VCL is known.
-    m_prefixSEINALUs.emplace_back( nalu );
-    m_pictureSeiNalus.emplace_back( std::move( nalu ) );
+    m_prefixSEINALUs.emplace_back( std::move( nalu ) );
     return false;
 
   case NAL_UNIT_SUFFIX_SEI:
     if( m_pcParsePic /*&& !m_pcParsePic->wasLost*/ )
     {
-      m_pictureSeiNalus.emplace_back( nalu );
       const SPS* sps = m_parameterSetManager.getActiveSPS();
       const VPS* vps = m_parameterSetManager.getVPS( sps->getVPSId() );
       m_seiReader.parseSEImessage( &( nalu.getBitstream() ), m_pcParsePic->seiMessageList, nalu.m_nalUnitType, nalu.m_nuhLayerId, nalu.m_temporalId, vps, sps, m_HRD, m_pDecodedSEIOutputStream );
@@ -387,29 +392,6 @@ Picture* DecLibParser::getNextDecodablePicture()
   return pic;
 }
 
-void DecLibParser::checkAPSInPictureUnit()
-{
-  bool firstVCLFound  = false;
-  bool suffixAPSFound = false;
-
-  for( auto &nalu : m_pictureUnitNals )
-  {
-    if( NALUnit::isVclNalUnitType(nalu) )
-    {
-      firstVCLFound = true;
-      CHECK( suffixAPSFound, "When any suffix APS NAL units are present in a PU, they shall follow the last VCL unit of the PU" );
-    }
-    else if( nalu == NAL_UNIT_PREFIX_APS )
-    {
-      CHECK( firstVCLFound, "When any prefix APS NAL units are present in a PU, they shall precede the first VCL unit of the PU");
-    }
-    else if( nalu == NAL_UNIT_SUFFIX_APS )
-    {
-      suffixAPSFound = true;
-    }
-  }
-}
-
 bool DecLibParser::xDecodeSliceHead( InputNALUnit& nalu )
 {
   // all slices for the previous picture have been parsed
@@ -443,6 +425,8 @@ bool DecLibParser::xDecodeSliceHead( InputNALUnit& nalu )
   {
     m_uiSliceSegmentIdx++;
     CHECK( !m_pcParsePic, "m_pcParsePic should be initialized, when this is not the first slice in the picture" );
+    // a PH NAL unit or a PH in the slice header always starts a new picture (7.4.2.4.4)
+    CHECK( m_picHeader != m_pcParsePic->cs->picHeader, "a new picture header was received, but the slice is not the first slice of a picture" );
     CHECK( m_pcParsePic->slices.size() <= m_uiSliceSegmentIdx - 1 || m_pcParsePic->slices[m_uiSliceSegmentIdx - 1] == nullptr, "can't access previous slice" );
     CHECK( !m_pcParsePic->getMixedNaluTypesInPicFlag() && nalu.m_nalUnitType != m_pcParsePic->slices[m_uiSliceSegmentIdx - 1]->getNalUnitType(),
            "The value of NAL unit type shall be the same for all coded slice NAL units of a picture if pps_mixed_nalu_types_in_pic_flag is not set" );
@@ -611,6 +595,8 @@ bool DecLibParser::xDecodeSliceHead( InputNALUnit& nalu )
     m_prevSliceSkipped = true;
     m_skippedPOC       = m_apcSlicePilot->getPOC();
     msg( VERBOSE, "POC %i: RASL not decodable\n", m_skippedPOC );
+    // prefix SEIs belong to the skipped picture's PU
+    m_prefixSEINALUs.clear();
     return false;
   }
 
@@ -627,6 +613,12 @@ bool DecLibParser::xDecodeSliceHead( InputNALUnit& nalu )
 
   m_prevLayerID = nalu.m_nuhLayerId;
 
+  // reference picture marking (8.3.3) precedes the generation of unavailable reference pictures (8.3.4)
+  if( m_bFirstSliceInPicture )
+  {
+    applyReferencePictureListBasedMarking( m_apcSlicePilot, nalu.m_nuhLayerId );
+  }
+
   //detect lost reference picture and insert copy of earlier frame.
   if( m_apcSlicePilot->getSliceType() != I_SLICE )
   {
@@ -636,12 +628,17 @@ bool DecLibParser::xDecodeSliceHead( InputNALUnit& nalu )
 
       int missingPoc         = MAX_INT;
       int missingRefPicIndex = 0;
+      int prevMissingIndex   = -1;
       while( !m_apcSlicePilot->checkThatAllRefPicsAreAvailable( m_dpbReferencePics,
                                                                 rpl,
                                                                 m_apcSlicePilot->getNumRefIdx( rplIdx ),
+                                                                sps->getBitsForPOC(),
                                                                 &missingPoc,
                                                                 &missingRefPicIndex ) )
       {
+        // a generated picture that doesn't satisfy its entry would otherwise allocate pictures forever
+        CHECK( missingRefPicIndex == prevMissingIndex, "unable to generate missing reference picture poc: " << missingPoc );
+        prevMissingIndex = missingRefPicIndex;
         if( !pps->getMixedNaluTypesInPicFlag()
             && ( ( m_apcSlicePilot->isIDR() && ( sps->getIDRRefParamListPresent() || pps->getRplInfoInPhFlag() ) )
                  || ( m_apcSlicePilot->isCRAorGDR() && m_picHeader->getNoOutputBeforeRecoveryFlag() ) ) )
@@ -713,6 +710,9 @@ bool DecLibParser::xDecodeSliceHead( InputNALUnit& nalu )
         m_pcParsePic->neededForOutput = false;
       }
     }
+
+    // the picture header belongs to exactly one picture, so don't let the next one silently reuse it
+    m_picHeader.reset();
   }
 
   return true;
@@ -739,8 +739,11 @@ bool DecLibParser::xDecodeSliceMain( InputNALUnit& nalu )
 
   m_nonVCLbits = 0;
 
-  CHECK( m_pcParsePic->tempLayer != nalu.m_temporalId,
-         "Currently parsed pic should have the same temporal layer as the NAL unit" );
+  if( !( m_errHandlingFlags & ERR_HANDLING_TRY_CONTINUE ) )
+  {
+    CHECK( m_uiSliceSegmentIdx > 0 && pcSlice->getTLayer() != m_pcParsePic->slices[0]->getTLayer(),
+           "All VCL NAL units of a picture shall have the same TemporalId" );
+  }
 
   if( pcSlice->getSPS()->getProfileTierLevel()->getConstraintInfo()->getNoApsConstraintFlag() )
   {
@@ -1063,7 +1066,8 @@ void DecLibParser::xActivateParameterSets( const int layerId )
 
   if( m_bFirstSliceInPicture )
   {
-              paramSets = m_parameterSetManager.xActivateParameterSets( m_bFirstSliceInPicture, m_apcSlicePilot, m_picHeader.get() );
+              paramSets = m_parameterSetManager.xActivateParameterSets( m_bFirstSliceInPicture, m_apcSlicePilot, m_picHeader.get(),
+                                                                        !( m_errHandlingFlags & ERR_HANDLING_TRY_CONTINUE ) );
     const SPS*  sps     = paramSets.sps;
     const PPS*  pps     = paramSets.pps;
     const APS** alfApss = paramSets.alfAPSs->data();
@@ -1071,8 +1075,6 @@ void DecLibParser::xActivateParameterSets( const int layerId )
     const APS*  scalingListAPS = paramSets.scalingListAps;
 
     xParsePrefixSEImessages();
-
-    applyReferencePictureListBasedMarking( m_apcSlicePilot, layerId, *pps );
 
     //  Get a new picture buffer
     m_pcParsePic = m_picListManager.getNewPicBuffer( *sps, *pps, m_apcSlicePilot->getTLayer(), layerId, m_parameterSetManager.getVPS( sps->getVPSId() ) );
@@ -1135,17 +1137,10 @@ void DecLibParser::xActivateParameterSets( const int layerId )
 
   if( !m_bFirstSliceInPicture )
   {
-    const APS*  lmcsAPS = pSlice->getPicHeader()->getLmcsAPS().get();
-
     // check that the current active PPS has not changed...
     CHECK( sps->getChangedFlag(), "Error - a new SPS has been decoded while processing a picture" );
     CHECK( pps->getChangedFlag(), "Error - a new PPS has been decoded while processing a picture" );
-    for( int i = 0; i < ALF_CTB_MAX_NUM_APS; i++ )
-    {
-      const APS* aps = m_parameterSetManager.getAPS_nothrow( i, ALF_APS );
-      CHECK( aps && aps->getChangedFlag(), "Error - a new APS has been decoded while processing a picture" );
-    }
-    CHECK( lmcsAPS && lmcsAPS->getChangedFlag(), "Error - a new LMCS APS has been decoded while processing a picture" );
+    CHECK( m_parameterSetManager.getAPSChangedFlag(), "Error - a new APS has been decoded while processing a picture" );
 
     xParsePrefixSEImessages();
 
@@ -1339,7 +1334,8 @@ void DecLibParser::prepareUnavailablePicture( bool isLost, const PPS* pps, int i
   cFillPic->nonReferencePictureFlag = false;
   cFillPic->wasLost                 = isLost;
 
-  if( cFillPic->slices[0]->getTLayer() == 0 &&
+  // a generated unavailable picture (8.3.4) precedes the current IRAP/GDR picture, so it can't be prevTid0Pic (8.3.1)
+  if( isLost && cFillPic->slices[0]->getTLayer() == 0 &&
       cFillPic->slices[0]->getNalUnitType() != NAL_UNIT_CODED_SLICE_RASL &&
       cFillPic->slices[0]->getNalUnitType() != NAL_UNIT_CODED_SLICE_RADL )
   {
@@ -1412,11 +1408,29 @@ void DecLibParser::fillMissingPicBuf( Picture* pcPic, bool copyClosest )
 }
 #endif
 
+void DecLibParser::markAllRefPicsUnused( const int layerId )
+{
+  for( Picture* pic: m_dpbReferencePics )
+  {
+    if( pic->layerId == layerId )
+    {
+      pic->dpbReferenceMark = Picture::unreferenced;
+    }
+  }
+  m_dpbReferencePics.remove_if( []( Picture* pic ) { return !pic->dpbReferenceMark; } );
+}
 
 // Function for applying picture marking based on the Reference Picture List
-void DecLibParser::applyReferencePictureListBasedMarking( Slice* currSlice, const int layerId, const PPS& pps )
+void DecLibParser::applyReferencePictureListBasedMarking( Slice* currSlice, const int layerId )
 {
   //  checkLeadingPictureRestrictions(rcListPic, pps);
+
+  // CLVSS picture
+  if( ( currSlice->isIDR() || currSlice->isCRAorGDR() ) && currSlice->getPicHeader()->getNoOutputBeforeRecoveryFlag() )
+  {
+    markAllRefPicsUnused( layerId );
+    return;
+  }
 
   // mark long-term reference pictures in List0
   for( const auto l: { REF_PIC_LIST_0, REF_PIC_LIST_1 } )
@@ -1460,18 +1474,6 @@ void DecLibParser::applyReferencePictureListBasedMarking( Slice* currSlice, cons
         availableST->dpbReferenceMark = Picture::LongTerm;
       }
     }
-  }
-
-  if( currSlice->isIDR() && !pps.getMixedNaluTypesInPicFlag() )
-  {
-    for( Picture* pic: m_dpbReferencePics )
-    {
-      pic->dpbReferenceMark = Picture::unreferenced;
-    }
-
-    // ignore neededForOutput flag here, because we only care about reference pictures in the DPB
-    m_dpbReferencePics.remove_if( []( Picture* pic ) { return !pic->dpbReferenceMark; } );
-    return;
   }
 
   // loop through all pictures in the reference picture buffer

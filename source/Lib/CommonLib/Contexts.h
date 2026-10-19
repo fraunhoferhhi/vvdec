@@ -99,6 +99,20 @@ public:
     m_state[0] += delta0 *(1<< 5);
     m_state[1] += delta1 *2;
   }
+  // Variant taking the pre-update state already loaded by lpsmps(). decodeBin() calls
+  // m_Bitstream->readByteFlag() between lpsmps() and update(); m_Bitstream is a non-restrict
+  // pointer the compiler must assume may alias m_state, forcing a reload of m_state[0]/[1] here.
+  // Passing the cached values avoids that reload. Arithmetically identical (s0==m_state[0],
+  // s1==m_state[1] at this point), hence bit-exact.
+  void update( unsigned bin, unsigned s0, unsigned s1 )
+  {
+    int delta0 = m_delta0[bin] - (int)s0;
+    int delta1 = m_delta1[bin] - (int)s1;
+    delta0 = delta0 >> m_rate0;
+    delta1 = delta1 >> m_rate1;
+    m_state[0] = (uint16_t)( s0 + delta0 * ( 1 << 5 ) );
+    m_state[1] = (uint16_t)( s1 + delta1 * 2 );
+  }
   void setLog2WindowSize(uint8_t log2WindowSize)
   {
     m_rate0 = 2 + ((log2WindowSize >> 2) & 3);
@@ -125,7 +139,7 @@ public:
     bin = q >> 7;
     
     lps = ((((q ^ (-static_cast<int>(bin) & 0xff)) >> 2) * (range >> 5)) >> 1) + 4;
-    
+
     //if( q & 0x80 )
     //{
     //  CHECK( lps != ( ( ( ( q ^ 0xff ) >> 2 ) * ( range >> 5 ) >> 1 ) + 4 ), "" );
@@ -136,6 +150,16 @@ public:
     //  CHECK( lps != ( ( ( q >> 2 ) * ( range >> 5 ) >> 1 ) + 4 ), "" );
     //  lps = ( ( q >> 2 ) * ( range >> 5 ) >> 1 ) + 4;
     //}
+  }
+  // Variant that also returns the raw state halves so the caller can feed them to
+  // update(bin,s0,s1), avoiding the aliasing-forced reload of m_state[] in update().
+  void lpsmps( unsigned range, unsigned& lps, unsigned& bin, unsigned& s0, unsigned& s1 ) const
+  {
+    s0 = m_state[0];
+    s1 = m_state[1];
+    const uint16_t q = ( s0 + s1 ) >> 8;
+    bin = q >> 7;
+    lps = ((((q ^ (-static_cast<int>(bin) & 0xff)) >> 2) * (range >> 5)) >> 1) + 4;
   }
   static uint8_t  getRenormBitsLPS  ( unsigned LPS )                    { return    m_RenormTable_32  [LPS>>3]; }
   static uint8_t  getRenormBitsRange( unsigned range )                  { return    1; }

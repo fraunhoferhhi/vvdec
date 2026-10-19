@@ -560,6 +560,81 @@ void prefetchPadC_neon( const Pel* src, const ptrdiff_t srcStride, Pel* dst, con
   }
 }
 
+// Compute dI for two rows (8 pixels) of a 4x4 PROF block, clipped to [-dILimit, dILimit-1].
+// Mirrors the x86 applyPROF_SSE SSE128 path: dI = dMvX*gradX + dMvY*gradY, with dMv packed
+// int32->int16 (saturating) before the int16*int16 widening multiply.
+static inline int16x8_t applyPROF_calcDI_neon( const int* dMvX, const int* dMvY, const Pel* gradX, const Pel* gradY,
+                                               ptrdiff_t dMvStride, ptrdiff_t gradStride, const int32x4_t dimin,
+                                               const int32x4_t dimax )
+{
+  // First row: 4 lanes.
+  int16x4_t dmvx0 = vqmovn_s32( vld1q_s32( dMvX ) );
+  int16x4_t dmvy0 = vqmovn_s32( vld1q_s32( dMvY ) );
+  int16x4_t gradx0 = vld1_s16( gradX );
+  int16x4_t grady0 = vld1_s16( gradY );
+
+  int32x4_t dI0 = vmull_s16( dmvx0, gradx0 );
+  dI0 = vmlal_s16( dI0, dmvy0, grady0 );
+  dI0 = vminq_s32( dimax, vmaxq_s32( dimin, dI0 ) );
+
+  // Second row: 4 lanes.
+  int16x4_t dmvx1 = vqmovn_s32( vld1q_s32( dMvX + dMvStride ) );
+  int16x4_t dmvy1 = vqmovn_s32( vld1q_s32( dMvY + dMvStride ) );
+  int16x4_t gradx1 = vld1_s16( gradX + gradStride );
+  int16x4_t grady1 = vld1_s16( gradY + gradStride );
+
+  int32x4_t dI1 = vmull_s16( dmvx1, gradx1 );
+  dI1 = vmlal_s16( dI1, dmvy1, grady1 );
+  dI1 = vminq_s32( dimax, vmaxq_s32( dimin, dI1 ) );
+
+  // Pack both rows into 8 int16 (saturating, matching _mm_packs_epi32; values already in int16 range).
+  return vcombine_s16( vqmovn_s32( dI0 ), vqmovn_s32( dI1 ) );
+}
+
+template<bool bi>
+void applyPROF_neon( Pel* dstPel, ptrdiff_t dstStride, const Pel* srcPel, const Pel* gradX, const Pel* gradY,
+                     const int* dMvX, const int* dMvY, int shiftNum, Pel offset, const ClpRng& clpRng )
+{
+  static constexpr ptrdiff_t srcStride  = 6;
+  static constexpr ptrdiff_t gradStride = 4;
+  static constexpr ptrdiff_t dMvStride  = 4;
+
+  const int dILimit = 1 << std::max<int>( clpRng.bd + 1, 13 );
+
+  const int32x4_t dimin = vdupq_n_s32( -dILimit );
+  const int32x4_t dimax = vdupq_n_s32( dILimit - 1 );
+  const int16x8_t voffset = vdupq_n_s16( offset );
+  const int16x8_t vibdimin = vdupq_n_s16( clpRng.min() );
+  const int16x8_t vibdimax = vdupq_n_s16( clpRng.max() );
+  const int16x8_t vshift = vdupq_n_s16( -shiftNum );
+
+  for( int h = 0; h < 4; h += 2 )
+  {
+    int16x8_t dI = applyPROF_calcDI_neon( dMvX, dMvY, gradX, gradY, dMvStride, gradStride, dimin, dimax );
+
+    // dst = src + dI, with src laid out as [row0(4) | row1(4)] of int16 (wrapping add).
+    int16x8_t src = vcombine_s16( vld1_s16( srcPel ), vld1_s16( srcPel + srcStride ) );
+    dI = vaddq_s16( dI, src );
+
+    if( !bi )
+    {
+      // (dst + offset) >> shiftNum, saturating add to mirror _mm_adds_epi16; arithmetic shift right.
+      dI = vshlq_s16( vqaddq_s16( dI, voffset ), vshift );
+      dI = vminq_s16( vibdimax, vmaxq_s16( vibdimin, dI ) );
+    }
+
+    vst1_s16( dstPel, vget_low_s16( dI ) );
+    vst1_s16( dstPel + dstStride, vget_high_s16( dI ) );
+
+    dMvX   += ( dMvStride  << 1 );
+    dMvY   += ( dMvStride  << 1 );
+    gradX  += ( gradStride << 1 );
+    gradY  += ( gradStride << 1 );
+    srcPel += ( srcStride  << 1 );
+    dstPel += ( dstStride  << 1 );
+  }
+}
+
 template<>
 void InterPrediction::_initInterPredictionARM<NEON>()
 {
@@ -568,6 +643,8 @@ void InterPrediction::_initInterPredictionARM<NEON>()
   profGradFilter = gradFilter_neon<false>;
   prefetchPad[0] = prefetchPadL_neon;
   prefetchPad[2] = prefetchPadC_neon;
+  applyPROF[0] = applyPROF_neon<false>;
+  applyPROF[1] = applyPROF_neon<true>;
 }
 
 #endif // ENABLE_SIMD_OPT_INTER && defined(TARGET_SIMD_ARM)
