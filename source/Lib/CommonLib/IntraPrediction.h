@@ -148,6 +148,7 @@ public:
   void  ( *IntraPredSampleFilter8 )     ( Pel *ptrSrc,const ptrdiff_t  srcStride,PelBuf &piPred,const uint32_t uiDirMode,const ClpRng& clpRng );
   void  ( *IntraPredSampleFilter16 )    ( Pel *ptrSrc,const ptrdiff_t  srcStride,PelBuf &piPred,const uint32_t uiDirMode,const ClpRng& clpRng );
   void  ( *xPredIntraPlanar )           ( const CPelBuf &pSrc, PelBuf &pDst, const SPS& sps );
+  void  ( *IntraPredHorVerPdpc )        ( Pel* pDst, const ptrdiff_t dstStride, const Pel* refMain, const Pel* refSide, const int width, const int height, const int scale, const Pel topLeft, const ClpRng& clpRng );
 
   void ( *GetLumaRecPixel420 )          ( const int width,const int height, const Pel* pRecSrc0,const ptrdiff_t iRecStride,Pel* pDst0,const ptrdiff_t iDstStride );
 

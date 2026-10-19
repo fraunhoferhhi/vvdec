@@ -128,6 +128,25 @@ const TFilterCoeff g_intraGaussFilter[32][4] = {
   {  1, 17, 31, 15 },
 };
 
+// Pure vertical prediction with PDPC. A horizontal mode is predicted transposed with the same function.
+// refMain and refSide point at the reference sample before the first one of the block.
+void IntraPredHorVerPdpcCore( Pel* pDst, const ptrdiff_t dstStride, const Pel* refMain, const Pel* refSide, const int width, const int height, const int scale, const Pel topLeft, const ClpRng& clpRng )
+{
+  const int lev[4] = { std::min( 3, width ), std::min( 6, width ), std::min( 12, width ), std::min( 24, width ) };
+
+  for( int y = 0; y < height; y++ )
+  {
+    const Pel  left =  refSide[y + 1];
+          Pel *line = &pDst[y * dstStride];
+    for( int x = 0; x < lev[scale]; x++ )
+    {
+      int wL = 32 >> std::min( 31, ( ( x << 1 ) >> scale ) );
+      *line++ = ClipPel( ( wL * ( left - topLeft ) + refMain[x + 1] * ( 1 << 6 ) + 32 ) >> 6, clpRng );
+    }
+    memcpy( line, refMain + lev[scale] + 1, ( width - lev[scale] ) * sizeof( Pel ) );
+  }
+}
+
 void GetLumaRecPixel420Core (const int width,const int height, const Pel* pRecSrc0,const ptrdiff_t iRecStride,Pel* pDst0,const ptrdiff_t iDstStride)
 {
   for( int y = 0; y < height; y++ )
@@ -369,6 +388,7 @@ IntraPrediction::IntraPrediction() : m_currChromaFormat( NUM_CHROMA_FORMAT )
   IntraPredSampleFilter16 = IntraPredSampleFilterCore;
 
   xPredIntraPlanar = xPredIntraPlanarCore;
+  IntraPredHorVerPdpc = IntraPredHorVerPdpcCore;
 
   GetLumaRecPixel420 = GetLumaRecPixel420Core;
 }
@@ -689,21 +709,9 @@ void IntraPrediction::xPredIntraAng( const CPelBuf &pSrc, PelBuf &pDst, const Ch
     if( doPDPC )
     {
       const int scale = ( ( getLog2( width ) - 2 + getLog2( height ) - 2 + 2 ) >> 2 );
-      CHECK(scale < 0 || scale > 31, "PDPC: scale < 0 || scale > 31");
-      const int lev[4]={std::min(3,width),std::min(6,width),std::min(12,width),std::min(24,width)};
+      CHECK( scale < 0 || scale > 3, "PDPC: scale < 0 || scale > 3" );
 
-      const Pel topLeft = pSrc.at(0, 0);
-      for( int y = 0; y < height; y++ )
-      {
-        const Pel  left =  refSide[y + 1];
-              Pel *line = &pDstBuf[y * dstStride];
-        for( int x = 0; x < lev[scale]; x++ )
-        {
-          int wL = 32 >> std::min( 31, ( ( x << 1 ) >> scale ) );
-          *line++ = ClipPel( ( wL * ( left - topLeft ) + refMain[x + 1] * ( 1 << 6 ) + 32 ) >> 6, clpRng );
-        }
-        memcpy( line, refMain + lev[scale] + 1, ( width - lev[scale] ) * sizeof( Pel ) );
-      }
+      IntraPredHorVerPdpc( pDstBuf, dstStride, refMain, refSide, width, height, scale, pSrc.at( 0, 0 ), clpRng );
     }
     else
     {
