@@ -940,9 +940,9 @@ void IntraPrediction::predBlendIntraCiip( PelUnitBuf &predUnit, const CodingUnit
 }
 
 inline int isAboveAvailable(const TransformUnit &tu, const ChannelType &chType, const Position &posLT,
-                            const uint32_t uiNumUnitsInPU, const uint32_t unitWidth);
+                            const uint32_t uiNumUnitsInPU, const uint32_t unitWidthLog2);
 inline int isLeftAvailable(const TransformUnit &tu, const ChannelType &chType, const Position &posLT,
-                           const uint32_t uiNumUnitsInPU, const uint32_t unitWidth);
+                           const uint32_t uiNumUnitsInPU, const uint32_t unitHeightLog2);
 
 void IntraPrediction::initIntraPatternChType(const TransformUnit &tu, const CompArea &area, const bool bFilterRefSamples)
 {
@@ -1088,14 +1088,17 @@ void IntraPrediction::xFillReferenceSamples( const CPelBuf &recoBuf, Pel* refBuf
   const int  csx                = getChannelTypeScaleX( chType, pcv.chrFormat );
   const int  csy                = getChannelTypeScaleY( chType, pcv.chrFormat );
 
-  const int  unitWidth          = pcv.minCUWidth  >> csx;
-  const int  unitHeight         = pcv.minCUHeight >> csy;
+  // the unit sizes are powers of two, so shifts replace the divisions by them
+  const int  unitWidthLog2      = pcv.minCUWidthLog2  - csx;
+  const int  unitHeightLog2     = pcv.minCUHeightLog2 - csy;
+  const int  unitWidth          = 1 << unitWidthLog2;
+  const int  unitHeight         = 1 << unitHeightLog2;
 
-  const int  totalAboveUnits    = (predSize + (unitWidth - 1)) / unitWidth;
-  const int  totalLeftUnits     = (predHSize + (unitHeight - 1)) / unitHeight;
+  const int  totalAboveUnits    = (predSize + (unitWidth - 1)) >> unitWidthLog2;
+  const int  totalLeftUnits     = (predHSize + (unitHeight - 1)) >> unitHeightLog2;
   const int  totalUnits         = totalAboveUnits + totalLeftUnits + 1; //+1 for top-left
-  const int  numAboveUnits      = tuWidth / unitWidth;
-  const int  numLeftUnits       = tuHeight / unitHeight;
+  const int  numAboveUnits      = tuWidth >> unitWidthLog2;
+  const int  numLeftUnits       = tuHeight >> unitHeightLog2;
   const int  numAboveRightUnits = totalAboveUnits - numAboveUnits;
   const int  numLeftBelowUnits  = totalLeftUnits - numLeftUnits;
 
@@ -1120,7 +1123,7 @@ void IntraPrediction::xFillReferenceSamples( const CPelBuf &recoBuf, Pel* refBuf
       m_neighborSize[1] = numAboveUnits;
 
       Position posAR{ posLT.x + ( PosType ) area.width, posLT.y };
-      m_neighborSize[1] += isAboveAvailable( tu, chType, posAR, numAboveRightUnits, unitWidth );
+      m_neighborSize[1] += isAboveAvailable( tu, chType, posAR, numAboveRightUnits, unitWidthLog2 );
     }
     else
       m_neighborSize[1] = 0;
@@ -1130,7 +1133,7 @@ void IntraPrediction::xFillReferenceSamples( const CPelBuf &recoBuf, Pel* refBuf
       m_neighborSize[2] = numLeftUnits;
 
       Position posLB{ posLT.x, posLT.y + ( PosType ) area.height };
-      m_neighborSize[2] += isLeftAvailable( tu, chType, posLB, numLeftBelowUnits, unitHeight );
+      m_neighborSize[2] += isLeftAvailable( tu, chType, posLB, numLeftBelowUnits, unitHeightLog2 );
     }
     else
       m_neighborSize[2] = 0;
@@ -1341,12 +1344,12 @@ static inline TransformUnit const* getTU( const CodingUnit& cu, const Position& 
 }
 
 int isAboveAvailable(const TransformUnit &tu, const ChannelType &chType, const Position &posLT,
-                     const uint32_t uiNumUnitsInPU, const uint32_t unitWidth)
+                     const uint32_t uiNumUnitsInPU, const uint32_t unitWidthLog2)
 {
   const CodingUnit      &cu = *tu.cu;
   const CodingStructure &cs = *cu.cs;
 
-  int maxDx = uiNumUnitsInPU * unitWidth;
+  int maxDx = uiNumUnitsInPU << unitWidthLog2;
   Position refPos = posLT.offset(0, -1);
   const TransformUnit *pcTUAbove = nullptr;
   const int currTUIdx = tu.idx;
@@ -1365,18 +1368,18 @@ int isAboveAvailable(const TransformUnit &tu, const ChannelType &chType, const P
     refPos.x += diff;
   }
 
-  int neighborSize = dx / unitWidth;
+  int neighborSize = dx >> unitWidthLog2;
   neighborSize = std::min<int>( neighborSize, uiNumUnitsInPU );
   return neighborSize;
 }
 
 int isLeftAvailable(const TransformUnit &tu, const ChannelType &chType, const Position &posLT,
-                    const uint32_t uiNumUnitsInPU, const uint32_t unitHeight)
+                    const uint32_t uiNumUnitsInPU, const uint32_t unitHeightLog2)
 {
   const CodingUnit      &cu = *tu.cu;
   const CodingStructure &cs = *cu.cs;
 
-  int maxDy = uiNumUnitsInPU * unitHeight;
+  int maxDy = uiNumUnitsInPU << unitHeightLog2;
   Position refPos = posLT.offset(-1, 0);
   const TransformUnit *pcTULeft = nullptr;
   int currTUIdx = tu.idx;
@@ -1395,7 +1398,7 @@ int isLeftAvailable(const TransformUnit &tu, const ChannelType &chType, const Po
     refPos.y += diff;
   }
 
-  int neighborSize = dy / unitHeight;
+  int neighborSize = dy >> unitHeightLog2;
   neighborSize = std::min<int>( neighborSize, uiNumUnitsInPU );
   return neighborSize;
 }
@@ -1709,9 +1712,11 @@ void IntraPrediction::xGetLMParameters(const CodingUnit &cu, const ComponentID c
   const uint32_t     tuHeight    = chromaArea.height;
   const ChromaFormat nChromaFormat = sps.getChromaFormatIdc();
 
-  const int baseUnitSize = 1 << MIN_CU_LOG2;
-  const int unitWidth    = baseUnitSize >> getComponentScaleX(chromaArea.compID(), nChromaFormat);
-  const int unitHeight   = baseUnitSize >> getComponentScaleX(chromaArea.compID(), nChromaFormat);
+  const int baseUnitSize   = 1 << MIN_CU_LOG2;
+  const int unitWidthLog2  = MIN_CU_LOG2 - getComponentScaleX(chromaArea.compID(), nChromaFormat);
+  const int unitHeightLog2 = MIN_CU_LOG2 - getComponentScaleX(chromaArea.compID(), nChromaFormat);
+  const int unitWidth      = baseUnitSize >> getComponentScaleX(chromaArea.compID(), nChromaFormat);
+  const int unitHeight     = baseUnitSize >> getComponentScaleX(chromaArea.compID(), nChromaFormat);
 
   const int tuWidthInUnits  = tuWidth / unitWidth;
   const int tuHeightInUnits = tuHeight / unitHeight;
@@ -1769,7 +1774,7 @@ void IntraPrediction::xGetLMParameters(const CodingUnit &cu, const ComponentID c
     {
       avaiAboveUnits  = aboveUnits;
       aboveRightUnits = aboveRightUnits > ( cHeight / unitWidth ) ? cHeight / unitWidth : aboveRightUnits;
-      avaiAboveUnits += isAboveAvailable( tu, CHANNEL_TYPE_CHROMA, { posLT.x + ( PosType ) cWidth, posLT.y }, aboveRightUnits, unitWidth );
+      avaiAboveUnits += isAboveAvailable( tu, CHANNEL_TYPE_CHROMA, { posLT.x + ( PosType ) cWidth, posLT.y }, aboveRightUnits, unitWidthLog2 );
     }
 
     aboveAvailable           = avaiAboveUnits >= tuWidthInUnits;
@@ -1783,7 +1788,7 @@ void IntraPrediction::xGetLMParameters(const CodingUnit &cu, const ComponentID c
     {
       avaiLeftUnits  = leftUnits;
       leftBelowUnits = leftBelowUnits > ( cWidth / unitHeight ) ? cWidth / unitHeight : leftBelowUnits;
-      avaiLeftUnits += isLeftAvailable( tu, CHANNEL_TYPE_CHROMA, { posLT.x, posLT.y + ( PosType ) cHeight }, leftBelowUnits, unitHeight );
+      avaiLeftUnits += isLeftAvailable( tu, CHANNEL_TYPE_CHROMA, { posLT.x, posLT.y + ( PosType ) cHeight }, leftBelowUnits, unitHeightLog2 );
     }
     
     leftAvailable             = avaiLeftUnits >= tuHeightInUnits;
