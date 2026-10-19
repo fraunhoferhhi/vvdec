@@ -2613,12 +2613,49 @@ bool test_DeQuant_impl( const Quant& ref, const Quant& opt, int w, int h, int sr
   return passed;
 }
 
+// A dequantized coefficient is clipped to the transform range, also when level * scale exceeds 32 bits once it is
+// shifted left, which is possible with a scaling list.
+static bool check_DeQuantScaling_overflow( const Quant& quant, const char* name )
+{
+  const int    rightShift       = -4;
+  const int    scaleQP          = 72;
+  const int    inputMaximum     = ( 1 << 15 ) - 1;
+  const TCoeff transformMaximum = ( 1 << 15 ) - 1;
+
+  // 10000 * 255 * 72 << 4 = 2937600000 exceeds 2^31 and wraps to a negative value in 32 bits
+  const int       dequantCoef[8] = { 255, 255, 1, 1, 255, 255, 1, 1 };
+  const TCoeffSig levelSig[8]    = { 10000, -10000, 1, -1, 10000, -10000, 1, -1 };
+  const TCoeff    level[8]       = { 10000, -10000, 1, -1, 10000, -10000, 1, -1 };
+  const TCoeff    expected[8]    = { 32767, -32768, 1152, -1152, 32767, -32768, 1152, -1152 };
+
+  bool passed = true;
+  for( int numCoeffs: { 3, 4, 8 } )   // the SIMD remainder, the 4 wide and the 8 wide loop
+  {
+    TCoeff dst[8]    = { 0 };
+    TCoeff dstPCM[8] = { 0 };
+    quant.DeQuantScaling( 8, numCoeffs - 1, 0, scaleQP, dequantCoef, levelSig, 8, dst, rightShift, inputMaximum, transformMaximum );
+    quant.DeQuantScalingPCM( 8, numCoeffs - 1, 0, scaleQP, dequantCoef, level, 8, dstPCM, rightShift, inputMaximum, transformMaximum );
+    for( int i = 0; i < numCoeffs; i++ )
+    {
+      if( dst[i] != expected[i] || dstPCM[i] != expected[i] )
+      {
+        std::cout << "failed: " << name << " DeQuantScaling of " << numCoeffs << " coefficients: coefficient " << i << " is "
+                  << dst[i] << " (PCM " << dstPCM[i] << "), expected " << expected[i] << std::endl;
+        passed = false;
+      }
+    }
+  }
+  return passed;
+}
+
 static bool test_DeQuant()
 {
   Quant ref{ nullptr, /*enableOpt=*/false };
   Quant opt{ &ref,    /*enableOpt=*/true };
 
   bool passed = true;
+  passed = check_DeQuantScaling_overflow( ref, "C" ) && passed;
+  passed = check_DeQuantScaling_overflow( opt, "SIMD" ) && passed;
   for( unsigned w: { 1, 2, 4, 8, 16, 32, 64 } )
   {
     for( unsigned h: { 1, 2, 4, 8, 16, 32, 64 } )
