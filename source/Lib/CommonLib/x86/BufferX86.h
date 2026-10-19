@@ -586,6 +586,43 @@ void copyBuffer_SSE( const char *src, ptrdiff_t srcStride, char *dst, ptrdiff_t 
     return;
   }
 
+  // Rows of a block are short (8 to 256 bytes), and vector moves copy them faster than a call of memcpy per row.
+#if USE_AVX2
+  if( ( width & 31 ) == 0 )
+  {
+    for( int y = 0; y < height; y++, src += srcStride, dst += dstStride )
+    {
+      _mm_prefetch( src + srcStride, _MM_HINT_T0 );
+      for( int x = 0; x < width; x += 32 )
+      {
+        _mm256_storeu_si256( ( __m256i* ) &dst[x], _mm256_loadu_si256( ( const __m256i* ) &src[x] ) );
+      }
+    }
+    _mm256_zeroupper();
+    return;
+  }
+#endif
+  if( ( width & 15 ) == 0 )
+  {
+    for( int y = 0; y < height; y++, src += srcStride, dst += dstStride )
+    {
+      _mm_prefetch( src + srcStride, _MM_HINT_T0 );
+      for( int x = 0; x < width; x += 16 )
+      {
+        _mm_storeu_si128( ( __m128i* ) &dst[x], _mm_loadu_si128( ( const __m128i* ) &src[x] ) );
+      }
+    }
+    return;
+  }
+  if( width == 8 )
+  {
+    for( int y = 0; y < height; y++, src += srcStride, dst += dstStride )
+    {
+      _mm_storeu_si64( dst, _mm_loadu_si64( src ) );
+    }
+    return;
+  }
+
   while( height-- )
   {
     const char* nextSrcLine = src + srcStride;
