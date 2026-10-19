@@ -2650,6 +2650,69 @@ static bool test_IntraPredAngleChroma()
   }
   return passed;
 }
+
+static bool test_IntraPredPlanar()
+{
+  IntraPrediction ref;
+  IntraPrediction opt;
+#if defined( TARGET_SIMD_X86 )
+  opt.initIntraPredictionX86();
+#endif
+#if defined( TARGET_SIMD_ARM )
+  opt.initIntraPredictionARM();
+#endif
+
+  DimensionGenerator rng;
+  const SPS          sps;
+  bool               passed = true;
+
+  for( unsigned bd : { 8u, 10u } )
+  {
+    const Pel maxVal = ( 1 << bd ) - 1;
+
+    // ISP partitions can be 1 or 2 samples wide or high
+    for( int width : { 1, 2, 4, 8, 16, 32, 64 } )
+    {
+      for( int height : { 1, 2, 4, 8, 16, 32, 64 } )
+      {
+        for( int c = 0; c < NUM_CASES; ++c )
+        {
+          // the reference samples: the top row (with the top-left and top-right samples) in row 0, the left column
+          // (with the bottom-left sample) in column 0, as IntraPrediction::initIntraPatternChType() prepares them;
+          // the margin lets SIMD loads read past the top-right sample
+          const ptrdiff_t   srcStride = width + 2 + 16;
+          std::vector<Pel>  src( srcStride * ( height + 2 ) );
+          InputGenerator<Pel> g{ bd, /*is_signed=*/false };
+          std::generate( src.begin(), src.end(), g );
+
+          // all samples at the maximum value give the largest sums
+          if( c == 1 )
+          {
+            std::fill( src.begin(), src.end(), maxVal );
+          }
+
+          const CPelBuf srcBuf( src.data(), srcStride, width + 2, height + 2 );
+
+          const ptrdiff_t  dstStride = width + rng.get( 0, 8 );
+          // the guard values after each block row must stay untouched
+          std::vector<Pel> dstRef( dstStride * height, -1 );
+          std::vector<Pel> dstOpt( dstStride * height, -1 );
+          PelBuf           dstBufRef( dstRef.data(), dstStride, width, height );
+          PelBuf           dstBufOpt( dstOpt.data(), dstStride, width, height );
+
+          ref.xPredIntraPlanar( srcBuf, dstBufRef, sps );
+          opt.xPredIntraPlanar( srcBuf, dstBufOpt, sps );
+
+          std::ostringstream sstm;
+          sstm << "xPredIntraPlanar bd=" << bd << " w=" << width << " h=" << height << " case=" << c;
+          passed &= compare_values_2d( sstm.str(), dstRef.data(), dstOpt.data(), ( unsigned ) height, ( unsigned ) dstStride,
+                                       ( unsigned ) dstStride );
+        }
+      }
+    }
+  }
+  return passed;
+}
 #endif // ENABLE_SIMD_OPT_INTRAPRED
 
 #if defined( TARGET_SIMD_X86 ) && ENABLE_SIMD_OPT
@@ -2830,6 +2893,7 @@ static const UnitTestEntry test_suites[] = {
 #endif
 #if ENABLE_SIMD_OPT_INTRAPRED
     { "IntraPredAngleChroma", test_IntraPredAngleChroma },
+    { "IntraPredPlanar", test_IntraPredPlanar },
 #endif
 #if ENABLE_SIMD_OPT_MCIF
     { "InterpolationFilter", test_InterpolationFilter },
