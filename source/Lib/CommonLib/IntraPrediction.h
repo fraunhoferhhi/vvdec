@@ -150,6 +150,8 @@ public:
   void  ( *xPredIntraPlanar )           ( const CPelBuf &pSrc, PelBuf &pDst, const SPS& sps );
 
   void ( *GetLumaRecPixel420 )          ( const int width,const int height, const Pel* pRecSrc0,const ptrdiff_t iRecStride,Pel* pDst0,const ptrdiff_t iDstStride );
+  void ( *GetLumaRecPixel420Collocated )( const int width, const int height, const Pel* pRecSrc0, const ptrdiff_t iRecStride, Pel* pDst0, const ptrdiff_t iDstStride );
+  void ( *GetLumaRecPixel420Left )      ( const int height, const Pel* pRecSrc0, const ptrdiff_t iRecStride, Pel* pDst, const ptrdiff_t iDstStride, const bool collocated );
 
 #if ENABLE_SIMD_OPT_INTRAPRED && defined( TARGET_SIMD_X86 )
   void initIntraPredictionX86();

@@ -2650,6 +2650,118 @@ static bool test_IntraPredAngleChroma()
   }
   return passed;
 }
+
+static bool test_GetLumaRecPixel420Collocated()
+{
+  IntraPrediction ref;
+  IntraPrediction opt;
+#if defined( TARGET_SIMD_X86 )
+  opt.initIntraPredictionX86();
+#endif
+#if defined( TARGET_SIMD_ARM )
+  opt.initIntraPredictionARM();
+#endif
+
+  DimensionGenerator rng;
+  bool passed = true;
+
+  for( unsigned bd : { 8u, 10u } )
+  {
+    for( bool maxInput : { false, true } )
+    {
+      for( int width = 1; width <= 32; width++ )
+      {
+        for( int height : { 1, 2, 4, 8, 16, 32 } )
+        {
+          // The luma block is 2 * width x 2 * height samples, with one column on the left and one line above it,
+          // which the downsampling reads.
+          const ptrdiff_t srcStride = 2 * width + 1 + rng.get( 0, 8 );
+          std::vector<Pel> src( srcStride * ( 2 * height + 1 ) );
+          InputGenerator<Pel> g{ bd, /*is_signed=*/false };
+          if( maxInput )
+          {
+            std::fill( src.begin(), src.end(), Pel( ( 1 << bd ) - 1 ) );
+          }
+          else
+          {
+            std::generate( src.begin(), src.end(), g );
+          }
+          const Pel* const block = src.data() + srcStride + 1;
+
+          // The rows are compared after the call, so writes into the stride padding are detected.
+          const ptrdiff_t dstStride = width + rng.get( 0, 8 );
+          std::vector<Pel> dstRef( dstStride * height, 0 );
+          std::vector<Pel> dstOpt( dstStride * height, 0 );
+
+          ref.GetLumaRecPixel420Collocated( width, height, block, srcStride, dstRef.data(), dstStride );
+          opt.GetLumaRecPixel420Collocated( width, height, block, srcStride, dstOpt.data(), dstStride );
+
+          std::ostringstream sstm;
+          sstm << "GetLumaRecPixel420Collocated bd=" << bd << " w=" << width << " h=" << height << " max=" << maxInput;
+          passed &= compare_values_2d( sstm.str(), dstRef.data(), dstOpt.data(), (unsigned)height, (unsigned)dstStride,
+                                       (unsigned)dstStride );
+        }
+      }
+    }
+  }
+  return passed;
+}
+
+static bool test_GetLumaRecPixel420Left()
+{
+  IntraPrediction ref;
+  IntraPrediction opt;
+#if defined( TARGET_SIMD_X86 )
+  opt.initIntraPredictionX86();
+#endif
+#if defined( TARGET_SIMD_ARM )
+  opt.initIntraPredictionARM();
+#endif
+
+  DimensionGenerator rng;
+  bool passed = true;
+
+  for( unsigned bd : { 8u, 10u } )
+  {
+    for( bool maxInput : { false, true } )
+    {
+      for( bool collocated : { false, true } )
+      {
+        for( int height = 1; height <= 64; height++ )
+        {
+          // Three luma columns left of the block plus its first column, and one line above it, which the collocated
+          // filter reads.
+          const ptrdiff_t srcStride = 4 + rng.get( 0, 8 );
+          std::vector<Pel> src( srcStride * ( 2 * height + 1 ) );
+          InputGenerator<Pel> g{ bd, /*is_signed=*/false };
+          if( maxInput )
+          {
+            std::fill( src.begin(), src.end(), Pel( ( 1 << bd ) - 1 ) );
+          }
+          else
+          {
+            std::generate( src.begin(), src.end(), g );
+          }
+          const Pel* const block = src.data() + srcStride + 3;
+
+          // a column of outputs; the samples between them are compared too
+          const ptrdiff_t dstStride = 1 + rng.get( 0, 8 );
+          std::vector<Pel> dstRef( dstStride * height, 0 );
+          std::vector<Pel> dstOpt( dstStride * height, 0 );
+
+          ref.GetLumaRecPixel420Left( height, block, srcStride, dstRef.data(), dstStride, collocated );
+          opt.GetLumaRecPixel420Left( height, block, srcStride, dstOpt.data(), dstStride, collocated );
+
+          std::ostringstream sstm;
+          sstm << "GetLumaRecPixel420Left bd=" << bd << " h=" << height << " collocated=" << collocated << " max=" << maxInput;
+          passed &= compare_values_2d( sstm.str(), dstRef.data(), dstOpt.data(), (unsigned) height, (unsigned) dstStride,
+                                       (unsigned) dstStride );
+        }
+      }
+    }
+  }
+  return passed;
+}
 #endif // ENABLE_SIMD_OPT_INTRAPRED
 
 #if defined( TARGET_SIMD_X86 ) && ENABLE_SIMD_OPT
@@ -2830,6 +2942,8 @@ static const UnitTestEntry test_suites[] = {
 #endif
 #if ENABLE_SIMD_OPT_INTRAPRED
     { "IntraPredAngleChroma", test_IntraPredAngleChroma },
+    { "GetLumaRecPixel420Collocated", test_GetLumaRecPixel420Collocated },
+    { "GetLumaRecPixel420Left", test_GetLumaRecPixel420Left },
 #endif
 #if ENABLE_SIMD_OPT_MCIF
     { "InterpolationFilter", test_InterpolationFilter },

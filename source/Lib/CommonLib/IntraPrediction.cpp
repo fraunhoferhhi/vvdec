@@ -147,6 +147,42 @@ void GetLumaRecPixel420Core (const int width,const int height, const Pel* pRecSr
     }
 }
 
+// 4:2:0 luma downsampling for CCLM when the chroma samples are collocated with the even luma samples
+// (sps_chroma_vertical_collocated_flag): a 5-tap cross around each even luma sample. The left and the above neighbours
+// of the block must be available.
+void GetLumaRecPixel420CollocatedCore( const int width, const int height, const Pel* pRecSrc0, const ptrdiff_t iRecStride, Pel* pDst0, const ptrdiff_t iDstStride )
+{
+  for( int y = 0; y < height; y++ )
+  {
+    for( int x = 0; x < width; x++ )
+    {
+      const Pel* center = pRecSrc0 + 2 * x;
+      pDst0[x] = ( center[-iRecStride] + center[-1] + 4 * center[0] + center[1] + center[iRecStride] + 4 ) >> 3;
+    }
+    pDst0    += iDstStride;
+    pRecSrc0 += 2 * iRecStride;
+  }
+}
+
+// The 4:2:0 CCLM template column left of the block, one sample per two luma rows, written down the column of pDst:
+// the 6-tap filter around luma column -2, or with collocated chroma the 5-tap cross around it. pRecSrc0 points to the
+// top left luma sample of the block. The rows above the block must be available for the collocated filter.
+void GetLumaRecPixel420LeftCore( const int height, const Pel* pRecSrc0, const ptrdiff_t iRecStride, Pel* pDst, const ptrdiff_t iDstStride, const bool collocated )
+{
+  const Pel* center = pRecSrc0 - 2;
+  for( int y = 0; y < height; y++, center += 2 * iRecStride, pDst += iDstStride )
+  {
+    if( collocated )
+    {
+      pDst[0] = ( center[-iRecStride] + center[-1] + 4 * center[0] + center[1] + center[iRecStride] + 4 ) >> 3;
+    }
+    else
+    {
+      pDst[0] = ( 2 * center[0] + center[-1] + center[1] + 2 * center[iRecStride] + center[iRecStride - 1] + center[iRecStride + 1] + 4 ) >> 3;
+    }
+  }
+}
+
 /** Function for deriving planar intra prediction. This function derives the prediction samples for planar mode (intra coding).
  */
 
@@ -370,7 +406,9 @@ IntraPrediction::IntraPrediction() : m_currChromaFormat( NUM_CHROMA_FORMAT )
 
   xPredIntraPlanar = xPredIntraPlanarCore;
 
-  GetLumaRecPixel420 = GetLumaRecPixel420Core;
+  GetLumaRecPixel420           = GetLumaRecPixel420Core;
+  GetLumaRecPixel420Collocated = GetLumaRecPixel420CollocatedCore;
+  GetLumaRecPixel420Left       = GetLumaRecPixel420LeftCore;
 }
 
 IntraPrediction::~IntraPrediction()
@@ -1492,7 +1530,44 @@ NO_THREAD_SANITIZE void IntraPrediction::xGetLumaRecPixels(const CodingUnit &cu,
       break;
   }
 
-  if( bAboveAvaillable )
+  const bool collocated = cu.sps->getCclmCollocatedChromaFlag();
+
+  if( bAboveAvaillable && cu.chromaFormat == CHROMA_420 && !isFirstRowOfCtu )
+  {
+    // The template row above the block is downsampled like one more row of the block, by the same kernels. Without the
+    // left neighbour the first sample is computed separately, so that the kernels do not read left of the block.
+    pDst  = pDst0    - iDstStride;
+    piSrc = pRecSrc0 - iRecStride2;
+    const int avaiAboveSizes = availlableAboveUnit * chromaUnitWidth;
+    const int firstX         = bLeftAvaillable ? 0 : 1;
+    if( collocated )
+    {
+      GetLumaRecPixel420Collocated( avaiAboveSizes - firstX, 1, piSrc + 2 * firstX, iRecStride, pDst + firstX, iDstStride );
+    }
+    else
+    {
+      // GetLumaRecPixel420 takes widths that are a multiple of 8 or at most 4
+      int x = firstX;
+      for( const int step : { 8, 4, 2, 1 } )
+      {
+        const int width = ( avaiAboveSizes - x ) & ~( step - 1 );
+        if( width )
+        {
+          GetLumaRecPixel420( width, 1, piSrc + 2 * x, iRecStride, pDst + x, iDstStride );
+          x += width;
+        }
+      }
+    }
+
+    if( !bLeftAvaillable )
+    {
+      pDst[0] = collocated ? ( piSrc[-strOffset] * c0_5tap + piSrc[0] * c1_5tap + piSrc[0] * c2_5tap + piSrc[1] * c3_5tap + piSrc[strOffset] * c4_5tap + offset_5tap ) >> shift_5tap
+                           : ( ( piSrc[0]             * c0_6tap + piSrc[0]             * c1_6tap + piSrc[1]             * c2_6tap )
+                             + ( piSrc[0 + strOffset] * c3_6tap + piSrc[0 + strOffset] * c4_6tap + piSrc[1 + strOffset] * c5_6tap )
+                             + offset_6tap ) >> shift_6tap;
+    }
+  }
+  else if( bAboveAvaillable )
   {
     pDst  = pDst0    - iDstStride;
     int avaiAboveSizes = availlableAboveUnit * chromaUnitWidth;
@@ -1550,7 +1625,25 @@ NO_THREAD_SANITIZE void IntraPrediction::xGetLumaRecPixels(const CodingUnit &cu,
     }
   }
 
-  if( bLeftAvaillable )
+  if( bLeftAvaillable && cu.chromaFormat == CHROMA_420 )
+  {
+    // The template column left of the block. Without the above neighbour the collocated filter computes the first sample
+    // separately, so that the kernel does not read above the block.
+    pDst  = pDst0    - 1;
+    piSrc = pRecSrc0 - 2 - logSubWidthC;
+
+    const int firstY = collocated && !bAboveAvaillable ? 1 : 0;
+    GetLumaRecPixel420Left( availlableLeftUnit * chromaUnitHeight - firstY, pRecSrc0 + firstY * iRecStride2, iRecStride, pDst + firstY * iDstStride, iDstStride, collocated );
+
+    if( firstY )
+    {
+      pDst[0] = ( piSrc[1            ] * c0_5tap
+                + piSrc[1            ] * c1_5tap + piSrc[0] * c2_5tap + piSrc[2] * c3_5tap
+                + piSrc[1 + strOffset] * c4_5tap
+                + offset_5tap ) >> shift_5tap;
+    }
+  }
+  else if( bLeftAvaillable )
   {
     pDst  = pDst0    - 1;
 
@@ -1590,6 +1683,14 @@ NO_THREAD_SANITIZE void IntraPrediction::xGetLumaRecPixels(const CodingUnit &cu,
 
   if( cu.sps->getCclmCollocatedChromaFlag() )
   {
+    // The 4:2:0 kernel reads the luma samples left of and above the block, so blocks at an unavailable edge keep the
+    // generic loop below.
+    if( cu.chromaFormat == CHROMA_420 && bLeftAvaillable && bAboveAvaillable )
+    {
+      GetLumaRecPixel420Collocated( uiCWidth, uiCHeight, pRecSrc0, iRecStride, pDst0, iDstStride );
+      return;
+    }
+
     // TODO: unroll loop
     for( int j = 0; j < uiCHeight; j++ )
     {
