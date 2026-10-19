@@ -2650,6 +2650,66 @@ static bool test_IntraPredAngleChroma()
   }
   return passed;
 }
+
+static bool test_CiipBlend()
+{
+  IntraPrediction ref;
+  IntraPrediction opt;
+#if defined( TARGET_SIMD_X86 )
+  opt.initIntraPredictionX86();
+#endif
+#if defined( TARGET_SIMD_ARM )
+  opt.initIntraPredictionARM();
+#endif
+
+  DimensionGenerator rng;
+  bool passed = true;
+
+  for( unsigned bd : { 8u, 10u } )
+  {
+    for( bool maxInput : { false, true } )
+    {
+      for( int width : { 4, 8, 12, 16, 20, 24, 32, 64 } )
+      {
+        for( int height : { 4, 8, 16, 32, 64 } )
+        {
+          // the weights depend on whether the left and the above neighbour are intra coded
+          for( int wIntra : { 1, 2, 3 } )
+          {
+            const int wMerge = 4 - wIntra;
+
+            const ptrdiff_t intraStride = width + rng.get( 0, 8 );
+            const ptrdiff_t dstStride   = width + rng.get( 0, 8 );
+            std::vector<Pel> intraPred( intraStride * height );
+            std::vector<Pel> dstRef( dstStride * height );
+            InputGenerator<Pel> g{ bd, /*is_signed=*/false };
+            if( maxInput )
+            {
+              std::fill( intraPred.begin(), intraPred.end(), Pel( ( 1 << bd ) - 1 ) );
+              std::fill( dstRef.begin(), dstRef.end(), Pel( ( 1 << bd ) - 1 ) );
+            }
+            else
+            {
+              std::generate( intraPred.begin(), intraPred.end(), g );
+              std::generate( dstRef.begin(), dstRef.end(), g );
+            }
+            std::vector<Pel> dstOpt = dstRef;
+
+            ref.CiipBlend( dstRef.data(), dstStride, intraPred.data(), intraStride, width, height, wMerge, wIntra );
+            opt.CiipBlend( dstOpt.data(), dstStride, intraPred.data(), intraStride, width, height, wMerge, wIntra );
+
+            // The rows are compared including the stride padding, so writes outside the block are detected.
+            std::ostringstream sstm;
+            sstm << "CiipBlend bd=" << bd << " w=" << width << " h=" << height << " wIntra=" << wIntra << " max=" << maxInput;
+            passed &= compare_values_2d( sstm.str(), dstRef.data(), dstOpt.data(), (unsigned)height, (unsigned)dstStride,
+                                         (unsigned)dstStride );
+          }
+        }
+      }
+    }
+  }
+  return passed;
+}
 #endif // ENABLE_SIMD_OPT_INTRAPRED
 
 #if defined( TARGET_SIMD_X86 ) && ENABLE_SIMD_OPT
@@ -2830,6 +2890,7 @@ static const UnitTestEntry test_suites[] = {
 #endif
 #if ENABLE_SIMD_OPT_INTRAPRED
     { "IntraPredAngleChroma", test_IntraPredAngleChroma },
+    { "CiipBlend", test_CiipBlend },
 #endif
 #if ENABLE_SIMD_OPT_MCIF
     { "InterpolationFilter", test_InterpolationFilter },
