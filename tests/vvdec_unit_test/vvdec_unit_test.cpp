@@ -1826,6 +1826,62 @@ bool check_rspFwdCore( PelBufferOps* ref, PelBufferOps* opt, unsigned num_cases 
   return passed;
 }
 
+static bool check_fillN_MotionInfo( PelBufferOps* ref, PelBufferOps* opt, unsigned num_cases )
+{
+  DimensionGenerator rng;
+  bool passed = true;
+
+  const auto sameEntry = []( const MotionInfo& a, const MotionInfo& b )
+  {
+    return a.mv[0].hor == b.mv[0].hor && a.mv[0].ver == b.mv[0].ver && a.mv[1].hor == b.mv[1].hor &&
+           a.mv[1].ver == b.mv[1].ver && a.miRefIdx[0] == b.miRefIdx[0] && a.miRefIdx[1] == b.miRefIdx[1];
+  };
+
+  // sizes in 4x4 units, up to a 128x128 CTU
+  for( int w = 1; w <= 32; w++ )
+  {
+    for( int h : { 1, 2, 3, 4, 8, 16, 32 } )
+    {
+      printf( "Testing PelBufferOps::fillN_MotionInfo w=%d h=%d\n", w, h );
+      for( unsigned i = 0; i < num_cases; ++i )
+      {
+        // contiguous rows (a block as wide as the buffer) and rows with a gap between them
+        const ptrdiff_t stride = i == 0 ? w : rng.get( w, 40 );
+
+        // distinct entries around the block show writes outside of it
+        std::vector<MotionInfo> bufRef( stride * h + 8 );
+        for( size_t n = 0; n < bufRef.size(); n++ )
+        {
+          bufRef[n].mv[0]       = Mv( (int) n, -(int) n );
+          bufRef[n].miRefIdx[0] = (int8_t) ( n & 15 );
+        }
+        std::vector<MotionInfo> bufOpt = bufRef;
+
+        MotionInfo val;
+        val.mv[0]       = Mv( (int) rng.get( 0, 1 << 17 ) - ( 1 << 16 ), (int) rng.get( 0, 1 << 17 ) - ( 1 << 16 ) );
+        val.mv[1]       = Mv( (int) rng.get( 0, 1 << 17 ) - ( 1 << 16 ), (int) rng.get( 0, 1 << 17 ) - ( 1 << 16 ) );
+        val.miRefIdx[0] = (int8_t) ( (int) rng.get( 0, 16 ) - 1 );
+        val.miRefIdx[1] = (int8_t) ( (int) rng.get( 0, 16 ) - 1 );
+
+        ref->fillN_MotionInfo( bufRef.data() + 4, stride, w, h, val );
+        opt->fillN_MotionInfo( bufOpt.data() + 4, stride, w, h, val );
+
+        for( size_t n = 0; n < bufRef.size(); n++ )
+        {
+          if( !sameEntry( bufRef[n], bufOpt[n] ) )
+          {
+            printf( "failed: fillN_MotionInfo w=%d h=%d stride=%d: entry %d differs\n", w, h, (int) stride, (int) n );
+            passed = false;
+            break;
+          }
+        }
+      }
+    }
+  }
+
+  return passed;
+}
+
 static bool test_PelBufferOps()
 {
   PelBufferOps ref;
@@ -1845,6 +1901,7 @@ static bool test_PelBufferOps()
   passed = check_reco( &ref, &opt, num_cases ) && passed;
   passed = check_rspFwdCore( &ref, &opt, num_cases ) && passed;
   passed = check_applyLut( &ref, &opt, num_cases ) && passed;
+  passed = check_fillN_MotionInfo( &ref, &opt, num_cases ) && passed;
 
   return passed;
 }
