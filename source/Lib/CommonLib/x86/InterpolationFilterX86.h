@@ -1820,7 +1820,7 @@ static ALWAYS_INLINE __m128i simdFilter4x4_N6_hor1_AVX2( const Pel* src, const _
 
 // shifts, clips and stores the output rows 0 and 1 (d01) and 2 and 3 (d23) of a 4x4 block
 template<bool isLast>
-static inline void simdFilter4x4_store_AVX2( const ClpRng& clpRng, __m256i d01, __m256i d23, int shift, Pel* dst, const ptrdiff_t dstStride )
+static ALWAYS_INLINE void simdFilter4x4_store_AVX2( const ClpRng& clpRng, __m256i d01, __m256i d23, int shift, Pel* dst, const ptrdiff_t dstStride )
 {
   d01 = _mm256_srai_epi32( d01, shift );
   d23 = _mm256_srai_epi32( d23, shift );
@@ -2067,7 +2067,7 @@ void simdFilter4x4_N6( const ClpRng& clpRng, const Pel* src, const ptrdiff_t src
 
 #if USE_AVX2
 // horizontal 4-tap filter of two rows (lane 0: row 0, lane 1: row 1), src points to the first tap
-static inline __m256i simdFilter4x4_N4_hor2_AVX2( const Pel* src, const ptrdiff_t srcStride, const __m256i& c01, const __m256i& c23, int shift )
+static ALWAYS_INLINE __m256i simdFilter4x4_N4_hor2_AVX2( const Pel* src, const ptrdiff_t srcStride, const __m256i& c01, const __m256i& c23, int shift )
 {
   const __m256i s = _mm256_seti_m128i( _mm_loadu_si128( ( const __m128i* ) &src[srcStride] ), _mm_loadu_si128( ( const __m128i* ) &src[0] ) );
 
