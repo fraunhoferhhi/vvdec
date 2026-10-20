@@ -91,6 +91,7 @@ namespace Mip
                                         const SizeType dstStep, const SizeType dstStride,
                                         const SizeType bndryStep,
                                         const unsigned int upsmpFactor );
+    void predictionUpsamplingVer( Pel* const dst, const Pel* const src, const SizeType srcStep ) const;
 
     const uint8_t* getMatrixData(const int modeIdx) const;
 
