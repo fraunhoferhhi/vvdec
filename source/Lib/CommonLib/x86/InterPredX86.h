@@ -195,48 +195,44 @@ inline void addBIOAvg4_2x_SSE<AVX2>(const int16_t* src0, const int16_t* src1, in
 }
 #endif
 
+// The BDOF refinement of a 4x4 block comes from sums over a window of 6x6 samples around it, kept in 16 bit lanes, one
+// lane per window column (the last 2 lanes are not used).
+enum BIOSum { BIO_SUM_ABS_GX, BIO_SUM_DIX, BIO_SUM_ABS_GY, BIO_SUM_DIY, BIO_SUM_SIGN_GY_GX, NUM_BIO_SUMS };
+
+// adds the contributions of the window rows row0 to row1 - 1 of one block to its sums
 template< X86_VEXT vext >
-static inline void calcBIOSums_SSE(const Pel* srcY0Tmp, const Pel* srcY1Tmp, const Pel* gradX0, const Pel* gradX1, const Pel* gradY0, const Pel* gradY1, const int widthG, const int bitDepth, int limit, int &tmpx, int &tmpy)
+static ALWAYS_INLINE void addBIOSumRows_SSE( const Pel* srcY0, const Pel* srcY1, const Pel* gradX0, const Pel* gradX1, const Pel* gradY0, const Pel* gradY1, const ptrdiff_t widthG, const int row0, const int row1, __m128i sums[NUM_BIO_SUMS] )
 {
   static constexpr int shift4 = 4;
   static constexpr int shift5 = 1;
-  const int srcStride = widthG;
 
-  __m128i sumAbsGXTmp    = _mm_setzero_si128();
-  __m128i sumDIXTmp      = _mm_setzero_si128();
-  __m128i sumAbsGYTmp    = _mm_setzero_si128();
-  __m128i sumDIYTmp      = _mm_setzero_si128();
-  __m128i sumSignGyGxTmp = _mm_setzero_si128();
-
-  for (int y = 0; y < 6; y++)
+  for( int y = row0; y < row1; y++ )
   {
-    __m128i shiftSrcY0Tmp = _mm_srai_epi16(_mm_loadu_si128((__m128i*)(srcY0Tmp)), shift4);
-    __m128i shiftSrcY1Tmp = _mm_srai_epi16(_mm_loadu_si128((__m128i*)(srcY1Tmp)), shift4);
-    __m128i loadGradX0 = _mm_loadu_si128((__m128i*)(gradX0));
-    __m128i loadGradX1 = _mm_loadu_si128((__m128i*)(gradX1));
-    __m128i loadGradY0 = _mm_loadu_si128((__m128i*)(gradY0));
-    __m128i loadGradY1 = _mm_loadu_si128((__m128i*)(gradY1));
-    __m128i subTemp1  = _mm_sub_epi16(shiftSrcY1Tmp, shiftSrcY0Tmp);
-    __m128i packTempX = _mm_srai_epi16(_mm_add_epi16(loadGradX0, loadGradX1), shift5);
-    __m128i packTempY = _mm_srai_epi16(_mm_add_epi16(loadGradY0, loadGradY1), shift5);
-    __m128i gX = _mm_abs_epi16(packTempX);
-    __m128i gY = _mm_abs_epi16(packTempY);
-    __m128i dIX       = _mm_sign_epi16(subTemp1,  packTempX );
-    __m128i dIY       = _mm_sign_epi16(subTemp1,  packTempY );
-    __m128i signGY_GX = _mm_sign_epi16(packTempX, packTempY );
+    const ptrdiff_t o = y * widthG;
 
-    sumAbsGXTmp     = _mm_add_epi16(sumAbsGXTmp, gX);
-    sumDIXTmp       = _mm_add_epi16(sumDIXTmp, dIX);
-    sumAbsGYTmp     = _mm_add_epi16(sumAbsGYTmp, gY);
-    sumDIYTmp       = _mm_add_epi16(sumDIYTmp, dIY);
-    sumSignGyGxTmp  = _mm_add_epi16(sumSignGyGxTmp, signGY_GX);
-    srcY0Tmp += srcStride;
-    srcY1Tmp += srcStride;
-    gradX0 += widthG;
-    gradX1 += widthG;
-    gradY0 += widthG;
-    gradY1 += widthG;
+    const __m128i shiftSrcY0Tmp = _mm_srai_epi16( _mm_loadu_si128( (const __m128i*) ( srcY0 + o ) ), shift4 );
+    const __m128i shiftSrcY1Tmp = _mm_srai_epi16( _mm_loadu_si128( (const __m128i*) ( srcY1 + o ) ), shift4 );
+    const __m128i subTemp1      = _mm_sub_epi16( shiftSrcY1Tmp, shiftSrcY0Tmp );
+    const __m128i packTempX     = _mm_srai_epi16( _mm_add_epi16( _mm_loadu_si128( (const __m128i*) ( gradX0 + o ) ), _mm_loadu_si128( (const __m128i*) ( gradX1 + o ) ) ), shift5 );
+    const __m128i packTempY     = _mm_srai_epi16( _mm_add_epi16( _mm_loadu_si128( (const __m128i*) ( gradY0 + o ) ), _mm_loadu_si128( (const __m128i*) ( gradY1 + o ) ) ), shift5 );
+
+    sums[BIO_SUM_ABS_GX]     = _mm_add_epi16( sums[BIO_SUM_ABS_GX],     _mm_abs_epi16( packTempX ) );
+    sums[BIO_SUM_DIX]        = _mm_add_epi16( sums[BIO_SUM_DIX],        _mm_sign_epi16( subTemp1, packTempX ) );
+    sums[BIO_SUM_ABS_GY]     = _mm_add_epi16( sums[BIO_SUM_ABS_GY],     _mm_abs_epi16( packTempY ) );
+    sums[BIO_SUM_DIY]        = _mm_add_epi16( sums[BIO_SUM_DIY],        _mm_sign_epi16( subTemp1, packTempY ) );
+    sums[BIO_SUM_SIGN_GY_GX] = _mm_add_epi16( sums[BIO_SUM_SIGN_GY_GX], _mm_sign_epi16( packTempX, packTempY ) );
   }
+}
+
+// the motion refinement (tmpx, tmpy) of one block from the sums over its whole window
+template< X86_VEXT vext >
+static ALWAYS_INLINE void calcBIORefinement_SSE( const __m128i sums[NUM_BIO_SUMS], const int limit, int &tmpx, int &tmpy )
+{
+  __m128i sumAbsGXTmp    = sums[BIO_SUM_ABS_GX];
+  __m128i sumDIXTmp      = sums[BIO_SUM_DIX];
+  __m128i sumAbsGYTmp    = sums[BIO_SUM_ABS_GY];
+  __m128i sumDIYTmp      = sums[BIO_SUM_DIY];
+  __m128i sumSignGyGxTmp = sums[BIO_SUM_SIGN_GY_GX];
 
   sumAbsGXTmp    = _mm_madd_epi16(sumAbsGXTmp,    _mm_setr_epi16(1, 1, 1, 1, 1, 1, 0, 0));
   sumDIXTmp      = _mm_madd_epi16(sumDIXTmp,      _mm_setr_epi16(1, 1, 1, 1, 1, 1, 0, 0));
@@ -276,9 +272,8 @@ static inline void calcBIOSums_SSE(const Pel* srcY0Tmp, const Pel* srcY1Tmp, con
 }
 
 #if USE_AVX2
-// The BDOF sums of two neighbouring 4x4 blocks go over windows of 6x6 samples, in 16 bit lanes: the low lane holds the
-// window of the first block, the high lane that of the second (columns 4 further).
-enum BIOSum { BIO_SUM_ABS_GX, BIO_SUM_DIX, BIO_SUM_ABS_GY, BIO_SUM_DIY, BIO_SUM_SIGN_GY_GX, NUM_BIO_SUMS };
+// With AVX2 the sums of two neighbouring 4x4 blocks are computed together: the low lane holds the window of the first
+// block, the high lane that of the second (columns 4 further).
 
 // the 8 samples of a window row of the first block (low lane) and of the second block (high lane)
 static ALWAYS_INLINE __m256i loadBIOWindowRows2x_AVX2( const Pel* addr )
@@ -431,9 +426,9 @@ void BiOptFlowCoreSIMD( const Pel* srcY0,
   const int xUnit         = ( width  >> 2 );
   const int yUnit         = ( height >> 2 );
 
+#if USE_AVX2
   int tmpx0, tmpy0, tmpx1, tmpy1;
 
-#if USE_AVX2
   // Each pair of 4x4 blocks side by side is walked down its 8 columns. The 6x6 windows of vertically neighbouring
   // blocks share 2 rows, whose sums are carried down instead of being computed again.
   for( int xu = 0; xu < xUnit; xu += 2 )
@@ -480,43 +475,59 @@ void BiOptFlowCoreSIMD( const Pel* srcY0,
 
   _mm256_zeroupper();
 #else
-  const Pel* srcY0Temp;
-  const Pel* srcY1Temp;
-        Pel *dstY0;
-
-  int OffPos;
-  int OffPad = 0;
-
-  for( int yu = 0; yu < yUnit; yu++, srcY0 += ( stridePredMC << 2 ), srcY1 += ( stridePredMC << 2 ), dstY += ( dstStride << 2 ), offsetPos += ( widthG << 2 ) )
+  // As with AVX2, each pair of 4x4 blocks side by side is walked down its 8 columns, and the sums of the 2 window rows
+  // shared with the block below are carried down instead of being computed again; here each block has its own sums.
+  for( int xu = 0; xu < xUnit; xu += 2 )
   {
-    srcY0Temp = srcY0;
-    srcY1Temp = srcY1;
-    dstY0     = dstY;
+    const int x = xu << 2;
 
-    OffPos = offsetPos;
-    OffPad = ( ( yu * widthG ) << 2 );
-
-    for( int xu = 0; xu < xUnit; xu += 2, srcY0Temp += 8, srcY1Temp += 8, dstY0 += 8, OffPos += 8, OffPad += 8 )
+    // the sums of the window rows shared with the blocks above, for the left (b = 0) and the right block (b = 1)
+    __m128i shared[2][NUM_BIO_SUMS];
+    for( int b = 0; b < 2; b++ )
     {
-      calcBIOSums_SSE<vext>( srcY0Temp + 0, srcY1Temp + 0,
-                             gradX0 + OffPad + 0, gradX1 + OffPad + 0, gradY0 + OffPad + 0, gradY1 + OffPad + 0,
-                             stridePredMC,
-                             bitDepth, limit,
-                             tmpx0, tmpy0 );
-      calcBIOSums_SSE<vext>( srcY0Temp + 4, srcY1Temp + 4,
-                             gradX0 + OffPad + 4, gradX1 + OffPad + 4, gradY0 + OffPad + 4, gradY1 + OffPad + 4,
-                             stridePredMC,
-                             bitDepth, limit,
-                             tmpx1, tmpy1 );
+      for( int i = 0; i < NUM_BIO_SUMS; i++ )
+      {
+        shared[b][i] = _mm_setzero_si128();
+      }
+      const int xb = x + 4 * b;
+      addBIOSumRows_SSE<vext>( srcY0 + xb, srcY1 + xb, gradX0 + xb, gradX1 + xb, gradY0 + xb, gradY1 + xb, widthG, 0, 2, shared[b] );
+    }
 
-      addBIOAvg4_2x_SSE<vext>( srcY0Temp + stridePredMC + 1,
-                               srcY1Temp + stridePredMC + 1,
-                               dstY0, dstStride,
-                               gradX0 + OffPos, gradX1 + OffPos, gradY0 + OffPos, gradY1 + OffPos, widthG,
-                               tmpx0, tmpy0, tmpx1, tmpy1,
+    for( int yu = 0; yu < yUnit; yu++ )
+    {
+      const int offPad = ( ( yu * widthG ) << 2 ) + x;
+      const int offPos = offsetPos + offPad;
+
+      int tmpx[2], tmpy[2];
+      for( int b = 0; b < 2; b++ )
+      {
+        const int o = offPad + 4 * b;
+
+        __m128i sums[NUM_BIO_SUMS], sharedBelow[NUM_BIO_SUMS];
+        for( int i = 0; i < NUM_BIO_SUMS; i++ )
+        {
+          sums       [i] = shared[b][i];
+          sharedBelow[i] = _mm_setzero_si128();
+        }
+        addBIOSumRows_SSE<vext>( srcY0 + o, srcY1 + o, gradX0 + o, gradX1 + o, gradY0 + o, gradY1 + o, widthG, 2, 4, sums );
+        addBIOSumRows_SSE<vext>( srcY0 + o, srcY1 + o, gradX0 + o, gradX1 + o, gradY0 + o, gradY1 + o, widthG, 4, 6, sharedBelow );
+        for( int i = 0; i < NUM_BIO_SUMS; i++ )
+        {
+          sums     [i] = _mm_add_epi16( sums[i], sharedBelow[i] );
+          shared[b][i] = sharedBelow[i];
+        }
+
+        calcBIORefinement_SSE<vext>( sums, limit, tmpx[b], tmpy[b] );
+      }
+
+      addBIOAvg4_2x_SSE<vext>( srcY0 + offPad + stridePredMC + 1,
+                               srcY1 + offPad + stridePredMC + 1,
+                               dstY + ( ( yu * dstStride ) << 2 ) + x, dstStride,
+                               gradX0 + offPos, gradX1 + offPos, gradY0 + offPos, gradY1 + offPos, widthG,
+                               tmpx[0], tmpy[0], tmpx[1], tmpy[1],
                                shiftNum, offset, clpRng );
-    }  // xu
-  }  // yu
+    }
+  }
 #endif
 }
 
