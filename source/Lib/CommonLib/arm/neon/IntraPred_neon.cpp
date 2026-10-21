@@ -111,12 +111,11 @@ static void IntraPredAngleCore_neon( int16_t* pDstBuf, const ptrdiff_t dstStride
 {
   static_assert( W == 4 || W == 8, "unsupported luma angular width tag" );
 
-  int16x8_t vbdmin, vbdmax;
+  uint16x8_t vbdmax;
 
   if( useCubicFilter )
   {
-    vbdmin = vdupq_n_s16( (int16_t)clpRng.min() );
-    vbdmax = vdupq_n_s16( (int16_t)clpRng.max() );
+    vbdmax = vdupq_n_u16( (uint16_t)clpRng.max() );
   }
 
   for( int y = 0; y < height; y++ )
@@ -140,11 +139,17 @@ static void IntraPredAngleCore_neon( int16_t* pDstBuf, const ptrdiff_t dstStride
                 acc = vmlal_lane_s16( acc, p2, coeff, 2 );
                 acc = vmlal_lane_s16( acc, p3, coeff, 3 );
 
-      int16x4_t res = vrshrn_n_s32( acc, 6 );
+      int16x4_t res;
 
       if( useCubicFilter )
       {
-        res = vmin_s16( vget_low_s16( vbdmax ), vmax_s16( vget_low_s16( vbdmin ), res ) );
+        uint16x4_t ures = vqrshrun_n_s32( acc, 6 );
+                   ures = vmin_u16( ures, vget_low_u16( vbdmax ) );
+        res = vreinterpret_s16_u16( ures );
+      }
+      else
+      {
+        res = vrshrn_n_s32( acc, 6 );
       }
       vst1_s16( pDst, res );
     }
@@ -168,11 +173,17 @@ static void IntraPredAngleCore_neon( int16_t* pDstBuf, const ptrdiff_t dstStride
                   acc_hi = vmlal_lane_s16( acc_hi, vget_high_s16( p2 ), coeff, 2 );
                   acc_hi = vmlal_lane_s16( acc_hi, vget_high_s16( p3 ), coeff, 3 );
 
-        int16x8_t res = vcombine_s16( vrshrn_n_s32( acc_lo, 6 ), vrshrn_n_s32( acc_hi, 6 ) );
+        int16x8_t res;
 
         if( useCubicFilter )
         {
-          res = vminq_s16( vbdmax, vmaxq_s16( vbdmin, res ) );
+          uint16x8_t ures = vcombine_u16( vqrshrun_n_s32( acc_lo, 6 ), vqrshrun_n_s32( acc_hi, 6 ) );
+                     ures = vminq_u16( ures, vbdmax );
+          res = vreinterpretq_s16_u16( ures );
+        }
+        else
+        {
+          res = vcombine_s16( vrshrn_n_s32( acc_lo, 6 ), vrshrn_n_s32( acc_hi, 6 ) );
         }
         vst1q_s16( pDst + x, res );
       }
