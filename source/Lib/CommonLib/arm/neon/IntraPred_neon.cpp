@@ -41,7 +41,7 @@ POSSIBILITY OF SUCH DAMAGE.
 ------------------------------------------------------------------------------------------- */
 /**
  * \file IntraPred_neon.cpp
- * \brief Neon implementation of angular chroma intra prediction.
+ * \brief Neon implementation of angular intra prediction.
  */
 
 #include "CommonDefARM.h"
@@ -104,11 +104,91 @@ static void IntraPredAngleChroma_neon( int16_t* pDst, const ptrdiff_t dstStride,
   }
 }
 
+template<int W>
+static void IntraPredAngleCore_neon( int16_t* pDstBuf, const ptrdiff_t dstStride, int16_t* refMain,
+                                      int width, int height, int deltaPos, int intraPredAngle,
+                                      const int16_t* ff, const bool useCubicFilter, const ClpRng& clpRng )
+{
+  static_assert( W == 4 || W == 8, "unsupported luma angular width tag" );
+
+  int16x8_t vbdmin, vbdmax;
+
+  if( useCubicFilter )
+  {
+    vbdmin = vdupq_n_s16( (int16_t)clpRng.min() );
+    vbdmax = vdupq_n_s16( (int16_t)clpRng.max() );
+  }
+
+  for( int y = 0; y < height; y++ )
+  {
+    const int deltaInt      = deltaPos >> 5;
+    const int deltaFract    = deltaPos & ( 32 - 1 );
+    const int refMainIndex  = deltaInt + 1;
+
+    const int16x4_t coeff = vld1_s16( &ff[deltaFract << 2] );
+    int16_t*        pDst  = &pDstBuf[y * dstStride];
+
+    if( W == 4 )
+    {
+      const int16x4_t p0 = vld1_s16( &refMain[refMainIndex - 1] );
+      const int16x4_t p1 = vld1_s16( &refMain[refMainIndex    ] );
+      const int16x4_t p2 = vld1_s16( &refMain[refMainIndex + 1] );
+      const int16x4_t p3 = vld1_s16( &refMain[refMainIndex + 2] );
+
+      int32x4_t acc = vmull_lane_s16( p0, coeff, 0 );
+                acc = vmlal_lane_s16( acc, p1, coeff, 1 );
+                acc = vmlal_lane_s16( acc, p2, coeff, 2 );
+                acc = vmlal_lane_s16( acc, p3, coeff, 3 );
+
+      int16x4_t res = vrshrn_n_s32( acc, 6 );
+
+      if( useCubicFilter )
+      {
+        res = vmin_s16( vget_low_s16( vbdmax ), vmax_s16( vget_low_s16( vbdmin ), res ) );
+      }
+      vst1_s16( pDst, res );
+    }
+    else // W == 8
+    {
+      CHECKD( ( width & 7 ) != 0, "luma angular width must be a multiple of 8 here" );
+      for( int x = 0; x < width; x += 8 )
+      {
+        const int16x8_t p0 = vld1q_s16( &refMain[refMainIndex + x - 1] );
+        const int16x8_t p1 = vld1q_s16( &refMain[refMainIndex + x    ] );
+        const int16x8_t p2 = vld1q_s16( &refMain[refMainIndex + x + 1] );
+        const int16x8_t p3 = vld1q_s16( &refMain[refMainIndex + x + 2] );
+
+        int32x4_t acc_lo = vmull_lane_s16( vget_low_s16( p0 ), coeff, 0 );
+                  acc_lo = vmlal_lane_s16( acc_lo, vget_low_s16( p1 ), coeff, 1 );
+                  acc_lo = vmlal_lane_s16( acc_lo, vget_low_s16( p2 ), coeff, 2 );
+                  acc_lo = vmlal_lane_s16( acc_lo, vget_low_s16( p3 ), coeff, 3 );
+
+        int32x4_t acc_hi = vmull_lane_s16( vget_high_s16( p0 ), coeff, 0 );
+                  acc_hi = vmlal_lane_s16( acc_hi, vget_high_s16( p1 ), coeff, 1 );
+                  acc_hi = vmlal_lane_s16( acc_hi, vget_high_s16( p2 ), coeff, 2 );
+                  acc_hi = vmlal_lane_s16( acc_hi, vget_high_s16( p3 ), coeff, 3 );
+
+        int16x8_t res = vcombine_s16( vrshrn_n_s32( acc_lo, 6 ), vrshrn_n_s32( acc_hi, 6 ) );
+
+        if( useCubicFilter )
+        {
+          res = vminq_s16( vbdmax, vmaxq_s16( vbdmin, res ) );
+        }
+        vst1q_s16( pDst + x, res );
+      }
+    }
+
+    deltaPos += intraPredAngle;
+  }
+}
+
 template<>
 void IntraPrediction::_initIntraPredictionARM<NEON>()
 {
   IntraPredAngleChroma4 = IntraPredAngleChroma_neon<4>;
   IntraPredAngleChroma8 = IntraPredAngleChroma_neon<8>;
+  IntraPredAngleCore4   = IntraPredAngleCore_neon<4>;
+  IntraPredAngleCore8   = IntraPredAngleCore_neon<8>;
 }
 
 } // namespace vvdec
