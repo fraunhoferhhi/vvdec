@@ -79,13 +79,6 @@ configure_file( include/vvdec/vvdec.h.in ${CMAKE_BINARY_DIR}/vvdec/vvdec.h @ONLY
 
 # enable sse4.1 build for all source files for gcc and clang
 if( VVDEC_ENABLE_X86_SIMD )
-  if( UNIX OR MINGW )
-    # when building for non-x86, but emulating simd using simd-everywhere (e.g. on ARM),
-    # the x86-compiler flags are not understood by the compiler
-    set_if_compiler_supports_flag( FLAG_msse41 -msse4.1 )
-    add_compile_options( ${FLAG_msse41} )
-  endif()
-
   if( NOT MSVC AND NOT ${CMAKE_SYSTEM_NAME} STREQUAL "Emscripten" )
     check_missing_intrinsics()
   endif()
