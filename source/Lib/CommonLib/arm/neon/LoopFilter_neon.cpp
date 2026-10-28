@@ -308,9 +308,9 @@ static unsigned xMvCompPQ_neon( const Picture* piRefP0, const Picture* piRefP1, 
 
   // xmvP/xmvQ lanes: [ hor0, ver0, hor1, ver1 ] (mv[0] in low 64 bits, mv[1] in high 64 bits)
   const int32x4_t xmvP = vcombine_s32( refP0valid ? vld1_s32( ( const int32_t* ) &miP.mv[0] ) : vdup_n_s32( 0 ),
-                                        refP1valid ? vld1_s32( ( const int32_t* ) &miP.mv[1] ) : vdup_n_s32( 0 ) );
+                                       refP1valid ? vld1_s32( ( const int32_t* ) &miP.mv[1] ) : vdup_n_s32( 0 ) );
   const int32x4_t xmvQ = vcombine_s32( refQ0valid ? vld1_s32( ( const int32_t* ) &miQ.mv[0] ) : vdup_n_s32( 0 ),
-                                        refQ1valid ? vld1_s32( ( const int32_t* ) &miQ.mv[1] ) : vdup_n_s32( 0 ) );
+                                       refQ1valid ? vld1_s32( ( const int32_t* ) &miQ.mv[1] ) : vdup_n_s32( 0 ) );
   const int32x4_t xth  = vdupq_n_s32( nThreshold - 1 );
 
   if( piRefP0 != piRefP1 )   // Different L0 & L1
