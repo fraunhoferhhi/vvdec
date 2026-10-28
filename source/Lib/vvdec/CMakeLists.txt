@@ -1,3 +1,7 @@
+# compile everything position independent (even static libraries)
+# don't set this globally, as it will force -fPIE on everything
+set( CMAKE_POSITION_INDEPENDENT_CODE TRUE )
+
 # library
 set( LIB_NAME vvdec )
 
