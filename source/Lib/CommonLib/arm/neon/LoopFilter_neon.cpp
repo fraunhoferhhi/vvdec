@@ -47,8 +47,7 @@ POSSIBILITY OF SUCH DAMAGE.
 #include "mem_neon.h"
 #include "tbl_neon.h"
 #include "transpose_neon.h"
-#include <simde/simde-features.h>
-#include <simde/arm/neon/maxv.h>
+#include "sum_neon.h"
 
 #if defined( TARGET_SIMD_ARM ) && ENABLE_SIMD_DBLF
 
@@ -319,24 +318,24 @@ static unsigned xMvCompPQ_neon( const Picture* piRefP0, const Picture* piRefP1, 
     if( piRefP0 == piRefQ0 )
     {
       uint32x4_t xdiff = vcgtq_s32( vabsq_s32( vsubq_s32( xmvQ, xmvP ) ), xth );
-      uiBs = vmaxvq_u32( xdiff ) ? 1 : 0;
+      uiBs = vvdec_vmaxvq_u32( xdiff ) ? 1 : 0;
     }
     else
     {
       // swap the two 64-bit halves of xmvQ: [ hor1, ver1, hor0, ver0 ]
       const int32x4_t xmvQ1 = vextq_s32( xmvQ, xmvQ, 2 );
       uint32x4_t xdiff = vcgtq_s32( vabsq_s32( vsubq_s32( xmvQ1, xmvP ) ), xth );
-      uiBs = vmaxvq_u32( xdiff ) ? 1 : 0;
+      uiBs = vvdec_vmaxvq_u32( xdiff ) ? 1 : 0;
     }
   }
   else
   {
     const int32x4_t xmvQ1 = vextq_s32( xmvQ, xmvQ, 2 );
     uint32x4_t xdiff = vcgtq_s32( vabsq_s32( vsubq_s32( xmvQ1, xmvP ) ), xth );
-    uiBs = vmaxvq_u32( xdiff ) ? 1 : 0;
+    uiBs = vvdec_vmaxvq_u32( xdiff ) ? 1 : 0;
 
     xdiff = vcgtq_s32( vabsq_s32( vsubq_s32( xmvQ, xmvP ) ), xth );
-    uiBs &= vmaxvq_u32( xdiff ) ? 1 : 0;
+    uiBs &= vvdec_vmaxvq_u32( xdiff ) ? 1 : 0;
   }
 
   return uiBs;
