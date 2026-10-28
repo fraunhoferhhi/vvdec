@@ -1089,6 +1089,58 @@ static bool check_xPelFilterLuma( LoopFilter* ref, LoopFilter* opt, unsigned num
   return passed;
 }
 
+static bool check_xPelFilterChroma8( LoopFilter* ref, LoopFilter* opt, unsigned num_cases, bool isVertical,
+                                     bool isChromaHorCTBBoundary, int bitDepth )
+{
+  DimensionGenerator rng;
+  InputGenerator<Pel> inp_gen{ ( unsigned )bitDepth, /*is_signed=*/false };
+  bool passed = true;
+
+  std::ostringstream sstm_test;
+  sstm_test << "LoopFilter::xPelFilterChroma8" << ( isVertical ? "Ver" : "Hor" ) << ( isChromaHorCTBBoundary ? "CTBBoundary" : "" )
+            << " bd=" << bitDepth;
+  std::cout << "Testing " << sstm_test.str() << std::endl;
+
+  for( unsigned n = 0; n < num_cases; n++ )
+  {
+    const ptrdiff_t stride = ( ptrdiff_t )rng.get( 16, MAX_CU_SIZE );
+    static constexpr unsigned buf_size = MAX_CU_SIZE * MAX_CU_SIZE;
+    std::vector<Pel> src_ref( buf_size );
+    std::generate( src_ref.begin(), src_ref.end(), inp_gen );
+    std::vector<Pel> src_opt = src_ref;
+
+    // per line: tc 0 (not filtered) or up to the largest tc of xGetChromaSegmentFilter(), weak or strong filter
+    static constexpr int maxTc10Bit = 395;
+    const int maxTc = bitDepth < 10 ? ( ( maxTc10Bit + ( 1 << ( 9 - bitDepth ) ) ) >> ( 10 - bitDepth ) )
+                                    : ( maxTc10Bit << ( bitDepth - 10 ) );
+    int16_t tc[8];
+    bool    strong[8];
+    const int mode = n % 4;   // all weak, all strong, mixed, mixed with lines that are not filtered
+    for( int l = 0; l < 8; l++ )
+    {
+      tc    [l] = ( mode == 3 && rng.getBool() ) ? 0 : int16_t( rng.get( 1, maxTc ) );
+      strong[l] = mode == 1 || ( mode >= 2 && rng.getBool() );
+    }
+    const ClpRng clpRng{ bitDepth };
+
+    // the filter reads 4 samples on either side of the edge
+    Pel* ptr_ref = src_ref.data() + 4 * stride + 4;
+    Pel* ptr_opt = src_opt.data() + 4 * stride + 4;
+
+    const ptrdiff_t step   = isVertical ? stride : 1;
+    const ptrdiff_t offset = isVertical ? 1 : stride;
+
+    ref->xPelFilterChroma8( ptr_ref, step, offset, tc, strong, isChromaHorCTBBoundary, clpRng );
+    opt->xPelFilterChroma8( ptr_opt, step, offset, tc, strong, isChromaHorCTBBoundary, clpRng );
+
+    std::ostringstream sstm_subtest;
+    sstm_subtest << sstm_test.str() << " stride=" << stride << " mode=" << mode;
+    passed = compare_values_1d( sstm_subtest.str(), src_ref.data(), src_opt.data(), buf_size ) && passed;
+  }
+
+  return passed;
+}
+
 static bool test_LoopFilter()
 {
   LoopFilter ref{ /*enableOpt=*/false };
@@ -1104,6 +1156,13 @@ static bool test_LoopFilter()
       for( bool isStrong : { false, true } )
       {
         passed = check_xPelFilterLuma( &ref, &opt, num_cases, isVertical, isStrong, bitDepth ) && passed;
+      }
+
+      passed = check_xPelFilterChroma8( &ref, &opt, 4 * num_cases, isVertical, false, bitDepth ) && passed;
+      if( !isVertical )
+      {
+        // the CTU boundary variant exists for horizontal edges only
+        passed = check_xPelFilterChroma8( &ref, &opt, 4 * num_cases, isVertical, true, bitDepth ) && passed;
       }
     }
   }
