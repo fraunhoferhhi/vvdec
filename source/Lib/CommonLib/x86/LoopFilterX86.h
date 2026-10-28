@@ -46,6 +46,7 @@ POSSIBILITY OF SUCH DAMAGE.
 
 #include "CommonDefX86.h"
 #include "../Rom.h"
+#include "../Picture.h"
 #include "../LoopFilter.h"
 
 #if defined(TARGET_SIMD_X86)  && ENABLE_SIMD_DBLF
@@ -812,29 +813,6 @@ static inline void xFilteringPandQX86Ver( Pel* src, ptrdiff_t step, const ptrdif
   }
 }
 
-static inline void xBilinearFilter( Pel* srcP, Pel* srcQ, ptrdiff_t offset, int refMiddle, int refP, int refQ, int numberPSide, int numberQSide, const int* dbCoeffsP, const int* dbCoeffsQ, int tc )
-{
-  int src;
-  const char tc7[7] = { 6, 5, 4, 3, 2, 1, 1 };
-  const char tc3[3] = { 6, 4, 2 };
-  const char *tcP = ( numberPSide == 3 ) ? tc3 : tc7;
-  const char *tcQ = ( numberQSide == 3 ) ? tc3 : tc7;
-
-  for( int pos = 0; pos < numberPSide; pos++ )
-  {
-    src = srcP[-offset * pos];
-    int cvalue = ( tc * tcP[pos] ) >> 1;
-    srcP[-offset * pos] = Clip3( src - cvalue, src + cvalue, ( ( refMiddle * dbCoeffsP[pos] + refP * ( 64 - dbCoeffsP[pos] ) + 32 ) >> 6 ) );
-  }
-
-  for( int pos = 0; pos < numberQSide; pos++ )
-  {
-    src = srcQ[offset * pos];
-    int cvalue = ( tc * tcQ[pos] ) >> 1;
-    srcQ[offset * pos] = Clip3( src - cvalue, src + cvalue, ( ( refMiddle * dbCoeffsQ[pos] + refQ * ( 64 - dbCoeffsQ[pos] ) + 32 ) >> 6 ) );
-  }
-}
-
 template<X86_VEXT vext>
 static void xFilteringPandQX86( Pel* src, ptrdiff_t step, const ptrdiff_t offset, int numberPSide, int numberQSide, int tc )
 {
@@ -853,11 +831,68 @@ static void xFilteringPandQX86( Pel* src, ptrdiff_t step, const ptrdiff_t offset
 #endif
 }
 
+template<X86_VEXT vext>
+static unsigned xMvCompPQX86( const Picture* piRefP0, const Picture* piRefP1, const Picture* piRefQ0, const Picture* piRefQ1, const MotionInfo& miP, const MotionInfo& miQ )
+{
+  unsigned uiBs = 0;
+
+  static constexpr int nThreshold = ( 1 << MV_FRACTIONAL_BITS_INTERNAL ) >> 1;
+
+  const bool refQ0valid = !!piRefQ0;
+  const bool refQ1valid = !!piRefQ1;
+  const bool refP0valid = !!piRefP0;
+  const bool refP1valid = !!piRefP1;
+  
+  const __m128i xmvP = _mm_unpacklo_epi64( refP0valid ? _mm_loadu_si64( ( const __m128i* ) &miP.mv[0] ) : _mm_setzero_si128(), refP1valid ? _mm_loadu_si64( ( const __m128i* ) &miP.mv[1] ) : _mm_setzero_si128() );
+  const __m128i xmvQ = _mm_unpacklo_epi64( refQ0valid ? _mm_loadu_si64( ( const __m128i* ) &miQ.mv[0] ) : _mm_setzero_si128(), refQ1valid ? _mm_loadu_si64( ( const __m128i* ) &miQ.mv[1] ) : _mm_setzero_si128() );
+  const __m128i xth  = _mm_set1_epi32( nThreshold - 1 );
+
+  if( piRefP0 != piRefP1 )   // Different L0 & L1
+  {
+    if( piRefP0 == piRefQ0 )
+    {
+      __m128i
+      xdiff = _mm_sub_epi32  ( xmvQ, xmvP );
+      xdiff = _mm_abs_epi32  ( xdiff );
+      xdiff = _mm_cmpgt_epi32( xdiff, xth );
+      uiBs  = _mm_testz_si128( xdiff, xdiff ) ? 0 : 1;
+    }
+    else
+    {
+      __m128i
+      xmvQ1 = _mm_shuffle_epi32( xmvQ, ( 2 << 0 ) + ( 3 <<  2 ) + ( 0 << 4 ) + ( 1 << 6 ) );
+      __m128i
+      xdiff = _mm_sub_epi32  ( xmvQ1, xmvP );
+      xdiff = _mm_abs_epi32  ( xdiff );
+      xdiff = _mm_cmpgt_epi32( xdiff, xth );
+      uiBs  = _mm_testz_si128( xdiff, xdiff ) ? 0 : 1;
+    }
+  }
+  else
+  {
+    __m128i
+    xmvQ1 = _mm_shuffle_epi32( xmvQ, ( 2 << 0 ) + ( 3 << 2 ) + ( 0 << 4 ) + ( 1 << 6 ) );
+    __m128i
+    xdiff = _mm_sub_epi32( xmvQ1, xmvP );
+    xdiff = _mm_abs_epi32( xdiff );
+    xdiff = _mm_cmpgt_epi32( xdiff, xth );
+    uiBs  = _mm_testz_si128( xdiff, xdiff ) ? 0 : 1;
+
+    xdiff = _mm_sub_epi32( xmvQ, xmvP );
+    xdiff = _mm_abs_epi32( xdiff );
+    xdiff = _mm_cmpgt_epi32( xdiff, xth );
+    uiBs &= _mm_testz_si128( xdiff, xdiff ) ? 0 : 1;
+  }
+
+  return uiBs;
+}
+
 template <X86_VEXT vext>
 void LoopFilter::_initLoopFilterX86()
 {
   xPelFilterLuma  = xPelFilterLumaX86<vext>;
   xFilteringPandQ = xFilteringPandQX86<vext>;
+  xMvCompPQ       = xMvCompPQX86<vext>;
 }
 
 template void LoopFilter::_initLoopFilterX86<SIMDX86>();

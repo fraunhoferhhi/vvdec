@@ -49,6 +49,7 @@ POSSIBILITY OF SUCH DAMAGE.
 #include "CommonDef.h"
 #include "Unit.h"
 
+
 //! \ingroup CommonLib
 //! \{
 
@@ -67,6 +68,8 @@ using namespace arm_simd;
 // Class definition
 // ====================================================================================================================
 
+struct Picture;
+
 /// deblocking filter class
 class LoopFilter
 {
@@ -82,7 +85,7 @@ private:
 
   // filtering functions
   template<DeblockEdgeDir edgeDir>
-  void xGetBoundaryStrengthSingle ( LoopFilterParam& lfp, const CodingUnit& cu, const Position &localPos, const CodingUnit &cuP, CtuData& ctuData, bool pqSameCtu, bool useSimd ) const;
+  void xGetBoundaryStrengthSingle ( LoopFilterParam& lfp, const CodingUnit& cu, const Position &localPos, const CodingUnit &cuP, CtuData& ctuData, bool pqSameCtu ) const;
   template<DeblockEdgeDir edgeDir>
   void xSetEdgeFilterInsidePu     ( const CodingUnit &cu, const Area &area, const bool bValue, CtuData& ctuData ) const;
 
@@ -103,7 +106,6 @@ private:
   static const uint16_t sm_tcTable  [MAX_QP + 3];
   static const uint8_t  sm_betaTable[MAX_QP + 1];
 
-  void( *xFilteringPandQ )( Pel* src, ptrdiff_t step, const ptrdiff_t offset, int numberPSide, int numberQSide, int tc );
 
 #if defined(TARGET_SIMD_X86)  && ENABLE_SIMD_DBLF
   void initLoopFilterX86();
@@ -119,7 +121,9 @@ private:
 
 public:
 
+  void( *xFilteringPandQ )( Pel* src, ptrdiff_t step, const ptrdiff_t offset, int numberPSide, int numberQSide, int tc );
   void( *xPelFilterLuma  )( Pel* piSrc, const ptrdiff_t step, const ptrdiff_t offset, const int tc, const bool sw, const int iThrCut, const bool bFilterSecondP, const bool bFilterSecondQ, const ClpRng& clpRng );
+  unsigned( *xMvCompPQ )( const Picture* piRefP0, const Picture* piRefP1, const Picture* piRefQ0, const Picture* piRefQ1, const MotionInfo& miP, const MotionInfo& miQ );
 
   LoopFilter( bool enableOpt = true );
   ~LoopFilter();

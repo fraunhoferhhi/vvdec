@@ -47,6 +47,7 @@ POSSIBILITY OF SUCH DAMAGE.
 #include "mem_neon.h"
 #include "tbl_neon.h"
 #include "transpose_neon.h"
+#include "sum_neon.h"
 
 #if defined( TARGET_SIMD_ARM ) && ENABLE_SIMD_DBLF
 
@@ -294,10 +295,57 @@ void xPelFilterLuma_neon( Pel* piSrc, const ptrdiff_t step, const ptrdiff_t offs
   }
 }
 
+static unsigned xMvCompPQ_neon( const Picture* piRefP0, const Picture* piRefP1, const Picture* piRefQ0, const Picture* piRefQ1, const MotionInfo& miP, const MotionInfo& miQ )
+{
+  unsigned uiBs = 0;
+
+  static constexpr int nThreshold = ( 1 << MV_FRACTIONAL_BITS_INTERNAL ) >> 1;
+
+  const bool refQ0valid = !!piRefQ0;
+  const bool refQ1valid = !!piRefQ1;
+  const bool refP0valid = !!piRefP0;
+  const bool refP1valid = !!piRefP1;
+
+  // xmvP/xmvQ lanes: [ hor0, ver0, hor1, ver1 ] (mv[0] in low 64 bits, mv[1] in high 64 bits)
+  const int32x4_t xmvP = vcombine_s32( refP0valid ? vld1_s32( ( const int32_t* ) &miP.mv[0] ) : vdup_n_s32( 0 ),
+                                       refP1valid ? vld1_s32( ( const int32_t* ) &miP.mv[1] ) : vdup_n_s32( 0 ) );
+  const int32x4_t xmvQ = vcombine_s32( refQ0valid ? vld1_s32( ( const int32_t* ) &miQ.mv[0] ) : vdup_n_s32( 0 ),
+                                       refQ1valid ? vld1_s32( ( const int32_t* ) &miQ.mv[1] ) : vdup_n_s32( 0 ) );
+  const int32x4_t xth  = vdupq_n_s32( nThreshold - 1 );
+
+  if( piRefP0 != piRefP1 )   // Different L0 & L1
+  {
+    if( piRefP0 == piRefQ0 )
+    {
+      uint32x4_t xdiff = vcgtq_s32( vabsq_s32( vsubq_s32( xmvQ, xmvP ) ), xth );
+      uiBs = vvdec_vmaxvq_u32( xdiff ) ? 1 : 0;
+    }
+    else
+    {
+      // swap the two 64-bit halves of xmvQ: [ hor1, ver1, hor0, ver0 ]
+      const int32x4_t xmvQ1 = vextq_s32( xmvQ, xmvQ, 2 );
+      uint32x4_t xdiff = vcgtq_s32( vabsq_s32( vsubq_s32( xmvQ1, xmvP ) ), xth );
+      uiBs = vvdec_vmaxvq_u32( xdiff ) ? 1 : 0;
+    }
+  }
+  else
+  {
+    const int32x4_t xmvQ1 = vextq_s32( xmvQ, xmvQ, 2 );
+    uint32x4_t xdiff = vcgtq_s32( vabsq_s32( vsubq_s32( xmvQ1, xmvP ) ), xth );
+    uiBs = vvdec_vmaxvq_u32( xdiff ) ? 1 : 0;
+
+    xdiff = vcgtq_s32( vabsq_s32( vsubq_s32( xmvQ, xmvP ) ), xth );
+    uiBs &= vvdec_vmaxvq_u32( xdiff ) ? 1 : 0;
+  }
+
+  return uiBs;
+}
+
 template<>
 void LoopFilter::_initLoopFilterARM<NEON>()
 {
   xPelFilterLuma = xPelFilterLuma_neon;
+  xMvCompPQ      = xMvCompPQ_neon;
 }
 
 } // namespace vvdec

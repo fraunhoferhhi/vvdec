@@ -50,11 +50,6 @@ POSSIBILITY OF SUCH DAMAGE.
 #include <UnitTools.h>
 #include "CommonLib/TimeProfiler.h"
 
-#if ENABLE_SIMD_OPT_BUFFER && defined( TARGET_SIMD_X86 )
-#include <CommonDefX86.h>
-#include <simde/x86/sse.h>
-#endif
-
 namespace vvdec
 {
 
