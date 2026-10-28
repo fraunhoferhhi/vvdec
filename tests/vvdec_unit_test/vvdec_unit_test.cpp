@@ -44,6 +44,7 @@ POSSIBILITY OF SUCH DAMAGE.
 #include <iomanip>
 #include <functional>
 #include <limits.h>
+#include <cmath>
 
 #include "CommonLib/AdaptiveLoopFilter.h"
 #include "CommonLib/CommonDef.h"
@@ -56,6 +57,8 @@ POSSIBILITY OF SUCH DAMAGE.
 #include "CommonLib/TrQuant.h"
 #include "CommonLib/TrQuant_EMT.h"
 #include "CommonLib/Quant.h"
+#include "FilmGrain/FilmGrain.h"
+#include "FilmGrain/FilmGrainImplARM.h"
 #include "FilmGrain/FilmGrainImplX86.h"
 
 using namespace vvdec;
@@ -2768,7 +2771,7 @@ static bool test_IntraPredHorVerPdpc()
 }
 #endif // ENABLE_SIMD_OPT_INTRAPRED
 
-#if defined( TARGET_SIMD_X86 ) && ENABLE_SIMD_OPT
+#if ENABLE_SIMD_OPT && ( defined( TARGET_SIMD_X86 ) || defined( TARGET_SIMD_ARM ) )
 // Adds film grain to a few rows of a random picture with the scalar FilmGrainImpl and with a SIMD one, both set up
 // alike, the way FilmGrain::add_grain_line does it, and compares all three planes.
 template<typename Pel>
@@ -2883,17 +2886,26 @@ static bool check_one_FilmGrainImpl( FilmGrainImpl* ref, FilmGrainImpl* opt, con
 
 static bool test_FilmGrainImpl()
 {
-  // Both SIMD levels are tested because the SSE4.1 and AVX2 code paths differ.
+  // Every SIMD implementation the CPU runs is tested: the x86 SSE4.1 and AVX2 code paths differ, and ARM builds have
+  // the x86 code (through SIMD Everywhere) besides the Neon code.
   std::vector<std::pair<std::string, std::unique_ptr<FilmGrainImpl>>> optImpls;
+#if defined( TARGET_SIMD_X86 )
   const X86_VEXT vext = read_x86_extension_flags();
   if( vext >= SSE41 )
   {
     optImpls.emplace_back( "SSE41", std::make_unique<FilmGrainImplX86<SSE41>>() );
   }
-#if ENABLE_AVX2_IMPLEMENTATIONS
+#  if ENABLE_AVX2_IMPLEMENTATIONS
   if( vext >= AVX2 )
   {
     optImpls.emplace_back( "AVX2", std::make_unique<FilmGrainImplX86<AVX2>>() );
+  }
+#  endif
+#endif
+#if defined( TARGET_SIMD_ARM )
+  if( read_arm_extension_flags() >= arm_simd::NEON )
+  {
+    optImpls.emplace_back( "NEON", std::make_unique<FilmGrainImplARM<arm_simd::NEON>>() );
   }
 #endif
 
@@ -2903,9 +2915,8 @@ static bool test_FilmGrainImpl()
     printf( "Testing FilmGrainImpl %s\n", optImpl.first.c_str() );
     for( unsigned bitDepth : { 8u, 10u } )
     {
-      // 4:2:0 and 4:2:2, as FilmGrain::setColorFormat sets them. 4:4:4 is left out: FilmGrainImpl::scale_and_output,
-      // too, shifts only 8 chroma samples per block, so there is no correct 4:4:4 output to compare with yet.
-      for( auto subsampling : { std::make_pair( 2, 2 ), std::make_pair( 2, 1 ) } )
+      // 4:2:0, 4:2:2 and 4:4:4, as FilmGrain::setColorFormat sets them
+      for( auto subsampling : { std::make_pair( 2, 2 ), std::make_pair( 2, 1 ), std::make_pair( 1, 1 ) } )
       {
         for( int i = 0; i < NUM_CASES; i++ )
         {
@@ -2926,7 +2937,236 @@ static bool test_FilmGrainImpl()
   }
   return passed;
 }
-#endif // defined( TARGET_SIMD_X86 ) && ENABLE_SIMD_OPT
+#endif // ENABLE_SIMD_OPT && ( defined( TARGET_SIMD_X86 ) || defined( TARGET_SIMD_ARM ) )
+
+// Overwrites a part of the stack that the next call's locals will occupy, so that a read of an uninitialized local
+// gives a different value each time.
+#if defined( _MSC_VER )
+__declspec( noinline )
+#else
+__attribute__( ( noinline ) )
+#endif
+static void overwrite_stack( uint8_t value )
+{
+  volatile uint8_t area[1 << 16];
+  for( size_t i = 0; i < sizeof( area ); i++ )
+  {
+    area[i] = value;
+  }
+}
+
+// Adds grain to a flat picture through FilmGrain, as VVDecImpl::xAddGrain does, and returns the three planes.
+template<typename Pel>
+static std::vector<Pel> add_grain_to_flat_picture( FilmGrain& filmGrain, vvdecColorFormat format, unsigned bitDepth,
+                                                   int width, int height, int chromaWidth, int chromaHeight )
+{
+  std::vector<Pel> picture( width * height + 2 * chromaWidth * chromaHeight, Pel( 1 << ( bitDepth - 1 ) ) );
+  Pel*             planeU = picture.data() + width * height;
+  Pel*             planeV = planeU + chromaWidth * chromaHeight;
+
+  filmGrain.setDepth( bitDepth );
+  filmGrain.setColorFormat( format );
+  filmGrain.prepareBlockSeeds( width, height );
+  for( int y = 0; y < height; y++ )
+  {
+    const int chromaRow = format == VVDEC_CF_YUV420_PLANAR ? y / 2 : y;
+    Pel*      rowU      = format == VVDEC_CF_YUV400_PLANAR ? nullptr : planeU + chromaWidth * chromaRow;
+    Pel*      rowV      = format == VVDEC_CF_YUV400_PLANAR ? nullptr : planeV + chromaWidth * chromaRow;
+    filmGrain.add_grain_line( picture.data() + width * y, rowU, rowV, y, width );
+  }
+  return picture;
+}
+
+struct GrainStatistics
+{
+  double strength;             // standard deviation of the grain
+  double correlationRight;     // correlation of the grain of a sample and of its right neighbour
+  double correlationDown;      // the same for the sample below
+  int    blocksWithoutGrain;   // blocks of 16x16 luma samples' area without any grain
+};
+
+template<typename Pel>
+static GrainStatistics grain_statistics( const Pel* plane, int width, int height, int blockWidth, int blockHeight,
+                                         Pel flat )
+{
+  auto grain       = [&]( int x, int y ) { return double( plane[y * width + x] ) - flat; };
+  auto correlation = [&]( int dx, int dy )
+  {
+    double sumA = 0, sumB = 0, sumAA = 0, sumBB = 0, sumAB = 0;
+    for( int y = 0; y < height - dy; y++ )
+    {
+      for( int x = 0; x < width - dx; x++ )
+      {
+        const double a = grain( x, y ), b = grain( x + dx, y + dy );
+        sumA += a;
+        sumB += b;
+        sumAA += a * a;
+        sumBB += b * b;
+        sumAB += a * b;
+      }
+    }
+    const double n = double( width - dx ) * ( height - dy );
+    return ( sumAB / n - sumA / n * sumB / n )
+           / std::sqrt( ( sumAA / n - sumA / n * sumA / n ) * ( sumBB / n - sumB / n * sumB / n ) );
+  };
+
+  GrainStatistics stats;
+  stats.correlationRight   = correlation( 1, 0 );
+  stats.correlationDown    = correlation( 0, 1 );
+  stats.blocksWithoutGrain = 0;
+  double sum = 0, sumSq = 0;
+  for( int by = 0; by < height; by += blockHeight )
+  {
+    for( int bx = 0; bx < width; bx += blockWidth )
+    {
+      bool hasGrain = false;
+      for( int y = by; y < by + blockHeight; y++ )
+      {
+        for( int x = bx; x < bx + blockWidth; x++ )
+        {
+          sum += grain( x, y );
+          sumSq += grain( x, y ) * grain( x, y );
+          hasGrain |= grain( x, y ) != 0;
+        }
+      }
+      stats.blocksWithoutGrain += !hasGrain;
+    }
+  }
+  const double n = double( width ) * height;
+  stats.strength = std::sqrt( sumSq / n - sum / n * sum / n );
+  return stats;
+}
+
+// Fills an FGC SEI message that gives all three components one intensity interval with the same model values, except
+// for the ones of lumaVariant.
+static void fill_film_grain_characteristics( vvdecSEIFilmGrainCharacteristics& fgc, int modelId, bool lumaVariant )
+{
+  fgc.filmGrainModelId                        = modelId;
+  fgc.log2ScaleFactor                         = 5;
+  fgc.filmGrainCharacteristicsPersistenceFlag = true;
+  for( int c = 0; c < 3; c++ )
+  {
+    vvdecCompModel& compModel                                = fgc.compModel[c];
+    compModel.presentFlag                                    = true;
+    compModel.numIntensityIntervals                          = 1;
+    compModel.intensityValues[0].intensityIntervalLowerBound = 0;
+    compModel.intensityValues[0].intensityIntervalUpperBound = 255;
+    int* values                                              = compModel.intensityValues[0].compModelValue;
+    values[0]                                                = 200;   // scaling factor
+    if( modelId == 0 )
+    {
+      // horizontal and vertical cut-off frequencies
+      compModel.numModelValues = 3;
+      values[1]                = c == 0 && lumaVariant ? 10 : 6;
+      values[2]                = c == 0 && lumaVariant ? 3 : 6;
+    }
+    else
+    {
+      // the first auto-regressive coefficient (left and top), in units of 1 / ( 1 << log2ScaleFactor )
+      compModel.numModelValues = 2;
+      values[1]                = c == 0 && lumaVariant ? -8 : 12;
+    }
+  }
+}
+
+template<typename Pel>
+static bool check_one_FilmGrainChromaFormat( vvdecColorFormat format, unsigned bitDepth, int modelId )
+{
+  static const char* formatNames[] = { "4:0:0", "4:2:0", "4:2:2", "4:4:4" };
+  const int          subx          = format == VVDEC_CF_YUV444_PLANAR ? 1 : 2;
+  const int          suby          = format == VVDEC_CF_YUV420_PLANAR || format == VVDEC_CF_YUV400_PLANAR ? 2 : 1;
+  const int          width         = 512;
+  const int          height        = 256;
+  const int          chromaWidth   = format == VVDEC_CF_YUV400_PLANAR ? 0 : width / subx;
+  const int          chromaHeight  = format == VVDEC_CF_YUV400_PLANAR ? 0 : height / suby;
+
+  std::ostringstream sstm;
+  sstm << "FilmGrain " << formatNames[format - VVDEC_CF_YUV400_PLANAR] << " bitDepth=" << bitDepth
+       << " model=" << modelId;
+
+  // Runs 0 and 1 use the same message, with different leftovers on the stack, and must give the same output. Run 2
+  // changes only the luma model values, and must give the same chroma output.
+  std::vector<Pel> pictures[3];
+  for( int run = 0; run < 3; run++ )
+  {
+    auto fgc = std::make_unique<vvdecSEIFilmGrainCharacteristics>();
+    fill_film_grain_characteristics( *fgc, modelId, run == 2 );
+    try
+    {
+      FilmGrain filmGrain;
+      filmGrain.updateFGC( fgc.get() );
+      overwrite_stack( run == 1 ? 0x55 : 0xaa );
+      pictures[run] = add_grain_to_flat_picture<Pel>( filmGrain, format, bitDepth, width, height, chromaWidth, chromaHeight );
+    }
+    catch( std::exception& e )
+    {
+      std::cout << "failed: " << sstm.str() << " threw: " << e.what() << "\n";
+      return false;
+    }
+  }
+  bool passed = true;
+  if( pictures[0] != pictures[1] )
+  {
+    std::cout << "failed: " << sstm.str() << " output depends on uninitialized memory\n";
+    passed = false;
+  }
+  if( !std::equal( pictures[0].begin() + width * height, pictures[0].end(), pictures[2].begin() + width * height ) )
+  {
+    std::cout << "failed: " << sstm.str() << " chroma output depends on the luma model values\n";
+    passed = false;
+  }
+
+  const Pel  flat = Pel( 1 << ( bitDepth - 1 ) );
+  const auto luma = grain_statistics( pictures[0].data(), width, height, 16, 16, flat );
+  if( luma.blocksWithoutGrain )
+  {
+    std::cout << "failed: " << sstm.str() << " Y: " << luma.blocksWithoutGrain << " blocks without grain\n";
+    passed = false;
+  }
+  for( int c = 1; c <= 2 && chromaWidth; c++ )
+  {
+    const Pel*   plane  = pictures[0].data() + width * height + ( c - 1 ) * chromaWidth * chromaHeight;
+    const auto   chroma = grain_statistics( plane, chromaWidth, chromaHeight, 16 / subx, 16 / suby, flat );
+    const double ratio  = chroma.strength / luma.strength;
+
+    // With the same model values, the chroma grain is about as strong as the luma grain (a bit weaker in subsampled
+    // planes). In 4:4:4, it also has the same spatial correlation, and in 4:2:2 with the frequency filtering model the
+    // same vertical correlation, where the chroma samples are as far apart as the luma samples. The tolerances allow
+    // for the grain of each plane coming from a single random 64x64 pattern.
+    bool ok = chroma.blocksWithoutGrain == 0 && ratio > 0.5 && ratio < 1.5;
+    if( format == VVDEC_CF_YUV444_PLANAR )
+    {
+      ok = ok && std::abs( ratio - 1 ) < 0.1 && std::abs( chroma.correlationRight - luma.correlationRight ) < 0.08;
+    }
+    if( format == VVDEC_CF_YUV444_PLANAR || ( format == VVDEC_CF_YUV422_PLANAR && modelId == 0 ) )
+    {
+      ok = ok && std::abs( chroma.correlationDown - luma.correlationDown ) < 0.08;
+    }
+    if( !ok )
+    {
+      std::cout << "failed: " << sstm.str() << " " << "YUV"[c] << ": " << chroma.blocksWithoutGrain
+                << " blocks without grain, grain strength " << ratio << " times the luma grain strength, correlation"
+                << " right " << chroma.correlationRight << " (luma " << luma.correlationRight << "), down "
+                << chroma.correlationDown << " (luma " << luma.correlationDown << ")\n";
+      passed = false;
+    }
+  }
+  return passed;
+}
+
+static bool test_FilmGrainChromaFormats()
+{
+  bool passed = true;
+  for( vvdecColorFormat format : { VVDEC_CF_YUV400_PLANAR, VVDEC_CF_YUV420_PLANAR, VVDEC_CF_YUV422_PLANAR, VVDEC_CF_YUV444_PLANAR } )
+  {
+    for( int modelId : { 0, 1 } )
+    {
+      passed = check_one_FilmGrainChromaFormat<uint8_t>( format, 8, modelId ) && passed;
+      passed = check_one_FilmGrainChromaFormat<uint16_t>( format, 10, modelId ) && passed;
+    }
+  }
+  return passed;
+}
 
 struct UnitTestEntry
 {
@@ -2941,7 +3181,8 @@ static const UnitTestEntry test_suites[] = {
 #if ENABLE_SIMD_OPT_QUANT
     { "DeQuant", test_DeQuant },
 #endif
-#if defined( TARGET_SIMD_X86 ) && ENABLE_SIMD_OPT
+    { "FilmGrainChromaFormats", test_FilmGrainChromaFormats },
+#if ENABLE_SIMD_OPT && ( defined( TARGET_SIMD_X86 ) || defined( TARGET_SIMD_ARM ) )
     { "FilmGrainImpl", test_FilmGrainImpl },
 #endif
 #if ENABLE_SIMD_OPT_INTRAPRED

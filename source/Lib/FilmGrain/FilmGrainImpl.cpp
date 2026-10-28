@@ -295,21 +295,10 @@ void FilmGrainImpl::scale_and_output( void* I, int c, int x, int subx, int width
     // Shift pipeline
     if( !flush )
     {
-      if( c == 0 )
+      for( int i = 0; i < 16 / subx; i++ )
       {
-        for( int i = 0; i < 16; i++ )
-        {
-          grain[0][i] = grain[0][i + 16];
-          scale[0][i] = scale[0][i + 16];
-        }
-      }
-      else
-      {
-        for( int i = 0; i < 8; i++ )
-        {
-          grain[c][i] = grain[c][i + 8];
-          scale[c][i] = scale[c][i + 8];
-        }
+        grain[c][i] = grain[c][i + 16 / subx];
+        scale[c][i] = scale[c][i + 16 / subx];
       }
     }
 
@@ -332,9 +321,10 @@ void FilmGrainImpl::set_luma_pattern( int index, int8_t* P )
 void FilmGrainImpl::set_chroma_pattern( int index, int8_t* P )
 {
   CHECK( index < 0 || index >= 8, "chroma pattern index out of bounds" );
+  // P has 64 / csuby rows of 64 / csubx samples.
   for( int i = 0; i < 64 / csuby; i++ )
   {
-    memcpy( pattern[1][index][i], P + ( 64 / csuby ) * i, 64 / csubx );
+    memcpy( pattern[1][index][i], P + ( 64 / csubx ) * i, 64 / csubx );
   }
 }
 
