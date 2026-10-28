@@ -55,6 +55,13 @@ static_assert( PATTERN_INTERPOLATION == 0, "pattern interpolation is not impleme
 
 // A block holds 16 samples, or 8 in a horizontally subsampled chroma plane; the code works on 8 samples at a time.
 
+// a + b, with b zero-extended to 32 bits. The reinterpretation is exact: a 32-bit addition gives the same bits for
+// signed and unsigned operands; only the extension of b depends on its sign.
+static inline int32x4_t vvdec_vaddw_s32_u16( int32x4_t a, uint16x4_t b )
+{
+  return vreinterpretq_s32_u32( vaddw_u16( vreinterpretq_u32_s32( a ), b ) );
+}
+
 // The 8-bit LUT indexes of the n samples of a picture row from sample x0 on: the samples, shifted down to 8 bits
 static inline void load_intensities( const void* I, int x0, int n, int bs, uint8_t intensity[16] )
 {
@@ -117,20 +124,16 @@ void FilmGrainImplARM<NEON>::make_grain_pattern( const void* I,
     above   = abovePerIntensity;
   }
 
+  // With a negative sign, the pattern samples are widened by subtracting them from zero, which also negates them.
+  const int8x8_t zero = vdup_n_s8( 0 );
   for( int i = 0; i < n; i += 8 )
   {
-    int16x8_t g = vmovl_s8( vld1_s8( current + i ) );
-    if( s < 0 )
-    {
-      g = vnegq_s16( g );
-    }
+    const int8x8_t g8 = vld1_s8( current + i );
+    int16x8_t      g  = s < 0 ? vsubl_s8( zero, g8 ) : vmovl_s8( g8 );
     if( oc1 )
     {
-      int16x8_t gAbove = vmovl_s8( vld1_s8( above + i ) );
-      if( s_up < 0 )
-      {
-        gAbove = vnegq_s16( gAbove );
-      }
+      const int8x8_t  gAbove8 = vld1_s8( above + i );
+      const int16x8_t gAbove  = s_up < 0 ? vsubl_s8( zero, gAbove8 ) : vmovl_s8( gAbove8 );
       // round( g * oc1 + gAbove * oc2, 5 ); at most 2 * 127 * 24 in magnitude
       g = vrshrq_n_s16( vmlaq_n_s16( vmulq_n_s16( g, oc1 ), gAbove, oc2 ), 5 );
     }
@@ -180,8 +183,8 @@ void FilmGrainImplARM<NEON>::scale_and_output( void* I, int c, int x, int subx, 
         {
           uint16_t*        dst  = (uint16_t*) I + ( x - 16 ) / subx + i;
           const uint16x8_t smp  = vld1q_u16( dst );
-          int32x4_t        sLo  = vaddq_s32( vreinterpretq_s32_u32( vmovl_u16( vget_low_u16( smp ) ) ), lo );
-          int32x4_t        sHi  = vaddq_s32( vreinterpretq_s32_u32( vmovl_u16( vget_high_u16( smp ) ) ), hi );
+          int32x4_t        sLo  = vvdec_vaddw_s32_u16( lo, vget_low_u16( smp ) );
+          int32x4_t        sHi  = vvdec_vaddw_s32_u16( hi, vget_high_u16( smp ) );
           sLo                   = vminq_s32( vmaxq_s32( sLo, minValue ), maxValue );
           sHi                   = vminq_s32( vmaxq_s32( sHi, minValue ), maxValue );
           vst1q_u16( dst, vcombine_u16( vmovn_u32( vreinterpretq_u32_s32( sLo ) ), vmovn_u32( vreinterpretq_u32_s32( sHi ) ) ) );
@@ -190,8 +193,8 @@ void FilmGrainImplARM<NEON>::scale_and_output( void* I, int c, int x, int subx, 
         {
           uint8_t*         dst  = (uint8_t*) I + ( x - 16 ) / subx + i;
           const uint16x8_t smp  = vmovl_u8( vld1_u8( dst ) );
-          int32x4_t        sLo  = vaddq_s32( vreinterpretq_s32_u32( vmovl_u16( vget_low_u16( smp ) ) ), lo );
-          int32x4_t        sHi  = vaddq_s32( vreinterpretq_s32_u32( vmovl_u16( vget_high_u16( smp ) ) ), hi );
+          int32x4_t        sLo  = vvdec_vaddw_s32_u16( lo, vget_low_u16( smp ) );
+          int32x4_t        sHi  = vvdec_vaddw_s32_u16( hi, vget_high_u16( smp ) );
           sLo                   = vminq_s32( vmaxq_s32( sLo, minValue ), maxValue );
           sHi                   = vminq_s32( vmaxq_s32( sHi, minValue ), maxValue );
           const uint16x8_t clip = vcombine_u16( vmovn_u32( vreinterpretq_u32_s32( sLo ) ), vmovn_u32( vreinterpretq_u32_s32( sHi ) ) );
