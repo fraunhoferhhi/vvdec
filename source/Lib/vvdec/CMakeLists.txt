@@ -117,9 +117,6 @@ if( VVDEC_ENABLE_X86_SIMD )
     #set_property( SOURCE ${X86_SSE42_SRC_FILES} APPEND PROPERTY COMPILE_FLAGS "${FLAG_msse42}" )
     #set_property( SOURCE ${X86_AVX_SRC_FILES}   APPEND PROPERTY COMPILE_FLAGS "${FLAG_mavx}"   )
     set_property( SOURCE ${X86_AVX2_SRC_FILES}  APPEND PROPERTY COMPILE_FLAGS "${FLAG_mavx2}"  )
-    
-    set_source_files_properties( ../CommonLib/LoopFilter.cpp APPEND PROPERTY COMPILE_FLAGS "${FLAG_msse41}" )
-    set_source_files_properties( ../CommonLib/UnitTools.cpp APPEND PROPERTY COMPILE_FLAGS "${FLAG_msse41}" )
   endif()
 
   if( NOT VVDEC_TARGET_ARCH STREQUAL "X86" )  # only build AVX2 files for X86
@@ -170,8 +167,6 @@ if( VVDEC_ENABLE_ARM_SIMD )
     set_if_compiler_supports_flag( FLAG_mfpu_neon "-mfpu=neon" )
     set_property( SOURCE ${ARM_NEON_SRC_FILES} APPEND PROPERTY COMPILE_FLAGS "${FLAG_mfpu_neon}" )
     list( APPEND ARM_SIMD_SRC_FILES ${ARM_NEON_SRC_FILES} )
-    
-    set_source_files_properties( ../CommonLib/LoopFilter.cpp APPEND PROPERTY COMPILE_FLAGS "${FLAG_mfpu_neon}" )
   endif()
 
   add_library( ${LIB_NAME}_arm_simd OBJECT ${ARM_SIMD_SRC_FILES} )
