@@ -47,6 +47,7 @@ POSSIBILITY OF SUCH DAMAGE.
 #include "mem_neon.h"
 #include "tbl_neon.h"
 #include "transpose_neon.h"
+#include <simde/simde-features.h>
 #include <simde/arm/neon/maxv.h>
 
 #if defined( TARGET_SIMD_ARM ) && ENABLE_SIMD_DBLF
