@@ -56,14 +56,14 @@ POSSIBILITY OF SUCH DAMAGE.
 
 #include "Quant.h"
 
+#if ENABLE_SIMD_DBLF
 #ifdef TARGET_SIMD_X86
 #include "CommonDefX86.h"
-
-#include <simde/x86/sse4.1.h>
 #endif
 
-#if defined( TARGET_SIMD_ARM ) && ENABLE_SIMD_DBLF
+#if defined( TARGET_SIMD_ARM )
 #include "CommonLib/arm/CommonDefARM.h"
+#endif
 #endif
 
 namespace vvdec

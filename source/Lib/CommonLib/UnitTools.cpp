@@ -55,11 +55,6 @@ POSSIBILITY OF SUCH DAMAGE.
 #include <utility>
 #include <algorithm>
 
-#if defined( TARGET_SIMD_X86 )
-#include "CommonDefX86.h"
-#include <simde/x86/sse4.2.h>
-#endif
-
 namespace vvdec
 {
 
