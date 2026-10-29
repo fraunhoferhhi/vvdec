@@ -2704,6 +2704,116 @@ static bool test_IntraPredAngleChroma()
   return passed;
 }
 
+static bool test_IntraPredAngleCore()
+{
+  IntraPrediction ref;
+  IntraPrediction opt;
+#if defined( TARGET_SIMD_X86 )
+  opt.initIntraPredictionX86();
+#endif
+#if defined( TARGET_SIMD_ARM )
+  opt.initIntraPredictionARM();
+#endif
+
+  DimensionGenerator rng;
+  bool passed = true;
+
+  // g_intraGaussFilter has internal linkage in IntraPrediction.cpp, so the 32-phase
+  // table is reconstructed here instead (every phase matches 16-k,32-k,16+k,k with k=phase>>1).
+  TFilterCoeff gaussFilter[32 * 4];
+  for( int phase = 0; phase < 32; phase++ )
+  {
+    const int k = phase >> 1;
+    gaussFilter[phase * 4 + 0] = (TFilterCoeff)( 16 - k );
+    gaussFilter[phase * 4 + 1] = (TFilterCoeff)( 32 - k );
+    gaussFilter[phase * 4 + 2] = (TFilterCoeff)( 16 + k );
+    gaussFilter[phase * 4 + 3] = (TFilterCoeff)k;
+  }
+
+  // angTable magnitudes with absAng % 32 != 0, i.e. the ones xPredIntraAng() actually
+  // routes into IntraPredAngleCore4/8 rather than the pure vertical/horizontal path
+  const std::vector<int> angles = { 1,  2,  3,  4,  6,  8,  10, 12, 14, 16, 18, 20,
+                                    23, 26, 29, 35, 39, 45, 51, 57, 73, 86, 102, 171, 341 };
+
+  for( unsigned bd : { 8u, 10u } )
+  {
+    const ClpRng clpRng{ (int)bd };
+    const Pel    maxVal = ( 1 << bd ) - 1;
+
+    for( unsigned width : { 4u, 8u, 16u, 32u, 64u } )
+    {
+      for( unsigned height : { 2u, 4u, 8u, 16u, 32u, 64u } )
+      {
+        for( bool useCubicFilter : { true, false } )
+        {
+          const TFilterCoeff* ff = useCubicFilter ? InterpolationFilter::getChromaFilterTable( 0 ) : gaussFilter;
+
+          for( int c = 0; c < NUM_CASES; c++ )
+          {
+            // cases 0/1 exercise the cubic filter's upper/lower clamp at phase 16 (-4,36,36,-4)
+            const bool forceClipHigh = ( c == 0 );
+            const bool forceClipLow  = ( c == 1 );
+
+            const int sign          = rng.getBool() ? 1 : -1;
+            const int intraPredAngle = ( forceClipHigh || forceClipLow ) ? 16 : sign * rng.getOneOf( angles );
+            const int multiRefIdx    = ( forceClipHigh || forceClipLow ) ? 0 : (int)rng.get( 0, 3 );
+            const int deltaPos       = intraPredAngle * ( 1 + multiRefIdx );
+
+            // deltaInt is monotone in deltaPos, so its extremes are at the first/last row
+            const int deltaPosEnd = deltaPos + (int)( height - 1 ) * intraPredAngle;
+            const int deltaIntLo  = std::min( deltaPos, deltaPosEnd ) >> 5;
+            const int deltaIntHi  = std::max( deltaPos, deltaPosEnd ) >> 5;
+
+            const int leftPad     = std::max( 0, -deltaIntLo );
+            const int rightLen    = std::max( 0, deltaIntHi ) + (int)width + 3;
+            const int SIMD_MARGIN = 16;
+
+            std::vector<Pel> refs( leftPad + rightLen + SIMD_MARGIN );
+            InputGenerator<Pel> g{ bd, /*is_signed=*/false };
+            std::generate( refs.begin(), refs.end(), g );
+
+            if( forceClipHigh || forceClipLow )
+            {
+              // row 0, x=0 uses taps {0,max,max,0} or {max,0,0,max}
+              for( size_t i = 0; i < refs.size(); i++ )
+              {
+                const int pos = ( (int)i - leftPad ) & 3;
+                const bool isOuterTap = ( pos == 0 || pos == 3 );
+                refs[i] = forceClipHigh ? ( isOuterTap ? (Pel)0 : maxVal ) : ( isOuterTap ? maxVal : (Pel)0 );
+              }
+            }
+
+            Pel* refMain = refs.data() + leftPad;
+
+            const ptrdiff_t dstStride = (ptrdiff_t)width + rng.get( 0, 8 );
+            std::vector<Pel> dstRef( (size_t)dstStride * height, -1 );
+            std::vector<Pel> dstOpt( (size_t)dstStride * height, -1 );
+
+            if( ( width & 7 ) == 0 )
+            {
+              ref.IntraPredAngleCore8( dstRef.data(), dstStride, refMain, (int)width, (int)height, deltaPos, intraPredAngle, ff, useCubicFilter, clpRng );
+              opt.IntraPredAngleCore8( dstOpt.data(), dstStride, refMain, (int)width, (int)height, deltaPos, intraPredAngle, ff, useCubicFilter, clpRng );
+            }
+            else
+            {
+              ref.IntraPredAngleCore4( dstRef.data(), dstStride, refMain, (int)width, (int)height, deltaPos, intraPredAngle, ff, useCubicFilter, clpRng );
+              opt.IntraPredAngleCore4( dstOpt.data(), dstStride, refMain, (int)width, (int)height, deltaPos, intraPredAngle, ff, useCubicFilter, clpRng );
+            }
+
+            std::ostringstream sstm;
+            sstm << "IntraPredAngleCore bd=" << bd << " w=" << width << " h=" << height
+                 << " cubic=" << useCubicFilter << " angle=" << intraPredAngle << " deltaPos=" << deltaPos;
+            // include the row padding to catch a stray store past width
+            passed &= compare_values_2d( sstm.str(), dstRef.data(), dstOpt.data(),
+                                         height, (unsigned)dstStride, (unsigned)dstStride );
+          }
+        }
+      }
+    }
+  }
+  return passed;
+}
+
 static bool test_IntraPredHorVerPdpc()
 {
   IntraPrediction ref;
@@ -3187,6 +3297,7 @@ static const UnitTestEntry test_suites[] = {
 #endif
 #if ENABLE_SIMD_OPT_INTRAPRED
     { "IntraPredAngleChroma", test_IntraPredAngleChroma },
+    { "IntraPredAngleCore", test_IntraPredAngleCore },
     { "IntraPredHorVerPdpc", test_IntraPredHorVerPdpc },
 #endif
 #if ENABLE_SIMD_OPT_MCIF
