@@ -75,6 +75,8 @@ static void DeQuantImplNeon( const SizeType width,
   const int32x4_t vInputMax     = vdupq_n_s32( inputMaximum );
   const int32x4_t vTransformMin = vdupq_n_s32( transformMinimum );
   const int32x4_t vTransformMax = vdupq_n_s32( transformMaximum );
+  // vqrshlq_s32 shifts right with rounding, or left for a negative rightShift. It saturates instead of wrapping: with a
+  // scaling list, level * scale can exceed 32 bits once it is shifted left, and a saturated value clips correctly.
   const int32x4_t vShift        = vdupq_n_s32( -rightShift );
         int32x4_t vScale        = vdupq_n_s32( scaleQP );
 
@@ -108,7 +110,7 @@ static void DeQuantImplNeon( const SizeType width,
       vLevel = vmaxq_s32( vLevel, vInputMin );
       vLevel = vminq_s32( vLevel, vInputMax );
       vLevel = vmulq_s32( vLevel, vScale );
-      vLevel = vrshlq_s32( vLevel, vShift );
+      vLevel = vqrshlq_s32( vLevel, vShift );
 
       vLevel = vmaxq_s32( vLevel, vTransformMin );
       vLevel = vminq_s32( vLevel, vTransformMax );
@@ -134,7 +136,7 @@ static void DeQuantImplNeon( const SizeType width,
       vLevel = vmaxq_s32( vLevel, vInputMin );
       vLevel = vminq_s32( vLevel, vInputMax );
       vLevel = vmulq_s32( vLevel, vScale );
-      vLevel = vrshlq_s32( vLevel, vShift );
+      vLevel = vqrshlq_s32( vLevel, vShift );
 
       vLevel = vmaxq_s32( vLevel, vTransformMin );
       vLevel = vminq_s32( vLevel, vTransformMax );
