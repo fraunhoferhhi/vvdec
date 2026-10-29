@@ -2789,6 +2789,7 @@ static bool test_IntraPredAngleCore()
             std::vector<Pel> dstRef( (size_t)dstStride * height, -1 );
             std::vector<Pel> dstOpt( (size_t)dstStride * height, -1 );
 
+            // same Core4/Core8 selection as xPredIntraAng() for widths that are multiples of 4
             if( ( width & 7 ) == 0 )
             {
               ref.IntraPredAngleCore8( dstRef.data(), dstStride, refMain, (int)width, (int)height, deltaPos, intraPredAngle, ff, useCubicFilter, clpRng );
@@ -2796,6 +2797,7 @@ static bool test_IntraPredAngleCore()
             }
             else
             {
+              CHECK( ( width & 3 ) != 0, "test width must be a multiple of 4" );
               ref.IntraPredAngleCore4( dstRef.data(), dstStride, refMain, (int)width, (int)height, deltaPos, intraPredAngle, ff, useCubicFilter, clpRng );
               opt.IntraPredAngleCore4( dstOpt.data(), dstStride, refMain, (int)width, (int)height, deltaPos, intraPredAngle, ff, useCubicFilter, clpRng );
             }
