@@ -2718,8 +2718,7 @@ static bool test_IntraPredAngleCore()
   DimensionGenerator rng;
   bool passed = true;
 
-  // g_intraGaussFilter has internal linkage in IntraPrediction.cpp, so the 32-phase
-  // table is reconstructed here instead (every phase matches 16-k,32-k,16+k,k with k=phase>>1).
+  // reconstruct g_intraGaussFilter; it has internal linkage in IntraPrediction.cpp
   TFilterCoeff gaussFilter[32 * 4];
   for( int phase = 0; phase < 32; phase++ )
   {
@@ -2730,8 +2729,8 @@ static bool test_IntraPredAngleCore()
     gaussFilter[phase * 4 + 3] = (TFilterCoeff)k;
   }
 
-  // angTable magnitudes with absAng % 32 != 0, i.e. the ones xPredIntraAng() actually
-  // routes into IntraPredAngleCore4/8 rather than the pure vertical/horizontal path
+  // angTable magnitudes routed to IntraPredAngleCore4/8 by xPredIntraAng();
+  // multiples of 32 take the plain integer-sample copy path instead
   const std::vector<int> angles = { 1,  2,  3,  4,  6,  8,  10, 12, 14, 16, 18, 20,
                                     23, 26, 29, 35, 39, 45, 51, 57, 73, 86, 102, 171, 341 };
 
