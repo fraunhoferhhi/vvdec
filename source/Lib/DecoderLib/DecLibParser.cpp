@@ -1074,6 +1074,13 @@ void DecLibParser::xActivateParameterSets( const int layerId )
     const APS*  lmcsAPS = paramSets.lmcsAps;
     const APS*  scalingListAPS = paramSets.scalingListAps;
 
+    // The subpicture layout of a PPS is derived when the PPS is parsed, from the SPS present then. If an SPS with the
+    // same id but a different number of subpictures arrived since, the PPS has to be sent again; its stale layout
+    // would be indexed with the subpictures of the new SPS.
+    CHECK( pps->getNumSubPics() != sps->getNumSubPics(),
+           "The PPS was parsed with an SPS with " << (int) pps->getNumSubPics() << " subpictures, but the active SPS has "
+           << (int) sps->getNumSubPics() << "; the PPS has to be sent again after an SPS that changes the subpictures" );
+
     xParsePrefixSEImessages();
 
     //  Get a new picture buffer
