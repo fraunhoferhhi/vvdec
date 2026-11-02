@@ -180,6 +180,8 @@ void SEIReader::xReadSEImessage( seiMessages& seiList, const NalUnitType nalUnit
     sei_read_code(NULL, 8, val, "payload_size");
     payloadSize += val;
   } while (val==0xFF);
+  // also keeps payloadSize * 8 below from wrapping
+  CHECK( payloadSize > getBitstream()->getNumBitsLeft() / 8, "SEI payload_size exceeds the remaining NAL unit size" );
 
 #if ENABLE_TRACING
   xTraceSEIMessageType((vvdecSEIPayloadType)payloadType);
