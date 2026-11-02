@@ -214,7 +214,7 @@ static void xFilteringPandQCore( Pel* src, ptrdiff_t step, const ptrdiff_t offse
 \param bFilterSecondQ  decision weak filter/no filter for partQ
 \param bitDepthLuma    luma bit depth
 */
-inline void xPelFilterLumaCorePel( Pel* piSrc, const ptrdiff_t iOffset, const int tc, const bool sw, const int iThrCut, const bool bFilterSecondP, const bool bFilterSecondQ, const ClpRng& clpRng )
+static inline void xPelFilterLumaCorePel( Pel* piSrc, const ptrdiff_t iOffset, const int tc, const bool sw, const int iThrCut, const bool bFilterSecondP, const bool bFilterSecondQ, const ClpRng& clpRng )
 {
   const Pel m1  = piSrc[-3 * iOffset];
   const Pel m2  = piSrc[-2 * iOffset];
