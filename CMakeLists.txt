@@ -337,9 +337,6 @@ set( CMAKE_CXX_STANDARD 14 )
 set( CMAKE_CXX_EXTENSIONS OFF )
 set( CMAKE_CXX_STANDARD_REQUIRED ON )
 
-# compile everything position independent (even static libraries)
-set( CMAKE_POSITION_INDEPENDENT_CODE TRUE )
-
 # set verbose compile options
 #set( CMAKE_VERBOSE_MAKEFILE ON )
 

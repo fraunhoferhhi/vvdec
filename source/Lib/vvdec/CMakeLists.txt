@@ -1,3 +1,7 @@
+# compile position independent, so the static library can be linked into shared objects.
+# not set globally, so executables keep the toolchain's PIE default instead of getting -fPIE forced.
+set( CMAKE_POSITION_INDEPENDENT_CODE TRUE )
+
 # library
 set( LIB_NAME vvdec )
 
