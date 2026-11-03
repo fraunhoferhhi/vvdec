@@ -165,6 +165,16 @@ static inline uint16x8_t vvdec_vpaddq_u16( uint16x8_t a, uint16x8_t b )
                        vpadd_u16( vget_low_u16( b ), vget_high_u16( b ) ) );
 #endif
 }
+static inline uint32_t vvdec_vmaxvq_u32( uint32x4_t v )
+{
+#if REAL_TARGET_AARCH64
+  return vmaxvq_u32( v );
+#else
+  uint32x2_t max = vmax_u32( vget_low_u32( v ), vget_high_u32( v ) );
+  return vget_lane_u32( vpmax_u32( max, max ), 0 );
+#endif
+}
+
 
 } // namespace vvdec
 
