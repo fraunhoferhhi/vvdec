@@ -57,6 +57,7 @@ POSSIBILITY OF SUCH DAMAGE.
 #include "CommonLib/TrQuant.h"
 #include "CommonLib/TrQuant_EMT.h"
 #include "CommonLib/Quant.h"
+#include "vvdec/vvdec.h"
 #include "FilmGrain/FilmGrain.h"
 #include "FilmGrain/FilmGrainImplARM.h"
 #include "FilmGrain/FilmGrainImplX86.h"
@@ -3737,6 +3738,33 @@ static bool test_FilmGrainChromaFormats()
   return passed;
 }
 
+static bool check_accessUnit_free_payload()
+{
+  std::cout << "Testing vvdec_accessUnit_free_payload" << std::endl;
+
+  vvdecAccessUnit* accessUnit = vvdec_accessUnit_alloc();
+  vvdec_accessUnit_alloc_payload( accessUnit, 100 );
+  vvdec_accessUnit_free_payload( accessUnit );
+
+  // vvdec_accessUnit_free() releases the payload "if not done yet", so it must see that it was released
+  const bool passed = accessUnit->payload == nullptr && accessUnit->payloadSize == 0;
+  if( !passed )
+  {
+    std::cout << "failed: the payload pointer is still set after vvdec_accessUnit_free_payload()" << std::endl;
+  }
+
+  vvdec_accessUnit_free_payload( accessUnit );   // a second call must be harmless
+  vvdec_accessUnit_free( accessUnit );
+  return passed;
+}
+
+static bool test_API()
+{
+  bool passed = true;
+  passed = check_accessUnit_free_payload() && passed;
+  return passed;
+}
+
 struct UnitTestEntry
 {
   std::string name;
@@ -3744,6 +3772,7 @@ struct UnitTestEntry
 };
 
 static const UnitTestEntry test_suites[] = {
+    { "API", test_API },
 #if ENABLE_SIMD_OPT_ALF
     { "ALF", test_AdaptiveLoopFilter },
 #endif
