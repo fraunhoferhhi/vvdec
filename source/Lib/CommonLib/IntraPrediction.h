@@ -147,6 +147,8 @@ public:
   void( *IntraPredAngleChroma4 )        ( int16_t* pDst, const ptrdiff_t dstStride, int16_t* pBorder, int width, int height, int deltaPos, int intraPredAngle );
   void( *IntraPredAngleChroma8 )        ( int16_t* pDst, const ptrdiff_t dstStride, int16_t* pBorder, int width, int height, int deltaPos, int intraPredAngle );
 
+  MipMatrixMulFunc MipMatrixMul;        // the matrix multiplication used by m_matrixIntraPred
+
   void  ( *IntraPredSampleFilter8 )     ( Pel *ptrSrc,const ptrdiff_t  srcStride,PelBuf &piPred,const uint32_t uiDirMode,const ClpRng& clpRng );
   void  ( *IntraPredSampleFilter16 )    ( Pel *ptrSrc,const ptrdiff_t  srcStride,PelBuf &piPred,const uint32_t uiDirMode,const ClpRng& clpRng );
   void  ( *xPredIntraPlanar )           ( const CPelBuf &pSrc, PelBuf &pDst, const SPS& sps );
