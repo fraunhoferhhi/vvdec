@@ -1,7 +1,7 @@
 # Top level CMakeLists.txt
 #
 # minimum required cmake version
-cmake_minimum_required( VERSION 3.12.0 FATAL_ERROR )
+cmake_minimum_required( VERSION 3.15.0 )
 
 # Use latest policy
 cmake_policy( VERSION ${CMAKE_MAJOR_VERSION}.${CMAKE_MINOR_VERSION} )
@@ -197,6 +197,7 @@ if( VVDEC_TARGET_ARCH STREQUAL "WASM" )
 
   if( VVDEC_ENABLE_X86_SIMD )
     add_compile_options( -msimd128 )            # needed for all SIMD code, but breaks running in nodejs (firefox & chrome do work)
+    add_compile_options( -msse2 )               # emscripten only provides the x86 intrinsics (e.g. _mm_prefetch) if __SSE2__ is defined
 
     add_compile_definitions( TARGET_SIMD_WASM ) # this is currently only used by a single helper function vvdec_get_RGBA_frame()
                                                 # optimized specifically in WASM-SIMD. This has no effect on normal codec operations.
@@ -511,6 +512,15 @@ if( VVDEC_ENABLE_BITSTREAM_DOWNLOAD )
     endif()
     math( EXPR COUNTER "${COUNTER}+1" )
   endforeach()
+endif()
+
+# the wasm test page (tests/wasm/shell.js) fetches its bitstream list from bitstreams.json
+if( VVDEC_TARGET_ARCH STREQUAL "WASM" )
+  message( STATUS "generating tests/wasm/bitstreams.json for WASM tests" )
+  set( WASM_BITSTREAMS ${BITSTREAM_FILES} )
+  list( TRANSFORM WASM_BITSTREAMS REPLACE "^(.*)\\.zip$" "  \"\\1/\\1.bit\"" )
+  list( JOIN WASM_BITSTREAMS ",\n" WASM_BITSTREAMS_JSON )
+  file( WRITE "${CMAKE_SOURCE_DIR}/tests/wasm/bitstreams.json" "[\n${WASM_BITSTREAMS_JSON}\n]\n" )
 endif()
 
 if( VVDEC_LIBRARY_ONLY )

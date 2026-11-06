@@ -120,7 +120,6 @@ list( APPEND BITSTREAM_FILES
   HLG_A_NHK_4.zip
   HLG_B_NHK_4.zip
   HRD_A_Fujitsu_3.zip
-  HRD_B_Fujitsu_2.zip
   IBC_A_Tencent_2.zip
   IBC_B_Tencent_2.zip
   IBC_C_Tencent_2.zip
@@ -279,6 +278,7 @@ list( APPEND BITSTREAM_NOT_MAIN10_FILES
   8b444_B_Kwai_2.zip
   ACT_A_Kwai_3.zip                                  # palette mode is not yet supported
   ACT_B_Kwai_3.zip
+  HRD_B_Fujitsu_2.zip                               # BP SEI lacks bp_*_initial_alt_cpb_removal_* (VTM 11 encoder), VTM 24 fails too
   ILRPL_A_Huawei_2.zip                              # multi-layer not supported
   OLS_A_Tencent_5.zip                               # TODO ERROR: In function "parseVPS" in ../../source/Lib/DecoderLib/VLCReader.cpp:2053: needs to be adjusted, e.g. sublayer and independent layer stuff -> see VTM-9.0
   OLS_B_Tencent_5.zip                               # TODO ERROR: In function "parseVPS" in ../../source/Lib/DecoderLib/VLCReader.cpp:2053: needs to be adjusted, e.g. sublayer and independent layer stuff -> see VTM-9.0
