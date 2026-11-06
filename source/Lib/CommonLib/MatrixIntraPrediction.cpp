@@ -255,10 +255,47 @@ void PredictorMIP::boundaryDownsampling1D(Pel* reducedDst, const Pel* const full
   
     if( m_upsmpFactorVer > 1 )
     {
-      predictionUpsampling1D( dst, verSrc, m_refSamplesTop,
-                              m_reducedPredSize, m_blockSize.width,
-                              verSrcStep, 1, m_blockSize.width, 1,
-                              1, m_upsmpFactorVer );
+      predictionUpsamplingVer( dst, verSrc, verSrcStep );
+    }
+  }
+
+  // Vertical upsampling with the same arithmetic as predictionUpsampling1D(), but computed row by row instead of column
+  // by column, so that the inner loops run over contiguous samples and can be vectorized.
+  void PredictorMIP::predictionUpsamplingVer( Pel* const dst, const Pel* const src, const SizeType srcStep ) const
+  {
+    const int width          = m_blockSize.width;
+    const int upsmpFactor    = m_upsmpFactorVer;
+    const int log2Factor     = getLog2( upsmpFactor );
+    const int roundingOffset = 1 << ( log2Factor - 1 );
+
+    // For each column: the source sample above the current group of rows, the change from one output row to the next,
+    // and the scaled output value before the final shift.
+    Pel before [MIP_MAX_WIDTH];
+    Pel diff   [MIP_MAX_WIDTH];
+    Pel scaled [MIP_MAX_WIDTH];
+    std::copy_n( m_refSamplesTop, width, before );
+
+    for( int j = 0; j < m_reducedPredSize; j++ )
+    {
+      // The source row lies in dst (it is the last output row of its group), so it is read completely before the group
+      // is written.
+      const Pel* behind = src + j * srcStep;
+      for( int x = 0; x < width; x++ )
+      {
+        diff  [x] = behind[x] - before[x];
+        scaled[x] = before[x] * ( 1 << log2Factor ) + roundingOffset;
+        before[x] = behind[x];
+      }
+
+      Pel* dstLine = dst + j * upsmpFactor * width;
+      for( int i = 0; i < upsmpFactor; i++, dstLine += width )
+      {
+        for( int x = 0; x < width; x++ )
+        {
+          scaled[x] += diff[x];
+          dstLine[x] = scaled[x] >> log2Factor;
+        }
+      }
     }
   }
 
