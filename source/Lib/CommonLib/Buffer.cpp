@@ -214,6 +214,36 @@ void applyLutCore( Pel* ptr, ptrdiff_t ptrStride, int width, int height, const P
     return;
 }
 
+// LMCS chroma residual scaling: the residual, clipped to the bit depth, scaled by scale / 2^CSCALE_FP_PREC with
+// rounding of its magnitude
+void scaleSignalCore( Pel* ptr, ptrdiff_t ptrStride, int width, int height, const int scale, const int bd )
+{
+  Pel* dst = ptr;
+  Pel* src = ptr;
+  int sign, absval;
+  int maxAbsclipBD = ( 1 << bd ) - 1;
+
+  for (int y = 0; y < height; y++)
+  {
+    for (int x = 0; x < width; x++)
+    {
+      src[x] = Clip3<Pel>( -maxAbsclipBD - 1, maxAbsclipBD, src[x] );
+      sign   = src[x] >= 0 ? 1 : -1;
+      absval = sign * src[x];
+
+      int val = sign * ((absval * scale + (1 << (CSCALE_FP_PREC - 1))) >> CSCALE_FP_PREC);
+
+      if( sizeof( Pel ) == 2 ) // avoid overflow when storing data
+      {
+          val = Clip3<int>(-32768, 32767, val);
+      }
+      dst[x] = (Pel)val;
+    }
+    dst += ptrStride;
+    src += ptrStride;
+  }
+}
+
 void fillN_CuCore( CodingUnit** ptr, ptrdiff_t ptrStride, int width, int height, CodingUnit* cuPtr )
 {
   if( width == ptrStride )
@@ -373,6 +403,8 @@ PelBufferOps::PelBufferOps()
   transpose4x4 = transpose4x4Core<Pel>;
   transpose8x8 = transpose8x8Core<Pel>;
 
+  scaleSignal = scaleSignalCore;
+
   applyLut = applyLutCore;
   rspFwd   = rspFwdCore;
   rspBcw   = nullptr;
@@ -428,30 +460,7 @@ void AreaBuf<Pel>::addWeightedAvg(const AreaBuf<const Pel> &other1, const AreaBu
 template<>
 void AreaBuf<Pel>::scaleSignal(const int scale, const ClpRng& clpRng)
 {
-  Pel* dst = buf;
-  Pel* src = buf;
-  int sign, absval;
-  int maxAbsclipBD = ( 1 << clpRng.bd ) - 1;
-
-  for (unsigned y = 0; y < height; y++)
-  {
-    for (unsigned x = 0; x < width; x++)
-    {
-      src[x] = Clip3<Pel>( -maxAbsclipBD - 1, maxAbsclipBD, src[x] );
-      sign   = src[x] >= 0 ? 1 : -1;
-      absval = sign * src[x];
-
-      int val = sign * ((absval * scale + (1 << (CSCALE_FP_PREC - 1))) >> CSCALE_FP_PREC);
-
-      if( sizeof( Pel ) == 2 ) // avoid overflow when storing data
-      {
-          val = Clip3<int>(-32768, 32767, val);
-      }
-      dst[x] = (Pel)val;
-    }
-    dst += stride;
-    src += stride;
-  }
+  g_pelBufOP.scaleSignal( buf, stride, width, height, scale, clpRng.bd );
 }
 
 template<>
