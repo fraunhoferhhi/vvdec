@@ -390,6 +390,18 @@ void IntraPredAngleChroma(T* pDstBuf,const ptrdiff_t dstStride,int16_t* pBorder,
 
 }
 
+// Blends the merge prediction in dst with the intra prediction for CIIP. The weights sum to 4.
+void CiipBlendCore( Pel* dst, const ptrdiff_t dstStride, const Pel* intraPred, const ptrdiff_t intraStride, const int width, const int height, const int wMerge, const int wIntra )
+{
+  for( int y = 0; y < height; y++, dst += dstStride, intraPred += intraStride )
+  {
+    for( int x = 0; x < width; x++ )
+    {
+      dst[x] = ( wMerge * dst[x] + wIntra * intraPred[x] + 2 ) >> 2;
+    }
+  }
+}
+
 // ====================================================================================================================
 // Constructor / destructor / initialize
 // ====================================================================================================================
@@ -405,6 +417,7 @@ IntraPrediction::IntraPrediction() : m_currChromaFormat( NUM_CHROMA_FORMAT )
   IntraPredSampleFilter16 = IntraPredSampleFilterCore;
 
   xPredIntraPlanar = xPredIntraPlanarCore;
+  CiipBlend = CiipBlendCore;
   IntraPredHorVerPdpc = IntraPredHorVerPdpcCore;
 
   GetLumaRecPixel420           = GetLumaRecPixel420Core;
@@ -952,16 +965,7 @@ void IntraPrediction::predBlendIntraCiip( PelUnitBuf &predUnit, const CodingUnit
     const int wIntra = 3 - !isNeigh0Intra - !isNeigh1Intra;
     const int wMerge = 3 - !!isNeigh0Intra - !!isNeigh1Intra;
 
-    for( int y = 0; y < height; y++ )
-    {
-      for( int x = 0; x < width; x += 4 )
-      {
-        dstBuf[y * dstStride + x + 0] = ( wMerge * dstBuf[y * dstStride + x + 0] + wIntra * srcBuf[y * srcStride + x + 0] + 2 ) >> 2;
-        dstBuf[y * dstStride + x + 1] = ( wMerge * dstBuf[y * dstStride + x + 1] + wIntra * srcBuf[y * srcStride + x + 1] + 2 ) >> 2;
-        dstBuf[y * dstStride + x + 2] = ( wMerge * dstBuf[y * dstStride + x + 2] + wIntra * srcBuf[y * srcStride + x + 2] + 2 ) >> 2;
-        dstBuf[y * dstStride + x + 3] = ( wMerge * dstBuf[y * dstStride + x + 3] + wIntra * srcBuf[y * srcStride + x + 3] + 2 ) >> 2;
-      }
-    }
+    CiipBlend( dstBuf, dstStride, srcBuf, srcStride, width, height, wMerge, wIntra );
   }
 }
 
