@@ -31,8 +31,6 @@ if( VVDEC_ENABLE_X86_SIMD )
   file( GLOB X86_INC_FILES       CONFIGURE_DEPENDS "../CommonLib/x86/*.h"         )
 
   file( GLOB X86_SSE41_SRC_FILES CONFIGURE_DEPENDS "../CommonLib/x86/sse41/*.cpp" )
-  #file( GLOB X86_SSE42_SRC_FILES CONFIGURE_DEPENDS "../CommonLib/x86/sse42/*.cpp" )
-  #file( GLOB X86_AVX_SRC_FILES   CONFIGURE_DEPENDS "../CommonLib/x86/avx/*.cpp"   )
   file( GLOB X86_AVX2_SRC_FILES CONFIGURE_DEPENDS  "../CommonLib/x86/avx2/*.cpp"  )
 endif()
 
@@ -101,8 +99,6 @@ set( CMAKE_VISIBILITY_INLINES_HIDDEN TRUE )
 if( VVDEC_ENABLE_X86_SIMD )
   # set needed compile definitions
   set_property( SOURCE ${X86_SSE41_SRC_FILES} APPEND PROPERTY COMPILE_DEFINITIONS USE_SSE41 )
-  #set_property( SOURCE ${X86_SSE42_SRC_FILES} APPEND PROPERTY COMPILE_DEFINITIONS USE_SSE42 )
-  #set_property( SOURCE ${X86_AVX_SRC_FILES}   APPEND PROPERTY COMPILE_DEFINITIONS USE_AVX )
   set_property( SOURCE ${X86_AVX2_SRC_FILES}  APPEND PROPERTY COMPILE_DEFINITIONS USE_AVX2 )
   # set needed compile flags
   if( MSVC )
@@ -121,8 +117,6 @@ if( VVDEC_ENABLE_X86_SIMD )
     #set_if_compiler_supports_flag( FLAG_mavx   -mavx    )
     set_if_compiler_supports_flag( FLAG_mavx2  -mavx2   )
     set_property( SOURCE ${X86_SSE41_SRC_FILES} APPEND PROPERTY COMPILE_FLAGS "${FLAG_msse41}" )
-    #set_property( SOURCE ${X86_SSE42_SRC_FILES} APPEND PROPERTY COMPILE_FLAGS "${FLAG_msse42}" )
-    #set_property( SOURCE ${X86_AVX_SRC_FILES}   APPEND PROPERTY COMPILE_FLAGS "${FLAG_mavx}"   )
     set_property( SOURCE ${X86_AVX2_SRC_FILES}  APPEND PROPERTY COMPILE_FLAGS "${FLAG_mavx2}"  )
   endif()
 
@@ -130,7 +124,6 @@ if( VVDEC_ENABLE_X86_SIMD )
     set( X86_AVX2_SRC_FILES "" )
   endif()
 
-  #add_library( ${LIB_NAME}_x86_simd OBJECT ${X86_SSE41_SRC_FILES} ${X86_SSE42_SRC_FILES} ${X86_AVX_SRC_FILES} ${X86_AVX2_SRC_FILES} )
   add_library( ${LIB_NAME}_x86_simd OBJECT ${X86_SSE41_SRC_FILES} ${X86_AVX2_SRC_FILES} )
   target_link_libraries( ${LIB_NAME}_x86_simd ${INTEL_ITT_LINK_TARGET} )
 
