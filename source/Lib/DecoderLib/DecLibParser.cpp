@@ -444,11 +444,11 @@ bool DecLibParser::xDecodeSliceHead( InputNALUnit& nalu )
     m_HLSReader.parseSliceHeader( m_apcSlicePilot, m_picHeader, &m_parameterSetManager, m_prevTid0POC, m_bFirstSliceInPicture );
   }
 
-  const PPS* pps = static_cast<const ParameterSetManager&>( m_parameterSetManager ).getPPS( m_apcSlicePilot->getPicHeader()->getPPSId() );
+  const PPS* pps = m_parameterSetManager.getPPS( m_apcSlicePilot->getPicHeader()->getPPSId() );
   CHECK( pps == 0, "No PPS present" );
-  const SPS* sps = static_cast<const ParameterSetManager&>( m_parameterSetManager ).getSPS( pps->getSPSId() );
+  const SPS* sps = m_parameterSetManager.getSPS( pps->getSPSId() );
   CHECK( sps == 0, "No SPS present" );
-  const VPS* vps = static_cast<const ParameterSetManager&>( m_parameterSetManager ).getVPS( sps->getVPSId() );
+  const VPS* vps = m_parameterSetManager.getVPS( sps->getVPSId() );
   CHECK( sps->getVPSId() > 0 && vps == 0, "Invalid VPS" );
   if( sps->getVPSId() == 0 && m_prevLayerID != MAX_INT )
   {
@@ -1313,7 +1313,7 @@ void DecLibParser::prepareUnavailablePicture( bool isLost, const PPS* pps, int i
     msg( INFO, "inserting unavailable poc : %d\n", iUnavailablePoc );
   }
   // use the parameter sets of the referencing picture, so the generated reference has a compatible buffer layout
-  const SPS* sps = static_cast<const ParameterSetManager&>( m_parameterSetManager ).getSPS( pps->getSPSId() );
+  const SPS* sps = m_parameterSetManager.getSPS( pps->getSPSId() );
   CHECK( !sps, "no SPS for unavailable reference picture" );
   Picture* cFillPic = m_picListManager.getNewPicBuffer( *sps, *pps, 0, layerId, m_parameterSetManager.getVPS( sps->getVPSId() ) );
   CHECK( std::find( m_dpbReferencePics.cbegin(), m_dpbReferencePics.cend(), cFillPic ) != m_dpbReferencePics.cend(), "reused picture shouldn't be in decoded picture buffer" );

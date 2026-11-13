@@ -1860,6 +1860,7 @@ class PPS : public BasePS<PPS>
 private:
   int              m_PPSId                             = 0;       // pic_parameter_set_id
   int              m_SPSId                             = 0;       // seq_parameter_set_id
+  std::weak_ptr<const SPS> m_parsedWithSPS;                       // the SPS the PPS was derived from, see ParameterSetManager::xGetPPS()
   int              m_layerId                           = 0;
   int              m_picInitQPMinus26                  = 0;
   bool             m_useDQP                            = false;
@@ -1960,6 +1961,8 @@ public:
   void                   setPPSId(int i)                                                  { m_PPSId = i;                                  }
   int                    getSPSId() const                                                 { return m_SPSId;                               }
   void                   setSPSId(int i)                                                  { m_SPSId = i;                                  }
+  void                   setParsedWithSPS( const SPS* sps )                               { m_parsedWithSPS = sps->getSharedPtr();        }
+  bool                   isParsedWithSPS( const SPS* sps )                          const { return m_parsedWithSPS.lock().get() == sps;   }   // get the shared_ptr from the weak_ptr and compare addresses
   void                   setLayerId( int i )                                              { m_layerId = i;                                }
   int                    getLayerId()                                               const { return m_layerId;                             }
   int                    getPicInitQPMinus26() const                                      { return  m_picInitQPMinus26;                   }
