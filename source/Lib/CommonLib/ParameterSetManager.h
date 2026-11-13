@@ -143,6 +143,8 @@ public:
     return ps;
   }
 
+  const AlignedByteVec& getNaluData( int psId ) const { return m_paramsetMap.at( psId ).cNaluData; }
+
   T* getFirstPS() const
   {
     return ( m_paramsetMap.begin() == m_paramsetMap.end() ) ? NULL : m_paramsetMap.begin()->second.parameterSet.get();
@@ -199,7 +201,7 @@ public:
   //! get pointer to existing sequence parameter set
   const VPS*            getVPS        ( int vpsId )              const { if( !vpsId ) return nullptr; return m_vpsMap.getPS( vpsId );              }
   const SPS*            getSPS        ( int spsId )              const { return m_spsMap.getPS        ( spsId );                                   }
-  const PPS*            getPPS        ( int ppsId )              const { return m_ppsMap.getPS        ( ppsId );                                   }
+  const PPS*            getPPS        ( int ppsId )                    { return xGetPPS( ppsId );                                          }
   const APS*            getAPS        ( int apsId, int apsType ) const { return m_apsMap.getPS        ( ( apsId << NUM_APS_TYPE_LEN ) + apsType ); }
   const APS*            getAPS_nothrow( int apsId, int apsType ) const { return m_apsMap.getPS_nothrow( ( apsId << NUM_APS_TYPE_LEN ) + apsType ); }
   // getter only used by DecLibParser::prepareLostPicture(). Is it really needed?
@@ -216,9 +218,8 @@ public:
   const SPS*            getActiveSPS()                           const { return m_spsMap.getPS( m_activeSPSId );                           }
 
 private:
-  SPS*                  getSPS( int spsId )                            { return m_spsMap.getPS( spsId );                                   }
-  PPS*                  getPPS( int ppsId )                            { return m_ppsMap.getPS( ppsId );                                   }
-  APS*                  getAPS( int apsId, int apsType )               { return m_apsMap.getPS( ( apsId << NUM_APS_TYPE_LEN ) + apsType ); }
+  //! re-derives the PPS, if the SPS it refers to was replaced since it was parsed
+  PPS*                  xGetPPS( int ppsId );
 
   ParameterSetMap<SPS, MAX_NUM_SPS>                            m_spsMap;
   ParameterSetMap<PPS, MAX_NUM_PPS>                            m_ppsMap;
