@@ -401,11 +401,7 @@ void Picture::fillGrey( const SPS* fallbackSPS )
 
   const int bitDepth = cs && cs->sps ? cs->sps->getBitDepth() : fallbackSPS->getBitDepth();
   // fill in grey buffer for missing reference pictures (GDR or broken bitstream)
-  const uint32_t yFill = 1 << ( bitDepth - 1 );
-  const uint32_t cFill = 1 << ( bitDepth - 1 );
-  getRecoBuf().Y().fill( yFill );
-  getRecoBuf().Cb().fill( cFill );
-  getRecoBuf().Cr().fill( cFill );
+  getRecoBuf().fill( 1 << ( bitDepth - 1 ) );
 
   progress = Picture::reconstructed;
   reconDone.unlock();

@@ -797,6 +797,11 @@ void PelStorage::destroy()
       m_origin[i] = nullptr;
     }
   }
+  // clear() keeps the elements, which would still point into the freed planes
+  for( auto& buf: bufs )
+  {
+    buf = PelBuf();
+  }
   bufs.clear();
 }
 
