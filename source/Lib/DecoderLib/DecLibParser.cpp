@@ -1558,7 +1558,10 @@ void DecLibParser::xDecodeVPS( InputNALUnit& nalu )
   std::unique_ptr<VPS> vps( new VPS() );
   m_HLSReader.setBitstream( &nalu.getBitstream() );
   m_HLSReader.parseVPS( vps.get() );
-  m_parameterSetManager.storeVPS( vps.release(), nalu.getBitstream().getFifo() );
+  if( m_parameterSetManager.storeVPS( vps.release(), nalu.getBitstream().getFifo() ) )
+  {
+    dropPendingPicHeader();
+  }
 #endif
 }
 
@@ -1587,7 +1590,13 @@ void DecLibParser::xDecodeSPS( InputNALUnit& nalu )
   m_HLSReader.parseSPS( sps.get(), &m_parameterSetManager );
   sps->setLayerId( nalu.m_nuhLayerId );
   DTRACE( g_trace_ctx, D_QP_PER_CTU, "CTU Size: %dx%d", sps->getMaxCUWidth(), sps->getMaxCUHeight() );  // don't move after storeSPS, because SPS could have been deleted
-  m_parameterSetManager.storeSPS( sps.release(), nalu.getBitstream().getFifo() );
+  if( m_parameterSetManager.storeSPS( sps.release(), nalu.getBitstream().getFifo() ) )
+  {
+    // SPS and PPS have to precede the PH of their PU (7.4.2.4.4). If one changes after a PH, that PH was parsed with
+    // the previous parameter set, so we drop it (but only if the PH was not used yet).
+    // Changes between slices of a picture are rejected when activating them.
+    dropPendingPicHeader();
+  }
 }
 
 void DecLibParser::xDecodePPS( InputNALUnit& nalu )
@@ -1596,7 +1605,13 @@ void DecLibParser::xDecodePPS( InputNALUnit& nalu )
   m_HLSReader.setBitstream( &nalu.getBitstream() );
   m_HLSReader.parsePPS( pps.get(), &m_parameterSetManager );
   pps->setLayerId( nalu.m_nuhLayerId );
-  m_parameterSetManager.storePPS( pps.release(), nalu.getBitstream().getFifo() );
+  if( m_parameterSetManager.storePPS( pps.release(), nalu.getBitstream().getFifo() ) )
+  {
+    // SPS and PPS have to precede the PH of their PU (7.4.2.4.4). If one changes after a PH, that PH was parsed with
+    // the previous parameter set, so we drop it (but only if the PH was not used yet).
+    // Changes between slices of a picture are rejected when activating them.
+    dropPendingPicHeader();
+  }
 }
 
 void DecLibParser::xDecodeAPS( InputNALUnit& nalu )
@@ -1622,7 +1637,6 @@ void DecLibParser::xUpdatePreviousTid0POC(Slice * pSlice)
   }
 }
 
-
 void DecLibParser::checkNoOutputPriorPics()
 {
   if( !m_isNoOutputPriorPics )
@@ -1636,6 +1650,17 @@ void DecLibParser::checkNoOutputPriorPics()
     {
       pcPicTmp->neededForOutput = false;
     }
+  }
+}
+
+void DecLibParser::dropPendingPicHeader()
+{
+  // SPS and PPS have to precede the PH of their PU (7.4.2.4.4). A PH that has no slices yet was parsed with the
+  // replaced parameter set, so don't let its picture use it. Changes between slices are rejected when activating them.
+  if( m_picHeader && !( m_pcParsePic && m_pcParsePic->cs->picHeader == m_picHeader ) )
+  {
+    msg( WARNING, "Warning: a parameter set was received after the picture header. Dropping the picture header.\n" );
+    m_picHeader.reset();
   }
 }
 

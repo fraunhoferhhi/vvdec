@@ -174,6 +174,7 @@ private:
   void xDecodeAPS             ( InputNALUnit& nalu );
   void xUpdatePreviousTid0POC ( Slice* pSlice );
 
+  void dropPendingPicHeader();
   bool isRandomAccessSkipPicture();
   void xCheckMixedNalUnit     ( Slice* pcSlice, const InputNALUnit& nalu );
 };
