@@ -173,6 +173,12 @@ bool DecLibParser::parse( InputNALUnit& nalu )
           m_pcParsePic->parseDone.clearException();
         }
       }
+      // A picture that failed before it was started can't decode any of its slices, so its picture header is useless.
+      // A started picture keeps its picture header, so its remaining slices can still be decoded.
+      if( m_picHeader && !m_picHeader->getPic() )
+      {
+        m_picHeader.reset();
+      }
 
       std::rethrow_exception( std::current_exception() );
     }
@@ -311,6 +317,11 @@ void DecLibParser::failIncompleteParsePic()
 
   // reconstruction can already be waiting for CTUs, that will never be parsed, so the picture needs to be failed explicitly
   m_pcParsePic->setParseError( std::make_exception_ptr( RecoverableException( "the slices of the picture don't cover all CTUs" ) ) );
+  // only drop the picture header of the failed picture: an unused one belongs to the next picture, which starts now
+  if( m_picHeader && m_picHeader->getPic() == m_pcParsePic )
+  {
+    m_picHeader.reset();
+  }
   m_pcParsePic = nullptr;
 }
 
@@ -1319,7 +1330,7 @@ void DecLibParser::prepareUnavailablePicture( bool isLost, const PPS* pps, int i
   CHECK( std::find( m_dpbReferencePics.cbegin(), m_dpbReferencePics.cend(), cFillPic ) != m_dpbReferencePics.cend(), "reused picture shouldn't be in decoded picture buffer" );
   m_dpbReferencePics.push_back( cFillPic );
   const APS* nullAlfApss[ALF_CTB_MAX_NUM_APS] = { nullptr, };
-  cFillPic->finalInit( &m_cuChunkCache, &m_tuChunkCache, &m_cuMapCache, &m_chromaCuMapCache, sps, pps, m_picHeader, nullAlfApss, nullptr, nullptr, false );
+  cFillPic->finalInit( &m_cuChunkCache, &m_tuChunkCache, &m_cuMapCache, &m_chromaCuMapCache, sps, pps, nullptr, nullAlfApss, nullptr, nullptr );
 
   CHECK_FATAL( !cFillPic->slices.empty(), "fill pic should not contain slices, already." );
   cFillPic->allocateNewSlice();
@@ -1338,7 +1349,6 @@ void DecLibParser::prepareUnavailablePicture( bool isLost, const PPS* pps, int i
   cFillPic->poc                     = iUnavailablePoc;
   cFillPic->neededForOutput         = false;
   cFillPic->tempLayer               = temporalId;
-  cFillPic->nonReferencePictureFlag = false;
   cFillPic->wasLost                 = isLost;
 
   // a generated unavailable picture (8.3.4) precedes the current IRAP/GDR picture, so it can't be prevTid0Pic (8.3.1)
@@ -1655,9 +1665,7 @@ void DecLibParser::checkNoOutputPriorPics()
 
 void DecLibParser::dropPendingPicHeader()
 {
-  // SPS and PPS have to precede the PH of their PU (7.4.2.4.4). A PH that has no slices yet was parsed with the
-  // replaced parameter set, so don't let its picture use it. Changes between slices are rejected when activating them.
-  if( m_picHeader && !( m_pcParsePic && m_pcParsePic->cs->picHeader == m_picHeader ) )
+  if( m_picHeader && !m_picHeader->getPic() )   // not used for a picture yet
   {
     msg( WARNING, "Warning: a parameter set was received after the picture header. Dropping the picture header.\n" );
     m_picHeader.reset();

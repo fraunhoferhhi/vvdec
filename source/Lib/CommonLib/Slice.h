@@ -2242,7 +2242,7 @@ class PicHeader
 {
 private:
   bool                        m_valid                                         = false;   //!< picture header is valid yet or not
-  Picture*                    m_pcPic                                         = nullptr; //!< pointer to picture structure
+  const Picture*              m_pcPic                                         = nullptr; //!< picture this header was used for (only compare, the picture can be gone)
   int                         m_pocLsb                                        = -1;      //!< least significant bits of picture order count
   bool                        m_nonReferencePictureFlag                       = false;   //!< non-reference picture flag
   bool                        m_gdrOrIrapPicFlag                              = false;   //!< gdr or irap picture flag
@@ -2318,11 +2318,10 @@ private:
 public:
                               PicHeader() = default;
                               ~PicHeader() { m_alfApsId.resize(0); }
-//  void                        initPicHeader();
+
   bool                        isValid() const                                           { return m_valid;                                                                              }
   void                        setValid()                                                { m_valid = true;                                                                              }
-  void                        setPic( Picture* p )                                      { m_pcPic = p;                                                                                 }
-  Picture*                    getPic()                                                  { return m_pcPic;                                                                              }
+  void                        setPic( const Picture* p )                                { m_pcPic = p;                                                                                 }
   const Picture*              getPic() const                                            { return m_pcPic;                                                                              }
   void                        setPocLsb(int i)                                          { m_pocLsb = i;                                                                                }
   int                         getPocLsb() const                                         { return m_pocLsb;                                                                             }

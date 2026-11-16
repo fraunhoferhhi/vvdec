@@ -522,7 +522,9 @@ void Slice::constructSingleRefPicList( const PicList& rcPicList, RefPicList list
              "The picture referred to by each active entry in RefPicList[ 0 ] or RefPicList[ 1 ] shall be present in the DPB and shall"
              " have TemporalId less than or equal to that of the current picture." );
       CHECK( !m_pcPic, "m_pcPic not set yet" );
-      CHECK( m_apcRefPicList[listId][ii] == m_pcPic || m_apcRefPicList[listId][ii]->cs->picHeader->getNonReferencePictureFlag(),
+      // a generated reference picture has no picture header, and ph_non_ref_pic_flag equal to 0 (8.3.4.2)
+      const bool nonReferencePictureFlag = m_apcRefPicList[listId][ii]->cs->picHeader && m_apcRefPicList[listId][ii]->cs->picHeader->getNonReferencePictureFlag();
+      CHECK( m_apcRefPicList[listId][ii] == m_pcPic || nonReferencePictureFlag,
              "The picture referred to by each entry in RefPicList[ 0 ] or RefPicList[ 1 ] shall not be the current picture"
              " and shall have ph_non_ref_pic_flag equal to 0." );
       CHECK( getNalUnitType() == NAL_UNIT_CODED_SLICE_STSA && m_apcRefPicList[listId][ii]->getTLayer() == getTLayer(),
@@ -709,9 +711,8 @@ void Slice::checkRPL(const ReferencePictureList* pRPL0, const ReferencePictureLi
           "to by an entry in RefPicList[ 0 ] or RefPicList[ 1 ] that precedes that IRAP picture in output order or decoding order." );
       }
 
-      // Generated reference picture does not have picture header
-      const bool nonReferencePictureFlag = pcRefPic->slices[0]->getPicHeader() ? pcRefPic->slices[0]->getPicHeader()->getNonReferencePictureFlag()
-                                                                               : pcRefPic->nonReferencePictureFlag;
+      // a generated reference picture has no picture header, and ph_non_ref_pic_flag equal to 0 (8.3.4.2)
+      const bool nonReferencePictureFlag = pcRefPic->cs->picHeader && pcRefPic->cs->picHeader->getNonReferencePictureFlag();
       CHECK( pcRefPic == m_pcPic || nonReferencePictureFlag, "The picture referred to by each entry in RefPicList[ 0 ] or RefPicList[ 1 ] shall not be the current picture and shall have ph_non_ref_pic_flag equal to 0" );
 
       if( i < numActiveEntries[refPicList] )
