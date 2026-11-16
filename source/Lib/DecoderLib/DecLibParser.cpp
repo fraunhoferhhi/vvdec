@@ -172,6 +172,13 @@ bool DecLibParser::parse( InputNALUnit& nalu )
         {                                              // multithreaded mode should see exceptions from the parse tasks later
           m_pcParsePic->parseDone.clearException();
         }
+        // the first slice failed before the picture was queued, but it is already in the DPB and can be referenced,
+        // so it needs to go through DecLib::sanitizeBrokenPicture() like any other broken picture
+        if( m_pcParsePic->progress == Picture::init )
+        {
+          m_parseFrameList.push_back( m_pcParsePic );
+          m_pcParsePic = nullptr;
+        }
       }
 
       std::rethrow_exception( std::current_exception() );
