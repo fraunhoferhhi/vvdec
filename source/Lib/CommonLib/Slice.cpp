@@ -1848,6 +1848,11 @@ void Slice::scaleRefPicList()
 
       CHECK( !m_apcRefPicList[refList][rIdx], "scaleRefPicList missing ref pic" );
 
+      // the sample processing assumes the value range and planes of the current picture
+      const SPS* refSps = m_apcRefPicList[refList][rIdx]->slices[0]->getSPS();
+      CHECK( refSps->getBitDepth() != sps->getBitDepth() || refSps->getChromaFormatIdc() != sps->getChromaFormatIdc(),
+             "reference picture with a different bit depth or chroma format" );
+
       int xScale, yScale;
       CU::getRprScaling( sps, pps, m_apcRefPicList[refList][rIdx]->slices[0]->getPPS(), xScale, yScale );
       m_scalingRatio[refList][rIdx] = std::pair<int, int>( xScale, yScale );

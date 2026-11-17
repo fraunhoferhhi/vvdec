@@ -1066,8 +1066,7 @@ void DecLibParser::xActivateParameterSets( const int layerId )
 
   if( m_bFirstSliceInPicture )
   {
-              paramSets = m_parameterSetManager.xActivateParameterSets( m_bFirstSliceInPicture, m_apcSlicePilot, m_picHeader.get(),
-                                                                        !( m_errHandlingFlags & ERR_HANDLING_TRY_CONTINUE ) );
+    paramSets = m_parameterSetManager.xActivateParameterSets( m_bFirstSliceInPicture, m_apcSlicePilot, m_picHeader.get() );
     const SPS*  sps     = paramSets.sps;
     const PPS*  pps     = paramSets.pps;
     const APS** alfApss = paramSets.alfAPSs->data();

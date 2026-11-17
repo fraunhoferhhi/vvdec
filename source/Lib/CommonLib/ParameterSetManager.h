@@ -187,7 +187,7 @@ public:
     const APS*      scalingListAps;
   };
 
-  ActivePSs xActivateParameterSets( const bool isFirstSlice, const Slice* pPilot, const PicHeader* picHeader, const bool rejectSpsChangeInClvs = false );
+  ActivePSs xActivateParameterSets( const bool isFirstSlice, const Slice* pPilot, const PicHeader* picHeader );
 
   //! store sequence parameter set and take ownership of it
   //! store picture parameter set and take ownership of it
