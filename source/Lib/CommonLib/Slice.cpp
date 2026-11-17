@@ -525,7 +525,8 @@ void Slice::constructSingleRefPicList( const PicList& rcPicList, RefPicList list
       CHECK( m_apcRefPicList[listId][ii] == m_pcPic || m_apcRefPicList[listId][ii]->cs->picHeader->getNonReferencePictureFlag(),
              "The picture referred to by each entry in RefPicList[ 0 ] or RefPicList[ 1 ] shall not be the current picture"
              " and shall have ph_non_ref_pic_flag equal to 0." );
-      CHECK( getNalUnitType() == NAL_UNIT_CODED_SLICE_STSA && m_apcRefPicList[listId][ii]->getTLayer() == getTLayer(),
+      CHECK( getNalUnitType() == NAL_UNIT_CODED_SLICE_STSA && m_apcRefPicList[listId][ii]->getTLayer() == getTLayer()
+               && !m_apcRefPicList[listId][ii]->wasLost, // the TemporalId of a lost picture is unknown
              "When the current slice has nal_unit_type equal to STSA_NUT, there shall be no active entry in RefPicList[ 0 ] or RefPicList[ 1 ]"
              " that has TemporalId equal to that of the current picture and nuh_layer_id equal to that of the current picture." );
 
@@ -605,7 +606,7 @@ void Slice::checkSTSA( const PicList& rcListPic )
   {
     pcRefPic = m_apcRefPicList[REF_PIC_LIST_0][ii];
 
-    if( m_eNalUnitType == NAL_UNIT_CODED_SLICE_STSA && pcRefPic->layerId == m_pcPic->layerId )
+    if( m_eNalUnitType == NAL_UNIT_CODED_SLICE_STSA && pcRefPic->layerId == m_pcPic->layerId && !pcRefPic->wasLost )   // the TemporalId of a lost picture is unknown
     {
       CHECK( pcRefPic->tempLayer == m_uiTLayer, "When the current picture is an STSA picture and nuh_layer_id equal to that of the current picture, there shall be no active entry in the RPL that has TemporalId equal to that of the current picture" );
     }
@@ -620,7 +621,7 @@ void Slice::checkSTSA( const PicList& rcListPic )
   {
     pcRefPic = m_apcRefPicList[REF_PIC_LIST_1][ii];
 
-    if( m_eNalUnitType == NAL_UNIT_CODED_SLICE_STSA && pcRefPic->layerId == m_pcPic->layerId )
+    if( m_eNalUnitType == NAL_UNIT_CODED_SLICE_STSA && pcRefPic->layerId == m_pcPic->layerId && !pcRefPic->wasLost )   // the TemporalId of a lost picture is unknown
     {
       CHECK( pcRefPic->tempLayer == m_uiTLayer, "When the current picture is an STSA picture and nuh_layer_id equal to that of the current picture, there shall be no active entry in the RPL that has TemporalId equal to that of the current picture" );
     }
