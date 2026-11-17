@@ -150,6 +150,8 @@ VVDEC_DECL void vvdec_accessUnit_free_payload(vvdecAccessUnit *accessUnit )
   if( accessUnit->payload )
   {
     free(accessUnit->payload);
+    // so that a later vvdec_accessUnit_free() or vvdec_accessUnit_free_payload() does not free it again
+    accessUnit->payload = nullptr;
     accessUnit->payloadSize = 0;
     accessUnit->payloadUsedSize = 0;
   }
