@@ -215,6 +215,7 @@ void HLSyntaxReader::parsePPS( PPS* pcPPS, const ParameterSetManager* parameterS
   const SPS* sps = parameterSetManager->getSPS( pps_seq_parameter_set_id );
   CHECK( !sps, "SPS with id " << pps_seq_parameter_set_id << " missing." );
   pcPPS->setSPSId( pps_seq_parameter_set_id );
+  pcPPS->setParsedWithSPS( sps );
 
   const int SubWidthC  = 1 << getChannelTypeScaleX( CHANNEL_TYPE_CHROMA, sps->getChromaFormatIdc() );
   const int SubHeightC = 1 << getChannelTypeScaleY( CHANNEL_TYPE_CHROMA, sps->getChromaFormatIdc() );
@@ -2710,7 +2711,7 @@ void HLSyntaxReader::parseVPS( VPS* pcVPS )
 }
 #endif
 
-void HLSyntaxReader::parsePictureHeader( PicHeader* picHeader, const ParameterSetManager *parameterSetManager, bool readRbspTrailingBits )
+void HLSyntaxReader::parsePictureHeader( PicHeader* picHeader, ParameterSetManager *parameterSetManager, bool readRbspTrailingBits )
 {
 #if ENABLE_TRACING
   xTracePictureHeader();
@@ -3381,7 +3382,7 @@ void HLSyntaxReader::parsePictureHeader( PicHeader* picHeader, const ParameterSe
   picHeader->setValid();
 }
 
-void HLSyntaxReader::checkAlfNaluTidAndPicTid( const Slice* pcSlice, const PicHeader* picHeader, const ParameterSetManager *parameterSetManager )
+void HLSyntaxReader::checkAlfNaluTidAndPicTid( const Slice* pcSlice, const PicHeader* picHeader, ParameterSetManager *parameterSetManager )
 {
   const SPS* sps = parameterSetManager->getSPS(picHeader->getSPSId());
   const PPS* pps = parameterSetManager->getPPS(picHeader->getPPSId());
@@ -3456,7 +3457,7 @@ void HLSyntaxReader::checkAlfNaluTidAndPicTid( const Slice* pcSlice, const PicHe
 
 void HLSyntaxReader::parseSliceHeader( Slice*                      pcSlice,
                                        std::shared_ptr<PicHeader>& picHeader,
-                                       const ParameterSetManager*  parameterSetManager,
+                                       ParameterSetManager*        parameterSetManager,
                                        const int                   prevTid0POC,
                                        bool&                       firstSliceInPic )
 {

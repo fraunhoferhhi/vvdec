@@ -136,7 +136,6 @@ void Picture::resetForUse( int _layerId )
   exceptionThrownOut      = false;
   topField                = false;
   fieldPic                = false;
-  nonReferencePictureFlag = false;
   skippedDecCount         = 0;
 
   picCheckedDPH = false;
@@ -241,7 +240,7 @@ Picture::Picture( bool enableOpt )
   }
 }
 
-void Picture::finalInit( CUChunkCache* cuChunkCache, TUChunkCache* tuChunkCache, CUMapCache* cuMapCache, CUMapCache* chromaCuMapCache, const SPS *sps, const PPS *pps, const std::shared_ptr<PicHeader>& ph, const APS* const alfApss[ALF_CTB_MAX_NUM_APS], const APS* lmcsAps, const APS* scalingListAps, bool phPSupdate )
+void Picture::finalInit( CUChunkCache* cuChunkCache, TUChunkCache* tuChunkCache, CUMapCache* cuMapCache, CUMapCache* chromaCuMapCache, const SPS *sps, const PPS *pps, const std::shared_ptr<PicHeader>& ph, const APS* const alfApss[ALF_CTB_MAX_NUM_APS], const APS* lmcsAps, const APS* scalingListAps )
 {
   SEI_internal::deleteSEIs( seiMessageList );
   clearSliceBuffer();
@@ -270,14 +269,14 @@ void Picture::finalInit( CUChunkCache* cuChunkCache, TUChunkCache* tuChunkCache,
   cs->sps       = sps->getSharedPtr();
   cs->pcv       = pps->pcv.get();
 
-  if( phPSupdate )
+  if( ph )   // generated pictures (8.3.4) have no picture header
   {
+    ph->setPic( this );
     ph->setSPSId         ( sps->getSPSId() );
     ph->setPPSId         ( pps->getPPSId() );
     ph->setLmcsAPS       ( lmcsAps        ? lmcsAps       ->getSharedPtr() : nullptr );
     ph->setScalingListAPS( scalingListAps ? scalingListAps->getSharedPtr() : nullptr );
   }
-  nonReferencePictureFlag = ph->getNonReferencePictureFlag();
 
   for( int i = 0; i < ALF_CTB_MAX_NUM_APS; ++i )
   {

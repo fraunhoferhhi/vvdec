@@ -79,8 +79,8 @@ public:
   void  parseSPS                 ( SPS* pcSPS, const ParameterSetManager* parameterSetManager );
   void  parsePPS                 ( PPS* pcPPS, const ParameterSetManager* parameterSetManager );
   bool  parseAPS                 ( APS* pcAPS );
-  void  parsePictureHeader       ( PicHeader* picHeader, const ParameterSetManager* parameterSetManager, bool readRbspTrailingBits );
-  void  parseSliceHeader         ( Slice* pcSlice, std::shared_ptr<PicHeader>& picHeader, const ParameterSetManager* parameterSetManager, const int prevTid0POC, bool& firstSliceInPic );
+  void  parsePictureHeader       ( PicHeader* picHeader, ParameterSetManager* parameterSetManager, bool readRbspTrailingBits );
+  void  parseSliceHeader         ( Slice* pcSlice, std::shared_ptr<PicHeader>& picHeader, ParameterSetManager* parameterSetManager, const int prevTid0POC, bool& firstSliceInPic );
 
 private:
   void  parseAlfAps              ( APS* pcAPS );
@@ -96,7 +96,7 @@ private:
   void  parseRefPicList          ( ReferencePictureList* rpl, int rplIdx, const SPS* pcSPS );
   void  copyRefPicList           ( const SPS* pcSPS, const ReferencePictureList* source_rpl, ReferencePictureList* dest_rpl );
 
-  void  checkAlfNaluTidAndPicTid ( const Slice* pcSlice, const PicHeader* picHeader, const ParameterSetManager* parameterSetManager);
+  void  checkAlfNaluTidAndPicTid ( const Slice* pcSlice, const PicHeader* picHeader, ParameterSetManager* parameterSetManager);
 
   template<typename HeaderT>
   void  parsePredWeightTable     ( HeaderT* sh_or_ph, const SPS* sps, const PPS* pps, std::array<int, 2> numRefIdxActive = { 0, 0 } );  // numRefIdxActive is only needed, when parsing the HeaderT = Slice

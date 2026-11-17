@@ -117,13 +117,13 @@ public:
 
   UnitScale        unitScale[MAX_NUM_COMPONENT];
   int              chromaQpAdj;
-  std::shared_ptr<const VPS> vps;
-  std::shared_ptr<const SPS> sps;
-  std::shared_ptr<const PPS> pps;
-  std::shared_ptr<PicHeader> picHeader;
-  std::shared_ptr<const APS> alfApss[ALF_CTB_MAX_NUM_APS];
-  std::shared_ptr<const APS> lmcsAps;
-  const PreCalcValues*       pcv;
+  std::shared_ptr<const VPS>       vps;
+  std::shared_ptr<const SPS>       sps;
+  std::shared_ptr<const PPS>       pps;
+  std::shared_ptr<const PicHeader> picHeader;
+  std::shared_ptr<const APS>       alfApss[ALF_CTB_MAX_NUM_APS];
+  std::shared_ptr<const APS>       lmcsAps;
+  const PreCalcValues*             pcv;
 
   std::unique_ptr<CtuData[]> m_ctuData;
   size_t                     m_ctuDataSize;

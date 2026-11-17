@@ -42,15 +42,17 @@ POSSIBILITY OF SUCH DAMAGE.
 
 #include "ParameterSetManager.h"
 
+#include "DecoderLib/HLSyntaxReader.h"
+
 namespace vvdec
 {
 
 ParameterSetManager::ActivePSs ParameterSetManager::xActivateParameterSets( const bool isFirstSlice, const Slice* pSlicePilot, const PicHeader* picHeader, const bool rejectSpsChangeInClvs )
 {
-  PPS* pps = getPPS( picHeader->getPPSId() );
+  PPS* pps = xGetPPS( picHeader->getPPSId() );
   CHECK( pps == 0, "No PPS present" );
 
-  SPS* sps = getSPS( pps->getSPSId() );
+  SPS* sps = m_spsMap.getPS( pps->getSPSId() );
   CHECK( sps == 0, "No SPS present" );
 
   if( isFirstSlice )
@@ -85,7 +87,7 @@ ParameterSetManager::ActivePSs ParameterSetManager::xActivateParameterSets( cons
   for( int i = 0; i < pSlicePilot->getAlfApsIdsLuma().size(); i++ )
   {
     int apsId = pSlicePilot->getAlfApsIdsLuma()[i];
-    APS *alfApsL = getAPS( apsId, ALF_APS );
+    const APS *alfApsL = getAPS( apsId, ALF_APS );
 
     if( alfApsL )
     {
@@ -106,7 +108,7 @@ ParameterSetManager::ActivePSs ParameterSetManager::xActivateParameterSets( cons
   {
     // chroma APS
     int apsId = pSlicePilot->getAlfApsIdChroma();
-    APS* alfApsC = getAPS( apsId , ALF_APS );
+    const APS* alfApsC = getAPS( apsId , ALF_APS );
     if( alfApsC )
     {
       m_alfAPSs[apsId] = alfApsC;
@@ -123,7 +125,7 @@ ParameterSetManager::ActivePSs ParameterSetManager::xActivateParameterSets( cons
     if( !m_alfAPSs[pSlicePilot->getCcAlfCbApsId()] )
     {
       int apsId = pSlicePilot->getCcAlfCbApsId();
-      APS *aps = getAPS( apsId, ALF_APS );
+      const APS *aps = getAPS( apsId, ALF_APS );
       if( aps )
       {
         m_alfAPSs[apsId] = aps;
@@ -141,7 +143,7 @@ ParameterSetManager::ActivePSs ParameterSetManager::xActivateParameterSets( cons
     if( !m_alfAPSs[pSlicePilot->getCcAlfCrApsId()] )
     {
       int apsId = pSlicePilot->getCcAlfCrApsId();
-      APS *aps = getAPS( apsId, ALF_APS );
+      const APS *aps = getAPS( apsId, ALF_APS );
       if( aps )
       {
         m_alfAPSs[apsId] = aps;
@@ -153,7 +155,7 @@ ParameterSetManager::ActivePSs ParameterSetManager::xActivateParameterSets( cons
     }
   }
 
-  APS* lmcsAPS = nullptr;
+  const APS* lmcsAPS = nullptr;
   if( picHeader->getLmcsAPSId() != -1 )
   {
     lmcsAPS = getAPS( picHeader->getLmcsAPSId(), LMCS_APS );
@@ -173,7 +175,7 @@ ParameterSetManager::ActivePSs ParameterSetManager::xActivateParameterSets( cons
            "The value of lmcs_delta_cw_prec_minus1 of an LMCS_APS shall be in the range of 0 to BitDepth 2, inclusive" );
   }
 
-  APS* scalingListAPS = nullptr;
+  const APS* scalingListAPS = nullptr;
   if( picHeader->getScalingListAPSId() != -1 )
   {
     scalingListAPS = getAPS( picHeader->getScalingListAPSId(), SCALING_LIST_APS );
@@ -192,6 +194,34 @@ ParameterSetManager::ActivePSs ParameterSetManager::xActivateParameterSets( cons
   }
 
   return { sps, pps, &m_alfAPSs, lmcsAPS, scalingListAPS };
+}
+
+PPS* ParameterSetManager::xGetPPS( int ppsId )
+{
+  PPS*       pps = m_ppsMap.getPS( ppsId );
+  const SPS* sps = m_spsMap.getPS( pps->getSPSId() );
+  if( pps->isParsedWithSPS( sps ) )
+  {
+    return pps;
+  }
+
+  // The SPS was replaced since the PPS was parsed, and the PPS is interpreted with the current SPS, so parse it again.
+  // If it doesn't fit the new SPS, parsing throws and the stale PPS stays in the map, but is never returned.
+  InputBitstream bitstream;
+  bitstream.getFifo() = m_ppsMap.getNaluData( ppsId );
+  CHECK( bitstream.getFifo().size() < 2, "PPS NAL unit data missing" );
+  bitstream.read( 16 );   // NAL unit header
+
+  std::unique_ptr<PPS> newPPS( new PPS() );
+  HLSyntaxReader       reader;   // not the decoder's reader, which may be in the middle of a picture header
+  reader.setBitstream( &bitstream );
+  reader.parsePPS( newPPS.get(), this );
+  newPPS->setLayerId( pps->getLayerId() );
+
+  pps = newPPS.release();
+  storePPS( pps, bitstream.getFifo() );
+  pps->m_changedFlag = true;   // same bytes, but derived from a different SPS
+  return pps;
 }
 
 //! activate a PPS and depending on isIDR parameter also SPS
