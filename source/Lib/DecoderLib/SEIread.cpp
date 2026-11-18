@@ -171,6 +171,7 @@ void SEIReader::xReadSEImessage( seiMessages& seiList, const NalUnitType nalUnit
   do
   {
     sei_read_code(NULL, 8, val, "payload_type");
+    CHECK( payloadType > INT32_MAX - 0xff, "SEI payload_type too large" );
     payloadType += val;
   } while (val==0xFF);
 
@@ -762,7 +763,7 @@ void SEIReader::xParseSEIBufferingPeriod(vvdecSEI* s, uint32_t payloadSize, std:
   if (sei->cpbRemovalDelayDeltasPresentFlag)
   {
     sei_read_uvlc( pDecodedMessageOutputStream, code, "num_cpb_removal_delay_deltas_minus1" );             sei->numCpbRemovalDelayDeltas = code + 1;
-    CHECK( sei->numCpbRemovalDelayDeltas > 14, "num_cpb_removal_delay_deltas_minus1 must be <= 13 in vvdecSEIBufferingPeriod" );
+    CHECK( sei->numCpbRemovalDelayDeltas < 0 || sei->numCpbRemovalDelayDeltas > 14, "num_cpb_removal_delay_deltas_minus1 must be <= 13 in vvdecSEIBufferingPeriod" );
 
     for( i = 0; i < sei->numCpbRemovalDelayDeltas; i ++ )
     {
@@ -771,7 +772,7 @@ void SEIReader::xParseSEIBufferingPeriod(vvdecSEI* s, uint32_t payloadSize, std:
     }
   }
   sei_read_uvlc( pDecodedMessageOutputStream, code, "bp_cpb_cnt_minus1" ); sei->bpCpbCnt = code + 1;
-  CHECK( sei->bpCpbCnt > 32, "bp_cpb_cnt_minus1 must be <= 31 in vvdecSEIBufferingPeriod" );
+  CHECK( sei->bpCpbCnt < 0 || sei->bpCpbCnt > 32, "bp_cpb_cnt_minus1 must be <= 31 in vvdecSEIBufferingPeriod" );
   if (sei->bpMaxSubLayers - 1 > 0)
   {
     sei_read_flag(pDecodedMessageOutputStream, code, "bp_sublayer_initial_cpb_removal_delay_present_flag");
@@ -1552,7 +1553,7 @@ void SEIReader::xParseSEISubpictureLevelInfo(vvdecSEI* s, uint32_t payloadSize, 
   if (sei->explicitFractionPresentFlag)
   {
     sei_read_uvlc(pDecodedMessageOutputStream,      val,    "sli_nusubpics_minus1");                  sei->numSubpics = val + 1;
-    CHECK( sei->numSubpics > 64, "sli_nusubpics_minus1 must be < 64 in vvdecSEISubpictureLevelInfo" );
+    CHECK( sei->numSubpics < 0 || sei->numSubpics > 64, "sli_nusubpics_minus1 must be < 64 in vvdecSEISubpictureLevelInfo" );
   }
   sei_read_code(pDecodedMessageOutputStream,    3,  val,    "sli_max_sublayers_minus1"  );            sei->sliMaxSublayers = val + 1;
   CHECK( sei->sliMaxSublayers > 6, "sli_max_sublayers_minus1 must be < 6 in vvdecSEISubpictureLevelInfo" );
