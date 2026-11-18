@@ -171,8 +171,11 @@ void SEIReader::xReadSEImessage( seiMessages& seiList, const NalUnitType nalUnit
   do
   {
     sei_read_code(NULL, 8, val, "payload_type");
+    CHECK( payloadType > INT32_MAX - 0xff, "SEI payload_type too large" );
     payloadType += val;
   } while (val==0xFF);
+  // values outside the enum's range (-256..255) are UB to cast
+  const vvdecSEIPayloadType type = payloadType <= 255 ? (vvdecSEIPayloadType) payloadType : VVDEC_SEI_UNKNOWN;
 
   uint32_t payloadSize = 0;
   do
@@ -184,7 +187,7 @@ void SEIReader::xReadSEImessage( seiMessages& seiList, const NalUnitType nalUnit
   CHECK( payloadSize > getBitstream()->getNumBitsLeft() / 8, "SEI payload_size exceeds the remaining NAL unit size" );
 
 #if ENABLE_TRACING
-  xTraceSEIMessageType((vvdecSEIPayloadType)payloadType);
+  xTraceSEIMessageType(type);
 #endif
 
   /* extract the payload for this single SEI message.
@@ -200,7 +203,6 @@ void SEIReader::xReadSEImessage( seiMessages& seiList, const NalUnitType nalUnit
   const vvdecSEIBufferingPeriod *bp = NULL;
 
   vvdecSEI *s = NULL;
-  vvdecSEIPayloadType type = (vvdecSEIPayloadType)payloadType;
 
   try
   {
@@ -509,6 +511,7 @@ void SEIReader::xParseSEIScalableNesting(vvdecSEI* s, const NalUnitType nalUnitT
     for (uint32_t i = 0; i < sei->snNumOlss; i++)
     {
       sei_read_uvlc(decodedMessageOutputStream, symbol, "sn_ols_idx_delta_minus1[i]"); sei->snOlsIdxDelta[i] = symbol+1;
+      CHECK( vps && vps->getVPSId() != 0 && sei->snOlsIdxDelta[i] >= (uint32_t) vps->getTotalNumOLSs(),"sn_ols_idx_delta_minus1 must be <= TotalNumOlss - 2 in vvdecSEIScalableNesting" );
     }
     for (uint32_t i = 0; i < sei->snNumOlss; i++)
     {
@@ -527,6 +530,7 @@ void SEIReader::xParseSEIScalableNesting(vvdecSEI* s, const NalUnitType nalUnitT
       uint32_t lowestLayerId = MAX_UINT;
       for (uint32_t olsIdxForSEI = 0; olsIdxForSEI < sei->snNumOlss; olsIdxForSEI++)
       {
+        CHECK( sei->snOlsIdx[olsIdxForSEI] >= (uint32_t) vps->getTotalNumOLSs(), "NestingOlsIdx must be < TotalNumOlss in vvdecSEIScalableNesting" );
         int olsIdx = sei->snOlsIdx[olsIdxForSEI];
         for (int layerIdx = 0; layerIdx < vps->getNumLayersInOls(olsIdx); layerIdx++)
         {
@@ -760,7 +764,7 @@ void SEIReader::xParseSEIBufferingPeriod(vvdecSEI* s, uint32_t payloadSize, std:
   if (sei->cpbRemovalDelayDeltasPresentFlag)
   {
     sei_read_uvlc( pDecodedMessageOutputStream, code, "num_cpb_removal_delay_deltas_minus1" );             sei->numCpbRemovalDelayDeltas = code + 1;
-    CHECK( sei->numCpbRemovalDelayDeltas > 14, "num_cpb_removal_delay_deltas_minus1 must be <= 13 in vvdecSEIBufferingPeriod" );
+    CHECK( sei->numCpbRemovalDelayDeltas < 0 || sei->numCpbRemovalDelayDeltas > 14, "num_cpb_removal_delay_deltas_minus1 must be <= 13 in vvdecSEIBufferingPeriod" );
 
     for( i = 0; i < sei->numCpbRemovalDelayDeltas; i ++ )
     {
@@ -769,7 +773,7 @@ void SEIReader::xParseSEIBufferingPeriod(vvdecSEI* s, uint32_t payloadSize, std:
     }
   }
   sei_read_uvlc( pDecodedMessageOutputStream, code, "bp_cpb_cnt_minus1" ); sei->bpCpbCnt = code + 1;
-  CHECK( sei->bpCpbCnt > 32, "bp_cpb_cnt_minus1 must be <= 31 in vvdecSEIBufferingPeriod" );
+  CHECK( sei->bpCpbCnt < 0 || sei->bpCpbCnt > 32, "bp_cpb_cnt_minus1 must be <= 31 in vvdecSEIBufferingPeriod" );
   if (sei->bpMaxSubLayers - 1 > 0)
   {
     sei_read_flag(pDecodedMessageOutputStream, code, "bp_sublayer_initial_cpb_removal_delay_present_flag");
@@ -1431,7 +1435,7 @@ void SEIReader::xParseSEIOmniViewport(vvdecSEI* s, uint32_t payloadSize, std::os
       vvdecOmniViewportRegion &viewport = sei->omniViewportRegions[region];
       sei_read_scode( pDecodedMessageOutputStream, 32, scode, "omni_viewport_azimuth_centre"   );   viewport.azimuthCentre   = scode;
       sei_read_scode( pDecodedMessageOutputStream, 32, scode, "omni_viewport_elevation_centre" );   viewport.elevationCentre = scode;
-      sei_read_scode( pDecodedMessageOutputStream, 32, scode, "omni_viewport_tilt_centre"      );   viewport.tiltCentre      = code;
+      sei_read_scode( pDecodedMessageOutputStream, 32, scode, "omni_viewport_tilt_centre"      );   viewport.tiltCentre      = scode;
       sei_read_code( pDecodedMessageOutputStream,  32, code , "omni_viewport_hor_range"        );   viewport.horRange        = code;
       sei_read_code( pDecodedMessageOutputStream,  32, code , "omni_viewport_ver_range"        );   viewport.verRange        = code;
     }
@@ -1550,7 +1554,7 @@ void SEIReader::xParseSEISubpictureLevelInfo(vvdecSEI* s, uint32_t payloadSize, 
   if (sei->explicitFractionPresentFlag)
   {
     sei_read_uvlc(pDecodedMessageOutputStream,      val,    "sli_nusubpics_minus1");                  sei->numSubpics = val + 1;
-    CHECK( sei->numSubpics > 64, "sli_nusubpics_minus1 must be < 64 in vvdecSEISubpictureLevelInfo" );
+    CHECK( sei->numSubpics < 0 || sei->numSubpics > 64, "sli_nusubpics_minus1 must be < 64 in vvdecSEISubpictureLevelInfo" );
   }
   sei_read_code(pDecodedMessageOutputStream,    3,  val,    "sli_max_sublayers_minus1"  );            sei->sliMaxSublayers = val + 1;
   CHECK( sei->sliMaxSublayers > 6, "sli_max_sublayers_minus1 must be < 6 in vvdecSEISubpictureLevelInfo" );
