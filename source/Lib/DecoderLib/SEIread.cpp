@@ -1434,7 +1434,7 @@ void SEIReader::xParseSEIOmniViewport(vvdecSEI* s, uint32_t payloadSize, std::os
       vvdecOmniViewportRegion &viewport = sei->omniViewportRegions[region];
       sei_read_scode( pDecodedMessageOutputStream, 32, scode, "omni_viewport_azimuth_centre"   );   viewport.azimuthCentre   = scode;
       sei_read_scode( pDecodedMessageOutputStream, 32, scode, "omni_viewport_elevation_centre" );   viewport.elevationCentre = scode;
-      sei_read_scode( pDecodedMessageOutputStream, 32, scode, "omni_viewport_tilt_centre"      );   viewport.tiltCentre      = code;
+      sei_read_scode( pDecodedMessageOutputStream, 32, scode, "omni_viewport_tilt_centre"      );   viewport.tiltCentre      = scode;
       sei_read_code( pDecodedMessageOutputStream,  32, code , "omni_viewport_hor_range"        );   viewport.horRange        = code;
       sei_read_code( pDecodedMessageOutputStream,  32, code , "omni_viewport_ver_range"        );   viewport.verRange        = code;
     }
