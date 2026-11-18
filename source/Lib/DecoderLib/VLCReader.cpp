@@ -82,9 +82,9 @@ void VLCReader::xReadCode( uint32_t uiLength, uint32_t& ruiCode )
 
 void VLCReader::xReadSCode( uint32_t length, int32_t& value )
 {
-  CHECK( length == 0 || length > 31, "wrong" );
+  CHECK( length == 0 || length > 32, "wrong" );
   uint32_t val = m_pcBitstream->read( length );
-  value = length >= 32 ? int32_t( val ) : ( ( -int32_t( val & ( uint32_t( 1 ) << ( length - 1 ) ) ) ) | int32_t( val ) );
+  value = length == 32 ? int32_t( val ) : ( ( -int32_t( val & ( uint32_t( 1 ) << ( length - 1 ) ) ) ) | int32_t( val ) );
 }
 
 void VLCReader::xReadFlag( uint32_t& rValue, const char *pSymbolName )
@@ -200,9 +200,9 @@ uint32_t VLCReader::xReadCode( uint32_t uiLength )
 
 int32_t VLCReader::xReadSCode( uint32_t length )
 {
-  CHECK( length == 0 || length > 31, "wrong" );
+  CHECK( length == 0 || length > 32, "wrong" );
   uint32_t val = m_pcBitstream->read( length );
-  return  ( -int32_t( val & ( 1u << ( length - 1 ) ) ) ) | int32_t( val ) ;
+  return length == 32 ? int32_t( val ) : ( ( -int32_t( val & ( 1u << ( length - 1 ) ) ) ) | int32_t( val ) );
 }
 
 bool VLCReader::xReadFlag( const char* pSymbolName )
