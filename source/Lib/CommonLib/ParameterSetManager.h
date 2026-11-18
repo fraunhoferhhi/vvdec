@@ -193,7 +193,7 @@ public:
     const APS*      scalingListAps;
   };
 
-  ActivePSs xActivateParameterSets( const bool isFirstSlice, const Slice* pPilot, const PicHeader* picHeader, const bool rejectSpsChangeInClvs = false );
+  ActivePSs xActivateParameterSets( const bool isFirstSlice, const Slice* pPilot, const PicHeader* picHeader );
 
   //! store parameter set and take ownership of it. returns true, if no parameter set with this id was stored before or its NAL unit data differs
   bool            storeVPS( VPS* vps, AlignedByteVec& naluData ) { return m_vpsMap.storePS( vps->getVPSId(),                                             vps, std::move( naluData ) ); }

@@ -47,7 +47,7 @@ POSSIBILITY OF SUCH DAMAGE.
 namespace vvdec
 {
 
-ParameterSetManager::ActivePSs ParameterSetManager::xActivateParameterSets( const bool isFirstSlice, const Slice* pSlicePilot, const PicHeader* picHeader, const bool rejectSpsChangeInClvs )
+ParameterSetManager::ActivePSs ParameterSetManager::xActivateParameterSets( const bool isFirstSlice, const Slice* pSlicePilot, const PicHeader* picHeader )
 {
   PPS* pps = xGetPPS( picHeader->getPPSId() );
   CHECK( pps == 0, "No PPS present" );
@@ -63,7 +63,7 @@ ParameterSetManager::ActivePSs ParameterSetManager::xActivateParameterSets( cons
     const NalUnitType nut     = pSlicePilot->getNalUnitType();
     const bool        isClvss = nut >= NAL_UNIT_CODED_SLICE_IDR_W_RADL && nut <= NAL_UNIT_CODED_SLICE_GDR
                                 && !pps->getMixedNaluTypesInPicFlag() && picHeader->getNoOutputBeforeRecoveryFlag();
-    if( rejectSpsChangeInClvs && !isClvss && m_activeSPSId >= 0 )
+    if( !isClvss && m_activeSPSId >= 0 )
     {
       CHECK( pps->getSPSId() != m_activeSPSId, "a different SPS was activated within a CLVS" );
       CHECK( sps->getChangedFlag(), "the SPS content changed within a CLVS" );
