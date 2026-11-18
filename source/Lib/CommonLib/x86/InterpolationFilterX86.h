@@ -1838,8 +1838,8 @@ static ALWAYS_INLINE void simdFilter4x4_store_AVX2( const ClpRng& clpRng, __m256
 
   _mm_storeu_si64( ( __m128i* ) ( dst                 ), d02 );
   _mm_storeu_si64( ( __m128i* ) ( dst +     dstStride ), d13 );
-  _mm_storeh_pd  ( ( double*  ) ( dst + 2 * dstStride ), _mm_castsi128_pd( d02 ) );
-  _mm_storeh_pd  ( ( double*  ) ( dst + 3 * dstStride ), _mm_castsi128_pd( d13 ) );
+  _mm_storeu_si64( ( __m128i* ) ( dst + 2 * dstStride ), _mm_unpackhi_epi64( d02, d02 ) );
+  _mm_storeu_si64( ( __m128i* ) ( dst + 3 * dstStride ), _mm_unpackhi_epi64( d13, d13 ) );
 }
 
 // 4x4 block with the 6-tap affine luma filter (outer taps of m_lumaFilter4x4 are zero)
