@@ -661,7 +661,7 @@ static void offsetBlock_SIMD_SAO_TYPE_EO_135( const int            channelBitDep
     // AVX2
     if( ( width & 15 ) == 0 && vext >= AVX2 )
     {
-      __m256i vsrca, vsrcat, vsrcab, virBmask;
+      __m256i vsrca, vsrcat, vsrcab;
 
       __m256i    vbaseoffset  = _mm256_set1_epi16( 2 );
       __m256i    vplusone     = _mm256_set1_epi16( 1 );
@@ -679,7 +679,6 @@ static void offsetBlock_SIMD_SAO_TYPE_EO_135( const int            channelBitDep
             vsrca             = _mm256_loadu_si256( (__m256i*)&srcLine[x] );
             vsrcat            = _mm256_loadu_si256( (__m256i*)&srcLineAbove[x - 1] );
             vsrcab            = _mm256_loadu_si256( (__m256i*)&srcLineBelow[x + 1] );
-            virBmask          = _mm256_loadu_si256( (__m256i*)&bndmask[x] );
             vsrcat            = _mm256_subs_epi16( vsrca, vsrcat );
             vsrcab            = _mm256_subs_epi16( vsrca, vsrcab );
             __m256i vsignt    = _mm256_sign_epi16( vplusone, vsrcat );
@@ -692,7 +691,8 @@ static void offsetBlock_SIMD_SAO_TYPE_EO_135( const int            channelBitDep
             vsrcat = _mm256_add_epi16( vsrca, veoffsets );
             vsrcat = _mm256_min_epi16( _mm256_max_epi16( vsrcat, vzero ), vibdimax );
 
-            vsrcab = _mm256_blendv_epi8( vsrcat, vsrca, virBmask );
+            // the columns next to a vertical virtual boundary keep their samples
+            vsrcab = isCtuCrossedByVirtualBoundaries ? _mm256_blendv_epi8( vsrcat, vsrca, _mm256_loadu_si256( (__m256i*)&bndmask[x] ) ) : vsrcat;
 
             _mm256_storeu_si256( (__m256i*)&resLine[x], vsrcab );
           }
@@ -706,7 +706,7 @@ static void offsetBlock_SIMD_SAO_TYPE_EO_135( const int            channelBitDep
     else
 #  endif
     {
-      __m128i vsrca, vsrcat, vsrcab, virBmask;
+      __m128i vsrca, vsrcat, vsrcab;
       __m128i vbaseoffset = _mm_set1_epi16( 2 );
       __m128i vplusone    = _mm_set1_epi16( 1 );
       __m128i vzero       = _mm_set1_epi8( 0 );
@@ -722,7 +722,6 @@ static void offsetBlock_SIMD_SAO_TYPE_EO_135( const int            channelBitDep
             vsrca             = _mm_loadu_si128( (__m128i*)&srcLine[x] );
             vsrcat            = _mm_loadu_si128( (__m128i*)&srcLineAbove[x - 1] );
             vsrcab            = _mm_loadu_si128( (__m128i*)&srcLineBelow[x + 1] );
-            virBmask          = _mm_loadu_si128( (__m128i*)&bndmask[x] );
             vsrcat            = _mm_subs_epi16( vsrca, vsrcat );
             vsrcab            = _mm_subs_epi16( vsrca, vsrcab );
             __m128i vsignt    = _mm_sign_epi16( vplusone, vsrcat );
@@ -735,7 +734,8 @@ static void offsetBlock_SIMD_SAO_TYPE_EO_135( const int            channelBitDep
             vsrcat = _mm_add_epi16( vsrca, veoffsets );
             vsrcat = _mm_min_epi16( _mm_max_epi16( vsrcat, vzero ), vibdimax );
 
-            vsrcab = _mm_blendv_epi8( vsrcat, vsrca, virBmask );
+            // the columns next to a vertical virtual boundary keep their samples
+            vsrcab = isCtuCrossedByVirtualBoundaries ? _mm_blendv_epi8( vsrcat, vsrca, _mm_loadu_si128( (__m128i*)&bndmask[x] ) ) : vsrcat;
 
             _mm_store_si128( (__m128i*)&resLine[x], vsrcab );
           }
@@ -949,7 +949,6 @@ static void offsetBlock_SIMD_SAO_TYPE_EO_45( const int            channelBitDept
     // AVX2
     if( ( width & 15 ) == 0 && vext >= AVX2 )
     {
-      __m256i    virBmask;
       __m256i    vsrca, vsrcat, vsrcab;
       __m256i    vbaseoffset  = _mm256_set1_epi16( 2 );
       __m256i    vplusone     = _mm256_set1_epi16( 1 );
@@ -965,7 +964,6 @@ static void offsetBlock_SIMD_SAO_TYPE_EO_45( const int            channelBitDept
         {
           for( x = 0; x < width; x += 16 )
           {
-            virBmask = _mm256_loadu_si256( (__m256i*)&bndmask[x] );
             vsrca    = _mm256_loadu_si256( (__m256i*)&srcLine[x] );
             vsrcat   = _mm256_loadu_si256( (__m256i*)&srcLineAbove[x + 1] );
             vsrcab   = _mm256_loadu_si256( (__m256i*)&srcLineBelow[x - 1] );
@@ -982,7 +980,8 @@ static void offsetBlock_SIMD_SAO_TYPE_EO_45( const int            channelBitDept
             vsrcat = _mm256_add_epi16( vsrca, veoffsets );
             vsrcat = _mm256_min_epi16( _mm256_max_epi16( vsrcat, vzero ), vibdimax );
 
-            vsrcab = _mm256_blendv_epi8( vsrcat, vsrca, virBmask );
+            // the columns next to a vertical virtual boundary keep their samples
+            vsrcab = isCtuCrossedByVirtualBoundaries ? _mm256_blendv_epi8( vsrcat, vsrca, _mm256_loadu_si256( (__m256i*)&bndmask[x] ) ) : vsrcat;
 
             _mm256_storeu_si256( (__m256i*)&resLine[x], vsrcab );
           }
@@ -996,7 +995,7 @@ static void offsetBlock_SIMD_SAO_TYPE_EO_45( const int            channelBitDept
     else
 #  endif
     {
-      __m128i vsrca, vsrcat, vsrcab, virBmask;
+      __m128i vsrca, vsrcat, vsrcab;
       __m128i vbaseoffset = _mm_set1_epi16( 2 );
       __m128i vplusone    = _mm_set1_epi16( 1 );
       __m128i vzero       = _mm_set1_epi8( 0 );
@@ -1011,7 +1010,6 @@ static void offsetBlock_SIMD_SAO_TYPE_EO_45( const int            channelBitDept
           {
             vsrca    = _mm_loadu_si128( (__m128i*)&srcLine[x] );
             vsrcat   = _mm_loadu_si128( (__m128i*)&srcLineAbove[x + 1] );
-            virBmask = _mm_loadu_si128( (__m128i*)&bndmask[x] );
 
             vsrcab            = _mm_loadu_si128( (__m128i*)&srcLineBelow[x - 1] );
             vsrcat            = _mm_subs_epi16( vsrca, vsrcat );
@@ -1026,7 +1024,8 @@ static void offsetBlock_SIMD_SAO_TYPE_EO_45( const int            channelBitDept
             vsrcat = _mm_add_epi16( vsrca, veoffsets );
             vsrcat = _mm_min_epi16( _mm_max_epi16( vsrcat, vzero ), vibdimax );
 
-            vsrcab = _mm_blendv_epi8( vsrcat, vsrca, virBmask );
+            // the columns next to a vertical virtual boundary keep their samples
+            vsrcab = isCtuCrossedByVirtualBoundaries ? _mm_blendv_epi8( vsrcat, vsrca, _mm_loadu_si128( (__m128i*)&bndmask[x] ) ) : vsrcat;
 
             _mm_store_si128( (__m128i*)&resLine[x], vsrcab );
           }
@@ -1202,8 +1201,13 @@ void offsetBlock_SIMD( const int            channelBitDepth,
     return;
   }
 
+  // the columns next to a vertical virtual boundary, which keep their samples; only read if the CTU is crossed by
+  // virtual boundaries
   uint16_t bndmask[MAX_CU_SIZE];
-  memset( &bndmask, 0, MAX_CU_SIZE * sizeof( uint16_t ) );
+  if( isCtuCrossedByVirtualBoundaries )
+  {
+    memset( &bndmask, 0, MAX_CU_SIZE * sizeof( uint16_t ) );
+  }
   if( isCtuCrossedByVirtualBoundaries && numVerVirBndry > 0 )
   {
     for( int i = 0; i < numVerVirBndry; i++ )

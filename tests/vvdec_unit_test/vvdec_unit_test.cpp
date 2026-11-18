@@ -57,8 +57,6 @@ POSSIBILITY OF SUCH DAMAGE.
 #include "CommonLib/TrQuant.h"
 #include "CommonLib/TrQuant_EMT.h"
 #include "CommonLib/Quant.h"
-#include "DecoderLib/SEIread.h"
-#include "vvdec/vvdec.h"
 #include "FilmGrain/FilmGrain.h"
 #include "FilmGrain/FilmGrainImplARM.h"
 #include "FilmGrain/FilmGrainImplX86.h"
@@ -1091,6 +1089,58 @@ static bool check_xPelFilterLuma( LoopFilter* ref, LoopFilter* opt, unsigned num
   return passed;
 }
 
+static bool check_xPelFilterChroma8( LoopFilter* ref, LoopFilter* opt, unsigned num_cases, bool isVertical,
+                                     bool isChromaHorCTBBoundary, int bitDepth )
+{
+  DimensionGenerator rng;
+  InputGenerator<Pel> inp_gen{ ( unsigned )bitDepth, /*is_signed=*/false };
+  bool passed = true;
+
+  std::ostringstream sstm_test;
+  sstm_test << "LoopFilter::xPelFilterChroma8" << ( isVertical ? "Ver" : "Hor" ) << ( isChromaHorCTBBoundary ? "CTBBoundary" : "" )
+            << " bd=" << bitDepth;
+  std::cout << "Testing " << sstm_test.str() << std::endl;
+
+  for( unsigned n = 0; n < num_cases; n++ )
+  {
+    const ptrdiff_t stride = ( ptrdiff_t )rng.get( 16, MAX_CU_SIZE );
+    static constexpr unsigned buf_size = MAX_CU_SIZE * MAX_CU_SIZE;
+    std::vector<Pel> src_ref( buf_size );
+    std::generate( src_ref.begin(), src_ref.end(), inp_gen );
+    std::vector<Pel> src_opt = src_ref;
+
+    // per line: tc 0 (not filtered) or up to the largest tc of xGetChromaSegmentFilter(), weak or strong filter
+    static constexpr int maxTc10Bit = 395;
+    const int maxTc = bitDepth < 10 ? ( ( maxTc10Bit + ( 1 << ( 9 - bitDepth ) ) ) >> ( 10 - bitDepth ) )
+                                    : ( maxTc10Bit << ( bitDepth - 10 ) );
+    int16_t tc[8];
+    bool    strong[8];
+    const int mode = n % 4;   // all weak, all strong, mixed, mixed with lines that are not filtered
+    for( int l = 0; l < 8; l++ )
+    {
+      tc    [l] = ( mode == 3 && rng.getBool() ) ? 0 : int16_t( rng.get( 1, maxTc ) );
+      strong[l] = mode == 1 || ( mode >= 2 && rng.getBool() );
+    }
+    const ClpRng clpRng{ bitDepth };
+
+    // the filter reads 4 samples on either side of the edge
+    Pel* ptr_ref = src_ref.data() + 4 * stride + 4;
+    Pel* ptr_opt = src_opt.data() + 4 * stride + 4;
+
+    const ptrdiff_t step   = isVertical ? stride : 1;
+    const ptrdiff_t offset = isVertical ? 1 : stride;
+
+    ref->xPelFilterChroma8( ptr_ref, step, offset, tc, strong, isChromaHorCTBBoundary, clpRng );
+    opt->xPelFilterChroma8( ptr_opt, step, offset, tc, strong, isChromaHorCTBBoundary, clpRng );
+
+    std::ostringstream sstm_subtest;
+    sstm_subtest << sstm_test.str() << " stride=" << stride << " mode=" << mode;
+    passed = compare_values_1d( sstm_subtest.str(), src_ref.data(), src_opt.data(), buf_size ) && passed;
+  }
+
+  return passed;
+}
+
 static bool test_LoopFilter()
 {
   LoopFilter ref{ /*enableOpt=*/false };
@@ -1106,6 +1156,13 @@ static bool test_LoopFilter()
       for( bool isStrong : { false, true } )
       {
         passed = check_xPelFilterLuma( &ref, &opt, num_cases, isVertical, isStrong, bitDepth ) && passed;
+      }
+
+      passed = check_xPelFilterChroma8( &ref, &opt, 4 * num_cases, isVertical, false, bitDepth ) && passed;
+      if( !isVertical )
+      {
+        // the CTU boundary variant exists for horizontal edges only
+        passed = check_xPelFilterChroma8( &ref, &opt, 4 * num_cases, isVertical, true, bitDepth ) && passed;
       }
     }
   }
@@ -1655,6 +1712,43 @@ static bool check_addAvg( PelBufferOps* ref, PelBufferOps* opt, unsigned num_cas
   return passed;
 }
 
+static bool check_scaleSignal( PelBufferOps* ref, PelBufferOps* opt, unsigned num_cases )
+{
+  DimensionGenerator rng;
+  InputGenerator<Pel> g{ 16 };   // residuals of any 16 bit value, so that the clipping is tested too
+  bool passed = true;
+
+  for( int bd : { 8, 10 } )
+  {
+    for( int w : { 1, 2, 3, 4, 6, 8, 12, 16, 32 } )
+    {
+      for( int h : { 1, 2, 4, 8, 16, 32 } )
+      {
+        printf( "Testing PelBufferOps::scaleSignal bd=%d w=%d h=%d\n", bd, w, h );
+        for( unsigned i = 0; i < num_cases; ++i )
+        {
+          // the chroma residual scale is ( 1 << 11 ) * initCW / codewords, from 1 up to about 2^17
+          const int scale = i == 0 ? 1 : i == 1 ? ( 1 << 17 ) : (int) rng.get( 1, 1 << 17 );
+
+          // The rows are compared including the stride padding, so writes outside the block are detected.
+          const ptrdiff_t stride = w + rng.get( 0, 8 );
+          std::vector<Pel> bufRef( stride * h );
+          std::generate( bufRef.begin(), bufRef.end(), g );
+          std::vector<Pel> bufOpt = bufRef;
+
+          ref->scaleSignal( bufRef.data(), stride, w, h, scale, bd );
+          opt->scaleSignal( bufOpt.data(), stride, w, h, scale, bd );
+
+          std::ostringstream sstm;
+          sstm << "scaleSignal bd=" << bd << " w=" << w << " h=" << h << " scale=" << scale;
+          passed = compare_values_2d( sstm.str(), bufRef.data(), bufOpt.data(), (unsigned) h, (unsigned) stride, (unsigned) stride ) && passed;
+        }
+      }
+    }
+  }
+  return passed;
+}
+
 static bool check_applyLut( PelBufferOps* ref, PelBufferOps* opt, unsigned num_cases )
 {
   DimensionGenerator rng;
@@ -1880,6 +1974,62 @@ static bool check_copyBuffer( PelBufferOps* ref, PelBufferOps* opt, unsigned num
   return passed;
 }
 
+static bool check_fillN_MotionInfo( PelBufferOps* ref, PelBufferOps* opt, unsigned num_cases )
+{
+  DimensionGenerator rng;
+  bool passed = true;
+
+  const auto sameEntry = []( const MotionInfo& a, const MotionInfo& b )
+  {
+    return a.mv[0].hor == b.mv[0].hor && a.mv[0].ver == b.mv[0].ver && a.mv[1].hor == b.mv[1].hor &&
+           a.mv[1].ver == b.mv[1].ver && a.miRefIdx[0] == b.miRefIdx[0] && a.miRefIdx[1] == b.miRefIdx[1];
+  };
+
+  // sizes in 4x4 units, up to a 128x128 CTU
+  for( int w = 1; w <= 32; w++ )
+  {
+    for( int h : { 1, 2, 3, 4, 8, 16, 32 } )
+    {
+      printf( "Testing PelBufferOps::fillN_MotionInfo w=%d h=%d\n", w, h );
+      for( unsigned i = 0; i < num_cases; ++i )
+      {
+        // contiguous rows (a block as wide as the buffer) and rows with a gap between them
+        const ptrdiff_t stride = i == 0 ? w : rng.get( w, 40 );
+
+        // distinct entries around the block show writes outside of it
+        std::vector<MotionInfo> bufRef( stride * h + 8 );
+        for( size_t n = 0; n < bufRef.size(); n++ )
+        {
+          bufRef[n].mv[0]       = Mv( (int) n, -(int) n );
+          bufRef[n].miRefIdx[0] = (int8_t) ( n & 15 );
+        }
+        std::vector<MotionInfo> bufOpt = bufRef;
+
+        MotionInfo val;
+        val.mv[0]       = Mv( (int) rng.get( 0, 1 << 17 ) - ( 1 << 16 ), (int) rng.get( 0, 1 << 17 ) - ( 1 << 16 ) );
+        val.mv[1]       = Mv( (int) rng.get( 0, 1 << 17 ) - ( 1 << 16 ), (int) rng.get( 0, 1 << 17 ) - ( 1 << 16 ) );
+        val.miRefIdx[0] = (int8_t) ( (int) rng.get( 0, 16 ) - 1 );
+        val.miRefIdx[1] = (int8_t) ( (int) rng.get( 0, 16 ) - 1 );
+
+        ref->fillN_MotionInfo( bufRef.data() + 4, stride, w, h, val );
+        opt->fillN_MotionInfo( bufOpt.data() + 4, stride, w, h, val );
+
+        for( size_t n = 0; n < bufRef.size(); n++ )
+        {
+          if( !sameEntry( bufRef[n], bufOpt[n] ) )
+          {
+            printf( "failed: fillN_MotionInfo w=%d h=%d stride=%d: entry %d differs\n", w, h, (int) stride, (int) n );
+            passed = false;
+            break;
+          }
+        }
+      }
+    }
+  }
+
+  return passed;
+}
+
 static bool test_PelBufferOps()
 {
   PelBufferOps ref;
@@ -1898,8 +2048,10 @@ static bool test_PelBufferOps()
   passed = check_addAvg( &ref, &opt, num_cases ) && passed;
   passed = check_reco( &ref, &opt, num_cases ) && passed;
   passed = check_rspFwdCore( &ref, &opt, num_cases ) && passed;
+  passed = check_scaleSignal( &ref, &opt, num_cases ) && passed;
   passed = check_applyLut( &ref, &opt, num_cases ) && passed;
   passed = check_copyBuffer( &ref, &opt, num_cases ) && passed;
+  passed = check_fillN_MotionInfo( &ref, &opt, num_cases ) && passed;
 
   return passed;
 }
@@ -2539,6 +2691,124 @@ static bool test_SampleAdaptiveOffset()
 }
 #endif // ENABLE_SIMD_OPT_SAO
 
+#if ENABLE_SIMD_OPT_INTRAPRED
+static bool test_MipMatrixMul()
+{
+  IntraPrediction ref;
+  IntraPrediction opt;
+#if defined( TARGET_SIMD_X86 )
+  opt.initIntraPredictionX86();
+#endif
+#if defined( TARGET_SIMD_ARM )
+  opt.initIntraPredictionARM();
+#endif
+
+  DimensionGenerator rng;
+  bool passed = true;
+
+  // the three MIP block size classes: inputs, outputs, and whether the first input is left out
+  struct MipShape { int inputSize, outputSize; bool skipFirstInput; };
+  for( const MipShape shape : { MipShape{ 4, 16, false }, MipShape{ 8, 16, false }, MipShape{ 8, 64, true } } )
+  {
+    for( int bd : { 8, 10 } )
+    {
+      for( int c = 0; c < 4 * NUM_CASES; c++ )
+      {
+        const bool extreme  = c < 4;   // the largest weights with the largest inputs of either sign
+        const int  rowLength = shape.inputSize - ( shape.skipFirstInput ? 1 : 0 );
+
+        // exactly the size of a matrix, so that the last row is at the end of the allocation
+        std::vector<uint8_t> matrix( shape.outputSize * rowLength );
+        for( auto& w : matrix )
+        {
+          w = extreme ? 127 : (uint8_t) rng.get( 0, 127 );
+        }
+
+        // the inputs are differences of samples, the first one as computed in deriveBoundaryData()
+        Pel input[MIP_MAX_INPUT_SIZE];
+        for( int i = 0; i < MIP_MAX_INPUT_SIZE; i++ )
+        {
+          const int limit = ( 1 << bd ) - 1;
+          input[i] = extreme ? Pel( ( c & 1 ) ? limit : -limit ) : Pel( (int) rng.get( 0, 2 * limit ) - limit );
+        }
+        int sum = 0;
+        for( int i = 0; i < shape.inputSize; i++ )
+        {
+          sum += input[i];
+        }
+        const int offset      = ( 1 << ( MIP_SHIFT_MATRIX - 1 ) ) - MIP_OFFSET_MATRIX * sum;
+        const int inputOffset = extreme ? ( ( c & 2 ) ? ( 1 << bd ) - 1 : 0 ) : (int) rng.get( 0, ( 1 << bd ) - 1 );
+
+        Pel resultRef[MIP_MAX_REDUCED_OUTPUT_SAMPLES];
+        Pel resultOpt[MIP_MAX_REDUCED_OUTPUT_SAMPLES];
+        ref.MipMatrixMul( resultRef, input, matrix.data(), shape.inputSize, shape.outputSize, shape.skipFirstInput, offset, inputOffset, bd );
+        opt.MipMatrixMul( resultOpt, input, matrix.data(), shape.inputSize, shape.outputSize, shape.skipFirstInput, offset, inputOffset, bd );
+
+        std::ostringstream sstm;
+        sstm << "MipMatrixMul inputs=" << shape.inputSize << " outputs=" << shape.outputSize << " bd=" << bd << " case=" << c;
+        passed &= compare_values_2d( sstm.str(), resultRef, resultOpt, 1, (unsigned) shape.outputSize );
+      }
+    }
+  }
+  return passed;
+}
+
+static bool test_MipUpsampleHor()
+{
+  IntraPrediction ref;
+  IntraPrediction opt;
+#if defined( TARGET_SIMD_X86 )
+  opt.initIntraPredictionX86();
+#endif
+#if defined( TARGET_SIMD_ARM )
+  opt.initIntraPredictionARM();
+#endif
+
+  DimensionGenerator rng;
+  bool passed = true;
+
+  for( unsigned bd : { 8u, 10u } )
+  {
+    for( int reducedSize : { 4, 8 } )
+    {
+      for( int upsmpFactor : { 2, 4, 8, 16 } )
+      {
+        if( reducedSize * upsmpFactor > 64 )
+        {
+          continue;   // MIP blocks are at most 64 wide
+        }
+        // the boundary step is the vertical upsampling factor
+        for( int bndryStep : { 1, 2, 4, 8 } )
+        {
+          for( int c = 0; c < NUM_CASES; c++ )
+          {
+            InputGenerator<Pel> g{ bd, /*is_signed=*/false };
+            std::vector<Pel> src( reducedSize * reducedSize );
+            std::vector<Pel> bndry( reducedSize * bndryStep );
+            std::generate( src.begin(), src.end(), g );
+            std::generate( bndry.begin(), bndry.end(), g );
+
+            // The rows are compared including the stride padding, so writes outside them are detected.
+            const int       width     = reducedSize * upsmpFactor;
+            const ptrdiff_t dstStride = width + rng.get( 0, 8 );
+            std::vector<Pel> dstRef( dstStride * reducedSize, 0 );
+            std::vector<Pel> dstOpt( dstStride * reducedSize, 0 );
+
+            ref.MipUpsampleHor( dstRef.data(), dstStride, src.data(), bndry.data(), bndryStep, reducedSize, upsmpFactor );
+            opt.MipUpsampleHor( dstOpt.data(), dstStride, src.data(), bndry.data(), bndryStep, reducedSize, upsmpFactor );
+
+            std::ostringstream sstm;
+            sstm << "MipUpsampleHor bd=" << bd << " reduced=" << reducedSize << " factor=" << upsmpFactor << " bndryStep=" << bndryStep;
+            passed &= compare_values_2d( sstm.str(), dstRef.data(), dstOpt.data(), (unsigned) reducedSize, (unsigned) dstStride, (unsigned) dstStride );
+          }
+        }
+      }
+    }
+  }
+  return passed;
+}
+#endif // ENABLE_SIMD_OPT_INTRAPRED
+
 #if ENABLE_SIMD_OPT_QUANT
 template<typename T>
 bool test_DeQuant_impl( const Quant& ref, const Quant& opt, int w, int h, int srcStride )
@@ -2644,6 +2914,68 @@ static bool test_DeQuant()
 #endif // ENABLE_SIMD_OPT_QUANT
 
 #if ENABLE_SIMD_OPT_INTRAPRED
+static bool test_CiipBlend()
+{
+  IntraPrediction ref;
+  IntraPrediction opt;
+#if defined( TARGET_SIMD_X86 )
+  opt.initIntraPredictionX86();
+#endif
+#if defined( TARGET_SIMD_ARM )
+  opt.initIntraPredictionARM();
+#endif
+
+  DimensionGenerator rng;
+  bool passed = true;
+
+  for( unsigned bd : { 8u, 10u } )
+  {
+    for( bool maxInput : { false, true } )
+    {
+      for( int width : { 4, 8, 12, 16, 20, 24, 32, 64 } )
+      {
+        for( int height : { 4, 8, 16, 32, 64 } )
+        {
+          // the weights depend on whether the left and the above neighbour are intra coded
+          for( int wIntra : { 1, 2, 3 } )
+          {
+            const int wMerge = 4 - wIntra;
+
+            const ptrdiff_t intraStride = width + rng.get( 0, 8 );
+            const ptrdiff_t dstStride   = width + rng.get( 0, 8 );
+            std::vector<Pel> intraPred( intraStride * height );
+            std::vector<Pel> dstRef( dstStride * height );
+            InputGenerator<Pel> g{ bd, /*is_signed=*/false };
+            if( maxInput )
+            {
+              std::fill( intraPred.begin(), intraPred.end(), Pel( ( 1 << bd ) - 1 ) );
+              std::fill( dstRef.begin(), dstRef.end(), Pel( ( 1 << bd ) - 1 ) );
+            }
+            else
+            {
+              std::generate( intraPred.begin(), intraPred.end(), g );
+              std::generate( dstRef.begin(), dstRef.end(), g );
+            }
+            std::vector<Pel> dstOpt = dstRef;
+
+            ref.CiipBlend( dstRef.data(), dstStride, intraPred.data(), intraStride, width, height, wMerge, wIntra );
+            opt.CiipBlend( dstOpt.data(), dstStride, intraPred.data(), intraStride, width, height, wMerge, wIntra );
+
+            // The rows are compared including the stride padding, so writes outside the block are detected.
+            std::ostringstream sstm;
+            sstm << "CiipBlend bd=" << bd << " w=" << width << " h=" << height << " wIntra=" << wIntra << " max=" << maxInput;
+            passed &= compare_values_2d( sstm.str(), dstRef.data(), dstOpt.data(), (unsigned)height, (unsigned)dstStride,
+                                         (unsigned)dstStride );
+          }
+        }
+      }
+    }
+  }
+  return passed;
+}
+#endif // ENABLE_SIMD_OPT_INTRAPRED
+
+#if ENABLE_SIMD_OPT_INTRAPRED
 static bool test_IntraPredAngleChroma()
 {
   IntraPrediction ref;
@@ -2699,6 +3031,175 @@ static bool test_IntraPredAngleChroma()
                << " angle=" << intraPredAngle << " deltaPos=" << deltaPos;
           passed &= compare_values_2d( sstm.str(), dstRef.data(), dstOpt.data(),
                                        height, width, (unsigned)dstStride );
+        }
+      }
+    }
+  }
+  return passed;
+}
+
+static bool test_IntraPredAngleCore()
+{
+  IntraPrediction ref;
+  IntraPrediction opt;
+#if defined( TARGET_SIMD_X86 )
+  opt.initIntraPredictionX86();
+#endif
+#if defined( TARGET_SIMD_ARM )
+  opt.initIntraPredictionARM();
+#endif
+
+  DimensionGenerator rng;
+  bool passed = true;
+
+  // reconstruct g_intraGaussFilter; it has internal linkage in IntraPrediction.cpp
+  TFilterCoeff gaussFilter[32 * 4];
+  for( int phase = 0; phase < 32; phase++ )
+  {
+    const int k = phase >> 1;
+    gaussFilter[phase * 4 + 0] = (TFilterCoeff)( 16 - k );
+    gaussFilter[phase * 4 + 1] = (TFilterCoeff)( 32 - k );
+    gaussFilter[phase * 4 + 2] = (TFilterCoeff)( 16 + k );
+    gaussFilter[phase * 4 + 3] = (TFilterCoeff)k;
+  }
+
+  // angTable magnitudes routed to IntraPredAngleCore4/8 by xPredIntraAng();
+  // multiples of 32 take the plain integer-sample copy path instead
+  const std::vector<int> angles = { 1,  2,  3,  4,  6,  8,  10, 12, 14, 16, 18, 20,
+                                    23, 26, 29, 35, 39, 45, 51, 57, 73, 86, 102, 171, 341 };
+
+  for( unsigned bd : { 8u, 10u } )
+  {
+    const ClpRng clpRng{ (int)bd };
+    const Pel    maxVal = ( 1 << bd ) - 1;
+
+    for( unsigned width : { 4u, 8u, 16u, 32u, 64u } )
+    {
+      for( unsigned height : { 2u, 4u, 8u, 16u, 32u, 64u } )
+      {
+        for( bool useCubicFilter : { true, false } )
+        {
+          const TFilterCoeff* ff = useCubicFilter ? InterpolationFilter::getChromaFilterTable( 0 ) : gaussFilter;
+
+          for( int c = 0; c < NUM_CASES; c++ )
+          {
+            // cases 0/1 exercise the cubic filter's upper/lower clamp at phase 16 (-4,36,36,-4)
+            const bool forceClipHigh = ( c == 0 );
+            const bool forceClipLow  = ( c == 1 );
+
+            const int sign          = rng.getBool() ? 1 : -1;
+            const int intraPredAngle = ( forceClipHigh || forceClipLow ) ? 16 : sign * rng.getOneOf( angles );
+            const int multiRefIdx    = ( forceClipHigh || forceClipLow ) ? 0 : (int)rng.get( 0, 3 );
+            const int deltaPos       = intraPredAngle * ( 1 + multiRefIdx );
+
+            // deltaInt is monotone in deltaPos, so its extremes are at the first/last row
+            const int deltaPosEnd = deltaPos + (int)( height - 1 ) * intraPredAngle;
+            const int deltaIntLo  = std::min( deltaPos, deltaPosEnd ) >> 5;
+            const int deltaIntHi  = std::max( deltaPos, deltaPosEnd ) >> 5;
+
+            const int leftPad     = std::max( 0, -deltaIntLo );
+            const int rightLen    = std::max( 0, deltaIntHi ) + (int)width + 3;
+            const int SIMD_MARGIN = 16;
+
+            std::vector<Pel> refs( leftPad + rightLen + SIMD_MARGIN );
+            InputGenerator<Pel> g{ bd, /*is_signed=*/false };
+            std::generate( refs.begin(), refs.end(), g );
+
+            if( forceClipHigh || forceClipLow )
+            {
+              // row 0, x=0 uses taps {0,max,max,0} or {max,0,0,max}
+              for( size_t i = 0; i < refs.size(); i++ )
+              {
+                const int pos = ( (int)i - leftPad ) & 3;
+                const bool isOuterTap = ( pos == 0 || pos == 3 );
+                refs[i] = forceClipHigh ? ( isOuterTap ? (Pel)0 : maxVal ) : ( isOuterTap ? maxVal : (Pel)0 );
+              }
+            }
+
+            Pel* refMain = refs.data() + leftPad;
+
+            const ptrdiff_t dstStride = (ptrdiff_t)width + rng.get( 0, 8 );
+            std::vector<Pel> dstRef( (size_t)dstStride * height, -1 );
+            std::vector<Pel> dstOpt( (size_t)dstStride * height, -1 );
+
+            // same Core4/Core8 selection as xPredIntraAng() for widths that are multiples of 4
+            if( ( width & 7 ) == 0 )
+            {
+              ref.IntraPredAngleCore8( dstRef.data(), dstStride, refMain, (int)width, (int)height, deltaPos, intraPredAngle, ff, useCubicFilter, clpRng );
+              opt.IntraPredAngleCore8( dstOpt.data(), dstStride, refMain, (int)width, (int)height, deltaPos, intraPredAngle, ff, useCubicFilter, clpRng );
+            }
+            else
+            {
+              CHECK( ( width & 3 ) != 0, "test width must be a multiple of 4" );
+              ref.IntraPredAngleCore4( dstRef.data(), dstStride, refMain, (int)width, (int)height, deltaPos, intraPredAngle, ff, useCubicFilter, clpRng );
+              opt.IntraPredAngleCore4( dstOpt.data(), dstStride, refMain, (int)width, (int)height, deltaPos, intraPredAngle, ff, useCubicFilter, clpRng );
+            }
+
+            std::ostringstream sstm;
+            sstm << "IntraPredAngleCore bd=" << bd << " w=" << width << " h=" << height
+                 << " cubic=" << useCubicFilter << " angle=" << intraPredAngle << " deltaPos=" << deltaPos;
+            // include the row padding to catch a stray store past width
+            passed &= compare_values_2d( sstm.str(), dstRef.data(), dstOpt.data(),
+                                         height, (unsigned)dstStride, (unsigned)dstStride );
+          }
+        }
+      }
+    }
+  }
+  return passed;
+}
+
+static bool test_IntraPredAngPdpc()
+{
+  IntraPrediction ref;
+  IntraPrediction opt;
+#if defined( TARGET_SIMD_X86 )
+  opt.initIntraPredictionX86();
+#endif
+#if defined( TARGET_SIMD_ARM )
+  opt.initIntraPredictionARM();
+#endif
+
+  DimensionGenerator rng;
+  bool passed = true;
+
+  // the inverse angles of the positive angles, as in xPredIntraAng()
+  static const int invAngles[] = { 16384, 8192, 5461, 4096, 2731, 2048, 1638, 1365, 1170, 1024, 910, 819, 712, 630, 565,
+                                   512, 468, 420, 364, 321, 287, 256, 224, 191, 161, 128, 96, 64, 48, 32, 16 };
+
+  for( unsigned bd : { 8u, 10u } )
+  {
+    for( int invAngle : invAngles )
+    {
+      for( int sideSize : { 4, 8, 16, 32, 64 } )
+      {
+        const int angularScale = std::min( 2, getLog2( sideSize ) - ( getLog2( 3 * invAngle - 2 ) - 8 ) );
+        if( angularScale < 0 )
+        {
+          continue;   // no PDPC for this angle and size
+        }
+
+        for( int width : { 1, 2, 4, 8, 16, 32, 64 } )
+        {
+          for( int height : { 1, 4, 16, 64 } )
+          {
+            InputGenerator<Pel> g{ bd, /*is_signed=*/false };
+            std::vector<Pel> refSide( 256 );
+            std::generate( refSide.begin(), refSide.end(), g );
+
+            // The rows are compared including the stride padding, so writes outside the block are detected.
+            const ptrdiff_t dstStride = width + rng.get( 0, 8 );
+            std::vector<Pel> dstRef( dstStride * height );
+            std::generate( dstRef.begin(), dstRef.end(), g );
+            std::vector<Pel> dstOpt = dstRef;
+
+            ref.IntraPredAngPdpc( dstRef.data(), dstStride, refSide.data(), width, height, invAngle, angularScale );
+            opt.IntraPredAngPdpc( dstOpt.data(), dstStride, refSide.data(), width, height, invAngle, angularScale );
+
+            std::ostringstream sstm;
+            sstm << "IntraPredAngPdpc bd=" << bd << " invAngle=" << invAngle << " scale=" << angularScale << " w=" << width << " h=" << height;
+            passed &= compare_values_2d( sstm.str(), dstRef.data(), dstOpt.data(), (unsigned) height, (unsigned) dstStride, (unsigned) dstStride );
+          }
         }
       }
     }
@@ -2765,6 +3266,183 @@ static bool test_IntraPredHorVerPdpc()
                  << " case=" << c;
             passed &= compare_values_2d( sstm.str(), dstRef.data(), dstOpt.data(), ( unsigned ) height, ( unsigned ) dstStride, ( unsigned ) dstStride );
           }
+        }
+      }
+    }
+  }
+  return passed;
+}
+
+static bool test_IntraPredPlanar()
+{
+  IntraPrediction ref;
+  IntraPrediction opt;
+#if defined( TARGET_SIMD_X86 )
+  opt.initIntraPredictionX86();
+#endif
+#if defined( TARGET_SIMD_ARM )
+  opt.initIntraPredictionARM();
+#endif
+
+  DimensionGenerator rng;
+  const SPS          sps;
+  bool               passed = true;
+
+  for( unsigned bd : { 8u, 10u } )
+  {
+    const Pel maxVal = ( 1 << bd ) - 1;
+
+    // ISP partitions can be 1 or 2 samples wide or high
+    for( int width : { 1, 2, 4, 8, 16, 32, 64 } )
+    {
+      for( int height : { 1, 2, 4, 8, 16, 32, 64 } )
+      {
+        for( int c = 0; c < NUM_CASES; ++c )
+        {
+          // the reference samples: the top row (with the top-left and top-right samples) in row 0, the left column
+          // (with the bottom-left sample) in column 0, as IntraPrediction::initIntraPatternChType() prepares them;
+          // the margin lets SIMD loads read past the top-right sample
+          const ptrdiff_t   srcStride = width + 2 + 16;
+          std::vector<Pel>  src( srcStride * ( height + 2 ) );
+          InputGenerator<Pel> g{ bd, /*is_signed=*/false };
+          std::generate( src.begin(), src.end(), g );
+
+          // all samples at the maximum value give the largest sums
+          if( c == 1 )
+          {
+            std::fill( src.begin(), src.end(), maxVal );
+          }
+
+          const CPelBuf srcBuf( src.data(), srcStride, width + 2, height + 2 );
+
+          const ptrdiff_t  dstStride = width + rng.get( 0, 8 );
+          // the guard values after each block row must stay untouched
+          std::vector<Pel> dstRef( dstStride * height, -1 );
+          std::vector<Pel> dstOpt( dstStride * height, -1 );
+          PelBuf           dstBufRef( dstRef.data(), dstStride, width, height );
+          PelBuf           dstBufOpt( dstOpt.data(), dstStride, width, height );
+
+          ref.xPredIntraPlanar( srcBuf, dstBufRef, sps );
+          opt.xPredIntraPlanar( srcBuf, dstBufOpt, sps );
+
+          std::ostringstream sstm;
+          sstm << "xPredIntraPlanar bd=" << bd << " w=" << width << " h=" << height << " case=" << c;
+          passed &= compare_values_2d( sstm.str(), dstRef.data(), dstOpt.data(), ( unsigned ) height, ( unsigned ) dstStride,
+                                       ( unsigned ) dstStride );
+        }
+      }
+    }
+  }
+  return passed;
+}
+#endif // ENABLE_SIMD_OPT_INTRAPRED
+
+#if ENABLE_SIMD_OPT_INTRAPRED
+static bool test_GetLumaRecPixel420Collocated()
+{
+  IntraPrediction ref;
+  IntraPrediction opt;
+#if defined( TARGET_SIMD_X86 )
+  opt.initIntraPredictionX86();
+#endif
+#if defined( TARGET_SIMD_ARM )
+  opt.initIntraPredictionARM();
+#endif
+
+  DimensionGenerator rng;
+  bool passed = true;
+
+  for( unsigned bd : { 8u, 10u } )
+  {
+    for( bool maxInput : { false, true } )
+    {
+      for( int width = 1; width <= 32; width++ )
+      {
+        for( int height : { 1, 2, 4, 8, 16, 32 } )
+        {
+          // The luma block is 2 * width x 2 * height samples, with one column on the left and one line above it,
+          // which the downsampling reads.
+          const ptrdiff_t srcStride = 2 * width + 1 + rng.get( 0, 8 );
+          std::vector<Pel> src( srcStride * ( 2 * height + 1 ) );
+          InputGenerator<Pel> g{ bd, /*is_signed=*/false };
+          if( maxInput )
+          {
+            std::fill( src.begin(), src.end(), Pel( ( 1 << bd ) - 1 ) );
+          }
+          else
+          {
+            std::generate( src.begin(), src.end(), g );
+          }
+          const Pel* const block = src.data() + srcStride + 1;
+
+          // The rows are compared after the call, so writes into the stride padding are detected.
+          const ptrdiff_t dstStride = width + rng.get( 0, 8 );
+          std::vector<Pel> dstRef( dstStride * height, 0 );
+          std::vector<Pel> dstOpt( dstStride * height, 0 );
+
+          ref.GetLumaRecPixel420Collocated( width, height, block, srcStride, dstRef.data(), dstStride );
+          opt.GetLumaRecPixel420Collocated( width, height, block, srcStride, dstOpt.data(), dstStride );
+
+          std::ostringstream sstm;
+          sstm << "GetLumaRecPixel420Collocated bd=" << bd << " w=" << width << " h=" << height << " max=" << maxInput;
+          passed &= compare_values_2d( sstm.str(), dstRef.data(), dstOpt.data(), (unsigned)height, (unsigned)dstStride,
+                                       (unsigned)dstStride );
+        }
+      }
+    }
+  }
+  return passed;
+}
+
+static bool test_GetLumaRecPixel420Left()
+{
+  IntraPrediction ref;
+  IntraPrediction opt;
+#if defined( TARGET_SIMD_X86 )
+  opt.initIntraPredictionX86();
+#endif
+#if defined( TARGET_SIMD_ARM )
+  opt.initIntraPredictionARM();
+#endif
+
+  DimensionGenerator rng;
+  bool passed = true;
+
+  for( unsigned bd : { 8u, 10u } )
+  {
+    for( bool maxInput : { false, true } )
+    {
+      for( bool collocated : { false, true } )
+      {
+        for( int height = 1; height <= 64; height++ )
+        {
+          // Three luma columns left of the block plus its first column, and one line above it, which the collocated
+          // filter reads.
+          const ptrdiff_t srcStride = 4 + rng.get( 0, 8 );
+          std::vector<Pel> src( srcStride * ( 2 * height + 1 ) );
+          InputGenerator<Pel> g{ bd, /*is_signed=*/false };
+          if( maxInput )
+          {
+            std::fill( src.begin(), src.end(), Pel( ( 1 << bd ) - 1 ) );
+          }
+          else
+          {
+            std::generate( src.begin(), src.end(), g );
+          }
+          const Pel* const block = src.data() + srcStride + 3;
+
+          // a column of outputs; the samples between them are compared too
+          const ptrdiff_t dstStride = 1 + rng.get( 0, 8 );
+          std::vector<Pel> dstRef( dstStride * height, 0 );
+          std::vector<Pel> dstOpt( dstStride * height, 0 );
+
+          ref.GetLumaRecPixel420Left( height, block, srcStride, dstRef.data(), dstStride, collocated );
+          opt.GetLumaRecPixel420Left( height, block, srcStride, dstOpt.data(), dstStride, collocated );
+
+          std::ostringstream sstm;
+          sstm << "GetLumaRecPixel420Left bd=" << bd << " h=" << height << " collocated=" << collocated << " max=" << maxInput;
+          passed &= compare_values_2d( sstm.str(), dstRef.data(), dstOpt.data(), (unsigned) height, (unsigned) dstStride,
+                                       (unsigned) dstStride );
         }
       }
     }
@@ -3170,266 +3848,6 @@ static bool test_FilmGrainChromaFormats()
   return passed;
 }
 
-static bool check_accessUnit_free_payload()
-{
-  std::cout << "Testing vvdec_accessUnit_free_payload" << std::endl;
-
-  vvdecAccessUnit* accessUnit = vvdec_accessUnit_alloc();
-  vvdec_accessUnit_alloc_payload( accessUnit, 100 );
-  vvdec_accessUnit_free_payload( accessUnit );
-
-  // vvdec_accessUnit_free() releases the payload "if not done yet", so it must see that it was released
-  const bool passed = accessUnit->payload == nullptr && accessUnit->payloadSize == 0;
-  if( !passed )
-  {
-    std::cout << "failed: the payload pointer is still set after vvdec_accessUnit_free_payload()" << std::endl;
-  }
-
-  vvdec_accessUnit_free_payload( accessUnit );   // a second call must be harmless
-  vvdec_accessUnit_free( accessUnit );
-  return passed;
-}
-
-static bool test_API()
-{
-  bool passed = true;
-  passed = check_accessUnit_free_payload() && passed;
-  return passed;
-}
-
-// Collects the bits of a hand-made SEI message payload, most significant bit first.
-class SEIPayloadWriter
-{
-public:
-  void write( uint32_t value, int numBits )
-  {
-    for( int i = numBits - 1; i >= 0; i-- )
-    {
-      if( m_numBits % 8 == 0 )
-      {
-        m_bytes.push_back( 0 );
-      }
-      m_bytes.back() |= ( ( value >> i ) & 1 ) << ( 7 - m_numBits % 8 );
-      m_numBits++;
-    }
-  }
-
-  // ue(v): value + 1 in binary, after as many zero bits as it has bits after its leading one
-  void writeUvlc( uint32_t value )
-  {
-    const uint64_t codeNum = uint64_t( value ) + 1;
-    int            numBits = 0;
-    while( codeNum >> numBits )
-    {
-      numBits++;
-    }
-    write( 0, numBits - 1 );
-    write( uint32_t( codeNum ), numBits );
-  }
-
-  void writeZeroBitsToByteBoundary() { write( 0, ( 8 - m_numBits % 8 ) % 8 ); }
-
-  // A payload that does not end on a byte boundary ends with payload_bit_equal_to_one and zero bits up to the next one.
-  void alignPayload()
-  {
-    if( m_numBits % 8 )
-    {
-      write( 1, 1 );
-      writeZeroBitsToByteBoundary();
-    }
-  }
-
-  const std::vector<uint8_t>& bytes() const { return m_bytes; }
-
-private:
-  std::vector<uint8_t> m_bytes;
-  int                  m_numBits = 0;
-};
-
-// Parses a prefix SEI NAL unit that holds one SEI message with the given payload, as the decoder does after the NAL unit
-// header, and returns that message, or nullptr if the parser fails. The caller frees it with SEI_internal::deleteSEI().
-static vvdecSEI* parse_prefix_sei( vvdecSEIPayloadType payloadType, SEIPayloadWriter payload )
-{
-  payload.alignPayload();
-  const std::vector<uint8_t>& payloadBytes = payload.bytes();
-  CHECK( payloadType >= 255 || payloadBytes.size() >= 255, "the test writes the payload type and size as one byte each" );
-
-  InputBitstream  bitstream;
-  AlignedByteVec& rbsp = bitstream.getFifo();
-  rbsp.push_back( payloadType );
-  rbsp.push_back( (uint8_t) payloadBytes.size() );
-  rbsp.insert( rbsp.end(), payloadBytes.begin(), payloadBytes.end() );
-  rbsp.push_back( 0x80 );   // rbsp_trailing_bits()
-
-  SEIReader   reader;
-  HRD         hrd;
-  seiMessages seis;
-  try
-  {
-    reader.parseSEImessage( &bitstream, seis, NAL_UNIT_PREFIX_SEI, 0, 0, nullptr, nullptr, hrd, nullptr );
-  }
-  catch( const std::exception& e )
-  {
-    std::cout << "failed: the SEI parser stopped with" << e.what() << std::endl;
-    SEI_internal::deleteSEIs( seis );
-    return nullptr;
-  }
-  if( seis.size() != 1 || seis.front()->payloadType != payloadType )
-  {
-    std::cout << "failed: the SEI message was not decoded" << std::endl;
-    SEI_internal::deleteSEIs( seis );
-    return nullptr;
-  }
-  return seis.front();
-}
-
-static bool check_sei_field( const char* name, int64_t decoded, int64_t written )
-{
-  if( decoded != written )
-  {
-    std::cout << "failed: " << name << " is decoded as " << decoded << ", but " << written << " was written" << std::endl;
-    return false;
-  }
-  return true;
-}
-
-static bool check_sei_region_wise_packing()
-{
-  std::cout << "Testing the region-wise packing SEI message" << std::endl;
-  bool passed = true;
-
-  // a message that cancels the region-wise packing has nothing but its rwp_cancel_flag
-  {
-    SEIPayloadWriter payload;
-    payload.write( 1, 1 );   // rwp_cancel_flag
-
-    vvdecSEI* sei = parse_prefix_sei( VVDEC_REGION_WISE_PACKING, payload );
-    if( !sei )
-    {
-      return false;
-    }
-    const auto* rwp = (const vvdecSEIRegionWisePacking*) sei->payload;
-    passed = check_sei_field( "rwp_cancel_flag", rwp->rwpCancelFlag, 1 ) && passed;
-    SEI_internal::deleteSEI( sei );
-  }
-
-  // otherwise the packing follows rwp_cancel_flag
-  {
-    SEIPayloadWriter payload;
-    payload.write( 0, 1 );       // rwp_cancel_flag
-    payload.write( 1, 1 );       // rwp_persistence_flag
-    payload.write( 1, 1 );       // constituent_picture_matching_flag
-    payload.write( 0, 5 );       // rwp_reserved_zero_5bits
-    payload.write( 0, 8 );       // num_packed_regions
-    payload.write( 3840, 32 );   // proj_picture_width
-    payload.write( 1920, 32 );   // proj_picture_height
-    payload.write( 1920, 16 );   // packed_picture_width
-    payload.write( 1080, 16 );   // packed_picture_height
-
-    vvdecSEI* sei = parse_prefix_sei( VVDEC_REGION_WISE_PACKING, payload );
-    if( !sei )
-    {
-      return false;
-    }
-    const auto* rwp = (const vvdecSEIRegionWisePacking*) sei->payload;
-    passed = check_sei_field( "rwp_cancel_flag", rwp->rwpCancelFlag, 0 ) && passed;
-    passed = check_sei_field( "rwp_persistence_flag", rwp->rwpPersistenceFlag, 1 ) && passed;
-    passed = check_sei_field( "constituent_picture_matching_flag", rwp->constituentPictureMatchingFlag, 1 ) && passed;
-    passed = check_sei_field( "num_packed_regions", rwp->numPackedRegions, 0 ) && passed;
-    passed = check_sei_field( "proj_picture_width", rwp->projPictureWidth, 3840 ) && passed;
-    passed = check_sei_field( "proj_picture_height", rwp->projPictureHeight, 1920 ) && passed;
-    passed = check_sei_field( "packed_picture_width", rwp->packedPictureWidth, 1920 ) && passed;
-    passed = check_sei_field( "packed_picture_height", rwp->packedPictureHeight, 1080 ) && passed;
-    SEI_internal::deleteSEI( sei );
-  }
-
-  return passed;
-}
-
-static bool check_sei_buffering_period()
-{
-  std::cout << "Testing the buffering period SEI message" << std::endl;
-
-  // one sublayer and one CPB with NAL HRD parameters
-  SEIPayloadWriter payload;
-  payload.write( 1, 1 );        // bp_nal_hrd_params_present_flag
-  payload.write( 0, 1 );        // bp_vcl_hrd_params_present_flag
-  payload.write( 23, 5 );       // bp_cpb_initial_removal_delay_length_minus1
-  payload.write( 15, 5 );       // bp_cpb_removal_delay_length_minus1
-  payload.write( 15, 5 );       // bp_dpb_output_delay_length_minus1
-  payload.write( 0, 1 );        // bp_du_hrd_params_present_flag
-  payload.write( 0, 1 );        // bp_concatenation_flag
-  payload.write( 0, 1 );        // bp_additional_concatenation_info_present_flag
-  payload.write( 0, 16 );       // bp_cpb_removal_delay_delta_minus1
-  payload.write( 0, 3 );        // bp_max_sublayers_minus1
-  payload.write( 1, 1 );        // bp_cpb_cnt_minus1 = 0, as ue(v)
-  payload.write( 90000, 24 );   // bp_nal_initial_cpb_removal_delay[0][0]
-  payload.write( 1234, 24 );    // bp_nal_initial_cpb_removal_offset[0][0]
-  payload.write( 0, 1 );        // bp_alt_cpb_params_present_flag
-
-  vvdecSEI* sei = parse_prefix_sei( VVDEC_BUFFERING_PERIOD, payload );
-  if( !sei )
-  {
-    return false;
-  }
-  const auto* bp = (const vvdecSEIBufferingPeriod*) sei->payload;
-  bool passed = true;
-  passed = check_sei_field( "bp_nal_initial_cpb_removal_delay[0][0]", bp->initialCpbRemovalDelay[0][0][0], 90000 ) && passed;
-  passed = check_sei_field( "bp_nal_initial_cpb_removal_offset[0][0]", bp->initialCpbRemovalOffset[0][0][0], 1234 ) && passed;
-  SEI_internal::deleteSEI( sei );
-  return passed;
-}
-
-static bool check_sei_scalable_nesting()
-{
-  std::cout << "Testing the scalable nesting SEI message" << std::endl;
-
-  // three OLSs with the indices 1, 2 and 5
-  const uint32_t olsIdx[] = { 1, 2, 5 };
-
-  SEIPayloadWriter payload;
-  payload.write( 1, 1 );        // sn_ols_flag
-  payload.write( 0, 1 );        // sn_subpic_flag
-  payload.writeUvlc( 2 );       // sn_num_olss_minus1
-  payload.writeUvlc( 1 );       // sn_ols_idx_delta_minus1[0]
-  payload.writeUvlc( 0 );       // sn_ols_idx_delta_minus1[1]
-  payload.writeUvlc( 2 );       // sn_ols_idx_delta_minus1[2]
-  payload.writeUvlc( 0 );       // sn_num_seis_minus1
-  payload.writeZeroBitsToByteBoundary();   // sn_zero_bit
-
-  // the nested message: user data unregistered with a zero UUID and no user data
-  payload.write( VVDEC_USER_DATA_UNREGISTERED, 8 );   // payload_type
-  payload.write( 16, 8 );                              // payload_size
-  for( int i = 0; i < 16; i++ )
-  {
-    payload.write( 0, 8 );   // uuid_iso_iec_11578
-  }
-
-  vvdecSEI* sei = parse_prefix_sei( VVDEC_SCALABLE_NESTING, payload );
-  if( !sei )
-  {
-    return false;
-  }
-  const auto* nesting = (const vvdecSEIScalableNesting*) sei->payload;
-  bool passed = check_sei_field( "sn_num_olss_minus1 + 1", nesting->snNumOlss, 3 );
-  for( int i = 0; i < 3; i++ )
-  {
-    const std::string name = "NestingOlsIdx[" + std::to_string( i ) + "]";
-    passed = check_sei_field( name.c_str(), nesting->snOlsIdx[i], olsIdx[i] ) && passed;
-  }
-  SEI_internal::deleteSEI( sei );
-  return passed;
-}
-
-static bool test_SEI()
-{
-  bool passed = true;
-  passed = check_sei_region_wise_packing() && passed;
-  passed = check_sei_buffering_period() && passed;
-  passed = check_sei_scalable_nesting() && passed;
-  return passed;
-}
-
 struct UnitTestEntry
 {
   std::string name;
@@ -3437,9 +3855,11 @@ struct UnitTestEntry
 };
 
 static const UnitTestEntry test_suites[] = {
-    { "API", test_API },
 #if ENABLE_SIMD_OPT_ALF
     { "ALF", test_AdaptiveLoopFilter },
+#endif
+#if ENABLE_SIMD_OPT_INTRAPRED
+    { "CiipBlend", test_CiipBlend },
 #endif
 #if ENABLE_SIMD_OPT_QUANT
     { "DeQuant", test_DeQuant },
@@ -3449,8 +3869,16 @@ static const UnitTestEntry test_suites[] = {
     { "FilmGrainImpl", test_FilmGrainImpl },
 #endif
 #if ENABLE_SIMD_OPT_INTRAPRED
+    { "GetLumaRecPixel420Collocated", test_GetLumaRecPixel420Collocated },
+    { "GetLumaRecPixel420Left", test_GetLumaRecPixel420Left },
+#endif
+#if ENABLE_SIMD_OPT_INTRAPRED
     { "IntraPredAngleChroma", test_IntraPredAngleChroma },
+    { "IntraPredAngleCore", test_IntraPredAngleCore },
+    { "IntraPredAngPdpc", test_IntraPredAngPdpc },
+  
     { "IntraPredHorVerPdpc", test_IntraPredHorVerPdpc },
+    { "IntraPredPlanar", test_IntraPredPlanar },
 #endif
 #if ENABLE_SIMD_OPT_MCIF
     { "InterpolationFilter", test_InterpolationFilter },
@@ -3460,6 +3888,10 @@ static const UnitTestEntry test_suites[] = {
 #endif
 #if ENABLE_SIMD_DBLF
     { "LoopFilter", test_LoopFilter },
+#endif
+#if ENABLE_SIMD_OPT_INTRAPRED
+    { "MipMatrixMul", test_MipMatrixMul },
+    { "MipUpsampleHor", test_MipUpsampleHor },
 #endif
 #if ENABLE_SIMD_OPT_BUFFER
     { "PelBufferOps", test_PelBufferOps },

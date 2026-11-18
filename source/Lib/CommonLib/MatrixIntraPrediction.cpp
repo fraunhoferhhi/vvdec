@@ -55,7 +55,34 @@ namespace vvdec
 
 namespace Mip
 {
+  static void MatrixMulCore( Pel* const result, const Pel* const input, const uint8_t* matrix, const int inputSize, const int outputSize,
+                             const bool skipFirstInput, const int offset, const int inputOffset, const int bitDepth )
+  {
+    const int      redSize = skipFirstInput ? 1 : 0;
+    const uint8_t* weight  = matrix;
+
+    for( int posRes = 0; posRes < outputSize; posRes++ )
+    {
+      int tmp0 = redSize ? 0 : ( input[0] * weight[0] );
+      int tmp1 = input[1] * weight[1 - redSize];
+      int tmp2 = input[2] * weight[2 - redSize];
+      int tmp3 = input[3] * weight[3 - redSize];
+      for( int i = 4; i < inputSize; i += 4 )
+      {
+        tmp0 += input[i    ] * weight[i     - redSize];
+        tmp1 += input[i + 1] * weight[i + 1 - redSize];
+        tmp2 += input[i + 2] * weight[i + 2 - redSize];
+        tmp3 += input[i + 3] * weight[i + 3 - redSize];
+      }
+      result[posRes] = ClipBD<int>( ( ( tmp0 + tmp1 + tmp2 + tmp3 + offset ) >> MIP_SHIFT_MATRIX ) + inputOffset, bitDepth );
+
+      weight += inputSize - redSize;
+    }
+  }
+
   PredictorMIP::PredictorMIP():
+    MatrixMul( MatrixMulCore ),
+    UpsampleHor( predictionUpsamplingHorCore ),
     m_blockSize( 0, 0 ),
     m_sizeId( 0 ),
     m_reducedBdrySize( 0 ),
@@ -236,6 +263,12 @@ void PredictorMIP::boundaryDownsampling1D(Pel* reducedDst, const Pel* const full
   }
 
 
+  void PredictorMIP::predictionUpsamplingHorCore( Pel* const dst, const ptrdiff_t dstStride, const Pel* const src, const Pel* const bndry,
+                                                  const int bndryStep, const int reducedSize, const int upsmpFactor )
+  {
+    predictionUpsampling1D( dst, src, bndry, reducedSize, reducedSize, 1, reducedSize, 1, (SizeType) dstStride, bndryStep, upsmpFactor );
+  }
+
   void PredictorMIP::predictionUpsampling( Pel* const dst, const Pel* const src ) const
   {
     const Pel* verSrc     = src;
@@ -247,18 +280,52 @@ void PredictorMIP::boundaryDownsampling1D(Pel* reducedDst, const Pel* const full
       verSrc = horDst;
       verSrcStep *= m_upsmpFactorVer;
   
-      predictionUpsampling1D( horDst, src, m_refSamplesLeft,
-                              m_reducedPredSize, m_reducedPredSize,
-                              1, m_reducedPredSize, 1, verSrcStep,
-                              m_upsmpFactorVer, m_upsmpFactorHor );
+      UpsampleHor( horDst, verSrcStep, src, m_refSamplesLeft, m_upsmpFactorVer, m_reducedPredSize, m_upsmpFactorHor );
     }
   
     if( m_upsmpFactorVer > 1 )
     {
-      predictionUpsampling1D( dst, verSrc, m_refSamplesTop,
-                              m_reducedPredSize, m_blockSize.width,
-                              verSrcStep, 1, m_blockSize.width, 1,
-                              1, m_upsmpFactorVer );
+      predictionUpsamplingVer( dst, verSrc, verSrcStep );
+    }
+  }
+
+  // Vertical upsampling with the same arithmetic as predictionUpsampling1D(), but computed row by row instead of column
+  // by column, so that the inner loops run over contiguous samples and can be vectorized.
+  void PredictorMIP::predictionUpsamplingVer( Pel* const dst, const Pel* const src, const SizeType srcStep ) const
+  {
+    const int width          = m_blockSize.width;
+    const int upsmpFactor    = m_upsmpFactorVer;
+    const int log2Factor     = getLog2( upsmpFactor );
+    const int roundingOffset = 1 << ( log2Factor - 1 );
+
+    // For each column: the source sample above the current group of rows, the change from one output row to the next,
+    // and the scaled output value before the final shift.
+    Pel before [MIP_MAX_WIDTH];
+    Pel diff   [MIP_MAX_WIDTH];
+    Pel scaled [MIP_MAX_WIDTH];
+    std::copy_n( m_refSamplesTop, width, before );
+
+    for( int j = 0; j < m_reducedPredSize; j++ )
+    {
+      // The source row lies in dst (it is the last output row of its group), so it is read completely before the group
+      // is written.
+      const Pel* behind = src + j * srcStep;
+      for( int x = 0; x < width; x++ )
+      {
+        diff  [x] = behind[x] - before[x];
+        scaled[x] = before[x] * ( 1 << log2Factor ) + roundingOffset;
+        before[x] = behind[x];
+      }
+
+      Pel* dstLine = dst + j * upsmpFactor * width;
+      for( int i = 0; i < upsmpFactor; i++, dstLine += width )
+      {
+        for( int x = 0; x < width; x++ )
+        {
+          scaled[x] += diff[x];
+          dstLine[x] = scaled[x] >> log2Factor;
+        }
+      }
     }
   }
 
@@ -292,31 +359,9 @@ void PredictorMIP::boundaryDownsampling1D(Pel* reducedDst, const Pel* const full
     const int offset = ( 1 << ( MIP_SHIFT_MATRIX - 1 ) ) - MIP_OFFSET_MATRIX * sum;
     CHECK( inputSize != 4 * ( inputSize >> 2 ), "Error, input size not divisible by four" );
 
-    const uint8_t* weight      = matrix;
-    const int      inputOffset = transpose ? m_inputOffsetTransp : m_inputOffset;
+    const int inputOffset = transpose ? m_inputOffsetTransp : m_inputOffset;
 
-    const bool redSize = ( m_sizeId == 2 );
-    int        posRes  = 0;
-    for( int y = 0; y < m_reducedPredSize; y++ )
-    {
-      for( int x = 0; x < m_reducedPredSize; x++ )
-      {
-        int tmp0 = redSize ? 0 : ( input[0] * weight[0] );
-        int tmp1 = input[1] * weight[1 - redSize];
-        int tmp2 = input[2] * weight[2 - redSize];
-        int tmp3 = input[3] * weight[3 - redSize];
-        for( int i = 4; i < inputSize; i += 4 )
-        {
-          tmp0 += input[i    ] * weight[i     - redSize];
-          tmp1 += input[i + 1] * weight[i + 1 - redSize];
-          tmp2 += input[i + 2] * weight[i + 2 - redSize];
-          tmp3 += input[i + 3] * weight[i + 3 - redSize];
-        }
-        resPtr[posRes++] = ClipBD<int>( ( ( tmp0 + tmp1 + tmp2 + tmp3 + offset ) >> MIP_SHIFT_MATRIX ) + inputOffset, bitDepth );
-
-        weight += inputSize - redSize;
-      }
-    }
+    MatrixMul( resPtr, input, matrix, inputSize, m_reducedPredSize * m_reducedPredSize, m_sizeId == 2, offset, inputOffset, bitDepth );
 
     if( transpose )
     {

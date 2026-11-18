@@ -172,6 +172,19 @@ bool DecLibParser::parse( InputNALUnit& nalu )
         {                                              // multithreaded mode should see exceptions from the parse tasks later
           m_pcParsePic->parseDone.clearException();
         }
+        // the first slice failed before the picture was queued, but it is already in the DPB and can be referenced,
+        // so it needs to go through DecLib::sanitizeBrokenPicture() like any other broken picture
+        if( m_pcParsePic->progress == Picture::init )
+        {
+          m_parseFrameList.push_back( m_pcParsePic );
+          m_pcParsePic = nullptr;
+        }
+      }
+      // A picture that failed before it was started can't decode any of its slices, so its picture header is useless.
+      // A started picture keeps its picture header, so its remaining slices can still be decoded.
+      if( m_picHeader && !m_picHeader->getPic() )
+      {
+        m_picHeader.reset();
       }
 
       std::rethrow_exception( std::current_exception() );
@@ -311,6 +324,11 @@ void DecLibParser::failIncompleteParsePic()
 
   // reconstruction can already be waiting for CTUs, that will never be parsed, so the picture needs to be failed explicitly
   m_pcParsePic->setParseError( std::make_exception_ptr( RecoverableException( "the slices of the picture don't cover all CTUs" ) ) );
+  // only drop the picture header of the failed picture: an unused one belongs to the next picture, which starts now
+  if( m_picHeader && m_picHeader->getPic() == m_pcParsePic )
+  {
+    m_picHeader.reset();
+  }
   m_pcParsePic = nullptr;
 }
 
@@ -444,11 +462,11 @@ bool DecLibParser::xDecodeSliceHead( InputNALUnit& nalu )
     m_HLSReader.parseSliceHeader( m_apcSlicePilot, m_picHeader, &m_parameterSetManager, m_prevTid0POC, m_bFirstSliceInPicture );
   }
 
-  const PPS* pps = static_cast<const ParameterSetManager&>( m_parameterSetManager ).getPPS( m_apcSlicePilot->getPicHeader()->getPPSId() );
+  const PPS* pps = m_parameterSetManager.getPPS( m_apcSlicePilot->getPicHeader()->getPPSId() );
   CHECK( pps == 0, "No PPS present" );
-  const SPS* sps = static_cast<const ParameterSetManager&>( m_parameterSetManager ).getSPS( pps->getSPSId() );
+  const SPS* sps = m_parameterSetManager.getSPS( pps->getSPSId() );
   CHECK( sps == 0, "No SPS present" );
-  const VPS* vps = static_cast<const ParameterSetManager&>( m_parameterSetManager ).getVPS( sps->getVPSId() );
+  const VPS* vps = m_parameterSetManager.getVPS( sps->getVPSId() );
   CHECK( sps->getVPSId() > 0 && vps == 0, "Invalid VPS" );
   if( sps->getVPSId() == 0 && m_prevLayerID != MAX_INT )
   {
@@ -1074,6 +1092,13 @@ void DecLibParser::xActivateParameterSets( const int layerId )
     const APS*  lmcsAPS = paramSets.lmcsAps;
     const APS*  scalingListAPS = paramSets.scalingListAps;
 
+    // The subpicture layout of a PPS is derived when the PPS is parsed, from the SPS present then. If an SPS with the
+    // same id but a different number of subpictures arrived since, the PPS has to be sent again; its stale layout
+    // would be indexed with the subpictures of the new SPS.
+    CHECK( pps->getNumSubPics() != sps->getNumSubPics(),
+           "The PPS was parsed with an SPS with " << (int) pps->getNumSubPics() << " subpictures, but the active SPS has "
+           << (int) sps->getNumSubPics() << "; the PPS has to be sent again after an SPS that changes the subpictures" );
+
     xParsePrefixSEImessages();
 
     //  Get a new picture buffer
@@ -1306,13 +1331,13 @@ void DecLibParser::prepareUnavailablePicture( bool isLost, const PPS* pps, int i
     msg( INFO, "inserting unavailable poc : %d\n", iUnavailablePoc );
   }
   // use the parameter sets of the referencing picture, so the generated reference has a compatible buffer layout
-  const SPS* sps = static_cast<const ParameterSetManager&>( m_parameterSetManager ).getSPS( pps->getSPSId() );
+  const SPS* sps = m_parameterSetManager.getSPS( pps->getSPSId() );
   CHECK( !sps, "no SPS for unavailable reference picture" );
   Picture* cFillPic = m_picListManager.getNewPicBuffer( *sps, *pps, 0, layerId, m_parameterSetManager.getVPS( sps->getVPSId() ) );
   CHECK( std::find( m_dpbReferencePics.cbegin(), m_dpbReferencePics.cend(), cFillPic ) != m_dpbReferencePics.cend(), "reused picture shouldn't be in decoded picture buffer" );
   m_dpbReferencePics.push_back( cFillPic );
   const APS* nullAlfApss[ALF_CTB_MAX_NUM_APS] = { nullptr, };
-  cFillPic->finalInit( &m_cuChunkCache, &m_tuChunkCache, &m_cuMapCache, &m_chromaCuMapCache, sps, pps, m_picHeader, nullAlfApss, nullptr, nullptr, false );
+  cFillPic->finalInit( &m_cuChunkCache, &m_tuChunkCache, &m_cuMapCache, &m_chromaCuMapCache, sps, pps, nullptr, nullAlfApss, nullptr, nullptr );
 
   CHECK_FATAL( !cFillPic->slices.empty(), "fill pic should not contain slices, already." );
   cFillPic->allocateNewSlice();
@@ -1331,7 +1356,6 @@ void DecLibParser::prepareUnavailablePicture( bool isLost, const PPS* pps, int i
   cFillPic->poc                     = iUnavailablePoc;
   cFillPic->neededForOutput         = false;
   cFillPic->tempLayer               = temporalId;
-  cFillPic->nonReferencePictureFlag = false;
   cFillPic->wasLost                 = isLost;
 
   // a generated unavailable picture (8.3.4) precedes the current IRAP/GDR picture, so it can't be prevTid0Pic (8.3.1)
@@ -1551,7 +1575,10 @@ void DecLibParser::xDecodeVPS( InputNALUnit& nalu )
   std::unique_ptr<VPS> vps( new VPS() );
   m_HLSReader.setBitstream( &nalu.getBitstream() );
   m_HLSReader.parseVPS( vps.get() );
-  m_parameterSetManager.storeVPS( vps.release(), nalu.getBitstream().getFifo() );
+  if( m_parameterSetManager.storeVPS( vps.release(), nalu.getBitstream().getFifo() ) )
+  {
+    dropPendingPicHeader();
+  }
 #endif
 }
 
@@ -1580,7 +1607,13 @@ void DecLibParser::xDecodeSPS( InputNALUnit& nalu )
   m_HLSReader.parseSPS( sps.get(), &m_parameterSetManager );
   sps->setLayerId( nalu.m_nuhLayerId );
   DTRACE( g_trace_ctx, D_QP_PER_CTU, "CTU Size: %dx%d", sps->getMaxCUWidth(), sps->getMaxCUHeight() );  // don't move after storeSPS, because SPS could have been deleted
-  m_parameterSetManager.storeSPS( sps.release(), nalu.getBitstream().getFifo() );
+  if( m_parameterSetManager.storeSPS( sps.release(), nalu.getBitstream().getFifo() ) )
+  {
+    // SPS and PPS have to precede the PH of their PU (7.4.2.4.4). If one changes after a PH, that PH was parsed with
+    // the previous parameter set, so we drop it (but only if the PH was not used yet).
+    // Changes between slices of a picture are rejected when activating them.
+    dropPendingPicHeader();
+  }
 }
 
 void DecLibParser::xDecodePPS( InputNALUnit& nalu )
@@ -1589,7 +1622,13 @@ void DecLibParser::xDecodePPS( InputNALUnit& nalu )
   m_HLSReader.setBitstream( &nalu.getBitstream() );
   m_HLSReader.parsePPS( pps.get(), &m_parameterSetManager );
   pps->setLayerId( nalu.m_nuhLayerId );
-  m_parameterSetManager.storePPS( pps.release(), nalu.getBitstream().getFifo() );
+  if( m_parameterSetManager.storePPS( pps.release(), nalu.getBitstream().getFifo() ) )
+  {
+    // SPS and PPS have to precede the PH of their PU (7.4.2.4.4). If one changes after a PH, that PH was parsed with
+    // the previous parameter set, so we drop it (but only if the PH was not used yet).
+    // Changes between slices of a picture are rejected when activating them.
+    dropPendingPicHeader();
+  }
 }
 
 void DecLibParser::xDecodeAPS( InputNALUnit& nalu )
@@ -1615,7 +1654,6 @@ void DecLibParser::xUpdatePreviousTid0POC(Slice * pSlice)
   }
 }
 
-
 void DecLibParser::checkNoOutputPriorPics()
 {
   if( !m_isNoOutputPriorPics )
@@ -1629,6 +1667,15 @@ void DecLibParser::checkNoOutputPriorPics()
     {
       pcPicTmp->neededForOutput = false;
     }
+  }
+}
+
+void DecLibParser::dropPendingPicHeader()
+{
+  if( m_picHeader && !m_picHeader->getPic() )   // not used for a picture yet
+  {
+    msg( WARNING, "Warning: a parameter set was received after the picture header. Dropping the picture header.\n" );
+    m_picHeader.reset();
   }
 }
 

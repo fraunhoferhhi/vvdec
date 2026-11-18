@@ -341,7 +341,9 @@ void Quant::dequant( const TransformUnit& tu, CoeffBuf& dstCoeff, const Componen
                          + ( enableScalingLists ? LOG2_SCALING_LIST_NEUTRAL_VALUE : 0 );
 
   const int scaleQP   = g_InvQuantScales[needSqrtAdjustment ? 1 : 0][QP_rem];
-  const int scaleBits = ( IQUANT_SHIFT + 1 );
+  // with scaling lists, add SCALING_LIST_BITS to reduce inputMaximum, so the scaled coefficients don't overflow 32 bits
+  // in the left shift before clipping in DeQuantScaling() / DeQuantScalingPCM()
+  const int scaleBits = ( IQUANT_SHIFT + 1 ) + ( enableScalingLists ? SCALING_LIST_BITS : 0 );
 
   // from the dequantisation equation:
   // iCoeffQ                         = Intermediate_Int((int64_t(clipQCoef) * scale + iAdd) >> rightShift);

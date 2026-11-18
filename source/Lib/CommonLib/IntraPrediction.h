@@ -72,6 +72,9 @@ enum PredBuf
 
 static const uint32_t MAX_INTRA_FILTER_DEPTHS=8;
 
+// the C version of IntraPrediction::IntraPredAngPdpc, also used by the SIMD version for the rare steep angles
+void IntraPredAngPdpcCore( Pel* pDst, const ptrdiff_t dstStride, const Pel* refSide, const int width, const int height, const int invAngle, const int angularScale );
+
 class IntraPrediction
 {
 private:
@@ -139,11 +142,18 @@ public:
 
   void predBlendIntraCiip         (PelUnitBuf &predUnit, const CodingUnit &cu);
 
+  void ( *CiipBlend )                   ( Pel* dst, const ptrdiff_t dstStride, const Pel* intraPred, const ptrdiff_t intraStride, const int width, const int height, const int wMerge, const int wIntra );
+
   void ( *IntraPredAngleCore4 )         ( Pel* pDstBuf,const ptrdiff_t dstStride,Pel* refMain,int width,int height,int deltaPos,int intraPredAngle,const TFilterCoeff *ff,const bool useCubicFilter,const ClpRng& clpRng);
   void ( *IntraPredAngleCore8 )         ( Pel* pDstBuf,const ptrdiff_t dstStride,Pel* refMain,int width,int height,int deltaPos,int intraPredAngle,const TFilterCoeff *ff,const bool useCubicFilter,const ClpRng& clpRng);
 
+  void ( *IntraPredAngPdpc )            ( Pel* pDst, const ptrdiff_t dstStride, const Pel* refSide, const int width, const int height, const int invAngle, const int angularScale );
+
   void( *IntraPredAngleChroma4 )        ( int16_t* pDst, const ptrdiff_t dstStride, int16_t* pBorder, int width, int height, int deltaPos, int intraPredAngle );
   void( *IntraPredAngleChroma8 )        ( int16_t* pDst, const ptrdiff_t dstStride, int16_t* pBorder, int width, int height, int deltaPos, int intraPredAngle );
+
+  MipMatrixMulFunc   MipMatrixMul;      // the matrix multiplication used by m_matrixIntraPred
+  MipUpsampleHorFunc MipUpsampleHor;    // the horizontal upsampling used by m_matrixIntraPred
 
   void  ( *IntraPredSampleFilter8 )     ( Pel *ptrSrc,const ptrdiff_t  srcStride,PelBuf &piPred,const uint32_t uiDirMode,const ClpRng& clpRng );
   void  ( *IntraPredSampleFilter16 )    ( Pel *ptrSrc,const ptrdiff_t  srcStride,PelBuf &piPred,const uint32_t uiDirMode,const ClpRng& clpRng );
@@ -151,6 +161,8 @@ public:
   void  ( *IntraPredHorVerPdpc )        ( Pel* pDst, const ptrdiff_t dstStride, const Pel* refMain, const Pel* refSide, const int width, const int height, const int scale, const Pel topLeft, const ClpRng& clpRng );
 
   void ( *GetLumaRecPixel420 )          ( const int width,const int height, const Pel* pRecSrc0,const ptrdiff_t iRecStride,Pel* pDst0,const ptrdiff_t iDstStride );
+  void ( *GetLumaRecPixel420Collocated )( const int width, const int height, const Pel* pRecSrc0, const ptrdiff_t iRecStride, Pel* pDst0, const ptrdiff_t iDstStride );
+  void ( *GetLumaRecPixel420Left )      ( const int height, const Pel* pRecSrc0, const ptrdiff_t iRecStride, Pel* pDst, const ptrdiff_t iDstStride, const bool collocated );
 
 #if ENABLE_SIMD_OPT_INTRAPRED && defined( TARGET_SIMD_X86 )
   void initIntraPredictionX86();

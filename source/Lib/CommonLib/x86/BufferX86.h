@@ -1074,6 +1074,54 @@ void rspBcwCore_SIMD( Pel* ptr, ptrdiff_t ptrStride, int width, int height, cons
   }
 }
 
+// LMCS chroma residual scaling of 8 samples, as in scaleSignalCore(): the magnitude of the clipped residual is scaled in
+// 32 bit (the scale can exceed 16 bit), the sign restored, and packs saturates to 16 bit like the C code's clipping.
+static ALWAYS_INLINE __m128i scaleSignal8( const __m128i vSrc, const __m128i vMin, const __m128i vMax, const __m128i vScale )
+{
+  const __m128i vClipped = _mm_min_epi16( _mm_max_epi16( vSrc, vMin ), vMax );
+  const __m128i vAbs     = _mm_abs_epi16( vClipped );
+  const __m128i vRound   = _mm_set1_epi32( 1 << ( CSCALE_FP_PREC - 1 ) );
+
+  __m128i vLo = _mm_mullo_epi32( _mm_cvtepu16_epi32( vAbs ), vScale );
+  __m128i vHi = _mm_mullo_epi32( _mm_cvtepu16_epi32( _mm_srli_si128( vAbs, 8 ) ), vScale );
+  vLo = _mm_srai_epi32( _mm_add_epi32( vLo, vRound ), CSCALE_FP_PREC );
+  vHi = _mm_srai_epi32( _mm_add_epi32( vHi, vRound ), CSCALE_FP_PREC );
+  // the sign of the clipped residual; a residual of 0 stays 0
+  vLo = _mm_sign_epi32( vLo, _mm_cvtepi16_epi32( vClipped ) );
+  vHi = _mm_sign_epi32( vHi, _mm_cvtepi16_epi32( _mm_srli_si128( vClipped, 8 ) ) );
+  return _mm_packs_epi32( vLo, vHi );
+}
+
+template<X86_VEXT vext>
+void scaleSignal_SIMD( Pel* ptr, ptrdiff_t ptrStride, int width, int height, const int scale, const int bd )
+{
+  const __m128i vMin   = _mm_set1_epi16( -( 1 << bd ) );
+  const __m128i vMax   = _mm_set1_epi16( ( 1 << bd ) - 1 );
+  const __m128i vScale = _mm_set1_epi32( scale );
+
+  for( int y = 0; y < height; y++, ptr += ptrStride )
+  {
+    int x = 0;
+    for( ; x + 8 <= width; x += 8 )
+    {
+      _mm_storeu_si128( (__m128i*) &ptr[x], scaleSignal8( _mm_loadu_si128( (const __m128i*) &ptr[x] ), vMin, vMax, vScale ) );
+    }
+    if( x + 4 <= width )
+    {
+      _mm_storel_epi64( (__m128i*) &ptr[x], scaleSignal8( _mm_loadl_epi64( (const __m128i*) &ptr[x] ), vMin, vMax, vScale ) );
+      x += 4;
+    }
+    for( ; x < width; x++ )
+    {
+      // the 2 sample wide chroma blocks of 4:2:0
+      const int clipped = std::min( std::max<int>( ptr[x], -( 1 << bd ) ), ( 1 << bd ) - 1 );
+      const int sign    = clipped >= 0 ? 1 : -1;
+      const int val     = sign * ( ( sign * clipped * scale + ( 1 << ( CSCALE_FP_PREC - 1 ) ) ) >> CSCALE_FP_PREC );
+      ptr[x] = (Pel) std::min( std::max( val, -32768 ), 32767 );
+    }
+  }
+}
+
 template<X86_VEXT vext>
 void rspFwdCore_SIMD( Pel* ptr, ptrdiff_t ptrStride, int width, int height, const int bd, const Pel OrgCW, const Pel* LmcsPivot, const Pel* ScaleCoeff, const Pel* InputPivot )
 {
@@ -1351,6 +1399,78 @@ void fillN_CU_SIMD( CodingUnit** ptr, ptrdiff_t ptrStride, int width, int height
   }
 }
 #endif  // INTPTR_MAX == INT32_MAX
+
+// A MotionInfo takes 20 bytes, so std::fill_n() writes each entry with one 16 byte and one smaller store. Four entries
+// take 80 bytes, which are five 16 byte vectors (or eight entries five 32 byte vectors), so the rows are filled with the
+// vectors of that repeating pattern instead.
+template<X86_VEXT vext>
+void fillN_MotionInfo_SIMD( MotionInfo* ptr, ptrdiff_t ptrStride, int width, int height, const MotionInfo& val )
+{
+  static_assert( sizeof( MotionInfo ) == 20, "the store pattern assumes MotionInfo entries of 20 bytes" );
+
+  if( width == ptrStride )
+  {
+    width *= height;
+    height = 1;
+  }
+
+  if( width < 4 )
+  {
+    for( int y = 0; y < height; y++, ptr += ptrStride )
+    {
+      std::fill_n( ptr, width, val );
+    }
+    return;
+  }
+
+  // the bytes 0..15 and 16..19 of one entry
+  int32_t lastBytes;
+  memcpy( &lastBytes, reinterpret_cast<const char*>( &val ) + 16, sizeof( lastBytes ) );
+  const __m128i vFirst = _mm_loadu_si128( (const __m128i*) &val );
+  const __m128i vLast  = _mm_cvtsi32_si128( lastBytes );
+
+  // the 16 byte vectors at the byte offsets 0, 16, 32, 48 and 64 of four consecutive entries
+  const __m128i vPattern0 = vFirst;
+  const __m128i vPattern1 = _mm_or_si128( vLast, _mm_slli_si128( vFirst, 4 ) );
+  const __m128i vPattern2 = _mm_or_si128( _mm_or_si128( _mm_srli_si128( vFirst, 12 ), _mm_slli_si128( vLast, 4 ) ), _mm_slli_si128( vFirst, 8 ) );
+  const __m128i vPattern3 = _mm_or_si128( _mm_or_si128( _mm_srli_si128( vFirst, 8 ), _mm_slli_si128( vLast, 8 ) ), _mm_slli_si128( vFirst, 12 ) );
+  const __m128i vPattern4 = _mm_or_si128( _mm_srli_si128( vFirst, 4 ), _mm_slli_si128( vLast, 12 ) );
+
+#if USE_AVX2
+  // the 32 byte vectors of eight consecutive entries
+  const __m256i vPattern01 = _mm256_inserti128_si256( _mm256_castsi128_si256( vPattern0 ), vPattern1, 1 );
+  const __m256i vPattern23 = _mm256_inserti128_si256( _mm256_castsi128_si256( vPattern2 ), vPattern3, 1 );
+  const __m256i vPattern40 = _mm256_inserti128_si256( _mm256_castsi128_si256( vPattern4 ), vPattern0, 1 );
+  const __m256i vPattern12 = _mm256_inserti128_si256( _mm256_castsi128_si256( vPattern1 ), vPattern2, 1 );
+  const __m256i vPattern34 = _mm256_inserti128_si256( _mm256_castsi128_si256( vPattern3 ), vPattern4, 1 );
+#endif
+
+  for( int y = 0; y < height; y++, ptr += ptrStride )
+  {
+    int x = 0;
+#if USE_AVX2
+    for( ; x + 8 <= width; x += 8 )
+    {
+      __m256i* dst = reinterpret_cast<__m256i*>( ptr + x );
+      _mm256_storeu_si256( dst + 0, vPattern01 );
+      _mm256_storeu_si256( dst + 1, vPattern23 );
+      _mm256_storeu_si256( dst + 2, vPattern40 );
+      _mm256_storeu_si256( dst + 3, vPattern12 );
+      _mm256_storeu_si256( dst + 4, vPattern34 );
+    }
+#endif
+    for( ; x + 4 <= width; x += 4 )
+    {
+      __m128i* dst = reinterpret_cast<__m128i*>( ptr + x );
+      _mm_storeu_si128( dst + 0, vPattern0 );
+      _mm_storeu_si128( dst + 1, vPattern1 );
+      _mm_storeu_si128( dst + 2, vPattern2 );
+      _mm_storeu_si128( dst + 3, vPattern3 );
+      _mm_storeu_si128( dst + 4, vPattern4 );
+    }
+    std::fill_n( ptr + x, width - x, val );
+  }
+}
 
 template<X86_VEXT vext>
 void sampleRateConvSIMD_8tap( const std::pair<int, int> scalingRatio,
@@ -1899,10 +2019,12 @@ void PelBufferOps::_initPelBufOpsX86()
 
 #endif
   rspFwd = rspFwdCore_SIMD<vext>;
+  scaleSignal = scaleSignal_SIMD<vext>;
 
 #if INTPTR_MAX == INT64_MAX || INTPTR_MAX == INT32_MAX
   fillN_CU = fillN_CU_SIMD<vext>;
 #endif
+  fillN_MotionInfo = fillN_MotionInfo_SIMD<vext>;
 
   sampleRateConv = sampleRateConvSIMD<vext>;
 }

@@ -118,12 +118,12 @@ build_gcc5_ubuntu1804:
     CC: gcc-5
     CXX: g++-5
 
-build_gcc6_ubuntu1804:
-  extends: .build_only_template_full
-  image: $CI_REGISTRY/pub/dockerimages/ubuntu_1804_full:latest
-  variables:
-    CC: gcc-6
-    CXX: g++-6
+#build_gcc6_ubuntu1804: # disabled because of internal compiler error
+#  extends: .build_only_template_full
+#  image: $CI_REGISTRY/pub/dockerimages/ubuntu_1804_full:latest
+#  variables:
+#    CC: gcc-6
+#    CXX: g++-6
 
 build_gcc7_ubuntu2004:
   extends: .build_only_template_full

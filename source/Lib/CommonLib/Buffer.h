@@ -98,7 +98,9 @@ struct PelBufferOps
   void ( *applyLut )      (       Pel* ptr,  ptrdiff_t ptrStride, int width, int height, const Pel* lut );
   void ( *rspFwd )        (       Pel* ptr,  ptrdiff_t ptrStride, int width, int height, const int bd,                   const Pel OrgCW,  const Pel* LmcsPivot, const Pel* ScaleCoeff, const Pel* InputPivot );
   void ( *rspBcw )        (       Pel* ptr,  ptrdiff_t ptrStride, int width, int height, const int bd, const int minBin, const int maxBin, const Pel* LmcsPivot, const Pel* InvScCoeff, const Pel* InputPivot );
+  void ( *scaleSignal )   (       Pel* ptr,  ptrdiff_t ptrStride, int width, int height, const int scale, const int bd );
   void ( *fillN_CU )      (       CodingUnit** ptr, ptrdiff_t ptrStride, int width, int height, CodingUnit* cuPtr );
+  void ( *fillN_MotionInfo )(     MotionInfo*  ptr, ptrdiff_t ptrStride, int width, int height, const MotionInfo& val );
 
   void (*sampleRateConv)  ( const std::pair<int, int> scalingRatio, const std::pair<int, int> compScale,
                             const Pel* orgSrc, const ptrdiff_t orgStride, const int orgWidth, const int orgHeight,
