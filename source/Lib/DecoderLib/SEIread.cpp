@@ -509,6 +509,7 @@ void SEIReader::xParseSEIScalableNesting(vvdecSEI* s, const NalUnitType nalUnitT
     for (uint32_t i = 0; i < sei->snNumOlss; i++)
     {
       sei_read_uvlc(decodedMessageOutputStream, symbol, "sn_ols_idx_delta_minus1[i]"); sei->snOlsIdxDelta[i] = symbol+1;
+      CHECK( vps && vps->getVPSId() != 0 && sei->snOlsIdxDelta[i] >= (uint32_t) vps->getTotalNumOLSs(),"sn_ols_idx_delta_minus1 must be <= TotalNumOlss - 2 in vvdecSEIScalableNesting" );
     }
     for (uint32_t i = 0; i < sei->snNumOlss; i++)
     {
@@ -527,6 +528,7 @@ void SEIReader::xParseSEIScalableNesting(vvdecSEI* s, const NalUnitType nalUnitT
       uint32_t lowestLayerId = MAX_UINT;
       for (uint32_t olsIdxForSEI = 0; olsIdxForSEI < sei->snNumOlss; olsIdxForSEI++)
       {
+        CHECK( sei->snOlsIdx[olsIdxForSEI] >= (uint32_t) vps->getTotalNumOLSs(), "NestingOlsIdx must be < TotalNumOlss in vvdecSEIScalableNesting" );
         int olsIdx = sei->snOlsIdx[olsIdxForSEI];
         for (int layerIdx = 0; layerIdx < vps->getNumLayersInOls(olsIdx); layerIdx++)
         {
