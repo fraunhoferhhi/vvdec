@@ -174,6 +174,8 @@ void SEIReader::xReadSEImessage( seiMessages& seiList, const NalUnitType nalUnit
     CHECK( payloadType > INT32_MAX - 0xff, "SEI payload_type too large" );
     payloadType += val;
   } while (val==0xFF);
+  // values outside the enum's range (-256..255) are UB to cast
+  const vvdecSEIPayloadType type = payloadType <= 255 ? (vvdecSEIPayloadType) payloadType : VVDEC_SEI_UNKNOWN;
 
   uint32_t payloadSize = 0;
   do
@@ -185,7 +187,7 @@ void SEIReader::xReadSEImessage( seiMessages& seiList, const NalUnitType nalUnit
   CHECK( payloadSize > getBitstream()->getNumBitsLeft() / 8, "SEI payload_size exceeds the remaining NAL unit size" );
 
 #if ENABLE_TRACING
-  xTraceSEIMessageType((vvdecSEIPayloadType)payloadType);
+  xTraceSEIMessageType(type);
 #endif
 
   /* extract the payload for this single SEI message.
@@ -201,7 +203,6 @@ void SEIReader::xReadSEImessage( seiMessages& seiList, const NalUnitType nalUnit
   const vvdecSEIBufferingPeriod *bp = NULL;
 
   vvdecSEI *s = NULL;
-  vvdecSEIPayloadType type = (vvdecSEIPayloadType)payloadType;
 
   try
   {
