@@ -160,7 +160,8 @@ void SEIReader::parseSEImessage(InputBitstream* bs, seiMessages& seiList,
 }
 
 void SEIReader::xReadSEImessage( seiMessages& seiList, const NalUnitType nalUnitType, const uint32_t nuh_layer_id,
-                                const uint32_t temporalId, const VPS *vps, const SPS *sps, HRD &hrd, std::ostream *pDecodedMessageOutputStream)
+                                const uint32_t temporalId, const VPS *vps, const SPS *sps, HRD &hrd, std::ostream *pDecodedMessageOutputStream,
+                                const bool nested)
 {
 #if ENABLE_TRACING
   xTraceSEIHeader();
@@ -259,6 +260,8 @@ void SEIReader::xReadSEImessage( seiMessages& seiList, const NalUnitType nalUnit
         }
         break;
       case VVDEC_SCALABLE_NESTING:
+          // reject here already instead of in xCheckScalableNestingConstraints() to prevent recursion
+          CHECK( nested, "An SEI message that has payloadType equal to scalable nesting shall not be contained in a scalable nesting SEI message" );
           s = SEI_internal::allocSEI( type ) ;
           xParseSEIScalableNesting(s, nalUnitType, nuh_layer_id, payloadSize, vps, sps, pDecodedMessageOutputStream);
         break;
@@ -359,6 +362,8 @@ void SEIReader::xReadSEImessage( seiMessages& seiList, const NalUnitType nalUnit
           xParseSEIDecodedPictureHash(s, payloadSize, pDecodedMessageOutputStream);
           break;
         case VVDEC_SCALABLE_NESTING:
+          // reject here already instead of in xCheckScalableNestingConstraints() to prevent recursion
+          CHECK( nested, "An SEI message that has payloadType equal to scalable nesting shall not be contained in a scalable nesting SEI message" );
           s = SEI_internal::allocSEI( type ) ;
           xParseSEIScalableNesting(s, nalUnitType, nuh_layer_id, payloadSize, vps, sps, pDecodedMessageOutputStream);
           break;
@@ -586,7 +591,7 @@ void SEIReader::xParseSEIScalableNesting(vvdecSEI* s, const NalUnitType nalUnitT
   for (uint32_t i=0; i<sei->snNumSEIs; i++)
   {
     seiMessages tmpSeiList;
-    xReadSEImessage(tmpSeiList, nalUnitType, nuhLayerId, 0, vps, sps, m_nestedHrd, decodedMessageOutputStream);
+    xReadSEImessage(tmpSeiList, nalUnitType, nuhLayerId, 0, vps, sps, m_nestedHrd, decodedMessageOutputStream, true);
     CHECK( tmpSeiList.empty(), "read empty nested sei list." );
 
     sei->nestedSEIs[i] = tmpSeiList.front();

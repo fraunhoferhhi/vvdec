@@ -68,7 +68,7 @@ public:
                        const VPS *vps, const SPS *sps, HRD &hrd, std::ostream *pDecodedMessageOutputStream);
 
 protected:
-  void xReadSEImessage                        (seiMessages& seiList, const NalUnitType nalUnitType, const uint32_t nuh_layer_id, const uint32_t temporalId, const VPS *vps, const SPS *sps, HRD &hrd, std::ostream *pDecodedMessageOutputStream);
+  void xReadSEImessage                        (seiMessages& seiList, const NalUnitType nalUnitType, const uint32_t nuh_layer_id, const uint32_t temporalId, const VPS *vps, const SPS *sps, HRD &hrd, std::ostream *pDecodedMessageOutputStream, const bool nested = false);
   void xParseSEIuserDataUnregistered          (vvdecSEI* s,    uint32_t payloadSize,                     std::ostream *pDecodedMessageOutputStream);
   void xParseSEIDecodingUnitInfo              (vvdecSEI* s,    uint32_t payloadSize, const vvdecSEIBufferingPeriod& bp, const uint32_t temporalId, std::ostream *pDecodedMessageOutputStream);
   void xParseSEIDecodedPictureHash            (vvdecSEI* s,    uint32_t payloadSize,                     std::ostream *pDecodedMessageOutputStream);
