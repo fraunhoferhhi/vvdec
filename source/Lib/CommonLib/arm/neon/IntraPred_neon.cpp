@@ -193,6 +193,65 @@ static void IntraPredAngleCore_neon( int16_t* pDstBuf, const ptrdiff_t dstStride
   }
 }
 
+// Pure vertical prediction with PDPC, see IntraPredHorVerPdpcCore().
+static void IntraPredHorVerPdpc_neon( Pel* pDst, const ptrdiff_t dstStride, const Pel* refMain, const Pel* refSide,
+                                       const int width, const int height, const int scale, const Pel topLeft, const ClpRng& clpRng )
+{
+  const int numWeighted = std::min( 3 << scale, width );
+  CHECKD( numWeighted > 32, "PDPC weights do not fit" );
+
+  int16_t weights[32] = { 0 };
+  for( int x = 0; x < numWeighted; x++ )
+  {
+    weights[x] = ( int16_t )( ( 32 >> std::min( 31, ( x << 1 ) >> scale ) ) << 9 );
+  }
+
+  const Pel* ref = refMain + 1;
+
+  if( width == 4 )
+  {
+    const int16x4_t vref = vld1_s16( ref );
+    const int16x4_t vw   = vld1_s16( weights );
+    const int16x4_t vmin = vdup_n_s16( clpRng.min() );
+    const int16x4_t vmax = vdup_n_s16( clpRng.max() );
+
+    for( int y = 0; y < height; y++ )
+    {
+      const int16x4_t diff = vdup_n_s16( ( int16_t )( refSide[y + 1] - topLeft ) );
+      int16x4_t       val  = vadd_s16( vref, vqrdmulh_s16( diff, vw ) );
+                      val  = vmin_s16( vmax_s16( val, vmin ), vmax );
+      vst1_s16( pDst + y * dstStride, val );
+    }
+    return;
+  }
+
+  CHECKD( width & 7, "unsupported block width" );
+
+  const int weightedEnd = ( numWeighted + 7 ) & ~7;
+
+  const int16x8_t vmin = vdupq_n_s16( clpRng.min() );
+  const int16x8_t vmax = vdupq_n_s16( clpRng.max() );
+
+  for( int y = 0; y < height; y++ )
+  {
+    const int16x8_t diff = vdupq_n_s16( ( int16_t )( refSide[y + 1] - topLeft ) );
+    Pel*            line = pDst + y * dstStride;
+
+    for( int x = 0; x < weightedEnd; x += 8 )
+    {
+      int16x8_t val = vld1q_s16( &ref[x] );
+                val = vaddq_s16( val, vqrdmulhq_s16( diff, vld1q_s16( &weights[x] ) ) );
+                val = vminq_s16( vmaxq_s16( val, vmin ), vmax );
+      vst1q_s16( &line[x], val );
+    }
+
+    if( weightedEnd < width )
+    {
+      memcpy( &line[weightedEnd], &ref[weightedEnd], ( width - weightedEnd ) * sizeof( Pel ) );
+    }
+  }
+}
+
 template<>
 void IntraPrediction::_initIntraPredictionARM<NEON>()
 {
@@ -200,6 +259,7 @@ void IntraPrediction::_initIntraPredictionARM<NEON>()
   IntraPredAngleChroma8 = IntraPredAngleChroma_neon<8>;
   IntraPredAngleCore4   = IntraPredAngleCore_neon<4>;
   IntraPredAngleCore8   = IntraPredAngleCore_neon<8>;
+  IntraPredHorVerPdpc   = IntraPredHorVerPdpc_neon;
 }
 
 } // namespace vvdec
