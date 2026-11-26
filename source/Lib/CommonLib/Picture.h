@@ -237,6 +237,7 @@ public:
   int         layerId      = NOT_VALID;
   NalUnitType eNalUnitType = NAL_UNIT_INVALID;
   uint32_t    bits         = 0;   // input nal bit count
+  uint32_t    grainSeed    = 0;   // film grain seed from the POC LSB and the slice NAL units: this picture's data only
   bool        rap          = 0;   // random access point flag
   void       *userData     = nullptr;      ///< opaque user data
   int         decodingOrderNumber = 0;
