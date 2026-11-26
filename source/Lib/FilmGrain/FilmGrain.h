@@ -89,10 +89,6 @@ class FilmGrain
 {
   std::unique_ptr<FilmGrainImpl> m_impl;
 
-  uint32_t m_line_rnd               = 0xdeadbeef;
-  uint32_t m_line_rnd_up            = 0xdeadbeef;
-  uint32_t m_prev_frame_line_rnd_up = 0xdeadbeef;
-
   std::vector<uint32_t> m_line_seeds;
   fgs_sei               fgs;   // as signalled; init_sei adapts the chroma values to the chroma format
   bool                  m_fgsReceived = false;
@@ -107,12 +103,13 @@ public:
   void updateFGC( vvdecSEIFilmGrainCharacteristics* fgc );
   void setDepth( int depth ) { m_impl->set_depth( depth ); }
   void setColorFormat( vvdecColorFormat fmt );
-  void prepareBlockSeeds( int width, int height );
+  // pictureSeed: from the picture's own coded data (Picture::grainSeed), so its grain does not depend on the
+  // pictures decoded before it
+  void prepareBlockSeeds( int width, int height, uint32_t pictureSeed );
 
   void add_grain_line( void* Y, void* U, void* V, int y, int width );
 
 private:
-  void set_seed( uint32_t seed );
   void init_sei();
 };
 

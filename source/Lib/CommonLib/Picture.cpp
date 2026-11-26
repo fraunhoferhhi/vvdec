@@ -152,6 +152,7 @@ void Picture::resetForUse( int _layerId )
   layerId             = _layerId;
   eNalUnitType        = NAL_UNIT_INVALID;
   bits                = 0;
+  grainSeed           = 0;
   rap                 = 0;
   userData            = nullptr;
   decodingOrderNumber = 0;

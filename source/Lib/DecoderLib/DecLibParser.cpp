@@ -49,6 +49,7 @@ POSSIBILITY OF SUCH DAMAGE.
 #include "UnitTools.h"
 #include "Utilities/ThreadPool.h"
 
+#include <cstring>
 #include <unordered_map>
 #include <utility>
 
@@ -75,6 +76,28 @@ extern __itt_string_handle* itt_handle_start;
 #endif
 
 static const int INIT_POC = -MAX_INT;
+
+// Folds a slice NAL unit and its picture's POC LSB into the picture's film grain seed (FNV-1a, on 8-byte words for
+// speed), so the seed depends only on the picture's own coded data: the POC MSB is left out because it depends on
+// where decoding started. The POC LSB is folded in explicitly because the picture header may be a NAL unit of its own.
+static uint32_t hashSliceNalu( uint32_t seed, int pocLsb, const AlignedByteVec& nalu )
+{
+  constexpr uint64_t FNV_PRIME = 0x100000001b3;
+
+  uint64_t hash = ( 0xcbf29ce484222325 ^ seed ^ ( uint64_t( pocLsb ) << 32 ) ) * FNV_PRIME;
+  size_t   pos  = 0;
+  for( ; pos + 8 <= nalu.size(); pos += 8 )
+  {
+    uint64_t word;
+    memcpy( &word, &nalu[pos], 8 );
+    hash = ( hash ^ word ) * FNV_PRIME;
+  }
+  for( ; pos < nalu.size(); pos++ )
+  {
+    hash = ( hash ^ nalu[pos] ) * FNV_PRIME;
+  }
+  return uint32_t( hash ^ ( hash >> 32 ) );
+}
 
 DecLibParser::~DecLibParser()
 {
@@ -752,6 +775,7 @@ bool DecLibParser::xDecodeSliceMain( InputNALUnit& nalu )
   m_pcParsePic->rap              = nalu.m_rap;
   m_pcParsePic->userData         = nalu.m_userData;
   m_pcParsePic->bits            += nalu.m_bits + m_nonVCLbits;
+  m_pcParsePic->grainSeed        = hashSliceNalu( m_pcParsePic->grainSeed, pcSlice->getPicHeader()->getPocLsb(), nalu.getBitstream().getFifo() );
   m_pcParsePic->layerId          = nalu.m_nuhLayerId;
   m_pcParsePic->subLayerNonReferencePictureDueToSTSA = false;
 

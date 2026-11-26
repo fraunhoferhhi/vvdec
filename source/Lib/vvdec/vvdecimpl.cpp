@@ -901,7 +901,7 @@ void VVDecImpl::xUpdateFGC( vvdecSEI* s )
   m_filmGrainCharacteristicsState = sei->filmGrainCharacteristicsPersistenceFlag ? FgcPersist : FgcDontPersist;
 }
 
-void VVDecImpl::xAddGrain( vvdecFrame* frame )
+void VVDecImpl::xAddGrain( vvdecFrame* frame, uint32_t seed )
 {
   if( m_filmGrainCharacteristicsState == FgcNone )
   {
@@ -910,7 +910,7 @@ void VVDecImpl::xAddGrain( vvdecFrame* frame )
 
   m_filmGrainSynth->setDepth( frame->bitDepth );
   m_filmGrainSynth->setColorFormat( frame->colorFormat );
-  m_filmGrainSynth->prepareBlockSeeds( frame->planes[0].width, frame->planes[0].height );
+  m_filmGrainSynth->prepareBlockSeeds( frame->planes[0].width, frame->planes[0].height, seed );
 
   struct GrainTaskData
   {
@@ -1206,7 +1206,7 @@ int VVDecImpl::xAddPicture( Picture* pcPic )
   // Grain synthesis
   if( m_enableFilmGrain && m_filmGrainCharacteristicsState != FgcNone )
   {
-    xAddGrain( &cFrame );
+    xAddGrain( &cFrame, pcPic->grainSeed );
   }
 
   m_rcFrameList.emplace_back( cFrame, bCreateStorage ? nullptr : pcPic );

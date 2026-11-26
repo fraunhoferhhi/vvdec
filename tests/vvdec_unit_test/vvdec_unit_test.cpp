@@ -3646,7 +3646,7 @@ static std::vector<Pel> add_grain_to_flat_picture( FilmGrain& filmGrain, vvdecCo
 
   filmGrain.setDepth( bitDepth );
   filmGrain.setColorFormat( format );
-  filmGrain.prepareBlockSeeds( width, height );
+  filmGrain.prepareBlockSeeds( width, height, 0xdeadbeef );
   for( int y = 0; y < height; y++ )
   {
     const int chromaRow = format == VVDEC_CF_YUV420_PLANAR ? y / 2 : y;

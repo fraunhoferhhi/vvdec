@@ -183,7 +183,7 @@ private:
                                      bool               origStride = false );
 
   void xUpdateFGC                  ( vvdecSEI *sei );
-  void xAddGrain                   ( vvdecFrame *frame );
+  void xAddGrain                   ( vvdecFrame *frame, uint32_t seed );
 
   static int xRetrieveNalStartCode ( unsigned char *pB, int iZerosInStartcode );
   static int xConvertPayloadToRBSP ( const uint8_t* payload, size_t payloadLen, InputBitstream* bitstream, bool isVclNalUnit );
