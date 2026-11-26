@@ -435,9 +435,14 @@ bool DecLibParser::xDecodeSliceHead( InputNALUnit& nalu )
   if( m_bFirstSliceInPicture )
   {
     failIncompleteParsePic();   // a new picture starts, but the previous one was never completed
+    // the slice header was parsed with the picture header of the failed picture, which was just dropped:
+    CHECK( !m_picHeader, "Picture Header missing" );
+    // a PH belongs to exactly one picture: a new picture needs a new PH (7.4.2.4.4) so the PH should not have a
+    // picture assigned yet:
+    CHECK( m_picHeader->getPic(), "stale Picture Header" );
 
     m_uiSliceSegmentIdx = 0;
-    m_apcSlicePilot->setPicHeader   ( m_picHeader.get() );
+    m_apcSlicePilot->setPicHeader( m_picHeader.get() );
   }
   else // if it turns out, this was not the first slice in the picture, we need to parse the header again
   {
