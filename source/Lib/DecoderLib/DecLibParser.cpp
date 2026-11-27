@@ -823,17 +823,7 @@ bool DecLibParser::xDecodeSliceMain( InputNALUnit& nalu )
   {
     m_pcParsePic->setDecodingOrderNumber( m_decodingOrderCounter );
     m_decodingOrderCounter++;
-
-    pcSlice->getPic()->subPictures.clear();
-    pcSlice->getPic()->sliceSubpicIdx.clear();
-
-    for( int subPicIdx = 0; subPicIdx < pcSlice->getSPS()->getNumSubPics(); subPicIdx++ )
-    {
-      pcSlice->getPic()->subPictures.push_back( pcSlice->getPPS()->getSubPic( subPicIdx ) );
-    }
   }
-
-  pcSlice->getPic()->sliceSubpicIdx.push_back(pcSlice->getPPS()->getSubPicIdxFromSubPicId(pcSlice->getSliceSubPicId()));
 
   // When decoding the slice header, the stored start and end addresses were actually RS addresses, not TS addresses.
   // Now, having set up the maps, convert them to the correct form.
@@ -1104,6 +1094,15 @@ void DecLibParser::xActivateParameterSets( const int layerId )
     m_pcParsePic = m_picListManager.getNewPicBuffer( *sps, *pps, m_apcSlicePilot->getTLayer(), layerId, m_parameterSetManager.getVPS( sps->getVPSId() ) );
     CHECK( std::find( m_dpbReferencePics.cbegin(), m_dpbReferencePics.cend(), m_pcParsePic ) != m_dpbReferencePics.cend(), "reused picture shouldn't be in decoded picture buffer" );
     m_dpbReferencePics.push_back( m_pcParsePic );
+
+    CHECK_FATAL( !m_pcParsePic->subPictures.empty(), "the subpictures vector should be empty at this point" );
+    // the picture is in the DPB now and stays referenceable even if a check below fails its first slice,
+    // so set up its subpicture layout before any of those checks
+    for( int subPicIdx = 0; subPicIdx < sps->getNumSubPics(); subPicIdx++ )
+    {
+      m_pcParsePic->subPictures.push_back( pps->getSubPic( subPicIdx ) );
+    }
+
     // assign these fields already, because they are needed by PicListManager::getPicListRange() and Slice::applyReferencePictureSet()
     m_pcParsePic->poc          = m_apcSlicePilot->getPOC();
     m_pcParsePic->eNalUnitType = m_apcSlicePilot->getNalUnitType();
@@ -1366,8 +1365,6 @@ void DecLibParser::prepareUnavailablePicture( bool isLost, const PPS* pps, int i
   }
 
   cFillPic->subPictures.clear();
-  cFillPic->sliceSubpicIdx.clear();
-
   for( int subPicIdx = 0; subPicIdx < pps->getNumSubPics(); subPicIdx++ )
   {
     cFillPic->subPictures.push_back( pps->getSubPic( subPicIdx ) );
