@@ -823,11 +823,7 @@ bool DecLibParser::xDecodeSliceMain( InputNALUnit& nalu )
   {
     m_pcParsePic->setDecodingOrderNumber( m_decodingOrderCounter );
     m_decodingOrderCounter++;
-
-    pcSlice->getPic()->sliceSubpicIdx.clear();
   }
-
-  pcSlice->getPic()->sliceSubpicIdx.push_back(pcSlice->getPPS()->getSubPicIdxFromSubPicId(pcSlice->getSliceSubPicId()));
 
   // When decoding the slice header, the stored start and end addresses were actually RS addresses, not TS addresses.
   // Now, having set up the maps, convert them to the correct form.
@@ -1369,8 +1365,6 @@ void DecLibParser::prepareUnavailablePicture( bool isLost, const PPS* pps, int i
   }
 
   cFillPic->subPictures.clear();
-  cFillPic->sliceSubpicIdx.clear();
-
   for( int subPicIdx = 0; subPicIdx < pps->getNumSubPics(); subPicIdx++ )
   {
     cFillPic->subPictures.push_back( pps->getSubPic( subPicIdx ) );

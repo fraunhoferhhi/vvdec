@@ -156,7 +156,6 @@ void Picture::resetForUse( int _layerId )
   userData            = nullptr;
   decodingOrderNumber = 0;
 
-  sliceSubpicIdx.clear();
   subPictures.clear();
 
   subLayerNonReferencePictureDueToSTSA = 0;

@@ -241,7 +241,6 @@ public:
   void       *userData     = nullptr;      ///< opaque user data
   int         decodingOrderNumber = 0;
 
-  std::vector<int>        sliceSubpicIdx;
   std::vector<SubPic>     subPictures;
   std::vector<PelStorage> m_subPicRefBufs;   // used as reference for subpictures, that are treated as pictures
   // SubPicExtTasks need to live as long as the buffers they point to. The tasks can still be pending,
